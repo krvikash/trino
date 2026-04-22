@@ -13,6 +13,7 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.fasterxml.jackson.core.JsonPointer;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -28,6 +29,7 @@ import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoderFactor
 import com.starburstdata.plugin.openapi.conversions.encoder.OpenApiParameterHandle;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
+import com.starburstdata.plugin.openapi.pagination.ReadOnceStrategy;
 import io.airlift.log.Logger;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -41,7 +43,10 @@ import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import io.trino.spi.TrinoException;
 import io.trino.spi.function.table.ConnectorTableFunction;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.Type;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -63,6 +68,8 @@ import static java.util.Objects.requireNonNull;
 public class OpenApiSpec
 {
     private static final Logger log = Logger.get(OpenApiSpec.class);
+
+    private static final ReadOnceStrategy READ_ONCE_STRATEGY = new ReadOnceStrategy();
 
     public static final String SCHEMA_NAME = "default";
     public static final String HTTP_OK = "200";
@@ -371,9 +378,61 @@ public class OpenApiSpec
         return pathMetadata.get(path).authenticator();
     }
 
-    public OpenApiPaginationStrategy<?> getPaginationStrategy(String path)
+    public OpenApiPaginationStrategy<?> getPaginationStrategy(OpenApiRequestTableHandle requestTableHandle)
     {
-        return pathMetadata.get(path).paginationStrategy();
+        String path = requestTableHandle.path();
+        OpenApiPaginationStrategy<?> paginationStrategy = pathMetadata.get(path).paginationStrategy();
+
+        List<OpenApiColumnHandle> columnHandles = pathMetadata.get(path).decoder().getColumnHandles();
+        List<String> providedParameters = requestTableHandle.providedParameters();
+        Set<String> paginationStrategyParameterNames = paginationStrategy.getParameterNames();
+        if (new HashSet<>(requestTableHandle.parameterNames()).containsAll(paginationStrategyParameterNames)
+                && Collections.disjoint(paginationStrategyParameterNames, providedParameters)
+                && responseContainsRequiredResponseFieldJsonPointers(columnHandles, paginationStrategy.requiredResponseColumnsPaths())) {
+            // return the configured pagination strategy only if none of the pagination strategy
+            // parameters are provided by the user and all required response column paths are present
+            return paginationStrategy;
+        }
+
+        return READ_ONCE_STRATEGY;
+    }
+
+    private boolean responseContainsRequiredResponseFieldJsonPointers(List<OpenApiColumnHandle> columnHandles, Set<JsonPointer> requiredResponseFieldJsonPointers)
+    {
+        if (requiredResponseFieldJsonPointers.isEmpty()) {
+            return true;
+        }
+
+        for (JsonPointer pointer : requiredResponseFieldJsonPointers) {
+            // "/paging/next" -> ["", "paging", "next"]; skip segments[0] (empty, before leading '/')
+            String[] segments = pointer.toString().split("/", -1);
+            if (segments.length <= 1) {
+                continue; // empty pointer refers to root — always present
+            }
+            String topLevel = segments[1];
+            Optional<OpenApiColumnHandle> column = columnHandles.stream()
+                    .filter(handle -> handle.name().equals(topLevel))
+                    .findFirst();
+            if (column.isEmpty()) {
+                return false;
+            }
+            Type columnType = column.get().type();
+            for (int i = 2; i < segments.length; i++) {
+                if (!(columnType instanceof RowType rowType)) {
+                    return false;
+                }
+                String segment = segments[i];
+                Optional<RowType.Field> field = rowType.getFields().stream()
+                        .filter(f -> f.getName().filter(segment::equals).isPresent())
+                        .findFirst();
+                if (field.isEmpty()) {
+                    return false;
+                }
+                columnType = field.get().getType();
+            }
+        }
+
+        return true;
     }
 
     public OpenApiDecoder getDecoder(String path)

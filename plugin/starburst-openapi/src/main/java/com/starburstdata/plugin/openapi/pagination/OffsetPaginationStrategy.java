@@ -11,10 +11,12 @@ package com.starburstdata.plugin.openapi.pagination;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static java.util.Objects.requireNonNull;
@@ -73,6 +75,12 @@ public class OffsetPaginationStrategy
     public boolean isFinished(OffsetState state)
     {
         return state.finished();
+    }
+
+    @Override
+    public Set<String> getParameterNames()
+    {
+        return ImmutableSet.of(offsetParameterName);
     }
 
     public record OffsetState(long offset, long pageSize, boolean finished) {}

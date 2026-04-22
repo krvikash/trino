@@ -18,6 +18,7 @@ import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoder;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
+import io.airlift.http.client.HeaderNames;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.net.MediaType.JSON_UTF_8;
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_AUTHORIZATION_ERROR;
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_GENERIC_EXTERNAL_ERROR;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
@@ -66,7 +68,7 @@ public class OpenApiPageSource<S>
     public OpenApiPageSource(
             HttpClient httpClient,
             OpenApiPaginationStrategy<S> paginationStrategy,
-            Request initialRequest,
+            OpenApiRequestTableHandle requestTableHandle,
             OpenApiDecoder decoder,
             List<ColumnHandle> columnHandles,
             ObjectMapper objectMapper,
@@ -75,7 +77,8 @@ public class OpenApiPageSource<S>
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.paginationStrategy = requireNonNull(paginationStrategy, "paginationStrategy is null");
         this.currentState = paginationStrategy.initialState();
-        this.nextRequest = requireNonNull(initialRequest, "initialRequest is null");
+        requireNonNull(requestTableHandle, "requestTableHandle is null");
+        this.nextRequest = toInitialRequest(requestTableHandle);
         this.decoder = requireNonNull(decoder, "decoder is null");
         this.columnHandles = ImmutableList.copyOf(columnHandles);
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
@@ -87,6 +90,21 @@ public class OpenApiPageSource<S>
                         ? Duration.ofMillis(e.retryAfterMillis())
                         : Duration.ofMillis(DEFAULT_RETRY_AFTER_MILLIS))
                 .build();
+    }
+
+    private Request toInitialRequest(OpenApiRequestTableHandle handle)
+    {
+        return paginationStrategy.nextRequestFromState(Request.builder()
+                        .setMethod("GET")
+                        .setUri(handle.uri())
+                        // Jetty caps redirect chains at 8 by default; exceeding it throws an exception
+                        // that surfaces through ReadFromJson.handleException rather than looping forever.
+                        .setFollowRedirects(true)
+                        .addHeader(HeaderNames.USER_AGENT, "starburst-openapi")
+                        .addHeader(HeaderNames.CONTENT_TYPE, JSON_UTF_8.toString())
+                        .addHeader(HeaderNames.ACCEPT, JSON_UTF_8.toString())
+                        .build(),
+                paginationStrategy.initialState());
     }
 
     private class ReadFromJson
@@ -190,13 +208,16 @@ public class OpenApiPageSource<S>
             OpenApiResult<S> result = getFutureValue(pageFuture);
             currentState = result.newPaginationState();
             currentIterator = result.pageIterator();
-            if (!isFinished()) {
+            if (!paginationStrategy.isFinished(currentState)) {
+                pageFuture = null;
                 nextRequest = paginationStrategy.nextRequestFromState(nextRequest, currentState);
+            }
+            if (currentIterator.hasNext()) {
                 return currentIterator.next();
             }
         }
 
-        if (pageFuture == null) {
+        if (!isFinished() && pageFuture == null) {
             pageFuture = nextFuture();
         }
         return null;

@@ -11,9 +11,12 @@ package com.starburstdata.plugin.openapi.pagination;
 
 import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.trino.spi.TrinoException;
+
+import java.util.Set;
 
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_GENERIC_EXTERNAL_ERROR;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
@@ -76,6 +79,12 @@ public class PageNumberPaginationStrategy
     public boolean isFinished(PageState state)
     {
         return state.finished();
+    }
+
+    @Override
+    public Set<String> getParameterNames()
+    {
+        return ImmutableSet.of(pageParameterName);
     }
 
     public record PageState(long nextPage, boolean finished) {}

@@ -16,6 +16,7 @@ import io.airlift.http.client.Response;
 
 import java.net.URI;
 import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -78,6 +79,12 @@ public class NextUrlFieldPaginationStrategy
     public boolean isFinished(NextUrlState state)
     {
         return state.finished();
+    }
+
+    @Override
+    public Set<JsonPointer> requiredResponseColumnsPaths()
+    {
+        return Set.of(nextUrlFieldJsonPointer);
     }
 
     public record NextUrlState(Optional<String> nextUrl, boolean finished) {}

@@ -105,7 +105,7 @@ class OpenApiRequestTableFunction
                 identifierToParameterHandle.keySet().containsAll(arguments.keySet()),
                 "Argument given that doesn't match known parameters");
 
-        ImmutableMap.Builder<OpenApiParameterHandle, SerializedValue> parameterValueBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<OpenApiParameterHandle, Object> parameterValueBuilder = ImmutableMap.builder();
         identifierToParameterHandle.forEach((identifier, parameterHandle) -> {
             Object scalarValue = Optional.ofNullable((ScalarArgument) arguments.get(identifier))
                     .map(ScalarArgument::getValue)
@@ -116,25 +116,34 @@ class OpenApiRequestTableFunction
                         "Missing required parameter %s".formatted(identifier));
             }
             if (scalarValue != null) {
-                SerializedValue serializedValue = parameterHandle.typeEncoder().serialize(scalarValue);
-                parameterValueBuilder.put(parameterHandle, serializedValue);
+                parameterValueBuilder.put(parameterHandle, scalarValue);
             }
         });
 
         URI uri = buildUri(parameterValueBuilder.buildOrThrow());
 
         return TableFunctionAnalysis.builder()
-                .handle(new OpenApiTableFunctionHandle(new OpenApiRequestTableHandle(path, uri)))
+                .handle(new OpenApiTableFunctionHandle(new OpenApiRequestTableHandle(
+                        path,
+                        uri,
+                        identifierToParameterHandle.values().stream()
+                                .map(OpenApiParameterHandle::name)
+                                .collect(toImmutableList()),
+                        parameterValueBuilder.buildOrThrow().keySet()
+                                .stream()
+                                .map(OpenApiParameterHandle::name)
+                                .collect(toImmutableList()))))
                 .build();
     }
 
-    private URI buildUri(Map<OpenApiParameterHandle, SerializedValue> parameterValues)
+    private URI buildUri(Map<OpenApiParameterHandle, Object> parameterValues)
     {
         ImmutableMap.Builder<String, String> pathParameterToValueBuilder = ImmutableMap.builder();
         ImmutableListMultimap.Builder<String, String> queryParameterValuesBuilder = ImmutableListMultimap.builder();
         parameterValues.forEach((parameterHandle, value) -> {
             String name = parameterHandle.name();
-            switch (value) {
+            SerializedValue serializedValue = parameterHandle.typeEncoder().serialize(value);
+            switch (serializedValue) {
                 case SerializedString(String string) -> {
                     switch (parameterHandle.parameterStyle()) {
                         case ParameterStyle.SIMPLE_PATH -> pathParameterToValueBuilder.put(name, string);

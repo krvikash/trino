@@ -16,6 +16,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static java.util.Objects.requireNonNull;
@@ -87,6 +88,12 @@ public class LastElementCursorFieldPaginationStrategy
     public boolean isFinished(CursorState state)
     {
         return state.finished();
+    }
+
+    @Override
+    public Set<String> getParameterNames()
+    {
+        return Set.of(cursorParameterName);
     }
 
     public record CursorState(Optional<String> cursor, boolean finished)

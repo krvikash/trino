@@ -11,6 +11,7 @@ package com.starburstdata.plugin.openapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import io.airlift.http.client.HeaderNames;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
@@ -59,10 +60,11 @@ public class OpenApiPageSourceProvider
             DynamicFilter dynamicFilter)
     {
         OpenApiRequestTableHandle handle = (OpenApiRequestTableHandle) table;
+        OpenApiPaginationStrategy<?> paginationStrategy = openApiSpec.getPaginationStrategy(handle);
         return new OpenApiPageSource<>(
                 httpClient,
-                openApiSpec.getPaginationStrategy(handle.path()),
-                toInitialRequest(handle),
+                paginationStrategy,
+                handle,
                 openApiSpec.getDecoder(handle.path()),
                 columns,
                 objectMapper,

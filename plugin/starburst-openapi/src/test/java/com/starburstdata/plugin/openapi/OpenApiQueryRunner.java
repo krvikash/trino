@@ -130,6 +130,10 @@ public final class OpenApiQueryRunner
                             .put(
                                     "openapi.security-scheme.secret",
                                     "Bearer " + requireNonNull(System.getenv("GITHUB_TOKEN")))
+                            .put("openapi.pagination-strategy.type", "page")
+                            .put("openapi.pagination-strategy.page.page-size", "10")
+                            .put("openapi.pagination-strategy.page.page-param", "page")
+                            .put("openapi.pagination-strategy.page.per-page-param", "per_page")
                             .buildOrThrow())
                     .addCoordinatorProperty("http-server.http.port", "8080")
                     .build();
