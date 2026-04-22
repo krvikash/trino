@@ -15,14 +15,17 @@ package io.trino.plugin.loki;
 
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.TypeDeserializerModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
@@ -45,17 +48,9 @@ public class LokiConnectorFactory
 
         try {
             // A plugin is not required to use Guice; it is just very convenient
-            Bootstrap app = new Bootstrap(
-                    "io.trino.bootstrap.catalog." + catalogName,
-                    new JsonModule(),
-                    new TypeDeserializerModule(),
-                    new ConnectorContextModule(catalogName, context),
-                    new LokiModule());
+            Bootstrap app = createBootstrap(catalogName, requiredConfig, context);
 
             Injector injector = app
-                    .doNotInitializeLogging()
-                    .disableSystemProperties()
-                    .setRequiredConfigurationProperties(requiredConfig)
                     .initialize();
 
             return injector.getInstance(LokiConnector.class);
@@ -64,5 +59,34 @@ public class LokiConnectorFactory
             throwIfUnchecked(e);
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Set<ConfigPropertyMetadata> usedProperties = app
+                .quiet()
+                .skipErrorReporting()
+                .configure();
+
+        return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+    }
+
+    private static Bootstrap createBootstrap(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // A plugin is not required to use Guice; it is just very convenient
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
+                new JsonModule(),
+                new TypeDeserializerModule(),
+                new ConnectorContextModule(catalogName, context),
+                new LokiModule());
+
+        return app
+                .doNotInitializeLogging()
+                .disableSystemProperties()
+                .setRequiredConfigurationProperties(config);
     }
 }
