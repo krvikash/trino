@@ -15,10 +15,12 @@ package io.trino.plugin.lakehouse;
 
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.starburst.ai.client.AiClientModule;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.TypeDeserializerModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.hive.security.HiveSecurityModule;
@@ -29,6 +31,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
 
@@ -46,30 +49,52 @@ public class LakehouseConnectorFactory
     {
         checkStrictSpiVersionMatch(context, this);
         try (var _ = new ThreadContextClassLoader(getClass().getClassLoader())) {
-            Bootstrap app = new Bootstrap(
-                    "io.trino.bootstrap.catalog." + catalogName,
-                    new MBeanModule(),
-                    new MBeanServerModule(),
-                    new ConnectorObjectNameGeneratorModule("io.trino.plugin", "trino.plugin"),
-                    new JsonModule(),
-                    new TypeDeserializerModule(),
-                    new LakehouseModule(),
-                    new LakehouseHiveModule(),
-                    new LakehouseIcebergModule(),
-                    new LakehouseDeltaModule(),
-                    new LakehouseHudiModule(),
-                    new HiveSecurityModule(),
-                    new LakehouseFileSystemModule(catalogName, context),
-                    new ConnectorContextModule(catalogName, context),
-                    new AiClientModule(context.getModelConnectionSpecsLoader()));
+            Bootstrap app = createBootstrap(catalogName, config, context);
 
             Injector injector = app
-                    .doNotInitializeLogging()
-                    .disableSystemProperties()
-                    .setRequiredConfigurationProperties(config)
                     .initialize();
 
             return injector.getInstance(LakehouseConnector.class);
         }
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        try (var _ = new ThreadContextClassLoader(getClass().getClassLoader())) {
+            Bootstrap app = createBootstrap(catalogName, config, context);
+
+            Set<ConfigPropertyMetadata> usedProperties = app
+                    .quiet()
+                    .skipErrorReporting()
+                    .configure();
+
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
+    }
+
+    private Bootstrap createBootstrap(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
+                new MBeanModule(),
+                new MBeanServerModule(),
+                new ConnectorObjectNameGeneratorModule("io.trino.plugin", "trino.plugin"),
+                new JsonModule(),
+                new TypeDeserializerModule(),
+                new LakehouseModule(),
+                new LakehouseHiveModule(),
+                new LakehouseIcebergModule(),
+                new LakehouseDeltaModule(),
+                new LakehouseHudiModule(),
+                new HiveSecurityModule(),
+                new LakehouseFileSystemModule(catalogName, context),
+                new ConnectorContextModule(catalogName, context),
+                new AiClientModule(context.getModelConnectionSpecsLoader()));
+
+        return app
+                .doNotInitializeLogging()
+                .disableSystemProperties()
+                .setRequiredConfigurationProperties(config);
     }
 }
