@@ -10,6 +10,7 @@
 
 package com.starburstdata.plugin.openapi.pagination;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 
@@ -24,7 +25,7 @@ public class ReadOnceStrategy
     }
 
     @Override
-    public Boolean nextStateFromResponse(Boolean currentState, Response response)
+    public Boolean nextStateFromResponse(Boolean currentState, Response response, JsonNode responseBody)
     {
         return true;
     }

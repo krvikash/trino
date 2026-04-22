@@ -125,7 +125,7 @@ public class OpenApiPageSource<S>
                     }
                     yield new OpenApiResult<>(
                             decoder.decodeFromRoot(root, columnHandles),
-                            paginationStrategy.nextStateFromResponse(currentState, response));
+                            paginationStrategy.nextStateFromResponse(currentState, response, root));
                 }
                 case 400 -> throw new TrinoException(
                         OPENAPI_GENERIC_EXTERNAL_ERROR,

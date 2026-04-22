@@ -9,6 +9,7 @@
  */
 package com.starburstdata.plugin.openapi.pagination;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 
@@ -21,7 +22,7 @@ public interface OpenApiPaginationStrategy<S>
 
     S initialState();
 
-    S nextStateFromResponse(S currentState, Response response);
+    S nextStateFromResponse(S currentState, Response response, JsonNode responseBody);
 
     Request nextRequestFromState(Request currentRequest, S state);
 
