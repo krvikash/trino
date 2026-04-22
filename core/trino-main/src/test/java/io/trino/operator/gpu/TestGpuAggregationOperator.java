@@ -253,7 +253,7 @@ final class TestGpuAggregationOperator
     @MethodSource("sumSupportedTypes")
     void testSumForAllTypes(Type type)
     {
-        Block block = createBlock(type, 100, RANDOM_NULLS);
+        Block block = createInputBlockForSum(type, 100);
         Type outputType = sumOutputType(type);
 
         assertGpuMatchesCpu(
@@ -269,7 +269,7 @@ final class TestGpuAggregationOperator
     void testGroupBySumForAllTypes(Type type)
     {
         Block groupByBlock = createGroupByBlock(100, 5);
-        Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
+        Block valueBlock = createInputBlockForSum(type, 100);
         Page inputPage = new Page(groupByBlock, valueBlock);
         Type outputType = sumOutputType(type);
 
@@ -280,6 +280,14 @@ final class TestGpuAggregationOperator
                 new GpuSum(1, outputType, toDType(outputType).orElseThrow()),
                 "sum",
                 List.of(type));
+    }
+
+    private static Block createInputBlockForSum(Type type, int positionCount)
+    {
+        if (type == BIGINT) {
+            return createBigintBlock(positionCount, RANDOM_NULLS, -10000, 10001); // Small range to avoid overflow
+        }
+        return createBlock(type, positionCount, RANDOM_NULLS);
     }
 
     @Test

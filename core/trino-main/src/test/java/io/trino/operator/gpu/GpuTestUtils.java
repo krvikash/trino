@@ -19,8 +19,11 @@ import io.airlift.slice.Slices;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 
@@ -39,10 +42,15 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -50,79 +58,367 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public final class GpuTestUtils
 {
+    public static final List<Type> TESTED_GPU_TYPES = ImmutableList.<Type>builder()
+            .add(BOOLEAN)
+            .add(TINYINT)
+            .add(SMALLINT)
+            .add(INTEGER)
+            .add(DATE)
+            .add(BIGINT)
+            .add(REAL)
+            .add(DOUBLE)
+            .add(TIMESTAMP_SECONDS)
+            .add(TIMESTAMP_MILLIS)
+            .add(TIMESTAMP_MICROS)
+            .add(createDecimalType(9, 2))
+            .add(createDecimalType(18, 6))
+            .add(VARCHAR)
+            .build();
+
     private GpuTestUtils() {}
 
     public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)
     {
-        return createBlock(type, positionsCount, nullsProvider, new Random(42));
-    }
-
-    public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider, Random random)
-    {
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
-
-        for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
-                builder.appendNull();
-            }
-            else {
-                writeRandomValue(builder, type, random);
-            }
-        }
-        return builder.build();
+        return createBlocks(List.of(positionsCount), nullsProvider, type).getFirst();
     }
 
     public static Block createBigintBlock(int positionsCount, NullsProvider nullsProvider, long minValue, long maxValue)
     {
-        Random random = new Random(42);
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        BlockBuilder builder = BIGINT.createBlockBuilder(null, positionsCount);
-        for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
-                builder.appendNull();
-            }
-            else {
-                BIGINT.writeLong(builder, random.nextLong(minValue, maxValue));
-            }
-        }
-        return builder.build();
+        return createBigintBlocks(List.of(positionsCount), nullsProvider, minValue, maxValue).getFirst();
     }
 
-    private static void writeRandomValue(BlockBuilder builder, Type type, Random random)
+    public static List<Block> createBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Type type)
     {
         if (type == BOOLEAN) {
-            BOOLEAN.writeBoolean(builder, random.nextBoolean());
+            return createBooleanBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == TINYINT) {
-            TINYINT.writeLong(builder, random.nextInt(256) - 128);
+        if (type == TINYINT) {
+            return createTinyintBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == SMALLINT) {
-            SMALLINT.writeLong(builder, random.nextInt(65536) - 32768);
+        if (type == SMALLINT) {
+            return createSmallintBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == INTEGER) {
-            INTEGER.writeLong(builder, random.nextInt(-10000, 10001));
+        if (type == INTEGER) {
+            return createIntegerBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == BIGINT) {
-            BIGINT.writeLong(builder, random.nextLong(-10000, 10001));
+        if (type == DATE) {
+            return createDateBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == REAL) {
-            REAL.writeFloat(builder, random.nextFloat() * 1000 - 500);
+        if (type == BIGINT) {
+            return createBigintBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == DOUBLE) {
-            DOUBLE.writeDouble(builder, random.nextDouble() * 1000 - 500);
+        if (type == REAL) {
+            return createRealBlocks(positionsCounts, nullsProvider);
         }
-        else if (type == VARCHAR) {
-            int length = random.nextInt(21);
+        if (type == DOUBLE) {
+            return createDoubleBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
+            return createShortTimestampBlocks(positionsCounts, nullsProvider, (TimestampType) type);
+        }
+        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
+            return createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType);
+        }
+        if (type == VARCHAR) {
+            return createVarcharBlocks(positionsCounts, nullsProvider);
+        }
+        throw new UnsupportedOperationException("Unsupported type: " + type);
+    }
+
+    private static List<Block> createBooleanBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = BOOLEAN.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            BOOLEAN.writeBoolean(builder, random.nextBoolean());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createTinyintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = TINYINT.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            TINYINT.writeLong(builder, random.nextInt(256) - 128); // -128 to 127
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createSmallintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = SMALLINT.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            SMALLINT.writeLong(builder, random.nextInt(65536) - 32768); // -32768 to 32767
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createIntegerBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = INTEGER.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            INTEGER.writeLong(builder, random.nextInt());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createDateBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = DATE.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            DATE.writeLong(builder, random.nextInt());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createBigintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        return createBigintBlocks(positionsCounts, nullsProvider, Long.MIN_VALUE, Long.MAX_VALUE);
+    }
+
+    private static List<Block> createBigintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, long minValue, long maxValue)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = BIGINT.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            BIGINT.writeLong(builder, random.nextLong(minValue, maxValue));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createRealBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = REAL.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            REAL.writeFloat(builder, random.nextFloat() * 1000 - 500); // -500 to 500
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createDoubleBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = DOUBLE.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            DOUBLE.writeDouble(builder, random.nextDouble() * 1000 - 500); // -500 to 500
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createShortTimestampBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampType type)
+    {
+        Random random = new Random(42);
+        // Stored value is epochMicros; for precision p < 6, digits beyond p must be 0
+        long scale = 1L;
+        for (int i = type.getPrecision(); i < TimestampType.MAX_SHORT_PRECISION; i++) {
+            scale *= 10;
+        }
+        long finalScale = scale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            type.writeLong(builder, (random.nextLong() / finalScale) * finalScale);
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createShortDecimalBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, DecimalType type)
+    {
+        Random random = new Random(42);
+        long bound = 1L;
+        for (int i = 0; i < type.getPrecision(); i++) {
+            bound *= 10;
+        }
+        long finalBound = bound;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            type.writeLong(builder, random.nextLong(-(finalBound - 1), finalBound));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createVarcharBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Iterator<String> strings = generateInputStrings().iterator();
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            builder.writeEntry(Slices.utf8Slice(strings.next()));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    /**
+     * Generate infinite stream of test strings by cycling through testStrings
+     * and mixing with random strings for variety.
+     */
+    private static Stream<String> generateInputStrings()
+    {
+        List<String> testStrings = ImmutableList.<String>builder()
+                .add("test1", "other", "test2", "nothing", "testing", "%test%")
+                .add("a", "xyz", "ab", "z", "yz", "abcd", "", "abcdefg", "xabc", "xyxw", "xaxxxbx", "abcdefghij")
+                .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+                .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab")
+                .add("aabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabb")
+                .add("aaaabbbbaaaabbbbaaaabbbb")
+                .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+                .add("aaaabbbbaaaabbbbaaaa", "aaaabbbbaaaabbbbcccc")
+                .add("abababababacabababa", "bbbbbbbbxax", "bbbxxxxaz")
+                .add("a".repeat(20) + "b".repeat(20) + "a".repeat(20) + "b".repeat(20) + "the quick brown fox jumps over the lazy dog")
+                .add("ababaa", "papaya", "papapaya", "papapapaya", "papapapapaya", "papapapapapaya")
+                .add("xyza1234567890123456")
+                .add("%", "_", "-", "xxxxx_xxxxx")
+                .add("__", "a%", "a_", "%a", "%z", "_z", "_%", "_a%", "_ab_", "_a%b_", "_%_%_%_%")
+                .add("%a%a%a%a%a%a%", "%a%b%a%b%a%b%", "%aaaa%bbbb%aaaa%bbbb%aaaa%bbbb%")
+                .add("%aaaaaaaaaaaaaaaaaaaaaaaaaa%", "%aab%bba%aab%bba%", "%abaca%")
+                .add("%bcccccccca%", "%bbxxxxxa%", "%aaaaaaxaaaaaa%", "%abaaa%", "%paya%")
+                .add("%a________________", "-%", "-_", "--", "%$_%")
+                .add("Łania szła piękną łąką pod Warszawą")
+                .add("ワルシャワ近郊の美しい草原を雌鹿が歩いていた。")
+                .add("Слава Україні")
+                .build();
+
+        Random random = new Random(42); // Fixed seed for reproducibility
+        Stream<String> randomStrings = Stream.generate(() -> {
+            int length = random.nextInt(51); // 0-50 chars
             char[] chars = new char[length];
             for (int i = 0; i < length; i++) {
+                // Generate random valid Unicode characters (avoid surrogates)
                 chars[i] = (char) random.nextInt(0, Character.MIN_SURROGATE - 1);
             }
-            VARCHAR.writeSlice(builder, Slices.utf8Slice(new String(chars)));
-        }
-        else {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
+            return new String(chars);
+        });
+
+        // Interleave test strings with random strings
+        return Streams.zip(
+                        Stream.generate(() -> testStrings).flatMap(List::stream),
+                        randomStrings,
+                        List::of)
+                .flatMap(List::stream);
     }
 
     public static List<Page> executeGpuOperation(
