@@ -86,9 +86,15 @@ public class VariantValueWriter
     }
 
     @Override
-    public long getBufferedBytes()
+    public long getEstimatedBufferedBytes(CompressionStats compressionStats)
     {
-        return metadataWriter.getBufferedBytes() + valueWriter.getBufferedBytes();
+        return metadataWriter.getEstimatedBufferedBytes(compressionStats) + valueWriter.getEstimatedBufferedBytes(compressionStats);
+    }
+
+    @Override
+    public CompressionStats getCompressionStats()
+    {
+        return metadataWriter.getCompressionStats().add(valueWriter.getCompressionStats());
     }
 
     @Override
