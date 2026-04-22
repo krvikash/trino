@@ -59,6 +59,7 @@ import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Scan;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.expressions.Expression;
@@ -747,7 +748,7 @@ public class IcebergSplitSource
                 IcebergFileFormat.fromIceberg(task.file().format()),
                 partitionValues,
                 task.spec().specId(),
-                task.file().sortOrderId(),
+                Optional.ofNullable(task.file().sortOrderId()).orElse(SortOrder.unsorted().orderId()),
                 PartitionData.toJson(task.file().partition()),
                 task.deletes().stream()
                         .peek(file -> verifyDeletionVectorReferencesDataFile(task, file))
