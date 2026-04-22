@@ -9,6 +9,7 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -112,7 +113,9 @@ public class OpenApiPageSource<S>
                 case 200 -> {
                     JsonNode root;
                     try {
-                        root = objectMapper.readTree(response.getInputStream());
+                        root = objectMapper.reader()
+                                .with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                                .readTree(response.getInputStream());
                     }
                     catch (IOException e) {
                         throw new TrinoException(

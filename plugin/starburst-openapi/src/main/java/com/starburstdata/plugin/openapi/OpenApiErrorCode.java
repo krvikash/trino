@@ -19,6 +19,7 @@ import io.trino.spi.ErrorType;
 
 import static io.trino.spi.ErrorType.EXTERNAL;
 import static io.trino.spi.ErrorType.INTERNAL_ERROR;
+import static io.trino.spi.ErrorType.USER_ERROR;
 
 public enum OpenApiErrorCode
         implements ErrorCodeSupplier
@@ -29,6 +30,7 @@ public enum OpenApiErrorCode
     OPENAPI_GENERIC_EXTERNAL_ERROR(3, EXTERNAL),
     OPENAPI_UNSUPPORTED_AUTHENTICATION(4, INTERNAL_ERROR),
     OPENAPI_AUTHORIZATION_ERROR(5, EXTERNAL),
+    OPENAPI_UNSUPPORTED_PARAMETER_VALUE(6, USER_ERROR),
     /**/;
 
     private final ErrorCode errorCode;

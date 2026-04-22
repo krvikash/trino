@@ -17,6 +17,10 @@ import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TimeZoneKey;
+import io.trino.spi.type.TrinoNumber;
+import io.trino.spi.type.TrinoNumber.BigDecimalValue;
+import io.trino.spi.type.TrinoNumber.Infinity;
+import io.trino.spi.type.TrinoNumber.NotANumber;
 import io.trino.spi.type.Type;
 
 import java.math.BigDecimal;
@@ -27,12 +31,14 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
+import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_UNSUPPORTED_PARAMETER_VALUE;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_PICOS;
 import static io.trino.spi.type.UuidType.UUID;
@@ -197,13 +203,48 @@ public abstract class LeafTypeEncoder
         }
     };
 
+    public static final LeafTypeEncoder NUMBER_ENCODER = new LeafTypeEncoder("NUMBER_ENCODER", NUMBER)
+    {
+        @Override
+        public String serializeToString(Object value)
+        {
+            return asValidBigDecimal(value).toString();
+        }
+    };
+
+    public static final LeafTypeEncoder INTEGER_NUMBER_ENCODER = new LeafTypeEncoder("INTEGER_NUMBER_ENCODER", NUMBER)
+    {
+        @Override
+        public String serializeToString(Object value)
+        {
+            BigDecimal bigDecimal = asValidBigDecimal(value);
+            if (bigDecimal.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) != 0) {
+                throw new TrinoException(OPENAPI_UNSUPPORTED_PARAMETER_VALUE,
+                        "Cannot use non-integer NUMBER value for an integer parameter");
+            }
+            return bigDecimal.toPlainString();
+        }
+    };
+
+    private static BigDecimal asValidBigDecimal(Object value)
+    {
+        return switch (((TrinoNumber) value).toBigDecimal()) {
+            case BigDecimalValue(BigDecimal bigDecimal) -> bigDecimal;
+            case NotANumber _, Infinity _ -> throw new TrinoException(
+                    OPENAPI_UNSUPPORTED_PARAMETER_VALUE,
+                    "NaN and Infinity are not supported as NUMBER parameter values");
+        };
+    }
+
     public static LeafTypeEncoder from(LeafIr leafIr)
     {
         return switch (leafIr) {
             case BooleanIr _ -> BOOLEAN_ENCODER;
             case NumberIr(NumberIr.Format format) -> switch (format) {
-                case NONE_INTEGER, INT64 -> LONG_ENCODER;
-                case NONE_NUMBER, DOUBLE -> DOUBLE_ENCODER;
+                case NONE_INTEGER -> INTEGER_NUMBER_ENCODER;
+                case NONE_NUMBER -> NUMBER_ENCODER;
+                case INT64 -> LONG_ENCODER;
+                case DOUBLE -> DOUBLE_ENCODER;
                 case INT32 -> INTEGER_ENCODER;
                 case FLOAT -> FLOAT_ENCODER;
             };

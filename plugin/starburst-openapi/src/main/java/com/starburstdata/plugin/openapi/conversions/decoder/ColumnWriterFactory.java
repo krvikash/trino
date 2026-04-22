@@ -27,6 +27,8 @@ import static com.starburstdata.plugin.openapi.conversions.decoder.FloatingPoint
 import static com.starburstdata.plugin.openapi.conversions.decoder.FloatingPointNumberColumnWriters.FLOAT_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.IntegerColumnWriters.INT32_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.IntegerColumnWriters.INT64_COLUMN_WRITER;
+import static com.starburstdata.plugin.openapi.conversions.decoder.NumberColumnWriters.INTEGER_NUMBER_COLUMN_WRITER;
+import static com.starburstdata.plugin.openapi.conversions.decoder.NumberColumnWriters.NUMBER_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.SimpleColumnWriters.BOOLEAN_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.SimpleColumnWriters.STRING_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.StringColumnWriters.BYTE_COLUMN_WRITER;
@@ -39,8 +41,6 @@ import static java.util.Objects.requireNonNull;
 public class ColumnWriterFactory
 {
     private final JsonColumnWriter jsonColumnWriter;
-    private final JsonNumberColumnWriter jsonIntegerColumnWriter;
-    private final JsonNumberColumnWriter jsonNumberColumnWriter;
     private final TypeOperators typeOperators;
 
     @Inject
@@ -50,8 +50,6 @@ public class ColumnWriterFactory
         requireNonNull(typeManager, "typeManager is null");
         Type jsonType = typeManager.getType(new TypeSignature(JSON));
         jsonColumnWriter = new JsonColumnWriter(jsonType);
-        jsonIntegerColumnWriter = new JsonNumberColumnWriter(jsonType, true);
-        jsonNumberColumnWriter = new JsonNumberColumnWriter(jsonType, false);
         typeOperators = typeManager.getTypeOperators();
     }
 
@@ -97,11 +95,8 @@ public class ColumnWriterFactory
     private ColumnWriter createNumberColumnWriter(NumberIr.Format format)
     {
         return switch (format) {
-            // JSON grammar allows unlimited scale and precision ...
-            // So for safety, we first write to a JSON string.
-            // TODO use the new NUMBER type once in cork.
-            case NONE_INTEGER -> jsonIntegerColumnWriter;
-            case NONE_NUMBER -> jsonNumberColumnWriter;
+            case NONE_INTEGER -> INTEGER_NUMBER_COLUMN_WRITER;
+            case NONE_NUMBER -> NUMBER_COLUMN_WRITER;
             case INT32 -> INT32_COLUMN_WRITER;
             case INT64 -> INT64_COLUMN_WRITER;
             case DOUBLE -> DOUBLE_COLUMN_WRITER;
