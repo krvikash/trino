@@ -126,6 +126,7 @@ import io.trino.operator.exchange.PageChannelSelector;
 import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColumnSpecification;
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
 import io.trino.operator.gpu.GpuFilter;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperator;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
@@ -2331,15 +2332,13 @@ public class LocalExecutionPlanner
                 }
 
                 if (gpuFilter.isPresent()) {
-                    source = new PhysicalOperation(
-                            new GpuOperator.Factory(
-                                    context.getNextOperatorId(),
-                                    planNodeId,
-                                    source.getTypes(),
-                                    ImmutableList.of(new GpuFilter.Factory(gpuFilter.get())),
-                                    source.getTypes()),
+                    source = addGpuOperation(
+                            new GpuFilter.Factory(gpuFilter.get()),
+                            source.getTypes(),
+                            source,
                             outputMappings,
-                            source);
+                            context,
+                            planNodeId);
                 }
 
                 OperatorFactory operatorFactory = FilterAndProjectOperator.createOperatorFactory(
@@ -4344,15 +4343,13 @@ public class LocalExecutionPlanner
                         for (Symbol symbol : node.getOutputSymbols()) {
                             outputMappings.put(symbol, channel++);
                         }
-                        return new PhysicalOperation(
-                                new GpuOperator.Factory(
-                                        context.getNextOperatorId(),
-                                        node.getId(),
-                                        source.getTypes(),
-                                        ImmutableList.of(gpuAggregation),
-                                        gpuAggregation.getOutputTypes()),
+                        return addGpuOperation(
+                                gpuAggregation,
+                                gpuAggregation.getOutputTypes(),
+                                source,
                                 outputMappings.buildOrThrow(),
-                                source);
+                                context,
+                                node.getId());
                     });
         }
 
@@ -4454,6 +4451,35 @@ public class LocalExecutionPlanner
                         maxPartialAggregationMemorySize.get(),
                         getAdaptivePartialAggregationUniqueRowsRatioThreshold(session))) :
                 Optional.empty();
+    }
+
+    private PhysicalOperation addGpuOperation(
+            GpuOperation.Factory gpuOperation,
+            List<Type> outputTypes,
+            PhysicalOperation source,
+            Map<Symbol, Integer> outputLayout,
+            LocalExecutionPlanContext context,
+            PlanNodeId nodeId)
+    {
+        List<OperatorFactory> sourcePipeline = source.getPipelineTail();
+        // Check if source is already a GPU operation - chain onto it
+        if (!sourcePipeline.isEmpty() && sourcePipeline.getLast() instanceof GpuOperator.BaseFactory gpuSource) {
+            List<OperatorFactory> newPipeline = ImmutableList.<OperatorFactory>builder()
+                    .addAll(sourcePipeline.subList(0, sourcePipeline.size() - 1))
+                    .add(gpuSource.withAdditionalOperation(gpuOperation, outputTypes))
+                    .build();
+            return new PhysicalOperation(newPipeline, source.pipelineHeadAlternatives, source.chooseAlternativePlanNodeId, outputLayout);
+        }
+        // Source is not GPU - create new GPU operator
+        return new PhysicalOperation(
+                new GpuOperator.Factory(
+                        context.getNextOperatorId(),
+                        nodeId,
+                        source.getTypes(),
+                        ImmutableList.of(gpuOperation),
+                        outputTypes),
+                outputLayout,
+                source);
     }
 
     private int getDynamicFilteringMaxDistinctValuesPerDriver(boolean partitioned)

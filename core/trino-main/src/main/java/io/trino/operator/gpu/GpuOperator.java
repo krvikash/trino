@@ -60,7 +60,7 @@ import static java.util.Objects.requireNonNull;
 public abstract class GpuOperator
         implements Operator
 {
-    private abstract static class BaseFactory
+    public abstract static class BaseFactory
             implements OperatorFactory
     {
         protected final int operatorId;
@@ -85,6 +85,8 @@ public abstract class GpuOperator
             this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
         }
 
+        public abstract BaseFactory withAdditionalOperation(GpuOperation.Factory additionalOperation, List<Type> newOutputTypes);
+
         @Override
         public void noMoreOperators()
         {
@@ -106,7 +108,7 @@ public abstract class GpuOperator
                 List<ColumnHandle> columns,
                 List<Type> columnTypes)
         {
-            super(
+            this(
                     operatorId,
                     planNodeId,
                     () -> {
@@ -120,6 +122,30 @@ public abstract class GpuOperator
                     },
                     ImmutableList.of(),
                     columnTypes);
+        }
+
+        private SourceFactory(
+                int operatorId,
+                PlanNodeId planNodeId,
+                Supplier<GpuOperatorSource> sourceFactory,
+                List<GpuOperation.Factory> operations,
+                List<Type> outputTypes)
+        {
+            super(operatorId, planNodeId, sourceFactory, operations, outputTypes);
+        }
+
+        @Override
+        public BaseFactory withAdditionalOperation(GpuOperation.Factory additionalOperation, List<Type> newOutputTypes)
+        {
+            // TODO: The new operation may require additional columns on GPU that were not needed by existing operations.
+            //  When we add support for selective column copying (copying only columns needed by GPU operations),
+            //  we'll need to update the set of columns copied to GPU here.
+            //  https://starburstdata.atlassian.net/browse/ENG-9808
+            List<GpuOperation.Factory> newOperations = ImmutableList.<GpuOperation.Factory>builder()
+                    .addAll(operations)
+                    .add(additionalOperation)
+                    .build();
+            return new SourceFactory(operatorId, planNodeId, sourceFactory, newOperations, newOutputTypes);
         }
 
         @Override
@@ -177,6 +203,20 @@ public abstract class GpuOperator
                 List<Type> outputTypes)
         {
             super(operatorId, planNodeId, sourceFactory, operations, outputTypes);
+        }
+
+        @Override
+        public BaseFactory withAdditionalOperation(GpuOperation.Factory additionalOperation, List<Type> newOutputTypes)
+        {
+            // TODO: The new operation may require additional columns on GPU that were not needed by existing operations.
+            //  When we add support for selective column copying (copying only columns needed by GPU operations),
+            //  we'll need to update the set of columns copied to GPU here.
+            //  https://starburstdata.atlassian.net/browse/ENG-9808
+            List<GpuOperation.Factory> newOperations = ImmutableList.<GpuOperation.Factory>builder()
+                    .addAll(operations)
+                    .add(additionalOperation)
+                    .build();
+            return new Factory(operatorId, planNodeId, sourceFactory, newOperations, newOutputTypes);
         }
 
         @Override
