@@ -17,9 +17,11 @@ import com.google.inject.Injector;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.TypeDeserializerModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -27,6 +29,7 @@ import io.trino.spi.connector.SchemaTableName;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
@@ -55,6 +58,29 @@ public class RedisConnectorFactory
         requireNonNull(config, "config is null");
         checkStrictSpiVersionMatch(context, this);
 
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Injector injector = app
+                .initialize();
+
+        return injector.getInstance(RedisConnector.class);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Set<ConfigPropertyMetadata> usedProperties = app
+                .quiet()
+                .skipErrorReporting()
+                .configure();
+
+        return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+    }
+
+    private Bootstrap createBootstrap(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.catalog." + catalogName,
                 new JsonModule(),
@@ -72,12 +98,9 @@ public class RedisConnectorFactory
                     }
                 });
 
-        Injector injector = app
+        return app
                 .doNotInitializeLogging()
                 .disableSystemProperties()
-                .setRequiredConfigurationProperties(config)
-                .initialize();
-
-        return injector.getInstance(RedisConnector.class);
+                .setRequiredConfigurationProperties(config);
     }
 }
