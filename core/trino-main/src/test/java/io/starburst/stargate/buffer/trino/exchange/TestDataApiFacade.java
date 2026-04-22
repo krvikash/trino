@@ -702,16 +702,9 @@ public class TestDataApiFacade
         executor.schedule(() -> inFlight.set(Optional.empty()), 100, MILLISECONDS);
         dataApiFacade.destroy();
 
-        // backoff request gets DRAINING_ON_RETRY because it was already attempted and request may have been delivered
-        assertThatThrownBy(() -> getFutureValue(backoffRequestFuture))
-                .isInstanceOf(DataApiException.class)
-                .extracting(e -> ((DataApiException) e).getErrorCode())
-                .isEqualTo(ErrorCode.DRAINING_ON_RETRY);
-        // pending request gets DRAINED because it was never dispatched
-        assertThatThrownBy(() -> getFutureValue(pendingRequestFuture))
-                .isInstanceOf(DataApiException.class)
-                .extracting(e -> ((DataApiException) e).getErrorCode())
-                .isEqualTo(ErrorCode.DRAINED);
+        // destroy cancels both the backoff and pending result futures
+        assertThat(backoffRequestFuture.isCancelled()).isTrue();
+        assertThat(pendingRequestFuture.isCancelled()).isTrue();
         assertThat(inFlight).succeedsWithin(5, SECONDS);
     }
 

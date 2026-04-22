@@ -13,7 +13,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
@@ -51,7 +50,6 @@ import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,7 +59,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -223,33 +220,14 @@ public class DataApiFacade
         }, PROCESS_PENDING_REQUESTS_INTERVAL.toMillis(), PROCESS_PENDING_REQUESTS_INTERVAL.toMillis(), MILLISECONDS);
         destroyCloser.register(() -> processPendingFuture.cancel(true));
 
-        destroyCloser.register(() -> {
-            while (true) {
-                ImmutableSet.copyOf(addDataPagesProcessingStates.keySet()).forEach(this::drainAddDataPagesState);
-                Set<Long> remainingStates = addDataPagesProcessingStates.keySet();
-                if (remainingStates.isEmpty()) {
-                    return;
-                }
-                List<Future<?>> processFutures = new ArrayList<>();
-                addDataPagesProcessingStates.forEach((bufferNodeId, state) -> {
-                    System.out.println(state);
-
-                    processFutures.add(scheduleProcessAddDataPages(bufferNodeId, state));
-                });
-                // wait for all process tasks to finish before another try; ignore exceptions
-                processFutures.forEach(future -> {
-                    try {
-                        future.get();
-                    }
-                    catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                    catch (ExecutionException e) {
-                        // ignore
-                    }
-                });
-            }
-        });
+        destroyCloser.register(() -> addDataPagesProcessingStates.values().forEach(state -> {
+            // flip draining so an onFailure backoff racing the schedule()/backoffRequests.put() window
+            // is rejected by enqueueAddDataPagesRequest instead of resurrecting a request after destroy
+            state.draining.set(true);
+            state.backoffRequests.values().forEach(future -> future.cancel(false));
+            state.backoffRequests.keySet().forEach(request -> request.resultFuture.cancel(false));
+            state.activeRequests.forEach(request -> request.resultFuture.cancel(false));
+        }));
     }
 
     @PreDestroy
@@ -678,7 +656,7 @@ public class DataApiFacade
 
     private void doDrainAddDataPages(AddDataPagesProcessingState state)
     {
-        state.backoffRequests.forEach(DataApiFacade::completeWithDrainedException);
+        state.backoffRequests.keySet().forEach(DataApiFacade::completeWithDrainedException);
         state.activeRequests.forEach(DataApiFacade::completeWithDrainedException);
         state.backoffRequests.clear();
         state.activeRequests.clear();
@@ -752,15 +730,18 @@ public class DataApiFacade
                 int retryNumber = pendingRequest.tryCount.incrementAndGet();
 
                 long backoffMillis = computeBackoffMillis(retryNumber);
-                state.backoffRequests.add(pendingRequest);
                 // requeue after backoff; route through the compute-based primitive so the re-enqueue is
                 // serialized with cleanUp on the same bucket. If cleanUp completed the request with a
                 // DRAINED error, enqueueAddDataPagesRequest returns Optional.empty() and nothing is resurrected.
-                executor.schedule(() -> {
+                ScheduledFuture<?> backoffFuture = executor.schedule(() -> {
                     enqueueAddDataPagesRequest(pendingRequest.bufferNodeId, pendingRequest)
                             .ifPresent(current -> scheduleProcessAddDataPages(pendingRequest.bufferNodeId, current));
                     state.backoffRequests.remove(pendingRequest);
                 }, backoffMillis, MILLISECONDS);
+                state.backoffRequests.put(pendingRequest, backoffFuture);
+                if (backoffFuture.isDone()) {
+                    state.backoffRequests.remove(pendingRequest);
+                }
                 scheduleProcessAddDataPages(pendingRequest.bufferNodeId, state);
             }
         }, directExecutor());
@@ -1156,7 +1137,7 @@ public class DataApiFacade
     private static final class AddDataPagesProcessingState
     {
         public final ConcurrentLinkedDeque<PendingAddDataPagesRequest> activeRequests = new ConcurrentLinkedDeque<>();
-        public final Set<PendingAddDataPagesRequest> backoffRequests = ConcurrentHashMap.newKeySet();
+        public final Map<PendingAddDataPagesRequest, Future<?>> backoffRequests = new ConcurrentHashMap<>();
         public final AtomicInteger inFlightRequests = new AtomicInteger();
         public final AtomicBoolean requestsProcessingRequested = new AtomicBoolean();
         public final AtomicBoolean requestsBeingProcessed = new AtomicBoolean();
