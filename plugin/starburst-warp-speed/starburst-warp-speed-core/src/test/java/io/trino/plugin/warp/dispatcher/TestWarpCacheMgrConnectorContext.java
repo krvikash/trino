@@ -20,7 +20,7 @@ import java.util.Set;
 
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
-public class WarpCacheMgrConnectorContextTest
+public class TestWarpCacheMgrConnectorContext
 {
     @Test
     public void testEverythingImplemented()

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
-public class WarpConnectorContextTest
+public class TestWarpConnectorContext
 {
     @Test
     public void testEverythingImplemented()
