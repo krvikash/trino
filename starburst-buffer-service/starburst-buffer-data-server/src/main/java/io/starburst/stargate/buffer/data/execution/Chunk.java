@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-// Note on thread-safety: only release(), getChunkData(), getReclaimableHeapBytes() and chunkDataInMemory()
+// Note on thread-safety: only release(), getChunkDataLease(), getReclaimableHeapBytes() and chunkDataInMemory()
 // may be concurrently called after Chunk is closed
 // This class is not thread safe
 public class Chunk
@@ -113,7 +113,7 @@ public class Chunk
     // null means chunk data has spooled
     public synchronized ChunkDataLease getChunkDataLease()
     {
-        checkState(closed, "getChunkData() called on an open chunk");
+        checkState(closed, "getChunkDataLease() called on an open chunk");
         if (chunkData == null) {
             return null;
         }
