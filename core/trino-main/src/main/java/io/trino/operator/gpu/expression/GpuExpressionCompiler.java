@@ -21,7 +21,9 @@ import io.trino.operator.project.PageFieldsToInputParametersRewriter.Result;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.relational.CallExpression;
 import io.trino.sql.relational.ConstantExpression;
 import io.trino.sql.relational.InputReferenceExpression;
@@ -37,6 +39,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
@@ -45,8 +48,16 @@ import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
 import static io.trino.operator.gpu.GpuScore.POTENTIAL;
 import static io.trino.operator.gpu.GpuScore.PREFERRED;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
+import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.NumberType.NUMBER;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.util.Objects.requireNonNull;
@@ -56,6 +67,11 @@ import static java.util.Objects.requireNonNull;
  */
 public class GpuExpressionCompiler
 {
+    private static final int TINYINT_DECIMAL_DIGITS = 3;
+    private static final int SMALLINT_DECIMAL_DIGITS = 5;
+    private static final int INTEGER_DECIMAL_DIGITS = 10;
+    private static final int BIGINT_DECIMAL_DIGITS = 19;
+
     public Optional<List<CompiledExpression>> compileExpressions(List<RowExpression> expressions)
     {
         ImmutableList.Builder<CompiledExpression> compiledExpressions = ImmutableList.builderWithExpectedSize(expressions.size());
@@ -87,6 +103,9 @@ public class GpuExpressionCompiler
         @Override
         public Optional<CompilationResult> visitInputReference(InputReferenceExpression reference, Void context)
         {
+            if (!isConvertible(reference.type())) {
+                return Optional.empty();
+            }
             int field = reference.field();
             return Optional.of(new CompilationResult(
                     (_, inputColumns) -> inputColumns.get(field).incRefCount(),
@@ -116,9 +135,15 @@ public class GpuExpressionCompiler
             }
 
             String name = functionName.functionName();
-            if (isOperatorName(name) && call.arguments().size() == 2) {
+            if (isOperatorName(name)) {
                 OperatorType operatorType = unmangleOperator(name);
-                return compileBinaryExpression(call, operatorType, context);
+                if (call.arguments().size() == 2) {
+                    return compileBinaryExpression(call, operatorType, context);
+                }
+                if (operatorType == OperatorType.CAST) {
+                    verify(call.arguments().size() == 1, "Expected exactly one cast argument, got: %s", call.arguments());
+                    return compileCast(getOnlyElement(call.arguments()), call.type(), context);
+                }
             }
 
             // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) detect regular expression functions (as PREFERRED)
@@ -150,6 +175,109 @@ public class GpuExpressionCompiler
                 default -> null;
             };
             return Optional.ofNullable(operation);
+        }
+
+        private Optional<CompilationResult> compileCast(RowExpression argument, Type toType, Void context)
+        {
+            return toDType(toType)
+                    .flatMap(resultDType -> argument.accept(this, context)
+                            .flatMap(compiledArgument -> {
+                                if (isCastSafe(argument.type(), toType)) {
+                                    return Optional.of(new CompilationResult(
+                                            new GpuCast(compiledArgument.expression(), resultDType),
+                                            compiledArgument.score()));
+                                }
+                                return Optional.empty();
+                            }));
+        }
+
+        private static boolean isCastSafe(Type fromType, Type toType)
+        {
+            if (fromType.equals(toType)) {
+                return true;
+            }
+            if (fromType == TINYINT) {
+                if (toType == SMALLINT || toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && TINYINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && TINYINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == SMALLINT) {
+                if (toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && SMALLINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && SMALLINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == INTEGER) {
+                if (toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && INTEGER_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && INTEGER_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == BIGINT) {
+                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && BIGINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && BIGINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == REAL) {
+                if (toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+            }
+            if (fromType == DOUBLE) {
+                if (toType == NUMBER) {
+                    return true;
+                }
+            }
+            if (fromType instanceof DecimalType fromDecimal) {
+                if (toType == TINYINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < TINYINT_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == SMALLINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < SMALLINT_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == INTEGER && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < INTEGER_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == BIGINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < BIGINT_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType toDecimal && fromDecimal.getPrecision() - fromDecimal.getScale() <= toDecimal.getPrecision() - toDecimal.getScale()) {
+                    return true;
+                }
+            }
+            if (fromType instanceof VarcharType fromVarchar) {
+                if (toType instanceof VarcharType toVarchar) {
+                    if (toVarchar.isUnbounded() || (!fromVarchar.isUnbounded() && fromVarchar.getBoundedLength() <= toVarchar.getBoundedLength())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         @Override
