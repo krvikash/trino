@@ -64,17 +64,17 @@ public class RewriteDateTimestampConstant
         // which when set below 7.0 can allow to express dates/timestamps to some degree outside officially supported ranges (e.g. dates/datetimes before 1000-01-01)
         // and produces null for some date/timestamp casts instead of explicit error.
         // For those reasons we don't allow pushdown of literals that are outside official ranges https://docs.singlestore.com/cloud/reference/sql-reference/data-types/time-and-date/
-        Type contantType = constant.getType();
-        if (contantType instanceof DateType) {
+        Type constantType = constant.getType();
+        if (constantType instanceof DateType) {
             if (longValue < MIN_DATE_EPOCH_DAYS || longValue > MAX_DATE_EPOCH_DAYS) {
                 return Optional.empty();
             }
         }
-        else if (contantType instanceof TimestampType) {
+        else if (constantType instanceof TimestampType) {
             if (longValue < MIN_DATETIME_MICROS || longValue > MAX_DATETIME_MICROS) {
                 return Optional.empty();
             }
         }
-        return Optional.of(new ParameterizedExpression("?", ImmutableList.of(new QueryParameter(contantType, Optional.of(value)))));
+        return Optional.of(new ParameterizedExpression("?", ImmutableList.of(new QueryParameter(constantType, Optional.of(value)))));
     }
 }
