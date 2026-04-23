@@ -653,13 +653,6 @@ public class RedshiftClient
                     varbinaryWriteFunction()));
         }
 
-        if ("binary varying".equals(type.jdbcTypeName().orElse("")) || type.jdbcType() == Types.LONGVARBINARY) {
-            return Optional.of(ColumnMapping.sliceMapping(
-                    VARBINARY,
-                    varbinaryReadFunction(),
-                    varbinaryWriteFunction()));
-        }
-
         switch (type.jdbcType()) {
             case Types.BIT: // Redshift uses this for booleans
                 return Optional.of(booleanColumnMapping());
