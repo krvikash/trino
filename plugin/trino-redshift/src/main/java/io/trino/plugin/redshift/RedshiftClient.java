@@ -24,6 +24,7 @@ import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
 import io.trino.plugin.base.expression.ConnectorExpressionRewriter;
 import io.trino.plugin.base.mapping.IdentifierMapping;
+import io.trino.plugin.base.mapping.RemoteIdentifiers;
 import io.trino.plugin.base.projection.ProjectFunctionRewriter;
 import io.trino.plugin.base.projection.ProjectFunctionRule;
 import io.trino.plugin.jdbc.BaseJdbcClient;
@@ -34,6 +35,7 @@ import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcJoinCondition;
 import io.trino.plugin.jdbc.JdbcMetadata;
+import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcSortItem;
 import io.trino.plugin.jdbc.JdbcSplit;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
@@ -73,6 +75,9 @@ import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.JoinCondition;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
+import io.trino.spi.connector.RelationCommentMetadata;
+import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.CharType;
@@ -104,16 +109,20 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_NON_TRANSIENT_ERROR;
 import static io.trino.plugin.jdbc.JdbcJoinPushdownUtil.implementJoinCostAware;
@@ -235,6 +244,7 @@ public class RedshiftClient
     private final RedshiftTableStatisticsReader statisticsReader;
     private final ConnectorExpressionRewriter<ParameterizedExpression> connectorExpressionRewriter;
     private final Optional<Integer> fetchSize;
+    private final boolean externalTablesEnabled;
 
     @Inject
     public RedshiftClient(
@@ -295,6 +305,248 @@ public class RedshiftClient
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
         this.statisticsReader = new RedshiftTableStatisticsReader(connectionFactory);
         this.fetchSize = redshiftConfig.getFetchSize();
+        this.externalTablesEnabled = redshiftConfig.isExternalTablesEnabled();
+    }
+
+    @Override
+    public List<RelationCommentMetadata> getAllTableComments(ConnectorSession session, Optional<String> schema)
+    {
+        if (!externalTablesEnabled) {
+            return super.getAllTableComments(session, schema);
+        }
+        return getAllRelationCommentMetadata(session, schema);
+    }
+
+    private List<RelationCommentMetadata> getAllRelationCommentMetadata(ConnectorSession session, Optional<String> schema)
+    {
+        List<RelationCommentMetadata> regular = super.getAllTableComments(session, schema);
+        Set<SchemaTableName> regularNames = regular.stream()
+                .map(RelationCommentMetadata::name)
+                .collect(toImmutableSet());
+
+        List<RelationCommentMetadata> external = getExternalTableComments(session, schema, regularNames);
+        if (external.isEmpty()) {
+            return regular;
+        }
+        return ImmutableList.<RelationCommentMetadata>builder()
+                .addAll(regular)
+                .addAll(external)
+                .build();
+    }
+
+    private List<RelationCommentMetadata> getExternalTableComments(ConnectorSession session, Optional<String> schema, Set<SchemaTableName> existingTables)
+    {
+        String sql = schema.isPresent()
+                ? "SELECT schemaname, tablename FROM SVV_EXTERNAL_TABLES WHERE LOWER(schemaname) = LOWER(?)"
+                : "SELECT schemaname, tablename FROM SVV_EXTERNAL_TABLES";
+
+        try (Connection connection = connectionFactory.openConnection(session);
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+            if (schema.isPresent()) {
+                stmt.setString(1, schema.get());
+            }
+            ImmutableList.Builder<RelationCommentMetadata> result = ImmutableList.builder();
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String schemaName = rs.getString("schemaname");
+                    String tableName = rs.getString("tablename");
+                    SchemaTableName schemaTableName = new SchemaTableName(schemaName, tableName);
+                    if (!existingTables.contains(schemaTableName)) {
+                        // At the time of this writing, there exists no reliable way to retrieve
+                        // the table comment for redshift external tables
+                        result.add(RelationCommentMetadata.forRelation(schemaTableName, Optional.empty()));
+                    }
+                }
+            }
+            return result.build();
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    @Override
+    public Collection<String> listSchemas(Connection connection)
+    {
+        if (!externalTablesEnabled) {
+            return super.listSchemas(connection);
+        }
+        return listAllSchemas(connection);
+    }
+
+    private Collection<String> listAllSchemas(Connection connection)
+    {
+        Collection<String> regularSchemas = super.listSchemas(connection);
+        ImmutableSet.Builder<String> allSchemas = ImmutableSet.builder();
+        allSchemas.addAll(regularSchemas);
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT schemaname FROM SVV_EXTERNAL_SCHEMAS")) {
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    allSchemas.add(resultSet.getString("schemaname"));
+                }
+            }
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+        return allSchemas.build();
+    }
+
+    @Override
+    public Optional<JdbcTableHandle> getTableHandle(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        Optional<JdbcTableHandle> handle = super.getTableHandle(session, schemaTableName);
+        if (handle.isPresent()) {
+            return handle;
+        }
+        if (externalTablesEnabled) {
+            return getExternalTableHandle(session, schemaTableName);
+        }
+        return Optional.empty();
+    }
+
+    private Optional<JdbcTableHandle> getExternalTableHandle(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        try (Connection connection = connectionFactory.openConnection(session);
+                PreparedStatement stmt = connection.prepareStatement(
+                        "SELECT 1 FROM SVV_EXTERNAL_TABLES WHERE LOWER(schemaname) = LOWER(?) AND LOWER(tablename) = LOWER(?)")) {
+            stmt.setString(1, schemaTableName.getSchemaName());
+            stmt.setString(2, schemaTableName.getTableName());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    RemoteTableName remoteTableName = new RemoteTableName(
+                            Optional.ofNullable(connection.getCatalog()),
+                            Optional.of(schemaTableName.getSchemaName()),
+                            schemaTableName.getTableName());
+                    // At the time of this writing, there exists no reliable way to retrieve the table comment
+                    // for redshift external tables
+                    return Optional.of(new JdbcTableHandle(schemaTableName, remoteTableName, Optional.empty()));
+                }
+            }
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public List<JdbcColumnHandle> getColumns(ConnectorSession session, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
+    {
+        if (externalTablesEnabled) {
+            try {
+                return getExternalTableColumns(session, schemaTableName, remoteTableName);
+            }
+            catch (TableNotFoundException ignored) {
+                // Not an external (Spectrum) table — fall through to standard JDBC metadata.
+            }
+        }
+        return super.getColumns(session, schemaTableName, remoteTableName);
+    }
+
+    private List<JdbcColumnHandle> getExternalTableColumns(ConnectorSession session, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
+    {
+        String schemaName = remoteTableName.getSchemaName().orElse(schemaTableName.getSchemaName());
+        String tableName = remoteTableName.getTableName();
+
+        try (Connection connection = connectionFactory.openConnection(session);
+                PreparedStatement stmt = connection.prepareStatement(
+                        "SELECT columnname, external_type, columnnum, is_nullable " +
+                                "FROM SVV_EXTERNAL_COLUMNS " +
+                                "WHERE LOWER(schemaname) = LOWER(?) AND LOWER(tablename) = LOWER(?) " +
+                                "ORDER BY columnnum")) {
+            stmt.setString(1, schemaName);
+            stmt.setString(2, tableName);
+
+            ImmutableList.Builder<JdbcColumnHandle> columns = ImmutableList.builder();
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String columnName = rs.getString("columnname");
+                    String externalType = rs.getString("external_type");
+                    // is_nullable is a text column with values "true", "false", or "" (empty = no info).
+                    // Default to nullable when the value is absent or unrecognized — it is safer to
+                    // allow nulls than to skip null-checks on a column that may actually contain them.
+                    String isNullableValue = rs.getString("is_nullable");
+                    boolean nullable = !"false".equalsIgnoreCase(isNullableValue);
+
+                    JdbcTypeHandle typeHandle = parseExternalTypeHandle(externalType);
+                    Optional<ColumnMapping> columnMapping = toColumnMapping(session, connection, typeHandle);
+                    columnMapping.ifPresent(mapping -> columns.add(JdbcColumnHandle.builder()
+                            .setColumnName(columnName)
+                            .setJdbcTypeHandle(typeHandle)
+                            .setColumnType(mapping.getType())
+                            .setNullable(nullable)
+                            // At the time of this writing, there exists no reliable way to retrieve
+                            // the column comment for redshift external tables
+                            .setComment(Optional.empty())
+                            .build()));
+                }
+            }
+
+            List<JdbcColumnHandle> result = columns.build();
+            if (result.isEmpty()) {
+                throw new TableNotFoundException(schemaTableName,
+                        "External table '%s' has no supported columns".formatted(schemaTableName));
+            }
+            return result;
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    /**
+     * Maps a Redshift external (Spectrum/Glue) type string to a {@link JdbcTypeHandle}.
+     * External types are stored as human-readable strings (e.g. "int", "varchar(255)").
+     */
+    private static JdbcTypeHandle parseExternalTypeHandle(String externalType)
+    {
+        String type = externalType.toLowerCase(Locale.ENGLISH).trim();
+
+        // Decimal/Numeric: decimal(p,s) or numeric(p,s)
+        if (type.startsWith("decimal(") || type.startsWith("numeric(")) {
+            String params = type.substring(type.indexOf('(') + 1, type.indexOf(')'));
+            String[] parts = params.split(",");
+            int precision = Integer.parseInt(parts[0].trim());
+            int scale = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
+            return new JdbcTypeHandle(Types.NUMERIC, Optional.of("decimal"), Optional.of(precision), Optional.of(scale), Optional.empty(), Optional.empty());
+        }
+
+        // VARCHAR with size: varchar(n), character varying(n), nvarchar(n)
+        if (type.startsWith("varchar(") || type.startsWith("character varying(") || type.startsWith("nvarchar(")) {
+            int size = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')).trim());
+            return new JdbcTypeHandle(Types.VARCHAR, Optional.of("varchar"), Optional.of(size), Optional.empty(), Optional.empty(), Optional.empty());
+        }
+
+        // CHAR with size: char(n), character(n), nchar(n)
+        if (type.startsWith("char(") || type.startsWith("character(") || type.startsWith("nchar(")) {
+            int size = Integer.parseInt(type.substring(type.indexOf('(') + 1, type.indexOf(')')).trim());
+            return new JdbcTypeHandle(Types.CHAR, Optional.of("char"), Optional.of(size), Optional.empty(), Optional.empty(), Optional.empty());
+        }
+
+        // Exact-match types
+        return switch (type) {
+            case "int", "integer", "int4" -> new JdbcTypeHandle(Types.INTEGER, Optional.of("integer"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "bigint", "int8" -> new JdbcTypeHandle(Types.BIGINT, Optional.of("bigint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "smallint", "int2" -> new JdbcTypeHandle(Types.SMALLINT, Optional.of("smallint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            // Redshift doesn't support tinyint
+            case "tinyint" -> new JdbcTypeHandle(Types.SMALLINT, Optional.of("tinyint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "float4", "real" -> new JdbcTypeHandle(Types.REAL, Optional.of("real"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "float8", "float", "double", "double precision" -> new JdbcTypeHandle(Types.DOUBLE, Optional.of("double precision"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            // // Redshift uses Types.BIT for booleans
+            case "boolean", "bool" -> new JdbcTypeHandle(Types.BIT, Optional.of("boolean"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "decimal", "numeric" -> new JdbcTypeHandle(Types.NUMERIC, Optional.of("decimal"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "date" -> new JdbcTypeHandle(Types.DATE, Optional.of("date"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "timestamp", "timestamp without time zone" -> new JdbcTypeHandle(Types.TIMESTAMP, Optional.of("timestamp"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "timestamptz", "timestamp with time zone" -> new JdbcTypeHandle(Types.TIMESTAMP_WITH_TIMEZONE, Optional.of("timestamptz"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            case "binary", "varbyte", "varbinary" -> new JdbcTypeHandle(Types.LONGVARBINARY, Optional.of("binary"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+            // Unbounded string types
+            case "string", "varchar", "character varying", "nvarchar", "text" ->
+                    new JdbcTypeHandle(Types.VARCHAR, Optional.of("varchar"), Optional.of(REDSHIFT_MAX_VARCHAR), Optional.empty(), Optional.empty(), Optional.empty());
+            // Complex / unknown types (array, struct, map, etc.) → VARCHAR
+            default -> new JdbcTypeHandle(Types.VARCHAR, Optional.of("varchar"), Optional.of(REDSHIFT_MAX_VARCHAR), Optional.empty(), Optional.empty(), Optional.empty());
+        };
     }
 
     private static Optional<JdbcTypeHandle> toTypeHandle(DecimalType decimalType)
@@ -352,6 +604,25 @@ public class RedshiftClient
     }
 
     @Override
+    protected JdbcOutputTableHandle createTable(
+            ConnectorSession session,
+            Connection connection,
+            ConnectorTableMetadata tableMetadata,
+            RemoteIdentifiers remoteIdentifiers,
+            String catalog,
+            String remoteSchema,
+            String remoteTable,
+            String remoteTargetTableName,
+            Optional<ColumnMetadata> pageSinkIdColumn)
+            throws SQLException
+    {
+        if (externalTablesEnabled && isExternalSchema(connection, remoteSchema)) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support DDL operations on Redshift external schemas");
+        }
+        return super.createTable(session, connection, tableMetadata, remoteIdentifiers, catalog, remoteSchema, remoteTable, remoteTargetTableName, pageSinkIdColumn);
+    }
+
+    @Override
     protected List<String> createTableSqls(RemoteTableName remoteTableName, List<String> columns, ConnectorTableMetadata tableMetadata)
     {
         checkArgument(tableMetadata.getProperties().isEmpty(), "Unsupported table properties: %s", tableMetadata.getProperties());
@@ -367,6 +638,7 @@ public class RedshiftClient
     @Override
     public void setTableComment(ConnectorSession session, JdbcTableHandle handle, Optional<String> comment)
     {
+        requireRegularTable(session, handle);
         execute(session, buildTableCommentSql(handle.asPlainTable().getRemoteTableName(), comment));
     }
 
@@ -501,11 +773,55 @@ public class RedshiftClient
         if (!remoteSchemaName.equals(newRemoteSchemaName)) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming tables across schemas");
         }
+        if (externalTablesEnabled && isExternalTable(connection, remoteSchemaName, remoteTableName)) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support DDL operations on Redshift external tables");
+        }
 
         execute(session, connection, format(
                 "ALTER TABLE %s RENAME TO %s",
                 quoted(catalogName, remoteSchemaName, remoteTableName),
                 quoted(newRemoteTableName)));
+    }
+
+    private static boolean isExternalTable(Connection connection, String remoteSchemaName, String remoteTableName)
+            throws SQLException
+    {
+        try (PreparedStatement stmt = connection.prepareStatement(
+                "SELECT 1 FROM SVV_EXTERNAL_TABLES WHERE LOWER(schemaname) = LOWER(?) AND LOWER(tablename) = LOWER(?)")) {
+            stmt.setString(1, remoteSchemaName);
+            stmt.setString(2, remoteTableName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private static boolean isExternalSchema(Connection connection, String remoteSchemaName)
+            throws SQLException
+    {
+        try (PreparedStatement stmt = connection.prepareStatement(
+                "SELECT 1 FROM SVV_EXTERNAL_SCHEMAS WHERE LOWER(schemaname) = LOWER(?)")) {
+            stmt.setString(1, remoteSchemaName);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private void requireRegularTable(ConnectorSession session, JdbcTableHandle handle)
+    {
+        if (!externalTablesEnabled) {
+            return;
+        }
+        RemoteTableName remoteTableName = handle.getRequiredNamedRelation().getRemoteTableName();
+        try (Connection connection = connectionFactory.openConnection(session)) {
+            if (isExternalTable(connection, remoteTableName.getSchemaName().orElse(""), remoteTableName.getTableName())) {
+                throw new TrinoException(NOT_SUPPORTED, "This connector does not support write operations on Redshift external tables");
+            }
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
     }
 
     @Override
@@ -529,12 +845,20 @@ public class RedshiftClient
     }
 
     @Override
+    public JdbcOutputTableHandle beginInsertTable(ConnectorSession session, JdbcTableHandle tableHandle, List<JdbcColumnHandle> columns)
+    {
+        requireRegularTable(session, tableHandle);
+        return super.beginInsertTable(session, tableHandle, columns);
+    }
+
+    @Override
     public OptionalLong delete(ConnectorSession session, JdbcTableHandle handle)
     {
         checkArgument(handle.isNamedRelation(), "Unable to delete from synthetic table: %s", handle);
         checkArgument(handle.getLimit().isEmpty(), "Unable to delete when limit is set: %s", handle);
         checkArgument(handle.getSortOrder().isEmpty(), "Unable to delete when sort order is set: %s", handle);
         checkArgument(handle.getUpdateAssignments().isEmpty(), "Unable to delete when update assignments are set: %s", handle);
+        requireRegularTable(session, handle);
         try (Connection connection = connectionFactory.openConnection(session)) {
             verify(connection.getAutoCommit());
             PreparedQuery preparedQuery = queryBuilder.prepareDeleteQuery(
@@ -563,6 +887,7 @@ public class RedshiftClient
         checkArgument(handle.getLimit().isEmpty(), "Unable to update when limit is set: %s", handle);
         checkArgument(handle.getSortOrder().isEmpty(), "Unable to update when sort order is set: %s", handle);
         checkArgument(!handle.getUpdateAssignments().isEmpty(), "Unable to update when update assignments are not set: %s", handle);
+        requireRegularTable(session, handle);
         try (Connection connection = connectionFactory.openConnection(session)) {
             verify(connection.getAutoCommit());
             PreparedQuery preparedQuery = queryBuilder.prepareUpdateQuery(
@@ -595,11 +920,28 @@ public class RedshiftClient
     protected void addColumn(ConnectorSession session, Connection connection, RemoteTableName table, ColumnMetadata column)
             throws SQLException
     {
+        if (externalTablesEnabled && isExternalTable(connection, table.getSchemaName().orElse(""), table.getTableName())) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support DDL operations on Redshift external tables");
+        }
         if (!column.isNullable()) {
             // Redshift doesn't support adding not null columns without default expression
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding not null columns");
         }
         super.addColumn(session, connection, table, column);
+    }
+
+    @Override
+    public void dropColumn(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column)
+    {
+        requireRegularTable(session, handle);
+        super.dropColumn(session, handle, column);
+    }
+
+    @Override
+    public void renameColumn(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle jdbcColumn, String newColumnName)
+    {
+        requireRegularTable(session, handle);
+        super.renameColumn(session, handle, jdbcColumn, newColumnName);
     }
 
     @Override
@@ -848,6 +1190,7 @@ public class RedshiftClient
     @Override
     public void setColumnComment(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column, Optional<String> comment)
     {
+        requireRegularTable(session, handle);
         // Redshift doesn't support prepared statement for COMMENT statement
         String sql = format(
                 "COMMENT ON COLUMN %s.%s IS %s",

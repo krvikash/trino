@@ -31,6 +31,7 @@ public class RedshiftConfig
     private String unloadLocation;
     private String unloadIamRole;
     private boolean varcharPushdownEnabled;
+    private boolean externalTablesEnabled;
 
     public Optional<@Min(0) Integer> getFetchSize()
     {
@@ -81,6 +82,19 @@ public class RedshiftConfig
     public RedshiftConfig setVarcharPushdownEnabled(boolean varcharPushdownEnabled)
     {
         this.varcharPushdownEnabled = varcharPushdownEnabled;
+        return this;
+    }
+
+    public boolean isExternalTablesEnabled()
+    {
+        return externalTablesEnabled;
+    }
+
+    @Config("redshift.external-tables.enabled")
+    @ConfigDescription("Enable support for Redshift Spectrum external schemas and tables")
+    public RedshiftConfig setExternalTablesEnabled(boolean externalTablesEnabled)
+    {
+        this.externalTablesEnabled = externalTablesEnabled;
         return this;
     }
 }

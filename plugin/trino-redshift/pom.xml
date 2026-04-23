@@ -248,6 +248,24 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.snowflake</groupId>
+                    <artifactId>snowflake-jdbc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <scope>test</scope>
         </dependency>
@@ -302,6 +320,22 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.basepom.maven</groupId>
+                    <artifactId>duplicate-finder-maven-plugin</artifactId>
+                    <configuration>
+                        <ignoredResourcePatterns>
+                            <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
+                        </ignoredResourcePatterns>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
     <profiles>
         <profile>
             <id>default</id>
@@ -325,6 +359,7 @@
                                 <exclude>**/TestRedshiftUnloadTypeMapping.java</exclude>
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
                                 <exclude>**/Test*FailureRecoverySmokeTest.java</exclude>
+                                <exclude>**/TestRedshiftExternalTables.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -353,6 +388,7 @@
                                 <include>**/TestRedshiftTypeMapping.java</include>
                                 <include>**/TestRedshiftUnloadTypeMapping.java</include>
                                 <include>**/TestRedshiftUnload.java</include>
+                                <include>**/TestRedshiftExternalTables.java</include>
                             </includes>
                             <systemPropertyVariables>
                                 <junit.jupiter.execution.parallel.enabled>true</junit.jupiter.execution.parallel.enabled>

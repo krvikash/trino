@@ -31,7 +31,8 @@ public class TestRedshiftConfig
                 .setFetchSize(null)
                 .setUnloadLocation(null)
                 .setUnloadIamRole(null)
-                .setVarcharPushdownEnabled(false));
+                .setVarcharPushdownEnabled(false)
+                .setExternalTablesEnabled(false));
     }
 
     @Test
@@ -42,13 +43,15 @@ public class TestRedshiftConfig
                 .put("redshift.unload-location", "s3://bucket")
                 .put("redshift.unload-iam-role", "arn:aws:iam::123456789000:role/redshift_iam_role")
                 .put("redshift.unsafe.varchar-pushdown.enabled", "true")
+                .put("redshift.external-tables.enabled", "true")
                 .buildOrThrow();
 
         RedshiftConfig expected = new RedshiftConfig()
                 .setFetchSize(2000)
                 .setUnloadLocation("s3://bucket")
                 .setUnloadIamRole("arn:aws:iam::123456789000:role/redshift_iam_role")
-                .setVarcharPushdownEnabled(true);
+                .setVarcharPushdownEnabled(true)
+                .setExternalTablesEnabled(true);
 
         assertFullMapping(properties, expected);
     }
