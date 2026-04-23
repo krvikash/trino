@@ -127,23 +127,23 @@ public class DeltaLakeProxiedConnectorTransformer
         DeltaLakeSplit deltaLakeSplit = (DeltaLakeSplit) proxyConnectorSplit;
 
         List<HostAddress> hostAddresses = getHostAddressForSplit(
-                getSplitKey(deltaLakeSplit.getPath(), deltaLakeSplit.getStart(), deltaLakeSplit.getLength()),
+                getSplitKey(deltaLakeSplit.path(), deltaLakeSplit.start(), deltaLakeSplit.length()),
                 connectorSplitNodeDistributor);
 
         List<PartitionKey> partitionKeys = new ArrayList<>();
-        for (Map.Entry<String, Optional<String>> entry : deltaLakeSplit.getPartitionKeys().entrySet()) {
+        for (Map.Entry<String, Optional<String>> entry : deltaLakeSplit.partitionKeys().entrySet()) {
             entry.getValue().ifPresent(value -> partitionKeys.add(new PartitionKey(new RegularColumn(entry.getKey()), value)));
         }
 
-        String deletedFileHash = deltaLakeSplit.getDeletionVector().isPresent() ?
-                Hashing.sha256().hashString(deltaLakeSplit.getDeletionVector().get().toString(), StandardCharsets.UTF_8).toString() : "";
+        String deletedFileHash = deltaLakeSplit.deletionVector().isPresent() ?
+                Hashing.sha256().hashString(deltaLakeSplit.deletionVector().get().toString(), StandardCharsets.UTF_8).toString() : "";
 
         return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
-                deltaLakeSplit.getPath(),
-                deltaLakeSplit.getStart(),
-                deltaLakeSplit.getLength(),
-                deltaLakeSplit.getFileModifiedTime(),
+                deltaLakeSplit.path(),
+                deltaLakeSplit.start(),
+                deltaLakeSplit.length(),
+                deltaLakeSplit.fileModifiedTime(),
                 hostAddresses,
                 partitionKeys,
                 deletedFileHash,
@@ -184,23 +184,23 @@ public class DeltaLakeProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         DeltaLakeSplit originSplit = (DeltaLakeSplit) connectorSplit;
-        return new DeltaLakeSplit(originSplit.getPath(),
-                originSplit.getStart(),
-                originSplit.getLength(),
-                originSplit.getFileSize(),
-                originSplit.getFileRowCount(),
-                originSplit.getFileModifiedTime(),
-                originSplit.getDeletionVector(),
-                originSplit.getAffinityKey(),
+        return new DeltaLakeSplit(originSplit.path(),
+                originSplit.start(),
+                originSplit.length(),
+                originSplit.fileSize(),
+                originSplit.fileRowCount(),
+                originSplit.fileModifiedTime(),
+                originSplit.deletionVector(),
+                originSplit.affinityKey(),
                 originSplit.getSplitWeight(),
                 TupleDomain.all(),
-                originSplit.getPartitionKeys());
+                originSplit.partitionKeys());
     }
 
     @Override
     public Optional<Long> getRowCount(ConnectorSplit connectorSplit)
     {
         DeltaLakeSplit deltaLakeSplit = (DeltaLakeSplit) connectorSplit;
-        return deltaLakeSplit.getFileRowCount();
+        return deltaLakeSplit.fileRowCount();
     }
 }

@@ -85,7 +85,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
     private DispatcherSplit getDispatcherSplit(DeltaLakeSplit deltaLakeSplit, DispatcherTableHandle dispatcherTableHandle)
     {
         List<PartitionKey> partitionKeys = new ArrayList<>();
-        for (Map.Entry<String, Optional<String>> entry : deltaLakeSplit.getPartitionKeys().entrySet()) {
+        for (Map.Entry<String, Optional<String>> entry : deltaLakeSplit.partitionKeys().entrySet()) {
             if (entry.getValue().isPresent()) {
                 partitionKeys.add(new PartitionKey(new RegularColumn(entry.getKey()), entry.getValue().orElseThrow()));
             }
@@ -93,10 +93,10 @@ public class DeltaLakeProxiedConnectorTransformerTest
         return new DispatcherSplit(
                 dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
-                deltaLakeSplit.getPath(),
-                deltaLakeSplit.getStart(),
-                deltaLakeSplit.getLength(),
-                deltaLakeSplit.getFileModifiedTime(),
+                deltaLakeSplit.path(),
+                deltaLakeSplit.start(),
+                deltaLakeSplit.length(),
+                deltaLakeSplit.fileModifiedTime(),
                 List.of(node.getHostAndPort()),
                 partitionKeys,
                 "",

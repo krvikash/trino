@@ -159,27 +159,28 @@ public class DeltaLakeSplitManager
 
         // ensure cache id generation is revisited whenever split classes change
         deltaLakeSplit = new DeltaLakeSplit(
-                deltaLakeSplit.getPath(),
-                deltaLakeSplit.getStart(),
-                deltaLakeSplit.getLength(),
-                deltaLakeSplit.getFileSize(),
-                deltaLakeSplit.getFileRowCount(),
-                deltaLakeSplit.getFileModifiedTime(),
-                deltaLakeSplit.getDeletionVector(),
+                deltaLakeSplit.path(),
+                deltaLakeSplit.start(),
+                deltaLakeSplit.length(),
+                deltaLakeSplit.fileSize(),
+                deltaLakeSplit.fileRowCount(),
+                deltaLakeSplit.fileModifiedTime(),
+                deltaLakeSplit.deletionVector(),
+                deltaLakeSplit.affinityKey(),
                 // weight does not impact split rows
                 SplitWeight.standard(),
-                deltaLakeSplit.getStatisticsPredicate(),
-                deltaLakeSplit.getPartitionKeys());
+                deltaLakeSplit.statisticsPredicate(),
+                deltaLakeSplit.partitionKeys());
 
         return Optional.of(new CacheSplitId(splitIdCodec.toJson(new DeltaLakeCacheSplitId(
-                deltaLakeSplit.getPath(),
-                deltaLakeSplit.getStart(),
-                deltaLakeSplit.getLength(),
-                deltaLakeSplit.getFileSize(),
-                deltaLakeSplit.getFileRowCount(),
-                deltaLakeSplit.getFileModifiedTime(),
-                deltaLakeSplit.getPartitionKeys(),
-                deltaLakeSplit.getDeletionVector()))));
+                deltaLakeSplit.path(),
+                deltaLakeSplit.start(),
+                deltaLakeSplit.length(),
+                deltaLakeSplit.fileSize(),
+                deltaLakeSplit.fileRowCount(),
+                deltaLakeSplit.fileModifiedTime(),
+                deltaLakeSplit.partitionKeys(),
+                deltaLakeSplit.deletionVector()))));
     }
 
     private Stream<DeltaLakeSplit> getSplits(
