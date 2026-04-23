@@ -57,6 +57,10 @@ public class RewriteDateTimestampConstant
         if (value == null) {
             return Optional.empty();
         }
+        if (!(value instanceof Long)) {
+            // as long as we don't support casts in predicates (only in projections) it should not be possible to receive LongTimestamp here
+            return Optional.empty();
+        }
         long longValue = (long) value;
 
         // Trino supports broader timestamps/date ranges than SingleStore - which in case of pushdown produce "Invalid DATE/TIME in type conversion" error.
