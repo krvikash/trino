@@ -121,6 +121,7 @@ public final class SystemSessionProperties
     public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN = "push_partial_aggregation_through_join";
     public static final String ALLOW_UNSAFE_PUSHDOWN = "allow_unsafe_pushdown";
     public static final String PRE_AGGREGATE_CASE_AGGREGATIONS_ENABLED = "pre_aggregate_case_aggregations_enabled";
+    public static final String REWRITE_SUM_WITH_LITERAL_ENABLED = "rewrite_sum_with_literal_enabled";
     public static final String FORCE_SINGLE_NODE_OUTPUT = "force_single_node_output";
     public static final String FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE = "filter_and_project_min_output_page_size";
     public static final String FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_ROW_COUNT = "filter_and_project_min_output_page_row_count";
@@ -600,6 +601,11 @@ public final class SystemSessionProperties
                         "Pre-aggregate rows before GROUP BY with multiple CASE aggregations on same column",
                         optimizerConfig.isPreAggregateCaseAggregationsEnabled(),
                         false),
+                booleanProperty(
+                        REWRITE_SUM_WITH_LITERAL_ENABLED,
+                        "Rewrite sum(col +/- literal) as sum(col) +/- literal * count(col)",
+                        optimizerConfig.isRewriteSumWithLiteralEnabled(),
+                        true),
                 booleanProperty(
                         FORCE_SINGLE_NODE_OUTPUT,
                         "Force single node output",
@@ -1631,6 +1637,11 @@ public final class SystemSessionProperties
     public static boolean isPreAggregateCaseAggregationsEnabled(Session session)
     {
         return session.getSystemProperty(PRE_AGGREGATE_CASE_AGGREGATIONS_ENABLED, Boolean.class);
+    }
+
+    public static boolean isRewriteSumWithLiteralEnabled(Session session)
+    {
+        return session.getSystemProperty(REWRITE_SUM_WITH_LITERAL_ENABLED, Boolean.class);
     }
 
     public static boolean isForceSingleNodeOutput(Session session)

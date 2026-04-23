@@ -292,6 +292,35 @@ public class TestLogicalPlanner
     }
 
     @Test
+    public void testRewriteSumWithLiteralAsSumAndCount()
+    {
+        // All four shift variations over the same narrow column should deduplicate
+        // to a single sum + count pair in the final plan.
+        assertDistributedPlan(
+                "SELECT sum(column + 1), sum(column - 2), sum(3 + column), sum(4 - column) " +
+                        "FROM (SELECT CAST(regionkey AS SMALLINT) column FROM nation)",
+                anyTree(
+                        aggregation(
+                                ImmutableMap.of(
+                                        "final_sum", aggregationFunction("sum", ImmutableList.of("partial_sum")),
+                                        "final_count", aggregationFunction("count", ImmutableList.of("partial_count"))),
+                                FINAL,
+                                anyTree(
+                                        aggregation(
+                                                ImmutableMap.of(
+                                                        "partial_sum", aggregationFunction("sum", ImmutableList.of("cast_narrow_column")),
+                                                        "partial_count", aggregationFunction("count", ImmutableList.of("narrow_column"))),
+                                                PARTIAL,
+                                                project(
+                                                        ImmutableMap.of(
+                                                                "cast_narrow_column", expression(new Cast(new Reference(SMALLINT, "narrow_column"), BIGINT))),
+                                                        project(
+                                                                ImmutableMap.of(
+                                                                        "narrow_column", expression(new Cast(new Reference(BIGINT, "regionkey"), SMALLINT))),
+                                                                tableScan("nation", ImmutableMap.of("regionkey", "regionkey")))))))));
+    }
+
+    @Test
     public void testAllFieldsDereferenceOnSubquery()
     {
         assertPlan("SELECT (SELECT (min(regionkey), max(name)) FROM nation).*",

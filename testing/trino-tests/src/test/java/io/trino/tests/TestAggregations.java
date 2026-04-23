@@ -147,6 +147,28 @@ public class TestAggregations
     }
 
     @Test
+    public void testRewriteSumWithLiteralAsSumAndCount()
+    {
+        // SMALLINT column: the rewrite fires across all four operand orientations.
+        assertQuery(
+                "SELECT sum(c + 1), sum(c + 2), sum(c - 3), sum(100 - c) "
+                        + "FROM (SELECT CAST(regionkey AS SMALLINT) c FROM nation)");
+
+        // NULL rows: verifies count(col) (not count(*)) so null rows are skipped
+        // identically to the original sum(col ± lit).
+        assertQuery(
+                "SELECT sum(c + 1), sum(c - 2), sum(10 - c) "
+                        + "FROM (VALUES CAST(1 AS SMALLINT), CAST(NULL AS SMALLINT), CAST(3 AS SMALLINT), CAST(NULL AS SMALLINT), CAST(5 AS SMALLINT)) t(c)");
+
+        // Types not covered by the rewrite — assertQuery confirms un-rewritten
+        // correctness is unaffected across operand orientations.
+        assertQuery("SELECT sum(orderkey + 1), sum(orderkey + 2), sum(orderkey - 3), sum(100 - orderkey) FROM orders");
+        assertQuery("SELECT sum(linenumber + 1), sum(linenumber + 2), sum(1 + linenumber), sum(10 - linenumber) FROM lineitem");
+        assertQuery("SELECT sum(totalprice + 1.5e0), sum(totalprice - 2.5e0) FROM orders");
+        assertQuery("SELECT orderstatus, sum(orderkey + 1), count(orderkey), sum(orderkey + 2) FROM orders GROUP BY orderstatus");
+    }
+
+    @Test
     public void testPreAggregateWithFilter()
     {
         assertQuery(

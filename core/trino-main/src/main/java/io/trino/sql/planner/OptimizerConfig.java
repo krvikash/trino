@@ -83,6 +83,7 @@ public class OptimizerConfig
     private boolean enableIntermediateAggregations;
     private boolean pushPartialAggregationThroughJoin = true;
     private boolean preAggregateCaseAggregationsEnabled = true;
+    private boolean rewriteSumWithLiteralEnabled = true;
     private boolean enableForcedExchangeBelowGroupId = true;
     private boolean optimizeTopNRanking = true;
     private boolean skipRedundantSort = true;
@@ -511,6 +512,20 @@ public class OptimizerConfig
     public OptimizerConfig setPreAggregateCaseAggregationsEnabled(boolean preAggregateCaseAggregationsEnabled)
     {
         this.preAggregateCaseAggregationsEnabled = preAggregateCaseAggregationsEnabled;
+        return this;
+    }
+
+    public boolean isRewriteSumWithLiteralEnabled()
+    {
+        return rewriteSumWithLiteralEnabled;
+    }
+
+    @Config("optimizer.rewrite-sum-with-literal.enabled")
+    @ConfigDescription("Rewrite sum(col +/- literal) as sum(col) +/- literal * count(col)")
+    @ConfigHidden
+    public OptimizerConfig setRewriteSumWithLiteralEnabled(boolean rewriteSumWithLiteralEnabled)
+    {
+        this.rewriteSumWithLiteralEnabled = rewriteSumWithLiteralEnabled;
         return this;
     }
 
