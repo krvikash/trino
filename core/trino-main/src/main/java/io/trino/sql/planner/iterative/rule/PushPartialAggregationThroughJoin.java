@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Sets.intersection;
+import static io.trino.SystemSessionProperties.isPushPartialAggregationThroughExpandingJoin;
 import static io.trino.SystemSessionProperties.isPushPartialAggregationThroughJoin;
 import static io.trino.sql.planner.iterative.rule.PushProjectionThroughJoin.pushProjectionThroughJoin;
 import static io.trino.sql.planner.iterative.rule.Util.restrictOutputs;
@@ -214,7 +215,12 @@ public class PushPartialAggregationThroughJoin
         // 1. dynamic filtering should filter unmatched rows at source
         // 2. partial aggregation will adaptively switch off when it's not reducing input rows
         // 3. join operator is not particularly efficient at filtering rows
-        if (isNaN(sourceRowCount) || isNaN(joinRowCount) || joinRowCount > 1.1 * sourceRowCount) {
+
+        // For an expanding cross join , only reason 2 applies. Adaptive shutdown caps the downside,
+        // while pushdown can be a large win when the aggregation reduces rows well below the Cartesian product size.
+        if (isNaN(sourceRowCount)
+                || isNaN(joinRowCount)
+                || (joinRowCount > 1.1 * sourceRowCount && !(isPushPartialAggregationThroughExpandingJoin(context.getSession()) && join.isCrossJoin()))) {
             return true;
         }
 
@@ -310,10 +316,13 @@ public class PushPartialAggregationThroughJoin
                 child.getDynamicFilters(),
                 child.getReorderJoinStatsAndCost());
         PlanNode result = restrictOutputs(context.getIdAllocator(), joinNode, ImmutableSet.copyOf(aggregation.getOutputSymbols())).orElse(joinNode);
-        // Keep intermediate aggregation below remote exchange to reduce network traffic.
-        // Intermediate aggregation can be skipped if pushed aggregation has subset of grouping
-        // symbols as join is not expanding.
-        if (aggregation.isInputReducingAggregation() && !ImmutableSet.copyOf(aggregation.getGroupingKeys()).containsAll(pushedAggregation.getGroupingKeys())) {
+        // Keep an intermediate aggregation above the join to reduce rows before any remote exchange.
+        // We only do this for input-reducing aggregations. For cross joins this is sufficient on its
+        // own, since cross joins can arbitrarily multiply row counts. For non-cross joins,
+        // skip it only when the original aggregation grouping keys contain all grouping keys of the pushed
+        //  aggregation, which is the heuristic condition used here.
+        if (aggregation.isInputReducingAggregation() &&
+                (joinNode.isCrossJoin() || !ImmutableSet.copyOf(aggregation.getGroupingKeys()).containsAll(pushedAggregation.getGroupingKeys()))) {
             result = toIntermediateAggregation(aggregation, result, context);
         }
         return result;

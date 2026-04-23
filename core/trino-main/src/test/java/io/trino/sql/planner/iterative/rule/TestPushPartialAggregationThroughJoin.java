@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static io.trino.SystemSessionProperties.PUSH_PARTIAL_AGGREGATION_THROUGH_EXPANDING_JOIN;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.sql.ir.Comparison.Operator.LESS_THAN_OR_EQUAL;
@@ -148,6 +149,121 @@ public class TestPushPartialAggregationThroughJoin
                         .addAggregation(p.symbol("AVG", DOUBLE), aggregation("avg", ImmutableList.of(new Reference(BIGINT, "LEFT_AGGR"))), ImmutableList.of(DOUBLE))
                         .singleGroupingSet(p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_EQUI"), p.symbol("LEFT_NON_EQUI"))
                         .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    @Test
+    public void testPushesPartialAggregationThroughExpandingCrossJoin()
+    {
+        // cross joins are expanding, but pushdown is allowed by default via
+        // push_partial_aggregation_through_expanding_join
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), new PlanNodeStatsEstimate(10.0, ImmutableMap.of(
+                        new Symbol(BIGINT, "LEFT_GROUP_BY"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, 2.0))))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(100.0, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(
+                                p.join(JOIN_ID,
+                                        INNER,
+                                        p.values(CHILD_ID, p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_AGGR")),
+                                        p.values(p.symbol("RIGHT_COL")),
+                                        ImmutableList.of(),
+                                        ImmutableList.of(p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_AGGR")),
+                                        ImmutableList.of(p.symbol("RIGHT_COL")),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        ImmutableMap.of()))
+                        .addAggregation(p.symbol("AVG", DOUBLE), aggregation("avg", ImmutableList.of(new Reference(BIGINT, "LEFT_AGGR"))), ImmutableList.of(DOUBLE))
+                        .singleGroupingSet(p.symbol("LEFT_GROUP_BY"))
+                        .step(PARTIAL)
+                        .exchangeInputAggregation(true)))
+                .matches(
+                        aggregation(
+                                singleGroupingSet("LEFT_GROUP_BY"),
+                                ImmutableMap.of(Optional.of("AVG"), aggregationFunction("avg", ImmutableList.of("AVG"))),
+                                Optional.empty(),
+                                INTERMEDIATE,
+                                project(ImmutableMap.of(
+                                                "LEFT_GROUP_BY", PlanMatchPattern.expression(new Reference(BIGINT, "LEFT_GROUP_BY")),
+                                                "AVG", PlanMatchPattern.expression(new Reference(DOUBLE, "AVG"))),
+                                        join(INNER, builder -> builder
+                                                .left(
+                                                        aggregation(
+                                                                singleGroupingSet("LEFT_GROUP_BY"),
+                                                                ImmutableMap.of(Optional.of("AVG"), aggregationFunction("avg", ImmutableList.of("LEFT_AGGR"))),
+                                                                Optional.empty(),
+                                                                PARTIAL,
+                                                                values("LEFT_GROUP_BY", "LEFT_AGGR")))
+                                                .right(
+                                                        values("RIGHT_COL"))))));
+
+        // With a empty grouping set
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), new PlanNodeStatsEstimate(10.0, ImmutableMap.of(
+                        new Symbol(BIGINT, "LEFT_GROUP_BY"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, 2.0))))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(100.0, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(
+                                p.join(JOIN_ID,
+                                        INNER,
+                                        p.values(CHILD_ID, p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_AGGR")),
+                                        p.values(p.symbol("RIGHT_COL")),
+                                        ImmutableList.of(),
+                                        ImmutableList.of(p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_AGGR")),
+                                        ImmutableList.of(p.symbol("RIGHT_COL")),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        ImmutableMap.of()))
+                        .addAggregation(p.symbol("AVG", DOUBLE), aggregation("avg", ImmutableList.of(new Reference(BIGINT, "LEFT_AGGR"))), ImmutableList.of(DOUBLE))
+                        .singleGroupingSet()
+                        .step(PARTIAL)
+                        .exchangeInputAggregation(true)))
+                .matches(
+                        aggregation(
+                                singleGroupingSet(),
+                                ImmutableMap.of(Optional.of("AVG"), aggregationFunction("avg", ImmutableList.of("AVG"))),
+                                Optional.empty(),
+                                INTERMEDIATE,
+                                project(ImmutableMap.of(
+                                                "AVG", PlanMatchPattern.expression(new Reference(DOUBLE, "AVG"))),
+                                        join(INNER, builder -> builder
+                                                .left(
+                                                        aggregation(
+                                                                singleGroupingSet(),
+                                                                ImmutableMap.of(Optional.of("AVG"), aggregationFunction("avg", ImmutableList.of("LEFT_AGGR"))),
+                                                                Optional.empty(),
+                                                                PARTIAL,
+                                                                values("LEFT_GROUP_BY", "LEFT_AGGR")))
+                                                .right(
+                                                        values("RIGHT_COL"))))));
+    }
+
+    @Test
+    public void testDoesNotPushPartialAggregationThroughExpandingCrossJoinWhenDisabled()
+    {
+        // cross joins are expanding, so pushdown is skipped when
+        // push_partial_aggregation_through_expanding_join is disabled
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .setSystemProperty(PUSH_PARTIAL_AGGREGATION_THROUGH_EXPANDING_JOIN, "false")
+                .overrideStats(CHILD_ID.toString(), new PlanNodeStatsEstimate(10.0, ImmutableMap.of(
+                        new Symbol(BIGINT, "LEFT_GROUP_BY"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, 2.0))))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(100.0, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(
+                                p.join(JOIN_ID,
+                                        INNER,
+                                        p.values(CHILD_ID, p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_AGGR")),
+                                        p.values(p.symbol("RIGHT_COL")),
+                                        ImmutableList.of(),
+                                        ImmutableList.of(p.symbol("LEFT_GROUP_BY"), p.symbol("LEFT_AGGR")),
+                                        ImmutableList.of(p.symbol("RIGHT_COL")),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        ImmutableMap.of()))
+                        .addAggregation(p.symbol("AVG", DOUBLE), aggregation("avg", ImmutableList.of(new Reference(BIGINT, "LEFT_AGGR"))), ImmutableList.of(DOUBLE))
+                        .singleGroupingSet(p.symbol("LEFT_GROUP_BY"))
+                        .step(PARTIAL)
+                        .exchangeInputAggregation(true)))
                 .doesNotFire();
     }
 

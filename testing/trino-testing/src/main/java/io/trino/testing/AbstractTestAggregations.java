@@ -1528,4 +1528,17 @@ public abstract class AbstractTestAggregations
                 GROUP BY id
                 """);
     }
+
+    @Test
+    public void testAggregationPushdownThroughCrossJoin()
+    {
+        assertQuery(
+                """
+                SELECT n.regionkey, sum(n.nationkey)
+                FROM nation n, region r
+                GROUP BY n.regionkey ORDER BY n.regionkey
+                """);
+    }
+
+
 }

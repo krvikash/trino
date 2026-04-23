@@ -102,7 +102,8 @@ public class TestOptimizerConfig
                 .setUseCostBasedPartitioning(true)
                 .setPushFilterIntoValuesMaxRowCount(100)
                 .setReuseCommonSubqueries(false)
-                .setUnsafePushdownAllowed(false));
+                .setUnsafePushdownAllowed(false)
+                .setPushPartialAggregationThroughExpandingJoin(true));
     }
 
     @Test
@@ -171,6 +172,7 @@ public class TestOptimizerConfig
                 .put("optimizer.push-filter-into-values-max-row-count", "5")
                 .put("optimizer.reuse-common-subqueries", "true")
                 .put("optimizer.allow-unsafe-pushdown", "true")
+                .put("optimizer.push-partial-aggregation-through-expanding-join", "false")
                 .buildOrThrow();
 
         OptimizerConfig expected = new OptimizerConfig()
@@ -236,7 +238,8 @@ public class TestOptimizerConfig
                 .setUseCostBasedPartitioning(false)
                 .setPushFilterIntoValuesMaxRowCount(5)
                 .setReuseCommonSubqueries(true)
-                .setUnsafePushdownAllowed(true);
+                .setUnsafePushdownAllowed(true)
+                .setPushPartialAggregationThroughExpandingJoin(false);
         assertFullMapping(properties, expected);
     }
 }

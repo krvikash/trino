@@ -82,6 +82,7 @@ public class OptimizerConfig
     private boolean pushAggregationIntoValuesEnabled = true;
     private boolean enableIntermediateAggregations;
     private boolean pushPartialAggregationThroughJoin = true;
+    private boolean pushPartialAggregationThroughExpandingJoin = true;
     private boolean preAggregateCaseAggregationsEnabled = true;
     private boolean rewriteSumWithLiteralEnabled = true;
     private boolean enableForcedExchangeBelowGroupId = true;
@@ -499,6 +500,19 @@ public class OptimizerConfig
     public OptimizerConfig setPushPartialAggregationThroughJoin(boolean pushPartialAggregationThroughJoin)
     {
         this.pushPartialAggregationThroughJoin = pushPartialAggregationThroughJoin;
+        return this;
+    }
+
+    public boolean isPushPartialAggregationThroughExpandingJoin()
+    {
+        return pushPartialAggregationThroughExpandingJoin;
+    }
+
+    @Config("optimizer.push-partial-aggregation-through-expanding-join")
+    @ConfigDescription("Push partial aggregations below cross joins")
+    public OptimizerConfig setPushPartialAggregationThroughExpandingJoin(boolean pushPartialAggregationThroughExpandingJoin)
+    {
+        this.pushPartialAggregationThroughExpandingJoin = pushPartialAggregationThroughExpandingJoin;
         return this;
     }
 

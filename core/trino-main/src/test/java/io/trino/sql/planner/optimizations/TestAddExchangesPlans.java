@@ -1054,8 +1054,16 @@ public class TestAddExchangesPlans
                         join(INNER, join -> join
                                 .left(
                                         exchange(LOCAL, REPARTITION, FIXED_ARBITRARY_DISTRIBUTION,
-                                                tableScan("nation", ImmutableMap.of("nationkey", "nationkey")),
-                                                tableScan("nation")))
+                                                project(
+                                                        aggregation(
+                                                                ImmutableMap.of("partial_sum_left", aggregationFunction("sum", ImmutableList.of("nationkey"))),
+                                                                PARTIAL,
+                                                                tableScan("nation", ImmutableMap.of("nationkey", "nationkey")))),
+                                                project(
+                                                        aggregation(
+                                                                ImmutableMap.of("partial_sum_right", aggregationFunction("sum", ImmutableList.of("nationkey_right"))),
+                                                                PARTIAL,
+                                                                tableScan("nation", ImmutableMap.of("nationkey_right", "nationkey"))))))
                                 .right(
                                         exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
                                                 exchange(REMOTE, REPLICATE, FIXED_BROADCAST_DISTRIBUTION,

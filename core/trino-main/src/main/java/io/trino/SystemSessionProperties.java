@@ -119,6 +119,7 @@ public final class SystemSessionProperties
     public static final String PUSH_AGGREGATION_THROUGH_OUTER_JOIN = "push_aggregation_through_outer_join";
     public static final String PUSH_AGGREGATION_INTO_VALUES_ENABLED = "push_aggregation_into_values_enabled";
     public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN = "push_partial_aggregation_through_join";
+    public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_EXPANDING_JOIN = "push_partial_aggregation_through_expanding_join";
     public static final String ALLOW_UNSAFE_PUSHDOWN = "allow_unsafe_pushdown";
     public static final String PRE_AGGREGATE_CASE_AGGREGATIONS_ENABLED = "pre_aggregate_case_aggregations_enabled";
     public static final String REWRITE_SUM_WITH_LITERAL_ENABLED = "rewrite_sum_with_literal_enabled";
@@ -597,6 +598,11 @@ public final class SystemSessionProperties
                         PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN,
                         "Push partial aggregations below joins",
                         optimizerConfig.isPushPartialAggregationThroughJoin(),
+                        false),
+                booleanProperty(
+                        PUSH_PARTIAL_AGGREGATION_THROUGH_EXPANDING_JOIN,
+                        "Push partial aggregations below cross joins",
+                        optimizerConfig.isPushPartialAggregationThroughExpandingJoin(),
                         false),
                 booleanProperty(
                         PRE_AGGREGATE_CASE_AGGREGATIONS_ENABLED,
@@ -1644,6 +1650,11 @@ public final class SystemSessionProperties
     public static boolean isPushPartialAggregationThroughJoin(Session session)
     {
         return session.getSystemProperty(PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN, Boolean.class);
+    }
+
+    public static boolean isPushPartialAggregationThroughExpandingJoin(Session session)
+    {
+        return session.getSystemProperty(PUSH_PARTIAL_AGGREGATION_THROUGH_EXPANDING_JOIN, Boolean.class);
     }
 
     public static boolean isPreAggregateCaseAggregationsEnabled(Session session)
