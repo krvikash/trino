@@ -645,11 +645,12 @@ public class QueryAssertions
             QueryResultAndExecutionStats result = executeAndGetExecutionStats();
 
             // Validate not GPU usage
-            Optional<OperatorStats> gpuOperator = result.queryStats().getOperatorSummaries().stream()
+            List<String> gpuOperators = result.queryStats().getOperatorSummaries().stream()
                     .filter(summary -> summary.getOperatorType().contains("Gpu"))
-                    .findAny();
-            if (gpuOperator.isPresent()) {
-                throw new AssertionError("Query executed with GPU: " + gpuOperator.get());
+                    .map(OperatorStats::getOperatorType)
+                    .toList();
+            if (!gpuOperators.isEmpty()) {
+                throw new AssertionError("Query executed with GPU: " + gpuOperators);
             }
 
             // Validate results (just in case)
