@@ -14,11 +14,11 @@
 package io.trino.server;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.starburst.stargate.buffer.data.server.DrainService;
 import io.trino.execution.SqlTaskManager;
 import io.trino.execution.StateMachine;
 import io.trino.execution.TaskId;
@@ -27,6 +27,8 @@ import io.trino.execution.TaskState;
 import io.trino.node.NodeState;
 import io.trino.server.NodeStateManager.CurrentNodeState.VersionedState;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,6 +51,10 @@ import static io.trino.node.NodeState.DRAINING;
 import static io.trino.node.NodeState.SHUTTING_DOWN;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -84,7 +90,7 @@ public class NodeStateManager
             SqlTaskManager sqlTaskManager,
             ServerConfig serverConfig,
             ShutdownAction shutdownAction,
-            Optional<DrainService> bufferServiceDrainService,
+            @PreShutdownAction Optional<Runnable> preShutdownAction,
             LifeCycleManager lifeCycleManager)
     {
         this(nodeState,
@@ -92,7 +98,7 @@ public class NodeStateManager
                 requireNonNull(sqlTaskManager, "sqlTaskManager is null")::getAllTaskInfo,
                 serverConfig,
                 shutdownAction,
-                bufferServiceDrainService.map(drainService -> drainService::awaitDrain),
+                preShutdownAction,
                 lifeCycleManager,
                 newSingleThreadScheduledExecutor(threadsNamed("drain-handler-%s")));
     }
@@ -423,4 +429,9 @@ public class NodeStateManager
             }
         }
     }
+
+    @Retention(RUNTIME)
+    @Target({FIELD, PARAMETER, METHOD})
+    @BindingAnnotation
+    public @interface PreShutdownAction {}
 }

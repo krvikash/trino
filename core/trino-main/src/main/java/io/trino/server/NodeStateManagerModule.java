@@ -14,9 +14,9 @@
 package io.trino.server;
 
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.starburst.stargate.buffer.data.server.DrainService;
 import io.trino.server.NodeStateManager.CurrentNodeState;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -30,6 +30,6 @@ public class NodeStateManagerModule
         binder.bind(ShutdownAction.class).to(DefaultShutdownAction.class).in(Scopes.SINGLETON);
         binder.bind(CurrentNodeState.class).in(Scopes.SINGLETON);
         binder.bind(NodeStateManager.class).in(Scopes.SINGLETON);
-        newOptionalBinder(binder, DrainService.class);
+        newOptionalBinder(binder, Key.get(Runnable.class, NodeStateManager.PreShutdownAction.class));
     }
 }

@@ -370,6 +370,7 @@ public class TestingTrinoServer
                     binder.bind(ShutdownAction.class).to(TestShutdownAction.class).in(Scopes.SINGLETON);
                     binder.bind(CurrentNodeState.class).in(Scopes.SINGLETON);
                     binder.bind(NodeStateManager.class).in(Scopes.SINGLETON);
+                    newOptionalBinder(binder, Key.get(Runnable.class, NodeStateManager.PreShutdownAction.class));
                     newOptionalBinder(binder, DrainService.class);
                     binder.bind(ProcedureTester.class).in(Scopes.SINGLETON);
                     binder.bind(ExchangeManagerRegistry.class).in(Scopes.SINGLETON);

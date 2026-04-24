@@ -10,14 +10,18 @@
 package io.starburst.trino.server;
 
 import com.google.inject.Binder;
+import com.google.inject.multibindings.ProvidesIntoOptional;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.starburst.stargate.buffer.data.server.DrainService;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactory.RealBufferExchangeManagerFactoryModule;
 import io.starburst.trino.server.buffer.EmbeddedBufferServiceDataModule;
 import io.starburst.trino.server.buffer.EmbeddedBufferServiceDiscoveryModule;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
+import io.trino.server.NodeStateManager;
 import io.trino.server.ServerConfig;
 import io.trino.server.buffer.EmbeddedBufferServiceConfig;
 
+import static com.google.inject.multibindings.ProvidesIntoOptional.Type.ACTUAL;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getSpoolingConfigurationModule;
 import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX;
@@ -50,19 +54,15 @@ public class BufferServiceModule
         @Override
         protected void setup(Binder binder)
         {
-            // embedded buffer service
-            configBinder(binder).bindConfig(EmbeddedBufferServiceConfig.class);
-            EmbeddedBufferServiceConfig embeddedBufferServiceConfig = buildConfigObject(EmbeddedBufferServiceConfig.class);
-            if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
-                install(new EmbeddedBufferServiceDiscoveryModule());
-                if (buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) {
-                    // if coordinator is doing worker job start up data server too
-                    install(new EmbeddedBufferServiceDataModule());
-                }
-                else {
-                    // just bind storage manager configs
-                    install(getSpoolingConfigurationModule(EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX));
-                }
+            install(new EmbeddedBufferServiceDiscoveryModule());
+            if (buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) {
+                // if coordinator is doing worker job start up data server too
+                install(new EmbeddedBufferServiceDataModule());
+                install(new PreShutdownActionModule());
+            }
+            else {
+                // just bind storage manager configs
+                install(getSpoolingConfigurationModule(EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX));
             }
         }
     }
@@ -73,11 +73,23 @@ public class BufferServiceModule
         @Override
         protected void setup(Binder binder)
         {
-            // embedded buffer service
-            configBinder(binder).bindConfig(EmbeddedBufferServiceConfig.class);
-            if (buildConfigObject(EmbeddedBufferServiceConfig.class).isEmbeddedBufferServiceEnabled()) {
-                install(new EmbeddedBufferServiceDataModule());
-            }
+            install(new EmbeddedBufferServiceDataModule());
+            install(new PreShutdownActionModule());
+        }
+    }
+
+    private static class PreShutdownActionModule
+            extends AbstractConfigurationAwareModule
+    {
+        @Override
+        protected void setup(Binder binder)
+        {}
+
+        @ProvidesIntoOptional(ACTUAL)
+        @NodeStateManager.PreShutdownAction
+        public Runnable getDrainPreShutdownAction(DrainService drainService)
+        {
+            return drainService::awaitDrain;
         }
     }
 }
