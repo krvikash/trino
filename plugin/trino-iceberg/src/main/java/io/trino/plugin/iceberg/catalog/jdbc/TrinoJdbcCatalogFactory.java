@@ -15,7 +15,9 @@ package io.trino.plugin.iceberg.catalog.jdbc;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.airlift.concurrent.BoundedExecutor;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -30,7 +32,10 @@ import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.jdbc.JdbcClientPool;
 
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.CatalogProperties.URI;
 import static org.apache.iceberg.CatalogProperties.WAREHOUSE_LOCATION;
@@ -52,6 +57,7 @@ public class TrinoJdbcCatalogFactory
     private final boolean isUniqueTableLocation;
     private final Map<String, String> catalogProperties;
     private final JdbcClientPool clientPool;
+    private final Executor metadataFetchingExecutor;
 
     @Inject
     public TrinoJdbcCatalogFactory(
@@ -63,7 +69,8 @@ public class TrinoJdbcCatalogFactory
             ForwardingFileIoFactory fileIoFactory,
             IcebergJdbcClient jdbcClient,
             IcebergJdbcCatalogConfig jdbcConfig,
-            IcebergConfig icebergConfig)
+            IcebergConfig icebergConfig,
+            @ForIcebergMetadata ExecutorService metadataExecutorService)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
@@ -87,6 +94,12 @@ public class TrinoJdbcCatalogFactory
         this.catalogProperties = properties.buildOrThrow();
 
         this.clientPool = new JdbcClientPool(jdbcConfig.getConnectionUrl(), catalogProperties);
+        if (icebergConfig.getMetadataParallelism() == 1) {
+            this.metadataFetchingExecutor = directExecutor();
+        }
+        else {
+            this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, icebergConfig.getMetadataParallelism());
+        }
     }
 
     @PreDestroy
@@ -116,6 +129,7 @@ public class TrinoJdbcCatalogFactory
                 fileIoFactory,
                 isUniqueTableLocation,
                 defaultWarehouseDir,
-                schemaVersion);
+                schemaVersion,
+                metadataFetchingExecutor);
     }
 }
