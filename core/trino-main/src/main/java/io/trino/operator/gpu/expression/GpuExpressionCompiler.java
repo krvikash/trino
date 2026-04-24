@@ -177,6 +177,13 @@ public class GpuExpressionCompiler
                 }
             }
 
+            if (name.equals("length") && call.arguments().size() == 1 && getOnlyElement(call.arguments()).type() instanceof VarcharType) {
+                return getOnlyElement(call.arguments()).accept(this, context)
+                        .map(compiled -> new CompilationResult(
+                                new GpuStringLength(compiled.expression()),
+                                compiled.score()));
+            }
+
             // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) detect regular expression functions (as PREFERRED)
 
             return Optional.empty();

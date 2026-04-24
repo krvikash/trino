@@ -412,6 +412,21 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
+    public void testStringLength(NullsProvider nullsProvider)
+    {
+        int varcharChannel = 0;
+        List<Type> inputTypes = List.of(VARCHAR);
+        List<Page> inputPages = createVarcharPages(List.of(64), nullsProvider);
+
+        RowExpression rowExpression = call(
+                functionResolution.resolveFunction("length", fromTypes(VARCHAR)),
+                field(varcharChannel, VARCHAR));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(varcharChannel));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
     public void testIn(NullsProvider nullsProvider)
     {
         testIn(BIGINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
