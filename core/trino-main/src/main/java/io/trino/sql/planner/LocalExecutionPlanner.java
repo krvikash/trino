@@ -2303,6 +2303,76 @@ public class LocalExecutionPlanner
                     .map(expression -> toRowExpression(expression, sourceLayout))
                     .collect(toImmutableList());
 
+            // First, we try to plan execution on the GPU, if that's not supported, we fall back to the CPU.
+            if (isGpuAccelerationEnabled(session)) {
+                Optional<PhysicalOperation> sourceGpuOperation = Optional.empty();
+                List<Type> sourceOutputTypes;
+
+                if (columns != null) {
+                    sourceOutputTypes = sourceNode.getOutputSymbols().stream()
+                            .map(Symbol::type)
+                            .collect(toImmutableList());
+                    if (isGpuTableScanEnabled(session) &&
+                            pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle()) &&
+                            // table scan has types supported on the GPU
+                            sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
+                        // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator?
+                        GpuOperator.SourceFactory gpuOperator = new GpuOperator.SourceFactory(
+                                context.getNextOperatorId(),
+                                sourceNode.getId(),
+                                pageSourceManager.createPageSourceProvider(table.catalogHandle()),
+                                session,
+                                table,
+                                tableCredentials,
+                                columns,
+                                dynamicFilter,
+                                sourceOutputTypes);
+
+                        sourceGpuOperation = Optional.of(new PhysicalOperation(gpuOperator, sourceLayout));
+                    }
+                }
+                else {
+                    sourceOutputTypes = source.getTypes();
+                    List<OperatorFactory> sourcePipeline = source.getPipelineTail();
+                    if (!sourcePipeline.isEmpty() && sourcePipeline.getLast() instanceof GpuOperator.BaseFactory) {
+                        sourceGpuOperation = Optional.of(source);
+                    }
+                }
+
+                // Filters and projections are only added when there is a preceding GPU operation
+                if (sourceGpuOperation.isPresent() &&
+                        // projections have types supported on the GPU
+                        translatedProjections.stream().map(RowExpression::type).allMatch(GpuTypeConversion::isConvertible)) {
+                    Optional<CompiledExpression> gpuFilter = translatedFilter.flatMap(gpuExpressionCompiler::compileExpression);
+                    if (translatedFilter.isPresent() == gpuFilter.isPresent()) {
+                        PhysicalOperation gpuOperation = sourceGpuOperation.get();
+                        if (gpuFilter.isPresent()) {
+                            gpuOperation = addGpuOperation(
+                                    new GpuFilter.Factory(gpuFilter.get()),
+                                    sourceOutputTypes,
+                                    gpuOperation,
+                                    gpuOperation.getLayout(),
+                                    context,
+                                    planNodeId);
+                        }
+
+                        Optional<List<CompiledExpression>> gpuProjections = gpuExpressionCompiler.compileExpressions(translatedProjections);
+                        if (gpuProjections.isPresent()) {
+                            return addGpuOperation(
+                                    new GpuProject.Factory(
+                                            gpuProjections.get().stream()
+                                                    .map(GpuProject.Projection.Gpu::new)
+                                                    .collect(toImmutableList())),
+                                    getTypes(projections),
+                                    gpuOperation,
+                                    outputMappings,
+                                    context,
+                                    planNodeId);
+                        }
+                    }
+                }
+            }
+
             try {
                 boolean columnarFilterEvaluationEnabled = isColumnarFilterEvaluationEnabled(session);
                 boolean isDebugOutputEnabled = isDebugOutputEnabled(session);
@@ -2326,48 +2396,6 @@ public class LocalExecutionPlanner
                         OptionalInt.empty());
 
                 if (columns != null) {
-                    if (isGpuAccelerationEnabled(session) &&
-                            isGpuTableScanEnabled(session) &&
-                            pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle()) &&
-                            // table scan has types supported on the GPU
-                            sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible) &&
-                            // projection has types supported on the GPU
-                            translatedProjections.stream().map(RowExpression::type).allMatch(GpuTypeConversion::isConvertible)) {
-                        Optional<CompiledExpression> gpuFilter = translatedFilter.flatMap(filter -> gpuExpressionCompiler.compileExpression(filter));
-                        if (translatedFilter.isPresent() == gpuFilter.isPresent()) {
-                            Optional<List<CompiledExpression>> gpuProjections = gpuExpressionCompiler.compileExpressions(translatedProjections);
-                            if (gpuProjections.isPresent()) {
-                                List<Type> scanOutputTypes = sourceNode.getOutputSymbols().stream()
-                                        .map(Symbol::type)
-                                        .collect(toImmutableList());
-                                // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator? (dynamicPageFilterFactory)
-                                GpuOperator.BaseFactory gpuOperator = new GpuOperator.SourceFactory(
-                                        context.getNextOperatorId(),
-                                        sourceNode.getId(),
-                                        pageSourceManager.createPageSourceProvider(table.catalogHandle()),
-                                        session,
-                                        table,
-                                        tableCredentials,
-                                        columns,
-                                        dynamicFilter,
-                                        scanOutputTypes);
-                                if (gpuFilter.isPresent()) {
-                                    gpuOperator = gpuOperator.withAdditionalOperation(
-                                            new GpuFilter.Factory(gpuFilter.get()),
-                                            scanOutputTypes);
-                                }
-                                gpuOperator = gpuOperator.withAdditionalOperation(
-                                        new GpuProject.Factory(
-                                                gpuProjections.get().stream()
-                                                        .map(GpuProject.Projection.Gpu::new)
-                                                        .collect(toImmutableList())),
-                                        getTypes(projections));
-                                verify(gpuOperator instanceof GpuOperator.SourceFactory);
-                                return new PhysicalOperation(gpuOperator, outputMappings);
-                            }
-                        }
-                    }
-
                     SourceOperatorFactory operatorFactory = new ScanFilterAndProjectOperatorFactory(
                             context.getNextOperatorId(),
                             planNodeId,
