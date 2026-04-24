@@ -40,6 +40,8 @@ public class TestBenchmarkClickBench
     public void setup()
             throws Exception
     {
+        BenchmarkClickBench.enableDebugLogging();
+
         gpuRunner = BenchmarkClickBench.setup(GPU, false);
         cpuRunner = BenchmarkClickBench.setup(CPU, false);
     }

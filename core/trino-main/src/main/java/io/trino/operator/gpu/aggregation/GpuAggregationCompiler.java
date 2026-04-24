@@ -15,6 +15,7 @@ package io.trino.operator.gpu.aggregation;
 
 import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
+import io.airlift.log.Logger;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
@@ -37,11 +38,14 @@ public final class GpuAggregationCompiler
 {
     private GpuAggregationCompiler() {}
 
+    private static final Logger log = Logger.get(GpuAggregationCompiler.class);
+
     public static Optional<GpuAggregation.Factory> compile(AggregationNode node, Map<Symbol, Integer> sourceLayout)
     {
         Step step = node.getStep();
 
         if (node.getGroupingSetCount() > 1) {
+            log.debug("Could not compile aggregation with %s grouping sets", node.getGroupingSetCount());
             // GROUPING SETS are not supported yet
             return Optional.empty();
         }
@@ -62,8 +66,16 @@ public final class GpuAggregationCompiler
 
         ImmutableList.Builder<GpuAggregateFunction> aggregates = ImmutableList.builder();
         for (Map.Entry<Symbol, Aggregation> entry : node.getAggregations().entrySet()) {
-            Optional<GpuAggregateFunction> compiled = compileAggregation(entry.getValue(), sourceLayout);
+            Aggregation aggregation = entry.getValue();
+            Optional<GpuAggregateFunction> compiled = compileAggregation(aggregation, sourceLayout);
             if (compiled.isEmpty()) {
+                log.debug(
+                        "Could not compile aggregation function %s with filter=%s mask=%s distinct=%s ordered=%s",
+                        aggregation.getResolvedFunction().signature(),
+                        aggregation.getFilter().isPresent(),
+                        aggregation.getMask().isPresent(),
+                        aggregation.isDistinct(),
+                        aggregation.getOrderingScheme().isPresent());
                 return Optional.empty();
             }
             aggregates.add(compiled.get());

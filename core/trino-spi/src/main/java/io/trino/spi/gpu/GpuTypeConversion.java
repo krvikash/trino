@@ -40,6 +40,8 @@ import jakarta.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -55,6 +57,8 @@ import static java.util.Objects.requireNonNull;
 public final class GpuTypeConversion
 {
     private GpuTypeConversion() {}
+
+    private static final Logger log = Logger.getLogger(GpuTypeConversion.class.getName());
 
     public static boolean isConvertible(Type type)
     {
@@ -144,7 +148,10 @@ public final class GpuTypeConversion
                         DType.TIMESTAMP_MICROSECONDS,
                         value -> Scalar.timestampFromLong(DType.TIMESTAMP_MICROSECONDS, (Long) value.orElse(null)),
                         blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS)));
-                default -> Optional.empty();
+                default -> {
+                    log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
+                    yield Optional.empty();
+                }
             };
         }
 
@@ -164,6 +171,8 @@ public final class GpuTypeConversion
                     value -> Scalar.fromUTF8String(value.map(v -> ((Slice) v).getBytes()).orElse(null)),
                     GpuTypeConversion::copyVarcharBlocksToDevice));
         }
+
+        log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
         return Optional.empty();
     }
 

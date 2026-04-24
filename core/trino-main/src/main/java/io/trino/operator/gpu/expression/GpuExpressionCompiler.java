@@ -16,6 +16,7 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.BinaryOp;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
+import io.airlift.log.Logger;
 import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter.Result;
 import io.trino.spi.function.CatalogSchemaFunctionName;
@@ -67,6 +68,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class GpuExpressionCompiler
 {
+    private static final Logger log = Logger.get(GpuExpressionCompiler.class);
+
     private static final int TINYINT_DECIMAL_DIGITS = 3;
     private static final int SMALLINT_DECIMAL_DIGITS = 5;
     private static final int INTEGER_DECIMAL_DIGITS = 10;
@@ -92,9 +95,13 @@ public class GpuExpressionCompiler
         // without needing per-expression input channel mappings.
         Result rewritten = rewritePageFieldsToInputParameters(expression);
 
-        return rewritten.getRewrittenExpression()
+        Optional<CompiledExpression> compiled = rewritten.getRewrittenExpression()
                 .accept(new CompilationVisitor(), null)
                 .map(result -> new CompiledExpression(result.expression(), rewritten.getInputChannels(), result.score()));
+        if (compiled.isEmpty()) {
+            log.debug("Could not compile expression for GPU execution: %s", expression);
+        }
+        return compiled;
     }
 
     private static class CompilationVisitor

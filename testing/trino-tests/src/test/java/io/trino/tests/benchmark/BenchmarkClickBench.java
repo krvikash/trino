@@ -15,7 +15,9 @@ package io.trino.tests.benchmark;
 
 import com.google.common.base.Strings;
 import com.google.common.io.Resources;
+import io.airlift.log.Level;
 import io.airlift.log.Logger;
+import io.airlift.log.Logging;
 import io.airlift.units.Duration;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.sql.query.QueryAssertions;
@@ -61,6 +63,9 @@ public final class BenchmarkClickBench
         @Option(names = {"-m", "--mode"}, description = "Execution mode", required = true)
         ExecutionMode executionMode;
 
+        @Option(names = {"-d", "--debug"}, description = "Enable debug logging")
+        boolean debug;
+
         @Option(names = {"-w", "--warmup"}, description = "Number of warmup runs for each query")
         int warmup = 5;
 
@@ -77,6 +82,9 @@ public final class BenchmarkClickBench
         public Void call()
                 throws Exception
         {
+            if (debug) {
+                enableDebugLogging();
+            }
             validateDataLocation();
 
             AsyncProfiler profiler = profileOutputDir != null ? AsyncProfiler.getInstance() : null;
@@ -359,6 +367,13 @@ public final class BenchmarkClickBench
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    static void enableDebugLogging()
+    {
+        Logging logging = Logging.initialize();
+        logging.setLevel("io.trino.spi.gpu", Level.DEBUG);
+        logging.setLevel("io.trino.operator.gpu", Level.DEBUG);
     }
 
     static Path dataLocation()
