@@ -52,17 +52,20 @@ public class GpuIn
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector valueColumn = value.evaluate(positionCount, inputColumns);
-                @Own ColumnVector inList = buildInListColumn()) {
-            @Own ColumnVector result = valueColumn.contains(inList);
+        try (@Own CloseOnce<ColumnVector> valueColumn = CloseOnce.own(value.evaluate(positionCount, inputColumns));
+                @Own CloseOnce<ColumnVector> inList = CloseOnce.own(buildInListColumn())) {
+            @Own ColumnVector result = valueColumn.value().contains(inList.value());
 
             if (hasNull) {
-                // if the list contains NULL and no match is found, return NULL instead of FALSE
-                try (result;
-                        @Own Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
-                        @Own Scalar falseScalar = Scalar.fromBool(false);
-                        @Own ColumnVector isFalse = result.equalTo(falseScalar)) {
-                    return isFalse.ifElse(nullScalar, result);
+                try (result) {
+                    valueColumn.close();
+                    inList.close();
+                    // if the list contains NULL and no match is found, return NULL instead of FALSE
+                    try (@Own Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
+                            @Own Scalar falseScalar = Scalar.fromBool(false);
+                            @Own ColumnVector isFalse = result.equalTo(falseScalar)) {
+                        return isFalse.ifElse(nullScalar, result);
+                    }
                 }
             }
 
