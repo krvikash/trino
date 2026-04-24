@@ -83,8 +83,8 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class TestGpuCasts
 {
-    private static final DecimalType DECIMAL_13 = createDecimalType(13, 2);
-    private static final DecimalType DECIMAL_27 = createDecimalType(27, 5);
+    private static final DecimalType DECIMAL_13_2 = createDecimalType(13, 2);
+    private static final DecimalType DECIMAL_27_5 = createDecimalType(27, 5);
 
     private PlanTester planTester;
     private TestingFunctionResolution functionResolution;
@@ -127,9 +127,9 @@ public class TestGpuCasts
         assertCastSucceedsForAll(TINYINT, BIGINT, values);
         assertCastSucceedsForAll(TINYINT, REAL, values);
         assertCastSucceedsForAll(TINYINT, DOUBLE, values);
-        assertCastSucceedsForAll(TINYINT, DECIMAL_13, values);
+        assertCastSucceedsForAll(TINYINT, DECIMAL_13_2, values);
         // DECIMAL(27,5) and NUMBER are not yet supported on GPU
-        assertThat(gpuCast(TINYINT, DECIMAL_27)).isNotSupported();
+        assertThat(gpuCast(TINYINT, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(TINYINT, NUMBER)).isNotSupported();
     }
 
@@ -150,8 +150,8 @@ public class TestGpuCasts
         assertCastSucceedsForAll(SMALLINT, BIGINT, values);
         assertCastSucceedsForAll(SMALLINT, REAL, values);
         assertCastSucceedsForAll(SMALLINT, DOUBLE, values);
-        assertCastSucceedsForAll(SMALLINT, DECIMAL_13, values);
-        assertThat(gpuCast(SMALLINT, DECIMAL_27)).isNotSupported();
+        assertCastSucceedsForAll(SMALLINT, DECIMAL_13_2, values);
+        assertThat(gpuCast(SMALLINT, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(SMALLINT, NUMBER)).isNotSupported();
     }
 
@@ -172,8 +172,8 @@ public class TestGpuCasts
         assertCastSucceedsForAll(INTEGER, BIGINT, values);
         assertCastSucceedsForAll(INTEGER, REAL, values);
         assertCastSucceedsForAll(INTEGER, DOUBLE, values);
-        assertCastSucceedsForAll(INTEGER, DECIMAL_13, values);
-        assertThat(gpuCast(INTEGER, DECIMAL_27)).isNotSupported();
+        assertCastSucceedsForAll(INTEGER, DECIMAL_13_2, values);
+        assertThat(gpuCast(INTEGER, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(INTEGER, NUMBER)).isNotSupported();
     }
 
@@ -192,11 +192,11 @@ public class TestGpuCasts
         assertThat(gpuCast(BIGINT, SMALLINT)).isNotSupported();
         assertThat(gpuCast(BIGINT, INTEGER)).isNotSupported();
         // BIGINT (19 digits) does not fit DECIMAL(13,2) integer range (11 digits)
-        assertThat(gpuCast(BIGINT, DECIMAL_13)).isNotSupported();
+        assertThat(gpuCast(BIGINT, DECIMAL_13_2)).isNotSupported();
         assertCastSucceedsForAll(BIGINT, BIGINT, values);
         assertCastSucceedsForAll(BIGINT, REAL, values);
         assertCastSucceedsForAll(BIGINT, DOUBLE, values);
-        assertThat(gpuCast(BIGINT, DECIMAL_27)).isNotSupported();
+        assertThat(gpuCast(BIGINT, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(BIGINT, NUMBER)).isNotSupported();
     }
 
@@ -213,29 +213,29 @@ public class TestGpuCasts
                 "CAST(NULL AS DECIMAL(13, 2))",
         };
         // Non-zero scale precludes lossless cast to any integer type
-        assertThat(gpuCast(DECIMAL_13, TINYINT)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_13, SMALLINT)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_13, INTEGER)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_13, BIGINT)).isNotSupported();
-        assertCastSucceedsForAll(DECIMAL_13, REAL, values);
-        assertCastSucceedsForAll(DECIMAL_13, DOUBLE, values);
-        assertCastSucceedsForAll(DECIMAL_13, DECIMAL_13, values);
-        assertThat(gpuCast(DECIMAL_13, DECIMAL_27)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_13, NUMBER)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_13_2, TINYINT)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_13_2, SMALLINT)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_13_2, INTEGER)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_13_2, BIGINT)).isNotSupported();
+        assertCastSucceedsForAll(DECIMAL_13_2, REAL, values);
+        assertCastSucceedsForAll(DECIMAL_13_2, DOUBLE, values);
+        assertCastSucceedsForAll(DECIMAL_13_2, DECIMAL_13_2, values);
+        assertThat(gpuCast(DECIMAL_13_2, DECIMAL_27_5)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_13_2, NUMBER)).isNotSupported();
     }
 
     @Test
     void testCastFromDecimal27()
     {
-        assertThat(gpuCast(DECIMAL_27, TINYINT)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, SMALLINT)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, INTEGER)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, BIGINT)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, REAL)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, DOUBLE)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, DECIMAL_13)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, DECIMAL_27)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27, NUMBER)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, TINYINT)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, SMALLINT)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, INTEGER)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, BIGINT)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, REAL)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, DOUBLE)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, DECIMAL_13_2)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, DECIMAL_27_5)).isNotSupported();
+        assertThat(gpuCast(DECIMAL_27_5, NUMBER)).isNotSupported();
     }
 
     @Test
@@ -253,10 +253,10 @@ public class TestGpuCasts
         assertThat(gpuCast(REAL, SMALLINT)).isNotSupported();
         assertThat(gpuCast(REAL, INTEGER)).isNotSupported();
         assertThat(gpuCast(REAL, BIGINT)).isNotSupported();
-        assertThat(gpuCast(REAL, DECIMAL_13)).isNotSupported();
+        assertThat(gpuCast(REAL, DECIMAL_13_2)).isNotSupported();
         assertCastSucceedsForAll(REAL, REAL, values);
         assertCastSucceedsForAll(REAL, DOUBLE, values);
-        assertThat(gpuCast(REAL, DECIMAL_27)).isNotSupported();
+        assertThat(gpuCast(REAL, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(REAL, NUMBER)).isNotSupported();
     }
 
@@ -276,9 +276,9 @@ public class TestGpuCasts
         assertThat(gpuCast(DOUBLE, INTEGER)).isNotSupported();
         assertThat(gpuCast(DOUBLE, BIGINT)).isNotSupported();
         assertThat(gpuCast(DOUBLE, REAL)).isNotSupported();
-        assertThat(gpuCast(DOUBLE, DECIMAL_13)).isNotSupported();
+        assertThat(gpuCast(DOUBLE, DECIMAL_13_2)).isNotSupported();
         assertCastSucceedsForAll(DOUBLE, DOUBLE, values);
-        assertThat(gpuCast(DOUBLE, DECIMAL_27)).isNotSupported();
+        assertThat(gpuCast(DOUBLE, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(DOUBLE, NUMBER)).isNotSupported();
     }
 
@@ -292,8 +292,8 @@ public class TestGpuCasts
         assertThat(gpuCast(NUMBER, BIGINT)).isNotSupported();
         assertThat(gpuCast(NUMBER, REAL)).isNotSupported();
         assertThat(gpuCast(NUMBER, DOUBLE)).isNotSupported();
-        assertThat(gpuCast(NUMBER, DECIMAL_13)).isNotSupported();
-        assertThat(gpuCast(NUMBER, DECIMAL_27)).isNotSupported();
+        assertThat(gpuCast(NUMBER, DECIMAL_13_2)).isNotSupported();
+        assertThat(gpuCast(NUMBER, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(NUMBER, NUMBER)).isNotSupported();
     }
 
