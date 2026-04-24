@@ -32,6 +32,7 @@
         <module>client/trino-client</module>
         <module>client/trino-jdbc</module>
         <module>core/starburst-ai-client-model</module>
+        <module>core/starburst-trino-main</module>
         <module>core/trino-grammar</module>
         <module>core/trino-main</module>
         <module>core/trino-parser</module>
