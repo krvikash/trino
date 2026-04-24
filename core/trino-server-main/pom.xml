@@ -27,7 +27,7 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>trino-main</artifactId>
+            <artifactId>starburst-trino-main</artifactId>
         </dependency>
 
         <dependency>

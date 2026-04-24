@@ -14,6 +14,53 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <classifier>classes</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>configuration</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>http-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>starburst-buffer-client-common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>starburst-buffer-data-server</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.airlift</groupId>
+                    <artifactId>launcher</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>starburst-buffer-discovery-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>starburst-buffer-discovery-server</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
         </dependency>

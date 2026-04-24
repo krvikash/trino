@@ -34,7 +34,6 @@ import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.airlift.units.Duration;
-import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.trino.cache.CacheManagerModule;
 import io.trino.cache.CacheManagerRegistry;
 import io.trino.connector.CatalogManagerModule;
@@ -72,7 +71,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static io.trino.server.TrinoSystemRequirements.verifySystemRequirements;
 import static java.lang.String.format;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
@@ -171,11 +169,6 @@ public class Server
             injector.getInstance(Announcer.class).start();
 
             injector.getInstance(StartupStatus.class).startupComplete();
-
-            if (injector.getExistingBinding(Key.get(BufferNodeStateManager.class)) != null) {
-                // mark embedded buffer service as started
-                injector.getInstance(BufferNodeStateManager.class).transitionState(STARTED);
-            }
 
             additionalStartup(injector);
 

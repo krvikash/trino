@@ -14,6 +14,7 @@
 package io.trino.server;
 
 import com.google.common.io.Resources;
+import io.starburst.trino.server.StarburstServer;
 
 import java.io.InputStream;
 import java.util.Properties;
@@ -34,7 +35,7 @@ public final class TrinoServer
         }
 
         String trinoVersion = TrinoServer.class.getPackage().getImplementationVersion();
-        new Server().start(requireNonNullElse(trinoVersion, "unknown"));
+        new StarburstServer().start(requireNonNullElse(trinoVersion, "unknown"));
     }
 
     private static int requiredJavaVersion()

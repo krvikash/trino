@@ -111,9 +111,6 @@ import io.trino.metadata.LanguageFunctionProvider;
 import io.trino.metadata.Split;
 import io.trino.operator.ForScheduler;
 import io.trino.operator.OperatorStats;
-import io.trino.server.buffer.EmbeddedBufferServiceConfig;
-import io.trino.server.buffer.EmbeddedBufferServiceDataModule;
-import io.trino.server.buffer.EmbeddedBufferServiceDiscoveryModule;
 import io.trino.server.protocol.ExecutingStatementResource;
 import io.trino.server.protocol.QueryInfoUrlFactory;
 import io.trino.server.remotetask.RemoteTaskStats;
@@ -156,9 +153,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getSpoolingConfigurationModule;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
-import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX;
 import static io.trino.util.Executors.decorateWithVersion;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -435,21 +430,6 @@ public class CoordinatorModule
         executionPolicyBinder.addBinding("phased").to(PhasedExecutionPolicy.class);
 
         install(new QueryExecutionFactoryModule());
-
-        // embedded buffer service
-        configBinder(binder).bindConfig(EmbeddedBufferServiceConfig.class);
-        EmbeddedBufferServiceConfig embeddedBufferServiceConfig = buildConfigObject(EmbeddedBufferServiceConfig.class);
-        if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
-            install(new EmbeddedBufferServiceDiscoveryModule());
-            if (buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) {
-                // if coordinator is doing worker job start up data server too
-                install(new EmbeddedBufferServiceDataModule());
-            }
-            else {
-                // just bind storage manager configs
-                install(getSpoolingConfigurationModule(EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX));
-            }
-        }
 
         // cleanup
         closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForStatementResource.class));

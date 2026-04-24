@@ -24,12 +24,8 @@ import io.trino.failuredetector.FailureDetector;
 import io.trino.failuredetector.NoOpFailureDetector;
 import io.trino.metadata.LanguageFunctionProvider;
 import io.trino.metadata.WorkerLanguageFunctionProvider;
-import io.trino.server.buffer.EmbeddedBufferServiceConfig;
-import io.trino.server.buffer.EmbeddedBufferServiceDataModule;
 import io.trino.server.ui.NoWebUiAuthenticationFilter;
 import io.trino.server.ui.WebUiAuthenticationFilter;
-
-import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class WorkerModule
         extends AbstractConfigurationAwareModule
@@ -46,11 +42,6 @@ public class WorkerModule
         // Install no-op failure detector on workers, since only coordinators need global node selection.
         binder.bind(FailureDetector.class).to(NoOpFailureDetector.class).in(Scopes.SINGLETON);
 
-        // embedded buffer service
-        configBinder(binder).bindConfig(EmbeddedBufferServiceConfig.class);
-        if (buildConfigObject(EmbeddedBufferServiceConfig.class).isEmbeddedBufferServiceEnabled()) {
-            install(new EmbeddedBufferServiceDataModule());
-        }
         // language functions
         binder.bind(WorkerLanguageFunctionProvider.class).in(Scopes.SINGLETON);
         binder.bind(LanguageFunctionProvider.class).to(WorkerLanguageFunctionProvider.class).in(Scopes.SINGLETON);

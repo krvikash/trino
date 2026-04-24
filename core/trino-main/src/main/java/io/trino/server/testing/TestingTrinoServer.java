@@ -320,6 +320,16 @@ public class TestingTrinoServer
 
         serverProperties.put("optimizer.ignore-stats-calculator-failures", "false");
 
+        // use reflection to load BufferServiceModule. Otherwise, we would need to move TestingTrinoServer to starburst-trino-main which would be to invasive code change
+        // regarding forking.
+        Optional<Module> bufferServiceModule = Optional.empty();
+        try {
+            bufferServiceModule = Optional.of((Module) Thread.currentThread().getContextClassLoader().loadClass("io.starburst.trino.server.BufferServiceModule").getConstructor().newInstance());
+        }
+        catch (Throwable e) {
+            // ignore
+        }
+
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingNodeModule(environment, bindAllInterfaces))
                 .add(new TestingHttpServerModule("testing-trino-" + instanceId, httpPort))
@@ -380,6 +390,8 @@ public class TestingTrinoServer
                         newOptionalBinder(binder, SessionSupplier.class).setBinding().to(TestingSessionSupplier.class).in(Scopes.SINGLETON);
                     }
                 });
+
+        bufferServiceModule.ifPresent(modules::add);
 
         modules.add(aiModelAccessControlModule());
         modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader, coordinator));

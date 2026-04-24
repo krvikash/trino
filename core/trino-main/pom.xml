@@ -313,17 +313,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-discovery-server</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.airlift</groupId>
-                    <artifactId>launcher</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
             <groupId>io.trino</groupId>
             <artifactId>starburst-ai-client-model</artifactId>
         </dependency>
