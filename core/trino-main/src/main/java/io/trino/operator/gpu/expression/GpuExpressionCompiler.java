@@ -266,7 +266,11 @@ public class GpuExpressionCompiler
                 if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
                     return true;
                 }
-                if (toType instanceof DecimalType toDecimal && fromDecimal.getPrecision() - fromDecimal.getScale() <= toDecimal.getPrecision() - toDecimal.getScale()) {
+                if (toType instanceof DecimalType toDecimal &&
+                        // target has at least as many fractional digits (no rounding)
+                        fromDecimal.getScale() <= toDecimal.getScale() &&
+                        // target has at least as many integer digits (no overflow)
+                        fromDecimal.getPrecision() - fromDecimal.getScale() <= toDecimal.getPrecision() - toDecimal.getScale()) {
                     return true;
                 }
             }
