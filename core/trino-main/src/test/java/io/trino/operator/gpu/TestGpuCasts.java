@@ -33,11 +33,16 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.TrinoNumber;
+import io.trino.spi.type.TrinoNumber.Infinity;
+import io.trino.spi.type.TrinoNumber.NotANumber;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.relational.RowExpression;
 import io.trino.testing.PageConsumerOperator.PageConsumerOutputFactory;
 import io.trino.testing.PlanTester;
+import io.trino.type.NumberOperators;
 import jakarta.annotation.Nullable;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AssertProvider;
@@ -48,18 +53,25 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.nullToEmpty;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -108,6 +120,98 @@ public class TestGpuCasts
             planTester.close();
             planTester = null;
         }
+    }
+
+    @Test
+    void testNumericCastCorrectnessSmoke()
+    {
+        List<Type> testedTypes = List.of(
+                TINYINT,
+                SMALLINT,
+                INTEGER,
+                BIGINT,
+                REAL,
+                DOUBLE,
+                createDecimalType(1, 0),
+                createDecimalType(3, 0),
+                createDecimalType(13, 0),
+                createDecimalType(13, 2),
+                createDecimalType(27, 0),
+                createDecimalType(27, 5),
+                createDecimalType(38),
+                NUMBER);
+
+        List<TrinoNumber> testedNumbers = numericValuesToTest();
+        List<String> numberLiterals = testedNumbers.stream()
+                .map(value -> "NUMBER '%s'".formatted(NumberOperators.castToVarchar(VarcharType.UNBOUNDED_LENGTH, value).toStringUtf8()))
+                .toList();
+
+        for (Type from : testedTypes) {
+            List<String> possibleValuesInFromType = tryCastToAndFilter(from, numberLiterals);
+            verify(!possibleValuesInFromType.isEmpty());
+
+            for (Type to : testedTypes) {
+                GpuCastAssert assertion = assertThat(gpuCast(from, to));
+                try {
+                    assertion.isNotSupported();
+                    continue;
+                }
+                catch (AssertionError e) {
+                    if (!nullToEmpty(e.getMessage()).matches("Expected cast .* to be unsupported on GPU, but it compiled")) {
+                        throw e;
+                    }
+                }
+
+                for (String value : possibleValuesInFromType) {
+                    assertion.executesCorrectly(value);
+                }
+            }
+        }
+    }
+
+    private static List<TrinoNumber> numericValuesToTest()
+    {
+        List<Long> initial = List.of(
+                0L,
+                -1L, 1L,
+                (long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE,
+                (long) Short.MIN_VALUE, (long) Short.MAX_VALUE,
+                (long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE,
+                Long.MIN_VALUE, Long.MAX_VALUE);
+        List<BigDecimal> offsets = Stream.of("0", "1", "-1", "0.33", "0.5", "0.66", "-0.33", "-0.5", "-0.66")
+                .map(BigDecimal::new)
+                .toList();
+        List<TrinoNumber> testedNumbers = new ArrayList<>();
+        for (long value : initial) {
+            BigDecimal asBigDecimal = BigDecimal.valueOf(value);
+            for (BigDecimal offset : offsets) {
+                testedNumbers.add(TrinoNumber.from(asBigDecimal.add(offset)));
+            }
+        }
+        testedNumbers.add(TrinoNumber.from(BigDecimal.valueOf(Math.PI)));
+        testedNumbers.add(TrinoNumber.from(new Infinity(false)));
+        testedNumbers.add(TrinoNumber.from(new Infinity(true)));
+        testedNumbers.add(TrinoNumber.from(new NotANumber()));
+        return testedNumbers;
+    }
+
+    private List<String> tryCastToAndFilter(Type toType, List<String> literals)
+    {
+        List<String> expressions = new ArrayList<>();
+        for (String literal : literals) {
+            String expression = "CAST(%s AS %s)".formatted(literal, toType.getDisplayName());
+            try {
+                planTester.executeStatement("VALUES ROW(%s)".formatted(expression));
+            }
+            catch (TrinoException e) {
+                if (e.getErrorCode().equals(NUMERIC_VALUE_OUT_OF_RANGE.toErrorCode()) || e.getErrorCode().equals(INVALID_CAST_ARGUMENT.toErrorCode())) {
+                    continue;
+                }
+                throw e;
+            }
+            expressions.add(expression);
+        }
+        return expressions;
     }
 
     @Test
