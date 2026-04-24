@@ -42,7 +42,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
+import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
 import static io.trino.operator.gpu.GpuScore.POTENTIAL;
@@ -116,8 +116,12 @@ public class GpuExpressionCompiler
         public Optional<CompilationResult> visitCall(CallExpression call, Void context)
         {
             CatalogSchemaFunctionName functionName = call.resolvedFunction().signature().getName();
+            if (!isBuiltinFunctionName(functionName)) {
+                return Optional.empty();
+            }
+            String name = functionName.functionName();
 
-            if (functionName.equals(builtinFunctionName(LIKE_FUNCTION_NAME)) &&
+            if (name.equals(LIKE_FUNCTION_NAME) &&
                     call.arguments().size() == 2 &&
                     call.arguments().get(1) instanceof ConstantExpression(Object likePattern, Type patternType) &&
                     patternType == LIKE_PATTERN) {
@@ -127,14 +131,13 @@ public class GpuExpressionCompiler
                                 Ordering.natural().max(searched.score(), PREFERRED)));
             }
 
-            if (functionName.equals(builtinFunctionName("$not")) && call.arguments().size() == 1) {
+            if (name.equals("$not") && call.arguments().size() == 1) {
                 return call.arguments().getFirst().accept(this, context)
                         .map(operand -> new CompilationResult(
                                 new GpuNot(operand.expression()),
                                 operand.score()));
             }
 
-            String name = functionName.functionName();
             if (isOperatorName(name)) {
                 OperatorType operatorType = unmangleOperator(name);
                 if (call.arguments().size() == 2) {
