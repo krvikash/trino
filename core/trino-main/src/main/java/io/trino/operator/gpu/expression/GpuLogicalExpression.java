@@ -54,14 +54,14 @@ public class GpuLogicalExpression
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        @Own ColumnVector result = operands.getFirst().evaluate(positionCount, inputColumns);
-
-        for (int i = 1; i < operands.size(); i++) {
-            try (@Own ColumnVector left = result;
-                    @Own ColumnVector right = operands.get(i).evaluate(positionCount, inputColumns)) {
-                result = left.binaryOp(operation, right, DType.BOOL8);
+        try (@Own ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns))) {
+            for (int i = 1; i < operands.size(); i++) {
+                try (@Own ColumnVector left = result.take();
+                        @Own ColumnVector right = operands.get(i).evaluate(positionCount, inputColumns)) {
+                    result.set(left.binaryOp(operation, right, DType.BOOL8));
+                }
             }
+            return result.take();
         }
-        return result;
     }
 }

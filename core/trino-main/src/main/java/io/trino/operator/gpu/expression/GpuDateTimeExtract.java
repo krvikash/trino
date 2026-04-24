@@ -42,8 +42,8 @@ public class GpuDateTimeExtract
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own CloseOnce<ColumnVector> timestamp = CloseOnce.own(argument.evaluate(positionCount, inputColumns));
-                @Own ColumnVector extracted = field.extract(timestamp.value())) {
+        try (@Own ClosingOnce<ColumnVector> timestamp = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
+                @Own ColumnVector extracted = field.extract(timestamp.borrow())) {
             timestamp.close();
             return extracted.castTo(field.resultDType());
         }

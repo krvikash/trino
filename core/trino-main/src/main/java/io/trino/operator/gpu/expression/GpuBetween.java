@@ -41,12 +41,12 @@ public class GpuBetween
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own CloseOnce<ColumnVector> valueResult = CloseOnce.own(value.evaluate(positionCount, inputColumns))) {
-            try (@Own CloseOnce<ColumnVector> minResult = CloseOnce.own(min.evaluate(positionCount, inputColumns))) {
-                try (@Own ColumnVector greaterOrEqual = valueResult.value().binaryOp(BinaryOp.GREATER_EQUAL, minResult.value(), DType.BOOL8)) {
+        try (@Own ClosingOnce<ColumnVector> valueResult = ClosingOnce.own(value.evaluate(positionCount, inputColumns))) {
+            try (@Own ClosingOnce<ColumnVector> minResult = ClosingOnce.own(min.evaluate(positionCount, inputColumns))) {
+                try (@Own ColumnVector greaterOrEqual = valueResult.borrow().binaryOp(BinaryOp.GREATER_EQUAL, minResult.borrow(), DType.BOOL8)) {
                     minResult.close();
-                    try (@Own CloseOnce<ColumnVector> maxResult = CloseOnce.own(max.evaluate(positionCount, inputColumns))) {
-                        try (@Own ColumnVector lessOrEqual = valueResult.value().binaryOp(BinaryOp.LESS_EQUAL, maxResult.value(), DType.BOOL8)) {
+                    try (@Own ClosingOnce<ColumnVector> maxResult = ClosingOnce.own(max.evaluate(positionCount, inputColumns))) {
+                        try (@Own ColumnVector lessOrEqual = valueResult.borrow().binaryOp(BinaryOp.LESS_EQUAL, maxResult.borrow(), DType.BOOL8)) {
                             valueResult.close();
                             maxResult.close();
                             return greaterOrEqual.binaryOp(BinaryOp.NULL_LOGICAL_AND, lessOrEqual, DType.BOOL8);

@@ -52,27 +52,25 @@ public class GpuIn
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own CloseOnce<ColumnVector> valueColumn = CloseOnce.own(value.evaluate(positionCount, inputColumns));
-                @Own CloseOnce<ColumnVector> inList = CloseOnce.own(buildInListColumn())) {
-            @Own ColumnVector result = valueColumn.value().contains(inList.value());
-
-            if (hasNull) {
-                try (result) {
-                    valueColumn.close();
-                    inList.close();
+        try (@Own ClosingOnce<ColumnVector> valueColumn = ClosingOnce.own(value.evaluate(positionCount, inputColumns));
+                @Own ClosingOnce<ColumnVector> inList = ClosingOnce.own(buildInListColumn())) {
+            try (@Own ClosingRef<ColumnVector> result = ClosingRef.own(valueColumn.borrow().contains(inList.borrow()))) {
+                valueColumn.close();
+                inList.close();
+                if (hasNull) {
                     // if the list contains NULL and no match is found, return NULL instead of FALSE
                     try (@Own Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
                             @Own Scalar falseScalar = Scalar.fromBool(false);
-                            @Own ColumnVector isFalse = result.equalTo(falseScalar)) {
-                        return isFalse.ifElse(nullScalar, result);
+                            @Own ColumnVector isFalse = result.borrow().equalTo(falseScalar)) {
+                        return isFalse.ifElse(nullScalar, result.borrow());
                     }
                 }
+                return result.take();
             }
-
-            return result;
         }
     }
 
+    // TODO (https://starburstdata.atlassian.net/browse/ENG-9846) build this once
     private @Move ColumnVector buildInListColumn()
     {
         BlockBuilder builder = type.createBlockBuilder(null, nonNullConstants.size());

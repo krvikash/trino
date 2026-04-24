@@ -23,25 +23,30 @@ import jakarta.annotation.Nullable;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * A wrapper around {@link AutoCloseable} resource ensuring close idempotency.
+ *
+ * @see ClosingRef if you need a mutable reference
+ */
 @NotThreadSafe
-public final class CloseOnce<T extends AutoCloseable>
+public final class ClosingOnce<T extends AutoCloseable>
         implements RuntimeCloseable
 {
-    public static <T extends AutoCloseable> @Move CloseOnce<T> own(@Move T value)
+    public static <T extends AutoCloseable> @Move ClosingOnce<T> own(@Move T value)
     {
-        return new CloseOnce<>(value);
+        return new ClosingOnce<>(value);
     }
 
     @Own
     @Nullable
     private T value;
 
-    private CloseOnce(@Move T value)
+    private ClosingOnce(@Move T value)
     {
         this.value = requireNonNull(value, "value is null");
     }
 
-    public @Borrow T value()
+    public @Borrow T borrow()
     {
         checkState(value != null, "Already closed");
         return value;
@@ -52,18 +57,25 @@ public final class CloseOnce<T extends AutoCloseable>
     {
         if (value != null) {
             try {
-                value.close();
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-            catch (Exception e) {
-                throw new RuntimeException(e);
+                closeUnchecked(value);
             }
             finally {
                 value = null;
             }
+        }
+    }
+
+    static void closeUnchecked(AutoCloseable closeable)
+    {
+        try {
+            closeable.close();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

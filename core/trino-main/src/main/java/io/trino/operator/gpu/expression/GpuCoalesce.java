@@ -37,13 +37,14 @@ public class GpuCoalesce
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        @Own ColumnVector result = operands.getFirst().evaluate(positionCount, inputColumns);
-        for (int i = 1; i < operands.size(); i++) {
-            try (@Own ColumnVector current = result;
-                    @Own ColumnVector replacement = operands.get(i).evaluate(positionCount, inputColumns)) {
-                result = current.replaceNulls(replacement);
+        try (@Own ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns))) {
+            for (int i = 1; i < operands.size(); i++) {
+                try (@Own ColumnVector current = result.take();
+                        @Own ColumnVector replacement = operands.get(i).evaluate(positionCount, inputColumns)) {
+                    result.set(current.replaceNulls(replacement));
+                }
             }
+            return result.take();
         }
-        return result;
     }
 }
