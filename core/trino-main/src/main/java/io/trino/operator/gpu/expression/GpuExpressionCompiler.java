@@ -23,6 +23,10 @@ import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimeWithTimeZoneType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.relational.CallExpression;
@@ -33,6 +37,8 @@ import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.RowExpressionVisitor;
 import io.trino.sql.relational.SpecialForm;
 import io.trino.sql.relational.VariableReferenceExpression;
+import io.trino.type.IntervalDayTimeType;
+import io.trino.type.IntervalYearMonthType;
 import io.trino.type.LikePattern;
 
 import java.util.List;
@@ -53,6 +59,7 @@ import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.NumberType.NUMBER;
@@ -153,6 +160,20 @@ public class GpuExpressionCompiler
                 if (operatorType == OperatorType.CAST) {
                     verify(call.arguments().size() == 1, "Expected exactly one cast argument, got: %s", call.arguments());
                     return compileCast(getOnlyElement(call.arguments()), call.type(), context);
+                }
+            }
+
+            Optional<GpuDateTimeExtract.Field> dateTimeField = GpuDateTimeExtract.Field.forTrinoFunctionName(name);
+            if (dateTimeField.isPresent() && call.arguments().size() == 1) {
+                Type argumentType = getOnlyElement(call.arguments()).type();
+                if (argumentType == DATE ||
+                        argumentType instanceof TimeType ||
+                        argumentType instanceof TimeWithTimeZoneType ||
+                        argumentType instanceof TimestampType ||
+                        argumentType instanceof TimestampWithTimeZoneType ||
+                        argumentType instanceof IntervalYearMonthType ||
+                        argumentType instanceof IntervalDayTimeType) {
+                    return compileDateTimeExtract(call.arguments().getFirst(), dateTimeField.get(), context);
                 }
             }
 
@@ -292,6 +313,19 @@ public class GpuExpressionCompiler
                 }
             }
             return false;
+        }
+
+        private Optional<CompilationResult> compileDateTimeExtract(RowExpression argument, GpuDateTimeExtract.Field field, Void context)
+        {
+            Type argumentType = argument.type();
+            if (argumentType == DATE || argumentType instanceof TimestampType) {
+                // For DATE and TIMESTAMP, cudf semantics match Trino's
+                return argument.accept(this, context)
+                        .map(compiled -> new CompilationResult(
+                                new GpuDateTimeExtract(compiled.expression(), field),
+                                compiled.score()));
+            }
+            return Optional.empty();
         }
 
         @Override

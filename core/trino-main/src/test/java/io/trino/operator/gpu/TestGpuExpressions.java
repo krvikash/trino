@@ -60,10 +60,14 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
@@ -376,6 +380,34 @@ public class TestGpuExpressions
                 List.of());
 
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testDateTimeExtract(NullsProvider nullsProvider)
+    {
+        for (String functionName : List.of("day", "hour", "minute", "second")) {
+            for (Type type : List.of(TIMESTAMP_SECONDS, TIMESTAMP_MILLIS, TIMESTAMP_MICROS)) {
+                testDateTimeExtract(functionName, type, nullsProvider);
+            }
+        }
+        // Trino only defines day() (aka day_of_month) for DATE — hour/minute/second are timestamp-only.
+        testDateTimeExtract("day", DATE, nullsProvider);
+    }
+
+    private void testDateTimeExtract(String functionName, Type timestampType, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(timestampType);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBlock(timestampType, positionsCount, nullsProvider)));
+
+        RowExpression rowExpression = call(
+                functionResolution.resolveFunction(functionName, fromTypes(timestampType)),
+                field(channelA, timestampType));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
     }
 
     @ParameterizedTest
