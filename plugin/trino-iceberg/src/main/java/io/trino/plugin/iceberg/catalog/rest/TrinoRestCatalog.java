@@ -18,6 +18,7 @@ import com.google.common.base.Splitter;
 import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.log.Logger;
@@ -84,6 +85,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -91,14 +97,17 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static io.trino.filesystem.Locations.appendPath;
 import static io.trino.metastore.Table.TABLE_COMMENT;
+import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CATALOG_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_UNSUPPORTED_VIEW_DIALECT;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.SUPPORTED_SCHEMA_PROPERTIES;
+import static io.trino.plugin.iceberg.IcebergUtil.getColumnMetadatas;
 import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
 import static io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog.ICEBERG_VIEW_RUN_AS_OWNER;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -107,6 +116,7 @@ import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static org.apache.iceberg.CatalogUtil.dropTableData;
+import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.apache.iceberg.view.ViewProperties.COMMENT;
 
 public class TrinoRestCatalog
@@ -131,6 +141,7 @@ public class TrinoRestCatalog
     private final Cache<Namespace, Namespace> remoteNamespaceMappingCache;
     private final Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache;
     private final boolean viewEndpointsEnabled;
+    private final Executor metadataFetchingExecutor;
 
     private final Cache<SchemaTableName, BaseTable> tableCache = EvictableCacheBuilder.newBuilder()
             .maximumSize(PER_QUERY_CACHE_SIZE)
@@ -150,7 +161,8 @@ public class TrinoRestCatalog
             boolean caseInsensitiveNameMatching,
             Cache<Namespace, Namespace> remoteNamespaceMappingCache,
             Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache,
-            boolean viewEndpointsEnabled)
+            boolean viewEndpointsEnabled,
+            Executor metadataFetchingExecutor)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.restSessionCatalog = requireNonNull(restSessionCatalog, "restSessionCatalog is null");
@@ -166,6 +178,7 @@ public class TrinoRestCatalog
         this.remoteNamespaceMappingCache = requireNonNull(remoteNamespaceMappingCache, "remoteNamespaceMappingCache is null");
         this.remoteTableMappingCache = requireNonNull(remoteTableMappingCache, "remoteTableMappingCache is null");
         this.viewEndpointsEnabled = viewEndpointsEnabled;
+        this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
     }
 
     @Override
@@ -407,7 +420,14 @@ public class TrinoRestCatalog
             UnaryOperator<Set<SchemaTableName>> relationFilter,
             Predicate<SchemaTableName> isRedirected)
     {
-        return Optional.empty();
+        return Optional.of(streamRelations(
+                session,
+                namespace,
+                relationFilter,
+                isRedirected,
+                RelationColumnsMetadata::forRedirectedTable,
+                (name, table) -> RelationColumnsMetadata.forTable(name, getColumnMetadatas(table.schema(), typeManager, formatVersion(table))),
+                (name, view) -> RelationColumnsMetadata.forView(name, view.getColumns())));
     }
 
     @Override
@@ -417,7 +437,78 @@ public class TrinoRestCatalog
             UnaryOperator<Set<SchemaTableName>> relationFilter,
             Predicate<SchemaTableName> isRedirected)
     {
-        return Optional.empty();
+        return Optional.of(streamRelations(
+                session,
+                namespace,
+                relationFilter,
+                isRedirected,
+                RelationCommentMetadata::forRedirectedTable,
+                (name, table) -> RelationCommentMetadata.forRelation(name, IcebergUtil.getTableComment(table)),
+                (name, view) -> RelationCommentMetadata.forRelation(name, view.getComment())));
+    }
+
+    private <T> Iterator<T> streamRelations(
+            ConnectorSession session,
+            Optional<String> namespace,
+            UnaryOperator<Set<SchemaTableName>> relationFilter,
+            Predicate<SchemaTableName> isRedirected,
+            Function<SchemaTableName, T> forRedirectedTable,
+            BiFunction<SchemaTableName, Table, T> forTable,
+            BiFunction<SchemaTableName, ConnectorViewDefinition, T> forView)
+    {
+        Set<SchemaTableName> filteredTables = relationFilter.apply(ImmutableSet.copyOf(listIcebergTables(session, namespace)));
+        Set<SchemaTableName> filteredViews = viewEndpointsEnabled
+                ? relationFilter.apply(listViews(session, namespace).stream().collect(toImmutableSet()))
+                : ImmutableSet.of();
+
+        ImmutableList.Builder<Callable<Optional<T>>> tasks = ImmutableList.builder();
+        for (SchemaTableName name : filteredTables) {
+            if (isRedirected.test(name)) {
+                tasks.add(() -> Optional.of(forRedirectedTable.apply(name)));
+            }
+            else {
+                tasks.add(() -> {
+                    try {
+                        Table icebergTable = loadTable(session, name);
+                        return Optional.of(forTable.apply(name, icebergTable));
+                    }
+                    catch (TableNotFoundException e) {
+                        return Optional.empty();
+                    }
+                    catch (RuntimeException e) {
+                        log.warn(e, "Failed to access table %s while streaming relation metadata", name);
+                        return Optional.empty();
+                    }
+                });
+            }
+        }
+        for (SchemaTableName name : filteredViews) {
+            tasks.add(() -> {
+                try {
+                    return getView(session, name).map(view -> forView.apply(name, view));
+                }
+                catch (TrinoException e) {
+                    if (e.getErrorCode().equals(ICEBERG_UNSUPPORTED_VIEW_DIALECT.toErrorCode())) {
+                        log.debug(e, "Skip unsupported view dialect: %s", name);
+                        return Optional.empty();
+                    }
+                    throw e;
+                }
+                catch (RuntimeException e) {
+                    log.warn(e, "Failed to access view %s while streaming relation metadata", name);
+                    return Optional.empty();
+                }
+            });
+        }
+
+        try {
+            return processWithAdditionalThreads(tasks.build(), metadataFetchingExecutor).stream()
+                    .flatMap(Optional::stream)
+                    .iterator();
+        }
+        catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
     }
 
     @Override
