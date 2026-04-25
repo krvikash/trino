@@ -41,6 +41,13 @@ if ! aws s3 ls s3://starburst-benchmarks-data/; then
     fi
 fi
 
-cd "${BASH_SOURCE%/*}"
-mkdir -p clickbench/hive/hits/
-aws s3 sync --delete s3://starburst-benchmarks-data/ClickBench/hive/hits_snappy_large_files clickbench/hive/hits/
+DATA_ROOT="${HOME}/starburst-benchmark-data"
+
+mkdir -p "${DATA_ROOT}/clickbench/hits/"
+aws s3 sync --delete s3://starburst-benchmarks-data/ClickBench/hive/hits_snappy_large_files "${DATA_ROOT}/clickbench/hits/"
+
+mkdir -p "${DATA_ROOT}/tpch-sf30/"
+aws s3 sync --delete s3://starburst-benchmarks-data/tpch-sf30-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf30/"
+
+mkdir -p "${DATA_ROOT}/tpch-sf100/"
+aws s3 sync --delete s3://starburst-benchmarks-data/tpch-sf100-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf100/"
