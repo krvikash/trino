@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
 
 public class PagesSerdeFactory
 {
-    private static final int SERIALIZED_PAGE_DEFAULT_BLOCK_SIZE_IN_BYTES = 64 * 1024;
+    private static final int SERIALIZED_PAGE_DEFAULT_BLOCK_SIZE_IN_BYTES = 256 * 1024;
     private final BlockEncodingSerde blockEncodingSerde;
     private final CompressionCodec compressionCodec;
     private final int blockSizeInBytes;

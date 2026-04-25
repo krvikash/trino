@@ -73,12 +73,12 @@ final class TestSortTempFileFactory
         // The expected ratios are snapshots from the current point in time and represent the expected
         // ratio of optimizedBytes / orcBytes. They vary by table because different column types and
         // data patterns compress differently.
-        testWrittenBytes(CUSTOMER, 0.84);
-        testWrittenBytes(ORDERS, 0.88);
-        testWrittenBytes(LINE_ITEM, 0.86);
-        testWrittenBytes(PART, 1.23);
-        testWrittenBytes(PART_SUPPLIER, 0.82);
-        testWrittenBytes(SUPPLIER, 0.81);
+        testWrittenBytes(CUSTOMER, 0.83);
+        testWrittenBytes(ORDERS, 0.87);
+        testWrittenBytes(LINE_ITEM, 0.84);
+        testWrittenBytes(PART, 1.21);
+        testWrittenBytes(PART_SUPPLIER, 0.79);
+        testWrittenBytes(SUPPLIER, 0.80);
     }
 
     private <T extends TpchEntity> void testWrittenBytes(TpchTable<T> table, double expectedRatio)
