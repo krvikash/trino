@@ -48,6 +48,8 @@ import static io.trino.execution.buffer.CompressionCodec.NONE;
 import static io.trino.execution.buffer.TestingPagesSerdes.createTestingPagesSerdeFactory;
 import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.operator.PageAssertions.assertPageEquals;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.util.Ciphers.createRandomAesEncryptionKey;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
@@ -98,11 +100,15 @@ public class BenchmarkPagesSerde
     @State(Scope.Thread)
     public static class BenchmarkData
     {
-        private static final int ROW_COUNT = 15000;
-        private static final List<Type> TYPES = ImmutableList.of(VARCHAR);
+        // Number of pages per benchmark op. Pages use PageBuilder's default 1 MB cap, so total
+        // payload per op is ~16 MB and MB/s = ops/s × 16 gives a meaningful throughput number.
+        private static final int PAGES_PER_OP = 16;
+        // Mixed-type page representative of typical exchange data: one compressible-ish VARCHAR
+        // column plus two high-entropy fixed-width columns.
+        private static final List<Type> TYPES = ImmutableList.of(VARCHAR, BIGINT, DOUBLE);
         @Param({"true", "false"})
         private boolean encrypted;
-        @Param({"LZ4", "NONE"})
+        @Param("LZ4")
         private CompressionCodec compressionCodec = NONE;
         @Param("1000")
         private int randomSeed = 1000;
@@ -140,34 +146,34 @@ public class BenchmarkPagesSerde
         private Page[] createPages()
         {
             Random random = new Random(randomSeed);
-            List<Page> pages = new ArrayList<>();
-            int remainingRows = ROW_COUNT;
+            List<Page> pages = new ArrayList<>(PAGES_PER_OP);
             PageBuilder pageBuilder = new PageBuilder(TYPES);
-            while (remainingRows > 0) {
-                int rows = 100 + random.nextInt(900); // 100 - 1000 rows per pass
-                List<Object>[] testRows = generateTestRows(random, TYPES, rows);
-                remainingRows -= rows;
-                for (int i = 0; i < testRows.length; i++) {
-                    writeRow(testRows[i], pageBuilder.getBlockBuilder(0));
+            for (int i = 0; i < PAGES_PER_OP; i++) {
+                while (!pageBuilder.isFull()) {
+                    int rowsThisChunk = 100 + random.nextInt(900);
+                    List<Object>[] testRows = generateTestRows(random, TYPES, rowsThisChunk);
+                    for (List<Object> testRow : testRows) {
+                        writeRow(testRow, pageBuilder);
+                    }
+                    pageBuilder.declarePositions(rowsThisChunk);
                 }
-                pageBuilder.declarePositions(rows);
                 pages.add(pageBuilder.build());
                 pageBuilder.reset();
             }
             return pages.toArray(Page[]::new);
         }
 
-        private void writeRow(List<Object> testRow, BlockBuilder blockBuilder)
+        private void writeRow(List<Object> testRow, PageBuilder pageBuilder)
         {
-            for (Object fieldValue : testRow) {
-                if (fieldValue == null) {
-                    blockBuilder.appendNull();
-                }
-                else if (fieldValue instanceof String string) {
-                    VARCHAR.writeSlice(blockBuilder, utf8Slice(string));
-                }
-                else {
-                    throw new UnsupportedOperationException();
+            for (int channel = 0; channel < testRow.size(); channel++) {
+                BlockBuilder blockBuilder = pageBuilder.getBlockBuilder(channel);
+                Object fieldValue = testRow.get(channel);
+                switch (fieldValue) {
+                    case null -> blockBuilder.appendNull();
+                    case String string -> VARCHAR.writeSlice(blockBuilder, utf8Slice(string));
+                    case Long value -> BIGINT.writeLong(blockBuilder, value);
+                    case Double value -> DOUBLE.writeDouble(blockBuilder, value);
+                    default -> throw new UnsupportedOperationException("Unsupported value type: " + fieldValue.getClass());
                 }
             }
         }
@@ -179,23 +185,28 @@ public class BenchmarkPagesSerde
             for (int i = 0; i < numRows; i++) {
                 List<Object> testRow = new ArrayList<>(fieldTypes.size());
                 for (int j = 0; j < fieldTypes.size(); j++) {
-                    if (fieldTypes.get(j) == VARCHAR) {
-                        int mode = random.nextInt(4); // 25% null, 25% repeat previous value
-                        if (mode == 0) {
-                            testRow.add(null);
-                        }
-                        else if (i > 0 && mode == 1) {
-                            // Repeat values to make compression more interesting
-                            testRow.add(testRows[i - 1].get(j));
-                        }
-                        else {
-                            byte[] data = new byte[random.nextInt(256)];
-                            random.nextBytes(data);
-                            testRow.add(new String(data, ISO_8859_1));
-                        }
+                    Type type = fieldTypes.get(j);
+                    int mode = random.nextInt(100); // 5% null, 25% repeat previous value, 70% fresh random
+                    if (mode < 5) {
+                        testRow.add(null);
+                    }
+                    else if (i > 0 && mode < 30) {
+                        // Repeat values to make compression more interesting
+                        testRow.add(testRows[i - 1].get(j));
+                    }
+                    else if (type == VARCHAR) {
+                        byte[] data = new byte[random.nextInt(256)];
+                        random.nextBytes(data);
+                        testRow.add(new String(data, ISO_8859_1));
+                    }
+                    else if (type == BIGINT) {
+                        testRow.add(random.nextLong());
+                    }
+                    else if (type == DOUBLE) {
+                        testRow.add(random.nextDouble());
                     }
                     else {
-                        throw new UnsupportedOperationException();
+                        throw new UnsupportedOperationException("Unsupported type: " + type);
                     }
                 }
                 testRows[i] = testRow;
@@ -217,7 +228,7 @@ public class BenchmarkPagesSerde
         System.out.println("Page count: " + data.dataPages.length);
 
         benchmark(BenchmarkPagesSerde.class)
-                .withOptions(optionsBuilder -> optionsBuilder.jvmArgs("-Xms4g", "-Xmx4g"))
+                .withOptions(optionsBuilder -> optionsBuilder.jvmArgs("-Xms4g", "-Xmx4g", "--add-modules=jdk.incubator.vector"))
                 .run();
     }
 }
