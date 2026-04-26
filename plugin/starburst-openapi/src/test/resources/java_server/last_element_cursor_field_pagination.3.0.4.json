@@ -1,0 +1,82 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Last Element Field Cursor Pagination API",
+        "version": 1.0,
+        "description": "Specification for testing the LAST_ELEMENT_FIELD_CURSOR pagination strategy. The cursor for the next page is derived from a field on the last element of the response array."
+    },
+    "paths": {
+        "/items/after": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns a page of items. An empty data array signals the last page has been reached.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "starting_after",
+                    "in": "query",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "per_page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                }
+            ]
+        },
+        "/items/all": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns all items in a single response with no pagination parameters, used to verify that the LAST_ELEMENT_CURSOR_FIELD strategy does not interfere.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

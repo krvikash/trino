@@ -1,0 +1,82 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Link Header Pagination API",
+        "version": 1.0,
+        "description": "Specification for testing the LINK_HEADER pagination strategy. The URL for the next page is supplied via the HTTP Link response header with rel=\"next\"."
+    },
+    "paths": {
+        "/items/paged": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns a page of items. A Link header with rel=\"next\" is present when more pages exist; its absence signals the last page.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                },
+                {
+                    "name": "per_page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                }
+            ]
+        },
+        "/items/all": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns all items in a single response with no Link header, used to verify that the LINK_HEADER strategy terminates cleanly without a next-page link.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

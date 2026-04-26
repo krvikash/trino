@@ -1,0 +1,95 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Metadata Next URL Cursor Pagination API",
+        "version": 1.0,
+        "description": "Specification for testing the METADATA_NEXT_URL_CURSOR pagination strategy. The URL for the next page is embedded as a field in the JSON response body."
+    },
+    "paths": {
+        "/items/paged": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns a page of items alongside the absolute URL for the next page. An empty next_url signals the last page.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "format": "int64"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "metadata": {
+                                            "type": "object",
+                                            "properties": {
+                                                "next_url": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "cursor",
+                    "in": "query",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "per_page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                }
+            ]
+        },
+        "/items/all": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns all items in a single response. The response is a plain array with no next_url field, so the NEXT_URL_FIELD strategy does not activate.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

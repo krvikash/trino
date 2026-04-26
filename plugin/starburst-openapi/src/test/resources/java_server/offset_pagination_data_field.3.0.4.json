@@ -1,0 +1,87 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Offset Pagination API",
+        "version": 1.0,
+        "description": "Specification describing an offset-paginated endpoint for testing the OFFSET pagination strategy."
+    },
+    "paths": {
+        "/items/offset": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns items starting at the given offset. A Link header with rel=\"next\" signals more items exist.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "format": "int64"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "offset",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                },
+                {
+                    "name": "per_page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                }
+            ]
+        },
+        "/items/all": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns all items in a single response with no pagination parameters, used to verify that the OFFSET strategy does not interfere.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
