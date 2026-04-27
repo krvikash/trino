@@ -545,8 +545,7 @@ public class PipelinedStageExecution
         TaskState taskState = taskStatus.state();
 
         switch (taskState) {
-            case FAILING:
-            case FAILED:
+            case FAILING, FAILED -> {
                 RuntimeException failure = taskStatus.failures().stream()
                         .findFirst()
                         .map(this::rewriteTransportFailure)
@@ -554,18 +553,13 @@ public class PipelinedStageExecution
                         // task is failed or failing, so we need to create a synthetic exception to fail the stage now
                         .orElseGet(() -> new TrinoException(GENERIC_INTERNAL_ERROR, format("Task %s failed for an unknown reason", taskStatus.taskId())));
                 fail(failure);
-                break;
-            case CANCELING:
-            case CANCELED:
-            case ABORTING:
-            case ABORTED:
+            }
+            case CANCELING, CANCELED, ABORTING, ABORTED -> {
                 // A task should only be in the aborting, aborted, canceling, or canceled state if the STAGE is done (ABORTED or FAILED)
                 fail(new TrinoException(GENERIC_INTERNAL_ERROR, format("Task %s is in the %s state but stage %s is %s", taskStatus.taskId(), taskState, stateMachine.getStageId(), stateMachine.getState())));
-                break;
-            case FLUSHING:
-                newFlushingOrFinishedTaskObserved = addFlushingTask(taskStatus.taskId());
-                break;
-            case FINISHED:
+            }
+            case FLUSHING -> newFlushingOrFinishedTaskObserved = addFlushingTask(taskStatus.taskId());
+            case FINISHED -> {
                 if (hasSpoolingExchangeOutput()) {
                     ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskStatus.taskId());
                     getOutputSpoolingExchange().sinkFinished(exchangeSinkHandle, taskStatus.taskId().attemptId());
@@ -575,9 +569,8 @@ public class PipelinedStageExecution
                 else {
                     newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.taskId());
                 }
-
-                break;
-            default:
+            }
+                default -> {}
         }
 
         // Only allow stage state to transition to RUNNING, FLUSHING or FINISHED state
