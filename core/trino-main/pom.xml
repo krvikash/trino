@@ -27,11 +27,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-storage-common</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.clearspring.analytics</groupId>
             <artifactId>stream</artifactId>
         </dependency>
@@ -288,16 +283,6 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-data-client</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-data-common</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>starburst-buffer-data-server</artifactId>
             <exclusions>
                 <exclusion>
@@ -305,11 +290,6 @@
                     <artifactId>launcher</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-discovery-client</artifactId>
         </dependency>
 
         <dependency>
@@ -487,16 +467,6 @@
         <dependency>
             <groupId>org.weakref</groupId>
             <artifactId>jmxutils</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>regions</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>sdk-core</artifactId>
         </dependency>
 
         <dependency>
