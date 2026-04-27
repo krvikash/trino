@@ -269,6 +269,11 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
+            <artifactId>starburst-buffer-data-spi</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>starburst-buffer-discovery-client</artifactId>
         </dependency>
 

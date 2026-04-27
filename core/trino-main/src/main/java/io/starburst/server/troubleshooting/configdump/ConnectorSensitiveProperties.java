@@ -739,8 +739,6 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "spooling.gcs.json-key",
-                            "spooling.s3.aws-secret-key",
                             "web-ui.shared-secret"))
             .buildOrThrow();
 

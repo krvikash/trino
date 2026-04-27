@@ -14,7 +14,7 @@
 package io.trino.memory;
 
 import io.airlift.units.DataSize;
-import io.starburst.stargate.buffer.data.memory.StaticMemoryConfig;
+import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -46,7 +46,20 @@ public class TestLocalMemoryManager
                 .setHeapHeadroom("1MB")
                 .setMaxQueryMemoryPerNode("4MB");
 
-        StaticMemoryConfig bufferMemoryConfig = new StaticMemoryConfig().setBaseMemory("2MB");
+        MemoryConfig bufferMemoryConfig = new MemoryConfig()
+        {
+            @Override
+            public DataSize getBaseMemory()
+            {
+                return DataSize.of(2, MEGABYTE);
+            }
+
+            @Override
+            public DataSize getChunksMemory()
+            {
+                return DataSize.ofBytes(0);
+            }
+        };
 
         // 6 MB heap is not sufficient for 1 MB heap headroom, 2 MB buffer service memory and 4 MB query.max-memory-per-node
         assertThatThrownBy(() -> new LocalMemoryManager(

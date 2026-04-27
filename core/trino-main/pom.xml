@@ -278,13 +278,7 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-data-server</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.airlift</groupId>
-                    <artifactId>launcher</artifactId>
-                </exclusion>
-            </exclusions>
+            <artifactId>starburst-buffer-data-spi</artifactId>
         </dependency>
 
         <dependency>
