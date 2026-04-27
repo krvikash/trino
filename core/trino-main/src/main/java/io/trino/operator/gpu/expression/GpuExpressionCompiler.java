@@ -191,12 +191,12 @@ public class GpuExpressionCompiler
 
         private Optional<CompilationResult> compileBinaryExpression(CallExpression call, OperatorType operatorType, Void context)
         {
-            return toBinaryOp(operatorType)
-                    .flatMap(operation -> toDType(call.type())
-                            .flatMap(resultDType -> compileAll(call.arguments(), context)
-                                    .map(results -> new CompilationResult(
-                                            new GpuBinaryExpression(results.get(0).expression(), results.get(1).expression(), operation, resultDType),
-                                            maxScore(results, POTENTIAL)))));
+            return toBinaryOp(operatorType).flatMap(operation ->
+                    toDType(call.type()).flatMap(resultDType ->
+                            compileAll(call.arguments(), context).map(arguments ->
+                                    new CompilationResult(
+                                            new GpuBinaryExpression(arguments.get(0).expression(), arguments.get(1).expression(), operation, resultDType),
+                                            maxScore(arguments, POTENTIAL)))));
         }
 
         private static Optional<BinaryOp> toBinaryOp(OperatorType operatorType)
@@ -217,16 +217,15 @@ public class GpuExpressionCompiler
 
         private Optional<CompilationResult> compileCast(RowExpression argument, Type toType, Void context)
         {
-            return toDType(toType)
-                    .flatMap(resultDType -> argument.accept(this, context)
-                            .flatMap(compiledArgument -> {
-                                if (isCastSafe(argument.type(), toType)) {
-                                    return Optional.of(new CompilationResult(
-                                            new GpuCast(compiledArgument.expression(), resultDType),
-                                            compiledArgument.score()));
-                                }
-                                return Optional.empty();
-                            }));
+            return toDType(toType).flatMap(resultDType ->
+                    argument.accept(this, context).flatMap(compiledArgument -> {
+                        if (isCastSafe(argument.type(), toType)) {
+                            return Optional.of(new CompilationResult(
+                                    new GpuCast(compiledArgument.expression(), resultDType),
+                                    compiledArgument.score()));
+                        }
+                        return Optional.empty();
+                    }));
         }
 
         private static boolean isCastSafe(Type fromType, Type toType)
