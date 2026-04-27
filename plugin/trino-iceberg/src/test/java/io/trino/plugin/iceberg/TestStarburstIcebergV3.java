@@ -2219,9 +2219,9 @@ public class TestStarburstIcebergV3
                             """
                             VALUES
                             (varchar 'nationkey', cast(null AS double), cast(25.0 AS double), cast(0.0 AS double), cast(null AS double), varchar '0', varchar '24'),
-                            ('name', 583.0, 25.0, 0.0, null, null, null),
+                            ('name', 513.0, 25.0, 0.0, null, null, null),
                             ('regionkey', null, 5.0, 0.0, null, '0', '4'),
-                            ('comment', 2162.0, 25.0, 0.0, null, null, null),
+                            ('comment', 2087.0, 25.0, 0.0, null, null, null),
                             (null, null, null, null, 25.0, null, null)
                             """);
 

@@ -133,6 +133,7 @@ public class DeltaLakeMergeSink
     private final Map<String, DeletionVectorEntry> deletionVectors;
     private final int randomPrefixLength;
     private final Optional<String> shallowCloneSourceTableLocation;
+    private final boolean useDeltaLengthByteArrayEncoding;
     private long writtenBytes;
 
     @Nullable
@@ -160,7 +161,8 @@ public class DeltaLakeMergeSink
             boolean deletionVectorEnabled,
             Map<String, DeletionVectorEntry> deletionVectors,
             int randomPrefixLength,
-            Optional<String> shallowCloneSourceTableLocation)
+            Optional<String> shallowCloneSourceTableLocation,
+            boolean useDeltaLengthByteArrayEncoding)
     {
         this.typeOperators = requireNonNull(typeOperators, "typeOperators is null");
         this.session = requireNonNull(session, "session is null");
@@ -190,6 +192,7 @@ public class DeltaLakeMergeSink
         this.deletionVectors = ImmutableMap.copyOf(requireNonNull(deletionVectors, "deletionVectors is null"));
         this.randomPrefixLength = randomPrefixLength;
         this.shallowCloneSourceTableLocation = requireNonNull(shallowCloneSourceTableLocation, "shallowCloneSourceTableLocation is null");
+        this.useDeltaLengthByteArrayEncoding = useDeltaLengthByteArrayEncoding;
 
         dataColumnsIndices = new int[tableColumnCount];
         dataAndRowIdColumnsIndices = new int[tableColumnCount + 1];
@@ -516,6 +519,7 @@ public class DeltaLakeMergeSink
                 .setMaxBlockSize(getParquetWriterBlockSize(session))
                 .setMaxPageSize(getParquetWriterPageSize(session))
                 .setMaxPageValueCount(getParquetWriterPageValueCount(session))
+                .setUseDeltaLengthByteArrayEncoding(useDeltaLengthByteArrayEncoding)
                 .build();
         CompressionCodec compressionCodec = toCompressionCodec(getCompressionCodec(session)).getParquetCompressionCodec()
                 .orElseThrow(); // validated on the session property level

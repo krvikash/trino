@@ -139,9 +139,9 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("nationkey", null, 25.0, 0.0, null, "0", "24"),
-                    column("name", 583.0, 25.0, 0.0, null, null, null),
+                    column("name", 513.0, 25.0, 0.0, null, null, null),
                     column("regionkey", null, 5.0, 0.0, null, "0", "4"),
-                    column("comment", 2162.0, 25.0, 0.0, null, null, null),
+                    column("comment", 2087.0, 25.0, 0.0, null, null, null),
                     rowCount(25.0));
         }
     }

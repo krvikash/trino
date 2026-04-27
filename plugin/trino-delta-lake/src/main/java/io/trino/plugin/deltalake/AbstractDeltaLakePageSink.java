@@ -107,6 +107,7 @@ public abstract class AbstractDeltaLakePageSink
     private final List<Boolean> activeWriters = new ArrayList<>();
     protected final ImmutableList.Builder<DataFileInfo> dataFileInfos = ImmutableList.builder();
     private final DeltaLakeParquetSchemaMapping parquetSchemaMapping;
+    private final boolean useDeltaLengthByteArrayEncoding;
     private long currentOpenWriters;
 
     public AbstractDeltaLakePageSink(
@@ -123,7 +124,8 @@ public abstract class AbstractDeltaLakePageSink
             ConnectorSession session,
             DeltaLakeWriterStats stats,
             String trinoVersion,
-            DeltaLakeParquetSchemaMapping parquetSchemaMapping)
+            DeltaLakeParquetSchemaMapping parquetSchemaMapping,
+            boolean useDeltaLengthByteArrayEncoding)
     {
         this.typeOperators = requireNonNull(typeOperators, "typeOperators is null");
         requireNonNull(inputColumns, "inputColumns is null");
@@ -190,6 +192,7 @@ public abstract class AbstractDeltaLakePageSink
         this.trinoVersion = requireNonNull(trinoVersion, "trinoVersion is null");
         this.targetMaxFileSize = DeltaLakeSessionProperties.getTargetMaxFileSize(session);
         this.idleWriterMinFileSize = DeltaLakeSessionProperties.getIdleWriterMinFileSize(session);
+        this.useDeltaLengthByteArrayEncoding = useDeltaLengthByteArrayEncoding;
     }
 
     protected abstract void processSynthesizedColumn(DeltaLakeColumnHandle column);
@@ -465,6 +468,7 @@ public abstract class AbstractDeltaLakePageSink
                 .setMaxBlockSize(getParquetWriterBlockSize(session))
                 .setMaxPageSize(getParquetWriterPageSize(session))
                 .setMaxPageValueCount(getParquetWriterPageValueCount(session))
+                .setUseDeltaLengthByteArrayEncoding(useDeltaLengthByteArrayEncoding)
                 .build();
         CompressionCodec compressionCodec = toCompressionCodec(getCompressionCodec(session)).getParquetCompressionCodec()
                 .orElseThrow(); // validated on the session property level
