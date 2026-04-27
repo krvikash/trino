@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.BinaryOp;
+import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import io.airlift.log.Logger;
@@ -191,28 +192,152 @@ public class GpuExpressionCompiler
 
         private Optional<CompilationResult> compileBinaryExpression(CallExpression call, OperatorType operatorType, Void context)
         {
-            return toBinaryOp(operatorType).flatMap(operation ->
-                    toDType(call.type()).flatMap(resultDType ->
-                            compileAll(call.arguments(), context).map(arguments ->
-                                    new CompilationResult(
-                                            new GpuBinaryExpression(arguments.get(0).expression(), arguments.get(1).expression(), operation, resultDType),
-                                            maxScore(arguments, POTENTIAL)))));
-        }
+            Optional<DType> outputTypeOpt = toDType(call.type());
+            if (outputTypeOpt.isEmpty()) {
+                return Optional.empty();
+            }
+            DType outputType = outputTypeOpt.get();
 
-        private static Optional<BinaryOp> toBinaryOp(OperatorType operatorType)
-        {
-            BinaryOp operation = switch (operatorType) {
-                case ADD -> BinaryOp.ADD;
-                case SUBTRACT -> BinaryOp.SUB;
-                case MULTIPLY -> BinaryOp.MUL;
-                case DIVIDE -> BinaryOp.DIV;
-                case MODULUS -> BinaryOp.MOD;
-                case EQUAL -> BinaryOp.EQUAL;
-                case LESS_THAN -> BinaryOp.LESS;
-                case LESS_THAN_OR_EQUAL -> BinaryOp.LESS_EQUAL;
-                default -> null;
+            Type leftType = call.arguments().get(0).type();
+            Type rightType = call.arguments().get(1).type();
+
+            Optional<List<CompilationResult>> argsOpt = compileAll(call.arguments(), context);
+            if (argsOpt.isEmpty()) {
+                return Optional.empty();
+            }
+            List<CompilationResult> args = argsOpt.get();
+            GpuExpression left = args.get(0).expression();
+            GpuExpression right = args.get(1).expression();
+
+            Optional<GpuExpression> gpuExpression = switch (operatorType) {
+                case ADD -> {
+                    if (leftType == TINYINT && rightType == TINYINT) {
+                        yield Optional.of(new GpuIntegerAdd(left, right, outputType, "tinyint"));
+                    }
+                    if (leftType == SMALLINT && rightType == SMALLINT) {
+                        yield Optional.of(new GpuIntegerAdd(left, right, outputType, "smallint"));
+                    }
+                    if (leftType == INTEGER && rightType == INTEGER) {
+                        yield Optional.of(new GpuIntegerAdd(left, right, outputType, "integer"));
+                    }
+                    if (leftType == BIGINT && rightType == BIGINT) {
+                        yield Optional.of(new GpuIntegerAdd(left, right, outputType, "bigint"));
+                    }
+                    if (leftType == REAL && rightType == REAL) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.ADD, outputType));
+                    }
+                    if (leftType == DOUBLE && rightType == DOUBLE) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.ADD, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case SUBTRACT -> {
+                    if (leftType == TINYINT && rightType == TINYINT) {
+                        yield Optional.of(new GpuIntegerSubtract(left, right, outputType, "tinyint"));
+                    }
+                    if (leftType == SMALLINT && rightType == SMALLINT) {
+                        yield Optional.of(new GpuIntegerSubtract(left, right, outputType, "smallint"));
+                    }
+                    if (leftType == INTEGER && rightType == INTEGER) {
+                        yield Optional.of(new GpuIntegerSubtract(left, right, outputType, "integer"));
+                    }
+                    if (leftType == BIGINT && rightType == BIGINT) {
+                        yield Optional.of(new GpuIntegerSubtract(left, right, outputType, "bigint"));
+                    }
+                    if (leftType == REAL && rightType == REAL) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.SUB, outputType));
+                    }
+                    if (leftType == DOUBLE && rightType == DOUBLE) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.SUB, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case MULTIPLY -> {
+                    if (leftType == TINYINT && rightType == TINYINT) {
+                        yield Optional.of(new GpuIntegerMultiply(left, right, outputType, DType.INT16, "tinyint"));
+                    }
+                    if (leftType == SMALLINT && rightType == SMALLINT) {
+                        yield Optional.of(new GpuIntegerMultiply(left, right, outputType, DType.INT32, "smallint"));
+                    }
+                    if (leftType == INTEGER && rightType == INTEGER) {
+                        yield Optional.of(new GpuIntegerMultiply(left, right, outputType, DType.INT64, "integer"));
+                    }
+                    if (leftType == BIGINT && rightType == BIGINT) {
+                        // TODO (https://starburstdata.atlassian.net/browse/ENG-12005) Optimize GPU BIGINT multiply overflow detection
+                        yield Optional.of(new GpuIntegerMultiply(left, right, outputType, DType.create(DType.DTypeEnum.DECIMAL128, 0), "bigint"));
+                    }
+                    if (leftType == REAL && rightType == REAL) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MUL, outputType));
+                    }
+                    if (leftType == DOUBLE && rightType == DOUBLE) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MUL, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case DIVIDE -> {
+                    if (leftType == TINYINT && rightType == TINYINT) {
+                        yield Optional.of(new GpuIntegerDivide(left, right, outputType, "tinyint"));
+                    }
+                    if (leftType == SMALLINT && rightType == SMALLINT) {
+                        yield Optional.of(new GpuIntegerDivide(left, right, outputType, "smallint"));
+                    }
+                    if (leftType == INTEGER && rightType == INTEGER) {
+                        yield Optional.of(new GpuIntegerDivide(left, right, outputType, "integer"));
+                    }
+                    if (leftType == BIGINT && rightType == BIGINT) {
+                        yield Optional.of(new GpuIntegerDivide(left, right, outputType, "bigint"));
+                    }
+                    if (leftType == REAL && rightType == REAL) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.DIV, outputType));
+                    }
+                    if (leftType == DOUBLE && rightType == DOUBLE) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.DIV, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case MODULUS -> {
+                    if (leftType == TINYINT && rightType == TINYINT) {
+                        yield Optional.of(new GpuIntegerModulo(left, right, outputType));
+                    }
+                    if (leftType == SMALLINT && rightType == SMALLINT) {
+                        yield Optional.of(new GpuIntegerModulo(left, right, outputType));
+                    }
+                    if (leftType == INTEGER && rightType == INTEGER) {
+                        yield Optional.of(new GpuIntegerModulo(left, right, outputType));
+                    }
+                    if (leftType == BIGINT && rightType == BIGINT) {
+                        yield Optional.of(new GpuIntegerModulo(left, right, outputType));
+                    }
+                    if (leftType == REAL && rightType == REAL) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MOD, outputType));
+                    }
+                    if (leftType == DOUBLE && rightType == DOUBLE) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MOD, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case EQUAL -> {
+                    if (leftType.equals(rightType)) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case LESS_THAN -> {
+                    if (leftType.equals(rightType)) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                case LESS_THAN_OR_EQUAL -> {
+                    if (leftType.equals(rightType)) {
+                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, outputType));
+                    }
+                    yield Optional.empty();
+                }
+                default -> Optional.empty();
             };
-            return Optional.ofNullable(operation);
+
+            return gpuExpression.map(expression -> new CompilationResult(expression, maxScore(args, POTENTIAL)));
         }
 
         private Optional<CompilationResult> compileCast(RowExpression argument, Type toType, Void context)

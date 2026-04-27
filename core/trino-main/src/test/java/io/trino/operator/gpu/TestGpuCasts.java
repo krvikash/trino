@@ -133,7 +133,10 @@ public class TestGpuCasts
                 REAL,
                 DOUBLE,
                 createDecimalType(1, 0),
-                createDecimalType(3, 0),
+                createDecimalType(3, 0), // can hold max tinyint
+                createDecimalType(5, 0), // can hold max smallint
+                createDecimalType(10, 0), // can hold max integer
+                createDecimalType(19, 0), // can hold max bigint
                 createDecimalType(13, 0),
                 createDecimalType(13, 2),
                 createDecimalType(27, 0),

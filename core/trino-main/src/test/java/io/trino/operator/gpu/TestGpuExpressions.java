@@ -13,11 +13,15 @@
  */
 package io.trino.operator.gpu;
 
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.memory.context.LocalMemoryContext;
+import io.trino.metadata.OperatorNotFoundException;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
@@ -25,23 +29,32 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.planner.InternalDynamicFilter;
+import io.trino.sql.relational.CallExpression;
+import io.trino.sql.relational.InputReferenceExpression;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.SpecialForm;
 import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -51,30 +64,40 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
+import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.relational.Expressions.call;
 import static io.trino.sql.relational.Expressions.constant;
 import static io.trino.sql.relational.Expressions.field;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuExpressions
@@ -225,6 +248,270 @@ public class TestGpuExpressions
         testConstant(constant(Slices.utf8Slice(""), VARCHAR));
         testConstant(constant(Slices.utf8Slice("Łania szła piękną łąką pod Warszawą"), VARCHAR));
         testConstant(constant(null, VARCHAR));
+    }
+
+    @Test
+    public void testNumericOperatorsCorrectnessSmoke()
+    {
+        List<Type> testedTypes = List.of(
+                TINYINT,
+                SMALLINT,
+                INTEGER,
+                BIGINT,
+                REAL,
+                DOUBLE,
+                createDecimalType(1, 0),
+                createDecimalType(3, 0), // can hold max tinyint
+                createDecimalType(5, 0), // can hold max smallint
+                createDecimalType(10, 0), // can hold max integer
+                createDecimalType(19, 0), // can hold max bigint
+                createDecimalType(13, 0),
+                createDecimalType(13, 2),
+                createDecimalType(27, 0),
+                createDecimalType(27, 5),
+                createDecimalType(38),
+                NUMBER);
+        List<TrinoNumber> testedNumbers = numericValuesToTest();
+
+        LoadingCache<Type, List<@Nullable Object>> testedTypeValues = EvictableCacheBuilder.newBuilder()
+                // Unbounded. This is only to memoize.
+                .maximumSize(Long.MAX_VALUE)
+                .build(CacheLoader.from(type -> {
+                    List<@Nullable Object> values = tryCastToAndFilter(NUMBER, type, testedNumbers);
+                    verify(!values.isEmpty());
+                    return values;
+                }));
+
+        LoadingCache<Type, List<Page>> unaryInputs = EvictableCacheBuilder.newBuilder()
+                // Unbounded. This is only to memoize.
+                .maximumSize(Long.MAX_VALUE)
+                .build(CacheLoader.from(type -> testedTypeValues.getUnchecked(type).stream()
+                        .map(value -> new Page(nativeValueToBlock(type, value)))
+                        .collect(toImmutableList())));
+
+        LoadingCache<Pair<Type, Type>, List<Page>> binaryInputs = EvictableCacheBuilder.newBuilder()
+                // Unbounded. This is only to memoize.
+                .maximumSize(Long.MAX_VALUE)
+                .build(CacheLoader.from(pair -> cartesianProduct(
+                        pair.first(),
+                        testedTypeValues.getUnchecked(pair.first()),
+                        pair.second(),
+                        testedTypeValues.getUnchecked(pair.second()))));
+
+        Set<String> testedOperators = new HashSet<>();
+        Set<String> gpuEnabledOperators = new HashSet<>();
+
+        // Unary operators: same shape, single-type loop.
+        for (Type type : testedTypes) {
+            for (OperatorType operator : OperatorType.values()) {
+                if (operator.getArgumentCount() != 1) {
+                    continue;
+                }
+                if (operator == OperatorType.CAST || operator == OperatorType.SATURATED_FLOOR_CAST) {
+                    // Casts tested in TestGpuCasts // TODO unify tests into one
+                    continue;
+                }
+
+                ResolvedFunction function;
+                try {
+                    function = functionResolution.resolveOperator(operator, List.of(type));
+                }
+                catch (OperatorNotFoundException e) {
+                    continue;
+                }
+
+                // Inspect coercions if any
+                Type coerced = getOnlyElement(function.signature().getArgumentTypes());
+                if (type.equals(coerced)) {
+                    // Let's test, this is what we're here for
+                }
+                else if (testedTypes.contains(coerced)) {
+                    // Will be tested explicitly on separate round
+                    continue;
+                }
+                else {
+                    // Might not be covered by explicit tests; expect this only for decimal coercions
+                    verify(
+                            type instanceof DecimalType,
+                            "Unexpected coercion for unary %s on %s: argument types %s",
+                            operator,
+                            type,
+                            function.signature().getArgumentTypes());
+                }
+
+                testedOperators.add("%s %s".formatted(operator.getOperator(), coerced.getDisplayName()));
+
+                CallExpression expression = call(function, new InputReferenceExpression(0, coerced));
+                Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression);
+                if (gpuExpression.isEmpty()) {
+                    // Not supported for GPU execution
+                    continue;
+                }
+                gpuEnabledOperators.add("%s %s".formatted(operator.getOperator(), coerced.getDisplayName()));
+
+                try {
+                    for (Page input : unaryInputs.getUnchecked(coerced)) {
+                        assertThat(input.getPositionCount()).isEqualTo(1);
+                        assertGpuMatchesCpu(List.of(input), List.of(coerced), expression, Set.of(0));
+                    }
+                }
+                catch (AssertionError failure) {
+                    failure.addSuppressed(new Exception("GPU expression: " + gpuExpression.orElseThrow().expression()));
+                    throw failure;
+                }
+            }
+        }
+
+        // Binary operators: cross-product over (leftType, rightType).
+        for (Type leftType : testedTypes) {
+            for (Type rightType : testedTypes) {
+                for (OperatorType operator : OperatorType.values()) {
+                    if (operator.getArgumentCount() != 2) {
+                        continue;
+                    }
+
+                    ResolvedFunction function;
+                    try {
+                        function = functionResolution.resolveOperator(operator, List.of(leftType, rightType));
+                    }
+                    catch (OperatorNotFoundException e) {
+                        continue;
+                    }
+
+                    // Inspect coercions if any
+                    if (List.of(leftType, rightType).equals(function.signature().getArgumentTypes())) {
+                        // Let's test, this is what we're here for
+                    }
+                    else if (testedTypes.containsAll(function.signature().getArgumentTypes())) {
+                        // Will be tested explicitly on separate round
+                        continue;
+                    }
+                    else {
+                        // Might not be covered by explicit tests, so let's test this.
+                        // This should be the case only for decimal types.
+                        verify(leftType instanceof DecimalType || rightType instanceof DecimalType, "Neither is decimal: %s, %s", leftType, rightType);
+                    }
+
+                    assertThat(function.signature().getArgumentTypes()).hasSize(2);
+                    Type leftCoerced = function.signature().getArgumentTypes().get(0);
+                    Type rightCoerced = function.signature().getArgumentTypes().get(1);
+
+                    testedOperators.add("%s %s %s".formatted(leftCoerced.getDisplayName(), operator.getOperator(), rightCoerced.getDisplayName()));
+
+                    CallExpression expression = call(function, new InputReferenceExpression(0, leftCoerced), new InputReferenceExpression(1, rightCoerced));
+                    Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression);
+                    if (gpuExpression.isEmpty()) {
+                        // Not supported for GPU execution
+                        continue;
+                    }
+                    gpuEnabledOperators.add("%s %s %s".formatted(leftCoerced.getDisplayName(), operator.getOperator(), rightCoerced.getDisplayName()));
+
+                    try {
+                        for (Page input : binaryInputs.getUnchecked(new Pair<>(leftCoerced, rightCoerced))) {
+                            assertThat(input.getPositionCount()).isEqualTo(1);
+                            assertGpuMatchesCpu(List.of(input), List.of(leftCoerced, rightCoerced), expression, Set.of(0, 1));
+                        }
+                    }
+                    catch (AssertionError failure) {
+                        failure.addSuppressed(new Exception("GPU expression: " + gpuExpression.orElseThrow().expression()));
+                        throw failure;
+                    }
+                }
+            }
+        }
+
+        // Self-test
+        assertThat(testedOperators)
+                .contains(
+                        "- bigint",
+                        "- decimal(13,2)",
+                        "HASH CODE bigint",
+                        "bigint + bigint",
+                        "real < real",
+                        "decimal(3,0) + decimal(3,0)",
+                        "decimal(27,5) + decimal(27,5)",
+                        "decimal(27,0) - decimal(3,0)");
+
+        // Self-test
+        assertThat(gpuEnabledOperators)
+                .contains(
+                        "bigint + bigint",
+                        "real < real",
+                        "decimal(3,0) < decimal(3,0)")
+                .doesNotContain(
+                        "- bigint",
+                        "- decimal(13,2)",
+                        "HASH CODE bigint",
+                        "decimal(3,0) + decimal(3,0)", // short decimal arithmetic example
+                        "decimal(27,5) + decimal(27,5)", // long decimal arithmetic example
+                        "decimal(27,0) - decimal(3,0)"); // decimal arithmetic with different operand types
+    }
+
+    private static List<@Nullable TrinoNumber> numericValuesToTest()
+    {
+        List<Long> initial = List.of(
+                0L,
+                -1L, 1L,
+                (long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE,
+                (long) Short.MIN_VALUE, (long) Short.MAX_VALUE,
+                (long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE,
+                Long.MIN_VALUE, Long.MAX_VALUE);
+        List<BigDecimal> offsets = Stream.of("0", "1", "-1", "0.33", "0.5", "0.66", "-0.33", "-0.5", "-0.66")
+                .map(BigDecimal::new)
+                .toList();
+        List<TrinoNumber> testedNumbers = new ArrayList<>();
+        testedNumbers.add(null);
+        for (long value : initial) {
+            BigDecimal asBigDecimal = BigDecimal.valueOf(value);
+            for (BigDecimal offset : offsets) {
+                testedNumbers.add(TrinoNumber.from(asBigDecimal.add(offset)));
+            }
+        }
+        testedNumbers.add(TrinoNumber.from(BigDecimal.valueOf(Math.PI)));
+        testedNumbers.add(TrinoNumber.from(new TrinoNumber.Infinity(false)));
+        testedNumbers.add(TrinoNumber.from(new TrinoNumber.Infinity(true)));
+        testedNumbers.add(TrinoNumber.from(new TrinoNumber.NotANumber()));
+        return testedNumbers;
+    }
+
+    private List<@Nullable Object> tryCastToAndFilter(Type sourceType, Type targetType, List<@Nullable ?> sourceNativeValues)
+    {
+        List<Object> nativeValues = new ArrayList<>();
+        ResolvedFunction castFunction = functionResolution.getCoercion(sourceType, targetType);
+        CallExpression castExpression = call(castFunction, new InputReferenceExpression(0, sourceType));
+        for (@Nullable Object sourceValue : sourceNativeValues) {
+            Page sourcePage = new Page(nativeValueToBlock(sourceType, sourceValue));
+            List<Page> result;
+            try {
+                result = executeWithCpu(List.of(sourcePage), castExpression);
+            }
+            catch (TrinoException e) {
+                if (e.getErrorCode().equals(NUMERIC_VALUE_OUT_OF_RANGE.toErrorCode()) || e.getErrorCode().equals(INVALID_CAST_ARGUMENT.toErrorCode())) {
+                    continue;
+                }
+                throw e;
+            }
+            assertThat(result).hasSize(1);
+            Page resultPage = getOnlyElement(result);
+            assertThat(resultPage.getPositionCount()).isEqualTo(1);
+            assertThat(resultPage.getChannelCount()).isEqualTo(1);
+            @Nullable Object targetValue = readNativeValue(targetType, resultPage.getBlock(0), 0);
+            nativeValues.add(targetValue);
+        }
+        return nativeValues;
+    }
+
+    private List<Page> cartesianProduct(Type leftType, List<?> leftValues, Type rightType, List<?> rightValues)
+    {
+        List<Page> pages = new ArrayList<>();
+        for (Object leftValue : leftValues) {
+            for (Object rightValue : rightValues) {
+                pages.add(new Page(
+                        nativeValueToBlock(leftType, leftValue),
+                        nativeValueToBlock(rightType, rightValue)));
+            }
+        }
+        return pages;
     }
 
     @ParameterizedTest
@@ -539,14 +826,41 @@ public class TestGpuExpressions
 
     private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels)
     {
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, expectedInputChannels, false);
+    }
+
+    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
+    {
         CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
+        List<Page> cpuResults;
+        try {
+            cpuResults = executeWithCpu(inputPages, rowExpression);
+        }
+        catch (TrinoException cpuExecutionException) {
+            // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
+            if (!allowMultipleInputsForExceptionTesting) {
+                assertThat(inputPages.stream().mapToLong(Page::getPositionCount).sum())
+                        .describedAs("When testing exception flows, it is recommended to test with single row inputs. Use the flag to suppress.")
+                        .isEqualTo(1);
+            }
+            try {
+                assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression))
+                        .hasErrorCode(cpuExecutionException::getErrorCode);
+            }
+            catch (AssertionError failure) {
+                failure.addSuppressed(new Exception("rowExpression: " + rowExpression));
+                failure.addSuppressed(new Exception("inputTypes: " + inputTypes));
+                failure.addSuppressed(new Exception("CPU execution exception", cpuExecutionException));
+                throw failure;
+            }
+            return;
+        }
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression);
-        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
         assertSameDataInOrder(gpuResults, cpuResults, List.of(rowExpression.type()));
     }
 
@@ -635,5 +949,14 @@ public class TestGpuExpressions
         Random random = new Random(42); // Fixed seed for reproducibility
         return IntStream.generate(() -> random.nextInt(minInclusive, maxExclusive))
                 .boxed();
+    }
+
+    private record Pair<F, S>(F first, S second)
+    {
+        Pair
+        {
+            requireNonNull(first, "first is null");
+            requireNonNull(second, "second is null");
+        }
     }
 }

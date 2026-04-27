@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.BinaryOp;
+import ai.rapids.cudf.BinaryOperable;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -24,6 +25,9 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Wrapper around cuDF {@link ColumnVector#binaryOp(BinaryOp, BinaryOperable, DType)}.
+ */
 public class GpuBinaryExpression
         implements GpuExpression
 {
@@ -32,11 +36,7 @@ public class GpuBinaryExpression
     private final BinaryOp operation;
     private final DType outputType;
 
-    public GpuBinaryExpression(
-            GpuExpression left,
-            GpuExpression right,
-            BinaryOp operation,
-            DType outputType)
+    public GpuBinaryExpression(GpuExpression left, GpuExpression right, BinaryOp operation, DType outputType)
     {
         this.left = requireNonNull(left, "left is null");
         this.right = requireNonNull(right, "right is null");
@@ -47,7 +47,6 @@ public class GpuBinaryExpression
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        // TODO: Handle edge cases described in https://starburstdata.atlassian.net/browse/ENG-10142
         try (@Own ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
                 @Own ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
             return leftResult.binaryOp(operation, rightResult, outputType);
