@@ -26,6 +26,8 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import io.trino.type.BlockTypeOperators;
+import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
 
 import java.util.Iterator;
 import java.util.List;
@@ -36,7 +38,6 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -483,25 +484,29 @@ public final class GpuTestUtils
         assertThat(actual.stream().mapToInt(Page::getPositionCount).sum()).as("actual position count (sum over all returned pages)")
                 .isEqualTo(expected.stream().mapToInt(Page::getPositionCount).sum());
 
+        BlockTypeOperators blockTypeOperators = new BlockTypeOperators();
+        List<BlockPositionIsIdentical> identicalOperators = types.stream()
+                .map(blockTypeOperators::getIdenticalOperator)
+                .toList();
+
         Streams.forEachPair(
                 positions(actual),
                 positions(expected),
                 (actualPos, expectedPos) -> {
-                    List<Optional<Object>> actualValues = readValues(actualPos.page, actualPos.position, types);
-                    List<Optional<Object>> expectedValues = readValues(expectedPos.page, expectedPos.position, types);
-
-                    assertThat(actualValues)
-                            .as("row %d values", actualPos.position)
-                            .isEqualTo(expectedValues);
+                    for (int channel = 0; channel < types.size(); channel++) {
+                        BlockPositionIsIdentical equivalence = identicalOperators.get(channel);
+                        Block actualBlock = actualPos.page.getBlock(channel);
+                        Block expectedBlock = expectedPos.page.getBlock(channel);
+                        if (!equivalence.isIdentical(actualBlock, actualPos.position, expectedBlock, expectedPos.position)) {
+                            throw new AssertionError("row %d channel %d (type %s): actual=%s expected=%s".formatted(
+                                    actualPos.position,
+                                    channel,
+                                    types.get(channel),
+                                    readNativeValue(types.get(channel), actualBlock, actualPos.position),
+                                    readNativeValue(types.get(channel), expectedBlock, expectedPos.position)));
+                        }
+                    }
                 });
-    }
-
-    private static List<Optional<Object>> readValues(Page page, int position, List<Type> types)
-    {
-        checkArgument(page.getChannelCount() == types.size());
-        return IntStream.range(0, types.size())
-                .mapToObj(column -> Optional.ofNullable(readNativeValue(types.get(column), page.getBlock(column), position)))
-                .collect(toImmutableList());
     }
 
     public static Stream<PagePosition> positions(List<Page> pages)
