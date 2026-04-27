@@ -22,6 +22,7 @@ import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
@@ -66,6 +67,7 @@ public class Partition
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
     private final Consumer<ChunkHandle> closedChunkConsumer;
+    private final Optional<LocalDiskTier> localDiskTier;
 
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
     @GuardedBy("this")
@@ -100,6 +102,7 @@ public class Partition
             ChunkIdGenerator chunkIdGenerator,
             ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
+            Optional<LocalDiskTier> localDiskTier,
             Consumer<ChunkHandle> closedChunkConsumer)
     {
         this.bufferNodeId = bufferNodeId;
@@ -114,6 +117,11 @@ public class Partition
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
+        this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
+        // Partition is constructed under Exchange's monitor via computeIfAbsent(); the syscall
+        // below runs under that lock. Acceptable because partition creation is once-per-partition
+        // and addDataPages on an existing partition never reaches this path.
+        this.localDiskTier.ifPresent(localDisk -> localDisk.createPartitionDirectory(exchangeId, partitionId));
 
         this.openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
@@ -260,6 +268,7 @@ public class Partition
             released = true;
         }
         closedChunks.values().forEach(Chunk::release);
+        localDiskTier.ifPresent(localDisk -> localDisk.releasePartitionDirectory(exchangeId, partitionId));
     }
 
     public synchronized Optional<Chunk> closeOpenChunkAndGet()

@@ -15,12 +15,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestLocalDiskTier
@@ -36,7 +38,7 @@ public class TestLocalDiskTier
             throws ExecutionException, InterruptedException
     {
         LocalDiskTier tier = createDiskTier(tempDir);
-        tier.awaitStartupCleanup();
+        tier.awaitPendingTasks();
 
         assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID))).isDirectory();
     }
@@ -50,7 +52,7 @@ public class TestLocalDiskTier
         Files.writeString(orphanNodeDir.resolve("stale.dat"), "left over from a previous buffer node id");
 
         LocalDiskTier tier = createDiskTier(tempDir);
-        tier.awaitStartupCleanup();
+        tier.awaitPendingTasks();
 
         assertThat(orphanNodeDir).doesNotExist();
     }
@@ -74,6 +76,107 @@ public class TestLocalDiskTier
         assertThatThrownBy(() -> createDiskTier(missingRoot))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("root directory does not exist or is not a directory");
+    }
+
+    @Test
+    public void testNormalizesNonCanonicalRootDirectory()
+            throws IOException
+    {
+        Files.createFile(tempDir.resolve(".disk-buffer"));
+        Path nested = Files.createDirectory(tempDir.resolve("nested"));
+        Path nonCanonicalRoot = nested.resolve("..");
+
+        LocalDiskTier diskTier = createDiskTier(nonCanonicalRoot);
+        diskTier.createPartitionDirectory("exchange-1", 3);
+
+        // If the root weren't normalized, the partition directory would not land at the canonical schema path.
+        Path expected = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1").resolve("3");
+        assertThat(expected).isDirectory();
+    }
+
+    @Test
+    public void testValidateExchangeIdAcceptsSingleSegment()
+    {
+        assertThatCode(() -> LocalDiskTier.validateExchangeIdAsPathSegment(tempDir, "exchange-1"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    public void testValidateExchangeIdRejectsMultiSegment()
+    {
+        assertThatThrownBy(() -> LocalDiskTier.validateExchangeIdAsPathSegment(tempDir, "foo/bar"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not resolve to a direct subdirectory");
+    }
+
+    @Test
+    public void testValidateExchangeIdRejectsParentDirectoryEscape()
+    {
+        assertThatThrownBy(() -> LocalDiskTier.validateExchangeIdAsPathSegment(tempDir, ".."))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not resolve to a direct subdirectory");
+    }
+
+    @Test
+    public void testValidateExchangeIdRejectsCurrentDirectoryAlias()
+    {
+        assertThatThrownBy(() -> LocalDiskTier.validateExchangeIdAsPathSegment(tempDir, "."))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not resolve to a direct subdirectory");
+    }
+
+    @Test
+    public void testValidateExchangeIdRejectsNestedTraversalThatEscapesRoot()
+    {
+        assertThatThrownBy(() -> LocalDiskTier.validateExchangeIdAsPathSegment(tempDir, "foo/../.."))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not resolve to a direct subdirectory");
+    }
+
+    @Test
+    public void testCreatePartitionDirectoryCreatesDirectoryAtExpectedPath()
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+
+        diskTier.createPartitionDirectory("exchange-1", 3);
+
+        Path expected = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1").resolve("3");
+        assertThat(expected).isDirectory();
+    }
+
+    @Test
+    public void testCreatePartitionDirectoryIsIdempotent()
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+
+        diskTier.createPartitionDirectory("exchange-1", 3);
+        diskTier.createPartitionDirectory("exchange-1", 3);
+
+        Path expected = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1").resolve("3");
+        assertThat(expected).isDirectory();
+    }
+
+    @Test
+    public void testCreatePartitionDirectoryFailsWhenParentIsRegularFile()
+            throws IOException
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+        Path nodeDirectory = tempDir.resolve(String.valueOf(BUFFER_NODE_ID));
+        Files.writeString(nodeDirectory.resolve("blocking-exchange"), "regular file");
+
+        assertThatThrownBy(() -> diskTier.createPartitionDirectory("blocking-exchange", 3))
+                .isInstanceOf(UncheckedIOException.class)
+                .hasMessageContaining("failed to create partition directory");
+    }
+
+    @Test
+    public void testReleasePartitionDirectoryIsIdempotentWhenMissing()
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+
+        // partition was never created - release is noop
+        assertThatCode(() -> diskTier.releasePartitionDirectory("exchange-1", 3))
+                .doesNotThrowAnyException();
     }
 
     private static LocalDiskTier createDiskTier(Path rootDirectory)

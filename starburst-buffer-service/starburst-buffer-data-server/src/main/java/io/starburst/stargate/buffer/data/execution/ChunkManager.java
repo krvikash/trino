@@ -38,6 +38,7 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
@@ -144,6 +145,7 @@ public class ChunkManager
     private final DataServerStats dataServerStats;
     private final Tracer tracer;
     private final ExecutorService executor;
+    private final Optional<LocalDiskTier> localDiskTier;
 
     enum ExchangeRemovalReason {
         EXPLICIT,
@@ -180,6 +182,7 @@ public class ChunkManager
             SpoolingStorage spoolingStorage,
             @ForChunkManager Ticker ticker,
             SpooledChunksByExchange spooledChunksByExchange,
+            Optional<LocalDiskTier> localDiskTier,
             DataServerStats dataServerStats,
             Tracer tracer,
             ExecutorService executor)
@@ -213,6 +216,8 @@ public class ChunkManager
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
+        checkArgument(this.localDiskTier.isEmpty(), "local disk tier not supported yet");
         this.drainedSpooledChunkMap = buildNonEvictableCache(
                 CacheBuilder.newBuilder().softValues(),
                 new CacheLoader<>()
@@ -406,6 +411,7 @@ public class ChunkManager
                     memoryAllocator,
                     spoolingStorage,
                     spooledChunksByExchange,
+                    localDiskTier,
                     chunkTargetSizeInBytes,
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,

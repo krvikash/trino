@@ -1157,6 +1157,7 @@ public class TestChunkManager
                 spoolingStorage,
                 ticker,
                 new SpooledChunksByExchange(),
+                Optional.empty(),
                 new DataServerStats(),
                 new Tracer() {
                     @Override

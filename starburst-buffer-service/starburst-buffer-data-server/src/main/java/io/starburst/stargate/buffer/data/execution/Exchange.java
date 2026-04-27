@@ -32,6 +32,7 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
@@ -96,6 +97,7 @@ public class Exchange
     private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
+    private final Optional<LocalDiskTier> localDiskTier;
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
@@ -141,6 +143,7 @@ public class Exchange
             MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             SpooledChunksByExchange spooledChunksByExchange,
+            Optional<LocalDiskTier> localDiskTier,
             int chunkTargetSizeInBytes,
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
@@ -161,6 +164,8 @@ public class Exchange
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunksByExchange is null");
+        this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
+        this.localDiskTier.ifPresent(localDisk -> localDisk.validateExchangeId(exchangeId));
         checkArgument(chunkTargetSizeInBytes <= chunkMaxSizeInBytes, "chunkTargetSizeInBytes %s larger than chunkMaxSizeInBytes %s", chunkTargetSizeInBytes, chunkMaxSizeInBytes);
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
@@ -207,6 +212,7 @@ public class Exchange
                     chunkIdGenerator,
                     chunkDeliveryMode,
                     executor,
+                    localDiskTier,
                     closedChunkConsumer()));
         }
 
