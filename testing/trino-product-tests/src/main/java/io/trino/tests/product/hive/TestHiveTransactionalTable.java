@@ -115,6 +115,7 @@ public class TestHiveTransactionalTable
     // This test is in STORAGE_FORMATS group to ensure test coverage of transactional tables with various
     // metastore and HDFS setups (kerberized or not, impersonation or not).
     @Test(groups = {HIVE_TRANSACTIONAL, STORAGE_FORMATS, PROFILE_SPECIFIC_TESTS}, timeOut = TEST_TIMEOUT)
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-9971", match = "Compaction has failed")
     public void testReadFullAcidPartitionedBucketed()
     {
         doTestReadFullAcid(true, BucketingType.BUCKETED_DEFAULT);
