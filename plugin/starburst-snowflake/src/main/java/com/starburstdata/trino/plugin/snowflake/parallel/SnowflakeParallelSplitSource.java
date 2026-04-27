@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.trino.plugin.jdbc.PreparedQuery;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitSource;
@@ -48,7 +47,7 @@ public class SnowflakeParallelSplitSource
     private final Connection connection;
     private final SFSession sfSession;
     private final SFStatement sfStatement;
-    private final PreparedQuery preparedQuery;
+    private final String query;
     private final Map<String, ParameterBindingDTO> bindValues;
 
     /**
@@ -63,14 +62,14 @@ public class SnowflakeParallelSplitSource
             ConnectorSession session,
             Connection connection,
             SFSession sfSession,
-            PreparedQuery preparedQuery,
+            String query,
             Map<String, ParameterBindingDTO> bindValues)
     {
         this.session = session;
         this.connection = connection;
         this.sfSession = sfSession;
         this.sfStatement = new SFStatement(sfSession);
-        this.preparedQuery = preparedQuery;
+        this.query = query;
         this.bindValues = bindValues;
     }
 
@@ -86,7 +85,7 @@ public class SnowflakeParallelSplitSource
             JsonNode jsonResult;
             try {
                 jsonResult = (JsonNode) sfStatement.executeHelper(
-                        preparedQuery.query(),
+                        query,
                         "application/snowflake",
                         bindValues,
                         false,

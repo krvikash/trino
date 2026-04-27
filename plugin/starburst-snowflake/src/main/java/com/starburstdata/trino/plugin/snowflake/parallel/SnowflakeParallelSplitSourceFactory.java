@@ -80,11 +80,11 @@ public class SnowflakeParallelSplitSourceFactory
         }
 
         final SFSession sfSession;
-        final PreparedQuery preparedQuery;
+        final String modifiedQuery;
         final Map<String, ParameterBindingDTO> bindValues;
         try {
             sfSession = connection.unwrap(SnowflakeConnectionV1.class).getSfSession();
-            preparedQuery = snowflakeClient.prepareQuery(
+            PreparedQuery preparedQuery = snowflakeClient.prepareQuery(
                     session,
                     connection,
                     dynamicFilteringEnabled(session) ? table.intersectedWithConstraint(dynamicFilter.getCurrentPredicate()) : table,
@@ -92,7 +92,8 @@ public class SnowflakeParallelSplitSourceFactory
                             table.getColumns().map(List::copyOf).orElseGet(() -> snowflakeClient.getColumns(session, table)),
                             () -> getPrimaryKeys(session, snowflakeClient, table)),
                     Optional.empty());
-            bindValues = convertToSnowflakeFormatWithStatement(preparedQuery, session, connection);
+            modifiedQuery = queryModifier.apply(session, preparedQuery.query());
+            bindValues = convertToSnowflakeFormatWithStatement(modifiedQuery, preparedQuery.parameters(), session, connection);
         }
         catch (SQLException e) {
             try {
@@ -104,7 +105,7 @@ public class SnowflakeParallelSplitSourceFactory
             throw new TrinoException(JDBC_ERROR, "Couldn't prepare split source, %s".formatted(e.getMessage()), e);
         }
 
-        return new SnowflakeParallelSplitSource(session, connection, sfSession, preparedQuery, bindValues);
+        return new SnowflakeParallelSplitSource(session, connection, sfSession, modifiedQuery, bindValues);
     }
 
     /**
@@ -112,13 +113,11 @@ public class SnowflakeParallelSplitSourceFactory
      * Potential Trino change: QueryBuilder.prepareStatement(client, ...) -> QueryBuilder.prepareStatement(statement, ...)
      * would fix the duplication, but it won't be consistent with remaining class methods
      */
-    private Map<String, ParameterBindingDTO> convertToSnowflakeFormatWithStatement(PreparedQuery preparedQuery, ConnectorSession session, Connection connection)
+    private Map<String, ParameterBindingDTO> convertToSnowflakeFormatWithStatement(String modifiedQuery, List<QueryParameter> parameters, ConnectorSession session, Connection connection)
             throws SQLException
     {
-        String modifiedQuery = queryModifier.apply(session, preparedQuery.query());
         StarburstSnowflakeStatementV1 statement = new StarburstSnowflakeStatementV1(connection.unwrap(SnowflakeConnectionV1.class), modifiedQuery);
 
-        List<QueryParameter> parameters = preparedQuery.parameters();
         for (int i = 0; i < parameters.size(); i++) {
             QueryParameter parameter = parameters.get(i);
             int parameterIndex = i + 1;

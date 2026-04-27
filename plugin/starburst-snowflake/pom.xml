@@ -468,6 +468,7 @@
                                 <exclude>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectionPoolingConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeKeyPairWithPassphraseAuthenticationConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestParallelSnowflakeQueryCommentFormat.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -537,6 +538,7 @@
                             <includes>
                                 <include>**/TestParallelSnowflakeConnectorTest.java</include>
                                 <include>**/TestParallelSnowflakeTypeMapping.java</include>
+                                <include>**/TestParallelSnowflakeQueryCommentFormat.java</include>
                             </includes>
                         </configuration>
                     </plugin>
