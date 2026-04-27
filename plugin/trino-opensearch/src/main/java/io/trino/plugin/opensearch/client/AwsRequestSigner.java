@@ -86,7 +86,7 @@ class AwsRequestSigner
 
         Map<String, List<String>> parameters = new TreeMap<>(CASE_INSENSITIVE_ORDER);
         for (NameValuePair parameter : uriBuilder.getQueryParams()) {
-            parameters.computeIfAbsent(parameter.getName(), key -> new ArrayList<>())
+            parameters.computeIfAbsent(parameter.getName(), _ -> new ArrayList<>())
                     .add(parameter.getValue());
         }
         // reuse contentBytes for both signing and post-signing. InputStream will be consumed post signing, setting the request entity content to empty

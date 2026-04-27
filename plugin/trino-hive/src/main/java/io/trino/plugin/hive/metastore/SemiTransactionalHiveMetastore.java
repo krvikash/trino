@@ -352,7 +352,7 @@ public class SemiTransactionalHiveMetastore
             return ImmutableMap.of();
         }
         TableSource tableSource = getTableSource(databaseName, tableName);
-        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(table.get().getSchemaTableName(), k -> new HashMap<>());
+        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(table.get().getSchemaTableName(), _ -> new HashMap<>());
         ImmutableSet.Builder<String> partitionNamesToQuery = ImmutableSet.builder();
         ImmutableMap.Builder<String, PartitionStatistics> resultBuilder = ImmutableMap.builder();
         for (String partitionName : partitionNames) {
@@ -722,7 +722,7 @@ public class SemiTransactionalHiveMetastore
 
         Location location = Location.of(table.getStorage().getLocation());
         TrinoFileSystem fileSystem = fileSystemFactory.create(session);
-        setExclusive(delegate -> {
+        setExclusive(_ -> {
             RecursiveDeleteResult recursiveDeleteResult = recursiveDeleteFiles(fileSystem, location, ImmutableSet.of(""), false);
             if (!recursiveDeleteResult.notDeletedEligibleItems().isEmpty()) {
                 throw new TrinoException(HIVE_FILESYSTEM_ERROR, format(
@@ -835,7 +835,7 @@ public class SemiTransactionalHiveMetastore
         if (!duplicatePartitionNames.isEmpty()) {
             throw new TrinoException(HIVE_METASTORE_ERROR, format("Metastore returned duplicate partition names for %s", duplicatePartitionNames));
         }
-        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(table.get().getSchemaTableName(), k -> new HashMap<>());
+        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(table.get().getSchemaTableName(), _ -> new HashMap<>());
         ImmutableList.Builder<String> resultBuilder = ImmutableList.builder();
         // alter/remove newly altered/dropped partitions from the results from underlying metastore
         for (String partitionName : partitionNames) {
@@ -869,7 +869,7 @@ public class SemiTransactionalHiveMetastore
     {
         checkReadable();
         TableSource tableSource = getTableSource(databaseName, tableName);
-        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(new SchemaTableName(databaseName, tableName), k -> new HashMap<>());
+        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(new SchemaTableName(databaseName, tableName), _ -> new HashMap<>());
         ImmutableList.Builder<String> partitionNamesToQueryBuilder = ImmutableList.builder();
         ImmutableMap.Builder<String, Optional<Partition>> resultBuilder = ImmutableMap.builder();
         for (String partitionName : partitionNames) {
@@ -918,7 +918,7 @@ public class SemiTransactionalHiveMetastore
     {
         setShared();
         checkArgument(getQueryId(partition).isPresent());
-        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(new SchemaTableName(databaseName, tableName), k -> new HashMap<>());
+        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(new SchemaTableName(databaseName, tableName), _ -> new HashMap<>());
         Action<PartitionAndMore> oldPartitionAction = partitionActionsOfTable.get(partition.getValues());
         if (oldPartitionAction == null) {
             partitionActionsOfTable.put(
@@ -943,7 +943,7 @@ public class SemiTransactionalHiveMetastore
     public synchronized void dropPartition(ConnectorSession session, String databaseName, String tableName, List<String> partitionValues, boolean deleteData)
     {
         setShared();
-        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(new SchemaTableName(databaseName, tableName), k -> new HashMap<>());
+        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(new SchemaTableName(databaseName, tableName), _ -> new HashMap<>());
         Action<PartitionAndMore> oldPartitionAction = partitionActionsOfTable.get(partitionValues);
         if (oldPartitionAction == null) {
             if (deleteData) {
@@ -971,7 +971,7 @@ public class SemiTransactionalHiveMetastore
     {
         setShared();
         Table table = getExistingTable(databaseName, tableName);
-        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(table.getSchemaTableName(), k -> new HashMap<>());
+        Map<List<String>, Action<PartitionAndMore>> partitionActionsOfTable = partitionActions.computeIfAbsent(table.getSchemaTableName(), _ -> new HashMap<>());
 
         for (PartitionUpdateInfo partitionInfo : partitionUpdateInfos) {
             Action<PartitionAndMore> oldPartitionAction = partitionActionsOfTable.get(partitionInfo.partitionValues());
@@ -1313,7 +1313,7 @@ public class SemiTransactionalHiveMetastore
                     queryId);
             currentQueryId = Optional.of(queryId);
 
-            hiveTransactionSupplier = Optional.of(() -> makeHiveTransaction(session, transactionId -> NO_ACID_TRANSACTION));
+            hiveTransactionSupplier = Optional.of(() -> makeHiveTransaction(session, _ -> NO_ACID_TRANSACTION));
         }
     }
 

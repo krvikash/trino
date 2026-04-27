@@ -112,8 +112,8 @@ public class TrinoJdbcCatalogFactory
     public TrinoCatalog create(ConnectorIdentity identity)
     {
         JdbcCatalog jdbcCatalog = new JdbcCatalog(
-                config -> fileIoFactory.create(fileSystemFactory.create(identity)),
-                config -> clientPool,
+                _ -> fileIoFactory.create(fileSystemFactory.create(identity)),
+                _ -> clientPool,
                 false);
 
         jdbcCatalog.initialize(jdbcCatalogName, catalogProperties);
