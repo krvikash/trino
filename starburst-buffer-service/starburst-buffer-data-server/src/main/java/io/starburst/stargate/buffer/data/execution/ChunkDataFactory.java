@@ -54,6 +54,7 @@ public class ChunkDataFactory
             LocalDiskTier localDisk = localDiskTier.get();
             Optional<DataSize> threshold = localDisk.getMemorySkipThreshold();
             if (threshold.isPresent() && exchangeCumulativeClosedBytes >= threshold.get().toBytes()) {
+                localDisk.createPartitionDirectory(exchangeId, partitionId);
                 return new DiskChunkData(
                         localDisk.partitionDirectory(exchangeId, partitionId),
                         chunkId,

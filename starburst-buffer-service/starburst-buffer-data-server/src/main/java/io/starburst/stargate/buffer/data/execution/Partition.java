@@ -118,10 +118,6 @@ public class Partition
         this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
         this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         this.exchangeCumulativeClosedBytes = requireNonNull(exchangeCumulativeClosedBytes, "exchangeCumulativeClosedBytes is null");
-        // Partition is constructed under Exchange's monitor via computeIfAbsent(); the syscall
-        // below runs under that lock. Acceptable because partition creation is once-per-partition
-        // and addDataPages on an existing partition never reaches this path.
-        this.localDiskTier.ifPresent(localDisk -> localDisk.createPartitionDirectory(exchangeId, partitionId));
 
         this.openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");

@@ -89,19 +89,19 @@ public class TestChunkDataFactory
     public void testReturnsMemoryWhenCumulativeBelowThreshold()
     {
         LocalDiskTier diskTier = createDiskTier(Optional.of(THRESHOLD));
-        diskTier.createPartitionDirectory(EXCHANGE_ID, PARTITION_ID);
         ChunkDataFactory factory = createFactory(Optional.of(diskTier));
 
         ChunkData chunkData = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes() - 1);
 
         assertThat(chunkData).isInstanceOf(MemoryChunkData.class);
+        // factory must not materialize the partition directory when staying on memory
+        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID))).doesNotExist();
     }
 
     @Test
     public void testReturnsDiskWhenCumulativeAtOrAboveThreshold()
     {
         LocalDiskTier diskTier = createDiskTier(Optional.of(THRESHOLD));
-        diskTier.createPartitionDirectory(EXCHANGE_ID, PARTITION_ID);
         ChunkDataFactory factory = createFactory(Optional.of(diskTier));
 
         ChunkData atThreshold = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes());
@@ -109,6 +109,8 @@ public class TestChunkDataFactory
 
         assertThat(atThreshold).isInstanceOf(DiskChunkData.class);
         assertThat(aboveThreshold).isInstanceOf(DiskChunkData.class);
+        // factory creates the partition directory lazily on the first disk-backed chunk
+        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID))).isDirectory();
     }
 
     private ChunkDataFactory createFactory(Optional<LocalDiskTier> localDiskTier)

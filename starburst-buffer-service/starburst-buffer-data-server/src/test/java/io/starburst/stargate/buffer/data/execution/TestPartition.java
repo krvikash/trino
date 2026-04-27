@@ -64,12 +64,14 @@ public class TestPartition
     }
 
     @Test
-    public void testCreatesDirectoryOnConstruction()
+    public void testDoesNotCreateDirectoryOnConstructionWhenNoDiskChunks()
     {
         LocalDiskTier diskTier = createDiskTier();
         createPartition(Optional.of(diskTier));
 
-        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID))).isDirectory();
+        // ChunkDataFactory creates the partition directory only when it hands out a DiskChunkData;
+        // a partition that never crosses the memory-skip threshold pays no filesystem cost.
+        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID))).doesNotExist();
     }
 
     @Test
@@ -79,6 +81,8 @@ public class TestPartition
         LocalDiskTier diskTier = createDiskTier();
         Partition partition = createPartition(Optional.of(diskTier));
 
+        // simulate a disk-backed chunk having materialized the partition directory at some point during the partition's lifetime
+        diskTier.createPartitionDirectory(EXCHANGE_ID, PARTITION_ID);
         Path partitionDir = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID));
         Files.writeString(partitionDir.resolve("chunk-0.data"), "payload");
         assertThat(partitionDir).isDirectory();
