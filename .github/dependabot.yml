@@ -32,7 +32,8 @@ updates:
     directory: "/core/trino-web-ui/src/main/resources/webapp-preview"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+    # webapp-preview dependencies should be updated in OS Trino first, and then backported to this repo if necessary.
+    open-pull-requests-limit: 0
     allow:
       - dependency-type: "all"
     ignore:
