@@ -690,33 +690,36 @@ public class ClickHouseClient
         ClickHouseColumn column = ClickHouseColumn.of("", jdbcTypeName);
         ClickHouseDataType columnDataType = column.getDataType();
         switch (columnDataType) {
-            case Bool:
+            case Bool -> {
                 return Optional.of(booleanColumnMapping());
-            case UInt8:
+            }
+            case UInt8 -> {
                 return Optional.of(ColumnMapping.longMapping(SMALLINT, ResultSet::getShort, uInt8WriteFunction(getClickHouseServerVersion(session))));
-            case UInt16:
+            }
+            case UInt16 -> {
                 return Optional.of(ColumnMapping.longMapping(INTEGER, ResultSet::getInt, uInt16WriteFunction(getClickHouseServerVersion(session))));
-            case UInt32:
+            }
+            case UInt32 -> {
                 return Optional.of(ColumnMapping.longMapping(BIGINT, ResultSet::getLong, uInt32WriteFunction(getClickHouseServerVersion(session))));
-            case UInt64:
+            }
+            case UInt64 -> {
                 return Optional.of(ColumnMapping.objectMapping(
                         UINT64_TYPE,
                         longDecimalReadFunction(UINT64_TYPE, UNNECESSARY),
                         uInt64WriteFunction(getClickHouseServerVersion(session))));
-            case IPv4:
-            case IPv6:
+            }
+            case IPv4, IPv6 -> {
                 return Optional.of(ipAddressColumnMapping(column.getOriginalTypeName()));
-            case Enum8:
-            case Enum16:
+            }
+            case Enum8, Enum16 -> {
                 return Optional.of(ColumnMapping.sliceMapping(
                         createUnboundedVarcharType(),
                         varcharReadFunction(createUnboundedVarcharType()),
                         varcharWriteFunction(),
                         // TODO (https://github.com/trinodb/trino/issues/7100) Currently pushdown would not work and may require a custom bind expression
                         DISABLE_PUSHDOWN));
-
-            case FixedString: // FixedString(n)
-            case String:
+            } // FixedString(n)
+            case FixedString, String -> {
                 if (isMapStringAsVarchar(session)) {
                     return Optional.of(ColumnMapping.sliceMapping(
                             createUnboundedVarcharType(),
@@ -725,9 +728,11 @@ public class ClickHouseClient
                             FULL_PUSHDOWN));
                 }
                 return Optional.of(varbinaryColumnMapping());
-            case UUID:
+            }
+            case UUID -> {
                 return Optional.of(uuidColumnMapping());
-            case Tuple:
+            }
+            case Tuple -> {
                 Optional<ColumnMapping> columnMapping = tupleToTrinoType(session, connection, column);
                 if (columnMapping.isPresent()) {
                     return columnMapping;
@@ -735,35 +740,36 @@ public class ClickHouseClient
                 // fall through: tupleToTrinoType returns empty when the tuple contains unsupported
                 // element types (e.g. Array, Map). Let the default path handle it via CONVERT_TO_VARCHAR
                 // or mark the column as unsupported.
-            default:
+            }
+            default -> {
                 // no-op
+            }
         }
 
         switch (typeHandle.jdbcType()) {
-            case Types.TINYINT:
+            case Types.TINYINT -> {
                 return Optional.of(tinyintColumnMapping());
-
-            case Types.SMALLINT:
+            }
+            case Types.SMALLINT -> {
                 return Optional.of(smallintColumnMapping());
-
-            case Types.INTEGER:
+            }
+            case Types.INTEGER -> {
                 return Optional.of(integerColumnMapping());
-
-            case Types.BIGINT:
+            }
+            case Types.BIGINT -> {
                 return Optional.of(bigintColumnMapping());
-
-            case Types.FLOAT:
-            case Types.REAL:
+            }
+            case Types.FLOAT, Types.REAL -> {
                 return Optional.of(ColumnMapping.longMapping(
                         REAL,
                         (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)),
                         realWriteFunction(),
                         DISABLE_PUSHDOWN));
-
-            case Types.DOUBLE:
+            }
+            case Types.DOUBLE -> {
                 return Optional.of(doubleColumnMapping());
-
-            case Types.DECIMAL:
+            }
+            case Types.DECIMAL -> {
                 int decimalDigits = typeHandle.requiredDecimalDigits();
                 int precision = typeHandle.requiredColumnSize();
                 if (precision <= Decimals.MAX_PRECISION) {
@@ -791,14 +797,14 @@ public class ClickHouseClient
                                 DISABLE_PUSHDOWN));
                     }
                 }
-                break;
-
-            case Types.DATE:
+            }
+            case Types.DATE -> {
                 if (columnDataType == ClickHouseDataType.Date) {
                     return Optional.of(dateColumnMappingUsingLocalDate(version));
                 }
                 return Optional.of(date32ColumnMappingUsingLocalDate(version));
-            case Types.TIMESTAMP:
+            }
+            case Types.TIMESTAMP -> {
                 if (columnDataType == ClickHouseDataType.DateTime) {
                     // ClickHouse DateTime does not have sub-second precision
                     verify(typeHandle.requiredDecimalDigits() == 0, "Expected 0 as timestamp precision, but got %s", typeHandle.requiredDecimalDigits());
@@ -808,7 +814,8 @@ public class ClickHouseClient
                             timestampSecondsWriteFunction(version)));
                 }
                 return Optional.of(timestampColumnMapping(version, createTimestampType(column.getScale())));
-            case Types.TIMESTAMP_WITH_TIMEZONE:
+            }
+            case Types.TIMESTAMP_WITH_TIMEZONE -> {
                 if (columnDataType == ClickHouseDataType.DateTime) {
                     // ClickHouse DateTime does not have sub-second precision
                     verify(typeHandle.requiredDecimalDigits() == 0, "Expected 0 as timestamp with time zone precision, but got %s", typeHandle.requiredDecimalDigits());
@@ -818,12 +825,13 @@ public class ClickHouseClient
                             shortTimestampWithTimeZoneWriteFunction(version, column.getTimeZone(), 0, true)));
                 }
                 return Optional.of(timestampWithTimeZoneColumnMapping(version, column));
-
-            case Types.ARRAY:
+            }
+            case Types.ARRAY -> {
                 Optional<ColumnMapping> columnMapping = arrayToTrinoType(session, connection, typeHandle, column);
                 if (columnMapping.isPresent()) {
                     return columnMapping;
                 }
+            }
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {

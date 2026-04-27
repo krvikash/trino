@@ -538,35 +538,30 @@ public class ElasticsearchClient
                     .orElse(ImmutableList.of());
 
             switch (type) {
-                case "date":
+                case "date" -> {
                     List<String> formats = ImmutableList.of();
                     if (value.has("format")) {
                         formats = Arrays.asList(value.get("format").asText().split("\\|\\|"));
                     }
                     result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.DateTimeType(formats, 3)));
-                    break;
-                case "date_nanos":
+                }
+                case "date_nanos" -> {
                     List<String> nanoFormats = ImmutableList.of();
                     if (value.has("format")) {
                         nanoFormats = Arrays.asList(value.get("format").asText().split("\\|\\|"));
                     }
                     result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.DateTimeType(nanoFormats, 9)));
-                    break;
-                case "scaled_float":
-                    result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.ScaledFloatType(value.get("scaling_factor").asDouble())));
-                    break;
-                case "nested":
-                case "object":
+                }
+                case "scaled_float" -> result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.ScaledFloatType(value.get("scaling_factor").asDouble())));
+                case "nested", "object" -> {
                     if (value.has("properties")) {
                         result.add(new IndexMetadata.Field(asRawJson, isArray, name, parseType(value.get("properties"), metaNode)));
                     }
                     else {
                         LOG.debug("Ignoring empty object field: %s", name);
                     }
-                    break;
-
-                default:
-                    result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), multiFields, mappingConflictField));
+                }
+                default -> result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), multiFields, mappingConflictField));
             }
         }
 

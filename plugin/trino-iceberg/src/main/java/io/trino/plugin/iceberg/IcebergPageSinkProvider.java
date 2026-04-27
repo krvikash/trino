@@ -167,8 +167,8 @@ public class IcebergPageSinkProvider
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, Optional<ConnectorTableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
     {
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
-        switch (executeHandle.procedureId()) {
-            case OPTIMIZE:
+        return switch (executeHandle.procedureId()) {
+            case OPTIMIZE -> {
                 IcebergOptimizeHandle optimizeHandle = (IcebergOptimizeHandle) executeHandle.procedureHandle();
                 Schema schema = supportsRowLineage(executeHandle.formatVersion()) ?
                         TypeUtil.join(SchemaParser.fromJson(optimizeHandle.schemaAsJson()), new Schema(MetadataColumns.ROW_ID, MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER)) :
@@ -176,7 +176,7 @@ public class IcebergPageSinkProvider
                 PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, optimizeHandle.partitionSpecAsJson());
                 LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(),
                         executeHandle.tableLocation(), optimizeHandle.tableStorageProperties());
-                return new IcebergPageSink(
+                yield new IcebergPageSink(
                         schema,
                         partitionSpec,
                         locationProvider,
@@ -197,20 +197,13 @@ public class IcebergPageSinkProvider
                         sortTempFileFactory,
                         typeManager,
                         pageSorter);
-            case GENERATE_EMBEDDINGS:
-                return createGenerateEmbeddingsPageSink(session, executeHandle, getFileIoProperties(tableCredentials));
-            case OPTIMIZE_MANIFESTS:
-            case OPTIMIZE_POSITION_DELETES:
-            case REMOVE_DANGLING_DELETE_FILES:
-            case DROP_EXTENDED_STATS:
-            case ROLLBACK_TO_SNAPSHOT:
-            case EXPIRE_SNAPSHOTS:
-            case REMOVE_ORPHAN_FILES:
-            case ADD_FILES:
-            case ADD_FILES_FROM_TABLE:
+            }
+            case GENERATE_EMBEDDINGS -> createGenerateEmbeddingsPageSink(session, executeHandle, getFileIoProperties(tableCredentials));
+            case OPTIMIZE_MANIFESTS, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE, OPTIMIZE_POSITION_DELETES, REMOVE_DANGLING_DELETE_FILES -> {
                 // handled via ConnectorMetadata.executeTableExecute
-        }
-        throw new IllegalArgumentException("Unknown procedure: " + executeHandle.procedureId());
+                throw new IllegalArgumentException("Unknown procedure: " + executeHandle.procedureId());
+            }
+        };
     }
 
     @Override

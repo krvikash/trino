@@ -543,28 +543,29 @@ public class OracleClient
                     FULL_PUSHDOWN));
         }
 
-        switch (typeHandle.jdbcType()) {
-            case Types.SMALLINT:
-                return Optional.of(ColumnMapping.longMapping(
+        Optional<ColumnMapping> columnMapping  = switch (typeHandle.jdbcType()) {
+            case Types.SMALLINT -> {
+                yield Optional.of(ColumnMapping.longMapping(
                         SMALLINT,
                         ResultSet::getShort,
                         smallintWriteFunction(),
                         FULL_PUSHDOWN));
-            case OracleTypes.BINARY_FLOAT:
-                return Optional.of(ColumnMapping.longMapping(
+            }
+            case OracleTypes.BINARY_FLOAT -> {
+                yield Optional.of(ColumnMapping.longMapping(
                         REAL,
                         (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)),
                         oracleRealWriteFunction(),
                         FULL_PUSHDOWN));
-
-            case OracleTypes.BINARY_DOUBLE:
-            case OracleTypes.FLOAT:
-                return Optional.of(ColumnMapping.doubleMapping(
+            }
+            case OracleTypes.BINARY_DOUBLE, OracleTypes.FLOAT -> {
+                yield Optional.of(ColumnMapping.doubleMapping(
                         DOUBLE,
                         ResultSet::getDouble,
                         oracleDoubleWriteFunction(),
                         FULL_PUSHDOWN));
-            case OracleTypes.NUMBER:
+            }
+            case OracleTypes.NUMBER -> {
                 int columnSize = typeHandle.requiredColumnSize();
                 int decimalDigits = typeHandle.requiredDecimalDigits();
                 if (columnSize != PRECISION_OF_UNSPECIFIED_NUMBER) {
@@ -574,7 +575,7 @@ public class OracleClient
                     int precision = max(columnSize + max(-scale, 0), scale);
                     scale = max(scale, 0);
                     if (precision <= Decimals.MAX_PRECISION) {
-                        return Optional.of(decimalColumnMapping(createDecimalType(precision, scale), UNNECESSARY));
+                        yield Optional.of(decimalColumnMapping(createDecimalType(precision, scale), UNNECESSARY));
                     }
                 }
                 Optional<Integer> numberDefaultScale = getNumberDefaultScale(session);
@@ -593,7 +594,7 @@ public class OracleClient
                     RoundingMode roundingMode = configuredRoundingMode.orElse(UNNECESSARY);
                     if (precision < scale) {
                         if (roundingMode == RoundingMode.UNNECESSARY) {
-                            break;
+                            yield Optional.empty();
                         }
                         scale = min(Decimals.MAX_PRECISION, scale);
                         precision = scale;
@@ -603,68 +604,72 @@ public class OracleClient
                         scale = numberDefaultScale.get();
                     }
                     else if (precision > Decimals.MAX_PRECISION || actualPrecision <= 0) {
-                        break;
+                        yield Optional.empty();
                     }
                     DecimalType decimalType = createDecimalType(precision, scale);
                     // JDBC driver can return BigDecimal with lower scale than column's scale when there are trailing zeroes
                     if (decimalType.isShort()) {
-                        return Optional.of(ColumnMapping.longMapping(
+                        yield Optional.of(ColumnMapping.longMapping(
                                 decimalType,
                                 shortDecimalReadFunction(decimalType, roundingMode),
                                 shortDecimalWriteFunction(decimalType),
                                 FULL_PUSHDOWN));
                     }
-                    return Optional.of(ColumnMapping.objectMapping(
+                    yield Optional.of(ColumnMapping.objectMapping(
                             decimalType,
                             longDecimalReadFunction(decimalType, roundingMode),
                             longDecimalWriteFunction(decimalType),
                             FULL_PUSHDOWN));
                 }
-                return Optional.of(numberColumnMapping());
-
-            case OracleTypes.CHAR:
-            case OracleTypes.NCHAR:
+                yield Optional.of(numberColumnMapping());
+            }
+            case OracleTypes.CHAR, OracleTypes.NCHAR -> {
                 CharType charType = createCharType(typeHandle.requiredColumnSize());
-                return Optional.of(ColumnMapping.sliceMapping(
+                yield Optional.of(ColumnMapping.sliceMapping(
                         charType,
                         charReadFunction(charType),
                         oracleCharWriteFunction(),
                         FULL_PUSHDOWN));
-
-            case OracleTypes.VARCHAR:
-            case OracleTypes.NVARCHAR:
-                return Optional.of(ColumnMapping.sliceMapping(
+            }
+            case OracleTypes.VARCHAR, OracleTypes.NVARCHAR -> {
+                yield Optional.of(ColumnMapping.sliceMapping(
                         createVarcharType(typeHandle.requiredColumnSize()),
                         (varcharResultSet, varcharColumnIndex) -> utf8Slice(varcharResultSet.getString(varcharColumnIndex)),
                         varcharWriteFunction(),
                         FULL_PUSHDOWN));
-
-            case OracleTypes.CLOB:
-            case OracleTypes.NCLOB:
-                return Optional.of(ColumnMapping.sliceMapping(
+            }
+            case OracleTypes.CLOB, OracleTypes.NCLOB -> {
+                yield Optional.of(ColumnMapping.sliceMapping(
                         createUnboundedVarcharType(),
                         (resultSet, columnIndex) -> utf8Slice(resultSet.getString(columnIndex)),
                         varcharWriteFunction(),
                         DISABLE_PUSHDOWN));
-
-            case OracleTypes.VARBINARY: // Oracle's RAW(n)
-                return Optional.of(ColumnMapping.sliceMapping(
+            }
+            case OracleTypes.VARBINARY -> {
+                yield Optional.of(ColumnMapping.sliceMapping(
                         VARBINARY,
                         (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
                         varbinaryWriteFunction(),
-                        FULL_PUSHDOWN));
-            case OracleTypes.BLOB:
-                return Optional.of(ColumnMapping.sliceMapping(
+                        FULL_PUSHDOWN)); // Oracle's RAW(n)
+            }
+            case OracleTypes.BLOB -> {
+                yield Optional.of(ColumnMapping.sliceMapping(
                         VARBINARY,
                         (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
                         varbinaryWriteFunction(),
                         DISABLE_PUSHDOWN));
-
-            case OracleTypes.TIMESTAMP:
+            }
+            case OracleTypes.TIMESTAMP -> {
                 int timestampPrecision = typeHandle.requiredDecimalDigits();
-                return Optional.of(oracleTimestampColumnMapping(createTimestampType(timestampPrecision), isAllowUnsafeTimestampRead(session)));
-            case OracleTypes.TIMESTAMPTZ:
-                return Optional.of(oracleTimestampWithTimeZoneColumnMapping());
+                yield Optional.of(oracleTimestampColumnMapping(createTimestampType(timestampPrecision), isAllowUnsafeTimestampRead(session)));
+            }
+            case OracleTypes.TIMESTAMPTZ -> {
+                yield Optional.of(oracleTimestampWithTimeZoneColumnMapping());
+            }
+            default -> Optional.empty();
+        };
+        if (columnMapping.isPresent()) {
+            return columnMapping;
         }
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
             return mapToUnboundedVarchar(typeHandle);

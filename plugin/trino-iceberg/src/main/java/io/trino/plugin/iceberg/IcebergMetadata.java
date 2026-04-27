@@ -2402,18 +2402,13 @@ public class IcebergMetadata
     {
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
         switch (executeHandle.procedureId()) {
-            case OPTIMIZE, GENERATE_EMBEDDINGS:
+            case OPTIMIZE, GENERATE_EMBEDDINGS -> {
                 return getLayoutForOptimize(session, executeHandle);
-            case OPTIMIZE_MANIFESTS:
-            case OPTIMIZE_POSITION_DELETES:
-            case REMOVE_DANGLING_DELETE_FILES:
-            case DROP_EXTENDED_STATS:
-            case ROLLBACK_TO_SNAPSHOT:
-            case EXPIRE_SNAPSHOTS:
-            case REMOVE_ORPHAN_FILES:
-            case ADD_FILES:
-            case ADD_FILES_FROM_TABLE:
+            }
+            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, REMOVE_DANGLING_DELETE_FILES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES,
+                 ADD_FILES, ADD_FILES_FROM_TABLE -> {
                 // handled via executeTableExecute
+            }
         }
         throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
     }
@@ -2435,20 +2430,23 @@ public class IcebergMetadata
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
         IcebergTableHandle table = (IcebergTableHandle) updatedSourceTableHandle;
         switch (executeHandle.procedureId()) {
-            case OPTIMIZE:
+            case OPTIMIZE -> {
                 return beginOptimize(session, executeHandle, table);
-            case GENERATE_EMBEDDINGS:
+            }
+            case GENERATE_EMBEDDINGS -> {
                 return beginGenerateEmbeddings(session, executeHandle, table);
-            case OPTIMIZE_MANIFESTS:
-            case OPTIMIZE_POSITION_DELETES:
-            case REMOVE_DANGLING_DELETE_FILES:
-            case DROP_EXTENDED_STATS:
-            case ROLLBACK_TO_SNAPSHOT:
-            case EXPIRE_SNAPSHOTS:
-            case REMOVE_ORPHAN_FILES:
-            case ADD_FILES:
-            case ADD_FILES_FROM_TABLE:
+            }
+            case OPTIMIZE_MANIFESTS,
+                 OPTIMIZE_POSITION_DELETES,
+                 REMOVE_DANGLING_DELETE_FILES,
+                 DROP_EXTENDED_STATS,
+                 ROLLBACK_TO_SNAPSHOT,
+                 EXPIRE_SNAPSHOTS,
+                 REMOVE_ORPHAN_FILES,
+                 ADD_FILES,
+                 ADD_FILES_FROM_TABLE -> {
                 // handled via executeTableExecute
+            }
         }
         throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
     }
@@ -2494,23 +2492,22 @@ public class IcebergMetadata
     public Map<String, Long> finishTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, Collection<Slice> fragments, List<Object> splitSourceInfo)
     {
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
-        switch (executeHandle.procedureId()) {
-            case OPTIMIZE:
-                return finishOptimize(session, executeHandle, fragments, splitSourceInfo);
-            case GENERATE_EMBEDDINGS:
-                return finishGenerateEmbeddings(session, executeHandle, fragments, splitSourceInfo);
-            case OPTIMIZE_MANIFESTS:
-            case OPTIMIZE_POSITION_DELETES:
-            case REMOVE_DANGLING_DELETE_FILES:
-            case DROP_EXTENDED_STATS:
-            case ROLLBACK_TO_SNAPSHOT:
-            case EXPIRE_SNAPSHOTS:
-            case REMOVE_ORPHAN_FILES:
-            case ADD_FILES:
-            case ADD_FILES_FROM_TABLE:
+        return switch (executeHandle.procedureId()) {
+            case OPTIMIZE -> finishOptimize(session, executeHandle, fragments, splitSourceInfo);
+            case GENERATE_EMBEDDINGS -> finishGenerateEmbeddings(session, executeHandle, fragments, splitSourceInfo);
+            case OPTIMIZE_MANIFESTS,
+                 OPTIMIZE_POSITION_DELETES,
+                 REMOVE_DANGLING_DELETE_FILES,
+                 DROP_EXTENDED_STATS,
+                 ROLLBACK_TO_SNAPSHOT,
+                 EXPIRE_SNAPSHOTS,
+                 REMOVE_ORPHAN_FILES,
+                 ADD_FILES,
+                 ADD_FILES_FROM_TABLE -> {
                 // handled via executeTableExecute
-        }
-        throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+                throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+            }
+        };
     }
 
     private Map<String, Long> finishOptimize(ConnectorSession session, IcebergTableExecuteHandle executeHandle, Collection<Slice> fragments, List<Object> splitSourceInfo)
@@ -2716,20 +2713,19 @@ public class IcebergMetadata
     public Map<String, Long> executeTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
-        switch (executeHandle.procedureId()) {
-            case OPTIMIZE_MANIFESTS:
-                return executeOptimizeManifests(session, executeHandle);
-            case OPTIMIZE_POSITION_DELETES:
-                return executeOptimizePositionDeletes(session, executeHandle);
-            case REMOVE_DANGLING_DELETE_FILES:
-                return executeRemoveDanglingDeleteFiles(session, executeHandle);
-            case DROP_EXTENDED_STATS:
+        return switch (executeHandle.procedureId()) {
+            case OPTIMIZE_MANIFESTS -> executeOptimizeManifests(session, executeHandle);
+            case DROP_EXTENDED_STATS -> {
                 executeDropExtendedStats(session, executeHandle);
-                return ImmutableMap.of();
-            case ROLLBACK_TO_SNAPSHOT:
+                yield ImmutableMap.of();
+            }
+            case OPTIMIZE_POSITION_DELETES -> executeOptimizePositionDeletes(session, executeHandle);
+            case REMOVE_DANGLING_DELETE_FILES -> executeRemoveDanglingDeleteFiles(session, executeHandle);
+            case ROLLBACK_TO_SNAPSHOT -> {
                 executeRollbackToSnapshot(session, executeHandle);
-                return ImmutableMap.of();
-            case EXPIRE_SNAPSHOTS:
+                yield ImmutableMap.of();
+            }
+            case EXPIRE_SNAPSHOTS -> {
                 IcebergExpireSnapshotsHandle icebergExpireSnapshotsHandle = (IcebergExpireSnapshotsHandle) executeHandle.procedureHandle();
                 executeExpireSnapshots(
                         session,
@@ -2738,16 +2734,13 @@ public class IcebergMetadata
                         getExpireSnapshotMinRetention(session),
                         icebergExpireSnapshotsHandle.retainLast(),
                         icebergExpireSnapshotsHandle.cleanExpiredMetadata());
-                return ImmutableMap.of();
-            case REMOVE_ORPHAN_FILES:
-                return executeRemoveOrphanFiles(session, executeHandle);
-            case ADD_FILES:
-                return executeAddFiles(session, executeHandle);
-            case ADD_FILES_FROM_TABLE:
-                return executeAddFilesFromTable(session, executeHandle);
-            default:
-                throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
-        }
+                yield ImmutableMap.of();
+            }
+            case REMOVE_ORPHAN_FILES -> executeRemoveOrphanFiles(session, executeHandle);
+            case ADD_FILES -> executeAddFiles(session, executeHandle);
+            case ADD_FILES_FROM_TABLE -> executeAddFilesFromTable(session, executeHandle);
+            default -> throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+        };
     }
 
     private Map<String, Long> executeOptimizeManifests(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
@@ -5558,7 +5551,7 @@ public class IcebergMetadata
     private static CollectedStatistics processComputedTableStatistics(Table table, Collection<ComputedStatistics> computedStatistics)
     {
         Map<String, Integer> columnNameToId = table.schema().columns().stream()
-                .collect(toImmutableMap(nestedField -> nestedField.name().toLowerCase(ENGLISH), Types.NestedField::fieldId));
+                .collect(toImmutableMap(nestedField -> nestedField.name().toLowerCase(ENGLISH), NestedField::fieldId));
 
         ImmutableMap.Builder<Integer, CompactThetaSketch> ndvSketches = ImmutableMap.builder();
         for (ComputedStatistics computedStatistic : computedStatistics) {
