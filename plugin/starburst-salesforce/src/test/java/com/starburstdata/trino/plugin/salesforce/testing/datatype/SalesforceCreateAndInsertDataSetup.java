@@ -38,6 +38,11 @@ public class SalesforceCreateAndInsertDataSetup
         this.tableName = tableName;
     }
 
+    public String tableName()
+    {
+        return tableName;
+    }
+
     @Override
     public TestTable setupTemporaryRelation(List<ColumnSetup> inputs)
     {

@@ -75,8 +75,8 @@ public class SalesforceTestTable
     @Override
     public void close()
     {
-        // Truncate the table instead of deleting it to avoid hitting object limits in Salesforce
-        truncate();
+        // Don't drop the table to avoid hitting object limits in Salesforce.
+        // Also, don't truncate the data to avoid flaky issues.
     }
 
     private void truncate()

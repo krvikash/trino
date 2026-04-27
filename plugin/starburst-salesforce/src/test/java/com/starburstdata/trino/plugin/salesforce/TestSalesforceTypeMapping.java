@@ -22,7 +22,6 @@ import io.trino.spi.type.VarcharType;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
-import io.trino.testing.datatype.DataSetup;
 import io.trino.testing.sql.JdbcSqlExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -356,7 +355,7 @@ public class TestSalesforceTypeMapping
                 .build();
     }
 
-    private DataSetup salesforceCreateAndInsert(String tableName)
+    private SalesforceCreateAndInsertDataSetup salesforceCreateAndInsert(String tableName)
     {
         return new SalesforceCreateAndInsertDataSetup(new JdbcSqlExecutor(jdbcUrl), jdbcUrl, tableName);
     }
