@@ -91,7 +91,7 @@ import static io.trino.SystemSessionProperties.isSuperSetPredicatePushdownEnable
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.function.OperatorType.DIVIDE;
-import static io.trino.spi.function.OperatorType.MODULUS;
+import static io.trino.spi.function.OperatorType.MODULO;
 import static io.trino.spi.function.OperatorType.MULTIPLY;
 import static io.trino.spi.function.OperatorType.SUBTRACT;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -1196,7 +1196,7 @@ public class PredicatePushDown
                                     arithmeticExpression.function().name().equals(builtinFunctionName(SUBTRACT)) ||
                                     arithmeticExpression.function().name().equals(builtinFunctionName(MULTIPLY)) ||
                                     arithmeticExpression.function().name().equals(builtinFunctionName(DIVIDE)) ||
-                                    arithmeticExpression.function().name().equals(builtinFunctionName(MODULUS))) &&
+                                    arithmeticExpression.function().name().equals(builtinFunctionName(MODULO))) &&
                             isSimpleExpression(arithmeticExpression.arguments().get(0), false) &&
                             isSimpleExpression(arithmeticExpression.arguments().get(1), false));
         }

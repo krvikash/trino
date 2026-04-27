@@ -494,7 +494,7 @@ public class TestGpuExpressions
                     }
 
                     switch (operator) {
-                        case ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULUS, NEGATION, SUBSCRIPT -> {
+                        case ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULO, NEGATION, SUBSCRIPT -> {
                             // Binary operators tested here
                         }
                         case EQUAL, COMPARISON_UNORDERED_LAST, COMPARISON_UNORDERED_FIRST, LESS_THAN, LESS_THAN_OR_EQUAL, IDENTICAL -> {
@@ -672,7 +672,7 @@ public class TestGpuExpressions
         testArithmetic(OperatorType.SUBTRACT, nullsProvider);
         testArithmetic(OperatorType.MULTIPLY, nullsProvider);
         testArithmetic(OperatorType.DIVIDE, nullsProvider);
-        testArithmetic(OperatorType.MODULUS, nullsProvider);
+        testArithmetic(OperatorType.MODULO, nullsProvider);
     }
 
     @ParameterizedTest

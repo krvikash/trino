@@ -500,7 +500,7 @@ public class GpuExpressionCompiler
                     }
                     yield Optional.empty();
                 }
-                case MODULUS -> {
+                case MODULO -> {
                     if (leftType == TINYINT && rightType == TINYINT) {
                         yield Optional.of(new GpuIntegerModulo(left, right, outputType));
                     }
