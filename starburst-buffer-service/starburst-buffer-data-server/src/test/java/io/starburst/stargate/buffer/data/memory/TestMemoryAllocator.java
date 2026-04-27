@@ -17,6 +17,7 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.MemoryChunkData;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -138,11 +139,7 @@ public class TestMemoryAllocator
                 "exchange-id",
                 0,
                 0,
-                memoryAllocator,
-                executor,
-                chunkTargetSizeInBytes,
-                chunkSliceSizeInBytes,
-                true);
+                new MemoryChunkData(memoryAllocator, executor, chunkTargetSizeInBytes, chunkSliceSizeInBytes, true));
         getFutureValue(chunk0.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
         chunk0.close();
 
@@ -160,11 +157,7 @@ public class TestMemoryAllocator
                 "exchange-id",
                 1,
                 1,
-                memoryAllocator,
-                executor,
-                chunkTargetSizeInBytes,
-                chunkSliceSizeInBytes,
-                true);
+                new MemoryChunkData(memoryAllocator, executor, chunkTargetSizeInBytes, chunkSliceSizeInBytes, true));
         getFutureValue(chunk1.write(dataPage.taskId(), dataPage.attemptId(), dataPage.data()));
         chunk1.close();
 

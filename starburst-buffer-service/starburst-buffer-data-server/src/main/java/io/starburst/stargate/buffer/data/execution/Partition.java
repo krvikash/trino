@@ -316,11 +316,7 @@ public class Partition
                 exchangeId,
                 partitionId,
                 chunkId,
-                memoryAllocator,
-                executor,
-                chunkSizeInBytes,
-                chunkSliceSizeInBytes,
-                calculateDataPagesChecksum);
+                new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum));
     }
 
     public Collection<Chunk> getClosedChunks()

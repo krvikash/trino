@@ -13,9 +13,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
-import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
-
-import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
@@ -40,22 +37,13 @@ public class Chunk
             String exchangeId,
             int partitionId,
             long chunkId,
-            MemoryAllocator memoryAllocator,
-            ExecutorService executor,
-            int chunkSizeInBytes,
-            int chunkSliceSizeInBytes,
-            boolean calculateDataPagesChecksum)
+            ChunkData chunkData)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
         this.chunkId = chunkId;
-        this.chunkData = new MemoryChunkData(
-                memoryAllocator,
-                executor,
-                chunkSizeInBytes,
-                chunkSliceSizeInBytes,
-                calculateDataPagesChecksum);
+        this.chunkData = requireNonNull(chunkData, "chunkData is null");
     }
 
     // [test-only] placeholder for chunks

@@ -49,11 +49,7 @@ public class TestChunk
                 "exchange-id",
                 0,
                 0,
-                memoryAllocator,
-                executor,
-                35,
-                7,
-                true);
+                new MemoryChunkData(memoryAllocator, executor, 35, 7, true));
 
         List<DataPage> dataPages = ImmutableList.of(
                 new DataPage(0, 0, utf8Slice("333")),
