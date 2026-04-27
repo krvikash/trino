@@ -465,6 +465,7 @@ public class Exchange
         Attributes exchangeResourceAttributes = collectExchangeResourceUsage();
         partitions.values().forEach(Partition::releaseChunks);
         partitions.clear();
+        localDiskTier.ifPresent(diskTier -> diskTier.releaseExchangeDirectory(exchangeId));
 
         if (spooled) {
             ListenableFuture<Void> removeFuture = spoolingStorage.removeExchange(bufferNodeId, exchangeId);

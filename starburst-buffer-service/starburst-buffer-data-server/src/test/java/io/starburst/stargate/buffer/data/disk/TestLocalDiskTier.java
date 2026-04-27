@@ -179,6 +179,32 @@ public class TestLocalDiskTier
                 .doesNotThrowAnyException();
     }
 
+    @Test
+    public void testReleaseExchangeDirectoryDeletesDirectoryAndContents()
+            throws IOException, ExecutionException, InterruptedException
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+        diskTier.createPartitionDirectory("exchange-1", 0);
+        diskTier.createPartitionDirectory("exchange-1", 1);
+        Path exchangeDirectory = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1");
+        Files.writeString(exchangeDirectory.resolve("0").resolve("chunk-0.data"), "payload");
+
+        diskTier.releaseExchangeDirectory("exchange-1");
+        diskTier.awaitPendingTasks();
+
+        assertThat(exchangeDirectory).doesNotExist();
+    }
+
+    @Test
+    public void testReleaseExchangeDirectoryIsIdempotentWhenMissing()
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+
+        // exchange was never created - release is noop
+        assertThatCode(() -> diskTier.releaseExchangeDirectory("exchange-1"))
+                .doesNotThrowAnyException();
+    }
+
     private static LocalDiskTier createDiskTier(Path rootDirectory)
     {
         LocalDiskTierConfig config = new LocalDiskTierConfig()

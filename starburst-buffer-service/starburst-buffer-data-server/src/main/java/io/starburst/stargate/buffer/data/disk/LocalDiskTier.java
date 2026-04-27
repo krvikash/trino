@@ -71,6 +71,14 @@ public class LocalDiskTier
         cleanupExecutor.execute(() -> deleteDirectoryQuietly(partitionDirectory, "partition"));
     }
 
+    public void releaseExchangeDirectory(String exchangeId)
+    {
+        Path exchangeDirectory = directory.resolve(exchangeId);
+        // single-thread FIFO executor serializes with releasePartitionDirectory; whichever runs first
+        // sees the directory present and the second silently no-ops on the missing path.
+        cleanupExecutor.execute(() -> deleteDirectoryQuietly(exchangeDirectory, "exchange"));
+    }
+
     private static void deleteDirectoryQuietly(Path path, String directoryKind)
     {
         try {
