@@ -109,16 +109,16 @@ public class LocalExchange
         if (partitioning.equals(SINGLE_DISTRIBUTION) || partitioning.equals(FIXED_ARBITRARY_DISTRIBUTION)) {
             LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
             sources = IntStream.range(0, bufferCount)
-                    .mapToObj(i -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
+                    .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
             exchangerSupplier = () -> new RandomExchanger(asPageConsumers(sources), memoryManager);
         }
         else if (partitioning.equals(FIXED_PASSTHROUGH_DISTRIBUTION)) {
             List<LocalExchangeMemoryManager> memoryManagers = IntStream.range(0, bufferCount)
-                    .mapToObj(i -> new LocalExchangeMemoryManager(maxBufferedBytes.toBytes() / bufferCount))
+                    .mapToObj(_ -> new LocalExchangeMemoryManager(maxBufferedBytes.toBytes() / bufferCount))
                     .collect(toImmutableList());
             sources = memoryManagers.stream()
-                    .map(memoryManager -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
+                    .map(memoryManager -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
             AtomicInteger nextSource = new AtomicInteger();
             exchangerSupplier = () -> {
@@ -130,7 +130,7 @@ public class LocalExchange
         else if (partitioning.equals(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION)) {
             LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
             sources = IntStream.range(0, bufferCount)
-                    .mapToObj(i -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
+                    .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
             AtomicLong dataProcessed = new AtomicLong(0);
             exchangerSupplier = () -> new ScaleWriterExchanger(
@@ -152,7 +152,7 @@ public class LocalExchange
                     getSkewedPartitionMinDataProcessedRebalanceThreshold(session).toBytes());
             LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
             sources = IntStream.range(0, bufferCount)
-                    .mapToObj(i -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
+                    .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
 
             exchangerSupplier = () -> {
@@ -183,12 +183,12 @@ public class LocalExchange
             LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
             if (isMergePartitionedPages(session)) {
                 sources = IntStream.range(0, bufferCount)
-                        .mapToObj(i -> new MergingLocalExchangePageBuffer(memoryManager, source -> checkAllSourcesFinished(), sourceTypes, positionsAppenderFactory))
+                        .mapToObj(_ -> new MergingLocalExchangePageBuffer(memoryManager, _ -> checkAllSourcesFinished(), sourceTypes, positionsAppenderFactory))
                         .collect(toImmutableList());
             }
             else {
                 sources = IntStream.range(0, bufferCount)
-                        .mapToObj(i -> new LocalExchangeSource(memoryManager, source -> checkAllSourcesFinished()))
+                        .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                         .collect(toImmutableList());
             }
             exchangerSupplier = () -> {

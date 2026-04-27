@@ -427,7 +427,7 @@ public class MockRemoteTaskFactory
         @Override
         public void addStateChangeListener(StateChangeListener<TaskStatus> stateChangeListener)
         {
-            taskStateMachine.addStateChangeListener(newValue -> stateChangeListener.stateChanged(getTaskStatus()));
+            taskStateMachine.addStateChangeListener(_ -> stateChangeListener.stateChanged(getTaskStatus()));
         }
 
         @Override

@@ -184,15 +184,15 @@ public final class TaskTestUtils
                 new IndexJoinLookupStats(),
                 cacheStats,
                 new TaskManagerConfig(),
-                new GenericSpillerFactory((types, spillContext, memoryContext, parallelSpill) -> {
+                new GenericSpillerFactory((_, _, _, _) -> {
                     throw new UnsupportedOperationException();
                 }),
                 new QueryDataEncoders(new SpoolingEnabledConfig(), Set.of()),
                 Optional.empty(),
-                (types, spillContext, memoryContext, parallelSpill) -> {
+                (_, _, _, _) -> {
                     throw new UnsupportedOperationException();
                 },
-                (types, partitionFunction, spillContext, memoryContext, operatorName) -> {
+                (_, _, _, _, _) -> {
                     throw new UnsupportedOperationException();
                 },
                 new PagesIndex.TestingFactory(false),

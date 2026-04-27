@@ -709,7 +709,7 @@ public class StageStateMachine
         Object2ObjectOpenHashMap<String, List<OperatorStats>> pipelineAndOperatorToStats = new Object2ObjectOpenHashMap<>(maxTaskOperatorSummaries);
         // Expect to have one operator stats entry for each taskInfo
         int taskInfoCount = taskInfos.size();
-        Function<String, List<OperatorStats>> statsListCreator = key -> new ArrayList<>(taskInfoCount);
+        Function<String, List<OperatorStats>> statsListCreator = _ -> new ArrayList<>(taskInfoCount);
         for (TaskInfo taskInfo : taskInfos) {
             for (PipelineStats pipeline : taskInfo.stats().pipelines()) {
                 for (OperatorStats operator : pipeline.getOperatorSummaries()) {
@@ -734,7 +734,7 @@ public class StageStateMachine
     public void recordSplitSourceMetrics(PlanNodeId nodeId, Metrics metrics, long startNanos)
     {
         long elapsedNanos = System.nanoTime() - startNanos;
-        getSplitDistribution.computeIfAbsent(nodeId, (_) -> new Distribution()).add(elapsedNanos);
+        getSplitDistribution.computeIfAbsent(nodeId, _ -> new Distribution()).add(elapsedNanos);
         scheduledStats.getGetSplitTime().add(elapsedNanos, NANOSECONDS);
         splitSourceMetrics.put(nodeId, metrics);
     }

@@ -284,7 +284,7 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
                 new TestingGcMonitor(),
                 noopTracer(),
                 new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),
-                ignore -> true);
+                _ -> true);
     }
 
     private static PlanFragment fragmentWithCatalog(CatalogHandle catalogHandle)

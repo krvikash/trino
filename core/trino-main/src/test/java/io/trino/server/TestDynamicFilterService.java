@@ -871,7 +871,7 @@ public class TestDynamicFilterService
                 .mapToObj(i -> utf8Slice("value" + i))
                 .collect(toImmutableList()));
         DynamicFilterDomain domain3 = singleValue(VARCHAR, utf8Slice(IntStream.range(0, 800)
-                .mapToObj(i -> "x")
+                .mapToObj(_ -> "x")
                 .collect(joining())));
         assertThat(domain1.getRetainedSizeInBytes()).isLessThan(sizeLimit.toBytes());
         assertThat(domain1.union(domain2).getRetainedSizeInBytes()).isGreaterThanOrEqualTo(sizeLimit.toBytes());

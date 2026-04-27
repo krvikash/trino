@@ -580,7 +580,7 @@ public class QueryAssertions
         @CanIgnoreReturnValue
         public QueryAssert hasPlan(PlanMatchPattern expectedPlan)
         {
-            return hasPlan(expectedPlan, plan -> {});
+            return hasPlan(expectedPlan, _ -> {});
         }
 
         private QueryAssert hasPlan(PlanMatchPattern expectedPlan, Consumer<Plan> additionalPlanVerification)

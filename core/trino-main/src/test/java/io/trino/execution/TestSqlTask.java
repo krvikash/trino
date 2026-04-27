@@ -460,7 +460,7 @@ public class TestSqlTask
                 noopTracer(),
                 sqlTaskExecutionFactory,
                 taskNotificationExecutor,
-                sqlTask -> {},
+                _ -> {},
                 DataSize.of(32, MEGABYTE),
                 DataSize.of(200, MEGABYTE),
                 new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),

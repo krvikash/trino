@@ -365,7 +365,7 @@ public class TestLocalExchange
             LocalExchangePageBuffer sourceC = exchange.getNextSource(newOperatorContext());
             assertSource(sourceC, 0);
 
-            range(0, 6).forEach(i -> sink.addPage(createPage(0)));
+            range(0, 6).forEach(_ -> sink.addPage(createPage(0)));
             assertThat(sourceA.getBufferInfo().getBufferedPages()).isEqualTo(6);
             assertThat(sourceB.getBufferInfo().getBufferedPages()).isEqualTo(0);
             assertThat(sourceC.getBufferInfo().getBufferedPages()).isEqualTo(0);
@@ -531,7 +531,7 @@ public class TestLocalExchange
 
             totalMemoryUsed.set(DataSize.of(11, MEGABYTE).toBytes());
 
-            range(0, 6).forEach(i -> sink.addPage(createPage(0)));
+            range(0, 6).forEach(_ -> sink.addPage(createPage(0)));
             assertThat(sourceA.getBufferInfo().getBufferedPages()).isEqualTo(6);
             assertThat(sourceB.getBufferInfo().getBufferedPages()).isEqualTo(0);
             assertThat(sourceC.getBufferInfo().getBufferedPages()).isEqualTo(0);
@@ -576,7 +576,7 @@ public class TestLocalExchange
             LocalExchangePageBuffer sourceC = exchange.getNextSource(newOperatorContext());
             assertSource(sourceC, 0);
 
-            range(0, 8).forEach(i -> sink.addPage(createPage(0)));
+            range(0, 8).forEach(_ -> sink.addPage(createPage(0)));
             physicalWrittenBytesA.set(retainedSizeOfPages(8));
             sink.addPage(createPage(0));
             assertThat(sourceA.getBufferInfo().getBufferedPages()).isEqualTo(9);
@@ -1740,7 +1740,7 @@ public class TestLocalExchange
 
     private static Page createSingleValuePage(int value, int length)
     {
-        List<Long> values = range(0, length).mapToObj(i -> (long) value).collect(toImmutableList());
+        List<Long> values = range(0, length).mapToObj(_ -> (long) value).collect(toImmutableList());
         Block block = BlockAssertions.createLongsBlock(values);
         return new Page(block);
     }

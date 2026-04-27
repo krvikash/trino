@@ -76,7 +76,7 @@ public final class StandaloneQueryRunner
 
     public StandaloneQueryRunner(Session defaultSession)
     {
-        this(defaultSession, builder -> {});
+        this(defaultSession, _ -> {});
     }
 
     public StandaloneQueryRunner(Session defaultSession, Consumer<TestingTrinoServer.Builder> serverProcessor)

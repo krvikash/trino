@@ -1288,7 +1288,7 @@ public final class MetadataManager
 
     private static <T> ListenableFuture<Void> asVoid(ListenableFuture<T> future)
     {
-        return Futures.transform(future, v -> null, directExecutor());
+        return Futures.transform(future, _ -> null, directExecutor());
     }
 
     @Override
@@ -3007,7 +3007,7 @@ public final class MetadataManager
 
     private void registerCatalogForQuery(Session session, CatalogMetadata catalogMetadata)
     {
-        catalogsByQueryId.computeIfAbsent(session.getQueryId(), queryId -> new QueryCatalogs(session))
+        catalogsByQueryId.computeIfAbsent(session.getQueryId(), _ -> new QueryCatalogs(session))
                 .registerCatalog(catalogMetadata);
     }
 
