@@ -29,7 +29,8 @@ public class TestLocalDiskTierConfig
     {
         assertRecordedDefaults(recordDefaults(LocalDiskTierConfig.class)
                 .setDirectory(null)
-                .setCapacity(null));
+                .setCapacity(null)
+                .setMemorySkipThreshold(null));
     }
 
     @Test
@@ -38,11 +39,13 @@ public class TestLocalDiskTierConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("local-disk.directory", directory.toString())
                 .put("local-disk.capacity", "100GB")
+                .put("local-disk.memory-skip-threshold", "8GB")
                 .buildOrThrow();
 
         LocalDiskTierConfig expected = new LocalDiskTierConfig()
                 .setDirectory(directory)
-                .setCapacity(DataSize.of(100, GIGABYTE));
+                .setCapacity(DataSize.of(100, GIGABYTE))
+                .setMemorySkipThreshold(DataSize.of(8, GIGABYTE));
 
         assertFullMapping(properties, expected);
     }

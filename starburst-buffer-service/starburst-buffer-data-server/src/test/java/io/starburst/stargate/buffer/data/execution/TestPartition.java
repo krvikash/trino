@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -112,7 +113,7 @@ public class TestPartition
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig().setChunkSliceSize(DataSize.ofBytes(CHUNK_SLICE_SIZE));
-        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(memoryAllocator, executor, chunkManagerConfig, new DataServerConfig());
+        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(localDiskTier, memoryAllocator, executor, chunkManagerConfig, new DataServerConfig());
         return new Partition(
                 BUFFER_NODE_ID,
                 EXCHANGE_ID,
@@ -126,6 +127,7 @@ public class TestPartition
                 executor,
                 localDiskTier,
                 chunkDataFactory,
+                new AtomicLong(),
                 _ -> {});
     }
 }

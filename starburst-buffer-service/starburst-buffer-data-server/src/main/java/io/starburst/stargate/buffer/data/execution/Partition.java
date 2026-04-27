@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -66,6 +67,7 @@ public class Partition
     private final Consumer<ChunkHandle> closedChunkConsumer;
     private final Optional<LocalDiskTier> localDiskTier;
     private final ChunkDataFactory chunkDataFactory;
+    private final AtomicLong exchangeCumulativeClosedBytes;
 
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
     @GuardedBy("this")
@@ -100,6 +102,7 @@ public class Partition
             ExecutorService executor,
             Optional<LocalDiskTier> localDiskTier,
             ChunkDataFactory chunkDataFactory,
+            AtomicLong exchangeCumulativeClosedBytes,
             Consumer<ChunkHandle> closedChunkConsumer)
     {
         this.bufferNodeId = bufferNodeId;
@@ -114,6 +117,7 @@ public class Partition
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
         this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
         this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
+        this.exchangeCumulativeClosedBytes = requireNonNull(exchangeCumulativeClosedBytes, "exchangeCumulativeClosedBytes is null");
         // Partition is constructed under Exchange's monitor via computeIfAbsent(); the syscall
         // below runs under that lock. Acceptable because partition creation is once-per-partition
         // and addDataPages on an existing partition never reaches this path.
@@ -298,6 +302,7 @@ public class Partition
             closedChunks.put(chunk.getChunkId(), chunk);
             ChunkHandle chunkHandle = chunk.getHandle();
             closedChunkBytes += chunkHandle.dataSizeInBytes();
+            exchangeCumulativeClosedBytes.addAndGet(chunkHandle.dataSizeInBytes());
             closedChunkConsumer.accept(chunkHandle);
         }
     }
@@ -312,7 +317,7 @@ public class Partition
                 exchangeId,
                 partitionId,
                 chunkId,
-                chunkDataFactory.create(exchangeId, partitionId, chunkId, chunkSizeInBytes));
+                chunkDataFactory.create(exchangeId, partitionId, chunkId, chunkSizeInBytes, exchangeCumulativeClosedBytes.get()));
     }
 
     public Collection<Chunk> getClosedChunks()

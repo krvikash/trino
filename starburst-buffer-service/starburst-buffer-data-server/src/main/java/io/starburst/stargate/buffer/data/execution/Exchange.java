@@ -96,6 +96,7 @@ public class Exchange
     private final ExecutorService executor;
     private final Optional<LocalDiskTier> localDiskTier;
     private final ChunkDataFactory chunkDataFactory;
+    private final AtomicLong cumulativeClosedBytes = new AtomicLong();
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
@@ -208,6 +209,7 @@ public class Exchange
                     executor,
                     localDiskTier,
                     chunkDataFactory,
+                    cumulativeClosedBytes,
                     closedChunkConsumer()));
         }
 

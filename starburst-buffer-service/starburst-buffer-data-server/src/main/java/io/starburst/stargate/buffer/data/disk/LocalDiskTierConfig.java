@@ -17,6 +17,7 @@ import io.airlift.units.DataSize;
 import jakarta.validation.constraints.NotNull;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -24,6 +25,7 @@ public class LocalDiskTierConfig
 {
     private Path directory;
     private DataSize capacity;
+    private DataSize memorySkipThreshold;
 
     @NotNull
     @FileExists
@@ -54,6 +56,21 @@ public class LocalDiskTierConfig
     {
         checkArgument(capacity == null || capacity.toBytes() > 0, "capacity must be positive");
         this.capacity = capacity;
+        return this;
+    }
+
+    public Optional<DataSize> getMemorySkipThreshold()
+    {
+        return Optional.ofNullable(memorySkipThreshold);
+    }
+
+    @Config("local-disk.memory-skip-threshold")
+    @ConfigHidden
+    @ConfigDescription("Per-exchange cumulative closed-chunk bytes after which subsequent open chunks are written directly to disk. Default empty disables the policy.")
+    public LocalDiskTierConfig setMemorySkipThreshold(DataSize memorySkipThreshold)
+    {
+        checkArgument(memorySkipThreshold == null || memorySkipThreshold.toBytes() > 0, "memorySkipThreshold must be positive");
+        this.memorySkipThreshold = memorySkipThreshold;
         return this;
     }
 }

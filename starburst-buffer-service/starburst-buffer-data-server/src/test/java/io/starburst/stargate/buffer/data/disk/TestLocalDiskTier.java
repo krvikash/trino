@@ -134,6 +134,27 @@ public class TestLocalDiskTier
     }
 
     @Test
+    public void testPartitionDirectoryReturnsExpectedPath()
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+
+        Path partitionDirectory = diskTier.partitionDirectory("exchange-1", 3);
+
+        Path expected = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1").resolve("3");
+        assertThat(partitionDirectory).isEqualTo(expected);
+    }
+
+    @Test
+    public void testPartitionDirectoryDoesNotTouchFilesystem()
+    {
+        LocalDiskTier diskTier = createDiskTier(tempDir);
+
+        diskTier.partitionDirectory("exchange-1", 3);
+
+        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1")).doesNotExist();
+    }
+
+    @Test
     public void testCreatePartitionDirectoryCreatesDirectoryAtExpectedPath()
     {
         LocalDiskTier diskTier = createDiskTier(tempDir);

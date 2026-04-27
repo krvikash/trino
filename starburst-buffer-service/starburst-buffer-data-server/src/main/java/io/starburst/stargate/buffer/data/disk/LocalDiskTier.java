@@ -13,12 +13,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import jakarta.annotation.PreDestroy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -37,6 +39,7 @@ public class LocalDiskTier
     private static final Logger log = Logger.get(LocalDiskTier.class);
 
     private final Path directory;
+    private final Optional<DataSize> memorySkipThreshold;
     private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("local-disk-cleanup-%s"));
 
     @Inject
@@ -46,7 +49,13 @@ public class LocalDiskTier
         requireNonNull(config, "config is null");
         Path rootDirectory = requireNonNull(config.getDirectory(), "directory is null").normalize();
         this.directory = rootDirectory.resolve(String.valueOf(bufferNodeId.getLongValue()));
+        this.memorySkipThreshold = config.getMemorySkipThreshold();
         initializeDirectories(rootDirectory, this.directory, cleanupExecutor);
+    }
+
+    public Optional<DataSize> getMemorySkipThreshold()
+    {
+        return memorySkipThreshold;
     }
 
     public void validateExchangeId(String exchangeId)
@@ -54,9 +63,14 @@ public class LocalDiskTier
         validateExchangeIdAsPathSegment(directory, exchangeId);
     }
 
+    public Path partitionDirectory(String exchangeId, int partitionId)
+    {
+        return directory.resolve(exchangeId).resolve(String.valueOf(partitionId));
+    }
+
     public void createPartitionDirectory(String exchangeId, int partitionId)
     {
-        Path partitionDirectory = directory.resolve(exchangeId).resolve(String.valueOf(partitionId));
+        Path partitionDirectory = partitionDirectory(exchangeId, partitionId);
         try {
             createDirectories(partitionDirectory);
         }
@@ -67,7 +81,7 @@ public class LocalDiskTier
 
     public void releasePartitionDirectory(String exchangeId, int partitionId)
     {
-        Path partitionDirectory = directory.resolve(exchangeId).resolve(String.valueOf(partitionId));
+        Path partitionDirectory = partitionDirectory(exchangeId, partitionId);
         cleanupExecutor.execute(() -> deleteDirectoryQuietly(partitionDirectory, "partition"));
     }
 
