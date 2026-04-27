@@ -154,6 +154,6 @@ public class AddDataPagesThrottlingCalculator
 
     private CounterWithRate getCounterWithRate(String remoteHost)
     {
-        return counters.computeIfAbsent(remoteHost, ignored -> new CounterWithRate(ticker));
+        return counters.computeIfAbsent(remoteHost, _ -> new CounterWithRate(ticker));
     }
 }

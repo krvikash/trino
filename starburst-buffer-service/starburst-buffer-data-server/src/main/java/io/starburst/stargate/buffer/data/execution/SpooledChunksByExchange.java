@@ -74,7 +74,7 @@ public class SpooledChunksByExchange
             if (frozen.get()) {
                 throw new AlreadyFrozenException("Spooled chunks map already frozen");
             }
-            mapping.computeIfAbsent(exchangeId, ignored -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
+            mapping.computeIfAbsent(exchangeId, _ -> new ConcurrentHashMap<>()).putAll(spooledChunkMap);
         }
         finally {
             lock.unlock();

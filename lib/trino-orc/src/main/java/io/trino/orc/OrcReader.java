@@ -459,7 +459,7 @@ public class OrcReader
      */
     public static ProjectedLayout fullyProjectedLayout()
     {
-        return orcColumn -> fullyProjectedLayout();
+        return _ -> fullyProjectedLayout();
     }
 
     public static class NameBasedProjectedLayout

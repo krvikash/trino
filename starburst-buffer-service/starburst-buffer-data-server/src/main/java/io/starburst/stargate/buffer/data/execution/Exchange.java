@@ -195,7 +195,7 @@ public class Exchange
             if (finishFuture != null) {
                 throw new DataServerException(EXCHANGE_FINISHED, "exchange %s already finished".formatted(exchangeId));
             }
-            partition = partitions.computeIfAbsent(partitionId, ignored -> new Partition(
+            partition = partitions.computeIfAbsent(partitionId, _ -> new Partition(
                     bufferNodeId,
                     exchangeId,
                     partitionId,
@@ -307,7 +307,7 @@ public class Exchange
                 .withTimeout(chunkListPollTimeout.toMillis(), MILLISECONDS, longPollTimeoutExecutor)
                 .catchingAsync(
                         TimeoutException.class,
-                        timeoutException -> {
+                        _ -> {
                             synchronized (this) {
                                 // Without this, if we timed out while another thread has the lock in closedChunkConsumer,
                                 // we'd wait here, that other thread would try to set the underlying pendingChunkListFuture,

@@ -162,7 +162,7 @@ public class S3SpoolingStorage
                                 chunkDataLeaseMap,
                                 contentLength,
                                 spooledChunkMap))),
-                ignored -> Optional.ofNullable(spooledChunkMap.get()).orElseThrow(() -> new IllegalStateException("Spooled Chunk Map is empty")),
+                _ -> Optional.ofNullable(spooledChunkMap.get()).orElseThrow(() -> new IllegalStateException("Spooled Chunk Map is empty")),
                 directExecutor());
     }
 
@@ -223,7 +223,7 @@ public class S3SpoolingStorage
                             .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
                                     .map(S3Object::key)
                                     .forEach(keys::add))),
-                    ignored -> keys.build(),
+                    _ -> keys.build(),
                     directExecutor());
             listObjectsFuturesBuilder.add(listObjectsFuture);
         }

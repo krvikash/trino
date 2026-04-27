@@ -99,7 +99,7 @@ public class LocalSpoolingStorage
         catch (IOException e) {
             return immediateFailedFuture(e);
         }
-        counts.computeIfAbsent(exchangeId, ignored -> new AtomicInteger()).incrementAndGet();
+        counts.computeIfAbsent(exchangeId, _ -> new AtomicInteger()).incrementAndGet();
         return immediateFuture(spooledChunkMap.buildOrThrow());
     }
 

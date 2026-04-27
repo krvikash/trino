@@ -82,7 +82,7 @@ public class TestMergedChunkDataAsyncRequestBody
         TreeMap<Chunk, ChunkDataLease> newMap = chunkToSliceMap.entrySet().stream().collect(Collectors.toMap(
                 Map.Entry::getKey,
                 (Map.Entry<Chunk, Set<List<DataPage>>> e) -> toChunkDataLease(e.getValue()),
-                (l, l1) -> l,
+                (l, _) -> l,
                 () -> new TreeMap<>(chunkComparator)));
         return Collections.unmodifiableSortedMap(newMap);
     }

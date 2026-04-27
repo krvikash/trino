@@ -231,7 +231,7 @@ public class Partition
 
         finishFuture = Futures.transform(
                 inProgressAddDataPagesFuture,
-                ignored -> {
+                _ -> {
                     synchronized (this) {
                         checkState(openChunk != null, "No open chunk exists for exchange %s partition %d".formatted(exchangeId, partitionId));
                         closeChunk(openChunk);

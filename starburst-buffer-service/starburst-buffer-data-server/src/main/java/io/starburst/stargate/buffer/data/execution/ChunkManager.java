@@ -397,7 +397,7 @@ public class ChunkManager
 
     private Exchange internalRegisterExchange(String exchangeId, ExchangeState initialState, ChunkDeliveryMode chunkDeliveryMode)
     {
-        return exchanges.computeIfAbsent(exchangeId, ignored -> {
+        return exchanges.computeIfAbsent(exchangeId, _ -> {
             ExchangeRemovalReason removalReason = recentlyRemovedExchanges.getIfPresent(exchangeId);
             if (removalReason != null) {
                 throw new DataServerException(EXCHANGE_NOT_FOUND, "exchange %s already removed (%s)".formatted(exchangeId, removalReason));

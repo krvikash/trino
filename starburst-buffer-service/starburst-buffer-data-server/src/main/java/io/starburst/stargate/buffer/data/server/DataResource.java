@@ -302,7 +302,7 @@ public class DataResource
                 sliceLease.cancel();
             });
 
-            asyncResponse.register((ConnectionCallback) response -> {
+            asyncResponse.register((ConnectionCallback) _ -> {
                 logger.warn("Client disconnected when processing POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
                 if (servingCompletionFlag.getAndSet(true)) {
                     return;

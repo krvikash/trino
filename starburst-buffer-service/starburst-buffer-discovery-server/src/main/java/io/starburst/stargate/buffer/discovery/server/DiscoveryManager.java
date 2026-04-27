@@ -116,7 +116,7 @@ public class DiscoveryManager
             throws InvalidBufferNodeUpdateException
     {
         long now = tickerReadMillis();
-        BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.nodeId(), ignored -> {
+        BufferNodeInfoHolder holder = nodeInfoHolders.computeIfAbsent(nodeInfo.nodeId(), _ -> {
             log.info("discovered new node %s", nodeInfo.nodeId());
             return new BufferNodeInfoHolder(nodeInfo, now);
         });

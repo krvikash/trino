@@ -54,7 +54,7 @@ public class TestAWSMarketplaceLicenseProvider
     {
         final String message = "You shall not pass!";
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {
+                (_, _) -> {
                     throw new VerificationException(message);
                 },
                 ImmutableSet.of("test_marketplace_code"),
@@ -68,7 +68,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testReturnsEmptyOptionWhenMarketplaceProductCodeDoesNotMatch()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("test_marketplace_code"),
                 defaultTestRequester);
         assertThat(licenseProvider.getLicense()).isEmpty();
@@ -78,7 +78,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testReturnsEmptyOptionWhenMarketplaceProductCodesIsNull()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("test_marketplace_code"),
                 TestingURLRequester.builder()
                         .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH, exampleInstanceIdentityResponse)
@@ -93,7 +93,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testReturnsEmptyOptionIfInstanceIdentityRootDownloadRaisesIOException()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("test_marketplace_code"),
                 TestingURLRequester.builder()
                         .withExceptionOnPut(new IOException("Just kidding"))
@@ -105,7 +105,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testRaisesTrinoExceptionIfIdentityDocumentDownloadRaisesIoException()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("test_marketplace_code"),
                 TestingURLRequester.builder()
                         .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH, exampleInstanceIdentityResponse)
@@ -123,7 +123,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testWrapsJsonProblemsInTrinoException()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("test_marketplace_code"),
                 TestingURLRequester.builder()
                         .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH, exampleInstanceIdentityResponse)
@@ -140,7 +140,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testReturnsLicenseWhenMarketplaceProductCodeMatchesStarburstPresto()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("yh32yzm07ctyg8b4gpsk127n"),
                 defaultTestRequester);
         assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS, LocalDateTime.MAX));
@@ -152,7 +152,7 @@ public class TestAWSMarketplaceLicenseProvider
     public void testReturnsLicenseWhenMarketplaceProductCodeMatchesStarburstPrestoAlluxio()
     {
         LicenseProvider licenseProvider = new AWSMarketplaceLicenseProvider(
-                (identity, base64Signature) -> {},
+                (_, _) -> {},
                 ImmutableSet.of("6asvaypvo3rvqrp89gypcdsfj"),
                 TestingURLRequester.builder()
                         .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH, exampleInstanceIdentityResponse)

@@ -126,6 +126,6 @@ public class TestPartition
                 executor,
                 localDiskTier,
                 chunkDataFactory,
-                handle -> {});
+                _ -> {});
     }
 }

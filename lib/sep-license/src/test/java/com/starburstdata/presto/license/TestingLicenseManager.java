@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 public final class TestingLicenseManager
         implements LicenseManager
 {
-    public static final LicenseManager NOOP_LICENSE_MANAGER = new TestingLicenseManager(feature -> true);
+    public static final LicenseManager NOOP_LICENSE_MANAGER = new TestingLicenseManager(_ -> true);
 
     private final Predicate<StarburstFeature> hasLicense;
     private final Optional<ByteSource> fileHandle;

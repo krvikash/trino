@@ -47,7 +47,7 @@ public class TestDiskDirectoryInitializer
             throws InterruptedException
     {
         cleanupExecutor.shutdownNow();
-        boolean ignored = cleanupExecutor.awaitTermination(10, TimeUnit.SECONDS);
+        cleanupExecutor.awaitTermination(10, TimeUnit.SECONDS);
     }
 
     @Test
