@@ -87,10 +87,7 @@ public class FeaturesConfig
 {
     public enum DataIntegrityVerification
     {
-        NONE,
-        ABORT,
-        RETRY,
-        /**/;
+        NONE, ABORT, RETRY,
     }
 
     @VisibleForTesting

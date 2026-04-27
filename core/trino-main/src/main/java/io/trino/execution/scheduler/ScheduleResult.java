@@ -35,7 +35,6 @@ public class ScheduleResult
         WRITER_SCALING,
         SPLIT_QUEUES_FULL,
         WAITING_FOR_SOURCE,
-        /**/;
     }
 
     private final Set<RemoteTask> newTasks;
