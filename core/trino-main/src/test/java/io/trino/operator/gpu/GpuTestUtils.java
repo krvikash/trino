@@ -483,6 +483,8 @@ public final class GpuTestUtils
     {
         assertThat(actual.stream().mapToInt(Page::getPositionCount).sum()).as("actual position count (sum over all returned pages)")
                 .isEqualTo(expected.stream().mapToInt(Page::getPositionCount).sum());
+        Stream.concat(actual.stream(), expected.stream())
+                .forEach(page -> assertThat(page.getChannelCount()).as("channel count").isEqualTo(types.size()));
 
         BlockTypeOperators blockTypeOperators = new BlockTypeOperators();
         List<BlockPositionIsIdentical> identicalOperators = types.stream()
