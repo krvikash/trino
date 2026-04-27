@@ -799,7 +799,7 @@ public final class DistributedQueryRunner
         private Map<String, String> extraProperties = ImmutableMap.of();
         private Map<String, String> coordinatorProperties = ImmutableMap.of();
         private Map<String, String> workerProperties = ImmutableMap.of();
-        private Consumer<QueryRunner> additionalSetup = queryRunner -> {};
+        private Consumer<QueryRunner> additionalSetup = _ -> {};
         private String environment = ENVIRONMENT;
         private Supplier<Module> additionalModule = () -> EMPTY_MODULE;
         private Optional<Path> baseDataDir = Optional.empty();
