@@ -40,7 +40,6 @@ import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.trace.SpanProcessor;
-import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.cache.CacheManagerModule;
@@ -146,6 +145,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -159,7 +159,6 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
-import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static io.trino.spi.connector.ai.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Integer.parseInt;
@@ -319,16 +318,6 @@ public class TestingTrinoServer
 
         serverProperties.put("optimizer.ignore-stats-calculator-failures", "false");
 
-        // use reflection to load BufferServiceModule. Otherwise, we would need to move TestingTrinoServer to starburst-trino-main which would be to invasive code change
-        // regarding forking.
-        Optional<Module> bufferServiceModule = Optional.empty();
-        try {
-            bufferServiceModule = Optional.of((Module) Thread.currentThread().getContextClassLoader().loadClass("io.starburst.trino.server.BufferServiceModule").getConstructor().newInstance());
-        }
-        catch (Throwable e) {
-            // ignore
-        }
-
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingNodeModule(environment, bindAllInterfaces))
                 .add(new TestingHttpServerModule("testing-trino-" + instanceId, httpPort))
@@ -390,7 +379,7 @@ public class TestingTrinoServer
                     }
                 });
 
-        bufferServiceModule.ifPresent(modules::add);
+        ServiceLoader.load(TestingServerExtensionModule.class).forEach(modules::add);
 
         modules.add(aiModelAccessControlModule());
         modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader, coordinator));
@@ -489,9 +478,23 @@ public class TestingTrinoServer
         // Technically `this` reference might escape here. However, the object is fully constructed.
         additionalConfiguration.accept(this);
 
-        if (injector.getExistingBinding(Key.get(BufferNodeStateManager.class)) != null) {
-            // mark embedded buffer service as started
-            injector.getInstance(BufferNodeStateManager.class).transitionState(STARTED);
+        // Use reflection to handle BufferNodeStateManager. Otherwise, we would need to move TestingTrinoServer to starburst-trino-main which would be to invasive code change
+        // regarding forking.
+        try {
+            Class<?> stateManagerClass = Class.forName("io.starburst.stargate.buffer.data.server.BufferNodeStateManager");
+            if (injector.getExistingBinding(Key.get(stateManagerClass)) != null) {
+                // mark embedded buffer service as started
+                Class<?> bufferNodeStateClass = Class.forName("io.starburst.stargate.buffer.BufferNodeState");
+                Object startedState = bufferNodeStateClass.getField("STARTED").get(null);
+                Object stateManager = injector.getInstance(stateManagerClass);
+                stateManagerClass.getMethod("transitionState", bufferNodeStateClass).invoke(stateManager, startedState);
+            }
+        }
+        catch (ClassNotFoundException ignored) {
+            // buffer service not on classpath; nothing to start
+        }
+        catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
         }
 
         injector.getInstance(StartupStatus.class).startupComplete();

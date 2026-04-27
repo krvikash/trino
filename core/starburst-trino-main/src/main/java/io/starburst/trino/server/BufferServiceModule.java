@@ -20,6 +20,7 @@ import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.server.NodeStateManager;
 import io.trino.server.ServerConfig;
 import io.trino.server.buffer.EmbeddedBufferServiceConfig;
+import io.trino.server.testing.TestingServerExtensionModule;
 
 import static com.google.inject.multibindings.ProvidesIntoOptional.Type.ACTUAL;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -28,6 +29,7 @@ import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER
 
 public class BufferServiceModule
         extends AbstractConfigurationAwareModule
+        implements TestingServerExtensionModule
 {
     @Override
     protected void setup(Binder binder)
