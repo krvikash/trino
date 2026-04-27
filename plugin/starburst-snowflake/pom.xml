@@ -460,6 +460,7 @@
                             <excludes>
                                 <exclude>**/TestJdbcSnowflakeConnectorTest.java</exclude>
                                 <exclude>**/TestJdbcSnowflakeTypeMapping.java</exclude>
+                                <exclude>**/TestJdbcSnowflakeQueryCommentFormat.java</exclude>
                                 <exclude>**/TestSnowflakeJmxStats.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectorTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeTypeMapping.java</exclude>
@@ -518,6 +519,7 @@
                             <includes>
                                 <include>**/TestJdbcSnowflakeConnectorTest.java</include>
                                 <include>**/TestJdbcSnowflakeTypeMapping.java</include>
+                                <include>**/TestJdbcSnowflakeQueryCommentFormat.java</include>
                             </includes>
                         </configuration>
                     </plugin>
