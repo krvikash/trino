@@ -189,7 +189,7 @@ public class StargateClient
                 .map("$subtract(left, right)").to("left - right")
                 .map("$multiply(left, right)").to("left * right")
                 .map("$divide(left, right)").to("left / right")
-                .map("$modulus(left, right)").to("left % right")
+                .map("$modulo(left, right)").to("left % right")
                 .map("$negate(value)").to("-value")
                 .map("$like(value: varchar, pattern: varchar): boolean").to("value LIKE pattern")
                 .map("$like(value: varchar, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")

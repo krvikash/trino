@@ -127,7 +127,7 @@ public class StarburstSynapseClient
                 .map("$subtract(left: numeric_type, right: numeric_type)").to("left - right")
                 .map("$multiply(left: numeric_type, right: numeric_type)").to("left * right")
                 .map("$divide(left: numeric_type, right: numeric_type)").to("left / right")
-                .map("$modulus(left: numeric_type, right: numeric_type)").to("left % right")
+                .map("$modulo(left: numeric_type, right: numeric_type)").to("left % right")
                 .map("$negate(value: numeric_type)").to("-value")
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
