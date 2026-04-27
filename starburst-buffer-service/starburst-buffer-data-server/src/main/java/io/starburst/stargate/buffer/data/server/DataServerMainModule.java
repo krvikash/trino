@@ -25,6 +25,7 @@ import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierFeatureConfig;
+import io.starburst.stargate.buffer.data.execution.ChunkDataFactory;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -103,6 +104,7 @@ public class DataServerMainModule
         binder.bind(BufferNodeId.class).toInstance(new BufferNodeId(bufferNodeId));
         binder.bind(BufferNodeInfoService.class).in(SINGLETON);
         binder.bind(Ticker.class).annotatedWith(ForChunkManager.class).toInstance(ticker);
+        binder.bind(ChunkDataFactory.class).in(SINGLETON);
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(MergedFileNameGenerator.class).in(SINGLETON);
         binder.bind(SpooledChunksByExchange.class).in(SINGLETON);

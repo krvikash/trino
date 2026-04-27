@@ -128,7 +128,6 @@ public class ChunkManager
     private final int chunkTargetSizeInBytes;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
-    private final boolean calculateDataPagesChecksum;
     private final int drainingMaxAttempts;
     private final Duration minDrainingDuration;
     private final int chunkListTargetSize;
@@ -146,6 +145,7 @@ public class ChunkManager
     private final Tracer tracer;
     private final ExecutorService executor;
     private final Optional<LocalDiskTier> localDiskTier;
+    private final ChunkDataFactory chunkDataFactory;
 
     enum ExchangeRemovalReason {
         EXPLICIT,
@@ -183,6 +183,7 @@ public class ChunkManager
             @ForChunkManager Ticker ticker,
             SpooledChunksByExchange spooledChunksByExchange,
             Optional<LocalDiskTier> localDiskTier,
+            ChunkDataFactory chunkDataFactory,
             DataServerStats dataServerStats,
             Tracer tracer,
             ExecutorService executor)
@@ -192,7 +193,6 @@ public class ChunkManager
         this.chunkTargetSizeInBytes = toIntExact(chunkManagerConfig.getChunkTargetSize().toBytes());
         this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
-        this.calculateDataPagesChecksum = dataServerConfig.isDataIntegrityVerificationEnabled();
         this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
         this.minDrainingDuration = dataServerConfig.getMinDrainingDuration();
         this.chunkListTargetSize = dataServerConfig.getChunkListTargetSize();
@@ -217,7 +217,7 @@ public class ChunkManager
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
-        checkArgument(this.localDiskTier.isEmpty(), "local disk tier not supported yet");
+        this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         this.drainedSpooledChunkMap = buildNonEvictableCache(
                 CacheBuilder.newBuilder().softValues(),
                 new CacheLoader<>()
@@ -408,14 +408,13 @@ public class ChunkManager
                     bufferNodeId,
                     exchangeId,
                     initialState,
-                    memoryAllocator,
                     spoolingStorage,
                     spooledChunksByExchange,
                     localDiskTier,
+                    chunkDataFactory,
                     chunkTargetSizeInBytes,
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
-                    calculateDataPagesChecksum,
                     chunkListTargetSize,
                     chunkListMaxSize,
                     chunkListPollTimeout,

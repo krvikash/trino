@@ -34,7 +34,6 @@ import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
 import java.util.ArrayList;
@@ -85,7 +84,6 @@ public class Exchange
     private final String exchangeId;
     private final ExchangeStateMachine exchangeStateMachine;
     private final AtomicReference<Optional<Span>> bufferServerExchangeSpan = new AtomicReference<>(Optional.empty());
-    private final MemoryAllocator memoryAllocator;
     private final SpoolingStorage spoolingStorage;
     private final SpooledChunksByExchange spooledChunksByExchange;
     private final int chunkTargetSizeInBytes;
@@ -94,10 +92,10 @@ public class Exchange
     private final int chunkListTargetSize;
     private final int chunkListMaxSize;
     private final Duration chunkListPollTimeout;
-    private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
     private final Optional<LocalDiskTier> localDiskTier;
+    private final ChunkDataFactory chunkDataFactory;
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
@@ -140,14 +138,13 @@ public class Exchange
             long bufferNodeId,
             String exchangeId,
             ExchangeState initialState,
-            MemoryAllocator memoryAllocator,
             SpoolingStorage spoolingStorage,
             SpooledChunksByExchange spooledChunksByExchange,
             Optional<LocalDiskTier> localDiskTier,
+            ChunkDataFactory chunkDataFactory,
             int chunkTargetSizeInBytes,
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
-            boolean calculateDataPagesChecksum,
             int chunkListTargetSize,
             int chunkListMaxSize,
             Duration chunkListPollTimeout,
@@ -161,16 +158,15 @@ public class Exchange
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
-        this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunksByExchange is null");
         this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
         this.localDiskTier.ifPresent(localDisk -> localDisk.validateExchangeId(exchangeId));
+        this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         checkArgument(chunkTargetSizeInBytes <= chunkMaxSizeInBytes, "chunkTargetSizeInBytes %s larger than chunkMaxSizeInBytes %s", chunkTargetSizeInBytes, chunkMaxSizeInBytes);
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
-        this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         checkArgument(chunkListTargetSize >= 0, "chunkListTargetSize is less than 0");
         this.chunkListTargetSize = chunkListTargetSize;
         checkArgument(chunkListMaxSize >= chunkListTargetSize, "chunkListMaxSize is less than chunkListTargetSize");
@@ -203,16 +199,15 @@ public class Exchange
                     bufferNodeId,
                     exchangeId,
                     partitionId,
-                    memoryAllocator,
                     spooledChunksByExchange,
                     chunkTargetSizeInBytes,
                     chunkMaxSizeInBytes,
                     chunkSliceSizeInBytes,
-                    calculateDataPagesChecksum,
                     chunkIdGenerator,
                     chunkDeliveryMode,
                     executor,
                     localDiskTier,
+                    chunkDataFactory,
                     closedChunkConsumer()));
         }
 

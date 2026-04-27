@@ -1148,6 +1148,7 @@ public class TestChunkManager
                 .setMinDrainingDuration(succinctDuration(0, SECONDS)) // don't wait for extra time in tests
                 // Reduce timeout here for calls when we expect zero results - we want those to return ASAP to reduce test duration
                 .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS));
+        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(memoryAllocator, executor, chunkManagerConfig, dataServerConfig);
         return new ChunkManager(
                 new BufferNodeId(bufferNodeId),
                 new BufferNodeStateManager(),
@@ -1158,6 +1159,7 @@ public class TestChunkManager
                 ticker,
                 new SpooledChunksByExchange(),
                 Optional.empty(),
+                chunkDataFactory,
                 new DataServerStats(),
                 new Tracer() {
                     @Override

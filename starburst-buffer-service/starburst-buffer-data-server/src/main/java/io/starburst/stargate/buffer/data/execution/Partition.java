@@ -24,7 +24,6 @@ import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
-import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -58,16 +57,15 @@ public class Partition
     private final long bufferNodeId;
     private final String exchangeId;
     private final int partitionId;
-    private final MemoryAllocator memoryAllocator;
     private final SpooledChunksByExchange spooledChunksByExchange;
     private final int chunkTargetSizeInBytes;
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
-    private final boolean calculateDataPagesChecksum;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
     private final Consumer<ChunkHandle> closedChunkConsumer;
     private final Optional<LocalDiskTier> localDiskTier;
+    private final ChunkDataFactory chunkDataFactory;
 
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
     @GuardedBy("this")
@@ -93,31 +91,29 @@ public class Partition
             long bufferNodeId,
             String exchangeId,
             int partitionId,
-            MemoryAllocator memoryAllocator,
             SpooledChunksByExchange spooledChunksByExchange,
             int chunkTargetSizeInBytes,
             int chunkMaxSizeInBytes,
             int chunkSliceSizeInBytes,
-            boolean calculateDataPagesChecksum,
             ChunkIdGenerator chunkIdGenerator,
             ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
             Optional<LocalDiskTier> localDiskTier,
+            ChunkDataFactory chunkDataFactory,
             Consumer<ChunkHandle> closedChunkConsumer)
     {
         this.bufferNodeId = bufferNodeId;
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.partitionId = partitionId;
-        this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunksByExchange is null");
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;
         this.chunkMaxSizeInBytes = chunkMaxSizeInBytes;
         this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
-        this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
         this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
+        this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         // Partition is constructed under Exchange's monitor via computeIfAbsent(); the syscall
         // below runs under that lock. Acceptable because partition creation is once-per-partition
         // and addDataPages on an existing partition never reaches this path.
@@ -316,7 +312,7 @@ public class Partition
                 exchangeId,
                 partitionId,
                 chunkId,
-                new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum));
+                chunkDataFactory.create(exchangeId, partitionId, chunkId, chunkSizeInBytes));
     }
 
     public Collection<Chunk> getClosedChunks()

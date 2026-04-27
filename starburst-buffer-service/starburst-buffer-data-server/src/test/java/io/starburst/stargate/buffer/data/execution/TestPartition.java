@@ -17,6 +17,7 @@ import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.memory.TestingMemoryConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,20 +111,21 @@ public class TestPartition
                 new MemoryAllocatorConfig(),
                 new ChunkManagerConfig(),
                 new DataServerStats());
+        ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig().setChunkSliceSize(DataSize.ofBytes(CHUNK_SLICE_SIZE));
+        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(memoryAllocator, executor, chunkManagerConfig, new DataServerConfig());
         return new Partition(
                 BUFFER_NODE_ID,
                 EXCHANGE_ID,
                 PARTITION_ID,
-                memoryAllocator,
                 new SpooledChunksByExchange(),
                 CHUNK_TARGET_SIZE,
                 CHUNK_MAX_SIZE,
                 CHUNK_SLICE_SIZE,
-                false,
                 new ChunkIdGenerator(),
                 ChunkDeliveryMode.STANDARD,
                 executor,
                 localDiskTier,
+                chunkDataFactory,
                 handle -> {});
     }
 }
