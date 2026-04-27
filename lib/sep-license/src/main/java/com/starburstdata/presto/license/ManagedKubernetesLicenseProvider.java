@@ -105,8 +105,8 @@ class ManagedKubernetesLicenseProvider
     @Override
     public Optional<License> getLicense()
     {
-        String identity;
-        Cloud cloudUsed;
+        String identity = null;
+        Cloud cloudUsed = null;
         byte[] identityJson = null;
 
         // Return empty if ManagedKubernetesLicenseProvider is disabled
@@ -143,17 +143,15 @@ class ManagedKubernetesLicenseProvider
         try {
             ManagedKubernetesIdentityDocument identityDocument = MANAGED_KUBERNETES_IDENTITY_JSON_CODEC.fromJson(identityJson);
             switch (identityDocument.getStatus().toLowerCase(Locale.ENGLISH)) {
-                case LICENSE_INIT_SUCCESS_STATUS:
+                case LICENSE_INIT_SUCCESS_STATUS -> {
                     identity = identityDocument.getAccountId();
                     cloudUsed = Cloud.fromString(identityDocument.getCloud());
-                    break;
-                case LICENSE_INIT_FAILED_STATUS:
+                }
+                case LICENSE_INIT_FAILED_STATUS -> {
                     log.info("Failed to checkout %s License. Verify entitlements under Marketplace license grant", PROVIDER_NAME);
-                    return Optional.empty();
-                case LICENSE_INIT_ERROR_STATUS:
-                    throw new TrinoException(GENERIC_INTERNAL_ERROR, String.format("Internal %s License Verifier error", PROVIDER_NAME));
-                default:
-                    throw new TrinoException(GENERIC_INTERNAL_ERROR, String.format("Response from %s License Verifier not supported", PROVIDER_NAME));
+                }
+                case LICENSE_INIT_ERROR_STATUS -> throw new TrinoException(GENERIC_INTERNAL_ERROR, String.format("Internal %s License Verifier error", PROVIDER_NAME));
+                default -> throw new TrinoException(GENERIC_INTERNAL_ERROR, String.format("Response from %s License Verifier not supported", PROVIDER_NAME));
             }
         }
         catch (IllegalArgumentException e) {
