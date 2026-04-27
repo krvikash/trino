@@ -22,6 +22,9 @@ import io.airlift.http.server.HttpServerInfo;
 import io.airlift.json.JsonBinder;
 import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTierFeatureConfig;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
@@ -116,6 +119,14 @@ public class DataServerMainModule
         newOptionalBinder(binder, DiscoveryBroadcast.class);
         if (discoveryBroadcastEnabled) {
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
+        }
+
+        configBinder(binder).bindConfig(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
+        newOptionalBinder(binder, LocalDiskTier.class);
+        LocalDiskTierFeatureConfig diskTierFeatureConfig = buildConfigObject(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
+        if (diskTierFeatureConfig.isEnabled()) {
+            configBinder(binder).bindConfig(LocalDiskTierConfig.class, configPrefix.orElse(null));
+            binder.bind(LocalDiskTier.class).asEagerSingleton();
         }
 
         if (buildConfigObject(DataServerConfig.class, configPrefix.orElse(null)).isTestingEnableStatsLogging()) {
