@@ -30,10 +30,8 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.StructLike;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.CloseableIterator;
-import org.apache.iceberg.types.Types.StructType;
 import org.apache.iceberg.util.StructLikeWrapper;
 
 import java.io.IOException;
@@ -43,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -328,11 +325,8 @@ public class RemoveDanglingDeleteFiles
             return !(dataFilesMinSequenceNumberMetadata.globalMinSequenceNumber() <= deleteFile.dataSequenceNumber());
         }
         // Partition-scoped position delete
-        Optional<PartitionKey> partitionKey = safePartitionKey(deleteFile.specId(), spec, deleteFile.partition(), icebergTable.name());
-        if (partitionKey.isEmpty()) {
-            return false; // Conservatively keep delete files with corrupt partition data
-        }
-        Long minPartitionSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByPartition().get(partitionKey.get());
+        PartitionKey key = new PartitionKey(deleteFile.specId(), StructLikeWrapper.forType(spec.partitionType()).set(deleteFile.partition()));
+        Long minPartitionSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByPartition().get(key);
         return minPartitionSequenceNumber == null || !(minPartitionSequenceNumber <= deleteFile.dataSequenceNumber());
     }
 
@@ -350,11 +344,8 @@ public class RemoveDanglingDeleteFiles
         if (spec.isUnpartitioned()) {
             return !(dataFilesMinSequenceNumberMetadata.globalMinSequenceNumber() < deleteFile.dataSequenceNumber());
         }
-        Optional<PartitionKey> partitionKey = safePartitionKey(deleteFile.specId(), spec, deleteFile.partition(), icebergTable.name());
-        if (partitionKey.isEmpty()) {
-            return false; // Conservatively keep delete files with corrupt partition data
-        }
-        Long minPartitionSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByPartition().get(partitionKey.get());
+        PartitionKey key = new PartitionKey(deleteFile.specId(), StructLikeWrapper.forType(spec.partitionType()).set(deleteFile.partition()));
+        Long minPartitionSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByPartition().get(key);
         // Partition-scoped equality delete
         return minPartitionSequenceNumber == null || !(minPartitionSequenceNumber < deleteFile.dataSequenceNumber());
     }
@@ -413,8 +404,8 @@ public class RemoveDanglingDeleteFiles
 
                 PartitionSpec spec = icebergTable.specs().get(contentFile.specId());
                 if (!spec.isUnpartitioned()) {
-                    safePartitionKey(contentFile.specId(), spec, contentFile.partition(), icebergTable.name())
-                            .ifPresent(key -> minSequenceNumberByPartition.merge(key, dataSequenceNumber, Math::min));
+                    PartitionKey key = new PartitionKey(contentFile.specId(), StructLikeWrapper.forType(spec.partitionType()).set(contentFile.partition()));
+                    minSequenceNumberByPartition.merge(key, dataSequenceNumber, Math::min);
                 }
             }
 
@@ -549,27 +540,4 @@ public class RemoveDanglingDeleteFiles
     }
 
     private record PartitionKey(int specId, StructLikeWrapper partition) {}
-
-    /**
-     * Creates a PartitionKey, validating that partition data types match the spec.
-     * Returns empty if partition data is corrupt (e.g., wrong Java type for a field),
-     * which can happen with manifests written by external engines.
-     */
-    private static Optional<PartitionKey> safePartitionKey(int specId, PartitionSpec spec, StructLike partition, String tableName)
-    {
-        try {
-            StructType partitionType = spec.partitionType();
-            // Eagerly validate types: StructLikeWrapper.hashCode() uses Object.class (no type check),
-            // but equals() uses typed access via Comparators, which throws on type mismatch.
-            for (int i = 0; i < partitionType.fields().size(); i++) {
-                partition.get(i, partitionType.fields().get(i).type().typeId().javaClass());
-            }
-            StructLikeWrapper wrapper = StructLikeWrapper.forType(partitionType).set(partition);
-            return Optional.of(new PartitionKey(specId, wrapper));
-        }
-        catch (RuntimeException e) {
-            log.warn("Skipping partition key with corrupt data for table %s, spec %s: %s", tableName, specId, e.getMessage());
-            return Optional.empty();
-        }
-    }
 }

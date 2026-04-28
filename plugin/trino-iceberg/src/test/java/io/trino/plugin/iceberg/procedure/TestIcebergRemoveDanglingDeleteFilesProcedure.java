@@ -33,6 +33,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.RewriteManifests;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.GenericRecord;
@@ -491,7 +492,7 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             throws Exception
     {
         // Regression test: manifests with wrong partition data types (e.g., String in Integer field)
-        // cause IllegalArgumentException in StructLikeWrapper.equals() via typed Comparators.
+        // cause StructLikeWrapper.equals() returning false
         try (TestTable table = newTrinoTable("test_corrupt_partition_types",
                 "(id bigint, part integer) WITH (partitioning = ARRAY['part'])")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 10)", 1);
@@ -499,42 +500,66 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
 
             BaseTable icebergTable = loadTable(table.getName());
 
+            // Active equality delete for partition 10 (has data)
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory,
                     Optional.of(icebergTable.spec()),
                     Optional.of(new PartitionData(new Object[] {10})),
                     ImmutableMap.of("id", 1L),
                     Optional.empty());
             icebergTable = loadTable(table.getName());
+            // Dangling equality delete for partition 30 (no data)
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory,
                     Optional.of(icebergTable.spec()),
                     Optional.of(new PartitionData(new Object[] {30})),
                     ImmutableMap.of("id", 99L),
                     Optional.empty());
 
-            icebergTable = loadTable(table.getName());
-            injectCorruptDataManifest(icebergTable);
+            assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(2);
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files");
+            // Replace real data manifests with two corrupt manifests (one entry each, same
+            // corrupt partition value). Two separate manifests ensure merge() is exercised
+            icebergTable = loadTable(table.getName());
+            replaceDataManifestsWithCorrupt(icebergTable);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
+                    """
+                            VALUES
+                            ('removed_delete_files_count', 2),
+                            ('dangling_equality_delete_files_count', 2),
+                            ('dangling_position_delete_files_count', 0),
+                            ('dangling_dv_files_count', 0),
+                            ('data_files_without_sequence_numbers', 0),
+                            ('unexpected_delete_files_count', 0)""");
+
+            // Both delete files must be deleted
+            assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(0);
         }
     }
 
-    /**
-     * Replaces all data manifests with a corrupt manifest containing String partition values
-     * where the table spec declares Integer. All entries share the same partition value to
-     * guarantee HashMap calls equals() on PartitionKey (which triggers typed access).
-     */
-    private void injectCorruptDataManifest(BaseTable icebergTable)
+    private void replaceDataManifestsWithCorrupt(BaseTable icebergTable)
             throws IOException
     {
         List<ManifestFile> dataManifests = icebergTable.currentSnapshot().dataManifests(icebergTable.io());
-        int totalDataFiles = dataManifests.stream()
-                .mapToInt(m -> m.addedFilesCount() + m.existingFilesCount())
-                .sum();
 
-        Schema fakeSchema = new Schema(
+        // Split entries across two manifests
+        // Both use the same corrupt value so they collide during merge().
+        ManifestFile firstCorruptManifest = writeCorruptDataManifest(icebergTable);
+        ManifestFile secondCorruptManifest = writeCorruptDataManifest(icebergTable);
+
+        RewriteManifests rewrite = icebergTable.rewriteManifests();
+        dataManifests.forEach(rewrite::deleteManifest);
+        rewrite.addManifest(firstCorruptManifest)
+                .addManifest(secondCorruptManifest)
+                .commit();
+    }
+
+    private ManifestFile writeCorruptDataManifest(BaseTable icebergTable)
+            throws IOException
+    {
+        Schema icebergTableSchema = new Schema(
                 Types.NestedField.required(1, "id", Types.LongType.get()),
                 Types.NestedField.required(2, "part", Types.StringType.get()));
-        PartitionSpec fakeSpec = PartitionSpec.builderFor(fakeSchema)
+        PartitionSpec partitionSpec = PartitionSpec.builderFor(icebergTableSchema)
                 .identity("part")
                 .build();
 
@@ -542,28 +567,25 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
 
         try (FileIO fileIo = FILE_IO_FACTORY.create(fileSystemFactory.create(SESSION))) {
             OutputFile manifestOutput = fileIo.newOutputFile("local:///corrupt_manifest_" + UUID.randomUUID() + ".avro");
+            // snapshotId assigned during commit
             ManifestWriter<DataFile> manifestWriter = ManifestFiles.write(
-                    2, fakeSpec, manifestOutput, null);
+                    2, partitionSpec, manifestOutput, null);
 
-            for (int i = 0; i < totalDataFiles; i++) {
-                org.apache.iceberg.PartitionData corruptPartition = new org.apache.iceberg.PartitionData(fakeSpec.partitionType());
-                corruptPartition.set(0, "corrupt_value");
+            org.apache.iceberg.PartitionData corruptPartition = new org.apache.iceberg.PartitionData(partitionSpec.partitionType());
+            // setting string value for int partition column
+            corruptPartition.set(0, "corrupt_value");
 
-                DataFile corruptDataFile = DataFiles.builder(fakeSpec)
-                        .withPath("local:///fake_data_" + UUID.randomUUID() + ".parquet")
-                        .withFormat(FileFormat.PARQUET)
-                        .withPartition(corruptPartition)
-                        .withFileSizeInBytes(100)
-                        .withRecordCount(1)
-                        .build();
-                manifestWriter.existing(corruptDataFile, snapshotId, 1L, 1L);
-            }
+            DataFile corruptDataFile = DataFiles.builder(partitionSpec)
+                    .withPath("local:///fake_data_" + UUID.randomUUID() + ".parquet")
+                    .withFormat(FileFormat.PARQUET)
+                    .withPartition(corruptPartition)
+                    .withFileSizeInBytes(100)
+                    .withRecordCount(1)
+                    .build();
+            manifestWriter.existing(corruptDataFile, snapshotId, 1L, 1L);
             manifestWriter.close();
 
-            var rewrite = icebergTable.rewriteManifests();
-            dataManifests.forEach(rewrite::deleteManifest);
-            rewrite.addManifest(manifestWriter.toManifestFile())
-                    .commit();
+            return manifestWriter.toManifestFile();
         }
     }
 
