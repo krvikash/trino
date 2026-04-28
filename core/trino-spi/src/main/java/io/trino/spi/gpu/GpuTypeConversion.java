@@ -103,13 +103,6 @@ public final class GpuTypeConversion
                     blocks -> copyIntBlocksToDevice(blocks, DType.INT32)));
         }
 
-        if (type == DATE) {
-            return Optional.of(new GpuTypeMapping(
-                    DType.TIMESTAMP_DAYS,
-                    value -> Scalar.timestampDaysFromInt(value.map(v -> ((Long) v).intValue()).orElse(null)),
-                    blocks -> copyIntBlocksToDevice(blocks, DType.TIMESTAMP_DAYS)));
-        }
-
         if (type == BIGINT) {
             return Optional.of(new GpuTypeMapping(
                     DType.INT64,
@@ -133,6 +126,23 @@ public final class GpuTypeConversion
                     blocks -> copyLongBlocksToDevice(blocks, DType.FLOAT64)));
         }
 
+        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
+            // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
+            int cudfScale = -decimalType.getScale();
+            DType dType = DType.create(DType.DTypeEnum.DECIMAL64, cudfScale);
+            return Optional.of(new GpuTypeMapping(
+                    dType,
+                    value -> value.isPresent() ? Scalar.fromDecimal(cudfScale, (Long) value.get()) : Scalar.fromNull(dType),
+                    blocks -> copyLongBlocksToDevice(blocks, dType)));
+        }
+
+        if (type == DATE) {
+            return Optional.of(new GpuTypeMapping(
+                    DType.TIMESTAMP_DAYS,
+                    value -> Scalar.timestampDaysFromInt(value.map(v -> ((Long) v).intValue()).orElse(null)),
+                    blocks -> copyIntBlocksToDevice(blocks, DType.TIMESTAMP_DAYS)));
+        }
+
         if (type instanceof TimestampType timestampType) {
             // ShortTimestampType always stores epochMicros; rescale to match the cuDF DType
             return switch (timestampType.getPrecision()) {
@@ -153,16 +163,6 @@ public final class GpuTypeConversion
                     yield Optional.empty();
                 }
             };
-        }
-
-        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
-            // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
-            int cudfScale = -decimalType.getScale();
-            DType dType = DType.create(DType.DTypeEnum.DECIMAL64, cudfScale);
-            return Optional.of(new GpuTypeMapping(
-                    dType,
-                    value -> value.isPresent() ? Scalar.fromDecimal(cudfScale, (Long) value.get()) : Scalar.fromNull(dType),
-                    blocks -> copyLongBlocksToDevice(blocks, dType)));
         }
 
         if (type instanceof VarcharType) {
