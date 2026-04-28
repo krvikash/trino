@@ -31,8 +31,16 @@ import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
@@ -43,14 +51,6 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -75,106 +75,87 @@ public final class GpuTypeConversion
     {
         requireNonNull(type, "type is null");
 
-        if (type == BOOLEAN) {
-            return Optional.of(new GpuTypeMapping(
+        return switch (type) {
+            case BooleanType _ -> Optional.of(new GpuTypeMapping(
                     DType.BOOL8,
                     value -> Scalar.fromBool((Boolean) value.orElse(null)),
                     blocks -> copyByteBlocksToDevice(blocks, DType.BOOL8)));
-        }
 
-        if (type == TINYINT) {
-            return Optional.of(new GpuTypeMapping(
+            case TinyintType _ -> Optional.of(new GpuTypeMapping(
                     DType.INT8,
                     value -> Scalar.fromByte(value.map(v -> ((Long) v).byteValue()).orElse(null)),
                     blocks -> copyByteBlocksToDevice(blocks, DType.INT8)));
-        }
 
-        if (type == SMALLINT) {
-            return Optional.of(new GpuTypeMapping(
+            case SmallintType _ -> Optional.of(new GpuTypeMapping(
                     DType.INT16,
                     value -> Scalar.fromShort(value.map(v -> ((Long) v).shortValue()).orElse(null)),
                     blocks -> copyShortBlocksToDevice(blocks, DType.INT16)));
-        }
 
-        if (type == INTEGER) {
-            return Optional.of(new GpuTypeMapping(
+            case IntegerType _ -> Optional.of(new GpuTypeMapping(
                     DType.INT32,
                     value -> Scalar.fromInt(value.map(v -> ((Long) v).intValue()).orElse(null)),
                     blocks -> copyIntBlocksToDevice(blocks, DType.INT32)));
-        }
 
-        if (type == BIGINT) {
-            return Optional.of(new GpuTypeMapping(
+            case BigintType _ -> Optional.of(new GpuTypeMapping(
                     DType.INT64,
                     value -> Scalar.fromLong((Long) value.orElse(null)),
                     blocks -> copyLongBlocksToDevice(blocks, DType.INT64)));
-        }
 
-        if (type == REAL) {
-            return Optional.of(new GpuTypeMapping(
+            case RealType _ -> Optional.of(new GpuTypeMapping(
                     DType.FLOAT32,
                     value -> Scalar.fromFloat(value.map(v -> Float.intBitsToFloat(((Long) v).intValue())).orElse(null)),
                     // IntArrayBlock stores floatToIntBits — same bit pattern as IEEE 754 float, so direct copy works
                     blocks -> copyIntBlocksToDevice(blocks, DType.FLOAT32)));
-        }
 
-        if (type == DOUBLE) {
-            return Optional.of(new GpuTypeMapping(
+            case DoubleType _ -> Optional.of(new GpuTypeMapping(
                     DType.FLOAT64,
                     value -> Scalar.fromDouble((Double) value.orElse(null)),
                     // LongArrayBlock stores doubleToLongBits — same bit pattern as IEEE 754 double, so direct copy works
                     blocks -> copyLongBlocksToDevice(blocks, DType.FLOAT64)));
-        }
 
-        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
-            // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
-            int cudfScale = -decimalType.getScale();
-            DType dType = DType.create(DType.DTypeEnum.DECIMAL64, cudfScale);
-            return Optional.of(new GpuTypeMapping(
-                    dType,
-                    value -> value.map(o -> Scalar.fromDecimal(cudfScale, (Long) o))
-                            .orElseGet(() -> Scalar.fromNull(dType)),
-                    blocks -> copyLongBlocksToDevice(blocks, dType)));
-        }
+            case DecimalType decimalType when decimalType.isShort() -> {
+                // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
+                int cudfScale = -decimalType.getScale();
+                DType dType = DType.create(DType.DTypeEnum.DECIMAL64, cudfScale);
+                yield Optional.of(new GpuTypeMapping(
+                        dType,
+                        value -> value.map(o -> Scalar.fromDecimal(cudfScale, (Long) o))
+                                .orElseGet(() -> Scalar.fromNull(dType)),
+                        blocks -> copyLongBlocksToDevice(blocks, dType)));
+            }
 
-        if (type == DATE) {
-            return Optional.of(new GpuTypeMapping(
+            case DateType _ -> Optional.of(new GpuTypeMapping(
                     DType.TIMESTAMP_DAYS,
                     value -> Scalar.timestampDaysFromInt(value.map(v -> ((Long) v).intValue()).orElse(null)),
                     blocks -> copyIntBlocksToDevice(blocks, DType.TIMESTAMP_DAYS)));
-        }
 
-        if (type instanceof TimestampType timestampType) {
-            // ShortTimestampType always stores epochMicros; rescale to match the cuDF DType
-            return switch (timestampType.getPrecision()) {
-                case 0 -> Optional.of(new GpuTypeMapping(
-                        DType.TIMESTAMP_SECONDS,
-                        value -> Scalar.timestampFromLong(DType.TIMESTAMP_SECONDS, value.map(v -> (Long) v / 1_000_000L).orElse(null)),
-                        blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_SECONDS, 1_000_000L)));
-                case 3 -> Optional.of(new GpuTypeMapping(
-                        DType.TIMESTAMP_MILLISECONDS,
-                        value -> Scalar.timestampFromLong(DType.TIMESTAMP_MILLISECONDS, value.map(v -> (Long) v / 1_000L).orElse(null)),
-                        blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_MILLISECONDS, 1_000L)));
-                case 6 -> Optional.of(new GpuTypeMapping(
-                        DType.TIMESTAMP_MICROSECONDS,
-                        value -> Scalar.timestampFromLong(DType.TIMESTAMP_MICROSECONDS, (Long) value.orElse(null)),
-                        blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS)));
-                default -> {
-                    log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
-                    yield Optional.empty();
-                }
-            };
-        }
+            case TimestampType timestampType when timestampType.getPrecision() == 0 -> Optional.of(new GpuTypeMapping(
+                    DType.TIMESTAMP_SECONDS,
+                    // Trino short TimestampType stores epochMicros; rescale to match the cuDF DType
+                    value -> Scalar.timestampFromLong(DType.TIMESTAMP_SECONDS, value.map(v -> (Long) v / 1_000_000L).orElse(null)),
+                    blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_SECONDS, 1_000_000L)));
 
-        if (type instanceof VarcharType) {
-            return Optional.of(new GpuTypeMapping(
+            case TimestampType timestampType when timestampType.getPrecision() == 3 -> Optional.of(new GpuTypeMapping(
+                    DType.TIMESTAMP_MILLISECONDS,
+                    // Trino short TimestampType stores epochMicros; rescale to match the cuDF DType
+                    value -> Scalar.timestampFromLong(DType.TIMESTAMP_MILLISECONDS, value.map(v -> (Long) v / 1_000L).orElse(null)),
+                    blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_MILLISECONDS, 1_000L)));
+
+            case TimestampType timestampType when timestampType.getPrecision() == 6 -> Optional.of(new GpuTypeMapping(
+                    DType.TIMESTAMP_MICROSECONDS,
+                    value -> Scalar.timestampFromLong(DType.TIMESTAMP_MICROSECONDS, (Long) value.orElse(null)),
+                    blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS)));
+
+            case VarcharType _ -> Optional.of(new GpuTypeMapping(
                     DType.STRING,
                     value -> Scalar.fromUTF8String(value.map(v -> ((Slice) v).getBytes()).orElse(null)),
                     GpuTypeConversion::copyVarcharBlocksToDevice));
-        }
 
-        log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
-        return Optional.empty();
+            default -> {
+                log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
+                yield Optional.empty();
+            }
+        };
     }
 
     private static @Move ColumnVector copyByteBlocksToDevice(Blocks blocks, DType dType)
