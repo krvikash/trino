@@ -19,11 +19,13 @@ import io.airlift.log.Level;
 import io.airlift.log.Logging;
 import io.trino.Session;
 import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.metastore.Database;
 import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.plugin.hive.TestHiveConnectorSmokeTest;
 import io.trino.plugin.hive.containers.HiveHadoop;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.PrincipalType;
 import io.trino.testing.DistributedQueryRunner;
@@ -33,6 +35,8 @@ import io.trino.testing.sql.TestTable;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.Optional;
@@ -153,5 +157,43 @@ final class HiveOzoneConnectorSmokeTest
                 .skippingTypesCheck()
                 .containsAll(format("VALUES '%s'", schemaName));
         assertUpdate(newSession, "DROP SCHEMA " + schemaName);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testSelectTableWithZeroByteSuccessMarkerFile(boolean partitioned)
+            throws Exception
+    {
+        String tableDefinition = "(a double, b bigint)" + (partitioned ? " WITH (partitioned_by = ARRAY['b'])" : "");
+        try (TestTable table = newTrinoTable("test_success_marker", tableDefinition)) {
+            assertUpdate("INSERT INTO %s VALUES (-38.5, 42)".formatted(table.getName()), 1);
+
+            String dataDirectory = getDataDirectory(table.getName());
+            assertThat(dataDirectory).endsWith(partitioned ? "/b=42" : table.getName());
+
+            // Simulate a Spark/MR job writing a zero byte _SUCCESS marker into the data directory
+            TrinoFileSystem fileSystem = HDFS_FILE_SYSTEM_FACTORY.create(ConnectorIdentity.ofUser("test"));
+            Location successMarker = Location.of(dataDirectory + "/_SUCCESS");
+            fileSystem.newOutputFile(successMarker).create().close();
+
+            assertThat(fileSystem.newInputFile(successMarker).exists()).isTrue();
+            assertThat(fileSystem.newInputFile(successMarker).length()).isEqualTo(0L);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .result()
+                    .matches("VALUES (DOUBLE '-38.5', BIGINT '42')");
+        }
+    }
+
+    private String getDataDirectory(String tableName)
+    {
+        List<MaterializedRow> paths = computeActual("SELECT distinct \"$path\" FROM " + tableName).getMaterializedRows();
+        paths.stream().map(row -> row.getField(0))
+                .forEach(path -> assertThat(path).asString()
+                        .startsWith("ofs://")
+                        .startsWith(pathToBucket));
+        assertThat(paths.size()).isEqualTo(1);
+        String dataFilePath = (String) paths.getFirst().getField(0);
+        return dataFilePath.substring(0, dataFilePath.lastIndexOf('/'));
     }
 }
