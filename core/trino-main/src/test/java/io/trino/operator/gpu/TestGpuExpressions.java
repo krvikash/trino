@@ -350,9 +350,12 @@ public class TestGpuExpressions
                 gpuEnabledOperators.add("%s %s".formatted(operator.getOperator(), coerced.getDisplayName()));
 
                 try {
+                    CompiledExpression compiledGpu = gpuExpression.orElseThrow();
+                    assertThat(compiledGpu.inputChannels().getInputChannels()).containsExactly(0);
+                    PageProcessor cpuProcessor = compileCpuExpression(expression);
                     for (Page input : unaryInputs.getUnchecked(coerced)) {
                         assertThat(input.getPositionCount()).isEqualTo(1);
-                        assertGpuMatchesCpu(List.of(input), List.of(coerced), expression, Set.of(0));
+                        assertGpuMatchesCpu(List.of(input), List.of(coerced), expression, cpuProcessor, compiledGpu, false);
                     }
                 }
                 catch (AssertionError failure) {
@@ -407,9 +410,13 @@ public class TestGpuExpressions
                     gpuEnabledOperators.add("%s %s %s".formatted(leftCoerced.getDisplayName(), operator.getOperator(), rightCoerced.getDisplayName()));
 
                     try {
+                        CompiledExpression compiledGpu = gpuExpression.orElseThrow();
+                        assertThat(compiledGpu.inputChannels().getInputChannels())
+                                .containsExactlyInAnyOrderElementsOf(Set.of(0, 1));
+                        PageProcessor cpuProcessor = compileCpuExpression(expression);
                         for (Page input : binaryInputs.getUnchecked(new Pair<>(leftCoerced, rightCoerced))) {
                             assertThat(input.getPositionCount()).isEqualTo(1);
-                            assertGpuMatchesCpu(List.of(input), List.of(leftCoerced, rightCoerced), expression, Set.of(0, 1));
+                            assertGpuMatchesCpu(List.of(input), List.of(leftCoerced, rightCoerced), expression, cpuProcessor, compiledGpu, false);
                         }
                     }
                     catch (AssertionError failure) {
@@ -479,11 +486,12 @@ public class TestGpuExpressions
         List<Object> nativeValues = new ArrayList<>();
         ResolvedFunction castFunction = functionResolution.getCoercion(sourceType, targetType);
         CallExpression castExpression = call(castFunction, new InputReferenceExpression(0, sourceType));
+        PageProcessor pageProcessor = compileCpuExpression(castExpression);
         for (@Nullable Object sourceValue : sourceNativeValues) {
             Page sourcePage = new Page(nativeValueToBlock(sourceType, sourceValue));
             List<Page> result;
             try {
-                result = executeWithCpu(List.of(sourcePage), castExpression);
+                result = executeWithCpu(pageProcessor, List.of(sourcePage));
             }
             catch (TrinoException e) {
                 if (e.getErrorCode().equals(NUMERIC_VALUE_OUT_OF_RANGE.toErrorCode()) || e.getErrorCode().equals(INVALID_CAST_ARGUMENT.toErrorCode())) {
@@ -820,7 +828,7 @@ public class TestGpuExpressions
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression);
-        List<Page> cpuResults = executeWithCpu(inputPages, constantExpression);
+        List<Page> cpuResults = executeWithCpu(constantExpression, inputPages);
         assertSameDataInOrder(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
 
@@ -831,15 +839,21 @@ public class TestGpuExpressions
 
     private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
     {
+        PageProcessor pageProcessor = compileCpuExpression(rowExpression);
         CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
+    }
+
+    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
+    {
         List<Page> cpuResults;
         try {
-            cpuResults = executeWithCpu(inputPages, rowExpression);
+            cpuResults = executeWithCpu(cpuProcessor, inputPages);
         }
         catch (TrinoException cpuExecutionException) {
             // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
@@ -873,9 +887,14 @@ public class TestGpuExpressions
                 copyToDevice -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
     }
 
-    private List<Page> executeWithCpu(List<Page> inputPages, RowExpression expression)
+    private List<Page> executeWithCpu(RowExpression expression, List<Page> inputPages)
     {
-        PageProcessor compiledProcessor = functionResolution.getExpressionCompiler().compilePageProcessor(
+        return executeWithCpu(compileCpuExpression(expression), inputPages);
+    }
+
+    private PageProcessor compileCpuExpression(RowExpression expression)
+    {
+        return functionResolution.getExpressionCompiler().compilePageProcessor(
                         false,
                         true,
                         false,
@@ -885,7 +904,10 @@ public class TestGpuExpressions
                         Optional.empty(),
                         OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
+    }
 
+    private List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
+    {
         LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
         ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
         for (Page inputPage : inputPages) {
