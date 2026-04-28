@@ -17,7 +17,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
-import io.trino.plugin.base.ConnectorContextModule;
+import io.opentelemetry.api.OpenTelemetry;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.di.CacheManagerModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
@@ -30,7 +30,7 @@ import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
-import io.trino.testing.TestingConnectorContext;
+import io.trino.spi.catalog.CatalogName;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.ArrayList;
@@ -65,8 +65,10 @@ public class InternalDispatcherCacheManagerFactory
                         config,
                         warpCacheMgrConnectorContext),
                 new CacheManagerModule(context, !isWorker),
-                new ConnectorContextModule(cacheManagerName, new TestingConnectorContext()),
                 binder -> {
+                    // NodeManager is already bound by DispatcherCacheManagerModule.
+                    binder.bind(CatalogName.class).toInstance(new CatalogName(cacheManagerName));
+                    binder.bind(OpenTelemetry.class).toInstance(warpCacheMgrConnectorContext.getOpenTelemetry());
                     if (warpCacheMgrConnectorContext.getCurrentNode().isCoordinator()) {
                         binder.bind(CoordinatorNodeManager.class);
                         binder.bind(CoordinatorInitializedEventHandler.class);

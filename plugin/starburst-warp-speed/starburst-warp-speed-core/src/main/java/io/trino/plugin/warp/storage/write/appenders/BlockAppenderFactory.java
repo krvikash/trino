@@ -18,8 +18,6 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.operator.scalar.JsonExtract;
-import io.trino.operator.scalar.JsonPath;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -34,6 +32,8 @@ import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.type.cast.DateTimeUtils;
+import io.trino.plugin.warp.util.json.JsonExtract;
+import io.trino.plugin.warp.util.json.JsonPath;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import io.trino.spi.type.Type;
 

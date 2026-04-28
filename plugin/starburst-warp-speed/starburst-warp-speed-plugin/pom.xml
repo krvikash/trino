@@ -182,23 +182,6 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>trino-main</artifactId>
-            <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <!-- cudf is provided by trino-spi -->
-                    <groupId>ai.rapids</groupId>
-                    <artifactId>cudf</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.lucene</groupId>
-                    <artifactId>lucene-analysis-common</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>io.trino</groupId>
             <artifactId>trino-plugin-toolkit</artifactId>
             <scope>runtime</scope>
         </dependency>
@@ -253,6 +236,23 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-jmx</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-main</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <!-- cudf is provided by trino-spi -->
+                    <groupId>ai.rapids</groupId>
+                    <artifactId>cudf</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.lucene</groupId>
+                    <artifactId>lucene-analysis-common</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

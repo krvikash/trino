@@ -21,6 +21,7 @@ import com.google.inject.Singleton;
 import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slice;
 import io.opentelemetry.api.OpenTelemetry;
+import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
@@ -57,7 +58,6 @@ import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
-import io.trino.type.TypeDeserializer;
 
 import java.util.Map;
 import java.util.Optional;

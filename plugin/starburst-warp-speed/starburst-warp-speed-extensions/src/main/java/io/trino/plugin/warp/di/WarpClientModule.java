@@ -19,12 +19,12 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.node.NodeInfo;
 import io.trino.plugin.warp.execution.ForWarp;
 import io.trino.plugin.warp.execution.WarpClient;
-import io.trino.server.security.SecurityConfig;
+import io.trino.plugin.warp.server.security.SecurityConfig;
 import io.trino.spi.connector.ConnectorContext;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
+import static io.trino.plugin.warp.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static java.util.Objects.requireNonNull;
 
 public class WarpClientModule
