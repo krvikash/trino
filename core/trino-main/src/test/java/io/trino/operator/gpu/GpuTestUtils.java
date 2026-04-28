@@ -59,6 +59,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public final class GpuTestUtils
 {
+    private GpuTestUtils() {}
+
     public static final List<Type> TESTED_GPU_TYPES = ImmutableList.<Type>builder()
             .add(BOOLEAN)
             .add(TINYINT)
@@ -76,7 +78,7 @@ public final class GpuTestUtils
             .add(VARCHAR)
             .build();
 
-    private GpuTestUtils() {}
+    private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
 
     public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)
     {
@@ -486,9 +488,8 @@ public final class GpuTestUtils
         Stream.concat(actual.stream(), expected.stream())
                 .forEach(page -> assertThat(page.getChannelCount()).as("channel count").isEqualTo(types.size()));
 
-        BlockTypeOperators blockTypeOperators = new BlockTypeOperators();
         List<BlockPositionIsIdentical> identicalOperators = types.stream()
-                .map(blockTypeOperators::getIdenticalOperator)
+                .map(BLOCK_TYPE_OPERATORS::getIdenticalOperator)
                 .toList();
 
         Streams.forEachPair(
