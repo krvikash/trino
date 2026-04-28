@@ -84,4 +84,11 @@ final class CudfUtils
             return any.isValid() && any.getBoolean();
         }
     }
+
+    static boolean allTrue(@Borrow ColumnVector boolColumn)
+    {
+        try (@Own Scalar all = boolColumn.all()) {
+            return all.isValid() && all.getBoolean();
+        }
+    }
 }

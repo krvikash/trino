@@ -30,6 +30,7 @@ import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
@@ -689,6 +690,124 @@ public class TestGpuExpressions
                 List.of());
 
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testIf(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // IF(a < 50, a, b)
+        RowExpression condition = call(
+                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+                field(channelA, BIGINT),
+                constant(50L, BIGINT));
+        RowExpression rowExpression = new SpecialForm(
+                SpecialForm.Form.IF,
+                BIGINT,
+                List.of(condition, field(channelA, BIGINT), field(channelB, BIGINT)),
+                List.of());
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+    }
+
+    @Test
+    public void testIfLazyEvaluation()
+    {
+        // IF(b != 0, a / b, a) must not throw division-by-zero on rows where b = 0,
+        // because the CPU short-circuits and never evaluates the divide for those rows.
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        Random random = new Random(42);
+        BlockBuilder aBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            BIGINT.writeLong(aBuilder, random.nextLong(-1000, 1000));
+            // Mix zero, negative, and positive divisors so both branches are exercised.
+            BIGINT.writeLong(bBuilder, switch (i % 3) {
+                case 0 -> 0L;
+                case 1 -> random.nextLong(1, 100);
+                default -> -random.nextLong(1, 100);
+            });
+        }
+        List<Page> inputPages = List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
+
+        RowExpression bNotZero = call(
+                functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
+                call(
+                        functionResolution.resolveOperator(OperatorType.EQUAL, List.of(BIGINT, BIGINT)),
+                        field(channelB, BIGINT),
+                        constant(0L, BIGINT)));
+        RowExpression aDivB = call(
+                functionResolution.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
+                field(channelA, BIGINT),
+                field(channelB, BIGINT));
+        RowExpression rowExpression = new SpecialForm(
+                SpecialForm.Form.IF,
+                BIGINT,
+                List.of(bNotZero, aDivB, field(channelA, BIGINT)),
+                List.of());
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testIfLazyEvaluationDefeatsInputMasking(NullsProvider nullsProvider)
+    {
+        // IF(b != 0, 10 / coalesce(b, 0), 42): the true branch reads b, but coalesce
+        // resurrects a non-null 0 from a NULL b. CPU short-circuits and never invokes the
+        // divide for rows with b = 0 or b IS NULL, so the result is 42 there. The GPU must
+        // not evaluate the true branch on those rows either — input-NULL masking would
+        // be defeated by coalesce and trigger DIVISION_BY_ZERO.
+        int channelB = 0;
+        List<Type> inputTypes = List.of(BIGINT);
+        int positionsCount = 64;
+        Random random = new Random(42);
+        BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        boolean[] nulls = nullsProvider.getNulls(positionsCount).orElse(new boolean[positionsCount]);
+        for (int i = 0; i < positionsCount; i++) {
+            if (nulls[i]) {
+                bBuilder.appendNull();
+            }
+            else {
+                // Mix zero and non-zero divisors so both branches are exercised.
+                BIGINT.writeLong(bBuilder, i % 3 == 0 ? 0L : random.nextLong(1, 100));
+            }
+        }
+        List<Page> inputPages = List.of(new Page(positionsCount, bBuilder.build()));
+
+        RowExpression bNotZero = call(
+                functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
+                call(
+                        functionResolution.resolveOperator(OperatorType.EQUAL, List.of(BIGINT, BIGINT)),
+                        field(channelB, BIGINT),
+                        constant(0L, BIGINT)));
+        RowExpression coalesceB = new SpecialForm(
+                SpecialForm.Form.COALESCE,
+                BIGINT,
+                List.of(field(channelB, BIGINT), constant(0L, BIGINT)),
+                List.of());
+        RowExpression divide = call(
+                functionResolution.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
+                constant(10L, BIGINT),
+                coalesceB);
+        RowExpression rowExpression = new SpecialForm(
+                SpecialForm.Form.IF,
+                BIGINT,
+                List.of(bNotZero, divide, constant(42L, BIGINT)),
+                List.of());
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelB));
     }
 
     @ParameterizedTest
