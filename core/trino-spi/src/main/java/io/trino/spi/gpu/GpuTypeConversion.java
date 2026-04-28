@@ -132,7 +132,8 @@ public final class GpuTypeConversion
             DType dType = DType.create(DType.DTypeEnum.DECIMAL64, cudfScale);
             return Optional.of(new GpuTypeMapping(
                     dType,
-                    value -> value.isPresent() ? Scalar.fromDecimal(cudfScale, (Long) value.get()) : Scalar.fromNull(dType),
+                    value -> value.map(o -> Scalar.fromDecimal(cudfScale, (Long) o))
+                            .orElseGet(() -> Scalar.fromNull(dType)),
                     blocks -> copyLongBlocksToDevice(blocks, dType)));
         }
 
