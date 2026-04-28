@@ -46,6 +46,7 @@ import io.trino.sql.relational.SpecialForm;
 import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -75,6 +76,7 @@ import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
@@ -141,6 +143,12 @@ public class TestGpuExpressions
             .add("ワルシャワ近郊の美しい草原を雌鹿が歩いていた。")
             .add("Слава Україні")
             .build();
+
+    @BeforeAll
+    public static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)

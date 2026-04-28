@@ -70,6 +70,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -111,6 +112,12 @@ public class TestGpuCasts
         functionResolution = new TestingFunctionResolution(planTester.getTransactionManager(), planTester.getPlannerContext());
         gpuCompiler = new GpuExpressionCompiler();
         fullConnectorSession = new FullConnectorSession(session, session.getIdentity().toConnectorIdentity());
+    }
+
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
     }
 
     @AfterAll

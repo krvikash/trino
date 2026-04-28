@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
+import io.airlift.units.DataSize;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -79,6 +80,13 @@ public final class GpuTestUtils
             .build();
 
     private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
+
+    public static void maybeSetGpuMemoryPoolForTests()
+    {
+        // First call to Rmm.initialize wins.
+        new GpuConfigurer(new GpuConfig()
+                .setPoolSize(DataSize.of(1, DataSize.Unit.GIGABYTE)));
+    }
 
     public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)
     {
