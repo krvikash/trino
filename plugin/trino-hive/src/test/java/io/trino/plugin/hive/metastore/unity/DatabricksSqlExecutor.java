@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
+import io.airlift.log.Logger;
 import io.trino.testing.sql.SqlExecutor;
 
 import java.sql.Connection;
@@ -25,6 +26,8 @@ import static java.util.Objects.requireNonNull;
 public final class DatabricksSqlExecutor
         implements SqlExecutor
 {
+    private static final Logger log = Logger.get(DatabricksSqlExecutor.class);
+
     private final String url;
     private final String user;
     private final String password;
@@ -39,9 +42,20 @@ public final class DatabricksSqlExecutor
     @Override
     public void execute(String sql)
     {
-        try (Connection connection = DriverManager.getConnection(url, user, password);
-                Statement statement = connection.createStatement()) {
-            statement.execute(sql);
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            Statement statement = connection.createStatement();
+            try {
+                statement.execute(sql);
+            }
+            finally {
+                try {
+                    statement.close();
+                }
+                catch (SQLException | RuntimeException e) {
+                    // ignore exception from close, the same as in JdbcPageSource
+                    log.warn(e, "Failed to close statement after executing: %s", sql);
+                }
+            }
         }
         catch (SQLException e) {
             throw new RuntimeException(e);
