@@ -13,7 +13,6 @@
  */
 package io.trino.operator.gpu.expression;
 
-import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -22,6 +21,9 @@ import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
+import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
+import static ai.rapids.cudf.BinaryOp.LESS_EQUAL;
+import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static java.util.Objects.requireNonNull;
 
 public class GpuBetween
@@ -43,13 +45,13 @@ public class GpuBetween
     {
         try (@Own ClosingOnce<ColumnVector> valueResult = ClosingOnce.own(value.evaluate(positionCount, inputColumns))) {
             try (@Own ClosingOnce<ColumnVector> minResult = ClosingOnce.own(min.evaluate(positionCount, inputColumns))) {
-                try (@Own ColumnVector greaterOrEqual = valueResult.borrow().binaryOp(BinaryOp.GREATER_EQUAL, minResult.borrow(), DType.BOOL8)) {
+                try (@Own ColumnVector greaterOrEqual = valueResult.borrow().binaryOp(GREATER_EQUAL, minResult.borrow(), DType.BOOL8)) {
                     minResult.close();
                     try (@Own ClosingOnce<ColumnVector> maxResult = ClosingOnce.own(max.evaluate(positionCount, inputColumns))) {
-                        try (@Own ColumnVector lessOrEqual = valueResult.borrow().binaryOp(BinaryOp.LESS_EQUAL, maxResult.borrow(), DType.BOOL8)) {
+                        try (@Own ColumnVector lessOrEqual = valueResult.borrow().binaryOp(LESS_EQUAL, maxResult.borrow(), DType.BOOL8)) {
                             valueResult.close();
                             maxResult.close();
-                            return greaterOrEqual.binaryOp(BinaryOp.NULL_LOGICAL_AND, lessOrEqual, DType.BOOL8);
+                            return greaterOrEqual.binaryOp(NULL_LOGICAL_AND, lessOrEqual, DType.BOOL8);
                         }
                     }
                 }
