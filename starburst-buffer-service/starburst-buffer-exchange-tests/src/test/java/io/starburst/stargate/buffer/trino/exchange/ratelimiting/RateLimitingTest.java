@@ -11,7 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange.ratelimiting;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
-import io.starburst.stargate.buffer.trino.exchange.DataApiFacadeStats;
+import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.AddDataPagesOperationStats;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -61,18 +61,18 @@ public class RateLimitingTest
         }
     }
 
-    private static void logStats(Map<String, DataApiFacadeStats> stats)
+    private static void logStats(Map<String, AddDataPagesOperationStats> stats)
     {
-        for (Map.Entry<String, DataApiFacadeStats> entry : new TreeMap<>(stats).entrySet()) {
+        for (Map.Entry<String, AddDataPagesOperationStats> entry : new TreeMap<>(stats).entrySet()) {
             String nodeId = entry.getKey();
-            DataApiFacadeStats nodeStats = entry.getValue();
+            AddDataPagesOperationStats nodeStats = entry.getValue();
 
             log.info("%s -> ok: %-7d | fail: %-7d | circuit: %-7d | overloaded: %-7d",
                     nodeId,
-                    nodeStats.getAddDataPagesOperationStats().getSuccessOperationCount().getTotalCount(),
-                    nodeStats.getAddDataPagesOperationStats().getAnyRequestErrorCount().getTotalCount(),
-                    nodeStats.getAddDataPagesOperationStats().getCircuitBreakerOpenRequestErrorCount().getTotalCount(),
-                    nodeStats.getAddDataPagesOperationStats().getOverloadedRequestErrorCount().getTotalCount());
+                    nodeStats.getSuccessOperationCount().getTotalCount(),
+                    nodeStats.getAnyRequestErrorCount().getTotalCount(),
+                    nodeStats.getCircuitBreakerOpenRequestErrorCount().getTotalCount(),
+                    nodeStats.getOverloadedRequestErrorCount().getTotalCount());
         }
         log.info("stats: %s", stats);
     }

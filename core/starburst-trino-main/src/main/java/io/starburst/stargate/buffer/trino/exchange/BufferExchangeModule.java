@@ -83,8 +83,6 @@ public class BufferExchangeModule
         binder.bind(ExecutorService.class).toInstance(newCachedThreadPool(daemonThreadsNamed("buffer-exchange-%s"))); // todo - make thread count bounded?
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
         newExporter(binder).export(DataApiFacade.class).withGeneratedName();
-        binder.bind(DataApiFacadeStats.class).in(Scopes.SINGLETON);
-        newExporter(binder).export(DataApiFacadeStats.class).withGeneratedName();
         binder.bind(PartitionNodeMapperFactory.class).to(switch (buildConfigObject(BufferExchangeConfig.class).getPartitionNodeMappingMode()) {
             case PINNING_SINGLE -> PinningPartitionNodeMapperFactory.class;
             case PINNING_MULTI -> SmartPinningPartitionNodeMapperFactory.class;

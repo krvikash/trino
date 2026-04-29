@@ -31,7 +31,9 @@ import dev.failsafe.RetryPolicy;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
+import io.airlift.stats.TimeStat;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
@@ -95,7 +97,6 @@ public class DataApiFacade
 
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
-    private final DataApiFacadeStats stats;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
     private final Map<Long, FailsafeExecutor<Object>> defaultRetryExecutors = new ConcurrentHashMap<>();
     private final Map<Long, FailsafeExecutor<Object>> addDataPagesRetryExecutors = new ConcurrentHashMap<>();
@@ -112,6 +113,7 @@ public class DataApiFacade
     private final AddDataPagesStatsUpdater addDataPagesStatsUpdater;
     private final Map<Long, AddDataPagesProcessingState> addDataPagesProcessingStates = new ConcurrentHashMap<>();
 
+    private final AddDataPagesOperationStats addDataPagesOperationStats = new AddDataPagesOperationStats();
     private final DistributionStat pendingRequestsPerNodeDistribution = new DistributionStat();
     private final DistributionStat inFlightRequestsPerNodeDistribution = new DistributionStat();
     private final DistributionStat backoffRequestsPerNodeDistribution = new DistributionStat();
@@ -130,14 +132,12 @@ public class DataApiFacade
     public DataApiFacade(
             BufferNodeDiscoveryManager discoveryManager,
             ApiFactory apiFactory,
-            DataApiFacadeStats stats,
             BufferExchangeConfig config,
             ScheduledExecutorService executor)
     {
         this(
                 discoveryManager,
                 apiFactory,
-                stats,
                 new RetryExecutorConfig(
                         config.getDataClientMaxRetries(),
                         config.getDataClientRetryBackoffInitial(),
@@ -165,7 +165,6 @@ public class DataApiFacade
     DataApiFacade(
             BufferNodeDiscoveryManager discoveryManager,
             ApiFactory apiFactory,
-            DataApiFacadeStats stats,
             RetryExecutorConfig defaultRetryExecutorConfig,
             RetryExecutorConfig addDataPagesRetryExecutorConfig,
             boolean useOldRateLimit,
@@ -174,7 +173,6 @@ public class DataApiFacade
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
         this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
-        this.stats = requireNonNull(stats, "stats is null");
         this.defaultRetryExecutorConfig = requireNonNull(defaultRetryExecutorConfig, "defaultRetryExecutorConfig is null");
         this.addDataPagesRetryExecutorConfig = requireNonNull(addDataPagesRetryExecutorConfig, "addDataPagesRetryExecutorConfig is null");
         this.useOldRateLimit = useOldRateLimit;
@@ -182,7 +180,7 @@ public class DataApiFacade
         this.executor = requireNonNull(executor, "executor is null");
         this.listeningScheduledExecutor = listeningDecorator(executor);
         this.rateMonitor = new RateMonitor(Ticker.systemTicker());
-        this.addDataPagesStatsUpdater = new AddDataPagesStatsUpdater(stats.getAddDataPagesOperationStats());
+        this.addDataPagesStatsUpdater = new AddDataPagesStatsUpdater(addDataPagesOperationStats);
     }
 
     @PostConstruct
@@ -303,6 +301,13 @@ public class DataApiFacade
         return backoffRequestsPerNodeDistribution;
     }
 
+    @Managed
+    @Nested
+    public AddDataPagesOperationStats getAddDataPagesOperationStats()
+    {
+        return addDataPagesOperationStats;
+    }
+
     private void updateDistributionStats()
     {
         addDataPagesProcessingStates.forEach((_, state) -> {
@@ -391,12 +396,6 @@ public class DataApiFacade
             entry.getValue().activeRequests.removeIf(request -> request.resultFuture.isDone());
             scheduleProcessAddDataPages(entry.getKey(), entry.getValue());
         }
-    }
-
-    @VisibleForTesting
-    DataApiFacadeStats getStats()
-    {
-        return stats;
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(long bufferNodeId, String exchangeId, OptionalLong pagingId)
@@ -929,7 +928,7 @@ public class DataApiFacade
 
     private RetryPolicy<Object> createAddDataPagesRetryPolicy()
     {
-        return createRetryPolicy(addDataPagesRetryExecutorConfig, Optional.of(new AddDataPagesStatsUpdater(stats.getAddDataPagesOperationStats())));
+        return createRetryPolicy(addDataPagesRetryExecutorConfig, Optional.of(new AddDataPagesStatsUpdater(addDataPagesOperationStats)));
     }
 
     private CircuitBreaker<Object> createAddDataPagesCircuitBreakerPolicy(long bufferNodeId)
@@ -1038,9 +1037,9 @@ public class DataApiFacade
     private static class AddDataPagesStatsUpdater
             implements OperationLifecycleListener
     {
-        private final DataApiFacadeStats.AddDataPagesOperationStats stats;
+        private final AddDataPagesOperationStats stats;
 
-        public AddDataPagesStatsUpdater(DataApiFacadeStats.AddDataPagesOperationStats stats)
+        public AddDataPagesStatsUpdater(AddDataPagesOperationStats stats)
         {
             this.stats = requireNonNull(stats, "stats is null");
         }
@@ -1156,6 +1155,74 @@ public class DataApiFacade
                     .add("lastRequestStartedMillis", lastRequestStartedMillis)
                     .add("draining", draining)
                     .toString();
+        }
+    }
+
+    public static final class AddDataPagesOperationStats
+    {
+        private final TimeStat successfulRequestTime = new TimeStat();
+        private final TimeStat failedRequestTime = new TimeStat();
+        private final CounterStat overloadedRequestErrorCount = new CounterStat();
+        private final CounterStat circuitBreakerOpenRequestErrorCount = new CounterStat();
+        private final CounterStat anyRequestErrorCount = new CounterStat();
+        private final CounterStat requestRetryCount = new CounterStat();
+        private final CounterStat successOperationCount = new CounterStat();
+        private final CounterStat failedOperationCount = new CounterStat();
+
+        @Managed
+        @Nested
+        public TimeStat getSuccessfulRequestTime()
+        {
+            return successfulRequestTime;
+        }
+
+        @Managed
+        @Nested
+        public TimeStat getFailedRequestTime()
+        {
+            return failedRequestTime;
+        }
+
+        @Managed
+        @Nested
+        public CounterStat getOverloadedRequestErrorCount()
+        {
+            return overloadedRequestErrorCount;
+        }
+
+        @Managed
+        @Nested
+        public CounterStat getCircuitBreakerOpenRequestErrorCount()
+        {
+            return circuitBreakerOpenRequestErrorCount;
+        }
+
+        @Managed
+        @Nested
+        public CounterStat getAnyRequestErrorCount()
+        {
+            return anyRequestErrorCount;
+        }
+
+        @Managed
+        @Nested
+        public CounterStat getRequestRetryCount()
+        {
+            return requestRetryCount;
+        }
+
+        @Managed
+        @Nested
+        public CounterStat getSuccessOperationCount()
+        {
+            return successOperationCount;
+        }
+
+        @Managed
+        @Nested
+        public CounterStat getFailedOperationCount()
+        {
+            return failedOperationCount;
         }
     }
 }

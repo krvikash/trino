@@ -32,7 +32,7 @@ import io.starburst.stargate.buffer.trino.exchange.ApiFactory;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeConfig;
 import io.starburst.stargate.buffer.trino.exchange.BufferNodeDiscoveryManager;
 import io.starburst.stargate.buffer.trino.exchange.DataApiFacade;
-import io.starburst.stargate.buffer.trino.exchange.DataApiFacadeStats;
+import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.AddDataPagesOperationStats;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -103,11 +103,11 @@ public class RateLimitingTestHarness
         return asVoid(allAsList(futures));
     }
 
-    public Map<String, DataApiFacadeStats> getClientNodesStats()
+    public Map<String, AddDataPagesOperationStats> getClientNodesStats()
     {
         return clientNodes.stream().collect(toImmutableMap(
                 TestClientNode::getNodeId,
-                TestClientNode::getDataApiFacadeStats));
+                TestClientNode::getStats));
     }
 
     public void close()
@@ -187,18 +187,17 @@ public class RateLimitingTestHarness
     {
         private final String nodeId; // TODO use
         private final Set<TestClient> clients;
-        private final DataApiFacadeStats dataApiFacadeStats;
+        private DataApiFacade dataApi;
 
         public TestClientNode(String nodeId, Set<TestClient> clients)
         {
             this.nodeId = nodeId;
             this.clients = clients;
-            this.dataApiFacadeStats = new DataApiFacadeStats();
         }
 
         public ListenableFuture<Void> run(ListeningExecutorService executorService, RateLimitingTestServer server, ScheduledExecutorService retryExecutor)
         {
-            DataApiFacade dataApi = createApi(server, retryExecutor);
+            this.dataApi = createApi(server, retryExecutor);
             List<ListenableFuture<Void>> futures = clients.stream().map(client -> client.run(executorService, dataApi)).collect(toImmutableList());
             return asVoid(allAsList(futures));
         }
@@ -208,9 +207,9 @@ public class RateLimitingTestHarness
             return nodeId;
         }
 
-        public DataApiFacadeStats getDataApiFacadeStats()
+        public AddDataPagesOperationStats getStats()
         {
-            return dataApiFacadeStats;
+            return dataApi == null ? new AddDataPagesOperationStats() : dataApi.getAddDataPagesOperationStats();
         }
 
         private DataApiFacade createApi(RateLimitingTestServer server, ScheduledExecutorService retryExecutor)
@@ -268,7 +267,6 @@ public class RateLimitingTestHarness
                                     null);
                         }
                     },
-                    dataApiFacadeStats,
                     new BufferExchangeConfig(),
                     retryExecutor);
         }

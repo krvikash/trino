@@ -460,7 +460,7 @@ public class TestDataApiFacade
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")),
                 new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 2, 1, Duration.valueOf("500ms")));
 
-        DataApiFacadeStats.AddDataPagesOperationStats stats = dataApiFacade.getStats().getAddDataPagesOperationStats();
+        DataApiFacade.AddDataPagesOperationStats stats = dataApiFacade.getAddDataPagesOperationStats();
         assertThat(stats.getSuccessfulRequestTime().getAllTime().getCount()).isEqualTo(0.0);
         assertThat(stats.getFailedRequestTime().getAllTime().getCount()).isEqualTo(0.0);
         assertThat(stats.getOverloadedRequestErrorCount().getTotalCount()).isEqualTo(0);
@@ -720,7 +720,7 @@ public class TestDataApiFacade
                 false,
                 16);
 
-        DataApiFacadeStats.AddDataPagesOperationStats stats = dataApiFacade.getStats().getAddDataPagesOperationStats();
+        DataApiFacade.AddDataPagesOperationStats stats = dataApiFacade.getAddDataPagesOperationStats();
         assertThat(stats.getSuccessOperationCount().getTotalCount()).isEqualTo(0);
         assertThat(stats.getFailedOperationCount().getTotalCount()).isEqualTo(0);
         assertThat(stats.getRequestRetryCount().getTotalCount()).isEqualTo(0);
@@ -938,7 +938,6 @@ public class TestDataApiFacade
         DataApiFacade dataApiFacade = new DataApiFacade(
                 discoveryManager,
                 apiFactory,
-                new DataApiFacadeStats(),
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
                 false,
@@ -995,7 +994,6 @@ public class TestDataApiFacade
         DataApiFacade dataApiFacade = new DataApiFacade(
                 discoveryManager,
                 apiFactory,
-                new DataApiFacadeStats(),
                 new RetryExecutorConfig(0, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
                 // long backoff so we can race with cleanup
                 new RetryExecutorConfig(5, Duration.valueOf("500ms"), Duration.valueOf("1000ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
@@ -1070,7 +1068,6 @@ public class TestDataApiFacade
         return new DataApiFacade(
                 discoveryManager,
                 apiFactory,
-                new DataApiFacadeStats(),
                 defaultRetryExecutorConfig,
                 addDataPagesRetryExecutorConfig,
                 useOldRateLimit,
