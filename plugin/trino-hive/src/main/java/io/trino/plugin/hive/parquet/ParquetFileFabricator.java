@@ -13,9 +13,12 @@
  */
 package io.trino.plugin.hive.parquet;
 
+import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
+import io.airlift.slice.DynamicSliceOutput;
+import io.airlift.slice.Slice;
 import io.trino.parquet.DiskRange;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
@@ -27,6 +30,7 @@ import io.trino.parquet.reader.ChunkedInputStream;
 import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.MessageTypeConverter;
 import io.trino.parquet.writer.ParquetTypeConverter;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.RuntimeCloseable;
@@ -62,7 +66,9 @@ import java.util.Optional;
 import static com.google.common.base.Verify.verify;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
+import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
+import static java.lang.Math.clamp;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -82,17 +88,17 @@ public class ParquetFileFabricator
     public static final class FabricatedParquet
             implements RuntimeCloseable
     {
-        private final @Own Optional<BufferAndLength> data;
+        private final @Own Optional<Buffers> data;
         private final long rowCount;
 
-        public FabricatedParquet(Optional<BufferAndLength> data, long rowCount)
+        public FabricatedParquet(Optional<Buffers> data, long rowCount)
         {
             requireNonNull(data, "data is null");
             this.data = data;
             this.rowCount = rowCount;
         }
 
-        public @Borrow Optional<BufferAndLength> data()
+        public @Borrow Optional<Buffers> data()
         {
             return data;
         }
@@ -105,7 +111,7 @@ public class ParquetFileFabricator
         @Override
         public void close()
         {
-            data.ifPresent(BufferAndLength::close);
+            data.ifPresent(Buffers::close);
         }
     }
 
@@ -230,9 +236,12 @@ public class ParquetFileFabricator
             int expectedChunkCount)
             throws IOException
     {
-        int estimatedSize = toIntExact(calculateFabricatedFileSize(rowGroups, clippedSchema));
-        try (HostMemoryBufferOutputStream outputStream = new HostMemoryBufferOutputStream(estimatedSize)) {
-            outputStream.write(PARQUET_MAGIC);
+        // Build the fabricated Parquet as a list of host buffers — one for the magic header,
+        // one per column chunk, and one for the footer + footer length + trailing magic. cuDF
+        // logically concatenates these in readParquet(opts, HostMemoryBuffer...).
+        List<HostMemoryBuffer> buffers = new ArrayList<>();
+        try {
+            buffers.add(allocateAndCopy(PARQUET_MAGIC, 0, PARQUET_MAGIC_LENGTH));
             long currentOffset = PARQUET_MAGIC_LENGTH;
 
             List<RowGroup> fabricatedRowGroups = new ArrayList<>();
@@ -254,7 +263,7 @@ public class ParquetFileFabricator
                     long chunkSize = column.getTotalSize();
 
                     ChunkedInputStream nextChunk = chunkStreams.get(chunkIndex++);
-                    outputStream.writeBytes(nextChunk, toIntExact(chunkSize));
+                    buffers.add(allocateAndCopyChunk(nextChunk, toIntExact(chunkSize)));
 
                     long offsetAdjustment = currentOffset - chunkOffset;
 
@@ -314,19 +323,54 @@ public class ParquetFileFabricator
             }
 
             verify(chunkIndex == expectedChunkCount, "Expected %s chunks but processed %s", expectedChunkCount, chunkIndex);
-            verify(currentOffset == outputStream.getWrittenBytes());
-            long footerStartOffset = currentOffset;
-            writeFooter(outputStream, fabricatedRowGroups, clippedSchema, originalFileMetadata);
-            int footerSize = toIntExact(outputStream.getWrittenBytes() - footerStartOffset);
 
-            ByteBuffer footerSizeBuffer = ByteBuffer.allocate(FOOTER_LENGTH_SIZE);
-            footerSizeBuffer.order(ByteOrder.LITTLE_ENDIAN);
-            footerSizeBuffer.putInt(footerSize);
-            outputStream.write(footerSizeBuffer.array());
+            DynamicSliceOutput footerThrift = new DynamicSliceOutput(parquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown")));
+            writeFooter(footerThrift, fabricatedRowGroups, clippedSchema, originalFileMetadata);
+            Slice footerSlice = footerThrift.slice();
+            int footerSize = footerSlice.length();
+            int trailerSize = footerSize + FOOTER_LENGTH_SIZE + PARQUET_MAGIC_LENGTH;
 
-            outputStream.write(PARQUET_MAGIC);
+            ByteBuffer footerLengthBuffer = ByteBuffer.allocate(FOOTER_LENGTH_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            footerLengthBuffer.putInt(footerSize);
 
-            return new FabricatedParquet(Optional.of(outputStream.getWrittenDataAndClose()), totalRowCount);
+            try (ClosingRef<HostMemoryBuffer> trailer = ClosingRef.own(HostMemoryBuffer.allocate(trailerSize))) {
+                trailer.borrow().setBytes(0, footerSlice.byteArray(), footerSlice.byteArrayOffset(), footerSize);
+                trailer.borrow().setBytes(footerSize, footerLengthBuffer.array(), 0, FOOTER_LENGTH_SIZE);
+                trailer.borrow().setBytes(footerSize + FOOTER_LENGTH_SIZE, PARQUET_MAGIC, 0, PARQUET_MAGIC_LENGTH);
+                buffers.add(trailer.take());
+            }
+            return new FabricatedParquet(Optional.of(new Buffers(buffers)), totalRowCount);
+        }
+        catch (Throwable t) {
+            closeAllSuppress(t, buffers.toArray(HostMemoryBuffer[]::new));
+            throw t;
+        }
+    }
+
+    private static @Own HostMemoryBuffer allocateAndCopy(byte[] source, int sourceOffset, int length)
+    {
+        try (ClosingRef<HostMemoryBuffer> buffer = ClosingRef.own(HostMemoryBuffer.allocate(length))) {
+            buffer.borrow().setBytes(0, source, sourceOffset, length);
+            return buffer.take();
+        }
+    }
+
+    private static @Own HostMemoryBuffer allocateAndCopyChunk(ChunkedInputStream in, int length)
+            throws IOException
+    {
+        try (ClosingRef<HostMemoryBuffer> buffer = ClosingRef.own(HostMemoryBuffer.allocate(length))) {
+            long position = 0;
+            int remaining = length;
+            while (remaining > 0) {
+                // Pull only what is in the current sub-slice — that read is zero-copy from the
+                // underlying byte array — then copy straight into the destination buffer.
+                int toRead = clamp(in.available(), 1, remaining);
+                Slice slice = in.getSlice(toRead);
+                buffer.borrow().setBytes(position, slice.byteArray(), slice.byteArrayOffset(), toRead);
+                position += toRead;
+                remaining -= toRead;
+            }
+            return buffer.take();
         }
     }
 
@@ -358,26 +402,6 @@ public class ParquetFileFabricator
         }
 
         Util.writeFileMetaData(fileMetaData, outputStream);
-    }
-
-    private long calculateFabricatedFileSize(List<RowGroupInfo> rowGroups, MessageType schema)
-    {
-        long size = PARQUET_MAGIC_LENGTH;
-
-        for (RowGroupInfo rowGroupInfo : rowGroups) {
-            for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
-                if (isColumnInSchema(column.getPath(), schema)) {
-                    size += column.getTotalSize();
-                }
-            }
-        }
-
-        size += parquetMetadata.getCompleteFooterSize()
-                .orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
-        size += FOOTER_LENGTH_SIZE;
-        size += PARQUET_MAGIC_LENGTH;
-
-        return size;
     }
 
     private static boolean isColumnInSchema(ColumnPath columnPath, MessageType schema)

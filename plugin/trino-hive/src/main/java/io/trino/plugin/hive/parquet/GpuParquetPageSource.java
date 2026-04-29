@@ -15,6 +15,7 @@ package io.trino.plugin.hive.parquet;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
+import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Table;
 import com.google.common.base.Throwables;
@@ -117,10 +118,10 @@ public class GpuParquetPageSource
         }
         ParquetOptions options = optionsBuilder.build();
 
-        @Borrow BufferAndLength data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
+        @Borrow Buffers data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
 
-        // Read from fabricated buffer using cuDF
-        try (Table table = Table.readParquet(options, data.buffer(), 0, data.length())) {
+        // Read from the fabricated buffers using cuDF
+        try (Table table = Table.readParquet(options, data.buffers().toArray(HostMemoryBuffer[]::new))) {
             return convertToGpuPage(table);
         }
     }

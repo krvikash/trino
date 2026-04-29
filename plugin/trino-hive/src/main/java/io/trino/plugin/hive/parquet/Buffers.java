@@ -14,41 +14,47 @@
 package io.trino.plugin.hive.parquet;
 
 import ai.rapids.cudf.HostMemoryBuffer;
+import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-public final class BufferAndLength
+public final class Buffers
         implements RuntimeCloseable
 {
-    private @Own HostMemoryBuffer buffer;
-    private final long length;
+    private List<@Own HostMemoryBuffer> buffers;
 
-    public BufferAndLength(@Move HostMemoryBuffer buffer, long length)
+    public Buffers(@Move List<HostMemoryBuffer> buffers)
     {
-        this.buffer = requireNonNull(buffer, "buffer is null");
-        this.length = length;
+        this.buffers = ImmutableList.copyOf(requireNonNull(buffers, "buffers is null"));
     }
 
-    public @Borrow HostMemoryBuffer buffer()
+    public List<@Borrow HostMemoryBuffer> buffers()
     {
-        return buffer;
-    }
-
-    public long length()
-    {
-        return length;
+        checkState(buffers != null, "Already closed");
+        return buffers;
     }
 
     @Override
     public void close()
     {
-        if (buffer != null) {
-            buffer.close();
-            buffer = null;
+        if (buffers != null) {
+            try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+                buffers.forEach(closer::register);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            finally {
+                buffers = null;
+            }
         }
     }
 }

@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.hive.parquet;
 
+import ai.rapids.cudf.HostMemoryBuffer;
+import ai.rapids.cudf.MemoryBuffer;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
@@ -834,7 +836,7 @@ public class TestParquetFileFabricator
         return new Page(blocks.toArray(new Block[0]));
     }
 
-    private ParquetDataSource createDataSource(@Borrow BufferAndLength data)
+    private ParquetDataSource createDataSource(@Borrow Buffers data)
             throws IOException
     {
         return createDataSource(wrappedBuffer(getBytes(data)));
@@ -847,10 +849,18 @@ public class TestParquetFileFabricator
         return closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
     }
 
-    private static byte[] getBytes(@Borrow BufferAndLength data)
+    private static byte[] getBytes(@Borrow Buffers data)
     {
-        byte[] bytes = new byte[toIntExact(data.length())];
-        data.buffer().getBytes(bytes, 0, 0, data.length());
+        long totalLength = data.buffers().stream()
+                .mapToLong(MemoryBuffer::getLength)
+                .sum();
+        byte[] bytes = new byte[toIntExact(totalLength)];
+        int dstOffset = 0;
+        for (HostMemoryBuffer buffer : data.buffers()) {
+            int bufferLength = toIntExact(buffer.getLength());
+            buffer.getBytes(bytes, dstOffset, 0, bufferLength);
+            dstOffset += bufferLength;
+        }
         return bytes;
     }
 
