@@ -43,6 +43,15 @@ final class CudfUtils
         };
     }
 
+    static @Move Scalar floatingScalar(DType floatingDType, double value)
+    {
+        return switch (floatingDType.getTypeId()) {
+            case FLOAT32 -> Scalar.fromFloat((float) value);
+            case FLOAT64 -> Scalar.fromDouble(value);
+            default -> throw new IllegalArgumentException("Unsupported floating DType: " + floatingDType);
+        };
+    }
+
     static long minValue(DType integerDType)
     {
         return switch (integerDType.getTypeId()) {
@@ -50,6 +59,17 @@ final class CudfUtils
             case INT16 -> Short.MIN_VALUE;
             case INT32 -> Integer.MIN_VALUE;
             case INT64 -> Long.MIN_VALUE;
+            default -> throw new IllegalArgumentException("Unsupported integer DType: " + integerDType);
+        };
+    }
+
+    static long maxValue(DType integerDType)
+    {
+        return switch (integerDType.getTypeId()) {
+            case INT8 -> Byte.MAX_VALUE;
+            case INT16 -> Short.MAX_VALUE;
+            case INT32 -> Integer.MAX_VALUE;
+            case INT64 -> Long.MAX_VALUE;
             default -> throw new IllegalArgumentException("Unsupported integer DType: " + integerDType);
         };
     }

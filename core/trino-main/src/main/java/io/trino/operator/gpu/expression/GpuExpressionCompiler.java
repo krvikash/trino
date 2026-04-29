@@ -24,11 +24,17 @@ import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
+import io.trino.spi.type.BigintType;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimeWithTimeZoneType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
+import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Array;
@@ -196,107 +202,92 @@ public class GpuExpressionCompiler
         @Override
         protected Optional<CompilationResult> visitCast(Cast cast, Void context)
         {
-            return toDType(cast.expression().type()).flatMap(sourceDType ->
-                    toDType(cast.type()).flatMap(resultDType ->
-                            cast.expression().accept(this, context).flatMap(compiledArgument -> {
-                                if (isCastSafe(cast.expression().type(), cast.type())) {
-                                    if (sourceDType.equals(resultDType)) {
-                                        return Optional.of(compiledArgument);
-                                    }
-                                    return Optional.of(new CompilationResult(
-                                            new GpuCast(compiledArgument.expression(), resultDType),
-                                            compiledArgument.score()));
-                                }
-                                return Optional.empty();
-                            })));
+            return toDType(cast.expression().type()).flatMap(fromDType ->
+                    toDType(cast.type()).flatMap(toDType ->
+                            cast.expression().accept(this, context).flatMap(compiledArgument ->
+                                    compileCast(compiledArgument.expression(), cast.expression().type(), fromDType, cast.type(), toDType)
+                                            .map(gpuCast -> new CompilationResult(gpuCast, compiledArgument.score())))));
         }
 
-        private static boolean isCastSafe(Type fromType, Type toType)
+        private static Optional<GpuExpression> compileCast(GpuExpression input, Type fromType, DType fromDType, Type toType, DType toDType)
         {
             if (fromType.equals(toType)) {
-                return true;
+                return Optional.of(input);
             }
-            if (fromType == TINYINT) {
-                if (toType == SMALLINT || toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && TINYINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && TINYINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == SMALLINT) {
-                if (toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && SMALLINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && SMALLINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == INTEGER) {
-                if (toType == BIGINT || toType == REAL || toType == DOUBLE) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && INTEGER_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && INTEGER_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == BIGINT) {
-                if (toType == REAL || toType == DOUBLE) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && BIGINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && BIGINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == REAL) {
-                if (toType == DOUBLE) {
-                    return true;
-                }
-            }
-            if (fromType instanceof DecimalType fromDecimal) {
-                if (toType == TINYINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < TINYINT_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == SMALLINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < SMALLINT_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == INTEGER && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < INTEGER_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == BIGINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < BIGINT_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == REAL || toType == DOUBLE) {
-                    return true;
-                }
-                if (toType instanceof DecimalType toDecimal &&
-                        // target has at least as many fractional digits (no rounding)
-                        fromDecimal.getScale() <= toDecimal.getScale() &&
-                        // target has at least as many integer digits (no overflow)
-                        fromDecimal.getPrecision() - fromDecimal.getScale() <= toDecimal.getPrecision() - toDecimal.getScale()) {
-                    return true;
-                }
-            }
-            if (fromType instanceof VarcharType fromVarchar) {
-                if (toType instanceof VarcharType toVarchar) {
-                    if (toVarchar.isUnbounded() || (!fromVarchar.isUnbounded() && fromVarchar.getBoundedLength() <= toVarchar.getBoundedLength())) {
-                        return true;
+            return switch (fromType) {
+                case TinyintType _ -> switch (toType) {
+                    case SmallintType _, IntegerType _, BigintType _, RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when TINYINT_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when TINYINT_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    default -> Optional.empty();
+                };
+                case SmallintType _ -> switch (toType) {
+                    case TinyintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT16, DType.INT8, "tinyint"));
+                    case IntegerType _, BigintType _, RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when SMALLINT_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when SMALLINT_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    default -> Optional.empty();
+                };
+                case IntegerType _ -> switch (toType) {
+                    case TinyintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT32, DType.INT8, "tinyint"));
+                    case SmallintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT32, DType.INT16, "smallint"));
+                    case BigintType _, RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when INTEGER_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when INTEGER_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    default -> Optional.empty();
+                };
+                case BigintType _ -> switch (toType) {
+                    case TinyintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT64, DType.INT8, "tinyint"));
+                    case SmallintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT64, DType.INT16, "smallint"));
+                    case IntegerType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT64, DType.INT32, "integer"));
+                    case RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when BIGINT_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when BIGINT_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    default -> Optional.empty();
+                };
+                case RealType _ -> switch (toType) {
+                    case TinyintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT32, DType.INT8, "real", "tinyint"));
+                    case SmallintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT32, DType.INT16, "real", "smallint"));
+                    case IntegerType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT32, DType.INT32, "real", "integer"));
+                    case BigintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT32, DType.INT64, "real", "bigint"));
+                    case DoubleType _ -> Optional.of(new GpuCast(input, toDType));
+                    default -> Optional.empty();
+                };
+                case DoubleType _ -> switch (toType) {
+                    case TinyintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT64, DType.INT8, "double", "tinyint"));
+                    case SmallintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT64, DType.INT16, "double", "smallint"));
+                    case IntegerType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT64, DType.INT32, "double", "integer"));
+                    case BigintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT64, DType.INT64, "double", "bigint"));
+                    case RealType _ -> Optional.of(new GpuCast(input, toDType));
+                    default -> Optional.empty();
+                };
+                case DecimalType from -> switch (toType) {
+                    case TinyintType _ when from.getScale() == 0 && from.getPrecision() < TINYINT_DECIMAL_DIGITS -> Optional.of(new GpuCast(input, toDType));
+                    case SmallintType _ when from.getScale() == 0 && from.getPrecision() < SMALLINT_DECIMAL_DIGITS -> Optional.of(new GpuCast(input, toDType));
+                    case IntegerType _ when from.getScale() == 0 && from.getPrecision() < INTEGER_DECIMAL_DIGITS -> Optional.of(new GpuCast(input, toDType));
+                    case BigintType _ when from.getScale() == 0 && from.getPrecision() < BIGINT_DECIMAL_DIGITS -> Optional.of(new GpuCast(input, toDType));
+                    case RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
+                    // target has at least as many fractional digits (no rounding) and integer digits (no overflow)
+                    case DecimalType to when from.getScale() <= to.getScale() &&
+                            from.getPrecision() - from.getScale() <= to.getPrecision() - to.getScale() -> {
+                        if (fromDType.equals(toDType)) {
+                            yield Optional.of(input);
+                        }
+                        yield Optional.of(new GpuCast(input, toDType));
                     }
-                }
-            }
-            return false;
+                    default -> Optional.empty();
+                };
+                case VarcharType from -> switch (toType) {
+                    // No truncation
+                    case VarcharType to when to.isUnbounded() ||
+                            (!from.isUnbounded() && from.getBoundedLength() <= to.getBoundedLength()) -> {
+                        verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
+                        yield Optional.of(input);
+                    }
+                    default -> Optional.empty();
+                };
+                default -> Optional.empty();
+            };
         }
 
         @Override
