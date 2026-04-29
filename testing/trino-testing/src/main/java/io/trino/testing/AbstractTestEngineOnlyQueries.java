@@ -851,7 +851,7 @@ public abstract class AbstractTestEngineOnlyQueries
                     // There currently is no coercion between number and real/double/decimal
                     boolean unsupported =
                             both.contains("number") &&
-                            (both.contains("real") || both.contains("double"));
+                                    (both.contains("real") || both.contains("double"));
                     if (unsupported) {
                         assertThat(query(add)).failure().hasMessageMatching("line 1:\\d+: Cannot apply operator: .* \\+ .*");
                         assertThat(query(subtract)).failure().hasMessageMatching("line 1:\\d+: Cannot apply operator: .* - .*");
