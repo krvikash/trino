@@ -51,6 +51,12 @@ google-sheets:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-google-sheets/**'
 
+gpu:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/gpu/**'
+      - '**/*Gpu*'
+
 hive:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-hive/**'
