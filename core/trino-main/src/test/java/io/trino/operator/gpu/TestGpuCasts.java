@@ -614,12 +614,6 @@ public class TestGpuCasts
             Outcome cpu = runOnCpu(inputPage);
             Outcome gpu = runOnGpu(inputPage, gpuExpression);
 
-            if (from == REAL && to == BIGINT && List.of("REAL '1e20'", "REAL 'Infinity'", "REAL '-Infinity'").contains(sqlValueExpression)) {
-                // TODO (https://github.com/trinodb/trino/issues/29281) this behaves incorrectly on CPU
-                assertThat(cpu).isInstanceOf(Outcome.Success.class);
-                cpu = new Outcome.Failure(new TrinoException(INVALID_CAST_ARGUMENT, "Fake exception -- CPU execution should have thrown but it did not"));
-            }
-
             if (cpu instanceof Outcome.Success(Object nativeValue)) {
                 throw new AssertionError(format(
                         "Expected cast %s -> %s of [%s] to fail on CPU, but it produced: %s",
