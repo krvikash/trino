@@ -450,6 +450,7 @@ public class TestDeltaLakeLocalConcurrentWritesTest
     }
 
     @Test
+    @Disabled // TODO https://github.com/trinodb/trino/issues/22455 Fix flaky test
     public void testConcurrentInsertsSelectingFromDifferentPartitionsOfSameTable()
             throws Exception
     {
