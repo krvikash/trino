@@ -114,9 +114,9 @@ public class DataApiFacade
     private final Map<Long, AddDataPagesProcessingState> addDataPagesProcessingStates = new ConcurrentHashMap<>();
 
     private final AddDataPagesOperationStats addDataPagesOperationStats = new AddDataPagesOperationStats();
-    private final DistributionStat pendingRequestsPerNodeDistribution = new DistributionStat();
-    private final DistributionStat inFlightRequestsPerNodeDistribution = new DistributionStat();
-    private final DistributionStat backoffRequestsPerNodeDistribution = new DistributionStat();
+    private final DistributionStat pendingAddDataPagesRequestsPerNodeDistribution = new DistributionStat();
+    private final DistributionStat inFlightAddDataPagesRequestsPerNodeDistribution = new DistributionStat();
+    private final DistributionStat backoffAddDataPagesRequestsPerNodeDistribution = new DistributionStat();
 
     record RetryExecutorConfig(
             int maxRetries,
@@ -257,7 +257,7 @@ public class DataApiFacade
     }
 
     @Managed
-    public int getTotalPendingRequests()
+    public int getPendingAddDataPagesRequestsCount()
     {
         return addDataPagesProcessingStates.values().stream()
                 .mapToInt(state -> state.activeRequests.size())
@@ -265,7 +265,7 @@ public class DataApiFacade
     }
 
     @Managed
-    public int getTotalInFlightRequests()
+    public int getInFlightAddDataPagesRequestsCount()
     {
         return addDataPagesProcessingStates.values().stream()
                 .mapToInt(state -> state.inFlightRequests.get())
@@ -273,7 +273,7 @@ public class DataApiFacade
     }
 
     @Managed
-    public int getTotalBackoffRequests()
+    public int getBackoffAddDataPagesRequestsCount()
     {
         return addDataPagesProcessingStates.values().stream()
                 .mapToInt(state -> state.backoffRequests.size())
@@ -282,23 +282,23 @@ public class DataApiFacade
 
     @Managed
     @Nested
-    public DistributionStat getPendingRequestsPerNodeDistribution()
+    public DistributionStat getPendingAddDataPagesRequestsPerNodeDistribution()
     {
-        return pendingRequestsPerNodeDistribution;
+        return pendingAddDataPagesRequestsPerNodeDistribution;
     }
 
     @Managed
     @Nested
-    public DistributionStat getInFlightRequestsPerNodeDistribution()
+    public DistributionStat getInFlightAddDataPagesRequestsPerNodeDistribution()
     {
-        return inFlightRequestsPerNodeDistribution;
+        return inFlightAddDataPagesRequestsPerNodeDistribution;
     }
 
     @Managed
     @Nested
-    public DistributionStat getBackoffRequestsPerNodeDistribution()
+    public DistributionStat getBackoffAddDataPagesRequestsPerNodeDistribution()
     {
-        return backoffRequestsPerNodeDistribution;
+        return backoffAddDataPagesRequestsPerNodeDistribution;
     }
 
     @Managed
@@ -311,9 +311,9 @@ public class DataApiFacade
     private void updateDistributionStats()
     {
         addDataPagesProcessingStates.forEach((_, state) -> {
-            pendingRequestsPerNodeDistribution.add(state.activeRequests.size());
-            inFlightRequestsPerNodeDistribution.add(state.inFlightRequests.get());
-            backoffRequestsPerNodeDistribution.add(state.backoffRequests.size());
+            pendingAddDataPagesRequestsPerNodeDistribution.add(state.activeRequests.size());
+            inFlightAddDataPagesRequestsPerNodeDistribution.add(state.inFlightRequests.get());
+            backoffAddDataPagesRequestsPerNodeDistribution.add(state.backoffRequests.size());
         });
     }
 
