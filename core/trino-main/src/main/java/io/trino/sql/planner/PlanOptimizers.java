@@ -224,6 +224,7 @@ import io.trino.sql.planner.iterative.rule.ReplaceJoinOverConstantWithProject;
 import io.trino.sql.planner.iterative.rule.ReplaceRedundantJoinWithProject;
 import io.trino.sql.planner.iterative.rule.ReplaceRedundantJoinWithSource;
 import io.trino.sql.planner.iterative.rule.ReplaceWindowWithRowNumber;
+import io.trino.sql.planner.iterative.rule.RewriteAvgAsSumOverCount;
 import io.trino.sql.planner.iterative.rule.RewriteExcludeColumnsFunctionToProjection;
 import io.trino.sql.planner.iterative.rule.RewriteSpatialPartitioningAggregation;
 import io.trino.sql.planner.iterative.rule.RewriteSumWithLiteralAsSumAndCount;
@@ -477,6 +478,7 @@ public class PlanOptimizers
                                         new SimplifyCountOverConstant(plannerContext),
                                         new PreAggregateCaseAggregations(plannerContext),
                                         new RewriteSumWithLiteralAsSumAndCount(plannerContext),
+                                        new RewriteAvgAsSumOverCount(plannerContext),
                                         new RemoveRedundantDistinctAggregation()))
                                 .build()),
                 // MergeUnion and related projection pruning rules must run before limit pushdown rules, otherwise

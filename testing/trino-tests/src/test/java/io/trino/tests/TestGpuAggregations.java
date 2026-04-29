@@ -14,8 +14,13 @@
 package io.trino.tests;
 
 import io.trino.plugin.memory.MemoryQueryRunner;
+import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.tree.ExplainType;
 import io.trino.testing.AbstractTestAggregations;
 import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuAggregations
         extends AbstractTestAggregations
@@ -28,5 +33,70 @@ public class TestGpuAggregations
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .addExtraProperty("gpu-acceleration.enabled", "true")
                 .build();
+    }
+
+    @Test
+    public void testGpuAvgDecomposition()
+    {
+        assertThat(query(
+                """
+                SELECT avg(a)
+                FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT avg(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS double)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT avg(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS real)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, avg(a)
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                HAVING avg(a) > 3
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testAvgDecompositionRemovesRedundantCast()
+    {
+        // RewriteAvgAsSumOverCount always introduces CAST(input AS double) before sum/count.
+        // For bigint input this cast is needed and should remain in the plan.
+        assertThat(getExplainPlan(
+                """
+                SELECT avg(a)
+                FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """,
+                ExplainType.Type.DISTRIBUTED))
+                .contains("avg_input := CAST(");
+
+        // For double input the cast is redundant and SimplifyRedundantCast should remove it.
+        assertThat(getExplainPlan(
+                """
+                SELECT avg(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS double)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """,
+                ExplainType.Type.DISTRIBUTED))
+                .doesNotContain("avg_input := CAST(");
     }
 }
