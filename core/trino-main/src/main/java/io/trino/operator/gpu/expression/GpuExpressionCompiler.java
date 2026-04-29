@@ -19,7 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import io.airlift.log.Logger;
 import io.trino.operator.gpu.GpuScore;
-import io.trino.operator.project.PageFieldsToInputParametersRewriter.Result;
+import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
@@ -30,19 +30,30 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
-import io.trino.sql.relational.CallExpression;
-import io.trino.sql.relational.ConstantExpression;
-import io.trino.sql.relational.InputReferenceExpression;
-import io.trino.sql.relational.LambdaDefinitionExpression;
-import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.RowExpressionVisitor;
-import io.trino.sql.relational.SpecialForm;
-import io.trino.sql.relational.VariableReferenceExpression;
+import io.trino.sql.ir.Between;
+import io.trino.sql.ir.Call;
+import io.trino.sql.ir.Case;
+import io.trino.sql.ir.Cast;
+import io.trino.sql.ir.Coalesce;
+import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.Constant;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.In;
+import io.trino.sql.ir.IrVisitor;
+import io.trino.sql.ir.IsNull;
+import io.trino.sql.ir.Lambda;
+import io.trino.sql.ir.Logical;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.ir.WhenClause;
+import io.trino.sql.planner.Symbol;
 import io.trino.type.IntervalDayTimeType;
 import io.trino.type.IntervalYearMonthType;
 import io.trino.type.LikePattern;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -55,11 +66,11 @@ import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
 import static io.trino.operator.gpu.GpuScore.POTENTIAL;
 import static io.trino.operator.gpu.GpuScore.PREFERRED;
-import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -72,7 +83,7 @@ import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Compiles Trino RowExpressions into GPU-executable operations using cuDF.
+ * Compiles Trino Expressions into GPU-executable operations using cuDF.
  */
 public class GpuExpressionCompiler
 {
@@ -83,11 +94,11 @@ public class GpuExpressionCompiler
     private static final int INTEGER_DECIMAL_DIGITS = 10;
     private static final int BIGINT_DECIMAL_DIGITS = 19;
 
-    public Optional<List<CompiledExpression>> compileExpressions(List<RowExpression> expressions)
+    public Optional<List<CompiledExpression>> compileExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
     {
         ImmutableList.Builder<CompiledExpression> compiledExpressions = ImmutableList.builderWithExpectedSize(expressions.size());
-        for (RowExpression expression : expressions) {
-            Optional<CompiledExpression> compiled = compileExpression(expression);
+        for (Expression expression : expressions) {
+            Optional<CompiledExpression> compiled = compileExpression(expression, layout);
             if (compiled.isEmpty()) {
                 return Optional.empty();
             }
@@ -96,16 +107,11 @@ public class GpuExpressionCompiler
         return Optional.of(compiledExpressions.build());
     }
 
-    public Optional<CompiledExpression> compileExpression(RowExpression expression)
+    public Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout)
     {
-        // Rewrite field references to use compact, consecutive indexes (0, 1, 2, ...).
-        // This allows all sub-expressions to index directly into the shared inputColumns list
-        // without needing per-expression input channel mappings.
-        Result rewritten = rewritePageFieldsToInputParameters(expression);
-
-        Optional<CompiledExpression> compiled = rewritten.getRewrittenExpression()
-                .accept(new CompilationVisitor(), null)
-                .map(result -> new CompiledExpression(result.expression(), rewritten.getInputChannels(), result.score()));
+        CompilationVisitor visitor = new CompilationVisitor(layout);
+        Optional<CompiledExpression> compiled = expression.accept(visitor, null)
+                .map(result -> new CompiledExpression(result.expression(), new InputChannels(ImmutableList.copyOf(visitor.inputChannels)), result.score()));
         if (compiled.isEmpty()) {
             log.debug("Could not compile expression for GPU execution: %s", expression);
         }
@@ -113,24 +119,42 @@ public class GpuExpressionCompiler
     }
 
     private static class CompilationVisitor
-            implements RowExpressionVisitor<Optional<CompilationResult>, Void>
+            extends IrVisitor<Optional<CompilationResult>, Void>
     {
+        private final Map<Symbol, Integer> sourceLayout;
+        // Maps each referenced Symbol to a compact, consecutive index (0, 1, 2, ...).
+        // GPU operators use this index to look up the corresponding input column in
+        // the materialized list of device-resident columns.
+        private final Map<Symbol, Integer> compactLayout = new HashMap<>();
+        private final List<Integer> inputChannels = new ArrayList<>();
+
+        private CompilationVisitor(Map<Symbol, Integer> sourceLayout)
+        {
+            this.sourceLayout = requireNonNull(sourceLayout, "sourceLayout is null");
+        }
+
         @Override
-        public Optional<CompilationResult> visitInputReference(InputReferenceExpression reference, Void context)
+        protected Optional<CompilationResult> visitReference(Reference reference, Void context)
         {
             if (!isConvertible(reference.type())) {
                 return Optional.empty();
             }
-            int field = reference.field();
+            Symbol symbol = Symbol.from(reference);
+            Integer sourceChannel = sourceLayout.get(symbol);
+            verify(sourceChannel != null, "Reference %s not present in source layout", symbol);
+            int compactField = compactLayout.computeIfAbsent(symbol, _ -> {
+                inputChannels.add(sourceChannel);
+                return compactLayout.size();
+            });
             return Optional.of(new CompilationResult(
-                    (_, inputColumns) -> inputColumns.get(field).incRefCount(),
+                    (_, inputColumns) -> inputColumns.get(compactField).incRefCount(),
                     POTENTIAL));
         }
 
         @Override
-        public Optional<CompilationResult> visitCall(CallExpression call, Void context)
+        protected Optional<CompilationResult> visitCall(Call call, Void context)
         {
-            CatalogSchemaFunctionName functionName = call.resolvedFunction().signature().getName();
+            CatalogSchemaFunctionName functionName = call.function().signature().getName();
             if (!isBuiltinFunctionName(functionName)) {
                 return Optional.empty();
             }
@@ -138,7 +162,7 @@ public class GpuExpressionCompiler
 
             if (name.equals(LIKE_FUNCTION_NAME) &&
                     call.arguments().size() == 2 &&
-                    call.arguments().get(1) instanceof ConstantExpression(Object likePattern, Type patternType) &&
+                    call.arguments().get(1) instanceof Constant(Type patternType, Object likePattern) &&
                     patternType == LIKE_PATTERN) {
                 return call.arguments().get(0).accept(this, context)
                         .map(searched -> new CompilationResult(
@@ -156,11 +180,7 @@ public class GpuExpressionCompiler
             if (isOperatorName(name)) {
                 OperatorType operatorType = unmangleOperator(name);
                 if (call.arguments().size() == 2) {
-                    return compileBinaryExpression(call, operatorType, context);
-                }
-                if (operatorType == OperatorType.CAST) {
-                    verify(call.arguments().size() == 1, "Expected exactly one cast argument, got: %s", call.arguments());
-                    return compileCast(getOnlyElement(call.arguments()), call.type(), context);
+                    return compileBinaryArithmetic(call, operatorType, context);
                 }
             }
 
@@ -190,7 +210,35 @@ public class GpuExpressionCompiler
             return Optional.empty();
         }
 
-        private Optional<CompilationResult> compileBinaryExpression(CallExpression call, OperatorType operatorType, Void context)
+        @Override
+        protected Optional<CompilationResult> visitComparison(Comparison comparison, Void context)
+        {
+            verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
+            Optional<CompilationResult> leftCompiled = comparison.left().accept(this, context);
+            if (leftCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+            Optional<CompilationResult> rightCompiled = comparison.right().accept(this, context);
+            if (rightCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+
+            GpuExpression left = leftCompiled.get().expression();
+            GpuExpression right = rightCompiled.get().expression();
+            Optional<GpuExpression> compiledComparison = switch (comparison.operator()) {
+                case EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
+                case NOT_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
+                case LESS_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
+                case LESS_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
+                case GREATER_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER, DType.BOOL8));
+                case GREATER_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER_EQUAL, DType.BOOL8));
+                case IDENTICAL -> Optional.empty();
+            };
+
+            return compiledComparison.map(expression -> new CompilationResult(expression, maxScore(List.of(leftCompiled.get(), rightCompiled.get()), POTENTIAL)));
+        }
+
+        private Optional<CompilationResult> compileBinaryArithmetic(Call call, OperatorType operatorType, Void context)
         {
             Optional<DType> outputTypeOpt = toDType(call.type());
             if (outputTypeOpt.isEmpty()) {
@@ -316,35 +364,23 @@ public class GpuExpressionCompiler
                     }
                     yield Optional.empty();
                 }
-                case EQUAL -> {
-                    if (leftType.equals(rightType)) {
-                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, outputType));
-                    }
-                    yield Optional.empty();
-                }
-                case LESS_THAN -> {
-                    if (leftType.equals(rightType)) {
-                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, outputType));
-                    }
-                    yield Optional.empty();
-                }
-                case LESS_THAN_OR_EQUAL -> {
-                    if (leftType.equals(rightType)) {
-                        yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, outputType));
-                    }
-                    yield Optional.empty();
-                }
                 default -> Optional.empty();
             };
-
             return gpuExpression.map(expression -> new CompilationResult(expression, maxScore(args, POTENTIAL)));
         }
 
-        private Optional<CompilationResult> compileCast(RowExpression argument, Type toType, Void context)
+        @Override
+        protected Optional<CompilationResult> visitCast(Cast cast, Void context)
         {
+            Expression argument = cast.expression();
+            Type toType = cast.type();
+            Optional<DType> sourceDType = toDType(argument.type());
             return toDType(toType).flatMap(resultDType ->
                     argument.accept(this, context).flatMap(compiledArgument -> {
                         if (isCastSafe(argument.type(), toType)) {
+                            if (sourceDType.isPresent() && sourceDType.get().equals(resultDType)) {
+                                return Optional.of(compiledArgument);
+                            }
                             return Optional.of(new CompilationResult(
                                     new GpuCast(compiledArgument.expression(), resultDType),
                                     compiledArgument.score()));
@@ -446,7 +482,7 @@ public class GpuExpressionCompiler
             return false;
         }
 
-        private Optional<CompilationResult> compileDateTimeExtract(RowExpression argument, GpuDateTimeExtract.Field field, Void context)
+        private Optional<CompilationResult> compileDateTimeExtract(Expression argument, GpuDateTimeExtract.Field field, Void context)
         {
             Type argumentType = argument.type();
             if (argumentType == DATE || argumentType instanceof TimestampType) {
@@ -460,82 +496,74 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        public Optional<CompilationResult> visitSpecialForm(SpecialForm specialForm, Void context)
+        protected Optional<CompilationResult> visitLogical(Logical logical, Void context)
         {
-            return switch (specialForm.form()) {
-                case AND -> compileNary(specialForm.arguments(), GpuLogicalExpression::and, context);
-                case OR -> compileNary(specialForm.arguments(), GpuLogicalExpression::or, context);
-                case COALESCE -> compileNary(specialForm.arguments(), GpuCoalesce::new, context);
-                case IS_NULL -> compileIsNull(specialForm.arguments(), context);
-                case BETWEEN -> compileBetween(specialForm.arguments(), context);
-                case IN -> compileIn(specialForm.arguments(), context);
-                case IF -> compileIf(specialForm.arguments(), context);
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, etc.)
-                default -> Optional.empty();
-            };
+            return compileNary(
+                    logical.terms(),
+                    switch (logical.operator()) {
+                        case AND -> GpuLogicalExpression::and;
+                        case OR -> GpuLogicalExpression::or;
+                    },
+                    context);
         }
 
-        private Optional<CompilationResult> compileNary(
-                List<RowExpression> arguments,
-                Function<List<GpuExpression>, GpuExpression> expressionFactory,
-                Void context)
+        @Override
+        protected Optional<CompilationResult> visitCoalesce(Coalesce coalesce, Void context)
         {
-            checkArgument(arguments.size() >= 2, "Expression requires at least 2 arguments, got %s", arguments.size());
-            return compileAll(arguments, context)
-                    .map(results -> new CompilationResult(
-                            expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList())),
-                            maxScore(results, POTENTIAL)));
+            return compileNary(coalesce.operands(), GpuCoalesce::new, context);
         }
 
-        private Optional<CompilationResult> compileIsNull(List<RowExpression> arguments, Void context)
+        @Override
+        protected Optional<CompilationResult> visitIsNull(IsNull isNull, Void context)
         {
-            checkArgument(arguments.size() == 1, "IS NULL requires 1 argument, got %s", arguments.size());
-            return getOnlyElement(arguments).accept(this, context)
+            return isNull.value().accept(this, context)
                     .map(operand -> new CompilationResult(
                             new GpuIsNull(operand.expression()),
                             Ordering.natural().max(operand.score(), POTENTIAL)));
         }
 
-        private Optional<CompilationResult> compileBetween(List<RowExpression> arguments, Void context)
+        @Override
+        protected Optional<CompilationResult> visitBetween(Between between, Void context)
         {
-            checkArgument(arguments.size() == 3, "BETWEEN requires 3 argument, got %s", arguments.size());
-            return compileAll(arguments, context)
-                    .map(results -> new CompilationResult(
-                            new GpuBetween(results.get(0).expression(), results.get(1).expression(), results.get(2).expression()),
-                            maxScore(results, POTENTIAL)));
+            return compileNary(
+                    ImmutableList.of(between.value(), between.min(), between.max()),
+                    args -> new GpuBetween(args.get(0), args.get(1), args.get(2)),
+                    context);
         }
 
-        private Optional<CompilationResult> compileIf(List<RowExpression> arguments, Void context)
+        @Override
+        protected Optional<CompilationResult> visitCase(Case caseExpression, Void context)
         {
-            checkArgument(arguments.size() == 3, "IF requires 3 arguments, got %s", arguments.size());
-            return compileAll(arguments, context).map(compiledArguments ->
-                    new CompilationResult(
-                            new GpuIf(compiledArguments.get(0).expression(), compiledArguments.get(1).expression(), compiledArguments.get(2).expression()),
-                            maxScore(compiledArguments, POTENTIAL)));
+            // Only the IF-equivalent shape (single WhenClause + default) is supported. Multi-branch CASE
+            // needs first-class GPU support and is left to a follow-up.
+            if (caseExpression.whenClauses().size() != 1) {
+                return Optional.empty();
+            }
+            WhenClause when = caseExpression.whenClauses().getFirst();
+            return compileNary(
+                    ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
+                    args -> new GpuIf(args.get(0), args.get(1), args.get(2)),
+                    context);
         }
 
-        private Optional<CompilationResult> compileIn(List<RowExpression> arguments, Void context)
+        @Override
+        protected Optional<CompilationResult> visitIn(In in, Void context)
         {
-            checkArgument(arguments.size() >= 2, "IN requires at least 2 arguments, got %s", arguments.size());
-
-            // First argument is the value to test
-            RowExpression valueExpression = arguments.getFirst();
-
-            Optional<GpuTypeMapping> typeMapping = toGpuMapping(valueExpression.type());
+            Optional<GpuTypeMapping> typeMapping = toGpuMapping(in.value().type());
             if (typeMapping.isEmpty()) {
                 return Optional.empty();
             }
 
-            Optional<CompilationResult> valueCompiled = valueExpression.accept(this, context);
+            Optional<CompilationResult> valueCompiled = in.value().accept(this, context);
             if (valueCompiled.isEmpty()) {
                 return Optional.empty();
             }
 
-            // Currently, we support only constants
+            // Currently, we support only constants in the value list
             boolean hasNull = false;
             ImmutableList.Builder<Object> nonNullConstants = ImmutableList.builder();
-            for (int i = 1; i < arguments.size(); i++) {
-                if (!(arguments.get(i) instanceof ConstantExpression constant)) {
+            for (Expression item : in.valueList()) {
+                if (!(item instanceof Constant constant)) {
                     return Optional.empty();
                 }
                 Object value = constant.value();
@@ -548,14 +576,26 @@ public class GpuExpressionCompiler
             }
 
             return Optional.of(new CompilationResult(
-                    new GpuIn(valueCompiled.get().expression(), nonNullConstants.build(), hasNull, valueExpression.type(), typeMapping.get().toColumn()),
+                    new GpuIn(valueCompiled.get().expression(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.get().toColumn()),
                     Ordering.natural().max(valueCompiled.get().score(), POTENTIAL)));
         }
 
-        private Optional<List<CompilationResult>> compileAll(List<RowExpression> expressions, Void context)
+        private Optional<CompilationResult> compileNary(
+                List<Expression> arguments,
+                Function<List<GpuExpression>, GpuExpression> expressionFactory,
+                Void context)
+        {
+            checkArgument(arguments.size() >= 2, "Expression requires at least 2 arguments, got %s", arguments.size());
+            return compileAll(arguments, context)
+                    .map(results -> new CompilationResult(
+                            expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList())),
+                            maxScore(results, POTENTIAL)));
+        }
+
+        private Optional<List<CompilationResult>> compileAll(List<Expression> expressions, Void context)
         {
             ImmutableList.Builder<CompilationResult> results = ImmutableList.builder();
-            for (RowExpression expression : expressions) {
+            for (Expression expression : expressions) {
                 Optional<CompilationResult> compiled = expression.accept(this, context);
                 if (compiled.isEmpty()) {
                     return Optional.empty();
@@ -574,7 +614,7 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        public Optional<CompilationResult> visitConstant(ConstantExpression literal, Void context)
+        protected Optional<CompilationResult> visitConstant(Constant literal, Void context)
         {
             return toGpuMapping(literal.type())
                     .map(typeMapping -> new CompilationResult(
@@ -583,14 +623,15 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        public Optional<CompilationResult> visitLambda(LambdaDefinitionExpression lambda, Void context)
+        protected Optional<CompilationResult> visitLambda(Lambda lambda, Void context)
         {
             return Optional.empty();
         }
 
         @Override
-        public Optional<CompilationResult> visitVariableReference(VariableReferenceExpression reference, Void context)
+        protected Optional<CompilationResult> visitExpression(Expression node, Void context)
         {
+            // Any IR shape we don't explicitly handle (Switch, NullIf, Bind, Row, Array, FieldReference) is unsupported on GPU.
             return Optional.empty();
         }
     }

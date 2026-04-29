@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Primitives;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -38,8 +39,13 @@ import io.trino.spi.type.TrinoNumber.Infinity;
 import io.trino.spi.type.TrinoNumber.NotANumber;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
+import io.trino.sql.ir.Cast;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
+import io.trino.sql.planner.Symbol;
 import io.trino.sql.relational.RowExpression;
+import io.trino.sql.relational.SqlToRowExpressionTranslator;
 import io.trino.testing.PageConsumerOperator.PageConsumerOutputFactory;
 import io.trino.testing.PlanTester;
 import io.trino.type.NumberOperators;
@@ -57,6 +63,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Supplier;
@@ -83,8 +90,7 @@ import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
-import static io.trino.sql.relational.Expressions.call;
-import static io.trino.sql.relational.Expressions.field;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -411,6 +417,15 @@ public class TestGpuCasts
         assertThat(gpuCast(NUMBER, NUMBER)).isNotSupported();
     }
 
+    @Test
+    void testVarcharNarrowingIsRejected()
+    {
+        // All VARCHARs map to the same cudf STRING dtype, so narrowing has the same source/result
+        // DType as widening. The compiler must reject narrowing via isCastSafe so it falls back to
+        // the CPU path that truncates per VARCHAR(M) semantics.
+        assertThat(gpuCast(createVarcharType(20), createVarcharType(10))).isNotSupported();
+    }
+
     private void assertCastSucceedsForAll(Type from, Type to, @Language("SQL") String[] sqlValues)
     {
         GpuCastAssert assertion = assertThat(gpuCast(from, to));
@@ -434,7 +449,8 @@ public class TestGpuCasts
     {
         private final Type from;
         private final Type to;
-        private final RowExpression castExpression;
+        private final Expression castExpression;
+        private final Map<Symbol, Integer> layout;
         private final Supplier<Optional<CompiledExpression>> compiled;
 
         GpuCastAssert(Type from, Type to)
@@ -442,8 +458,9 @@ public class TestGpuCasts
             super(from + " -> " + to, GpuCastAssert.class);
             this.from = from;
             this.to = to;
-            this.castExpression = call(functionResolution.getCoercion(from, to), field(0, from));
-            this.compiled = Suppliers.memoize(() -> gpuCompiler.compileExpression(castExpression));
+            this.castExpression = new Cast(new Reference(from, "ref0"), to);
+            this.layout = ImmutableMap.of(new Symbol(from, "ref0"), 0);
+            this.compiled = Suppliers.memoize(() -> gpuCompiler.compileExpression(castExpression, layout));
         }
 
         /**
@@ -534,7 +551,7 @@ public class TestGpuCasts
         private Outcome runOnCpu(Page inputPage)
         {
             try {
-                Page page = getOnlyElement(executeWithCpu(List.of(inputPage), castExpression));
+                Page page = getOnlyElement(executeWithCpu(List.of(inputPage), castExpression, layout));
                 checkState(page.getChannelCount() == 1 && page.getPositionCount() == 1,
                         "Expected a one-column, one-row result; got %s columns and %s rows",
                         page.getChannelCount(), page.getPositionCount());
@@ -645,15 +662,21 @@ public class TestGpuCasts
         }
     }
 
-    private List<Page> executeWithCpu(List<Page> inputPages, RowExpression expression)
+    private List<Page> executeWithCpu(List<Page> inputPages, Expression expression, Map<Symbol, Integer> layout)
     {
+        RowExpression rowExpression = SqlToRowExpressionTranslator.translate(
+                expression,
+                layout,
+                functionResolution.getMetadata(),
+                functionResolution.getPlannerContext().getTypeManager());
+
         PageProcessor compiledProcessor = functionResolution.getExpressionCompiler().compilePageProcessor(
                         false,
                         true,
                         false,
                         Optional.empty(),
                         Optional.empty(),
-                        List.of(expression),
+                        List.of(rowExpression),
                         Optional.empty(),
                         OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);

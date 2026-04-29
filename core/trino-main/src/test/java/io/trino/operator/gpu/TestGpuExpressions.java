@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
@@ -39,11 +40,23 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import io.trino.sql.ir.Between;
+import io.trino.sql.ir.Call;
+import io.trino.sql.ir.Case;
+import io.trino.sql.ir.Cast;
+import io.trino.sql.ir.Coalesce;
+import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.Constant;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.In;
+import io.trino.sql.ir.IsNull;
+import io.trino.sql.ir.Logical;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.InternalDynamicFilter;
-import io.trino.sql.relational.CallExpression;
-import io.trino.sql.relational.InputReferenceExpression;
+import io.trino.sql.planner.Symbol;
 import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.SpecialForm;
+import io.trino.sql.relational.SqlToRowExpressionTranslator;
 import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
@@ -61,6 +74,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
@@ -96,10 +110,8 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
-import static io.trino.sql.relational.Expressions.call;
-import static io.trino.sql.relational.Expressions.constant;
-import static io.trino.sql.relational.Expressions.field;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.util.Objects.requireNonNull;
@@ -183,8 +195,8 @@ public class TestGpuExpressions
         List<Optional<Character>> escapes = List.of(Optional.of('\\'), Optional.of('$'), Optional.empty());
         for (String pattern : testStrings) {
             for (Optional<Character> escape : escapes) {
-                RowExpression rowExpression = createLikeExpression(varcharChannel, pattern, escape);
-                assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(varcharChannel));
+                Expression expression = createLikeExpression(varcharChannel, pattern, escape);
+                assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
             }
         }
     }
@@ -192,77 +204,77 @@ public class TestGpuExpressions
     @Test
     public void testBooleanConstant()
     {
-        testConstant(constant(true, BOOLEAN));
-        testConstant(constant(false, BOOLEAN));
-        testConstant(constant(null, BOOLEAN));
+        testConstant(new Constant(BOOLEAN, true));
+        testConstant(new Constant(BOOLEAN, false));
+        testConstant(new Constant(BOOLEAN, null));
     }
 
     @Test
     public void testTinyintConstant()
     {
-        testConstant(constant(42L, TINYINT));
-        testConstant(constant(-1L, TINYINT));
-        testConstant(constant(0L, TINYINT));
-        testConstant(constant(null, TINYINT));
+        testConstant(new Constant(TINYINT, 42L));
+        testConstant(new Constant(TINYINT, -1L));
+        testConstant(new Constant(TINYINT, 0L));
+        testConstant(new Constant(TINYINT, null));
     }
 
     @Test
     public void testSmallintConstant()
     {
-        testConstant(constant(1234L, SMALLINT));
-        testConstant(constant(-5678L, SMALLINT));
-        testConstant(constant(null, SMALLINT));
+        testConstant(new Constant(SMALLINT, 1234L));
+        testConstant(new Constant(SMALLINT, -5678L));
+        testConstant(new Constant(SMALLINT, null));
     }
 
     @Test
     public void testIntegerConstant()
     {
-        testConstant(constant(123456L, INTEGER));
-        testConstant(constant(-789012L, INTEGER));
-        testConstant(constant(0L, INTEGER));
-        testConstant(constant(null, INTEGER));
+        testConstant(new Constant(INTEGER, 123456L));
+        testConstant(new Constant(INTEGER, -789012L));
+        testConstant(new Constant(INTEGER, 0L));
+        testConstant(new Constant(INTEGER, null));
     }
 
     @Test
     public void testBigintConstant()
     {
-        testConstant(constant(1234567890123L, BIGINT));
-        testConstant(constant(-9876543210L, BIGINT));
-        testConstant(constant(0L, BIGINT));
-        testConstant(constant(null, BIGINT));
+        testConstant(new Constant(BIGINT, 1234567890123L));
+        testConstant(new Constant(BIGINT, -9876543210L));
+        testConstant(new Constant(BIGINT, 0L));
+        testConstant(new Constant(BIGINT, null));
     }
 
     @Test
     public void testRealConstant()
     {
-        testConstant(constant((long) Float.floatToIntBits(3.14f), REAL));
-        testConstant(constant((long) Float.floatToIntBits(-2.5f), REAL));
-        testConstant(constant((long) Float.floatToIntBits(0.0f), REAL));
-        testConstant(constant((long) Float.floatToIntBits(Float.POSITIVE_INFINITY), REAL));
-        testConstant(constant((long) Float.floatToIntBits(Float.NEGATIVE_INFINITY), REAL));
-        testConstant(constant((long) Float.floatToIntBits(Float.NaN), REAL));
-        testConstant(constant(null, REAL));
+        testConstant(new Constant(REAL, (long) Float.floatToIntBits(3.14f)));
+        testConstant(new Constant(REAL, (long) Float.floatToIntBits(-2.5f)));
+        testConstant(new Constant(REAL, (long) Float.floatToIntBits(0.0f)));
+        testConstant(new Constant(REAL, (long) Float.floatToIntBits(Float.POSITIVE_INFINITY)));
+        testConstant(new Constant(REAL, (long) Float.floatToIntBits(Float.NEGATIVE_INFINITY)));
+        testConstant(new Constant(REAL, (long) Float.floatToIntBits(Float.NaN)));
+        testConstant(new Constant(REAL, null));
     }
 
     @Test
     public void testDoubleConstant()
     {
-        testConstant(constant(3.14159265359, DOUBLE));
-        testConstant(constant(-2.71828, DOUBLE));
-        testConstant(constant(0.0, DOUBLE));
-        testConstant(constant(Double.POSITIVE_INFINITY, DOUBLE));
-        testConstant(constant(Double.NEGATIVE_INFINITY, DOUBLE));
-        testConstant(constant(Double.NaN, DOUBLE));
-        testConstant(constant(null, DOUBLE));
+        testConstant(new Constant(DOUBLE, 3.14159265359));
+        testConstant(new Constant(DOUBLE, -2.71828));
+        testConstant(new Constant(DOUBLE, 0.0));
+        testConstant(new Constant(DOUBLE, Double.POSITIVE_INFINITY));
+        testConstant(new Constant(DOUBLE, Double.NEGATIVE_INFINITY));
+        testConstant(new Constant(DOUBLE, Double.NaN));
+        testConstant(new Constant(DOUBLE, null));
     }
 
     @Test
     public void testVarcharConstant()
     {
-        testConstant(constant(Slices.utf8Slice("hello"), VARCHAR));
-        testConstant(constant(Slices.utf8Slice(""), VARCHAR));
-        testConstant(constant(Slices.utf8Slice("Łania szła piękną łąką pod Warszawą"), VARCHAR));
-        testConstant(constant(null, VARCHAR));
+        testConstant(new Constant(VARCHAR, Slices.utf8Slice("hello")));
+        testConstant(new Constant(VARCHAR, Slices.utf8Slice("")));
+        testConstant(new Constant(VARCHAR, Slices.utf8Slice("Łania szła piękną łąką pod Warszawą")));
+        testConstant(new Constant(VARCHAR, null));
     }
 
     @Test
@@ -356,8 +368,9 @@ public class TestGpuExpressions
 
                 testedOperators.add("%s %s".formatted(operator.getOperator(), coerced.getDisplayName()));
 
-                CallExpression expression = call(function, new InputReferenceExpression(0, coerced));
-                Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression);
+                Expression expression = buildUnaryOperatorExpression(operator, function, field(0, coerced));
+                Map<Symbol, Integer> layout = layoutFor(List.of(coerced));
+                Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression, layout);
                 if (gpuExpression.isEmpty()) {
                     // Not supported for GPU execution
                     continue;
@@ -367,7 +380,7 @@ public class TestGpuExpressions
                 try {
                     CompiledExpression compiledGpu = gpuExpression.orElseThrow();
                     assertThat(compiledGpu.inputChannels().getInputChannels()).containsExactly(0);
-                    PageProcessor cpuProcessor = compileCpuExpression(expression);
+                    PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
                     for (Page input : unaryInputs.getUnchecked(coerced)) {
                         assertThat(input.getPositionCount()).isEqualTo(1);
                         assertGpuMatchesCpu(List.of(input), List.of(coerced), expression, cpuProcessor, compiledGpu, false);
@@ -380,11 +393,16 @@ public class TestGpuExpressions
             }
         }
 
-        // Binary operators: cross-product over (leftType, rightType).
+        // Binary operators: cross-product over (leftType, rightType). Comparisons are exercised by
+        // testComparisonOperatorsCorrectnessSmoke, which iterates the IR Comparison.Operator values
+        // directly to cover the full spectrum (not all of which have an OperatorType counterpart).
         for (Type leftType : testedTypes) {
             for (Type rightType : testedTypes) {
                 for (OperatorType operator : OperatorType.values()) {
                     if (operator.getArgumentCount() != 2) {
+                        continue;
+                    }
+                    if (operator == OperatorType.EQUAL || operator == OperatorType.LESS_THAN || operator == OperatorType.LESS_THAN_OR_EQUAL) {
                         continue;
                     }
 
@@ -416,8 +434,9 @@ public class TestGpuExpressions
 
                     testedOperators.add("%s %s %s".formatted(leftCoerced.getDisplayName(), operator.getOperator(), rightCoerced.getDisplayName()));
 
-                    CallExpression expression = call(function, new InputReferenceExpression(0, leftCoerced), new InputReferenceExpression(1, rightCoerced));
-                    Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression);
+                    Expression expression = new Call(function, ImmutableList.of(field(0, leftCoerced), field(1, rightCoerced)));
+                    Map<Symbol, Integer> layout = layoutFor(List.of(leftCoerced, rightCoerced));
+                    Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression, layout);
                     if (gpuExpression.isEmpty()) {
                         // Not supported for GPU execution
                         continue;
@@ -428,7 +447,7 @@ public class TestGpuExpressions
                         CompiledExpression compiledGpu = gpuExpression.orElseThrow();
                         assertThat(compiledGpu.inputChannels().getInputChannels())
                                 .containsExactlyInAnyOrderElementsOf(Set.of(0, 1));
-                        PageProcessor cpuProcessor = compileCpuExpression(expression);
+                        PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
                         for (Page input : binaryInputs.getUnchecked(new Pair<>(leftCoerced, rightCoerced))) {
                             assertThat(input.getPositionCount()).isEqualTo(1);
                             assertGpuMatchesCpu(List.of(input), List.of(leftCoerced, rightCoerced), expression, cpuProcessor, compiledGpu, false);
@@ -449,17 +468,13 @@ public class TestGpuExpressions
                         "- decimal(13,2)",
                         "HASH CODE bigint",
                         "bigint + bigint",
-                        "real < real",
                         "decimal(3,0) + decimal(3,0)",
                         "decimal(27,5) + decimal(27,5)",
                         "decimal(27,0) - decimal(3,0)");
 
         // Self-test
         assertThat(gpuEnabledOperators)
-                .contains(
-                        "bigint + bigint",
-                        "real < real",
-                        "decimal(3,0) < decimal(3,0)")
+                .contains("bigint + bigint")
                 .doesNotContain(
                         "- bigint",
                         "- decimal(13,2)",
@@ -499,9 +514,9 @@ public class TestGpuExpressions
     private List<@Nullable Object> tryCastToAndFilter(Type sourceType, Type targetType, List<@Nullable ?> sourceNativeValues)
     {
         List<Object> nativeValues = new ArrayList<>();
-        ResolvedFunction castFunction = functionResolution.getCoercion(sourceType, targetType);
-        CallExpression castExpression = call(castFunction, new InputReferenceExpression(0, sourceType));
-        PageProcessor pageProcessor = compileCpuExpression(castExpression);
+        Expression castExpression = new Cast(field(0, sourceType), targetType);
+        Map<Symbol, Integer> layout = layoutFor(List.of(sourceType));
+        PageProcessor pageProcessor = compileCpuExpression(castExpression, layout);
         for (@Nullable Object sourceValue : sourceNativeValues) {
             Page sourcePage = new Page(nativeValueToBlock(sourceType, sourceValue));
             List<Page> result;
@@ -550,16 +565,34 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testComparisonOperators(NullsProvider nullsProvider)
+    public void testComparisonOperatorsCorrectnessSmoke(NullsProvider nullsProvider)
     {
-        for (OperatorType operatorType : List.of(OperatorType.EQUAL, OperatorType.LESS_THAN, OperatorType.LESS_THAN_OR_EQUAL)) {
-            testComparison(operatorType, BIGINT, nullsProvider);
-            testComparison(operatorType, INTEGER, nullsProvider);
-            testComparison(operatorType, SMALLINT, nullsProvider);
-            testComparison(operatorType, TINYINT, nullsProvider);
-            testComparison(operatorType, DOUBLE, nullsProvider);
-            testComparison(operatorType, REAL, nullsProvider);
+        // Iterate the IR Comparison.Operator values directly so we cover the full comparison spectrum
+        // expressible by the new Expression IR (NOT_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL have no
+        // OperatorType constant and would otherwise be missed). IDENTICAL is unsupported on GPU.
+        for (Type type : List.of(BIGINT, INTEGER, SMALLINT, TINYINT, DOUBLE, REAL)) {
+            for (Comparison.Operator operator : Comparison.Operator.values()) {
+                if (operator == Comparison.Operator.IDENTICAL) {
+                    continue;
+                }
+                testComparison(operator, type, nullsProvider);
+            }
         }
+    }
+
+    private void testComparison(Comparison.Operator operator, Type type, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(type, type);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBlock(type, positionsCount, nullsProvider),
+                createBlock(type, positionsCount, nullsProvider)));
+
+        Expression expression = new Comparison(operator, field(channelA, type), field(channelB, type));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -575,17 +608,17 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // AND of two comparisons: a < 50 AND b > 0
-        RowExpression left = call(
-                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+        Expression left = new Comparison(
+                Comparison.Operator.LESS_THAN,
                 field(channelA, BIGINT),
-                constant(50L, BIGINT));
-        RowExpression right = call(
-                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
-                constant(0L, BIGINT),
+                new Constant(BIGINT, 50L));
+        Expression right = new Comparison(
+                Comparison.Operator.LESS_THAN,
+                new Constant(BIGINT, 0L),
                 field(channelB, BIGINT));
-        RowExpression rowExpression = new SpecialForm(SpecialForm.Form.AND, BOOLEAN, List.of(left, right), List.of());
+        Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(left, right));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -601,17 +634,17 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // OR of two comparisons: a < 50 OR b > 0
-        RowExpression left = call(
-                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+        Expression left = new Comparison(
+                Comparison.Operator.LESS_THAN,
                 field(channelA, BIGINT),
-                constant(50L, BIGINT));
-        RowExpression right = call(
-                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
-                constant(0L, BIGINT),
+                new Constant(BIGINT, 50L));
+        Expression right = new Comparison(
+                Comparison.Operator.LESS_THAN,
+                new Constant(BIGINT, 0L),
                 field(channelB, BIGINT));
-        RowExpression rowExpression = new SpecialForm(SpecialForm.Form.OR, BOOLEAN, List.of(left, right), List.of());
+        Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(left, right));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -625,15 +658,15 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // NOT of a comparison: NOT(a < 50)
-        RowExpression comparison = call(
-                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+        Expression comparison = new Comparison(
+                Comparison.Operator.LESS_THAN,
                 field(channelA, BIGINT),
-                constant(50L, BIGINT));
-        RowExpression rowExpression = call(
+                new Constant(BIGINT, 50L));
+        Expression expression = new Call(
                 functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
-                comparison);
+                ImmutableList.of(comparison));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     @ParameterizedTest
@@ -646,9 +679,9 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
-        RowExpression rowExpression = new SpecialForm(SpecialForm.Form.IS_NULL, BOOLEAN, List.of(field(channelA, BIGINT)), List.of());
+        Expression expression = new IsNull(field(channelA, BIGINT));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     @ParameterizedTest
@@ -662,13 +695,12 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // a BETWEEN 10 AND 50
-        RowExpression rowExpression = new SpecialForm(
-                SpecialForm.Form.BETWEEN,
-                BOOLEAN,
-                List.of(field(channelA, BIGINT), constant(10L, BIGINT), constant(50L, BIGINT)),
-                List.of(functionResolution.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, List.of(BIGINT, BIGINT))));
+        Expression expression = new Between(
+                field(channelA, BIGINT),
+                new Constant(BIGINT, 10L),
+                new Constant(BIGINT, 50L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     @ParameterizedTest
@@ -683,13 +715,9 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100),
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
-        RowExpression rowExpression = new SpecialForm(
-                SpecialForm.Form.COALESCE,
-                BIGINT,
-                List.of(field(channelA, BIGINT), field(channelB, BIGINT)),
-                List.of());
+        Expression expression = new Coalesce(ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -705,17 +733,12 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // IF(a < 50, a, b)
-        RowExpression condition = call(
-                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
-                field(channelA, BIGINT),
-                constant(50L, BIGINT));
-        RowExpression rowExpression = new SpecialForm(
-                SpecialForm.Form.IF,
-                BIGINT,
-                List.of(condition, field(channelA, BIGINT), field(channelB, BIGINT)),
-                List.of());
+        Expression condition = new Comparison(Comparison.Operator.LESS_THAN, field(channelA, BIGINT), new Constant(BIGINT, 50L));
+        Expression expression = new Case(
+                ImmutableList.of(new WhenClause(condition, field(channelA, BIGINT))),
+                field(channelB, BIGINT));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @Test
@@ -741,23 +764,17 @@ public class TestGpuExpressions
         }
         List<Page> inputPages = List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
 
-        RowExpression bNotZero = call(
+        Expression bNotZero = new Call(
                 functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
-                call(
-                        functionResolution.resolveOperator(OperatorType.EQUAL, List.of(BIGINT, BIGINT)),
-                        field(channelB, BIGINT),
-                        constant(0L, BIGINT)));
-        RowExpression aDivB = call(
+                ImmutableList.of(new Comparison(Comparison.Operator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
+        Expression aDivB = new Call(
                 functionResolution.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
-                field(channelA, BIGINT),
-                field(channelB, BIGINT));
-        RowExpression rowExpression = new SpecialForm(
-                SpecialForm.Form.IF,
-                BIGINT,
-                List.of(bNotZero, aDivB, field(channelA, BIGINT)),
-                List.of());
+                ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
+        Expression expression = new Case(
+                ImmutableList.of(new WhenClause(bNotZero, aDivB)),
+                field(channelA, BIGINT));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -786,28 +803,35 @@ public class TestGpuExpressions
         }
         List<Page> inputPages = List.of(new Page(positionsCount, bBuilder.build()));
 
-        RowExpression bNotZero = call(
+        Expression bNotZero = new Call(
                 functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
-                call(
-                        functionResolution.resolveOperator(OperatorType.EQUAL, List.of(BIGINT, BIGINT)),
-                        field(channelB, BIGINT),
-                        constant(0L, BIGINT)));
-        RowExpression coalesceB = new SpecialForm(
-                SpecialForm.Form.COALESCE,
-                BIGINT,
-                List.of(field(channelB, BIGINT), constant(0L, BIGINT)),
-                List.of());
-        RowExpression divide = call(
+                ImmutableList.of(new Comparison(Comparison.Operator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
+        Expression coalesceB = new Coalesce(ImmutableList.of(field(channelB, BIGINT), new Constant(BIGINT, 0L)));
+        Expression divide = new Call(
                 functionResolution.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
-                constant(10L, BIGINT),
-                coalesceB);
-        RowExpression rowExpression = new SpecialForm(
-                SpecialForm.Form.IF,
-                BIGINT,
-                List.of(bNotZero, divide, constant(42L, BIGINT)),
-                List.of());
+                ImmutableList.of(new Constant(BIGINT, 10L), coalesceB));
+        Expression expression = new Case(
+                ImmutableList.of(new WhenClause(bNotZero, divide)),
+                new Constant(BIGINT, 42L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelB));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testTypeOnlyCast(NullsProvider nullsProvider)
+    {
+        // VARCHAR(10) -> VARCHAR(20) shares the same cudf STRING dtype, so visitCast should
+        // skip emitting GpuCast and forward the inner expression directly.
+        int channelA = 0;
+        Type sourceType = createVarcharType(10);
+        Type targetType = createVarcharType(20);
+        List<Type> inputTypes = List.of(sourceType);
+        List<Page> inputPages = createVarcharPages(List.of(64), nullsProvider);
+
+        Expression expression = new Cast(field(channelA, sourceType), targetType);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     @ParameterizedTest
@@ -831,11 +855,11 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(positionsCount,
                 createBlock(timestampType, positionsCount, nullsProvider)));
 
-        RowExpression rowExpression = call(
+        Expression expression = new Call(
                 functionResolution.resolveFunction(functionName, fromTypes(timestampType)),
-                field(channelA, timestampType));
+                ImmutableList.of(field(channelA, timestampType)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     @ParameterizedTest
@@ -846,11 +870,11 @@ public class TestGpuExpressions
         List<Type> inputTypes = List.of(VARCHAR);
         List<Page> inputPages = createVarcharPages(List.of(64), nullsProvider);
 
-        RowExpression rowExpression = call(
+        Expression expression = new Call(
                 functionResolution.resolveFunction("length", fromTypes(VARCHAR)),
-                field(varcharChannel, VARCHAR));
+                ImmutableList.of(field(varcharChannel, VARCHAR)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(varcharChannel));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
     }
 
     @ParameterizedTest
@@ -890,27 +914,14 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(positionsCount,
                 createBlock(type, positionsCount, nullsProvider)));
 
-        ImmutableList.Builder<RowExpression> arguments = ImmutableList.builder();
-        arguments.add(field(channelA, type));
+        ImmutableList.Builder<Expression> valueListBuilder = ImmutableList.builder();
         for (Object value : inValues) {
-            arguments.add(constant(value, type));
+            valueListBuilder.add(new Constant(type, value));
         }
 
-        RowExpression rowExpression = new SpecialForm(
-                SpecialForm.Form.IN,
-                BOOLEAN,
-                arguments.build(),
-                getInFunctionalDependencies(type));
+        Expression expression = new In(field(channelA, type), valueListBuilder.build());
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
-    }
-
-    private List<ResolvedFunction> getInFunctionalDependencies(Type type)
-    {
-        return ImmutableList.of(
-                functionResolution.resolveOperator(OperatorType.EQUAL, ImmutableList.of(type, type)),
-                functionResolution.resolveOperator(OperatorType.HASH_CODE, ImmutableList.of(type)),
-                functionResolution.resolveOperator(OperatorType.INDETERMINATE, ImmutableList.of(type)));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
@@ -923,66 +934,48 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -1000, 1000),
                 createBigintBlock(positionsCount, nullsProvider, 1, 100)));  // non-zero to avoid division by zero
 
-        RowExpression rowExpression = call(
+        Expression expression = new Call(
                 functionResolution.resolveOperator(operatorType, List.of(BIGINT, BIGINT)),
-                field(channelA, BIGINT),
-                field(channelB, BIGINT));
+                ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
-    private void testComparison(OperatorType operatorType, Type type, NullsProvider nullsProvider)
-    {
-        int channelA = 0;
-        int channelB = 1;
-        List<Type> inputTypes = List.of(type, type);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
-                createBlock(type, positionsCount, nullsProvider),
-                createBlock(type, positionsCount, nullsProvider)));
-
-        RowExpression rowExpression = call(
-                functionResolution.resolveOperator(operatorType, List.of(type, type)),
-                field(channelA, type),
-                field(channelB, type));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
-    }
-
-    private void testConstant(RowExpression constantExpression)
+    private void testConstant(Expression constantExpression)
     {
         List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(constantExpression)
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(constantExpression, layoutFor(List.of()))
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression);
-        List<Page> cpuResults = executeWithCpu(constantExpression, inputPages);
+        List<Page> cpuResults = executeWithCpu(inputPages, constantExpression, Map.of());
         assertSameDataInOrder(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
 
-    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels)
+    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
     {
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, expectedInputChannels, false);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
     }
 
-    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
+    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
     {
-        PageProcessor pageProcessor = compileCpuExpression(rowExpression);
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
+        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        PageProcessor pageProcessor = compileCpuExpression(expression, layout);
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(expression, layout)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
     }
 
-    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
+    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
     {
         List<Page> cpuResults;
         try {
@@ -996,44 +989,49 @@ public class TestGpuExpressions
                         .isEqualTo(1);
             }
             try {
-                assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression))
+                assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
                         .hasErrorCode(cpuExecutionException::getErrorCode);
             }
             catch (AssertionError failure) {
-                failure.addSuppressed(new Exception("rowExpression: " + rowExpression));
+                failure.addSuppressed(new Exception("expression: " + expression));
                 failure.addSuppressed(new Exception("inputTypes: " + inputTypes));
                 failure.addSuppressed(new Exception("CPU execution exception", cpuExecutionException));
                 throw failure;
             }
             return;
         }
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression);
-        assertSameDataInOrder(gpuResults, cpuResults, List.of(rowExpression.type()));
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
+        assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
     }
 
-    private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, CompiledExpression gpuExpression)
+    private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)
     {
         return executeGpuOperation(
                 inputPages,
                 inputTypes,
-                List.of(rowExpression.type()),
+                List.of(expression.type()),
                 copyToDevice -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
     }
 
-    private List<Page> executeWithCpu(RowExpression expression, List<Page> inputPages)
+    private List<Page> executeWithCpu(List<Page> inputPages, Expression expression, Map<Symbol, Integer> layout)
     {
-        return executeWithCpu(compileCpuExpression(expression), inputPages);
+        return executeWithCpu(compileCpuExpression(expression, layout), inputPages);
     }
 
-    private PageProcessor compileCpuExpression(RowExpression expression)
+    private PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
     {
+        RowExpression rowExpression = SqlToRowExpressionTranslator.translate(
+                expression,
+                layout,
+                functionResolution.getMetadata(),
+                functionResolution.getPlannerContext().getTypeManager());
         return functionResolution.getExpressionCompiler().compilePageProcessor(
                         false,
                         true,
                         false,
                         Optional.empty(),
                         Optional.empty(),
-                        List.of(expression),
+                        List.of(rowExpression),
                         Optional.empty(),
                         OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
@@ -1052,12 +1050,13 @@ public class TestGpuExpressions
         return outputPages.build();
     }
 
-    private RowExpression createLikeExpression(int channel, String pattern, Optional<Character> escape)
+    private Expression createLikeExpression(int channel, String pattern, Optional<Character> escape)
     {
-        return call(
+        return new Call(
                 functionResolution.resolveFunction("$like", fromTypes(VARCHAR, LIKE_PATTERN)),
-                field(channel, VARCHAR),
-                constant(LikePattern.compile(pattern, escape), LIKE_PATTERN));
+                ImmutableList.of(
+                        field(channel, VARCHAR),
+                        new Constant(LIKE_PATTERN, LikePattern.compile(pattern, escape))));
     }
 
     private List<Page> createVarcharPages(List<Integer> positionsCounts, NullsProvider nullsProvider)
@@ -1104,6 +1103,29 @@ public class TestGpuExpressions
         Random random = new Random(42); // Fixed seed for reproducibility
         return IntStream.generate(() -> random.nextInt(minInclusive, maxExclusive))
                 .boxed();
+    }
+
+    private static Reference field(int channel, Type type)
+    {
+        return new Reference(type, "ref" + channel);
+    }
+
+    private static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)
+    {
+        ImmutableMap.Builder<Symbol, Integer> builder = ImmutableMap.builder();
+        for (int i = 0; i < inputTypes.size(); i++) {
+            builder.put(new Symbol(inputTypes.get(i), "ref" + i), i);
+        }
+        return builder.buildOrThrow();
+    }
+
+    private static Expression buildUnaryOperatorExpression(OperatorType operator, ResolvedFunction function, Expression argument)
+    {
+        if (operator == OperatorType.CAST) {
+            return new Cast(argument, function.signature().getReturnType());
+        }
+        // Note: SATURATED_FLOOR_CAST is still expressed as a Call (operator function), not a Cast IR node.
+        return new Call(function, ImmutableList.of(argument));
     }
 
     private record Pair<F, S>(F first, S second)

@@ -2342,9 +2342,9 @@ public class LocalExecutionPlanner
                 // Filters and projections are only added when there is a preceding GPU operation
                 if (sourceGpuOperation.isPresent() &&
                         // projections have types supported on the GPU
-                        translatedProjections.stream().map(RowExpression::type).allMatch(GpuTypeConversion::isConvertible)) {
-                    Optional<CompiledExpression> gpuFilter = translatedFilter.flatMap(gpuExpressionCompiler::compileExpression);
-                    if (translatedFilter.isPresent() == gpuFilter.isPresent()) {
+                        projections.stream().map(Expression::type).allMatch(GpuTypeConversion::isConvertible)) {
+                    Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> gpuExpressionCompiler.compileExpression(filter, sourceLayout));
+                    if (staticFilters.isPresent() == gpuFilter.isPresent()) {
                         PhysicalOperation gpuOperation = sourceGpuOperation.get();
                         if (gpuFilter.isPresent()) {
                             gpuOperation = addGpuOperation(
@@ -2356,7 +2356,7 @@ public class LocalExecutionPlanner
                                     planNodeId);
                         }
 
-                        Optional<List<CompiledExpression>> gpuProjections = gpuExpressionCompiler.compileExpressions(translatedProjections);
+                        Optional<List<CompiledExpression>> gpuProjections = gpuExpressionCompiler.compileExpressions(projections, sourceLayout);
                         if (gpuProjections.isPresent()) {
                             return addGpuOperation(
                                     new GpuProject.Factory(
