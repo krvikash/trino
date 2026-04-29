@@ -35,7 +35,9 @@ import io.trino.spi.type.SqlTimestamp;
 import io.trino.spi.type.SqlTimestampWithTimeZone;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Program;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
@@ -92,6 +94,7 @@ import static com.google.common.collect.Sets.intersection;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.metadata.OperatorNameUtil.mangleOperatorName;
+import static io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata.GROUPING_SETS;
 import static io.trino.sql.planner.assertions.PlanAssert.assertPlan;
 import static io.trino.sql.planner.planprinter.PlanPrinter.textLogicalPlan;
 import static io.trino.sql.query.QueryAssertions.QueryAssert.newQueryAssert;
@@ -1151,16 +1154,43 @@ public class QueryAssertions
             return this;
         }
 
+        @CanIgnoreReturnValue
+        public ProgramAssert expectedGroupIdOperationCount(int expectedCount)
+        {
+            assertOperationCount(GroupId.class, expectedCount);
+            return this;
+        }
+
+        @CanIgnoreReturnValue
+        public ProgramAssert expectedGroupIdGroupingSets(List<List<List<Integer>>> expectedGroupingSets)
+        {
+            List<List<List<Integer>>> actualGroupingSets = operations().stream()
+                    .filter(GroupId.class::isInstance)
+                    .map(GroupId.class::cast)
+                    .map(groupId -> GROUPING_SETS.getAttribute(groupId.attributes()))
+                    .collect(toImmutableList());
+            assertThat(actualGroupingSets)
+                    .as("GroupId grouping sets")
+                    .containsExactlyInAnyOrderElementsOf(expectedGroupingSets);
+            return this;
+        }
+
         private void assertOperationCount(Class<? extends TrinoOperation> trinoOperationClass, int expectedCount)
         {
-            int actualOperationCount = (int) actual.root().regions().stream()
-                    .flatMap(region -> region.blocks().stream())
-                    .flatMap(block -> block.operations().stream())
+            int actualOperationCount = (int) operations().stream()
                     .filter(trinoOperationClass::isInstance)
                     .count();
             assertThat(actualOperationCount)
                     .withFailMessage("Expected %d occurrences of %s operation, but found %d", expectedCount, trinoOperationClass.getSimpleName(), actualOperationCount)
                     .isEqualTo(expectedCount);
+        }
+
+        private List<Operation> operations()
+        {
+            return actual.root().regions().stream()
+                    .flatMap(region -> region.blocks().stream())
+                    .flatMap(block -> block.operations().stream())
+                    .collect(toImmutableList());
         }
     }
 }
