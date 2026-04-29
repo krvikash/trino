@@ -17,8 +17,14 @@ import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import io.airlift.http.client.jetty.JettyHttpClient;
+import io.airlift.json.JsonCodec;
+import io.airlift.json.JsonCodecFactory;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
+import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
@@ -256,6 +262,11 @@ public class RateLimitingTestHarness
                                         throws Exception
                                 {}
                             };
+
+                            JsonCodecFactory jsonCodecFactory = new JsonCodecFactory(new JsonMapperProvider()
+                                    .withJsonSerializers(Map.of(Span.class, new SpanSerialization.SpanSerializer(OpenTelemetry.noop()))));
+                            JsonCodec<Span> spanJsonCodec = jsonCodecFactory.jsonCodec(Span.class);
+
                             return new HttpDataClient(
                                     server.getBaseUri(),
                                     BUFFER_NODE_ID,
@@ -264,7 +275,7 @@ public class RateLimitingTestHarness
                                     dummySpooledChunkReader,
                                     false,
                                     Optional.of(nodeId),
-                                    null);
+                                    spanJsonCodec);
                         }
                     },
                     new BufferExchangeConfig(),
