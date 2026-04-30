@@ -26,10 +26,13 @@ import io.trino.testing.DistributedQueryRunner;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
@@ -52,6 +55,8 @@ public abstract class BaseTpchWorkload
 
     private static final List<String> TABLES = List.of(
             "region", "nation", "customer", "supplier", "part", "partsupp", "orders", "lineitem");
+
+    private static final Pattern EXTERNAL_LOCATION_PATTERN = Pattern.compile("external_location\\s*=\\s*'([^']+)'");
 
     protected final int scaleFactor;
 
@@ -197,13 +202,48 @@ public abstract class BaseTpchWorkload
      * LIKE (vs CTAS) keeps column types in sync with the tpch connector's
      * {@link DecimalTypeMapping} and skips {@code HiveLocationService.forNewTableAsSelect},
      * so the target directory may exist.
+     *
+     * <p>The Hive metastore is persisted across runs (see {@link #createRunner}), so a previously
+     * created table at a different {@code external_location} would be silently reused by a plain
+     * {@code CREATE TABLE IF NOT EXISTS}. Drop and recreate when the stored location no longer
+     * matches the requested one.
      */
     private void createExternalTable(DistributedQueryRunner runner, Path dataLocation, String table)
     {
-        String location = dataLocation.resolve(table).toAbsolutePath().normalize().toString();
+        Path location = dataLocation.resolve(table).toAbsolutePath().normalize();
+        Optional<Path> existing = readExistingExternalLocation(runner, table);
+        if (existing.isPresent() && existing.get().equals(location)) {
+            log.info("Reusing existing hive.tpch.%s at %s", table, location);
+            return;
+        }
+        if (existing.isPresent()) {
+            log.info("Recreating hive.tpch.%s: was at %s, now at %s", table, existing.get(), location);
+            runner.execute("DROP TABLE hive.tpch." + table);
+        }
+        else {
+            log.info("Creating hive.tpch.%s at %s", table, location);
+        }
         runner.execute("""
-                       CREATE TABLE IF NOT EXISTS hive.tpch.%s (LIKE tpch.sf%d.%s)
-                       WITH (external_location = '%s', format = 'PARQUET')
-                       """.formatted(table, scaleFactor, table, location));
+                CREATE TABLE hive.tpch.%s (LIKE tpch.sf%d.%s)
+                WITH (external_location = '%s', format = 'PARQUET')
+                """.formatted(table, scaleFactor, table, location));
+    }
+
+    private static Optional<Path> readExistingExternalLocation(DistributedQueryRunner runner, String table)
+    {
+        String createSql;
+        try {
+            createSql = (String) runner.execute("SHOW CREATE TABLE hive.tpch." + table).getOnlyValue();
+        }
+        catch (RuntimeException e) {
+            return Optional.empty();
+        }
+        Matcher matcher = EXTERNAL_LOCATION_PATTERN.matcher(createSql);
+        if (!matcher.find()) {
+            return Optional.empty();
+        }
+        String stored = matcher.group(1);
+        Path path = stored.startsWith("file:") ? Path.of(URI.create(stored)) : Path.of(stored);
+        return Optional.of(path.toAbsolutePath().normalize());
     }
 }
