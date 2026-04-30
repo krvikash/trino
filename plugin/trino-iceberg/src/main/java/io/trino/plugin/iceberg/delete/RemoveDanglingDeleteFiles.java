@@ -32,6 +32,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.util.ContentFileUtil;
 import org.apache.iceberg.util.StructLikeWrapper;
 
 import java.io.IOException;
@@ -142,8 +143,11 @@ public class RemoveDanglingDeleteFiles
                 CloseableIterator<? extends ContentFile<?>> readerIterator = manifestReader.iterator()) {
             while (readerIterator.hasNext()) {
                 ContentFile<?> contentFile = readerIterator.next();
-                if (contentFile instanceof DeleteFile deleteFile && deleteFile.referencedDataFile() != null) {
-                    referencedDataFilePathsBuilder.add(deleteFile.referencedDataFile());
+                if (contentFile instanceof DeleteFile deleteFile) {
+                    String referencedDataFile = ContentFileUtil.referencedDataFileLocation(deleteFile);
+                    if (referencedDataFile != null) {
+                        referencedDataFilePathsBuilder.add(referencedDataFile);
+                    }
                 }
             }
         }
@@ -310,8 +314,9 @@ public class RemoveDanglingDeleteFiles
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
             DeleteFilesMetadata.Builder builder)
     {
-        // Single file-scoped position delete
-        String referencedDataFilePath = deleteFile.referencedDataFile();
+        // Single file-scoped position delete (either via the explicit referenced_data_file pointer
+        // or when the delete file's _file column metric's lower/upper bounds are equal)
+        String referencedDataFilePath = ContentFileUtil.referencedDataFileLocation(deleteFile);
         if (referencedDataFilePath != null) {
             Long minDataFileSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByReferencedPath().get(referencedDataFilePath);
             if (minDataFileSequenceNumber != null) {

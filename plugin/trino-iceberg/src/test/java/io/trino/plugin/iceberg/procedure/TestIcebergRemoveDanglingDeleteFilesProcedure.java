@@ -32,6 +32,7 @@ import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.RewriteManifests;
 import org.apache.iceberg.Schema;
@@ -177,14 +178,14 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
                 "(nationkey bigint, name varchar, regionkey bigint, comment varchar)")) {
             // Dangling — written before data has lower sequence number
             BaseTable icebergTable = loadTable(table.getName());
-            writePositionDeleteForTable(icebergTable, PartitionSpec.unpartitioned(), null, "local:///placeholder.parquet", 0);
+            writePositionDeletesForTable(icebergTable, PartitionSpec.unpartitioned(), null, List.of("local:///placeholder.parquet"), false);
 
             assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM tpch.tiny.nation", 25);
 
             // Active — written after data has higher sequence number
             icebergTable = loadTable(table.getName());
             String dataFilePath = (String) computeActual("SELECT file_path FROM \"" + table.getName() + "$files\" WHERE content = 0 LIMIT 1").getOnlyValue();
-            writePositionDeleteForTable(icebergTable, PartitionSpec.unpartitioned(), null, dataFilePath, 0);
+            writePositionDeletesForTable(icebergTable, PartitionSpec.unpartitioned(), null, List.of(dataFilePath), false);
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(2);
             // Active position delete removes one row; dangling one (lower seq) has no effect
             assertThat(query("SELECT count(*) FROM " + table.getName()))
@@ -217,9 +218,9 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             BaseTable icebergTable = loadTable(table.getName());
             String dataFilePath = (String) computeActual("SELECT file_path FROM \"" + table.getName() + "$files\" WHERE content = 0 LIMIT 1").getOnlyValue();
             // Active — partition 'a' has data and delete has higher seq
-            writePositionDeleteForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"a"}), dataFilePath, 0);
+            writePositionDeletesForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"a"}), List.of(dataFilePath), false);
             // Dangling — partition 'c' has no data files
-            writePositionDeleteForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"c"}), "local:///placeholder.parquet", 0);
+            writePositionDeletesForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"c"}), List.of("local:///placeholder.parquet"), false);
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(2);
 
             assertUpdate(
@@ -269,6 +270,67 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
             assertThat(query("SELECT count(*) FROM " + table.getName()))
                     .matches("VALUES BIGINT '24'");
+        }
+    }
+
+    @Test
+    void testPositionDeleteWithSingleFileBoundsTreatedAsFileReferenced()
+            throws Exception
+    {
+        // A position delete written without an explicit referenced_data_file pointer is still treated as
+        // file-referenced when the manifest entry's _file lower/upper bounds are equal
+        // Force the writer to record _file metrics so the bounds get populated, then verify the procedure
+        // marks the delete dangling even though partition 'a' contains live data files at acceptable
+        // sequence numbers.
+        try (TestTable table = newTrinoTable("test_position_delete_path_bounds",
+                "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'b')", 3);
+
+            BaseTable icebergTable = loadTable(table.getName());
+            writePositionDeletesForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"a"}), List.of("local:///nonexistent_data_file.parquet"), true);
+            assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
+                    """
+                            VALUES
+                            ('removed_delete_files_count', 1),
+                            ('dangling_equality_delete_files_count', 0),
+                            ('dangling_position_delete_files_count', 1),
+                            ('dangling_dv_files_count', 0),
+                            ('data_files_without_sequence_numbers', 0),
+                            ('unexpected_delete_files_count', 0)""");
+            assertThat(positionDeleteFileCount(table.getName())).isEqualTo(0);
+        }
+    }
+
+    @Test
+    void testPositionDeleteWithMultipleFileBoundsNotTreatedAsFileReferenced()
+            throws Exception
+    {
+        // When a position delete file targets multiple distinct data file paths, the manifest entry's
+        // _file lower/upper bounds differ. Partition 'a' has live data files at acceptable sequence
+        // numbers, so the procedure must keep the delete file.
+        try (TestTable table = newTrinoTable("test_position_delete_multi_path_bounds",
+                "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'b')", 3);
+
+            BaseTable icebergTable = loadTable(table.getName());
+            writePositionDeletesForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"a"}),
+                    List.of("local:///nonexistent_a.parquet", "local:///nonexistent_b.parquet"), true);
+            assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
+                    """
+                            VALUES
+                            ('removed_delete_files_count', 0),
+                            ('dangling_equality_delete_files_count', 0),
+                            ('dangling_position_delete_files_count', 0),
+                            ('dangling_dv_files_count', 0),
+                            ('data_files_without_sequence_numbers', 0),
+                            ('unexpected_delete_files_count', 0)""");
+            assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
         }
     }
 
@@ -600,7 +662,7 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
         }
     }
 
-    private void writePositionDeleteForTable(BaseTable icebergTable, PartitionSpec spec, PartitionData partitionData, String dataFilePath, long position)
+    private void writePositionDeletesForTable(BaseTable icebergTable, PartitionSpec spec, PartitionData partitionData, List<String> dataFilePaths, boolean includeDeleteMetrics)
             throws IOException
     {
         try (FileIO fileIo = FILE_IO_FACTORY.create(fileSystemFactory.create(SESSION))) {
@@ -613,12 +675,18 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             if (partitionData != null) {
                 builder.withPartition(partitionData);
             }
+            if (includeDeleteMetrics) {
+                // Collect metrics on _file/_pos so the manifest entry exposes the lower/upper bounds
+                builder.metricsConfig(MetricsConfig.forPositionDelete(icebergTable));
+            }
             PositionDeleteWriter<Void> writer = builder.buildPositionWriter();
 
-            PositionDelete<Void> positionDelete = PositionDelete.create();
-            positionDelete.set(dataFilePath, position);
             try (Closeable _ = writer) {
-                writer.write(positionDelete);
+                for (String dataFilePath : dataFilePaths) {
+                    PositionDelete<Void> positionDelete = PositionDelete.create();
+                    positionDelete.set(dataFilePath, 0);
+                    writer.write(positionDelete);
+                }
             }
 
             icebergTable.newRowDelta().addDeletes(writer.toDeleteFile()).commit();
