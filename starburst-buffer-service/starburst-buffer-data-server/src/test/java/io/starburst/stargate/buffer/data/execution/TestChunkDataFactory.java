@@ -39,6 +39,7 @@ public class TestChunkDataFactory
     private static final long CHUNK_ID = 5;
     private static final int CHUNK_SIZE_IN_BYTES = 1024;
     private static final DataSize THRESHOLD = DataSize.of(1, MEGABYTE);
+    private static final DataSize DISK_CAPACITY = DataSize.of(10, MEGABYTE);
 
     @TempDir
     Path tempDir;
@@ -78,7 +79,7 @@ public class TestChunkDataFactory
     @Test
     public void testReturnsMemoryWhenThresholdNotConfigured()
     {
-        ChunkDataFactory factory = createFactory(Optional.of(createDiskTier(Optional.empty())));
+        ChunkDataFactory factory = createFactory(Optional.of(createDiskTier(Optional.empty(), DISK_CAPACITY)));
 
         ChunkData chunkData = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID, CHUNK_SIZE_IN_BYTES, Long.MAX_VALUE);
 
@@ -88,8 +89,7 @@ public class TestChunkDataFactory
     @Test
     public void testReturnsMemoryWhenCumulativeBelowThreshold()
     {
-        LocalDiskTier diskTier = createDiskTier(Optional.of(THRESHOLD));
-        ChunkDataFactory factory = createFactory(Optional.of(diskTier));
+        ChunkDataFactory factory = createFactory(Optional.of(createDiskTier(Optional.of(THRESHOLD), DISK_CAPACITY)));
 
         ChunkData chunkData = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes() - 1);
 
@@ -101,8 +101,7 @@ public class TestChunkDataFactory
     @Test
     public void testReturnsDiskWhenCumulativeAtOrAboveThreshold()
     {
-        LocalDiskTier diskTier = createDiskTier(Optional.of(THRESHOLD));
-        ChunkDataFactory factory = createFactory(Optional.of(diskTier));
+        ChunkDataFactory factory = createFactory(Optional.of(createDiskTier(Optional.of(THRESHOLD), DISK_CAPACITY)));
 
         ChunkData atThreshold = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes());
         ChunkData aboveThreshold = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID + 1, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes() + 1);
@@ -113,17 +112,44 @@ public class TestChunkDataFactory
         assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID))).isDirectory();
     }
 
+    @Test
+    public void testFallsBackToMemoryWhenCapacityExhausted()
+    {
+        // Capacity holds exactly two chunks; the third must fall back to memory,
+        // and releasing one disk chunk must free space for a subsequent disk-eligible request.
+        DataSize tightCapacity = DataSize.ofBytes(2L * CHUNK_SIZE_IN_BYTES);
+        ChunkDataFactory factory = createFactory(Optional.of(createDiskTier(Optional.of(THRESHOLD), tightCapacity)));
+
+        ChunkData first = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes());
+        ChunkData second = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID + 1, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes());
+        ChunkData third = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID + 2, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes());
+
+        assertThat(first).isInstanceOf(DiskChunkData.class);
+        assertThat(second).isInstanceOf(DiskChunkData.class);
+        assertThat(third).isInstanceOf(MemoryChunkData.class);
+
+        first.release();
+
+        ChunkData fourth = factory.create(EXCHANGE_ID, PARTITION_ID, CHUNK_ID + 3, CHUNK_SIZE_IN_BYTES, THRESHOLD.toBytes());
+        assertThat(fourth).isInstanceOf(DiskChunkData.class);
+    }
+
     private ChunkDataFactory createFactory(Optional<LocalDiskTier> localDiskTier)
     {
         return new ChunkDataFactory(localDiskTier, memoryAllocator, executor, chunkManagerConfig, new DataServerConfig());
     }
 
-    private LocalDiskTier createDiskTier(Optional<DataSize> memorySkipThreshold)
+    private LocalDiskTier createDiskTier(Optional<DataSize> memorySkipThreshold, DataSize capacity)
+    {
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), createDiskTierConfig(memorySkipThreshold, capacity));
+    }
+
+    private LocalDiskTierConfig createDiskTierConfig(Optional<DataSize> memorySkipThreshold, DataSize capacity)
     {
         LocalDiskTierConfig config = new LocalDiskTierConfig()
                 .setDirectory(tempDir)
-                .setCapacity(DataSize.of(10, MEGABYTE));
+                .setCapacity(capacity);
         memorySkipThreshold.ifPresent(config::setMemorySkipThreshold);
-        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config);
+        return config;
     }
 }

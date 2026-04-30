@@ -18,12 +18,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
-import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.stargate.buffer.data.disk.DiskDirectoryInitializer.OWNERSHIP_MARKER;
 import static io.starburst.stargate.buffer.data.disk.DiskDirectoryInitializer.initializeDirectories;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,20 +30,18 @@ public class TestDiskDirectoryInitializer
     @TempDir
     Path tempDir;
 
-    private ExecutorService cleanupExecutor;
+    private DiskDirectoryTracker tracker;
 
     @BeforeEach
     public void setUp()
     {
-        cleanupExecutor = Executors.newSingleThreadExecutor(daemonThreadsNamed("test-local-disk-cleanup-%s"));
+        tracker = new DiskDirectoryTracker();
     }
 
     @AfterEach
     public void tearDown()
-            throws InterruptedException
     {
-        cleanupExecutor.shutdownNow();
-        cleanupExecutor.awaitTermination(10, TimeUnit.SECONDS);
+        tracker.shutdown();
     }
 
     @Test
@@ -56,7 +50,7 @@ public class TestDiskDirectoryInitializer
         Path missingRoot = tempDir.resolve("non-existent");
         Path nodeDir = missingRoot.resolve("0");
 
-        assertThatThrownBy(() -> initializeDirectories(missingRoot, nodeDir, cleanupExecutor))
+        assertThatThrownBy(() -> initializeDirectories(missingRoot, nodeDir, tracker))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("root directory does not exist or is not a directory");
     }
@@ -68,7 +62,7 @@ public class TestDiskDirectoryInitializer
         Path rootAsFile = Files.writeString(tempDir.resolve("not-a-dir.txt"), "data");
         Path nodeDir = rootAsFile.resolve("0");
 
-        assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, cleanupExecutor))
+        assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, tracker))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("root directory does not exist or is not a directory");
     }
@@ -78,7 +72,7 @@ public class TestDiskDirectoryInitializer
     {
         Path unrelatedNodeDir = tempDir.getParent().resolve("elsewhere");
 
-        assertThatThrownBy(() -> initializeDirectories(tempDir, unrelatedNodeDir, cleanupExecutor))
+        assertThatThrownBy(() -> initializeDirectories(tempDir, unrelatedNodeDir, tracker))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must be a subdirectory of");
     }
@@ -89,7 +83,7 @@ public class TestDiskDirectoryInitializer
     {
         Path nodeDir = tempDir.resolve("0");
 
-        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, cleanupExecutor);
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker);
         cleanupFuture.get();
 
         assertThat(tempDir.resolve(OWNERSHIP_MARKER)).isRegularFile();
@@ -103,7 +97,7 @@ public class TestDiskDirectoryInitializer
         Files.writeString(tempDir.resolve("foreign.dat"), "owned by something else");
         Path nodeDir = tempDir.resolve("0");
 
-        assertThatThrownBy(() -> initializeDirectories(tempDir, nodeDir, cleanupExecutor))
+        assertThatThrownBy(() -> initializeDirectories(tempDir, nodeDir, tracker))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing ownership marker")
                 .hasMessageContaining(OWNERSHIP_MARKER);
@@ -123,7 +117,7 @@ public class TestDiskDirectoryInitializer
         Files.writeString(staleSubdir.resolve("chunk.dat"), "chunk data");
         Path nodeDir = tempDir.resolve("0");
 
-        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, cleanupExecutor);
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker);
         cleanupFuture.get();
 
         assertThat(tempDir.resolve(OWNERSHIP_MARKER)).isRegularFile();
@@ -141,7 +135,7 @@ public class TestDiskDirectoryInitializer
         Files.writeString(orphan.resolve("stale.dat"), "left over from a previous deployment");
         Path nodeDir = tempDir.resolve("0");
 
-        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, cleanupExecutor);
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker);
         cleanupFuture.get();
 
         assertThat(orphan).doesNotExist();

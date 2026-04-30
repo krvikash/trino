@@ -24,8 +24,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -75,22 +73,20 @@ public class TestPartition
     }
 
     @Test
-    public void testDeletesDirectoryWithContentsOnRelease()
-            throws IOException, ExecutionException, InterruptedException
+    public void testReleaseChunksDoesNotDeletePartitionDirectoryDirectly()
+            throws ExecutionException, InterruptedException
     {
         LocalDiskTier diskTier = createDiskTier();
         Partition partition = createPartition(Optional.of(diskTier));
 
-        // simulate a disk-backed chunk having materialized the partition directory at some point during the partition's lifetime
         diskTier.createPartitionDirectory(EXCHANGE_ID, PARTITION_ID);
         Path partitionDir = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve(EXCHANGE_ID).resolve(String.valueOf(PARTITION_ID));
-        Files.writeString(partitionDir.resolve("chunk-0.data"), "payload");
         assertThat(partitionDir).isDirectory();
 
         partition.releaseChunks();
-        diskTier.awaitPendingTasks();
+        diskTier.getDirectoryTracker().awaitPendingTasks();
 
-        assertThat(partitionDir).doesNotExist();
+        assertThat(partitionDir).isDirectory();
     }
 
     @Test
@@ -129,7 +125,6 @@ public class TestPartition
                 new ChunkIdGenerator(),
                 ChunkDeliveryMode.STANDARD,
                 executor,
-                localDiskTier,
                 chunkDataFactory,
                 new AtomicLong(),
                 _ -> {});

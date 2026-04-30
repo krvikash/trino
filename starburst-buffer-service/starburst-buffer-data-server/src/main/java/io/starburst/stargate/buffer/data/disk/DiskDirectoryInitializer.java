@@ -19,7 +19,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -39,7 +38,7 @@ final class DiskDirectoryInitializer
 
     private DiskDirectoryInitializer() {}
 
-    static Future<?> initializeDirectories(Path rootDirectory, Path nodeDirectory, ExecutorService cleanupExecutor)
+    static Future<?> initializeDirectories(Path rootDirectory, Path nodeDirectory, DiskDirectoryTracker directoryTracker)
     {
         checkArgument(
                 nodeDirectory.startsWith(rootDirectory) && !nodeDirectory.equals(rootDirectory),
@@ -59,7 +58,7 @@ final class DiskDirectoryInitializer
         if (!cleanupNeeded) {
             return CompletableFuture.completedFuture(null);
         }
-        return cleanupExecutor.submit(() -> cleanStaleRootEntries(rootDirectory, marker, nodeDirectory));
+        return directoryTracker.submitCleanup(() -> cleanStaleRootEntries(rootDirectory, marker, nodeDirectory));
     }
 
     private static void checkIfRootDirectoryExists(Path rootDirectory)

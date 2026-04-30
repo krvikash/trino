@@ -12,65 +12,152 @@ package io.starburst.stargate.buffer.data.execution;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.slice.Slice;
+import io.airlift.slice.SliceOutput;
+import io.airlift.slice.Slices;
+import io.airlift.slice.XxHash64;
+import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
+import io.starburst.stargate.buffer.data.disk.DiskSpaceLease;
+import io.starburst.stargate.buffer.data.execution.CountedReference.Ref;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.finalizeChecksum;
 import static java.util.Objects.requireNonNull;
 
 public final class DiskChunkData
         implements ChunkData
 {
-    private final Path partitionDirectory;
+    private final Path file;
     private final long chunkId;
     private final int chunkSizeInBytes;
-    @SuppressWarnings("UnusedVariable") // to be read by future write()/get() implementations
     private final boolean calculateDataPagesChecksum;
+    private final Ref<DiskSpaceLease> diskLease;
+    private final Slice headerSlice = Slices.allocate(DATA_PAGE_HEADER_SIZE);
 
     @GuardedBy("this")
     private FileChannel channel;
+    @GuardedBy("this")
+    private final XxHash64 hash = new XxHash64();
+    @GuardedBy("this")
+    private Throwable poisonCause;
 
+    @GuardedBy("this")
     private int writtenBytes;
+    @GuardedBy("this")
     private int dataSizeInBytes;
+    @GuardedBy("this")
     private int numDataPages;
 
-    public DiskChunkData(Path partitionDirectory, long chunkId, int chunkSizeInBytes, boolean calculateDataPagesChecksum)
+    public DiskChunkData(long chunkId, int chunkSizeInBytes, boolean calculateDataPagesChecksum, DiskChunkSlot chunkSlot)
     {
-        this.partitionDirectory = requireNonNull(partitionDirectory, "partitionDirectory is null");
+        this(requireNonNull(chunkSlot, "chunkSlot is null").file(), chunkId, chunkSizeInBytes, calculateDataPagesChecksum, chunkSlot.lease(), chunkSlot.diskRelease());
+    }
+
+    DiskChunkData(Path file, long chunkId, int chunkSizeInBytes, boolean calculateDataPagesChecksum, DiskSpaceLease spaceLease, Runnable directoryRelease)
+    {
+        this.file = requireNonNull(file, "file is null");
         this.chunkId = chunkId;
         this.chunkSizeInBytes = chunkSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
-        Path file = file();
+        requireNonNull(spaceLease, "spaceLease is null");
         try {
             this.channel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
         }
         catch (IOException e) {
+            spaceLease.release();
             throw new UncheckedIOException("failed to open disk chunk file " + file, e);
         }
+        this.diskLease = CountedReference.create(
+                () -> spaceLease,
+                lease -> {
+                    try {
+                        Files.deleteIfExists(file);
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException("failed to delete " + file, e);
+                    }
+                    finally {
+                        lease.release();
+                        directoryRelease.run();
+                    }
+                });
     }
 
     @Override
-    public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
+    public synchronized ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
     {
-        // TODO: gathering write e.g via ByteBuffer[], atomic writtenBytes,
-        // finalize checksum post-append (keeps hash state consistent with file state on I/O
-        // failure), poison-on-failure so subsequent writes short-circuit.
-        throw new UnsupportedOperationException("DiskChunkData.write not yet implemented");
+        // Intentionally synchronous: capacity is reserved upfront, the FileChannel is open,
+        // and the bytes are committed in a single FileChannel.write(ByteBuffer[]) syscall.
+        // MemoryChunkData is async because it has to await new SliceLease allocations
+        // mid-chunk; we have no such await points. Wrapping in an executor hop would only
+        // add latency. Revisit only if profiling shows write-side syscall overhead dominating
+        // (e.g., very small pages where batching N pages into one writev would help, or if
+        // we ever switch to a writer that needs to wait for a disk-IO executor for fairness
+        // with reads).
+        if (poisonCause != null) {
+            return immediateFailedFuture(poisonCause);
+        }
+        if (channel == null) {
+            return immediateFailedFuture(new IllegalStateException("write() called on closed DiskChunkData for chunk " + chunkId));
+        }
+        int dataSize = data.length();
+        int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
+        int writableBytes = chunkSizeInBytes - writtenBytes;
+        checkArgument(requiredStorageSize <= writableBytes,
+                "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
+
+        SliceOutput headerOutput = headerSlice.getOutput();
+        headerOutput.writeShort(taskId);
+        headerOutput.writeByte(attemptId);
+        headerOutput.writeInt(dataSize);
+
+        ByteBuffer[] buffers = {
+                headerSlice.toByteBuffer(),
+                data.toByteBuffer(),
+        };
+
+        try {
+            while (buffers[0].hasRemaining() || buffers[1].hasRemaining()) {
+                long written = channel.write(buffers);
+                if (written <= 0) {
+                    throw new IOException("FileChannel.write returned " + written);
+                }
+            }
+        }
+        catch (IOException e) {
+            poisonCause = new UncheckedIOException("write failed for chunk file " + chunkId, e);
+            return immediateFailedFuture(poisonCause);
+        }
+
+        if (calculateDataPagesChecksum) {
+            hash.update(data);
+        }
+        writtenBytes += requiredStorageSize;
+        dataSizeInBytes += dataSize;
+        numDataPages++;
+        return immediateVoidFuture();
     }
 
     @Override
-    public boolean hasEnoughSpace(int requiredStorageSize)
+    public synchronized boolean hasEnoughSpace(int requiredStorageSize)
     {
         return requiredStorageSize <= chunkSizeInBytes - writtenBytes;
     }
 
     @Override
-    public int dataSizeInBytes()
+    public synchronized int dataSizeInBytes()
     {
         return dataSizeInBytes;
     }
@@ -84,18 +171,48 @@ public final class DiskChunkData
     @Override
     public synchronized ChunkDataLease get()
     {
-        // TODO: snapshot writtenBytes at call time, finalize the running XxHash64 when
-        // calculateDataPagesChecksum is true, and wire the release callback through a
-        // CountedReference destroy action so the file is only deleted once the last reader
-        // lease releases. Consider holding a back-reference to this instead of duplicating
-        // state in the lease.
-        return new DiskChunkDataLease(writtenBytes, NO_CHECKSUM, numDataPages, () -> {});
+        checkState(channel == null, "get() called before DiskChunkData was closed for chunk %s", chunkId);
+        // Open the read FileChannel atomically with the CountedReference bump.
+        // The ref count prevents both file deletion and partition directory cleanup
+        // until the last reader releases its lease.
+        Ref<DiskSpaceLease> readerRef = diskLease.addReference();
+        try {
+            FileChannel readChannel;
+            try {
+                readChannel = FileChannel.open(file, StandardOpenOption.READ);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException("failed to open disk chunk file " + file + " for reading", e);
+            }
+            try {
+                long checksum = calculateDataPagesChecksum ? finalizeChecksum(hash) : NO_CHECKSUM;
+                return new DiskChunkDataLease(writtenBytes, checksum, numDataPages, readerRef::release);
+            }
+            catch (Throwable t) {
+                try {
+                    readChannel.close();
+                }
+                catch (Throwable ignored) {
+                    // already handling an exception; suppress to preserve the original
+                }
+                throw t;
+            }
+        }
+        catch (Throwable t) {
+            try {
+                readerRef.release();
+            }
+            catch (Throwable ignored) {
+                // already handling an exception; suppress to preserve the original
+            }
+            throw t;
+        }
     }
 
     @Override
     public int getReclaimableHeapBytes()
     {
-        // Disk-backed chunks hold no heap memory to reclaim. Returning ZERO
+        // Disk-backed chunks hold no heap memory to reclaim
         return 0;
     }
 
@@ -107,30 +224,20 @@ public final class DiskChunkData
                 channel.close();
             }
             catch (IOException e) {
-                throw new UncheckedIOException("failed to close " + file(), e);
+                throw new UncheckedIOException("failed to close chunk file " + chunkId, e);
             }
             channel = null;
         }
     }
 
     @Override
-    public synchronized void release()
+    public void release()
     {
-        // TODO: this must become the destroy action of a CountedReference that tracks
-        // outstanding reader leases from get() - currently it deletes the file unconditionally,
-        // which would race with in-flight reads once writes actually happen.
-        close();
-        Path file = file();
         try {
-            Files.deleteIfExists(file);
+            close();
         }
-        catch (IOException e) {
-            throw new UncheckedIOException("failed to delete " + file, e);
+        finally {
+            diskLease.release();
         }
-    }
-
-    private Path file()
-    {
-        return partitionDirectory.resolve("chunk-" + chunkId + ".data");
     }
 }

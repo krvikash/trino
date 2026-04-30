@@ -67,10 +67,6 @@ public class CountedReference<T>
             return new Ref<>(countedReference);
         }
 
-        /**
-         * Releases a reference. When the final reference is released, the destroy action will be invoked.
-         * The caller must ensure the reference is still live and handle possible exceptions.
-         */
         public void release()
         {
             checkState(released.compareAndSet(false, true), "reference already released");

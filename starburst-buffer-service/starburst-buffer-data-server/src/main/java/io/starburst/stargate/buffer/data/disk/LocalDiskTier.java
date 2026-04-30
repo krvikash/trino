@@ -12,35 +12,26 @@ package io.starburst.stargate.buffer.data.disk;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
-import jakarta.annotation.PreDestroy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.io.MoreFiles.deleteRecursively;
-import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
-import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.stargate.buffer.data.disk.DiskDirectoryInitializer.initializeDirectories;
 import static java.nio.file.Files.createDirectories;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @ThreadSafe
 public class LocalDiskTier
 {
-    private static final Logger log = Logger.get(LocalDiskTier.class);
-
     private final Path directory;
     private final Optional<DataSize> memorySkipThreshold;
-    private final ScheduledExecutorService cleanupExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("local-disk-cleanup-%s"));
+    private final LocalDiskAllocator allocator;
+    private final DiskDirectoryTracker directoryTracker;
 
     @Inject
     public LocalDiskTier(BufferNodeId bufferNodeId, LocalDiskTierConfig config)
@@ -50,12 +41,44 @@ public class LocalDiskTier
         Path rootDirectory = requireNonNull(config.getDirectory(), "directory is null").normalize();
         this.directory = rootDirectory.resolve(String.valueOf(bufferNodeId.getLongValue()));
         this.memorySkipThreshold = config.getMemorySkipThreshold();
-        initializeDirectories(rootDirectory, this.directory, cleanupExecutor);
+        this.allocator = new LocalDiskAllocator(config);
+        this.directoryTracker = new DiskDirectoryTracker();
+        initializeDirectories(rootDirectory, this.directory, directoryTracker);
     }
 
-    public Optional<DataSize> getMemorySkipThreshold()
+    public Optional<DiskChunkSlot> tryReserveChunkSlot(
+            String exchangeId,
+            int partitionId,
+            long chunkId,
+            int chunkSizeInBytes,
+            long exchangeCumulativeClosedBytes)
     {
-        return memorySkipThreshold;
+        if (memorySkipThreshold.isEmpty()
+                || exchangeCumulativeClosedBytes < memorySkipThreshold.get().toBytes()) {
+            return Optional.empty();
+        }
+
+        Optional<DiskSpaceLease> lease = allocator.allocate(chunkSizeInBytes);
+        if (lease.isEmpty()) {
+            return Optional.empty();
+        }
+        DiskSpaceLease spaceLease = lease.get();
+        try {
+            createPartitionDirectory(exchangeId, partitionId);
+            Path file = chunkFile(exchangeId, partitionId, chunkId);
+            Runnable releaseCallback = directoryTracker.registerChunkRelease(exchangeDirectory(exchangeId));
+            return Optional.of(new DiskChunkSlot(file, spaceLease, releaseCallback));
+        }
+        catch (RuntimeException e) {
+            spaceLease.release();
+            throw e;
+        }
+    }
+
+    @VisibleForTesting
+    public Optional<DiskSpaceLease> allocate(long bytes)
+    {
+        return allocator.allocate(bytes);
     }
 
     public void validateExchangeId(String exchangeId)
@@ -65,48 +88,29 @@ public class LocalDiskTier
 
     public Path partitionDirectory(String exchangeId, int partitionId)
     {
-        return directory.resolve(exchangeId).resolve(String.valueOf(partitionId));
+        return exchangeDirectory(exchangeId).resolve(String.valueOf(partitionId));
     }
 
-    public void createPartitionDirectory(String exchangeId, int partitionId)
+    public Path exchangeDirectory(String exchangeId)
+    {
+        return directory.resolve(exchangeId);
+    }
+
+    public Path createPartitionDirectory(String exchangeId, int partitionId)
     {
         Path partitionDirectory = partitionDirectory(exchangeId, partitionId);
         try {
             createDirectories(partitionDirectory);
+            return partitionDirectory;
         }
         catch (IOException e) {
             throw new UncheckedIOException("failed to create partition directory " + partitionDirectory, e);
         }
     }
 
-    public void releasePartitionDirectory(String exchangeId, int partitionId)
+    private Path chunkFile(String exchangeId, int partitionId, long chunkId)
     {
-        Path partitionDirectory = partitionDirectory(exchangeId, partitionId);
-        cleanupExecutor.execute(() -> deleteDirectoryQuietly(partitionDirectory, "partition"));
-    }
-
-    public void releaseExchangeDirectory(String exchangeId)
-    {
-        Path exchangeDirectory = directory.resolve(exchangeId);
-        // single-thread FIFO executor serializes with releasePartitionDirectory; whichever runs first
-        // sees the directory present and the second silently no-ops on the missing path.
-        cleanupExecutor.execute(() -> deleteDirectoryQuietly(exchangeDirectory, "exchange"));
-    }
-
-    private static void deleteDirectoryQuietly(Path path, String directoryKind)
-    {
-        try {
-            deleteRecursively(path, ALLOW_INSECURE);
-        }
-        catch (IOException e) {
-            log.warn(e, "Failed to delete %s directory: %s", directoryKind, path);
-        }
-    }
-
-    @PreDestroy
-    public void shutdown()
-    {
-        cleanupExecutor.shutdownNow();
+        return partitionDirectory(exchangeId, partitionId).resolve("chunk-" + chunkId + ".data");
     }
 
     @VisibleForTesting
@@ -123,9 +127,8 @@ public class LocalDiskTier
     }
 
     @VisibleForTesting
-    public void awaitPendingTasks()
-            throws InterruptedException, ExecutionException
+    public DiskDirectoryTracker getDirectoryTracker()
     {
-        cleanupExecutor.submit(() -> null).get();
+        return directoryTracker;
     }
 }

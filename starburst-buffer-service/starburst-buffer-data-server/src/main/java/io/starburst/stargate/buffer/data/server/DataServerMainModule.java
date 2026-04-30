@@ -22,6 +22,7 @@ import io.airlift.http.server.HttpServerInfo;
 import io.airlift.json.JsonBinder;
 import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierFeatureConfig;
@@ -125,9 +126,11 @@ public class DataServerMainModule
 
         configBinder(binder).bindConfig(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
         newOptionalBinder(binder, LocalDiskTier.class);
+        newOptionalBinder(binder, LocalDiskAllocator.class);
         LocalDiskTierFeatureConfig diskTierFeatureConfig = buildConfigObject(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
         if (diskTierFeatureConfig.isEnabled()) {
             configBinder(binder).bindConfig(LocalDiskTierConfig.class, configPrefix.orElse(null));
+            binder.bind(LocalDiskAllocator.class).in(SINGLETON);
             binder.bind(LocalDiskTier.class).asEagerSingleton();
         }
 

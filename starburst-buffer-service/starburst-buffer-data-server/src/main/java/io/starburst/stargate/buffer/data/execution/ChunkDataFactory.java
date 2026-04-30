@@ -11,7 +11,7 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
-import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
@@ -51,16 +51,13 @@ public class ChunkDataFactory
     public ChunkData create(String exchangeId, int partitionId, long chunkId, int chunkSizeInBytes, long exchangeCumulativeClosedBytes)
     {
         if (localDiskTier.isPresent()) {
-            LocalDiskTier localDisk = localDiskTier.get();
-            Optional<DataSize> threshold = localDisk.getMemorySkipThreshold();
-            if (threshold.isPresent() && exchangeCumulativeClosedBytes >= threshold.get().toBytes()) {
-                localDisk.createPartitionDirectory(exchangeId, partitionId);
-                return new DiskChunkData(
-                        localDisk.partitionDirectory(exchangeId, partitionId),
-                        chunkId,
-                        chunkSizeInBytes,
-                        calculateDataPagesChecksum);
+            Optional<DiskChunkSlot> slot = localDiskTier.get().tryReserveChunkSlot(
+                    exchangeId, partitionId, chunkId, chunkSizeInBytes, exchangeCumulativeClosedBytes);
+            if (slot.isPresent()) {
+                DiskChunkSlot diskChunkSlot = slot.get();
+                return new DiskChunkData(chunkId, chunkSizeInBytes, calculateDataPagesChecksum, diskChunkSlot);
             }
+            // Disk slot unavailable (threshold not yet reached, or disk capacity exhausted) fall back to memory rather than failing the chunk.
         }
         return new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
     }

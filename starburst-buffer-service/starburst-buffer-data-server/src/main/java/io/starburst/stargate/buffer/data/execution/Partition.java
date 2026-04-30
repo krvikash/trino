@@ -22,7 +22,6 @@ import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
-import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 
 import java.time.Instant;
@@ -65,7 +64,6 @@ public class Partition
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
     private final Consumer<ChunkHandle> closedChunkConsumer;
-    private final Optional<LocalDiskTier> localDiskTier;
     private final ChunkDataFactory chunkDataFactory;
     private final AtomicLong exchangeCumulativeClosedBytes;
 
@@ -100,7 +98,6 @@ public class Partition
             ChunkIdGenerator chunkIdGenerator,
             ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
-            Optional<LocalDiskTier> localDiskTier,
             ChunkDataFactory chunkDataFactory,
             AtomicLong exchangeCumulativeClosedBytes,
             Consumer<ChunkHandle> closedChunkConsumer)
@@ -115,7 +112,6 @@ public class Partition
         this.chunkIdGenerator = requireNonNull(chunkIdGenerator, "chunkIdGenerator is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
-        this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
         this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         this.exchangeCumulativeClosedBytes = requireNonNull(exchangeCumulativeClosedBytes, "exchangeCumulativeClosedBytes is null");
 
@@ -264,7 +260,6 @@ public class Partition
             released = true;
         }
         closedChunks.values().forEach(Chunk::release);
-        localDiskTier.ifPresent(localDisk -> localDisk.releasePartitionDirectory(exchangeId, partitionId));
     }
 
     public synchronized Optional<Chunk> closeOpenChunkAndGet()
