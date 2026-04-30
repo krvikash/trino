@@ -66,6 +66,7 @@ import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.PASSWORD;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.USER;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
+import static io.trino.testing.SystemEnvironmentUtils.isEnvSet;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -448,6 +449,43 @@ public final class IcebergQueryRunner
                     .build();
 
             Logger log = Logger.get(IcebergSnowflakePolarisS3QueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class IcebergSnowflakePolarisGcsQueryRunnerMain
+    {
+        private IcebergSnowflakePolarisGcsQueryRunnerMain() {}
+
+        static void main()
+                throws Exception
+        {
+            Builder builder = icebergQueryRunnerMainBuilder()
+                    .addIcebergProperty("iceberg.catalog.type", "rest")
+                    .addIcebergProperty("iceberg.rest-catalog.uri", "https://%s/polaris/api/catalog".formatted(requireEnv("SNOWFLAKE_POLARIS_HOST")))
+                    .addIcebergProperty("iceberg.rest-catalog.warehouse", requireEnv("SNOWFLAKE_POLARIS_CATALOG"))
+                    .addIcebergProperty("iceberg.rest-catalog.security", "OAUTH2")
+                    .addIcebergProperty("iceberg.rest-catalog.oauth2.credential", "%s:%s".formatted(requireEnv("SNOWFLAKE_POLARIS_CLIENT_ID"), requireEnv("SNOWFLAKE_POLARIS_CLIENT_SECRET")))
+                    .addIcebergProperty("iceberg.rest-catalog.oauth2.scope", "PRINCIPAL_ROLE:ALL")
+                    .addIcebergProperty("iceberg.rest-catalog.nested-namespace-enabled", "true")
+                    .addIcebergProperty("iceberg.rest-catalog.case-insensitive-name-matching", "true")
+                    .addIcebergProperty("fs.gcs.enabled", "true");
+
+            if (isEnvSet("VENDED_CREDENTIALS")) {
+                builder.addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true")
+                        .addIcebergProperty("gcs.auth-type", "APPLICATION_DEFAULT"); //currently it must be set even if not used
+            }
+            else {
+                byte[] jsonKeyBytes = Base64.getDecoder().decode(requireEnv("GCP_CREDENTIALS_KEY"));
+                String gcpCredentials = new String(jsonKeyBytes, UTF_8);
+                builder.addIcebergProperty("gcs.json-key", gcpCredentials);
+            }
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = builder.build();
+
+            Logger log = Logger.get(IcebergSnowflakePolarisGcsQueryRunnerMain.class);
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }
