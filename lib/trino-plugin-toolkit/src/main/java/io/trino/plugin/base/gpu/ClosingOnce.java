@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu.expression;
+package io.trino.plugin.base.gpu;
 
 import io.trino.annotation.NotThreadSafe;
 import io.trino.spi.gpu.RuntimeCloseable;

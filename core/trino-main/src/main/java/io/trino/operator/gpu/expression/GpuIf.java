@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;

@@ -16,6 +16,8 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import io.trino.plugin.base.gpu.ClosingOnce;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;

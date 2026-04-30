@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu.expression;
+package io.trino.plugin.base.gpu;
 
 import io.trino.annotation.NotThreadSafe;
 import io.trino.spi.gpu.RuntimeCloseable;
@@ -21,7 +21,7 @@ import io.trino.spi.gpu.borrow.Own;
 import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.operator.gpu.expression.ClosingOnce.closeUnchecked;
+import static io.trino.plugin.base.gpu.ClosingOnce.closeUnchecked;
 import static java.util.Objects.requireNonNull;
 
 /**

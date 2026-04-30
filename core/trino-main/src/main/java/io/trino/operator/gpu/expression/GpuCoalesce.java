@@ -15,6 +15,7 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
