@@ -15,6 +15,7 @@ package io.trino.plugin.bigquery;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.DataFormatOptions;
 import com.google.common.cache.Cache;
 import com.google.inject.Inject;
 import io.airlift.units.Duration;
@@ -102,6 +103,9 @@ public class BigQueryClientFactory
         for (BigQueryOptionsConfigurer configurer : optionsConfigurers) {
             options = configurer.configure(options, session);
         }
-        return options.build().getService();
+        return options
+                .setDataFormatOptions(DataFormatOptions.newBuilder().useInt64Timestamp(true).build())
+                .build()
+                .getService();
     }
 }

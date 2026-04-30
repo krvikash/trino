@@ -489,12 +489,12 @@ public class BigQueryClient
     public TableResult executeQuery(ConnectorSession session, String sql, Long maxResults)
     {
         log.debug("Execute query: %s", sql);
-        QueryJobConfiguration job = QueryJobConfiguration.newBuilder(sql)
+        QueryJobConfiguration.Builder job = QueryJobConfiguration.newBuilder(sql)
                 .setUseQueryCache(isQueryResultsCacheEnabled(session))
-                .setCreateDisposition(createDisposition(session))
-                .setMaxResults(maxResults)
-                .build();
-        return execute(session, job);
+                .setMaxResults(maxResults);
+        // CreateDisposition is a test only session property. It affects useInt64Timestamp data format.
+        createDisposition(session).ifPresent(job::setCreateDisposition);
+        return execute(session, job.build());
     }
 
     private TableResult execute(ConnectorSession session, QueryJobConfiguration job)
@@ -641,10 +641,10 @@ public class BigQueryClient
 
         TableInfo tableInfo = getTable(tableHandle.asPlainTable().getRemoteTableName().toTableId())
                 .orElseThrow(() -> new TableNotFoundException(tableHandle.asPlainTable().getSchemaTableName()));
-        return buildColumnHandles(tableInfo, tableHandle.relationHandle().isUseStorageApi());
+        return buildColumnHandles(tableInfo);
     }
 
-    public List<BigQueryColumnHandle> buildColumnHandles(TableInfo tableInfo, boolean useStorageApi)
+    public List<BigQueryColumnHandle> buildColumnHandles(TableInfo tableInfo)
     {
         Schema schema = tableInfo.getDefinition().getSchema();
         if (schema == null) {
@@ -653,8 +653,8 @@ public class BigQueryClient
         }
         return schema.getFields()
                 .stream()
-                .filter(field -> typeManager.isSupportedType(field, useStorageApi))
-                .map(field -> typeManager.toColumnHandle(field, useStorageApi))
+                .filter(typeManager::isSupportedType)
+                .map(typeManager::toColumnHandle)
                 .collect(toImmutableList());
     }
 

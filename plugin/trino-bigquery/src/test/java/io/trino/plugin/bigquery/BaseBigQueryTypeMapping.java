@@ -560,7 +560,8 @@ public abstract class BaseBigQueryTypeMapping
                 .execute(getQueryRunner(), session, trinoCreateAsSelect("test.timestamp_tz"));
 
         testTimestampWithTimeZone("TIMESTAMP")
-                .execute(getQueryRunner(), bigqueryCreateAndInsert("test.timestamp_tz"));
+                .execute(getQueryRunner(), bigqueryCreateAndInsert("test.timestamp_tz"))
+                .execute(getQueryRunner(), bigqueryViewCreateAndInsert("test.timestamp_tz"));
     }
 
     private SqlDataTypeTest testTimestampWithTimeZone(String inputType)

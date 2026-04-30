@@ -54,6 +54,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.bigquery.BigQueryClient.selectSql;
+import static io.trino.plugin.bigquery.BigQueryTypeManager.toLongTimestampWithTimeZone;
 import static io.trino.plugin.bigquery.BigQueryTypeManager.toTrinoTimestamp;
 import static io.trino.plugin.bigquery.BigQueryUtil.buildNativeQuery;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
@@ -62,6 +63,7 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
@@ -249,6 +251,9 @@ public class BigQueryQueryPageSource
             }
             else if (javaType == Slice.class) {
                 writeSlice(output, type, value);
+            }
+            else if (type.equals(TIMESTAMP_TZ_MICROS)) {
+                type.writeObject(output, toLongTimestampWithTimeZone(value.getTimestampValue()));
             }
             else if (type instanceof ArrayType arrayType) {
                 ((ArrayBlockBuilder) output).buildEntry(elementBuilder -> {

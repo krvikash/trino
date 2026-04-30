@@ -63,14 +63,18 @@ import static io.trino.plugin.bigquery.BigQueryMetadata.DEFAULT_NUMERIC_TYPE_PRE
 import static io.trino.plugin.bigquery.BigQueryMetadata.DEFAULT_NUMERIC_TYPE_SCALE;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochMillisAndFraction;
 import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimeWithTimeZoneType.DEFAULT_PRECISION;
 import static io.trino.spi.type.TimeWithTimeZoneType.createTimeWithTimeZoneType;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_SECOND;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
@@ -134,6 +138,13 @@ public final class BigQueryTypeManager
     {
         Instant instant = toLocalDateTime(datetime).toInstant(UTC);
         return (instant.getEpochSecond() * MICROSECONDS_PER_SECOND) + (instant.getNano() / NANOSECONDS_PER_MICROSECOND);
+    }
+
+    public static LongTimestampWithTimeZone toLongTimestampWithTimeZone(long epochMicros)
+    {
+        long epochMillis = floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND);
+        int picosOfMillis = toIntExact(floorMod(epochMicros, MICROSECONDS_PER_MILLISECOND)) * PICOSECONDS_PER_MICROSECOND;
+        return fromEpochMillisAndFraction(epochMillis, picosOfMillis, UTC_KEY);
     }
 
     private static String floatToStringConverter(Object value)
@@ -379,14 +390,14 @@ public final class BigQueryTypeManager
         }
     }
 
-    public BigQueryColumnHandle toColumnHandle(Field field, boolean useStorageApi)
+    public BigQueryColumnHandle toColumnHandle(Field field)
     {
         FieldList subFields = field.getSubFields();
         List<BigQueryColumnHandle> subColumns = subFields == null ?
                 Collections.emptyList() :
                 subFields.stream()
-                        .filter(column -> isSupportedType(column, useStorageApi))
-                        .map(column -> toColumnHandle(column, useStorageApi))
+                        .filter(this::isSupportedType)
+                        .map(this::toColumnHandle)
                         .collect(Collectors.toList());
         ColumnMapping columnMapping = toTrinoType(field).orElseThrow(() -> new IllegalArgumentException("Unsupported type: " + field));
         return new BigQueryColumnHandle(
@@ -401,7 +412,7 @@ public final class BigQueryTypeManager
                 false);
     }
 
-    public boolean isSupportedType(Field field, boolean useStorageApi)
+    public boolean isSupportedType(Field field)
     {
         LegacySQLTypeName type = field.getType();
         if (type == LegacySQLTypeName.BIGNUMERIC) {
@@ -412,10 +423,6 @@ public final class BigQueryTypeManager
             if (field.getPrecision() != null && field.getPrecision() > Decimals.MAX_PRECISION) {
                 return false;
             }
-        }
-        if (!useStorageApi && type == LegacySQLTypeName.TIMESTAMP) {
-            // TODO https://github.com/trinodb/trino/issues/12346 BigQueryQueryPageSource does not support TIMESTAMP type
-            return false;
         }
 
         return toTrinoType(field).isPresent();

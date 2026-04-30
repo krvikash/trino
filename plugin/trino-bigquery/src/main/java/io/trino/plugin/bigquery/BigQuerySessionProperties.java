@@ -63,7 +63,7 @@ public final class BigQuerySessionProperties
                         CREATE_DISPOSITION_TYPE,
                         "Create disposition type",
                         CreateDisposition.class,
-                        CreateDisposition.CREATE_IF_NEEDED, // https://cloud.google.com/bigquery/docs/cached-results
+                        null, // https://cloud.google.com/bigquery/docs/cached-results
                         true))
                 .add(booleanProperty(
                         PROJECTION_PUSHDOWN_ENABLED,
@@ -105,9 +105,9 @@ public final class BigQuerySessionProperties
         return session.getProperty(QUERY_RESULTS_CACHE_ENABLED, Boolean.class);
     }
 
-    public static CreateDisposition createDisposition(ConnectorSession session)
+    public static Optional<CreateDisposition> createDisposition(ConnectorSession session)
     {
-        return session.getProperty(CREATE_DISPOSITION_TYPE, CreateDisposition.class);
+        return Optional.ofNullable(session.getProperty(CREATE_DISPOSITION_TYPE, CreateDisposition.class));
     }
 
     public static boolean isProjectionPushdownEnabled(ConnectorSession session)

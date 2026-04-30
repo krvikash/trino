@@ -336,7 +336,7 @@ public class BigQueryMetadata
 
         boolean useStorageApi = useStorageApi(session, schemaTableName.getTableName(), tableInfo.get().getDefinition());
         ImmutableList.Builder<BigQueryColumnHandle> columns = ImmutableList.builder();
-        columns.addAll(client.buildColumnHandles(tableInfo.get(), useStorageApi));
+        columns.addAll(client.buildColumnHandles(tableInfo.get()));
         Optional<BigQueryPartitionType> partitionType = getPartitionType(tableInfo.get().getDefinition());
         if (partitionType.isPresent() && partitionType.get() == INGESTION) {
             columns.add(PARTITION_DATE.getColumnHandle());
@@ -478,7 +478,7 @@ public class BigQueryMetadata
         return tableInfos.stream()
                 .collect(toImmutableMap(
                         table -> new SchemaTableName(table.getTableId().getDataset(), table.getTableId().getTable()),
-                        table -> client.buildColumnHandles(table, useStorageApi(session, table.getTableId().getTable(), table.getDefinition())).stream()
+                        table -> client.buildColumnHandles(table).stream()
                                 .map(BigQueryColumnHandle::getColumnMetadata)
                                 .collect(toImmutableList())));
     }

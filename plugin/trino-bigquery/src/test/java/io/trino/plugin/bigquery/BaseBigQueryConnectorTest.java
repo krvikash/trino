@@ -691,6 +691,7 @@ public abstract class BaseBigQueryConnectorTest
     }
 
     @Test
+    @Disabled // Starburst BigQuery connector supports the type on views
     public void testSkipUnsupportedTimestampType()
     {
         Session skipViewMaterialization = Session.builder(getSession())
