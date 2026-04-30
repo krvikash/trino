@@ -53,7 +53,7 @@ public class GpuParquetPageSource
     private final List<ColumnMapping> columnMappings;
 
     private boolean finished;
-    private ParquetFileFabricator.FabricatedParquet fabricatedParquet;
+    private @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
 
     public GpuParquetPageSource(
             ParquetFileFabricator fabricator,

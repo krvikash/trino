@@ -31,6 +31,7 @@ import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -164,7 +165,7 @@ public class ParquetFileFabricator
         }
     }
 
-    public FabricatedParquet fabricate()
+    public @Move FabricatedParquet fabricate()
             throws IOException
     {
         try {
@@ -194,7 +195,7 @@ public class ParquetFileFabricator
         }
     }
 
-    private FabricatedParquet writeFabricatedFile(
+    private @Move FabricatedParquet writeFabricatedFile(
             List<RowGroupInfo> rowGroups,
             MessageType clippedSchema,
             FileMetadata originalFileMetadata)
@@ -221,7 +222,7 @@ public class ParquetFileFabricator
         }
     }
 
-    private FabricatedParquet writeFabricatedFile(
+    private @Move FabricatedParquet writeFabricatedFile(
             List<RowGroupInfo> rowGroups,
             MessageType clippedSchema,
             FileMetadata originalFileMetadata,
