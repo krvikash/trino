@@ -532,7 +532,7 @@ public class RemoveDanglingDeleteFiles
 
     public record DanglingDeleteFilesResult(
             DanglingDeleteFilesRemoveMetrics metrics,
-            Set<DeleteFile> dangingDeleteFiles)
+            Set<DeleteFile> danglingDeleteFiles)
     {
         private static final DanglingDeleteFilesResult EMPTY = new DanglingDeleteFilesResult(
                 new DanglingDeleteFilesRemoveMetrics(),
