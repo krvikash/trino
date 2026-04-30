@@ -65,6 +65,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -611,7 +612,7 @@ public class DataResource
             case ChunkContentResult(MemoryChunkDataLease lease) ->
                     streamMemoryChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
             case ChunkContentResult(DiskChunkDataLease lease) ->
-                    streamDiskChunk(lease, asyncResponse, bufferNodeId, exchangeId, partitionId, chunkId);
+                    streamDiskChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
         }
     }
 
@@ -715,16 +716,81 @@ public class DataResource
 
     private void streamDiskChunk(
             DiskChunkDataLease lease,
-            AsyncResponse asyncResponse,
+            ServletOutputStream outputStream,
+            HttpServletRequest request,
+            HttpServletResponse response,
             long bufferNodeId,
             String exchangeId,
             int partitionId,
             long chunkId)
     {
-        // TODO zero-copy file streaming via async ByteBuffer loop (see BaseDataResource async pattern)
-        lease.release();
-        asyncResponse.resume(errorResponse(new UnsupportedOperationException(
-                "disk chunk streaming not implemented for GET /%s/%s/pages/%s/%s".formatted(bufferNodeId, exchangeId, partitionId, chunkId))));
+        java.nio.file.Path localFile = lease.file();
+        int contentLength = lease.length();
+        int totalLength = lease.serializedSizeInBytes();
+        readDataSize.update(contentLength);
+        readDataSizeDistribution.add(contentLength);
+
+        Slice metadataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
+        SliceOutput metadataOutput = metadataSlice.getOutput();
+        metadataOutput.writeLong(lease.getChecksum());
+        metadataOutput.writeInt(lease.getNumDataPages());
+
+        AsyncContext context = request.getAsyncContext();
+        response.setStatus(Status.OK.getStatusCode());
+        response.setContentType(TRINO_CHUNK_DATA);
+        response.setContentLength(totalLength);
+
+        outputStream.setWriteListener(new WriteListener()
+        {
+            private boolean metadataWritten;
+            private long position;
+            private int remaining = contentLength;
+            private final ByteBuffer buffer = ByteBuffer.allocate(Math.min(Math.max(remaining, 1), 65536));
+            private final AtomicBoolean done = new AtomicBoolean();
+
+            @Override
+            public void onWritePossible()
+                    throws IOException
+            {
+                if (done.get()) {
+                    logger.warn("onWritePossible when already done on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                    return;
+                }
+                while (outputStream.isReady()) {
+                    if (!metadataWritten) {
+                        outputStream.write(metadataSlice.byteArray(), metadataSlice.byteArrayOffset(), CHUNK_SLICES_METADATA_SIZE);
+                        metadataWritten = true;
+                        continue;
+                    }
+                    if (remaining <= 0) {
+                        if (done.compareAndSet(false, true)) {
+                            lease.release();
+                            context.complete();
+                        }
+                        return;
+                    }
+                    buffer.clear();
+                    buffer.limit(Math.min(buffer.capacity(), remaining));
+                    int bytesRead = lease.read(buffer, position);
+                    if (bytesRead <= 0) {
+                        throw new IOException("Unexpected end of file at position " + position + " in " + localFile);
+                    }
+                    outputStream.write(buffer.array(), 0, bytesRead);
+                    position += bytesRead;
+                    remaining -= bytesRead;
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable)
+            {
+                logger.warn(throwable, "error streaming disk chunk GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                if (done.compareAndSet(false, true)) {
+                    lease.release();
+                }
+                context.complete();
+            }
+        });
     }
 
     @GET

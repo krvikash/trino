@@ -54,6 +54,8 @@ import jakarta.ws.rs.core.StreamingOutput;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -473,8 +475,10 @@ public class BlockingDataResource
         return Response.ok()
                 .type(TRINO_CHUNK_DATA)
                 .header(HttpHeaders.CONTENT_LENGTH, chunkDataLease.serializedSizeInBytes())
-                .entity(new StreamingOutput() {
+                .entity(new StreamingOutput()
+                {
                     private final AtomicBoolean done = new AtomicBoolean();
+
                     @Override
                     public void write(OutputStream outputStream)
                             throws IOException, WebApplicationException
@@ -511,10 +515,44 @@ public class BlockingDataResource
             int partitionId,
             long chunkId)
     {
-        // TODO zero-copy streaming via FileChannel.transferTo to the response's WritableByteChannel
-        lease.release();
-        return errorResponse(new UnsupportedOperationException(
-                "disk chunk streaming not implemented for GET /%s/%s/pages/%s/%s".formatted(bufferNodeId, exchangeId, partitionId, chunkId)));
+        java.nio.file.Path localFile = lease.file();
+        int contentLength = lease.length();
+        int totalLength = lease.serializedSizeInBytes();
+        readDataSize.update(contentLength);
+        readDataSizeDistribution.add(contentLength);
+
+        Slice metadataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
+        SliceOutput metadataOutput = metadataSlice.getOutput();
+        metadataOutput.writeLong(lease.getChecksum());
+        metadataOutput.writeInt(lease.getNumDataPages());
+
+        return Response.ok()
+                .type(TRINO_CHUNK_DATA)
+                .header(HttpHeaders.CONTENT_LENGTH, totalLength)
+                .entity((StreamingOutput) outputStream -> {
+                    try {
+                        outputStream.write(metadataSlice.byteArray(), metadataSlice.byteArrayOffset(), CHUNK_SLICES_METADATA_SIZE);
+                        long position = 0;
+                        long remaining = contentLength;
+                        WritableByteChannel dest = Channels.newChannel(outputStream);
+                        while (remaining > 0) {
+                            long transferred = lease.transferTo(position, remaining, dest);
+                            if (transferred <= 0) {
+                                throw new IOException("transferTo returned " + transferred + " for " + localFile);
+                            }
+                            position += transferred;
+                            remaining -= transferred;
+                        }
+                        outputStream.flush();
+                    }
+                    catch (Throwable e) {
+                        reportException(logger, e, "error writing GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+                        throw new IOException("failed to stream disk chunk", e);
+                    }
+                    finally {
+                        lease.release();
+                    }
+                }).build();
     }
 
     @GET

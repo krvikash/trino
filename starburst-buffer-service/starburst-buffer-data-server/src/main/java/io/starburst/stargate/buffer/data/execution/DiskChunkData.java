@@ -172,31 +172,12 @@ public final class DiskChunkData
     public synchronized ChunkDataLease get()
     {
         checkState(channel == null, "get() called before DiskChunkData was closed for chunk %s", chunkId);
-        // Open the read FileChannel atomically with the CountedReference bump.
         // The ref count prevents both file deletion and partition directory cleanup
         // until the last reader releases its lease.
         Ref<DiskSpaceLease> readerRef = diskLease.addReference();
         try {
-            FileChannel readChannel;
-            try {
-                readChannel = FileChannel.open(file, StandardOpenOption.READ);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException("failed to open disk chunk file " + file + " for reading", e);
-            }
-            try {
-                long checksum = calculateDataPagesChecksum ? finalizeChecksum(hash) : NO_CHECKSUM;
-                return new DiskChunkDataLease(writtenBytes, checksum, numDataPages, readerRef::release);
-            }
-            catch (Throwable t) {
-                try {
-                    readChannel.close();
-                }
-                catch (Throwable ignored) {
-                    // already handling an exception; suppress to preserve the original
-                }
-                throw t;
-            }
+            long checksum = calculateDataPagesChecksum ? finalizeChecksum(hash) : NO_CHECKSUM;
+            return new DiskChunkDataLease(file, writtenBytes, checksum, numDataPages, readerRef::release);
         }
         catch (Throwable t) {
             try {

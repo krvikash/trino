@@ -231,6 +231,8 @@ public class TestDiskChunkData
 
         DiskChunkDataLease lease = (DiskChunkDataLease) chunk.get();
         try {
+            assertThat(lease.file()).isEqualTo(slot.file());
+            assertThat(lease.length()).isEqualTo(DATA_PAGE_HEADER_SIZE + page.length());
             assertThat(lease.serializedSizeInBytes()).isEqualTo(DATA_PAGE_HEADER_SIZE + page.length() + CHUNK_SLICES_METADATA_SIZE);
             assertThat(lease.getNumDataPages()).isEqualTo(1);
         }
