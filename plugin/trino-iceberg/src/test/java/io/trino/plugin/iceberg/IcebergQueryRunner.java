@@ -434,7 +434,7 @@ public final class IcebergQueryRunner
             @SuppressWarnings("resource")
             QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
                     .addIcebergProperty("iceberg.catalog.type", "rest")
-                    .addIcebergProperty("iceberg.rest-catalog.uri", "https://%s/polaris/api/catalog".formatted(requireEnv("SNOWFLAKE_WORKSPACE_HOST")))
+                    .addIcebergProperty("iceberg.rest-catalog.uri", "https://%s/polaris/api/catalog".formatted(requireEnv("SNOWFLAKE_POLARIS_HOST")))
                     .addIcebergProperty("iceberg.rest-catalog.warehouse", requireEnv("SNOWFLAKE_POLARIS_CATALOG"))
                     .addIcebergProperty("iceberg.rest-catalog.security", "OAUTH2")
                     .addIcebergProperty("iceberg.rest-catalog.oauth2.credential", "%s:%s".formatted(requireEnv("SNOWFLAKE_POLARIS_CLIENT_ID"), requireEnv("SNOWFLAKE_POLARIS_CLIENT_SECRET")))
