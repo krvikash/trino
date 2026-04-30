@@ -29,53 +29,29 @@ final class CudfUtils
 
     static @Move Scalar zero(DType operandType)
     {
-        if (operandType.equals(DType.INT8)) {
-            return Scalar.fromByte((byte) 0);
-        }
-        if (operandType.equals(DType.INT16)) {
-            return Scalar.fromShort((short) 0);
-        }
-        if (operandType.equals(DType.INT32)) {
-            return Scalar.fromInt(0);
-        }
-        if (operandType.equals(DType.INT64)) {
-            return Scalar.fromLong(0L);
-        }
-        throw new IllegalArgumentException("Unsupported integer DType: " + operandType);
+        return integerScalar(operandType, 0);
     }
 
-    static @Move Scalar negativeOne(DType operandType)
+    static @Move Scalar integerScalar(DType integerDType, long value)
     {
-        if (operandType.equals(DType.INT8)) {
-            return Scalar.fromByte((byte) -1);
-        }
-        if (operandType.equals(DType.INT16)) {
-            return Scalar.fromShort((short) -1);
-        }
-        if (operandType.equals(DType.INT32)) {
-            return Scalar.fromInt(-1);
-        }
-        if (operandType.equals(DType.INT64)) {
-            return Scalar.fromLong(-1L);
-        }
-        throw new IllegalArgumentException("Unsupported integer DType: " + operandType);
+        return switch (integerDType.getTypeId()) {
+            case INT8 -> Scalar.fromByte((byte) value);
+            case INT16 -> Scalar.fromShort((short) value);
+            case INT32 -> Scalar.fromInt((int) value);
+            case INT64 -> Scalar.fromLong(value);
+            default -> throw new IllegalArgumentException("Unsupported integer DType: " + integerDType);
+        };
     }
 
-    static @Move Scalar minValue(DType operandType)
+    static long minValue(DType integerDType)
     {
-        if (operandType.equals(DType.INT8)) {
-            return Scalar.fromByte(Byte.MIN_VALUE);
-        }
-        if (operandType.equals(DType.INT16)) {
-            return Scalar.fromShort(Short.MIN_VALUE);
-        }
-        if (operandType.equals(DType.INT32)) {
-            return Scalar.fromInt(Integer.MIN_VALUE);
-        }
-        if (operandType.equals(DType.INT64)) {
-            return Scalar.fromLong(Long.MIN_VALUE);
-        }
-        throw new IllegalArgumentException("Unsupported integer DType: " + operandType);
+        return switch (integerDType.getTypeId()) {
+            case INT8 -> Byte.MIN_VALUE;
+            case INT16 -> Short.MIN_VALUE;
+            case INT32 -> Integer.MIN_VALUE;
+            case INT64 -> Long.MIN_VALUE;
+            default -> throw new IllegalArgumentException("Unsupported integer DType: " + integerDType);
+        };
     }
 
     static boolean anyTrue(@Borrow ColumnVector boolColumn)

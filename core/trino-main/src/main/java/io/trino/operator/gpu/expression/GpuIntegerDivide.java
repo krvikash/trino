@@ -27,8 +27,8 @@ import java.util.List;
 import static ai.rapids.cudf.BinaryOp.DIV;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.CudfUtils.integerScalar;
 import static io.trino.operator.gpu.expression.CudfUtils.minValue;
-import static io.trino.operator.gpu.expression.CudfUtils.negativeOne;
 import static io.trino.operator.gpu.expression.CudfUtils.zero;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
@@ -76,8 +76,8 @@ public class GpuIntegerDivide
             // For two's-complement integers, MIN_VALUE / -1 overflows because -MIN_VALUE is
             // unrepresentable in the same width. Detected via (left == MIN_VALUE) AND (right == -1);
             // nulls in either operand naturally propagate to FALSE under cuDF's null-aware AND.
-            try (@Own Scalar min = minValue(operandType);
-                    @Own Scalar negOne = negativeOne(operandType);
+            try (@Own Scalar min = integerScalar(operandType, minValue(operandType));
+                    @Own Scalar negOne = integerScalar(operandType, -1);
                     @Own ClosingOnce<ColumnVector> leftIsMin = ClosingOnce.own(leftResult.equalTo(min));
                     @Own ClosingOnce<ColumnVector> rightIsNegOne = ClosingOnce.own(rightResult.equalTo(negOne));
                     @Own ColumnVector bothMatch = leftIsMin.borrow().binaryOp(NULL_LOGICAL_AND, rightIsNegOne.borrow(), DType.BOOL8)) {
