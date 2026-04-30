@@ -720,7 +720,7 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <excludes>
+                            <excludes combine.children="append">
                                 <!-- gpu profile -->
                                 <exclude>**/TestGpuParquetPageSource.java</exclude>
                                 <exclude>**/TestHiveGpuConnectorSmokeTest.java</exclude>
