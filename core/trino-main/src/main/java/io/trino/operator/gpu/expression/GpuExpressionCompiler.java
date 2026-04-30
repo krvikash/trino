@@ -19,7 +19,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
 import io.trino.operator.gpu.GpuScore;
+import io.trino.operator.gpu.regex.GpuRegexTranspiler;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
@@ -61,6 +63,7 @@ import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
 import io.trino.type.IntervalDayTimeType;
 import io.trino.type.IntervalYearMonthType;
+import io.trino.type.JoniRegexp;
 import io.trino.type.LikePattern;
 
 import java.util.ArrayList;
@@ -90,6 +93,7 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.type.JoniRegexpType.JONI_REGEXP;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.util.Objects.requireNonNull;
@@ -344,7 +348,9 @@ public class GpuExpressionCompiler
                                 compiled.score()));
             }
 
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) detect regular expression functions (as PREFERRED)
+            if (name.equals("regexp_replace")) {
+                return compileRegexpReplace(call, context);
+            }
 
             return Optional.empty();
         }
@@ -489,6 +495,52 @@ public class GpuExpressionCompiler
                         .map(compiled -> new CompilationResult(
                                 new GpuDateTimeExtract(compiled.expression(), field),
                                 compiled.score()));
+            }
+            return Optional.empty();
+        }
+
+        private Optional<CompilationResult> compileRegexpReplace(Call call, Void context)
+        {
+            int argCount = call.arguments().size();
+            // defensive check: regexp_replace has only 2- and 3-arg overloads
+            if (argCount < 2 || argCount > 3) {
+                return Optional.empty();
+            }
+
+            if (!(call.arguments().get(1) instanceof Constant(Type patternType, Object patternValue))) {
+                return Optional.empty();
+            }
+
+            Optional<String> patternString = extractPatternString(patternType, patternValue);
+            if (patternString.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // 2-arg overload removes all matches, equivalent to replacing with empty string
+            String replacementString = "";
+            if (argCount == 3) {
+                if (!(call.arguments().get(2) instanceof Constant(VarcharType _, Object replacementValue)) || replacementValue == null) {
+                    return Optional.empty();
+                }
+                replacementString = ((Slice) replacementValue).toStringUtf8();
+            }
+
+            Optional<GpuRegexTranspiler.TranspileResult> transpiled = GpuRegexTranspiler.transpile(patternString.get(), replacementString);
+            if (transpiled.isEmpty()) {
+                return Optional.empty();
+            }
+
+            GpuRegexTranspiler.TranspileResult result = transpiled.get();
+            return call.arguments().getFirst().accept(this, context)
+                    .map(source -> new CompilationResult(
+                            new GpuRegexpReplace(source.expression(), result.pattern(), result.replacement(), result.hasBackreferences()),
+                            Ordering.natural().max(source.score(), PREFERRED)));
+        }
+
+        private static Optional<String> extractPatternString(Type patternType, Object patternValue)
+        {
+            if (patternType == JONI_REGEXP && patternValue instanceof JoniRegexp joniRegexp) {
+                return Optional.of(joniRegexp.pattern().toStringUtf8());
             }
             return Optional.empty();
         }
