@@ -300,7 +300,12 @@ public class TestGpuExpressions
                 createDecimalType(27, 0),
                 createDecimalType(27, 5),
                 createDecimalType(38),
-                NUMBER);
+                NUMBER,
+                createVarcharType(1),
+                createVarcharType(3),
+                createVarcharType(5),
+                createVarcharType(20),
+                VARCHAR);
         List<TrinoNumber> testedNumbers = numericValuesToTest();
 
         LoadingCache<Type, List<@Nullable Object>> testedTypeValues = EvictableCacheBuilder.newBuilder()
