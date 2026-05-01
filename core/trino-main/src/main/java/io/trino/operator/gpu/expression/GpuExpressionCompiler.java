@@ -81,7 +81,6 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -218,7 +217,7 @@ public class GpuExpressionCompiler
                 return true;
             }
             if (fromType == TINYINT) {
-                if (toType == SMALLINT || toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                if (toType == SMALLINT || toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE) {
                     return true;
                 }
                 if (toType instanceof DecimalType decimalType && TINYINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
@@ -229,7 +228,7 @@ public class GpuExpressionCompiler
                 }
             }
             if (fromType == SMALLINT) {
-                if (toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                if (toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE) {
                     return true;
                 }
                 if (toType instanceof DecimalType decimalType && SMALLINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
@@ -240,7 +239,7 @@ public class GpuExpressionCompiler
                 }
             }
             if (fromType == INTEGER) {
-                if (toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                if (toType == BIGINT || toType == REAL || toType == DOUBLE) {
                     return true;
                 }
                 if (toType instanceof DecimalType decimalType && INTEGER_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
@@ -251,7 +250,7 @@ public class GpuExpressionCompiler
                 }
             }
             if (fromType == BIGINT) {
-                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                if (toType == REAL || toType == DOUBLE) {
                     return true;
                 }
                 if (toType instanceof DecimalType decimalType && BIGINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
@@ -262,12 +261,7 @@ public class GpuExpressionCompiler
                 }
             }
             if (fromType == REAL) {
-                if (toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-            }
-            if (fromType == DOUBLE) {
-                if (toType == NUMBER) {
+                if (toType == DOUBLE) {
                     return true;
                 }
             }
@@ -284,7 +278,7 @@ public class GpuExpressionCompiler
                 if (toType == BIGINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < BIGINT_DECIMAL_DIGITS) {
                     return true;
                 }
-                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                if (toType == REAL || toType == DOUBLE) {
                     return true;
                 }
                 if (toType instanceof DecimalType toDecimal &&
