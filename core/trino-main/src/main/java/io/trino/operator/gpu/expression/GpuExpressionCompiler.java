@@ -134,6 +134,15 @@ public class GpuExpressionCompiler
         }
 
         @Override
+        protected Optional<CompilationResult> visitConstant(Constant literal, Void context)
+        {
+            return toGpuMapping(literal.type())
+                    .map(typeMapping -> new CompilationResult(
+                            new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value())),
+                            POTENTIAL));
+        }
+
+        @Override
         protected Optional<CompilationResult> visitReference(Reference reference, Void context)
         {
             if (!isConvertible(reference.type())) {
@@ -149,6 +158,119 @@ public class GpuExpressionCompiler
             return Optional.of(new CompilationResult(
                     (_, inputColumns) -> inputColumns.get(compactField).incRefCount(),
                     POTENTIAL));
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitCast(Cast cast, Void context)
+        {
+            Expression argument = cast.expression();
+            Type toType = cast.type();
+            Optional<DType> sourceDType = toDType(argument.type());
+            return toDType(toType).flatMap(resultDType ->
+                    argument.accept(this, context).flatMap(compiledArgument -> {
+                        if (isCastSafe(argument.type(), toType)) {
+                            if (sourceDType.isPresent() && sourceDType.get().equals(resultDType)) {
+                                return Optional.of(compiledArgument);
+                            }
+                            return Optional.of(new CompilationResult(
+                                    new GpuCast(compiledArgument.expression(), resultDType),
+                                    compiledArgument.score()));
+                        }
+                        return Optional.empty();
+                    }));
+        }
+
+        private static boolean isCastSafe(Type fromType, Type toType)
+        {
+            if (fromType.equals(toType)) {
+                return true;
+            }
+            if (fromType == TINYINT) {
+                if (toType == SMALLINT || toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && TINYINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && TINYINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == SMALLINT) {
+                if (toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && SMALLINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && SMALLINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == INTEGER) {
+                if (toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && INTEGER_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && INTEGER_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == BIGINT) {
+                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType decimalType && BIGINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
+                    return true;
+                }
+                if (toType instanceof VarcharType varcharType && BIGINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
+                    return true;
+                }
+            }
+            if (fromType == REAL) {
+                if (toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+            }
+            if (fromType == DOUBLE) {
+                if (toType == NUMBER) {
+                    return true;
+                }
+            }
+            if (fromType instanceof DecimalType fromDecimal) {
+                if (toType == TINYINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < TINYINT_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == SMALLINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < SMALLINT_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == INTEGER && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < INTEGER_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == BIGINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < BIGINT_DECIMAL_DIGITS) {
+                    return true;
+                }
+                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
+                    return true;
+                }
+                if (toType instanceof DecimalType toDecimal &&
+                        // target has at least as many fractional digits (no rounding)
+                        fromDecimal.getScale() <= toDecimal.getScale() &&
+                        // target has at least as many integer digits (no overflow)
+                        fromDecimal.getPrecision() - fromDecimal.getScale() <= toDecimal.getPrecision() - toDecimal.getScale()) {
+                    return true;
+                }
+            }
+            if (fromType instanceof VarcharType fromVarchar) {
+                if (toType instanceof VarcharType toVarchar) {
+                    if (toVarchar.isUnbounded() || (!fromVarchar.isUnbounded() && fromVarchar.getBoundedLength() <= toVarchar.getBoundedLength())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         @Override
@@ -208,34 +330,6 @@ public class GpuExpressionCompiler
             // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) detect regular expression functions (as PREFERRED)
 
             return Optional.empty();
-        }
-
-        @Override
-        protected Optional<CompilationResult> visitComparison(Comparison comparison, Void context)
-        {
-            verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
-            Optional<CompilationResult> leftCompiled = comparison.left().accept(this, context);
-            if (leftCompiled.isEmpty()) {
-                return Optional.empty();
-            }
-            Optional<CompilationResult> rightCompiled = comparison.right().accept(this, context);
-            if (rightCompiled.isEmpty()) {
-                return Optional.empty();
-            }
-
-            GpuExpression left = leftCompiled.get().expression();
-            GpuExpression right = rightCompiled.get().expression();
-            Optional<GpuExpression> compiledComparison = switch (comparison.operator()) {
-                case EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
-                case NOT_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
-                case LESS_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
-                case LESS_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
-                case GREATER_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER, DType.BOOL8));
-                case GREATER_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER_EQUAL, DType.BOOL8));
-                case IDENTICAL -> Optional.empty();
-            };
-
-            return compiledComparison.map(expression -> new CompilationResult(expression, maxScore(List.of(leftCompiled.get(), rightCompiled.get()), POTENTIAL)));
         }
 
         private Optional<CompilationResult> compileBinaryArithmetic(Call call, OperatorType operatorType, Void context)
@@ -369,119 +463,6 @@ public class GpuExpressionCompiler
             return gpuExpression.map(expression -> new CompilationResult(expression, maxScore(args, POTENTIAL)));
         }
 
-        @Override
-        protected Optional<CompilationResult> visitCast(Cast cast, Void context)
-        {
-            Expression argument = cast.expression();
-            Type toType = cast.type();
-            Optional<DType> sourceDType = toDType(argument.type());
-            return toDType(toType).flatMap(resultDType ->
-                    argument.accept(this, context).flatMap(compiledArgument -> {
-                        if (isCastSafe(argument.type(), toType)) {
-                            if (sourceDType.isPresent() && sourceDType.get().equals(resultDType)) {
-                                return Optional.of(compiledArgument);
-                            }
-                            return Optional.of(new CompilationResult(
-                                    new GpuCast(compiledArgument.expression(), resultDType),
-                                    compiledArgument.score()));
-                        }
-                        return Optional.empty();
-                    }));
-        }
-
-        private static boolean isCastSafe(Type fromType, Type toType)
-        {
-            if (fromType.equals(toType)) {
-                return true;
-            }
-            if (fromType == TINYINT) {
-                if (toType == SMALLINT || toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && TINYINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && TINYINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == SMALLINT) {
-                if (toType == INTEGER || toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && SMALLINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && SMALLINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == INTEGER) {
-                if (toType == BIGINT || toType == REAL || toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && INTEGER_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && INTEGER_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == BIGINT) {
-                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-                if (toType instanceof DecimalType decimalType && BIGINT_DECIMAL_DIGITS <= decimalType.getPrecision() - decimalType.getScale()) {
-                    return true;
-                }
-                if (toType instanceof VarcharType varcharType && BIGINT_DECIMAL_DIGITS + 1 /*sign*/ <= varcharType.getLength().orElse(Integer.MAX_VALUE)) {
-                    return true;
-                }
-            }
-            if (fromType == REAL) {
-                if (toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-            }
-            if (fromType == DOUBLE) {
-                if (toType == NUMBER) {
-                    return true;
-                }
-            }
-            if (fromType instanceof DecimalType fromDecimal) {
-                if (toType == TINYINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < TINYINT_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == SMALLINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < SMALLINT_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == INTEGER && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < INTEGER_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == BIGINT && fromDecimal.getScale() == 0 && fromDecimal.getPrecision() < BIGINT_DECIMAL_DIGITS) {
-                    return true;
-                }
-                if (toType == REAL || toType == DOUBLE || toType == NUMBER) {
-                    return true;
-                }
-                if (toType instanceof DecimalType toDecimal &&
-                        // target has at least as many fractional digits (no rounding)
-                        fromDecimal.getScale() <= toDecimal.getScale() &&
-                        // target has at least as many integer digits (no overflow)
-                        fromDecimal.getPrecision() - fromDecimal.getScale() <= toDecimal.getPrecision() - toDecimal.getScale()) {
-                    return true;
-                }
-            }
-            if (fromType instanceof VarcharType fromVarchar) {
-                if (toType instanceof VarcharType toVarchar) {
-                    if (toVarchar.isUnbounded() || (!fromVarchar.isUnbounded() && fromVarchar.getBoundedLength() <= toVarchar.getBoundedLength())) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
         private Optional<CompilationResult> compileDateTimeExtract(Expression argument, GpuDateTimeExtract.Field field, Void context)
         {
             Type argumentType = argument.type();
@@ -496,30 +477,37 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitLogical(Logical logical, Void context)
+        protected Optional<CompilationResult> visitLambda(Lambda lambda, Void context)
         {
-            return compileNary(
-                    logical.terms(),
-                    switch (logical.operator()) {
-                        case AND -> GpuLogicalExpression::and;
-                        case OR -> GpuLogicalExpression::or;
-                    },
-                    context);
+            return Optional.empty();
         }
 
         @Override
-        protected Optional<CompilationResult> visitCoalesce(Coalesce coalesce, Void context)
+        protected Optional<CompilationResult> visitComparison(Comparison comparison, Void context)
         {
-            return compileNary(coalesce.operands(), GpuCoalesce::new, context);
-        }
+            verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
+            Optional<CompilationResult> leftCompiled = comparison.left().accept(this, context);
+            if (leftCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+            Optional<CompilationResult> rightCompiled = comparison.right().accept(this, context);
+            if (rightCompiled.isEmpty()) {
+                return Optional.empty();
+            }
 
-        @Override
-        protected Optional<CompilationResult> visitIsNull(IsNull isNull, Void context)
-        {
-            return isNull.value().accept(this, context)
-                    .map(operand -> new CompilationResult(
-                            new GpuIsNull(operand.expression()),
-                            Ordering.natural().max(operand.score(), POTENTIAL)));
+            GpuExpression left = leftCompiled.get().expression();
+            GpuExpression right = rightCompiled.get().expression();
+            Optional<GpuExpression> compiledComparison = switch (comparison.operator()) {
+                case EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
+                case NOT_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
+                case LESS_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
+                case LESS_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
+                case GREATER_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER, DType.BOOL8));
+                case GREATER_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER_EQUAL, DType.BOOL8));
+                case IDENTICAL -> Optional.empty();
+            };
+
+            return compiledComparison.map(expression -> new CompilationResult(expression, maxScore(List.of(leftCompiled.get(), rightCompiled.get()), POTENTIAL)));
         }
 
         @Override
@@ -528,21 +516,6 @@ public class GpuExpressionCompiler
             return compileNary(
                     ImmutableList.of(between.value(), between.min(), between.max()),
                     args -> new GpuBetween(args.get(0), args.get(1), args.get(2)),
-                    context);
-        }
-
-        @Override
-        protected Optional<CompilationResult> visitCase(Case caseExpression, Void context)
-        {
-            // Only the IF-equivalent shape (single WhenClause + default) is supported. Multi-branch CASE
-            // needs first-class GPU support and is left to a follow-up.
-            if (caseExpression.whenClauses().size() != 1) {
-                return Optional.empty();
-            }
-            WhenClause when = caseExpression.whenClauses().getFirst();
-            return compileNary(
-                    ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
-                    args -> new GpuIf(args.get(0), args.get(1), args.get(2)),
                     context);
         }
 
@@ -580,6 +553,48 @@ public class GpuExpressionCompiler
                     Ordering.natural().max(valueCompiled.get().score(), POTENTIAL)));
         }
 
+        @Override
+        protected Optional<CompilationResult> visitIsNull(IsNull isNull, Void context)
+        {
+            return isNull.value().accept(this, context)
+                    .map(operand -> new CompilationResult(
+                            new GpuIsNull(operand.expression()),
+                            Ordering.natural().max(operand.score(), POTENTIAL)));
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitLogical(Logical logical, Void context)
+        {
+            return compileNary(
+                    logical.terms(),
+                    switch (logical.operator()) {
+                        case AND -> GpuLogicalExpression::and;
+                        case OR -> GpuLogicalExpression::or;
+                    },
+                    context);
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitCase(Case caseExpression, Void context)
+        {
+            // Only the IF-equivalent shape (single WhenClause + default) is supported. Multi-branch CASE
+            // needs first-class GPU support and is left to a follow-up.
+            if (caseExpression.whenClauses().size() != 1) {
+                return Optional.empty();
+            }
+            WhenClause when = caseExpression.whenClauses().getFirst();
+            return compileNary(
+                    ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
+                    args -> new GpuIf(args.get(0), args.get(1), args.get(2)),
+                    context);
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitCoalesce(Coalesce coalesce, Void context)
+        {
+            return compileNary(coalesce.operands(), GpuCoalesce::new, context);
+        }
+
         private Optional<CompilationResult> compileNary(
                 List<Expression> arguments,
                 Function<List<GpuExpression>, GpuExpression> expressionFactory,
@@ -611,21 +626,6 @@ public class GpuExpressionCompiler
                     .map(CompilationResult::score)
                     .max(Ordering.natural())
                     .orElse(defaultScore);
-        }
-
-        @Override
-        protected Optional<CompilationResult> visitConstant(Constant literal, Void context)
-        {
-            return toGpuMapping(literal.type())
-                    .map(typeMapping -> new CompilationResult(
-                            new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value())),
-                            POTENTIAL));
-        }
-
-        @Override
-        protected Optional<CompilationResult> visitLambda(Lambda lambda, Void context)
-        {
-            return Optional.empty();
         }
 
         @Override
