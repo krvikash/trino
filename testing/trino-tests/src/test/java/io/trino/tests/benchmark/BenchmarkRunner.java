@@ -307,8 +307,7 @@ public final class BenchmarkRunner
 
             try (DistributedQueryRunner runner = workload.createRunner(data, mode)) {
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
-                log.info("Running %s benchmark: %d warmup, %d measured runs, reporting average.",
-                        workload.name(), warmup, runs);
+                log.info("Running %s benchmark: %s suite warmup, %s warmup, %s measured runs, reporting average", workload.name(), suiteWarmup, warmup, runs);
                 workload.verifyDataset(runner);
                 verifyTableStatistics(runner, workload);
 
