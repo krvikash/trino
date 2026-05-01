@@ -184,8 +184,8 @@ public abstract class BaseTpchWorkload
     {
         String location = dataLocation.resolve(table).toAbsolutePath().normalize().toString();
         runner.execute("""
-                CREATE TABLE IF NOT EXISTS hive.tpch.%s (LIKE tpch.sf%d.%s)
-                WITH (external_location = '%s', format = 'PARQUET')
-                """.formatted(table, scaleFactor, table, location));
+                       CREATE TABLE IF NOT EXISTS hive.tpch.%s (LIKE tpch.sf%d.%s)
+                       WITH (external_location = '%s', format = 'PARQUET')
+                       """.formatted(table, scaleFactor, table, location));
     }
 }

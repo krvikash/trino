@@ -24,23 +24,35 @@ import java.util.List;
  */
 public interface Workload
 {
-    /** Short identifier used as the per-workload subdirectory name under the output dir. */
+    /**
+     * Short identifier used as the per-workload subdirectory name under the output dir.
+     */
     String name();
 
-    /** Queries to run when no {@code --query} flag is passed. */
+    /**
+     * Queries to run when no {@code --query} flag is passed.
+     */
     List<Integer> defaultQueries();
 
-    /** Load the SQL text for a query (typically from a classpath resource). */
+    /**
+     * Load the SQL text for a query (typically from a classpath resource).
+     */
     String readQuery(int queryNumber);
 
-    /** Default value for the {@code --data} flag when not passed on the command line. */
+    /**
+     * Default value for the {@code --data} flag when not passed on the command line.
+     */
     Path defaultDataLocation();
 
-    /** Build a query runner with all benchmark tables registered, applying mode-specific extras. */
+    /**
+     * Build a query runner with all benchmark tables registered, applying mode-specific extras.
+     */
     DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode)
             throws Exception;
 
-    /** Optional sanity check on the data directory before the runner starts. */
+    /**
+     * Optional sanity check on the data directory before the runner starts.
+     */
     default void validateDataLocation(Path dataLocation) {}
 
     /**
@@ -53,7 +65,9 @@ public interface Workload
         return "5ms";
     }
 
-    /** Sanity check on the running query runner. Throw to fail the run before queries execute. */
+    /**
+     * Sanity check on the running query runner. Throw to fail the run before queries execute.
+     */
     void verifyDataset(DistributedQueryRunner runner);
 
     /**
@@ -69,7 +83,9 @@ public interface Workload
      */
     String expectedResultResource(int queryNumber);
 
-    /** One-shot data generator invoked by the {@code generate} subcommand. */
+    /**
+     * One-shot data generator invoked by the {@code generate} subcommand.
+     */
     default void generateData(Path targetLocation)
             throws Exception
     {

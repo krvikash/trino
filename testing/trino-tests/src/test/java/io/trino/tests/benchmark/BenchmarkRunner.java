@@ -80,11 +80,15 @@ public final class BenchmarkRunner
     public enum ProfileEvent
     {
         NONE,
-        /** {@code event=cpu}: perf_events on Linux, itimer fallback on macOS. */
+        /**
+         * {@code event=cpu}: perf_events on Linux, itimer fallback on macOS.
+         */
         CPU
     }
 
-    /** Execution backend the workload's query runner should use. */
+    /**
+     * Execution backend the workload's query runner should use.
+     */
     public enum ExecutionMode
     {
         CPU,
@@ -168,7 +172,9 @@ public final class BenchmarkRunner
         return cli.execute(args);
     }
 
-    /** Pre-picocli scan for {@code --mode GPU} so we can size the child JVM's heap before fork. */
+    /**
+     * Pre-picocli scan for {@code --mode GPU} so we can size the child JVM's heap before fork.
+     */
     private static boolean isGpuMode(String[] args)
     {
         for (int i = 0; i < args.length - 1; i++) {
@@ -200,7 +206,9 @@ public final class BenchmarkRunner
         return new ProcessBuilder(command).inheritIO().start().waitFor();
     }
 
-    /** Heap sizing is omitted from {@code jvm.config} — {@link #launch} sets it from physical RAM. */
+    /**
+     * Heap sizing is omitted from {@code jvm.config} — {@link #launch} sets it from physical RAM.
+     */
     private static List<String> readJvmConfig()
             throws IOException
     {
@@ -586,7 +594,9 @@ public final class BenchmarkRunner
         return keptSamples;
     }
 
-    /** Concatenate per-query collapsed files into one cross-query file and delete the inputs. */
+    /**
+     * Concatenate per-query collapsed files into one cross-query file and delete the inputs.
+     */
     private static void mergeCollapsedFiles(Path profileOutputDir, List<Integer> queriesRun)
             throws IOException
     {
@@ -668,24 +678,24 @@ public final class BenchmarkRunner
         List<String> jvmArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
         Runtime runtime = Runtime.getRuntime();
         String content = """
-                # Benchmark run metadata (workload: %s)
-                timestamp:               %s
-                warmup runs:             %d
-                measured runs:           %d
-                queries:                 %s
-                profile event:           %s
-                profile interval:        %s
-                profile idle filter:     %s
-                java version:            %s
-                java vendor:             %s
-                os.name:                 %s
-                os.arch:                 %s
-                heap max (-Xmx):         %d MB
-                available processors:    %d
-                preserve frame pointer:  %s
-                jvm input arguments:
-                %s
-                """.formatted(
+                         # Benchmark run metadata (workload: %s)
+                         timestamp:               %s
+                         warmup runs:             %d
+                         measured runs:           %d
+                         queries:                 %s
+                         profile event:           %s
+                         profile interval:        %s
+                         profile idle filter:     %s
+                         java version:            %s
+                         java vendor:             %s
+                         os.name:                 %s
+                         os.arch:                 %s
+                         heap max (-Xmx):         %d MB
+                         available processors:    %d
+                         preserve frame pointer:  %s
+                         jvm input arguments:
+                         %s
+                         """.formatted(
                 workload.name(),
                 Instant.now(),
                 warmup,
@@ -753,7 +763,9 @@ public final class BenchmarkRunner
         }
     }
 
-    /** Resolves a resource path under the source tree so {@code record}'s output is picked up by the next build. */
+    /**
+     * Resolves a resource path under the source tree so {@code record}'s output is picked up by the next build.
+     */
     private static Path recordTargetFor(String resource)
     {
         return PROJECT_ROOT.resolve("testing/trino-benchmark-queries/src/main/resources").resolve(resource);
@@ -961,7 +973,9 @@ public final class BenchmarkRunner
         }
     }
 
-    /** Apply mode-specific extras (GPU acceleration toggles, GPU-tuned Hive split sizes). */
+    /**
+     * Apply mode-specific extras (GPU acceleration toggles, GPU-tuned Hive split sizes).
+     */
     public static void applyExecutionMode(HiveQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
         switch (mode) {
