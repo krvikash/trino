@@ -197,21 +197,19 @@ public class GpuExpressionCompiler
         @Override
         protected Optional<CompilationResult> visitCast(Cast cast, Void context)
         {
-            Expression argument = cast.expression();
-            Type toType = cast.type();
-            Optional<DType> sourceDType = toDType(argument.type());
-            return toDType(toType).flatMap(resultDType ->
-                    argument.accept(this, context).flatMap(compiledArgument -> {
-                        if (isCastSafe(argument.type(), toType)) {
-                            if (sourceDType.isPresent() && sourceDType.get().equals(resultDType)) {
-                                return Optional.of(compiledArgument);
-                            }
-                            return Optional.of(new CompilationResult(
-                                    new GpuCast(compiledArgument.expression(), resultDType),
-                                    compiledArgument.score()));
-                        }
-                        return Optional.empty();
-                    }));
+            return toDType(cast.expression().type()).flatMap(sourceDType ->
+                    toDType(cast.type()).flatMap(resultDType ->
+                            cast.expression().accept(this, context).flatMap(compiledArgument -> {
+                                if (isCastSafe(cast.expression().type(), cast.type())) {
+                                    if (sourceDType.equals(resultDType)) {
+                                        return Optional.of(compiledArgument);
+                                    }
+                                    return Optional.of(new CompilationResult(
+                                            new GpuCast(compiledArgument.expression(), resultDType),
+                                            compiledArgument.score()));
+                                }
+                                return Optional.empty();
+                            })));
         }
 
         private static boolean isCastSafe(Type fromType, Type toType)
