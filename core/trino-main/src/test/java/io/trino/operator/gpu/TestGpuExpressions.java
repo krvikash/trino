@@ -336,7 +336,7 @@ public class TestGpuExpressions
         Set<String> testedOperators = new HashSet<>();
         Set<String> gpuEnabledOperators = new HashSet<>();
 
-        // Unary operators: same shape, single-type loop.
+        // Unary operators
         for (Type type : testedTypes) {
             for (OperatorType operator : OperatorType.values()) {
                 if (operator.getArgumentCount() != 1) {
@@ -401,9 +401,7 @@ public class TestGpuExpressions
             }
         }
 
-        // Binary operators: cross-product over (leftType, rightType). Comparisons are exercised by
-        // testComparisonOperatorsCorrectnessSmoke, which iterates the IR Comparison.Operator values
-        // directly to cover the full spectrum (not all of which have an OperatorType counterpart).
+        // Binary operators: cross-product over (leftType, rightType)
         for (Type leftType : testedTypes) {
             for (Type rightType : testedTypes) {
                 for (OperatorType operator : OperatorType.values()) {
@@ -420,6 +418,22 @@ public class TestGpuExpressions
                     }
                     catch (OperatorNotFoundException e) {
                         continue;
+                    }
+
+                    switch (operator) {
+                        case ADD, SUBTRACT, MULTIPLY, DIVIDE, MODULUS, NEGATION, SUBSCRIPT -> {
+                            // Binary operators tested here
+                        }
+                        case EQUAL, COMPARISON_UNORDERED_LAST, COMPARISON_UNORDERED_FIRST, LESS_THAN, LESS_THAN_OR_EQUAL, IDENTICAL -> {
+                            // Covered by testComparison
+                            assertThat(Set.copyOf(function.signature().getArgumentTypes()))
+                                    .as("""
+                                        Expect comparison operators to require pre-coerced inputs. If this is the case, comparisons have test coverage in testComparison.
+                                        Otherwise test coverage needs to be revisited.
+                                        """)
+                                    .hasSize(1);
+                        }
+                        case CAST, SATURATED_FLOOR_CAST, HASH_CODE, XX_HASH_64, INDETERMINATE, READ_VALUE -> throw new AssertionError("Unreachable, not a binary operator");
                     }
 
                     // Inspect coercions if any
