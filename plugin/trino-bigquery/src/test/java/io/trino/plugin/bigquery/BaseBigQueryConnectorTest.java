@@ -679,8 +679,8 @@ public abstract class BaseBigQueryConnectorTest
         try (TestTable table = new TestTable(
                 bigQuerySqlExecutor,
                 "test.test_skip_unsupported_type",
-                "(a INT64, unsupported BIGNUMERIC, b INT64)",
-                List.of("1, 999, 2"))) {
+                "(a INT64, unsupported RANGE<DATE>, b INT64)",
+                List.of("1, NULL, 2"))) {
             assertQuery("SELECT * FROM " + table.getName(), "VALUES (1, 2)");
             assertThat((String) computeActual("SHOW CREATE TABLE " + table.getName()).getOnlyValue())
                     .isEqualTo("CREATE TABLE bigquery." + table.getName() + " (\n" +
@@ -1159,7 +1159,7 @@ public abstract class BaseBigQueryConnectorTest
     {
         String tableName = "test_unsupported" + randomNameSuffix();
         try {
-            onBigQuery("CREATE TABLE test." + tableName + "(one BIGINT, two BIGNUMERIC(40,2), three STRING)");
+            onBigQuery("CREATE TABLE test." + tableName + "(one BIGINT, two RANGE<DATE>, three STRING)");
             // Check that column 'two' is not supported.
             assertQuery("SELECT column_name FROM information_schema.columns WHERE table_schema = 'test' AND table_name = '" + tableName + "'", "VALUES 'one', 'three'");
             assertThat(query("SELECT * FROM TABLE(bigquery.system.query(query => 'SELECT * FROM test." + tableName + "'))"))

@@ -29,6 +29,7 @@ import io.trino.testing.datatype.SqlDataTypeTest;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TrinoSqlExecutor;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.ZoneId;
@@ -39,6 +40,7 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.TimeType.createTimeType;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
@@ -332,7 +334,20 @@ public abstract class BaseBigQueryTypeMapping
                 .addRoundTrip("BIGNUMERIC(38)", "BIGNUMERIC '10000000002000000000300000000012345678'", createDecimalType(38, 0), "CAST('10000000002000000000300000000012345678' AS DECIMAL(38, 0))")
                 .addRoundTrip("BIGNUMERIC(38)", "BIGNUMERIC '-10000000002000000000300000000012345678'", createDecimalType(38, 0), "CAST('-10000000002000000000300000000012345678' AS DECIMAL(38, 0))")
                 .execute(getQueryRunner(), bigqueryCreateAndInsert("test.bignumeric"));
-        // TODO (https://github.com/trinodb/trino/pull/12210) Add support for bigquery type in views
+    }
+
+    @Test
+    public void testTrinoNumber()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("BIGNUMERIC", "BIGNUMERIC '1.1'", NUMBER, "NUMBER '1.1'")
+                .addRoundTrip("BIGNUMERIC", "BIGNUMERIC '-1.1'", NUMBER, "NUMBER '-1.1'")
+                // min value in BigQuery
+                .addRoundTrip("BIGNUMERIC", "BIGNUMERIC '-5.7896044618658097711785492504343953926634992332820282019728792003956564819968E+38'", NUMBER, "NUMBER '-5.7896044618658097711785492504343953926634992332820282019728792003956564819968E+38'")
+                // max value in BigQuery
+                .addRoundTrip("BIGNUMERIC", "BIGNUMERIC '5.7896044618658097711785492504343953926634992332820282019728792003956564819967E+38'", NUMBER, "NUMBER '5.7896044618658097711785492504343953926634992332820282019728792003956564819967E+38'")
+                .execute(getQueryRunner(), bigqueryCreateAndInsert("test.bignumeric"))
+                .execute(getQueryRunner(), bigqueryViewCreateAndInsert("test.trino_number"));
     }
 
     @Test
@@ -365,6 +380,7 @@ public abstract class BaseBigQueryTypeMapping
     }
 
     @Test
+    @Disabled // Starburst BigQuery connector supports the type on views
     public void testUnsupportedBigNumericMappingView()
     {
         assertThatThrownBy(() -> SqlDataTypeTest.create()
@@ -374,6 +390,7 @@ public abstract class BaseBigQueryTypeMapping
     }
 
     @Test
+    @Disabled // Starburst BigQuery connector supports the type on views
     public void testUnsupportedBigNumericMapping()
     {
         testUnsupportedBigNumericMapping("BIGNUMERIC");

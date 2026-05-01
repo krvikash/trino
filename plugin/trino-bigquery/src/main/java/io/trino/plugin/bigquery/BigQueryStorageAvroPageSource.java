@@ -33,6 +33,7 @@ import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.RowType.Field;
+import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
@@ -69,6 +70,7 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.Decimals.encodeShortScaledValue;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochMillisAndFraction;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
@@ -88,6 +90,8 @@ public class BigQueryStorageAvroPageSource
     private static final Logger log = Logger.get(BigQueryStorageAvroPageSource.class);
 
     private static final AvroDecimalConverter DECIMAL_CONVERTER = new AvroDecimalConverter();
+    private static final int BIGNUMERIC_PRECISION = 76;
+    private static final int BIGNUMERIC_SCALE = 38;
 
     private final BigQueryReadClient bigQueryReadClient;
     private final ExecutorService executor;
@@ -249,6 +253,10 @@ public class BigQueryStorageAvroPageSource
             }
             else if (type.getJavaType() == Int128.class) {
                 writeObject(output, type, value);
+            }
+            else if (type.equals(NUMBER)) {
+                BigDecimal decimal = DECIMAL_CONVERTER.convert(BIGNUMERIC_PRECISION, BIGNUMERIC_SCALE, value);
+                type.writeObject(output, TrinoNumber.from(decimal));
             }
             else if (javaType == Slice.class) {
                 writeSlice(output, type, value);

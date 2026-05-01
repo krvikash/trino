@@ -15,7 +15,6 @@ package io.trino.plugin.bigquery;
 
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -32,18 +31,21 @@ import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.NumberType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -317,6 +319,14 @@ public final class BigQueryTypeManager
             case NUMERIC:
             case BIGNUMERIC:
                 String bigqueryTypeName = bigqueryType.name();
+                if (type instanceof NumberType) {
+                    TrinoNumber number = (TrinoNumber) value;
+                    if (number.toBigDecimal() instanceof TrinoNumber.BigDecimalValue(BigDecimal decimal)) {
+                        return "%s '%s'".formatted(bigqueryTypeName, decimal.toPlainString());
+                    }
+                    throw new TrinoException(NOT_SUPPORTED, "Decimal value is not a number: " + bigqueryTypeName);
+                }
+
                 DecimalType decimalType = (DecimalType) type;
                 if (decimalType.isShort()) {
                     return format("%s '%s'", bigqueryTypeName, Decimals.toString((long) value, ((DecimalType) type).getScale()));
@@ -352,9 +362,16 @@ public final class BigQueryTypeManager
                 return Optional.of(new ColumnMapping(DoubleType.DOUBLE, true));
             case NUMERIC:
             case BIGNUMERIC:
+                boolean isBigNumeric = field.getType().getStandardType() == StandardSQLTypeName.BIGNUMERIC;
                 Long precision = field.getPrecision();
                 Long scale = field.getScale();
-                // Unsupported BIGNUMERIC types (precision > 38) are filtered in BigQueryClient.getColumns
+                if (isBigNumeric && field.getPrecision() == null && field.getScale() == null) {
+                    // BIGNUMERIC without precision/scale accepts larger values than Trino DECIMAL.
+                    return Optional.of(new ColumnMapping(NumberType.NUMBER, true));
+                }
+                if (isBigNumeric && field.getPrecision() != null && field.getPrecision() > Decimals.MAX_PRECISION) {
+                    return Optional.of(new ColumnMapping(NumberType.NUMBER, true));
+                }
                 if (precision != null && scale != null) {
                     return Optional.of(new ColumnMapping(createDecimalType(toIntExact(precision), toIntExact(scale)), true));
                 }
@@ -414,17 +431,6 @@ public final class BigQueryTypeManager
 
     public boolean isSupportedType(Field field)
     {
-        LegacySQLTypeName type = field.getType();
-        if (type == LegacySQLTypeName.BIGNUMERIC) {
-            // Skip BIGNUMERIC without parameters because the precision (77) and scale (38) is too large
-            if (field.getPrecision() == null && field.getScale() == null) {
-                return false;
-            }
-            if (field.getPrecision() != null && field.getPrecision() > Decimals.MAX_PRECISION) {
-                return false;
-            }
-        }
-
         return toTrinoType(field).isPresent();
     }
 

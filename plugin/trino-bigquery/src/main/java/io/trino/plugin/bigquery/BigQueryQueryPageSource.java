@@ -34,6 +34,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
@@ -61,6 +62,7 @@ import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
@@ -248,6 +250,10 @@ public class BigQueryQueryPageSource
                 verify(!decimalType.isShort(), "The type should be long decimal");
                 BigDecimal decimal = value.getNumericValue();
                 type.writeObject(output, Decimals.encodeScaledValue(decimal, decimalType.getScale()));
+            }
+            else if (type.equals(NUMBER)) {
+                BigDecimal decimal = value.getNumericValue();
+                type.writeObject(output, TrinoNumber.from(decimal));
             }
             else if (javaType == Slice.class) {
                 writeSlice(output, type, value);

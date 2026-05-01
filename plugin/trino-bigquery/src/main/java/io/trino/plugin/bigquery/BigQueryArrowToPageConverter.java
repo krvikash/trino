@@ -26,6 +26,7 @@ import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
@@ -65,6 +66,7 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.Decimals.encodeShortScaledValue;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochMillisAndFraction;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
@@ -172,6 +174,9 @@ public class BigQueryArrowToPageConverter
             else if (type.getJavaType() == Int128.class) {
                 writeVectorValues(output, vector, index -> writeObjectLongDecimal(output, type, vector, index), offset, length);
             }
+            else if (type.equals(NUMBER)) {
+                writeVectorValues(output, vector, index -> writeTrinoNumber(output, type, vector, index), offset, length);
+            }
             else if (javaType == Slice.class) {
                 writeVectorValues(output, vector, index -> writeSlice(output, type, vector, index), offset, length);
             }
@@ -237,6 +242,12 @@ public class BigQueryArrowToPageConverter
         verify(decimalType.isShort(), "The type should be short decimal");
         BigDecimal decimal = vector.getMinorType() == DECIMAL256 ? ((Decimal256Vector) vector).getObject(index) : ((DecimalVector) vector).getObject(index);
         decimalType.writeLong(output, encodeShortScaledValue(decimal, decimalType.getScale()));
+    }
+
+    private static void writeTrinoNumber(BlockBuilder output, Type type, FieldVector vector, int index)
+    {
+        BigDecimal decimal = ((Decimal256Vector) vector).getObject(index);
+        type.writeObject(output, TrinoNumber.from(decimal));
     }
 
     private void writeObjectTimestampWithTimezone(BlockBuilder output, Type type, FieldVector vector, int index)
