@@ -16,7 +16,9 @@ package io.trino.tests.benchmark;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.sun.management.OperatingSystemMXBean;
+import io.airlift.log.Level;
 import io.airlift.log.Logger;
+import io.airlift.log.Logging;
 import io.trino.ExceededMemoryLimitException;
 import io.trino.Session;
 import io.trino.client.FailureException;
@@ -273,8 +275,11 @@ public final class BenchmarkRunner
                 description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ExecutionMode mode = ExecutionMode.CPU;
 
-        @Option(names = {"-d", "--data"}, description = "Data directory. Default: workload-specific.")
+        @Option(names = "--data", description = "Data directory. Default: workload-specific.")
         Path dataLocation;
+
+        @Option(names = "--debug", description = "Enable debug logging")
+        boolean debug;
 
         RunCommand(Workload workload)
         {
@@ -285,6 +290,10 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
+            if (debug) {
+                enableDebugLogging();
+            }
+
             Path data = dataLocation != null ? dataLocation : workload.defaultDataLocation();
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
@@ -443,7 +452,7 @@ public final class BenchmarkRunner
     {
         private final Workload workload;
 
-        @Option(names = {"-d", "--data"}, description = "Target directory. Default: workload-specific.")
+        @Option(names = "--data", description = "Target directory. Default: workload-specific.")
         Path dataLocation;
 
         GenerateCommand(Workload workload)
@@ -475,7 +484,7 @@ public final class BenchmarkRunner
         @Option(names = {"-q", "--query"}, description = "A specific query number (can be repeated)")
         List<Integer> queries = new ArrayList<>();
 
-        @Option(names = {"-d", "--data"}, description = "Data directory. Default: workload-specific.")
+        @Option(names = "--data", description = "Data directory. Default: workload-specific.")
         Path dataLocation;
 
         RecordCommand(Workload workload)
@@ -988,6 +997,13 @@ public final class BenchmarkRunner
                     .addHiveProperty("hive.max-initial-split-size", "256MB")
                     .addHiveProperty("hive.max-split-size", "256MB");
         }
+    }
+
+    static void enableDebugLogging()
+    {
+        Logging logging = Logging.initialize();
+        logging.setLevel("io.trino.spi.gpu", Level.DEBUG);
+        logging.setLevel("io.trino.operator.gpu", Level.DEBUG);
     }
 
     /**
