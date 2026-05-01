@@ -49,5 +49,10 @@ aws s3 sync --delete s3://starburst-benchmarks-data/ClickBench/hive/hits_snappy_
 mkdir -p "${DATA_ROOT}/tpch-sf30/"
 aws s3 sync --delete s3://starburst-benchmarks-data/tpch-sf30-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf30/"
 
-mkdir -p "${DATA_ROOT}/tpch-sf100/"
-aws s3 sync --delete s3://starburst-benchmarks-data/tpch-sf100-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf100/"
+# TODO implement download for TPCH sf100 dataset.
+# Per https://starburstdata.slack.com/archives/C0AGLT64T8W/p1777627578973239?thread_ts=1777323472.877859&cid=C0AGLT64T8W current download
+# contains a lot (around 62 GB) of unnecessary data, which you unlikely want to download.
+#mkdir -p "${DATA_ROOT}/tpch-sf100/"
+#aws s3 sync --delete s3://starburst-benchmarks-data/tpch-sf100-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf100/"
+echo "Download of tpch-sf100 dataset is currently disabled." >&2
+exit 1
