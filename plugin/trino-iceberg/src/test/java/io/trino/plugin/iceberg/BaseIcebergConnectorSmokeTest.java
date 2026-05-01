@@ -689,7 +689,7 @@ public abstract class BaseIcebergConnectorSmokeTest
         assertUpdate("INSERT INTO " + tableName + " VALUES (2, 'POLAND')", 1);
 
         Location tableLocation = Location.of(getTableLocation(tableName));
-        Location tableDataPath = tableLocation.appendPath("data");
+        Location tableDataPath = getTableDataLocation(tableName);
         FileIterator fileIterator = fileSystem.listFiles(tableDataPath);
         assertThat(fileIterator.hasNext()).isTrue();
         Location dataFile = fileIterator.next().location();
@@ -704,6 +704,12 @@ public abstract class BaseIcebergConnectorSmokeTest
         assertUpdate("DROP TABLE " + tableName);
         assertThat(getQueryRunner().tableExists(getSession(), tableName)).isFalse();
         assertLocationNotExists(tableLocation);
+    }
+
+    protected Location getTableDataLocation(String tableName)
+    {
+        Location tableLocation = Location.of(getTableLocation(tableName));
+        return tableLocation.appendPath("data");
     }
 
     @Test

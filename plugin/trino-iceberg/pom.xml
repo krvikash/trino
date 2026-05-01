@@ -930,6 +930,7 @@
                                 <exclude>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestTrinoSnowflakeCatalog.java</exclude>
                                 <exclude>**/TestDatabricksUnityRestCatalog.java</exclude>
+                                <exclude>**/TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergAiFunctions.java</exclude>
                                 <exclude>**/TestIcebergGlueCatalogExternalWriteTest.java</exclude>
                                 <exclude>**/TestIcebergCachingGlueCatalogAccessOperationsTest.java</exclude>
@@ -1004,6 +1005,7 @@
                                 <include>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestTrinoSnowflakeCatalog.java</include>
                                 <include>**/TestDatabricksUnityRestCatalog.java</include>
+                                <include>**/TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestIcebergGlueCatalogExternalWriteTest.java</include>
                                 <include>**/TestIcebergCachingGlueCatalogAccessOperationsTest.java</include>
                                 <include>**/TestIcebergCachingGlueCatalogConnectorSmokeTest.java</include>

@@ -51,6 +51,7 @@ import io.trino.spi.connector.ViewNotFoundException;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
@@ -93,8 +94,10 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -116,6 +119,7 @@ import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static org.apache.iceberg.CatalogUtil.dropTableData;
+import static org.apache.iceberg.TableProperties.PARQUET_COMPRESSION;
 import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.apache.iceberg.view.ViewProperties.COMMENT;
 
@@ -126,6 +130,7 @@ public class TrinoRestCatalog
 
     private static final int PER_QUERY_CACHE_SIZE = 1000;
     private static final String NAMESPACE_SEPARATOR = ".";
+    private static final Pattern UNITY_CATALOG = Pattern.compile("https?://[^/]+/api/[^/]+/unity-catalog/iceberg-rest/?");
 
     private final IcebergFileSystemFactory fileSystemFactory;
     private final RESTSessionCatalog restSessionCatalog;
@@ -525,7 +530,7 @@ public class TrinoRestCatalog
             Catalog.TableBuilder tableBuilder = restSessionCatalog.buildTable(convert(session), toRemoteTable(session, schemaTableName, true), schema)
                     .withPartitionSpec(partitionSpec)
                     .withSortOrder(sortOrder)
-                    .withProperties(properties);
+                    .withProperties(stripUnsupportedProperties(properties));
             if (location.isEmpty()) {
                 // TODO Replace with createTransaction once S3 Tables supports stage-create option
                 return tableBuilder.create().newTransaction();
@@ -552,12 +557,34 @@ public class TrinoRestCatalog
                     .withPartitionSpec(partitionSpec)
                     .withSortOrder(sortOrder)
                     .withLocation(location)
-                    .withProperties(properties)
+                    .withProperties(stripUnsupportedProperties(properties))
                     .createOrReplaceTransaction();
         }
         catch (RESTException e) {
             throw new TrinoException(ICEBERG_CATALOG_ERROR, "Failed to create transaction", e);
         }
+    }
+
+    private Map<String, String> stripUnsupportedProperties(Map<String, String> properties)
+    {
+        if (isUnityCatalog()) {
+            if (!isNullOrEmpty(properties.get(PARQUET_COMPRESSION))) {
+                throw new TrinoException(NOT_SUPPORTED, "The catalog does not support " + PARQUET_COMPRESSION);
+            }
+            return properties.entrySet().stream()
+                    .filter(entry -> !entry.getKey().equals(PARQUET_COMPRESSION))
+                    .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+        }
+        return properties;
+    }
+
+    private boolean isUnityCatalog()
+    {
+        String uri = restSessionCatalog.properties().get(CatalogProperties.URI);
+        if (uri == null) {
+            return false;
+        }
+        return UNITY_CATALOG.matcher(uri).matches();
     }
 
     @Override
@@ -590,7 +617,8 @@ public class TrinoRestCatalog
     @Override
     public void dropTable(ConnectorSession session, SchemaTableName schemaTableName)
     {
-        if (security == Security.GOOGLE) {
+        if (security == Security.GOOGLE || isUnityCatalog()) {
+            // Unity catalog reuses purgeBigLakeTable method because the expected logic is the same
             purgeBigLakeTable(session, schemaTableName);
         }
         else {
