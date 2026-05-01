@@ -322,7 +322,7 @@ public final class BenchmarkRunner
                 for (int round = 1; round <= suiteWarmup; round++) {
                     log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
                     for (int queryNumber : suiteQueries) {
-                        log.info("Suite prewarm: %s", displayName(queryNumber));
+                        log.debug("Starting warmup run of %s", displayName(queryNumber));
                         try {
                             runner.execute(workload.readQuery(queryNumber));
                         }
@@ -350,7 +350,7 @@ public final class BenchmarkRunner
                         totalExecutionMillis += averageMillis(measurements, Measurement::executionMillis);
                     }
                 }
-                log.info("TOTAL: %s ms (execution %s ms)", totalElapsedMillis, totalExecutionMillis);
+                log.info("Sum of averages for all queries: %s ms (execution %s ms)", totalElapsedMillis, totalExecutionMillis);
                 writeTimingsCsv(benchmarkDataDir, measurementsByQuery);
 
                 if (profiler != null) {
@@ -378,7 +378,9 @@ public final class BenchmarkRunner
             boolean profilerActive = false;
             try {
                 for (int i = 0; i < warmup; i++) {
-                    runner.execute(sql);
+                    log.debug("Starting warmup run of %s", displayName);
+                    Measurement measurement = measureAndValidate(runner, sql, displayName, expectedLines);
+                    log.debug("Warmup run of %s took %s ms", displayName, measurement.elapsedMillis());
                 }
                 if (profiler != null) {
                     profiler.execute("start,event=%s,interval=%s,alluser,jstackdepth=%d"
@@ -386,7 +388,10 @@ public final class BenchmarkRunner
                     profilerActive = true;
                 }
                 for (int i = 0; i < runs; i++) {
-                    measurements.add(measureAndValidate(runner, sql, displayName, expectedLines));
+                    log.debug("Starting measured run of %s", displayName);
+                    Measurement measurement = measureAndValidate(runner, sql, displayName, expectedLines);
+                    log.debug("Measured run of %s took %s ms", displayName, measurement.elapsedMillis());
+                    measurements.add(measurement);
                 }
             }
             catch (RuntimeException e) {
@@ -417,7 +422,7 @@ public final class BenchmarkRunner
 
             long averageElapsed = averageMillis(measurements, Measurement::elapsedMillis);
             long averageExecution = averageMillis(measurements, Measurement::executionMillis);
-            log.info("%s: %s ms (execution %s ms)", displayName, averageElapsed, averageExecution);
+            log.info("Average for %s: %s ms (execution %s ms)", displayName, averageElapsed, averageExecution);
             return List.copyOf(measurements);
         }
     }
@@ -1002,6 +1007,7 @@ public final class BenchmarkRunner
         Logging logging = Logging.initialize();
         logging.setLevel("io.trino.spi.gpu", Level.DEBUG);
         logging.setLevel("io.trino.operator.gpu", Level.DEBUG);
+        logging.setLevel("io.trino.tests.benchmark", Level.DEBUG);
     }
 
     /**
