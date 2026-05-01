@@ -565,13 +565,11 @@ public class GpuExpressionCompiler
         @Override
         protected Optional<CompilationResult> visitLogical(Logical logical, Void context)
         {
-            return compileNary(
-                    logical.terms(),
-                    switch (logical.operator()) {
-                        case AND -> GpuLogicalExpression::and;
-                        case OR -> GpuLogicalExpression::or;
-                    },
-                    context);
+            Function<List<GpuExpression>, GpuExpression> constructor = switch (logical.operator()) {
+                case AND -> GpuLogicalExpression::and;
+                case OR -> GpuLogicalExpression::or;
+            };
+            return compileNary(logical.terms(), constructor, context);
         }
 
         @Override
