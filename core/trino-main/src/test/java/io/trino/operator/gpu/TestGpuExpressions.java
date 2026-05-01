@@ -17,6 +17,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
@@ -66,6 +67,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -94,6 +96,7 @@ import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
+import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -564,35 +567,58 @@ public class TestGpuExpressions
     }
 
     @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    public void testComparisonOperatorsCorrectnessSmoke(NullsProvider nullsProvider)
+    @MethodSource("comparisonTestCases")
+    public void testComparison(Type type, Comparison.Operator operator, NullsProvider nullsProvider)
     {
-        // Iterate the IR Comparison.Operator values directly so we cover the full comparison spectrum
-        // expressible by the new Expression IR (NOT_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL have no
-        // OperatorType constant and would otherwise be missed). IDENTICAL is unsupported on GPU.
-        for (Type type : List.of(BIGINT, INTEGER, SMALLINT, TINYINT, DOUBLE, REAL)) {
-            for (Comparison.Operator operator : Comparison.Operator.values()) {
-                if (operator == Comparison.Operator.IDENTICAL) {
-                    continue;
-                }
-                testComparison(operator, type, nullsProvider);
-            }
+        if ((type instanceof DecimalType decimalType && !decimalType.isShort()) || type == NUMBER) {
+            // type currently not supported
+            assertThat(isConvertible(type)).as("Expected %s to be not supported on GPU", type)
+                    .isFalse();
+            return;
         }
-    }
 
-    private void testComparison(Comparison.Operator operator, Type type, NullsProvider nullsProvider)
-    {
+        List<Type> inputTypes = List.of(type, type);
         int channelA = 0;
         int channelB = 1;
-        List<Type> inputTypes = List.of(type, type);
+        Expression expression = new Comparison(operator, field(channelA, type), field(channelB, type));
+        Set<Integer> inputChannels = Set.of(channelA, channelB);
+
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(positionsCount,
                 createBlock(type, positionsCount, nullsProvider),
                 createBlock(type, positionsCount, nullsProvider)));
 
-        Expression expression = new Comparison(operator, field(channelA, type), field(channelB, type));
+        if (operator == Comparison.Operator.IDENTICAL) {
+            // operator currently not supported
+            assertThat(gpuCompiler.compileExpression(expression, layoutFor(inputTypes)))
+                    .isEmpty();
+            return;
+        }
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, inputChannels);
+    }
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    public static Stream<Object[]> comparisonTestCases()
+    {
+        return Lists.cartesianProduct(
+                        List.of(
+                                BOOLEAN,
+                                TINYINT,
+                                SMALLINT,
+                                INTEGER,
+                                BIGINT,
+                                REAL,
+                                DOUBLE,
+                                createDecimalType(3, 0),
+                                createDecimalType(13, 0),
+                                createDecimalType(27, 0),
+                                createDecimalType(27, 5),
+                                createDecimalType(38),
+                                NUMBER,
+                                VARCHAR),
+                        ImmutableList.copyOf(Comparison.Operator.values()),
+                        ImmutableList.copyOf(NullsProvider.values()))
+                .stream()
+                .map(List::toArray);
     }
 
     @ParameterizedTest
