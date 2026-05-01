@@ -99,7 +99,7 @@ public final class BenchmarkTpchSf100
                               961515270 partsupp/20260428_102008_00006_kgfxs_5719b063-0178-4241-8821-d88d0fbb4321
                               975 region/20260428_101924_00001_kgfxs_1536a9ae-0ff5-4265-9927-f00764c4a445
                               """;
-            BenchmarkRunner.verifyDataListing(dataLocation, "Run testing/benchmark-data/hydrate.sh first.", expected);
+            BenchmarkRunner.verifyDataListing(dataLocation, "Run `testing/benchmark-data/hydrate.sh tpch-sf100` first.", expected);
         }
     }
 

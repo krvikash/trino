@@ -220,7 +220,7 @@ public final class BenchmarkClickBench
                               1029638300 20260416_150241_00003_a9apw_327b7d9b-92ff-4a8a-80cd-a2f931f6981d
                               663112786 20260416_150241_00003_a9apw_28d665e2-325b-4bee-ad7c-4840739ffe5c
                               """;
-            BenchmarkRunner.verifyDataListing(dataLocation.resolve("hits"), "Run testing/benchmark-data/hydrate.sh first.", expected);
+            BenchmarkRunner.verifyDataListing(dataLocation.resolve("hits"), "Run `testing/benchmark-data/hydrate.sh clickbench` first.", expected);
         }
 
         @Override
@@ -259,7 +259,7 @@ public final class BenchmarkClickBench
             Path source = defaultDataLocation();
             Path sourceHits = source.resolve("hits");
             if (!Files.isDirectory(sourceHits)) {
-                throw new IllegalStateException("Source data not found at " + sourceHits + ". Run testing/benchmark-data/hydrate.sh first.");
+                throw new IllegalStateException("Source data not found at " + sourceHits + ". Run `testing/benchmark-data/hydrate.sh clickbench` first.");
             }
             if (target.toAbsolutePath().normalize().equals(source.toAbsolutePath().normalize())) {
                 throw new IllegalStateException("Target must differ from source (" + source + "); pass --data");
