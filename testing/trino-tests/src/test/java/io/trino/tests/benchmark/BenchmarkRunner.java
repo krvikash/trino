@@ -241,7 +241,7 @@ public final class BenchmarkRunner
     {
         private final Workload workload;
 
-        @Option(names = {"-S", "--suite-warmup"},
+        @Option(names = {"-W", "--suite-warmup"},
                 description = "Number of full passes over the workload's default queries (in order, no validation) before per-query benchmarking. Always runs the entire workload — independent of --query.")
         int suiteWarmup = 1;
 
