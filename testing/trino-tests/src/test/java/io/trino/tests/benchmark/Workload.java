@@ -13,6 +13,7 @@
  */
 package io.trino.tests.benchmark;
 
+import io.airlift.units.DataSize;
 import io.trino.testing.DistributedQueryRunner;
 
 import java.nio.file.Path;
@@ -43,6 +44,11 @@ public interface Workload
      * Default value for the {@code --data} flag when not passed on the command line.
      */
     Path defaultDataLocation();
+
+    /**
+     * JVM heap size for the forked benchmark process.
+     */
+    DataSize jvmHeapSize(BenchmarkRunner.ExecutionMode mode);
 
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.

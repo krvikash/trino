@@ -15,6 +15,7 @@ package io.trino.tests.benchmark;
 
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.sql.query.QueryAssertions;
@@ -158,6 +159,12 @@ public final class BenchmarkClickBench
     static final class ClickBenchWorkload
             implements Workload
     {
+        @Override
+        public DataSize jvmHeapSize(BenchmarkRunner.ExecutionMode mode)
+        {
+            return DataSize.of(10, DataSize.Unit.GIGABYTE);
+        }
+
         @Override
         public String name()
         {

@@ -15,7 +15,6 @@ package io.trino.tests.benchmark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.sun.management.OperatingSystemMXBean;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
@@ -134,10 +133,7 @@ public final class BenchmarkRunner
             "ForkJoinPool\\.runWorker",
             "AbstractQueuedSynchronizer.*await"));
 
-    // -Xmx and -Xms are pinned to the same value so the heap doesn't grow during a query;
-    // GPU mode leaves more headroom for native allocations in the GPU operators.
-    private static final double CPU_HEAP_FRACTION_OF_SYSTEM_MEMORY = 0.85;
-    private static final double GPU_HEAP_FRACTION_OF_SYSTEM_MEMORY = 0.70;
+    // -Xmx and -Xms are pinned to the same value so the heap doesn't grow during a query.
 
     private static final String LAUNCHED_MARKER = "benchmark.launched";
 
@@ -157,15 +153,15 @@ public final class BenchmarkRunner
     /**
      * Entry point used by per-benchmark {@code main} methods. On first invocation the harness
      * launches a child JVM and forwards its exit code, because Trino needs
-     * {@code --add-modules=jdk.incubator.vector} on the boot command line and a heap pre-sized
-     * to physical RAM. The launched JVM picks up the rest of its args from the sibling
-     * {@code jvm.config}. {@code -Dbenchmark.no.fork=true} disables the fork.
+     * {@code --add-modules=jdk.incubator.vector} on the boot command line. The launched JVM
+     * picks up the rest of its args from the sibling {@code jvm.config}.
+     * {@code -Dbenchmark.no.fork=true} disables the fork.
      */
     public static int run(String[] args, Workload workload, Class<?> mainClass)
             throws Exception
     {
         if (!Boolean.getBoolean(LAUNCHED_MARKER) && !Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
-            return launch(args, mainClass);
+            return launch(args, workload, mainClass);
         }
         CommandLine cli = new CommandLine(new RootCommand());
         cli.addSubcommand("run", new RunCommand(workload));
@@ -187,29 +183,29 @@ public final class BenchmarkRunner
         return false;
     }
 
-    private static int launch(String[] args, Class<?> mainClass)
+    private static int launch(String[] args, Workload workload, Class<?> mainClass)
             throws Exception
     {
-        double heapFraction = isGpuMode(args) ? GPU_HEAP_FRACTION_OF_SYSTEM_MEMORY : CPU_HEAP_FRACTION_OF_SYSTEM_MEMORY;
-        long heapBytes = (long) (((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean())
-                .getTotalMemorySize() * heapFraction);
-        String heapFlag = (heapBytes / (1024L * 1024L)) + "m";
+        ExecutionMode mode = isGpuMode(args) ? ExecutionMode.GPU : ExecutionMode.CPU;
+        long heapSizeMegabytes = workload.jvmHeapSize(mode).toBytes() / (1024 * 1024);
+        String minHeapFlag = "-Xms" + heapSizeMegabytes + "m";
+        String maxHeapFlag = "-Xmx" + heapSizeMegabytes + "m";
         List<String> command = new ArrayList<>();
         command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
-        command.add("-Xmx" + heapFlag);
-        command.add("-Xms" + heapFlag);
+        command.add(minHeapFlag);
+        command.add(maxHeapFlag);
         command.addAll(readJvmConfig());
         command.add("-D" + LAUNCHED_MARKER + "=true");
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
         command.add(mainClass.getName());
         command.addAll(List.of(args));
-        log.info("Launching benchmark JVM with -Xmx%s -Xms%<s", heapFlag);
+        log.info("Launching benchmark JVM with %s %s", minHeapFlag, maxHeapFlag);
         return new ProcessBuilder(command).inheritIO().start().waitFor();
     }
 
     /**
-     * Heap sizing is omitted from {@code jvm.config} — {@link #launch} sets it from physical RAM.
+     * Heap sizing is omitted from {@code jvm.config} — {@link #launch} derives it from the workload.
      */
     private static List<String> readJvmConfig()
             throws IOException
