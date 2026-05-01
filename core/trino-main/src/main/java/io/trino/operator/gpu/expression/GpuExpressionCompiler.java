@@ -15,6 +15,7 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.DType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import io.airlift.log.Logger;
@@ -30,7 +31,9 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
+import io.trino.sql.ir.Array;
 import io.trino.sql.ir.Between;
+import io.trino.sql.ir.Bind;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
@@ -38,12 +41,16 @@ import io.trino.sql.ir.Coalesce;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.FieldReference;
 import io.trino.sql.ir.In;
 import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Logical;
+import io.trino.sql.ir.NullIf;
 import io.trino.sql.ir.Reference;
+import io.trino.sql.ir.Row;
+import io.trino.sql.ir.Switch;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
 import io.trino.type.IntervalDayTimeType;
@@ -118,7 +125,8 @@ public class GpuExpressionCompiler
         return compiled;
     }
 
-    private static class CompilationVisitor
+    @VisibleForTesting
+    static class CompilationVisitor
             extends IrVisitor<Optional<CompilationResult>, Void>
     {
         private final Map<Symbol, Integer> sourceLayout;
@@ -131,6 +139,12 @@ public class GpuExpressionCompiler
         private CompilationVisitor(Map<Symbol, Integer> sourceLayout)
         {
             this.sourceLayout = requireNonNull(sourceLayout, "sourceLayout is null");
+        }
+
+        @Override
+        public Optional<CompilationResult> process(Expression node)
+        {
+            throw new UnsupportedOperationException("Process without context should not be called");
         }
 
         @Override
@@ -158,6 +172,26 @@ public class GpuExpressionCompiler
             return Optional.of(new CompilationResult(
                     (_, inputColumns) -> inputColumns.get(compactField).incRefCount(),
                     POTENTIAL));
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitArray(Array node, Void context)
+        {
+            return Optional.empty();
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitRow(Row node, Void context)
+        {
+            // TODO support ROW type
+            return Optional.empty();
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitFieldReference(FieldReference node, Void context)
+        {
+            // TODO support ROW type
+            return Optional.empty();
         }
 
         @Override
@@ -483,6 +517,12 @@ public class GpuExpressionCompiler
         }
 
         @Override
+        protected Optional<CompilationResult> visitBind(Bind node, Void context)
+        {
+            return Optional.empty();
+        }
+
+        @Override
         protected Optional<CompilationResult> visitComparison(Comparison comparison, Void context)
         {
             verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
@@ -588,9 +628,23 @@ public class GpuExpressionCompiler
         }
 
         @Override
+        protected Optional<CompilationResult> visitSwitch(Switch node, Void context)
+        {
+            // TODO support simple CASE on GPU
+            return Optional.empty();
+        }
+
+        @Override
         protected Optional<CompilationResult> visitCoalesce(Coalesce coalesce, Void context)
         {
             return compileNary(coalesce.operands(), GpuCoalesce::new, context);
+        }
+
+        @Override
+        protected Optional<CompilationResult> visitNullIf(NullIf node, Void context)
+        {
+            // TODO support NULLIF on GPU
+            return Optional.empty();
         }
 
         private Optional<CompilationResult> compileNary(
@@ -629,12 +683,12 @@ public class GpuExpressionCompiler
         @Override
         protected Optional<CompilationResult> visitExpression(Expression node, Void context)
         {
-            // Any IR shape we don't explicitly handle (Switch, NullIf, Bind, Row, Array, FieldReference) is unsupported on GPU.
             return Optional.empty();
         }
     }
 
-    private record CompilationResult(GpuExpression expression, GpuScore score)
+    @VisibleForTesting
+    record CompilationResult(GpuExpression expression, GpuScore score)
     {
         public CompilationResult
         {
