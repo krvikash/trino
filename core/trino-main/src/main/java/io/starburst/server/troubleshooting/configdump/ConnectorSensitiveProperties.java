@@ -716,8 +716,6 @@ public final class ConnectorSensitiveProperties
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
-                            "http-server.authentication.oauth2.client-secret",
-                            "http-server.authentication.oauth2.refresh-tokens.secret-key",
                             "http-server.https.automatic-shared-secret",
                             "http-server.https.keymanager.password",
                             "http-server.https.keystore.key",
@@ -735,11 +733,9 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "protocol.spooling.shared-secret-key",
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
-                            "s3.sse.customer-key",
-                            "web-ui.shared-secret"))
+                            "s3.sse.customer-key"))
             .buildOrThrow();
 
     private ConnectorSensitiveProperties() {}
