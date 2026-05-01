@@ -318,21 +318,19 @@ public final class BenchmarkRunner
 
                 List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
 
-                if (suiteWarmup > 0) {
-                    List<Integer> suiteQueries = workload.defaultQueries();
-                    for (int round = 1; round <= suiteWarmup; round++) {
-                        log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
-                        for (int queryNumber : suiteQueries) {
-                            log.info("Suite prewarm: q%02d", queryNumber);
-                            try {
-                                runner.execute(workload.readQuery(queryNumber));
+                List<Integer> suiteQueries = workload.defaultQueries();
+                for (int round = 1; round <= suiteWarmup; round++) {
+                    log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
+                    for (int queryNumber : suiteQueries) {
+                        log.info("Suite prewarm: q%02d", queryNumber);
+                        try {
+                            runner.execute(workload.readQuery(queryNumber));
+                        }
+                        catch (RuntimeException e) {
+                            if (!isOutOfMemory(e)) {
+                                throw e;
                             }
-                            catch (RuntimeException e) {
-                                if (!isOutOfMemory(e)) {
-                                    throw e;
-                                }
-                                log.warn("Suite prewarm q%02d: out of memory — continuing", queryNumber);
-                            }
+                            log.warn("Suite prewarm q%02d: out of memory — continuing", queryNumber);
                         }
                     }
                 }
