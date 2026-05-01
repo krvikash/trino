@@ -322,7 +322,7 @@ public final class BenchmarkRunner
                 for (int round = 1; round <= suiteWarmup; round++) {
                     log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
                     for (int queryNumber : suiteQueries) {
-                        log.info("Suite prewarm: q%02d", queryNumber);
+                        log.info("Suite prewarm: %s", displayName(queryNumber));
                         try {
                             runner.execute(workload.readQuery(queryNumber));
                         }
@@ -330,7 +330,7 @@ public final class BenchmarkRunner
                             if (!isOutOfMemory(e)) {
                                 throw e;
                             }
-                            log.warn("Suite prewarm q%02d: out of memory — continuing", queryNumber);
+                            log.warn("Suite prewarm %s: out of memory — continuing", displayName(queryNumber));
                         }
                     }
                 }
@@ -371,7 +371,7 @@ public final class BenchmarkRunner
                 throws IOException
         {
             String sql = workload.readQuery(queryNumber);
-            String displayName = "q%02d".formatted(queryNumber);
+            String displayName = displayName(queryNumber);
             List<String> expectedLines = readExpectedLines(workload, queryNumber);
 
             List<Measurement> measurements = new ArrayList<>();
@@ -508,7 +508,7 @@ public final class BenchmarkRunner
                     MaterializedResult result = runner.execute(sql);
                     Files.createDirectories(target.getParent());
                     writeNdjson(target, result);
-                    log.info("Recorded q%02d -> %s (%d rows)", queryNumber, target, result.getRowCount());
+                    log.info("Recorded %s -> %s (%d rows)", displayName(queryNumber), target, result.getRowCount());
                 }
             }
             return 0;
@@ -611,7 +611,7 @@ public final class BenchmarkRunner
         List<Path> consumed = new ArrayList<>(queriesRun.size());
         try (OutputStream out = Files.newOutputStream(merged)) {
             for (int queryNumber : queriesRun) {
-                Path perQueryFile = profileOutputDir.resolve("q%02d.filtered.collapsed".formatted(queryNumber));
+                Path perQueryFile = profileOutputDir.resolve("%s.filtered.collapsed".formatted(displayName(queryNumber)));
                 if (!Files.exists(perQueryFile)) {
                     continue;
                 }
@@ -649,7 +649,7 @@ public final class BenchmarkRunner
             writer.write(",average_elapsed_ms,average_execution_ms,n_measurements");
             writer.newLine();
             for (Map.Entry<Integer, List<Measurement>> entry : measurementsByQuery.entrySet()) {
-                writer.write("q%02d".formatted(entry.getKey()));
+                writer.write(displayName(entry.getKey()));
                 List<Measurement> measurements = entry.getValue();
                 for (int i = 0; i < maxMeasurements; i++) {
                     if (i < measurements.size()) {
@@ -1020,5 +1020,10 @@ public final class BenchmarkRunner
         Path home = Path.of(System.getProperty("user.home"));
         log.warn("No .git ancestor of %s; falling back to user.home (%s) as project root", current, home);
         return home;
+    }
+
+    private static String displayName(int queryNumber)
+    {
+        return "q%02d".formatted(queryNumber);
     }
 }
