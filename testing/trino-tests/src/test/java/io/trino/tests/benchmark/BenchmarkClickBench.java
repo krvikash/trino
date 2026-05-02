@@ -298,6 +298,7 @@ public final class BenchmarkClickBench
 
         queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
         String hitsLocation = dataLocation.resolve("hits").toAbsolutePath().normalize().toString();
+        log.info("Creating hive.clickbench.hits at %s", hitsLocation);
         queryRunner.execute(format(
                 "CREATE TABLE hive.clickbench.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",
                 HITS_COLUMNS, hitsLocation));
