@@ -14,9 +14,7 @@
 package io.trino.tests.benchmark;
 
 import com.google.common.io.Resources;
-import com.sun.management.OperatingSystemMXBean;
 import io.airlift.log.Logger;
-import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.plugin.tpch.DecimalTypeMapping;
@@ -25,7 +23,6 @@ import io.trino.testing.DistributedQueryRunner;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,12 +43,6 @@ public abstract class BaseTpchWorkload
         implements Workload
 {
     private static final Logger log = Logger.get(BaseTpchWorkload.class);
-
-    // TODO: Sizing the JVM heap as a fraction of physical RAM may leave insufficient space for
-    //  the OS page cache on machines with limited memory, causing disk-read thrashing on
-    //  queries that read large amounts of data.
-    private static final double CPU_HEAP_FRACTION_OF_SYSTEM_MEMORY = 0.85;
-    private static final double GPU_HEAP_FRACTION_OF_SYSTEM_MEMORY = 0.70;
 
     private static final List<String> TABLES = List.of(
             "region", "nation", "customer", "supplier", "part", "partsupp", "orders", "lineitem");
@@ -115,15 +106,6 @@ public abstract class BaseTpchWorkload
                         + " does not exist. Run the workload's Generator entry point to recreate the dataset.");
             }
         }
-    }
-
-    @Override
-    public DataSize jvmHeapSize(BenchmarkRunner.ExecutionMode mode)
-    {
-        double fraction = mode == BenchmarkRunner.ExecutionMode.GPU ? GPU_HEAP_FRACTION_OF_SYSTEM_MEMORY : CPU_HEAP_FRACTION_OF_SYSTEM_MEMORY;
-        long bytes = (long) (((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean())
-                .getTotalMemorySize() * fraction);
-        return DataSize.ofBytes(bytes);
     }
 
     @Override

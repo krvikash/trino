@@ -13,6 +13,8 @@
  */
 package io.trino.tests.benchmark;
 
+import io.airlift.units.DataSize;
+
 import java.nio.file.Path;
 
 /**
@@ -34,6 +36,12 @@ public final class BenchmarkTpchSf30
         TpchSf30Workload()
         {
             super(30);
+        }
+
+        @Override
+        public DataSize jvmHeapSize()
+        {
+            return DataSize.of(25, DataSize.Unit.GIGABYTE);
         }
 
         @Override

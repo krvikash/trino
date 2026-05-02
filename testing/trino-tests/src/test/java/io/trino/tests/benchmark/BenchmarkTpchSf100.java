@@ -13,6 +13,8 @@
  */
 package io.trino.tests.benchmark;
 
+import io.airlift.units.DataSize;
+
 import java.nio.file.Path;
 
 /**
@@ -45,6 +47,12 @@ public final class BenchmarkTpchSf100
             // shorter queries need the finer resolution and don't accumulate enough cumulative
             // profiler time to hit the itimer ceiling.
             return "10ms";
+        }
+
+        @Override
+        public DataSize jvmHeapSize()
+        {
+            return DataSize.of(80, DataSize.Unit.GIGABYTE);
         }
 
         @Override

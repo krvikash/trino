@@ -170,24 +170,10 @@ public final class BenchmarkRunner
         return cli.execute(args);
     }
 
-    /**
-     * Pre-picocli scan for {@code --mode GPU} so we can size the child JVM's heap before fork.
-     */
-    private static boolean isGpuMode(String[] args)
-    {
-        for (int i = 0; i < args.length - 1; i++) {
-            if (("--mode".equals(args[i]) || "-m".equals(args[i])) && "GPU".equalsIgnoreCase(args[i + 1])) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static int launch(String[] args, Workload workload, Class<?> mainClass)
             throws Exception
     {
-        ExecutionMode mode = isGpuMode(args) ? ExecutionMode.GPU : ExecutionMode.CPU;
-        long heapSizeMegabytes = workload.jvmHeapSize(mode).toBytes() / (1024 * 1024);
+        long heapSizeMegabytes = workload.jvmHeapSize().toBytes() / (1024 * 1024);
         String minHeapFlag = "-Xms" + heapSizeMegabytes + "m";
         String maxHeapFlag = "-Xmx" + heapSizeMegabytes + "m";
         List<String> command = new ArrayList<>();

@@ -48,7 +48,7 @@ public interface Workload
     /**
      * JVM heap size for the forked benchmark process.
      */
-    DataSize jvmHeapSize(BenchmarkRunner.ExecutionMode mode);
+    DataSize jvmHeapSize();
 
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.

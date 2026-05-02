@@ -160,7 +160,7 @@ public final class BenchmarkClickBench
             implements Workload
     {
         @Override
-        public DataSize jvmHeapSize(BenchmarkRunner.ExecutionMode mode)
+        public DataSize jvmHeapSize()
         {
             return DataSize.of(10, DataSize.Unit.GIGABYTE);
         }
