@@ -15,6 +15,7 @@ package io.trino.tests.benchmark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Key;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
@@ -22,7 +23,11 @@ import io.trino.ExceededMemoryLimitException;
 import io.trino.Session;
 import io.trino.client.FailureException;
 import io.trino.execution.Failure;
+import io.trino.execution.QueryInfo;
 import io.trino.plugin.hive.HiveQueryRunner;
+import io.trino.server.testing.TestingTrinoServer;
+import io.trino.spi.NodeVersion;
+import io.trino.sql.planner.planprinter.PlanPrinter;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
@@ -283,6 +288,8 @@ public final class BenchmarkRunner
 
             Path benchmarkDataDir = PROJECT_ROOT.resolve("target/benchmark-output").resolve(workload.name());
             Path profileOutputDir = benchmarkDataDir.resolve("profile");
+            Path explainOutputDir = benchmarkDataDir.resolve("explain");
+            Files.createDirectories(explainOutputDir);
 
             AsyncProfiler profiler = profileEvent == ProfileEvent.NONE ? null : AsyncProfiler.getInstance();
             if (profiler != null) {
@@ -290,6 +297,7 @@ public final class BenchmarkRunner
                 log.info("Profiler output will be written to %s", profileOutputDir.toAbsolutePath());
                 log.info("Profiler event: %s  interval=%s", profileEvent, workload.profileInterval());
             }
+            log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
             try (DistributedQueryRunner runner = workload.createRunner(data, mode)) {
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
@@ -324,7 +332,7 @@ public final class BenchmarkRunner
                 long totalElapsedMillis = 0;
                 long totalExecutionMillis = 0;
                 for (int queryNumber : queriesRun) {
-                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, profiler, profileOutputDir);
+                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, profiler, profileOutputDir, explainOutputDir);
                     measurementsByQuery.put(queryNumber, measurements);
                     if (!measurements.isEmpty()) {
                         totalElapsedMillis += averageMillis(measurements, Measurement::elapsedMillis);
@@ -346,22 +354,30 @@ public final class BenchmarkRunner
          * Warmup runs before the profiler attaches so JIT compilation isn't in the hot frames.
          * Each measured iteration's result is compared against the workload's expected NDJSON;
          * mismatch fails the run. Memory-limit failures are logged and the query is skipped
-         * (returns an empty list).
+         * (returns an empty list). Per-iteration EXPLAIN ANALYZE-equivalent plans are dumped to
+         * {@code <explainOutputDir>/q<NN>.explain-analyze.txt}.
          */
-        private List<Measurement> benchmarkQuery(DistributedQueryRunner runner, int queryNumber, AsyncProfiler profiler, Path profileOutputDir)
+        private List<Measurement> benchmarkQuery(
+                DistributedQueryRunner runner,
+                int queryNumber,
+                AsyncProfiler profiler,
+                Path profileOutputDir,
+                Path explainOutputDir)
                 throws IOException
         {
             String sql = workload.readQuery(queryNumber);
             String displayName = displayName(queryNumber);
             List<String> expectedLines = readExpectedLines(workload, queryNumber);
+            Path explainFile = explainOutputDir.resolve(displayName + ".explain-analyze.txt");
 
             List<Measurement> measurements = new ArrayList<>();
+            List<IterationResult> measuredIterations = new ArrayList<>();
             boolean profilerActive = false;
-            try {
+            try (BufferedWriter explainWriter = Files.newBufferedWriter(explainFile, UTF_8)) {
                 for (int i = 0; i < warmup; i++) {
                     log.debug("Starting warmup run of %s", displayName);
-                    Measurement measurement = measureAndValidate(runner, sql, displayName, expectedLines);
-                    log.debug("Warmup run of %s took %s ms", displayName, measurement.elapsedMillis());
+                    IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
+                    log.debug("Warmup run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
                 }
                 if (profiler != null) {
                     profiler.execute("start,event=%s,interval=%s,alluser,jstackdepth=%d"
@@ -370,9 +386,21 @@ public final class BenchmarkRunner
                 }
                 for (int i = 0; i < runs; i++) {
                     log.debug("Starting measured run of %s", displayName);
-                    Measurement measurement = measureAndValidate(runner, sql, displayName, expectedLines);
-                    log.debug("Measured run of %s took %s ms", displayName, measurement.elapsedMillis());
-                    measurements.add(measurement);
+                    IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
+                    log.debug("Measured run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
+                    measurements.add(iteration.measurement());
+                    measuredIterations.add(iteration);
+                }
+                // Halt sampling before rendering plans so PlanPrinter frames don't pollute the
+                // flamegraph; the buffer is preserved for the dump that runs after the try block.
+                if (profilerActive) {
+                    profiler.execute("stop");
+                }
+                for (int i = 0; i < measuredIterations.size(); i++) {
+                    IterationResult iteration = measuredIterations.get(i);
+                    explainWriter.write("=== %s run %d/%d ===%n".formatted(displayName, i + 1, runs));
+                    explainWriter.write(renderExplainAnalyze(runner.getCoordinator(), iteration.queryInfo()));
+                    explainWriter.newLine();
                 }
             }
             catch (RuntimeException e) {
@@ -395,7 +423,7 @@ public final class BenchmarkRunner
                 Path snapshot = Files.createTempFile("benchmark-" + displayName + "-", ".collapsed");
                 Path htmlFile = profileOutputDir.resolve(displayName + ".html");
                 profiler.execute("dump,file=%s,collapsed,threads".formatted(snapshot.toAbsolutePath()));
-                profiler.execute("stop,file=%s,flamegraph,threads".formatted(htmlFile.toAbsolutePath()));
+                profiler.execute("dump,file=%s,flamegraph,threads".formatted(htmlFile.toAbsolutePath()));
                 long kept = postProcessProfile(profileOutputDir, displayName, snapshot, profileEvent, workload);
                 Files.delete(snapshot);
                 log.info("Profiler output for %s post-processed (%d samples kept after idle filter)", displayName, kept);
@@ -501,19 +529,41 @@ public final class BenchmarkRunner
         }
     }
 
-    private static Measurement measureAndValidate(
+    private record IterationResult(Measurement measurement, QueryInfo queryInfo) {}
+
+    private static IterationResult measureAndValidate(
             DistributedQueryRunner runner,
             String sql,
             String displayName,
             List<String> expectedLines)
     {
         MaterializedResultWithQueryId withId = runner.executeWithQueryId(runner.getDefaultSession(), sql);
-        var stats = runner.getCoordinator().getQueryManager().getFullQueryInfo(withId.queryId()).getQueryStats();
+        QueryInfo queryInfo = runner.getCoordinator().getQueryManager().getFullQueryInfo(withId.queryId());
+        var stats = queryInfo.getQueryStats();
         List<String> actualLines = formatNdjsonLines(withId.result());
         if (!actualLines.equals(expectedLines)) {
             throw new AssertionError(formatResultMismatch(displayName, expectedLines, actualLines));
         }
-        return new Measurement(stats.getElapsedTime().toMillis(), stats.getExecutionTime().toMillis());
+        return new IterationResult(
+                new Measurement(stats.getElapsedTime().toMillis(), stats.getExecutionTime().toMillis()),
+                queryInfo);
+    }
+
+    /**
+     * Reproduces the textual output of {@code EXPLAIN ANALYZE} for a finished query without
+     * re-executing it — same call chain as {@code ExplainAnalyzeOperator}, fed from the completed
+     * {@link QueryInfo}.
+     */
+    private static String renderExplainAnalyze(TestingTrinoServer coordinator, QueryInfo queryInfo)
+    {
+        return PlanPrinter.textDistributedPlan(
+                queryInfo.getStages().orElseThrow(() -> new IllegalStateException("Query has no stages: " + queryInfo.getQueryId())),
+                queryInfo.getQueryStats(),
+                coordinator.getPlannerContext().getMetadata(),
+                coordinator.getPlannerContext().getFunctionManager(),
+                queryInfo.getSession().toSession(coordinator.getSessionPropertyManager()),
+                /* verbose = */ true,
+                coordinator.getInstance(Key.get(NodeVersion.class)));
     }
 
     /**
