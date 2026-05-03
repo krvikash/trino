@@ -397,7 +397,7 @@ public class RowType
                 .addIndeterminateOperators(getIndeterminateOperatorInvokers(typeOperators, fields))
                 .addComparisonUnorderedLastOperators(getComparisonOperatorInvokers(typeOperators::getComparisonUnorderedLastOperator, fields))
                 .addComparisonUnorderedFirstOperators(getComparisonOperatorInvokers(typeOperators::getComparisonUnorderedFirstOperator, fields))
-               .build();
+                .build();
     }
 
     private List<OperatorMethodHandle> getReadValueOperatorMethodHandles(TypeOperators typeOperators)
@@ -764,8 +764,10 @@ public class RowType
             return false;
         }
         return (boolean) currentFieldIdentical.invokeExact(
-                leftRow.getRawFieldBlock(currentFieldIndex), leftRow.getRawIndex(),
-                rightRow.getRawFieldBlock(currentFieldIndex), rightRow.getRawIndex());
+                leftRow.getRawFieldBlock(currentFieldIndex),
+                leftRow.getRawIndex(),
+                rightRow.getRawFieldBlock(currentFieldIndex),
+                rightRow.getRawIndex());
     }
 
     private static List<OperatorMethodHandle> getIndeterminateOperatorInvokers(TypeOperators typeOperators, List<Field> fields)
