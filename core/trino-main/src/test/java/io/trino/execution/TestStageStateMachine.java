@@ -358,7 +358,8 @@ public class TestStageStateMachine
 
     private static TaskStats taskStats(List<PipelineContext> pipelineContexts, int baseValue)
     {
-        return new TaskStats(Instant.now(),
+        return new TaskStats(
+                Instant.now(),
                 null,
                 null,
                 null,
@@ -472,7 +473,8 @@ public class TestStageStateMachine
         PlanNodeId valuesNodeId = new PlanNodeId("plan");
         PlanFragment planFragment = new PlanFragment(
                 new PlanFragmentId("plan"),
-                new ValuesNode(valuesNodeId,
+                new ValuesNode(
+                        valuesNodeId,
                         ImmutableList.of(symbol),
                         ImmutableList.of(new Row(ImmutableList.of(new Constant(VARCHAR, Slices.utf8Slice("foo")))))),
                 ImmutableSet.of(symbol),

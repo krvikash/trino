@@ -100,7 +100,8 @@ public class TestMemoryBlocking
         PlanNodeId sourceId = new PlanNodeId("source");
         List<Type> types = ImmutableList.of(VARCHAR);
         OperatorContext operatorContext = driverContext.addOperatorContext(1, new PlanNodeId("test"), "values");
-        TableScanOperator source = new TableScanOperator(operatorContext,
+        TableScanOperator source = new TableScanOperator(
+                operatorContext,
                 sourceId,
                 TableAwarePageSourceProvider.create(
                         operatorContext,

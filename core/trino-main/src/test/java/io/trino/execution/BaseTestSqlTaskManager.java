@@ -347,7 +347,8 @@ public abstract class BaseTestSqlTaskManager
 
     private TaskInfo createTask(SqlTaskManager sqlTaskManager, TaskId taskId, Set<ScheduledSplit> splits, OutputBuffers outputBuffers)
     {
-        return sqlTaskManager.updateTask(TEST_SESSION,
+        return sqlTaskManager.updateTask(
+                TEST_SESSION,
                 taskId,
                 Span.getInvalid(),
                 Optional.of(PLAN_FRAGMENT),
@@ -362,7 +363,8 @@ public abstract class BaseTestSqlTaskManager
     {
         sqlTaskManager.getQueryContext(taskId.queryId())
                 .addTaskContext(new TaskStateMachine(taskId, directExecutor()), ImmutableMap.of(), testSessionBuilder().build(), () -> {}, false, false);
-        return sqlTaskManager.updateTask(TEST_SESSION,
+        return sqlTaskManager.updateTask(
+                TEST_SESSION,
                 taskId,
                 Span.getInvalid(),
                 Optional.of(PLAN_FRAGMENT),
