@@ -289,8 +289,8 @@ public class FunctionType
     {
         return "(" +
                 argumentTypes.stream()
-                .map(Type::toString)
-                .collect(Collectors.joining(", ")) +
+                        .map(Type::toString)
+                        .collect(Collectors.joining(", ")) +
                 ") -> " + returnType;
     }
 }
