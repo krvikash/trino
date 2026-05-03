@@ -696,8 +696,7 @@ public class SemiTransactionalHiveMetastore
 
         switch (oldTableAction.type()) {
             case DROP -> throw new TableNotFoundException(schemaTableName);
-            case ADD, ALTER, INSERT_EXISTING, MERGE ->
-                    throw new UnsupportedOperationException("Inserting into an unpartitioned table that were added, altered, or inserted into in the same transaction is not supported");
+            case ADD, ALTER, INSERT_EXISTING, MERGE -> throw new UnsupportedOperationException("Inserting into an unpartitioned table that were added, altered, or inserted into in the same transaction is not supported");
             case DROP_PRESERVE_DATA -> throw new IllegalStateException("Unsupported action type: " + oldTableAction.type());
         }
     }
@@ -771,8 +770,7 @@ public class SemiTransactionalHiveMetastore
 
         switch (oldTableAction.type()) {
             case DROP -> throw new TableNotFoundException(schemaTableName);
-            case ADD, ALTER, INSERT_EXISTING, MERGE ->
-                    throw new UnsupportedOperationException("Inserting, updating or deleting in a table that was added, altered, inserted into, updated or deleted from in the same transaction is not supported");
+            case ADD, ALTER, INSERT_EXISTING, MERGE -> throw new UnsupportedOperationException("Inserting, updating or deleting in a table that was added, altered, inserted into, updated or deleted from in the same transaction is not supported");
             case DROP_PRESERVE_DATA -> throw new IllegalStateException("Unsupported action type: " + oldTableAction.type());
         }
     }
@@ -935,8 +933,7 @@ public class SemiTransactionalHiveMetastore
                         partition.getValues(),
                         new Action<>(ActionType.ALTER, new PartitionAndMore(partition, currentLocation, files, statistics, statistics, SHOULD_MERGE_STATISTICS, cleanExtraOutputFilesOnCommit), session.getIdentity(), session.getQueryId()));
             }
-            case ADD, ALTER, INSERT_EXISTING, MERGE ->
-                    throw new TrinoException(ALREADY_EXISTS, format("Partition already exists for table '%s.%s': %s", databaseName, tableName, partition.getValues()));
+            case ADD, ALTER, INSERT_EXISTING, MERGE -> throw new TrinoException(ALREADY_EXISTS, format("Partition already exists for table '%s.%s': %s", databaseName, tableName, partition.getValues()));
         }
     }
 
@@ -956,9 +953,8 @@ public class SemiTransactionalHiveMetastore
         }
         switch (oldPartitionAction.type()) {
             case DROP, DROP_PRESERVE_DATA -> throw new PartitionNotFoundException(new SchemaTableName(databaseName, tableName), partitionValues);
-            case ADD, ALTER, INSERT_EXISTING, MERGE ->
-                    throw new TrinoException(NOT_SUPPORTED, "dropping a partition added in the same transaction is not supported: %s %s %s"
-                            .formatted(databaseName, tableName, partitionValues));
+            case ADD, ALTER, INSERT_EXISTING, MERGE -> throw new TrinoException(NOT_SUPPORTED, "dropping a partition added in the same transaction is not supported: %s %s %s"
+                    .formatted(databaseName, tableName, partitionValues));
         }
     }
 

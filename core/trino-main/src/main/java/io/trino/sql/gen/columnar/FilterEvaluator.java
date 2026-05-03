@@ -117,8 +117,7 @@ public sealed interface FilterEvaluator
             Optional<String> classNameSuffix)
     {
         return switch (expression) {
-            case Constant constant when constant.value() instanceof Boolean booleanValue ->
-                    booleanValue ? Optional.of(SelectAllEvaluator::new) : Optional.of(SelectNoneEvaluator::new);
+            case Constant constant when constant.value() instanceof Boolean booleanValue -> booleanValue ? Optional.of(SelectAllEvaluator::new) : Optional.of(SelectNoneEvaluator::new);
             case Comparison comparison when comparison.operator() == Comparison.Operator.NOT_EQUAL -> {
                 // Lower NOT_EQUAL to NOT(EQUAL) so it goes through the same Call sub-expression evaluation
                 // path that handled it in the old RowExpression IR (where NOT_EQUAL was translated to
