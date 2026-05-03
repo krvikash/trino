@@ -1002,7 +1002,7 @@ public class TestDeltaLakeConnectorTest
                 getSession(),
                 "SELECT * FROM " + tableName + " WHERE t = TIMESTAMP '" + value + "'",
                 queryStats -> assertThat(queryStats.getProcessedInputDataSize().toBytes()).isGreaterThan(0),
-                results -> {});
+                _ -> {});
     }
 
     @Test
