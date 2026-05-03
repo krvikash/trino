@@ -18,9 +18,10 @@ import io.airlift.compress.zstd.ZstdDecompressor;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.util.Optional;
+
+import static java.lang.invoke.MethodType.methodType;
 
 public class DecompressionUtils
 {
@@ -63,8 +64,8 @@ public class DecompressionUtils
         try {
             Object decompressor = constructor.invoke();
             // int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
-            MethodHandle decompress = LOOKUP.findVirtual(decompressor.getClass(), "decompress", MethodType.methodType(int.class,
-                    byte[].class, int.class, int.class, byte[].class, int.class, int.class));
+            MethodHandle decompress = LOOKUP.findVirtual(decompressor.getClass(), "decompress", methodType(
+                    int.class, byte[].class, int.class, int.class, byte[].class, int.class, int.class));
             return (int) decompress.invoke(decompressor, input, 0, input.length, output, 0, output.length);
         }
         catch (Throwable e) {
@@ -76,8 +77,8 @@ public class DecompressionUtils
     {
         try {
             Class<?> clazz = Class.forName(clazzName);
-            MethodHandle constructor = LOOKUP.findConstructor(clazz, MethodType.methodType(void.class));
-            MethodHandle isEnabled = LOOKUP.findStatic(clazz, "isEnabled", MethodType.methodType(boolean.class));
+            MethodHandle constructor = LOOKUP.findConstructor(clazz, methodType(void.class));
+            MethodHandle isEnabled = LOOKUP.findStatic(clazz, "isEnabled", methodType(boolean.class));
             if (!(boolean) isEnabled.invoke()) {
                 // isEnabled return true only if the native library was loaded properly and all symbols are resolved
                 return Optional.empty();
