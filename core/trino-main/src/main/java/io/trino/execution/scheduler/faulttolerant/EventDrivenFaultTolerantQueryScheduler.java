@@ -520,7 +520,8 @@ public class EventDrivenFaultTolerantQueryScheduler
                                 sourceFragments.stream()
                                         .map(sourceFragment -> {
                                             StageInfo stageInfo1 = reportedStageInfos.get(sourceFragment);
-                                            return stageInfo1.stageId(); })
+                                            return stageInfo1.stageId();
+                                        })
                                         .collect(toImmutableList())));
             });
 
@@ -1410,7 +1411,8 @@ public class EventDrivenFaultTolerantQueryScheduler
             }
 
             if (speculative) {
-                log.debug("scheduling speculative %s/%s; sources: finished=%s; kinds=%s",
+                log.debug(
+                        "scheduling speculative %s/%s; sources: finished=%s; kinds=%s",
                         queryStateMachine.getQueryId(),
                         subPlan.getFragment().getId(),
                         finishedSourcesCount,
@@ -3260,8 +3262,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 RemoteTask task = tasks.get(taskId);
                 verify(task != null, "task is null: %s", taskId);
                 task.addSplits(ImmutableListMultimap.of(
-                        planNodeId,
-                        createOutputSelectorSplit(selector)));
+                        planNodeId, createOutputSelectorSplit(selector)));
                 if (selector.isFinal() && noMoreSplits.contains(planNodeId)) {
                     task.noMoreSplits(planNodeId);
                 }

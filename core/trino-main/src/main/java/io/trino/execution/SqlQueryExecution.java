@@ -509,7 +509,8 @@ public class SqlQueryExecution
         // plan query
         PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
 
-        LogicalPlanner logicalPlanner = new LogicalPlanner(stateMachine.getSession(),
+        LogicalPlanner logicalPlanner = new LogicalPlanner(
+                stateMachine.getSession(),
                 planOptimizers,
                 alternativeOptimizers,
                 new PlanSanityChecker(forceSingleNodeQuery),

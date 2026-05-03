@@ -73,7 +73,8 @@ public final class Split
         this.addresses = requireNonNull(addresses, "addresses is null");
         this.splitAddressEnforced = splitAddressEnforced;
         checkArgument(connectorSplit.getAffinityKey().isEmpty() || connectorSplit.isRemotelyAccessible(),
-                "Split with an affinity key must be remotely accessible: %s", connectorSplit);
+                "Split with an affinity key must be remotely accessible: %s",
+                connectorSplit);
     }
 
     @JsonProperty
