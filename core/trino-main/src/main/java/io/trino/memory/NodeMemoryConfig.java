@@ -30,7 +30,7 @@ import java.util.Optional;
         "experimental.reserved-pool-disabled",
         "experimental.reserved-pool-enabled",
         "query.max-total-memory-per-node",
-        "query.max-memory-per-task"
+        "query.max-memory-per-task",
 })
 public class NodeMemoryConfig
 {
