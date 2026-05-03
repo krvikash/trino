@@ -98,7 +98,6 @@ public final class MigrationUtils
         TRUE,
         FALSE,
         FAIL,
-        /**/
     }
 
     private MigrationUtils() {}

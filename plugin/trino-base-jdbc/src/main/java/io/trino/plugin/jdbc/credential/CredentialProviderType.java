@@ -19,5 +19,4 @@ public enum CredentialProviderType
     FILE,
     KEYSTORE,
     SECRETS,
-    /**/
 }

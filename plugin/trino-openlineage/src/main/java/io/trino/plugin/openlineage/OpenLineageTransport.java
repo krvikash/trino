@@ -18,5 +18,4 @@ public enum OpenLineageTransport
     NOOP,
     CONSOLE,
     HTTP,
-    /**/
 }

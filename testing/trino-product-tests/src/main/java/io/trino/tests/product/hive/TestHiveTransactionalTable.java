@@ -2236,7 +2236,6 @@ public class TestHiveTransactionalTable
     {
         MAJOR,
         MINOR,
-        /**/;
     }
 
     private String makeInsertValues(int col1Value, int col2First, int col2Last)
