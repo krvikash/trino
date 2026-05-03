@@ -271,8 +271,10 @@ public class PageFunctionCompiler
         }
         catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof MethodTooLargeException) {
-                throw new TrinoException(QUERY_EXCEEDED_COMPILER_LIMIT,
-                        "Failed to execute query; there may be too many columns used or expressions are too complex", e);
+                throw new TrinoException(
+                        QUERY_EXCEEDED_COMPILER_LIMIT,
+                        "Failed to execute query; there may be too many columns used or expressions are too complex",
+                        e);
             }
             throw new TrinoException(COMPILER_ERROR, e);
         }
@@ -487,8 +489,10 @@ public class PageFunctionCompiler
         }
         catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof MethodTooLargeException) {
-                throw new TrinoException(QUERY_EXCEEDED_COMPILER_LIMIT,
-                        "Query exceeded maximum filters. Please reduce the number of filters referenced and re-run the query.", e);
+                throw new TrinoException(
+                        QUERY_EXCEEDED_COMPILER_LIMIT,
+                        "Query exceeded maximum filters. Please reduce the number of filters referenced and re-run the query.",
+                        e);
             }
             throw new TrinoException(COMPILER_ERROR, filter.toString(), e.getCause());
         }
@@ -698,7 +702,10 @@ public class PageFunctionCompiler
     {
         return (reference, scope) -> {
             int field = compactLayout.get(Symbol.from(reference));
-            return generateInputReference(callSiteBinder, scope, reference.type(),
+            return generateInputReference(
+                    callSiteBinder,
+                    scope,
+                    reference.type(),
                     scope.getThis().getField("block_" + field, Block.class),
                     scope.getVariable("position"));
         };
@@ -708,7 +715,10 @@ public class PageFunctionCompiler
     {
         return (reference, scope) -> {
             int field = compactLayout.get(Symbol.from(reference));
-            return generateInputReference(callSiteBinder, scope, reference.type(),
+            return generateInputReference(
+                    callSiteBinder,
+                    scope,
+                    reference.type(),
                     scope.getVariable("block_" + field),
                     scope.getVariable("position"));
         };

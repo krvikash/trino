@@ -278,11 +278,15 @@ public final class GraphvizPrinter
         @Override
         public Void visitWindow(WindowNode node, Void context)
         {
-            printNode(node, "Window", format("partition by = %s|order by = %s",
-                    Joiner.on(", ").join(node.getPartitionBy()),
-                    node.getOrderingScheme()
-                            .map(orderingScheme -> Joiner.on(", ").join(orderingScheme.orderBy()))
-                            .orElse("")),
+            printNode(
+                    node,
+                    "Window",
+                    format(
+                            "partition by = %s|order by = %s",
+                            Joiner.on(", ").join(node.getPartitionBy()),
+                            node.getOrderingScheme()
+                                    .map(orderingScheme -> Joiner.on(", ").join(orderingScheme.orderBy()))
+                                    .orElse("")),
                     NODE_COLORS.get(NodeType.WINDOW));
             return node.getSource().accept(this, context);
         }
@@ -290,11 +294,15 @@ public final class GraphvizPrinter
         @Override
         public Void visitPatternRecognition(PatternRecognitionNode node, Void context)
         {
-            printNode(node, "PatternRecognition", format("partition by = %s|order by = %s",
-                    Joiner.on(", ").join(node.getPartitionBy()),
-                    node.getOrderingScheme()
-                            .map(orderingScheme -> Joiner.on(", ").join(orderingScheme.orderBy()))
-                            .orElse("")),
+            printNode(
+                    node,
+                    "PatternRecognition",
+                    format(
+                            "partition by = %s|order by = %s",
+                            Joiner.on(", ").join(node.getPartitionBy()),
+                            node.getOrderingScheme()
+                                    .map(orderingScheme -> Joiner.on(", ").join(orderingScheme.orderBy()))
+                                    .orElse("")),
                     NODE_COLORS.get(NodeType.WINDOW));
             return node.getSource().accept(this, context);
         }
@@ -302,7 +310,8 @@ public final class GraphvizPrinter
         @Override
         public Void visitRowNumber(RowNumberNode node, Void context)
         {
-            printNode(node,
+            printNode(
+                    node,
                     "RowNumber",
                     format("partition by = %s", Joiner.on(", ").join(node.getPartitionBy())),
                     NODE_COLORS.get(NodeType.WINDOW));
@@ -312,7 +321,8 @@ public final class GraphvizPrinter
         @Override
         public Void visitTopNRanking(TopNRankingNode node, Void context)
         {
-            printNode(node,
+            printNode(
+                    node,
                     "TopNRanking",
                     format("type=%s|partition by = %s|order by = %s|n = %s",
                             node.getRankingType(),
@@ -582,7 +592,8 @@ public final class GraphvizPrinter
         {
             List<Expression> joinExpressions = new ArrayList<>();
             for (IndexJoinNode.EquiJoinClause clause : node.getCriteria()) {
-                joinExpressions.add(new Comparison(Comparison.Operator.EQUAL,
+                joinExpressions.add(new Comparison(
+                        Comparison.Operator.EQUAL,
                         clause.getProbe().toSymbolReference(),
                         clause.getIndex().toSymbolReference()));
             }
