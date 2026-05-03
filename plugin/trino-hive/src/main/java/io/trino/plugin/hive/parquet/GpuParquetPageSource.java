@@ -223,8 +223,10 @@ public class GpuParquetPageSource
      * <ul>
      *   <li>Timestamp family (any unit → any unit): handles INT96/INT64 MILLIS read as MICROS
      *       (due to withTimeUnit) being downcast to the precision Trino expects.</li>
-     *   <li>Decimal family (DECIMAL32/64/128 → DECIMAL64): Hive writes FIXED_LEN_BYTE_ARRAY
-     *       (read by cuDF as DECIMAL128); external writers may use INT32/INT64-backed decimals.</li>
+     *   <li>Decimal family (DECIMAL32/64/128 → DECIMAL64/128): Hive writes FIXED_LEN_BYTE_ARRAY
+     *       (read by cuDF as DECIMAL128); external writers may use INT32/INT64-backed decimals.
+     *       The target is DECIMAL64 for short Trino decimals (precision ≤ 18) and DECIMAL128 for
+     *       long Trino decimals.</li>
      *   <li>Integer widening (INT8/INT16/INT32 → INT16/INT32/INT64): covers schema evolution
      *       where a column was widened after the table was written.</li>
      *   <li>Integer → decimal: INT32/INT64-backed Parquet decimals where cuDF returns a plain

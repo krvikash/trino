@@ -23,6 +23,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
@@ -36,6 +37,7 @@ import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
@@ -122,6 +124,16 @@ public final class GpuTypeConversion
                         value -> value.map(o -> Scalar.fromDecimal(cudfScale, (Long) o))
                                 .orElseGet(() -> Scalar.fromNull(dType)),
                         blocks -> copyLongBlocksToDevice(blocks, dType)));
+            }
+
+            case DecimalType decimalType -> {
+                int cudfScale = -decimalType.getScale();
+                DType dType = DType.create(DType.DTypeEnum.DECIMAL128, cudfScale);
+                yield Optional.of(new GpuTypeMapping(
+                        dType,
+                        value -> value.map(o -> Scalar.fromDecimal(cudfScale, ((Int128) o).toBigInteger()))
+                                .orElseGet(() -> Scalar.fromNull(dType)),
+                        blocks -> copyInt128BlocksToDevice(blocks, dType)));
             }
 
             case DateType _ -> Optional.of(new GpuTypeMapping(
@@ -370,6 +382,79 @@ public final class GpuTypeConversion
                     default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
                 }
                 destByteOffset += (long) count * Long.BYTES;
+            }
+
+            ValidityResult validityResult = buildValidity(blocks, totalPositions);
+            validity = validityResult.buffer();
+            long nullCount = validityResult.nullCount();
+
+            try (HostColumnVector hcv = new HostColumnVector(dType, totalPositions, Optional.of(nullCount), data, validity, null, List.of())) {
+                data = null;
+                validity = null;
+                return hcv.copyToDevice();
+            }
+        }
+        finally {
+            if (data != null) {
+                data.close();
+            }
+            if (validity != null) {
+                validity.close();
+            }
+        }
+    }
+
+    /**
+     * cuDF DECIMAL128 expects 16 bytes per value laid out little-endian: bytes 0-7 are the low
+     * 64 bits, bytes 8-15 are the high 64 bits. Trino's {@link Int128ArrayBlock} stores values
+     * as {@code (high, low)} long pairs, so we swap each pair when writing to the buffer.
+     * {@link HostMemoryBuffer#setLongs} writes each long in native (little-endian) byte order.
+     */
+    private static @Move ColumnVector copyInt128BlocksToDevice(Blocks blocks, DType dType)
+    {
+        int totalPositions = blocks.positionCount();
+        if (totalPositions == 0) {
+            try (HostColumnVector.Builder builder = HostColumnVector.builder(dType, 0)) {
+                return builder.buildAndPutOnDevice();
+            }
+        }
+
+        HostMemoryBuffer data = null;
+        HostMemoryBuffer validity = null;
+        try {
+            data = HostMemoryBuffer.allocate((long) totalPositions * Int128ArrayBlock.INT128_BYTES);
+            long destByteOffset = 0;
+            for (Block block : blocks.blocks()) {
+                int count = block.getPositionCount();
+                long[] cudfLowHighPairs = new long[count * 2];
+                switch (block) {
+                    case RunLengthEncodedBlock runLengthEncodedBlock -> {
+                        Int128ArrayBlock valueBlock = (Int128ArrayBlock) runLengthEncodedBlock.getValue();
+                        long high = valueBlock.getInt128High(0);
+                        long low = valueBlock.getInt128Low(0);
+                        for (int i = 0; i < count; i++) {
+                            cudfLowHighPairs[2 * i] = low;
+                            cudfLowHighPairs[2 * i + 1] = high;
+                        }
+                    }
+                    case DictionaryBlock dictionaryBlock -> {
+                        Int128ArrayBlock valueBlock = (Int128ArrayBlock) dictionaryBlock.getUnderlyingValueBlock();
+                        for (int i = 0; i < count; i++) {
+                            int underlyingPosition = dictionaryBlock.getUnderlyingValuePosition(i);
+                            cudfLowHighPairs[2 * i] = valueBlock.getInt128Low(underlyingPosition);
+                            cudfLowHighPairs[2 * i + 1] = valueBlock.getInt128High(underlyingPosition);
+                        }
+                    }
+                    case Int128ArrayBlock int128ArrayBlock -> {
+                        for (int i = 0; i < count; i++) {
+                            cudfLowHighPairs[2 * i] = int128ArrayBlock.getInt128Low(i);
+                            cudfLowHighPairs[2 * i + 1] = int128ArrayBlock.getInt128High(i);
+                        }
+                    }
+                    default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
+                }
+                data.setLongs(destByteOffset, cudfLowHighPairs, 0, cudfLowHighPairs.length);
+                destByteOffset += (long) count * Int128ArrayBlock.INT128_BYTES;
             }
 
             ValidityResult validityResult = buildValidity(blocks, totalPositions);

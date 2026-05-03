@@ -13,14 +13,20 @@
  */
 package io.trino.operator.gpu;
 
+import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.DType;
+import ai.rapids.cudf.HostColumnVector;
 import com.google.common.collect.Streams;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -29,7 +35,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -74,6 +83,46 @@ public class TestGpuDataConversion
                 .isEmpty();
         assertThat(executeRoundTrip(List.of(), TESTED_GPU_TYPES, allChannels(TESTED_GPU_TYPES.size())))
                 .isEmpty();
+    }
+
+    /**
+     * Long DECIMAL support copies Trino {@link Int128ArrayBlock} {@code (high, low)} pairs into
+     * cuDF's DECIMAL128 little-endian layout (low 64 bits first). Round-trip tests would pass even
+     * if both directions agreed on a wrong layout, so verify the Trino-to-GPU side independently
+     * against cuDF's own {@link HostColumnVector#getBigDecimal} reader.
+     */
+    @Test
+    public void testLongDecimalLayoutMatchesCudf()
+    {
+        DecimalType decimalType = createDecimalType(38, 10);
+        int scale = decimalType.getScale();
+        List<BigInteger> expected = List.of(
+                BigInteger.ZERO,
+                BigInteger.ONE,
+                BigInteger.ONE.negate(),
+                BigInteger.valueOf(Long.MAX_VALUE),
+                BigInteger.valueOf(Long.MIN_VALUE),
+                Int128.MAX_VALUE.toBigInteger(),
+                Int128.MIN_VALUE.toBigInteger(),
+                new BigInteger("1234567890123456789012345678"));
+        long[] highLow = new long[expected.size() * 2];
+        for (int i = 0; i < expected.size(); i++) {
+            Int128 value = Int128.valueOf(expected.get(i));
+            highLow[2 * i] = value.getHigh();
+            highLow[2 * i + 1] = value.getLow();
+        }
+        Int128ArrayBlock block = new Int128ArrayBlock(expected.size(), Optional.empty(), highLow);
+
+        GpuTypeConversion.GpuTypeMapping mapping = GpuTypeConversion.toGpuMapping(decimalType).orElseThrow();
+        try (Blocks blocks = new Blocks(List.of(block));
+                ColumnVector column = mapping.toColumn().copyToDevice(blocks);
+                HostColumnVector host = column.copyToHost()) {
+            for (int i = 0; i < expected.size(); i++) {
+                BigDecimal actual = host.getBigDecimal(i);
+                assertThat(actual.unscaledValue()).isEqualTo(expected.get(i));
+                assertThat(actual.scale()).isEqualTo(scale);
+            }
+        }
     }
 
     @Test
@@ -291,53 +340,68 @@ public class TestGpuDataConversion
     }
 
     @Test
-    public void testUnsupportedDecimalTypes()
+    public void testDecimalTypeMappings()
     {
-        assertThat(GpuTypeConversion.toGpuMapping(createDecimalType(19, 5))).isEmpty();
-        assertThat(GpuTypeConversion.toGpuMapping(createDecimalType(38, 10))).isEmpty();
+        // Short decimals (precision ≤ 18) ride DECIMAL64; long decimals ride DECIMAL128.
+        assertThat(GpuTypeConversion.toDType(createDecimalType(1, 0))).hasValue(DType.create(DType.DTypeEnum.DECIMAL64, 0));
+        assertThat(GpuTypeConversion.toDType(createDecimalType(18, 6))).hasValue(DType.create(DType.DTypeEnum.DECIMAL64, -6));
+        assertThat(GpuTypeConversion.toDType(createDecimalType(19, 5))).hasValue(DType.create(DType.DTypeEnum.DECIMAL128, -5));
+        assertThat(GpuTypeConversion.toDType(createDecimalType(38, 10))).hasValue(DType.create(DType.DTypeEnum.DECIMAL128, -10));
     }
 
     @Test
-    public void testShortDecimalBoundaries()
+    public void testDecimalBoundaries()
     {
         for (DecimalType type : List.of(
                 createDecimalType(1, 0),
                 createDecimalType(1, 1),
                 createDecimalType(5, 5),
                 createDecimalType(18, 0),
-                createDecimalType(18, 18))) {
-            long maxUnscaled = 1L;
-            for (int i = 0; i < type.getPrecision(); i++) {
-                maxUnscaled *= 10;
-            }
-            maxUnscaled -= 1;
-            long[] values = {-maxUnscaled, -1, 0, 1, maxUnscaled};
-            BlockBuilder builder = type.createBlockBuilder(null, values.length + 1);
-            for (long v : values) {
-                type.writeLong(builder, v);
+                createDecimalType(18, 18),
+                createDecimalType(19, 0),
+                createDecimalType(27, 4),
+                createDecimalType(38, 0),
+                createDecimalType(38, 38))) {
+            BigInteger maxUnscaled = BigInteger.TEN.pow(type.getPrecision()).subtract(BigInteger.ONE);
+            List<BigInteger> values = List.of(
+                    maxUnscaled.negate(),
+                    BigInteger.ONE.negate(),
+                    BigInteger.ZERO,
+                    BigInteger.ONE,
+                    maxUnscaled);
+            BlockBuilder builder = type.createBlockBuilder(null, values.size() + 1);
+            for (BigInteger value : values) {
+                if (type.isShort()) {
+                    type.writeLong(builder, value.longValueExact());
+                }
+                else {
+                    type.writeObject(builder, Int128.valueOf(value));
+                }
             }
             builder.appendNull();
 
             List<Page> output = executeRoundTrip(List.of(new Page(builder.build())), List.of(type), Set.of(0));
             int totalPositions = output.stream().mapToInt(Page::getPositionCount).sum();
-            assertThat(totalPositions).as("type %s", type).isEqualTo(values.length + 1);
+            assertThat(totalPositions).as("type %s", type).isEqualTo(values.size() + 1);
 
-            DecimalType finalType = type;
-            long[] finalValues = values;
             Streams.forEachPair(
                     positions(output),
-                    IntStream.range(0, values.length + 1).boxed(),
+                    IntStream.range(0, values.size() + 1).boxed(),
                     (actualPos, expectedIndex) -> {
                         Block block = actualPos.page().getBlock(0);
-                        if (expectedIndex == finalValues.length) {
+                        if (expectedIndex == values.size()) {
                             assertThat(block.isNull(actualPos.position()))
-                                    .as("type %s null position", finalType)
+                                    .as("type %s null position", type)
                                     .isTrue();
                             return;
                         }
-                        assertThat((Long) readNativeValue(finalType, block, actualPos.position()))
-                                .as("type %s position %d", finalType, expectedIndex)
-                                .isEqualTo(finalValues[expectedIndex]);
+                        BigInteger expected = values.get(expectedIndex);
+                        BigInteger actual = type.isShort()
+                                ? BigInteger.valueOf((Long) readNativeValue(type, block, actualPos.position()))
+                                : ((Int128) readNativeValue(type, block, actualPos.position())).toBigInteger();
+                        assertThat(actual)
+                                .as("type %s position %d", type, expectedIndex)
+                                .isEqualTo(expected);
                     });
         }
     }

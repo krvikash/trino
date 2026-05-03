@@ -86,14 +86,14 @@ public abstract class BaseHiveGpuQueriesTest
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_decimal FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT col_long_decimal FROM test_gpu_types"))
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_date FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_timestamp FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
 
         // Verify all unsupported types execute without GPU
-        assertThat(query("SELECT col_long_decimal FROM test_gpu_types"))
-                .executesWithoutGpu();
         assertThat(query("SELECT col_varbinary FROM test_gpu_types"))
                 .executesWithoutGpu();
         assertThat(query("SELECT col_char FROM test_gpu_types"))
@@ -103,23 +103,25 @@ public abstract class BaseHiveGpuQueriesTest
     }
 
     @Test
-    public void testShortDecimalVariants()
+    public void testDecimalVariants()
     {
         // Trino's Hive connector writes decimals as FIXED_LEN_BYTE_ARRAY; cuDF narrows the on-read
         // type by precision: DECIMAL32 for precision ≤9, DECIMAL64 for 10-18, DECIMAL128 beyond.
-        // Short-decimal columns in Trino always expect DECIMAL64, so d_small (decimal(5,3)) goes
-        // through the DECIMAL32→DECIMAL64 widening cast and d_large (decimal(18,4)) is an exact
-        // match. Include negative, zero and null values.
+        // Trino short-decimal columns (precision ≤18) expect DECIMAL64; long-decimal columns
+        // (precision >18) expect DECIMAL128. So d_small (decimal(5,3)) goes through the
+        // DECIMAL32→DECIMAL64 widening cast, d_large (decimal(18,4)) is an exact match for
+        // DECIMAL64, and d_long (decimal(27,6)) is an exact match for DECIMAL128. Include
+        // negative, zero and null values.
         assertUpdate("CREATE TABLE test_gpu_decimals AS SELECT * FROM (VALUES " +
-                "(CAST(1.23 AS decimal(5,3)), CAST(123456789.1234 AS decimal(18,4))), " +
-                "(CAST(-9.999 AS decimal(5,3)), CAST(-999999999999.9999 AS decimal(18,4))), " +
-                "(CAST(0 AS decimal(5,3)), CAST(0 AS decimal(18,4))), " +
-                "(CAST(NULL AS decimal(5,3)), CAST(NULL AS decimal(18,4)))) " +
-                "t(d_small, d_large)", 4);
+                "(CAST(1.23 AS decimal(5,3)), CAST(123456789.1234 AS decimal(18,4)), CAST(123456789012345678901.234567 AS decimal(27,6))), " +
+                "(CAST(-9.999 AS decimal(5,3)), CAST(-999999999999.9999 AS decimal(18,4)), CAST(-999999999999999999999.999999 AS decimal(27,6))), " +
+                "(CAST(0 AS decimal(5,3)), CAST(0 AS decimal(18,4)), CAST(0 AS decimal(27,6))), " +
+                "(CAST(NULL AS decimal(5,3)), CAST(NULL AS decimal(18,4)), CAST(NULL AS decimal(27,6)))) " +
+                "t(d_small, d_large, d_long)", 4);
 
         // executesWithGpu cross-checks GPU output against CPU execution, so a wrong DECIMAL32→
-        // DECIMAL64 cast (e.g. scale off by a power of 10) would fail the comparison.
-        assertThat(query("SELECT d_small, d_large FROM test_gpu_decimals"))
+        // DECIMAL64 cast or a misaligned DECIMAL128 byte order would fail the comparison.
+        assertThat(query("SELECT d_small, d_large, d_long FROM test_gpu_decimals"))
                 .executesWithGpu(TableScanNode.class);
 
         assertUpdate("DROP TABLE test_gpu_decimals");
@@ -176,6 +178,18 @@ public abstract class BaseHiveGpuQueriesTest
             assertThat(query("SELECT d_int32, d_int64 FROM " + tableName))
                     .executesWithGpu(TableScanNode.class);
             assertUpdate("DROP TABLE " + tableName);
+
+            // Same on-disk INT32/INT64 parquet read through long-decimal columns: cuDF reads
+            // each as DECIMAL32/DECIMAL64 and evolveColumn widens to DECIMAL128.
+            String longTableName = "test_gpu_int32_64_as_long_decimal_" + randomNameSuffix();
+            assertUpdate(
+                    """
+                            CREATE TABLE %s (d_int32 decimal(27,2), d_int64 decimal(27,4))
+                            WITH (external_location = '%s', format = 'PARQUET')
+                            """.formatted(longTableName, directory));
+            assertThat(query("SELECT d_int32, d_int64 FROM " + longTableName))
+                    .executesWithGpu(TableScanNode.class);
+            assertUpdate("DROP TABLE " + longTableName);
         }
         finally {
             fileSystem.deleteDirectory(directory);

@@ -21,6 +21,7 @@ import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.ShortArrayBlock;
@@ -208,8 +209,10 @@ public class CopyToBlocks
         if (type == BIGINT) {
             return new LongColumnCopier(columnVector);
         }
-        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
-            return new LongColumnCopier(columnVector);
+        if (type instanceof DecimalType decimalType) {
+            return decimalType.isShort()
+                    ? new LongColumnCopier(columnVector)
+                    : new Int128ColumnCopier(columnVector);
         }
         if (type instanceof TimestampType timestampType) {
             return switch (timestampType.getPrecision()) {
@@ -447,6 +450,41 @@ public class CopyToBlocks
                 }
             }
             return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    /**
+     * cuDF DECIMAL128 stores 16 bytes per position in little-endian order: bytes 0-7 are the low
+     * 64 bits, bytes 8-15 are the high 64 bits. {@link Int128ArrayBlock} stores values as
+     * {@code (high, low)} long pairs, so we swap each pair on the way back.
+     */
+    private static class Int128ColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public Int128ColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            long[] cudfLowHighPairs = new long[count * 2];
+            hostColumnVector.getData().getLongs(cudfLowHighPairs, 0, (long) position * Int128ArrayBlock.INT128_BYTES, count * 2);
+            long[] trinoHighLowPairs = new long[count * 2];
+            for (int i = 0; i < count; i++) {
+                trinoHighLowPairs[2 * i] = cudfLowHighPairs[2 * i + 1];
+                trinoHighLowPairs[2 * i + 1] = cudfLowHighPairs[2 * i];
+            }
+            return new Int128ArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), trinoHighLowPairs);
         }
 
         @Override

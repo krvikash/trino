@@ -24,12 +24,14 @@ import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
 
+import java.math.BigInteger;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -76,6 +78,8 @@ public final class GpuTestUtils
             .add(TIMESTAMP_MICROS)
             .add(createDecimalType(9, 2))
             .add(createDecimalType(18, 6))
+            .add(createDecimalType(27, 4))
+            .add(createDecimalType(38, 10))
             .add(VARCHAR)
             .build();
 
@@ -127,8 +131,10 @@ public final class GpuTestUtils
         if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
             return createShortTimestampBlocks(positionsCounts, nullsProvider, (TimestampType) type);
         }
-        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
-            return createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType);
+        if (type instanceof DecimalType decimalType) {
+            return decimalType.isShort()
+                    ? createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType)
+                    : createLongDecimalBlocks(positionsCounts, nullsProvider, decimalType);
         }
         if (type == VARCHAR) {
             return createVarcharBlocks(positionsCounts, nullsProvider);
@@ -329,6 +335,37 @@ public final class GpuTestUtils
                         }
                         else {
                             type.writeLong(builder, (random.nextLong() / finalScale) * finalScale);
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createLongDecimalBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, DecimalType type)
+    {
+        Random random = new Random(42);
+        // Bound to 10^precision-1 so the unscaled value always fits the declared precision.
+        BigInteger bound = BigInteger.TEN.pow(type.getPrecision());
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            BigInteger unscaledValue;
+                            do {
+                                unscaledValue = new BigInteger(bound.bitLength(), random);
+                            }
+                            while (unscaledValue.compareTo(bound) >= 0);
+                            if (random.nextBoolean()) {
+                                unscaledValue = unscaledValue.negate();
+                            }
+                            type.writeObject(builder, Int128.valueOf(unscaledValue));
                         }
                     }
                     return builder.build();
