@@ -783,7 +783,8 @@ public class TestIcebergSparkCompatibility
         String trinoTableName = trinoTableName(baseTableName);
         String sparkTableName = sparkTableName(baseTableName);
 
-        onSpark().executeQuery(format("" +
+        onSpark().executeQuery(format(
+                "" +
                         "CREATE TABLE %s (" +
                         "  doc_id string,\n" +
                         "  info MAP<STRING, INT>,\n" +
@@ -791,7 +792,9 @@ public class TestIcebergSparkCompatibility
                         "  user_info STRUCT<name:STRING, surname:STRING, age:INT, gender:STRING>)" +
                         "  USING ICEBERG" +
                         " TBLPROPERTIES ('write.format.default'='%s', 'format-version' = %s)",
-                sparkTableName, storageFormat, specVersion));
+                sparkTableName,
+                storageFormat,
+                specVersion));
 
         onSpark().executeQuery(format(
                 "INSERT INTO TABLE %s SELECT 'Doc213', map('age', 28, 'children', 3), array('Dog', 'Cat', 'Pig'), \n" +
@@ -1227,10 +1230,16 @@ public class TestIcebergSparkCompatibility
         String tableSameLocation1 = "test_same_location_spark_1_" + randomNameSuffix();
         String tableSameLocation2 = "test_same_location_spark_2_" + randomNameSuffix();
 
-        onSpark().executeQuery(format("CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
-                sparkTableName(tableSameLocation1), dataPath, specVersion));
-        onSpark().executeQuery(format("CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
-                sparkTableName(tableSameLocation2), dataPath, specVersion));
+        onSpark().executeQuery(format(
+                "CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
+                sparkTableName(tableSameLocation1),
+                dataPath,
+                specVersion));
+        onSpark().executeQuery(format(
+                "CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
+                sparkTableName(tableSameLocation2),
+                dataPath,
+                specVersion));
 
         onSpark().executeQuery(format("DROP TABLE IF EXISTS %s", sparkTableName(tableSameLocation1)));
 
@@ -1246,10 +1255,16 @@ public class TestIcebergSparkCompatibility
         String tableSameLocation1 = "test_same_location_trino_1_" + randomNameSuffix();
         String tableSameLocation2 = "test_same_location_trino_2_" + randomNameSuffix();
 
-        onSpark().executeQuery(format("CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
-                sparkTableName(tableSameLocation1), dataPath, specVersion));
-        onSpark().executeQuery(format("CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
-                sparkTableName(tableSameLocation2), dataPath, specVersion));
+        onSpark().executeQuery(format(
+                "CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
+                sparkTableName(tableSameLocation1),
+                dataPath,
+                specVersion));
+        onSpark().executeQuery(format(
+                "CREATE TABLE %s (_integer INTEGER ) USING ICEBERG LOCATION '%s' TBLPROPERTIES('format-version' = %s)",
+                sparkTableName(tableSameLocation2),
+                dataPath,
+                specVersion));
 
         onTrino().executeQuery(format("DROP TABLE %s", trinoTableName(tableSameLocation1)));
 
@@ -1285,12 +1300,16 @@ public class TestIcebergSparkCompatibility
         String trinoTableName = trinoTableName(baseTableName);
         String dataPath = "hdfs://hadoop-master:9000/user/hive/warehouse/test_object_storage_location_provider/obj-data";
 
-        onSpark().executeQuery(format("CREATE TABLE %s (_string STRING, _bigint BIGINT) USING ICEBERG TBLPROPERTIES (" +
+        onSpark().executeQuery(format(
+                "CREATE TABLE %s (_string STRING, _bigint BIGINT) USING ICEBERG TBLPROPERTIES (" +
                         "'write.object-storage.enabled'=true," +
                         "'write.object-storage.path'='%s'," +
                         "'write.format.default' = '%s'," +
                         "'format-version' = %s)",
-                sparkTableName, dataPath, storageFormat, specVersion));
+                sparkTableName,
+                dataPath,
+                storageFormat,
+                specVersion));
         onTrino().executeQuery(format("INSERT INTO %s VALUES ('a_string', 1000000000000000)", trinoTableName));
 
         Row result = row("a_string", 1000000000000000L);
@@ -1312,11 +1331,15 @@ public class TestIcebergSparkCompatibility
         String trinoTableName = trinoTableName(baseTableName);
         String dataPath = "hdfs://hadoop-master:9000/user/hive/warehouse/test_writer_data_path_/obj-data";
 
-        onSpark().executeQuery(format("CREATE TABLE %s (_string STRING, _bigint BIGINT) USING ICEBERG TBLPROPERTIES (" +
+        onSpark().executeQuery(format(
+                "CREATE TABLE %s (_string STRING, _bigint BIGINT) USING ICEBERG TBLPROPERTIES (" +
                         "'write.data.path'='%s'," +
                         "'write.format.default' = '%s'," +
                         "'format-version' = %s)",
-                sparkTableName, dataPath, storageFormat, specVersion));
+                sparkTableName,
+                dataPath,
+                storageFormat,
+                specVersion));
         onTrino().executeQuery(format("INSERT INTO %s VALUES ('a_string', 1000000000000000)", trinoTableName));
 
         Row result = row("a_string", 1000000000000000L);
@@ -1340,10 +1363,10 @@ public class TestIcebergSparkCompatibility
 
         onTrino().executeQuery(format(
                 "CREATE TABLE %s (_string VARCHAR, _bigint BIGINT) WITH (" +
-                          "object_store_layout_enabled = true," +
-                          "data_location = '%s'," +
-                          "format = '%s'," +
-                          "format_version = %s)",
+                        "object_store_layout_enabled = true," +
+                        "data_location = '%s'," +
+                        "format = '%s'," +
+                        "format_version = %s)",
                 trinoTableName,
                 dataPath,
                 storageFormat,
@@ -1817,7 +1840,7 @@ public class TestIcebergSparkCompatibility
         return Stream.of(StorageFormat.values())
                 .flatMap(storageFormat ->
                         Stream.of(CompressionCodec.values())
-                        .map(compressionCodec -> new Object[] {storageFormat, compressionCodec}))
+                                .map(compressionCodec -> new Object[] {storageFormat, compressionCodec}))
                 .filter(array -> array[0] != StorageFormat.AVRO || array[1] != CompressionCodec.LZ4)
                 .toArray(Object[][]::new);
     }
