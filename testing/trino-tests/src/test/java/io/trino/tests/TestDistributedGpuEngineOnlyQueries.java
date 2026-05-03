@@ -365,8 +365,8 @@ public class TestDistributedGpuEngineOnlyQueries
     {
         assertThat(query(
                 """
-                SELECT count(*), count(a), sum(a), min(a), max(a)
-                FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                SELECT count(*), count(a), count(s), sum(a), min(a), max(a)
+                FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a, IF(rand()<42, CAST(i AS varchar)) AS s FROM (UNNEST(sequence(0, 100))) t(i))
                 """))
                 .executesWithGpu(AggregationNode.class);
     }
@@ -412,5 +412,25 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 """))
                 .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuSumDecimalAggregation()
+    {
+        assertThat(query(
+                """
+                SELECT b, sum(d)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(15,2))) AS d, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithoutGpu();
+
+        assertThat(query(
+                """
+                SELECT b, sum(d)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(25,2))) AS d, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithoutGpu();
     }
 }

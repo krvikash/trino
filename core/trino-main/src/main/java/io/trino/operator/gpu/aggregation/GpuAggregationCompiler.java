@@ -16,6 +16,7 @@ package io.trino.operator.gpu.aggregation;
 import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
+import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
@@ -66,8 +67,9 @@ public final class GpuAggregationCompiler
 
         ImmutableList.Builder<GpuAggregateFunction> aggregates = ImmutableList.builder();
         for (Map.Entry<Symbol, Aggregation> entry : node.getAggregations().entrySet()) {
+            Symbol outputSymbol = entry.getKey();
             Aggregation aggregation = entry.getValue();
-            Optional<GpuAggregateFunction> compiled = compileAggregation(aggregation, sourceLayout);
+            Optional<GpuAggregateFunction> compiled = compileAggregation(outputSymbol, aggregation, sourceLayout);
             if (compiled.isEmpty()) {
                 log.debug(
                         "Could not compile aggregation function %s with filter=%s mask=%s distinct=%s ordered=%s",
@@ -88,21 +90,30 @@ public final class GpuAggregationCompiler
                 step.isInputRaw()));
     }
 
-    private static Optional<GpuAggregateFunction> compileAggregation(Aggregation aggregation, Map<Symbol, Integer> sourceLayout)
+    private static Optional<GpuAggregateFunction> compileAggregation(Symbol outputSymbol, Aggregation aggregation, Map<Symbol, Integer> sourceLayout)
     {
         if (aggregation.isDistinct() || aggregation.getFilter().isPresent() || aggregation.getOrderingScheme().isPresent() || aggregation.getMask().isPresent()) {
             // No DISTINCT, FILTER, ORDER BY, or MASK support yet
             return Optional.empty();
         }
 
-        CatalogSchemaFunctionName functionName = aggregation.getResolvedFunction()
-                .signature()
-                .getName();
+        BoundSignature signature = aggregation.getResolvedFunction().signature();
+        // GpuAggregation only emits the function's return type, never the intermediate
+        // accumulator state. For PARTIAL/INTERMEDIATE steps the output symbol is typed as the
+        // intermediate type; running these on GPU when intermediate ≠ return type (e.g.
+        // sum(decimal), whose intermediate is a VARBINARY-serialized accumulator) would feed
+        // the downstream FINAL the wrong block.
+        if (!outputSymbol.type().equals(signature.getReturnType())) {
+            log.debug("Could not compile aggregation function %s: output symbol type %s differs from return type %s", signature, outputSymbol.type(), signature.getReturnType());
+            return Optional.empty();
+        }
+
+        CatalogSchemaFunctionName functionName = signature.getName();
 
         if (functionName.catalogName().equals("system") && functionName.schemaName().equals("builtin")) {
             String name = functionName.functionName();
             List<Expression> arguments = aggregation.getArguments();
-            Type outputType = aggregation.getResolvedFunction().signature().getReturnType();
+            Type outputType = signature.getReturnType();
 
             return switch (name) {
                 case "count" -> compileCount(arguments, sourceLayout, outputType);
