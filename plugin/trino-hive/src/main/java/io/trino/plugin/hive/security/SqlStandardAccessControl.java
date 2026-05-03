@@ -610,7 +610,8 @@ public class SqlStandardAccessControl
     }
 
     @Override
-    public void checkCanGrantRoles(ConnectorSecurityContext context,
+    public void checkCanGrantRoles(
+            ConnectorSecurityContext context,
             Set<String> roles,
             Set<TrinoPrincipal> grantees,
             boolean adminOption,
@@ -626,7 +627,8 @@ public class SqlStandardAccessControl
     }
 
     @Override
-    public void checkCanRevokeRoles(ConnectorSecurityContext context,
+    public void checkCanRevokeRoles(
+            ConnectorSecurityContext context,
             Set<String> roles,
             Set<TrinoPrincipal> grantees,
             boolean adminOption,
@@ -854,7 +856,8 @@ public class SqlStandardAccessControl
         return listTablePrivileges(context, databaseName, tableName, principals);
     }
 
-    private Stream<HivePrivilegeInfo> listTablePrivileges(ConnectorSecurityContext context,
+    private Stream<HivePrivilegeInfo> listTablePrivileges(
+            ConnectorSecurityContext context,
             String databaseName,
             String tableName,
             Stream<HivePrincipal> principals)

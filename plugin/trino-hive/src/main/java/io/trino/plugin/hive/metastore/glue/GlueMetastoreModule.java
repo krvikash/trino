@@ -124,7 +124,7 @@ public final class GlueMetastoreModule
         // Note: while we could skip CachingHiveMetastoreModule altogether on workers, we retain it so that catalog
         // configuration can remain identical for all nodes, making cluster configuration easier.
         boolean enabled = currentNode.isCoordinator() &&
-                          (metadataCacheTtl.toMillis() > 0 || statsCacheTtl.toMillis() > 0);
+                (metadataCacheTtl.toMillis() > 0 || statsCacheTtl.toMillis() > 0);
 
         checkState(config.isPartitionCacheEnabled(), "Disabling partitions cache is not supported with Glue v2");
         checkState(config.isCacheMissingPartitions(), "Disabling cache missing partitions is not supported with Glue v2");
