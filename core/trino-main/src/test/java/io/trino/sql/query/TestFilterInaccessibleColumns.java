@@ -256,7 +256,8 @@ public class TestFilterInaccessibleColumns
     {
         accessControl.reset();
 
-        accessControl.columnMask(new QualifiedObjectName(TEST_CATALOG_NAME, TINY_SCHEMA_NAME, "nation"),
+        accessControl.columnMask(
+                new QualifiedObjectName(TEST_CATALOG_NAME, TINY_SCHEMA_NAME, "nation"),
                 "nationkey",
                 USER,
                 ViewExpression.builder()
@@ -275,7 +276,8 @@ public class TestFilterInaccessibleColumns
         accessControl.reset();
 
         accessControl.deny(privilege(USER, "nation.nationkey", SELECT_COLUMN));
-        accessControl.columnMask(new QualifiedObjectName(TEST_CATALOG_NAME, TINY_SCHEMA_NAME, "nation"),
+        accessControl.columnMask(
+                new QualifiedObjectName(TEST_CATALOG_NAME, TINY_SCHEMA_NAME, "nation"),
                 "comment",
                 USER,
                 ViewExpression.builder()
@@ -295,7 +297,8 @@ public class TestFilterInaccessibleColumns
         accessControl.reset();
 
         accessControl.deny(privilege(USER, "nation.nationkey", SELECT_COLUMN));
-        accessControl.columnMask(new QualifiedObjectName(TEST_CATALOG_NAME, TINY_SCHEMA_NAME, "nation"),
+        accessControl.columnMask(
+                new QualifiedObjectName(TEST_CATALOG_NAME, TINY_SCHEMA_NAME, "nation"),
                 "comment",
                 USER,
                 ViewExpression.builder()

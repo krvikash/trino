@@ -93,14 +93,18 @@ public class TestJoinFilterFunctionCompiler
                 FUNCTION_RESOLUTION.getPlannerContext().getTypeManager(),
                 new CompilerConfig());
 
-        Expression filter1 = new Comparison(GREATER_THAN,
-                new Reference(BIGINT, "a"), new Reference(BIGINT, "b"));
+        Expression filter1 = new Comparison(
+                GREATER_THAN,
+                new Reference(BIGINT, "a"),
+                new Reference(BIGINT, "b"));
         Map<Symbol, Integer> layout1 = ImmutableMap.of(
                 new Symbol(BIGINT, "a"), 0,
                 new Symbol(BIGINT, "b"), 1);
 
-        Expression filter2 = new Comparison(GREATER_THAN,
-                new Reference(BIGINT, "x"), new Reference(BIGINT, "y"));
+        Expression filter2 = new Comparison(
+                GREATER_THAN,
+                new Reference(BIGINT, "x"),
+                new Reference(BIGINT, "y"));
         Map<Symbol, Integer> layout2 = ImmutableMap.of(
                 new Symbol(BIGINT, "x"), 0,
                 new Symbol(BIGINT, "y"), 1);

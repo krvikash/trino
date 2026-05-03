@@ -111,7 +111,8 @@ public class BenchmarkColumnarFilter
             {
                 return call(
                         FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(type, type)),
-                        new Constant(type, CONSTANT), new Reference(type, COL_0));
+                        new Constant(type, CONSTANT),
+                        new Reference(type, COL_0));
             }
         },
         LESS_THAN_TWO_COLUMNS {

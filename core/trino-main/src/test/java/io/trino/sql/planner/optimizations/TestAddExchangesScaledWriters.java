@@ -243,7 +243,9 @@ public class TestAddExchangesScaledWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, FIXED_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 tableScan("target_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
 
         assertDistributedPlan(
@@ -258,7 +260,9 @@ public class TestAddExchangesScaledWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, FIXED_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 tableScan("target_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 
@@ -277,7 +281,9 @@ public class TestAddExchangesScaledWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 }

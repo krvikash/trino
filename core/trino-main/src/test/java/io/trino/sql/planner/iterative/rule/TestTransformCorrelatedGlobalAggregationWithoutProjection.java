@@ -137,7 +137,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         project(ImmutableMap.of("sum_1", expression(new Reference(BIGINT, "sum_1")), "corr", expression(new Reference(BIGINT, "corr"))),
                                 aggregation(ImmutableMap.of("sum_1", aggregationFunction("sum", ImmutableList.of("a"))),
                                         join(LEFT, builder -> builder
-                                                .left(assignUniqueId("unique",
+                                                .left(assignUniqueId(
+                                                        "unique",
                                                         values(ImmutableMap.of("corr", 0))))
                                                 .right(values(ImmutableMap.of("a", 0, "b", 1)))))));
     }
@@ -219,10 +220,11 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                 .matches(
                         project(
                                 aggregation(ImmutableMap.of(
-                                        "count_rows", aggregationFunction("count", ImmutableList.of()),
-                                        "count_non_null_values", aggregationFunction("count", ImmutableList.of("a"))),
+                                                "count_rows", aggregationFunction("count", ImmutableList.of()),
+                                                "count_non_null_values", aggregationFunction("count", ImmutableList.of("a"))),
                                         join(LEFT, builder -> builder
-                                                .left(assignUniqueId("unique",
+                                                .left(assignUniqueId(
+                                                        "unique",
                                                         values(ImmutableMap.of("corr", 0))))
                                                 .right(project(ImmutableMap.of("non_null", expression(TRUE)),
                                                         values(ImmutableMap.of("a", 0, "b", 1))))))));
@@ -341,7 +343,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         project(
                                                 ImmutableMap.of("new_mask", expression(new Logical(AND, ImmutableList.of(new Reference(BOOLEAN, "mask"), new Reference(BOOLEAN, "non_null"))))),
                                                 join(LEFT, builder -> builder
-                                                        .left(assignUniqueId("unique",
+                                                        .left(assignUniqueId(
+                                                                "unique",
                                                                 values(ImmutableMap.of("corr", 0))))
                                                         .right(project(ImmutableMap.of("non_null", expression(TRUE)),
                                                                 values(ImmutableMap.of("a", 0, "mask", 1)))))))));

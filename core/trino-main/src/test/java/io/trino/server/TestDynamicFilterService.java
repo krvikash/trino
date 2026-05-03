@@ -222,8 +222,7 @@ public class TestDynamicFilterService
 
         // dynamic filter (id1) has been collected as tuple domains from two tasks have been provided
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.multipleValues(INTEGER, ImmutableList.of(1L, 2L)))));
+                new TestingColumnHandle("probeColumnA"), Domain.multipleValues(INTEGER, ImmutableList.of(1L, 2L)))));
         assertThat(blockedFuture.isDone()).isTrue();
         assertThat(blockedFuture.isCompletedExceptionally()).isFalse();
 
@@ -242,8 +241,7 @@ public class TestDynamicFilterService
 
         // tuple domain from two tasks (stage 2) are needed for dynamic filter to be narrowed down
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.multipleValues(INTEGER, ImmutableList.of(1L, 2L)))));
+                new TestingColumnHandle("probeColumnA"), Domain.multipleValues(INTEGER, ImmutableList.of(1L, 2L)))));
         assertThat(dynamicFilter.isComplete()).isFalse();
         assertThat(dynamicFilter.isAwaitable()).isTrue();
         assertThat(blockedFuture.isDone()).isFalse();
@@ -257,8 +255,7 @@ public class TestDynamicFilterService
 
         // dynamic filter (id2) has been collected as tuple domains from two tasks have been provided
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.singleValue(INTEGER, 2L))));
+                new TestingColumnHandle("probeColumnA"), Domain.singleValue(INTEGER, 2L))));
         assertThat(blockedFuture.isDone()).isTrue();
         assertThat(blockedFuture.isCompletedExceptionally()).isFalse();
 
@@ -288,8 +285,7 @@ public class TestDynamicFilterService
         assertThat(dynamicFilterColumnA.isAwaitable()).isFalse();
         assertThat(dynamicFilterColumnA.isBlocked().isDone()).isTrue();
         assertThat(dynamicFilterColumnA.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.singleValue(INTEGER, 2L))));
+                new TestingColumnHandle("probeColumnA"), Domain.singleValue(INTEGER, 2L))));
 
         dynamicFilterService.addTaskDynamicFilters(
                 new TaskId(stageId3, 0, 0),
@@ -297,8 +293,7 @@ public class TestDynamicFilterService
 
         // tuple domain from two tasks (stage 3) are needed for dynamic filter to be narrowed down
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.singleValue(INTEGER, 2L))));
+                new TestingColumnHandle("probeColumnA"), Domain.singleValue(INTEGER, 2L))));
         assertThat(dynamicFilter.isComplete()).isFalse();
         assertThat(dynamicFilter.isAwaitable()).isTrue();
         assertThat(blockedFuture.isDone()).isFalse();
@@ -408,8 +403,7 @@ public class TestDynamicFilterService
                 ImmutableMap.of(filterId1, multipleValues(BIGINT, ImmutableList.of(1L, 2L, 3L))));
         assertThat(dynamicFilter.isComplete()).isTrue();
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
+                new TestingColumnHandle("probeColumnA"), Domain.multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
     }
 
     @Test
@@ -459,8 +453,7 @@ public class TestDynamicFilterService
 
         // tuple domain from single broadcast join task is sufficient
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.singleValue(INTEGER, 1L))));
+                new TestingColumnHandle("probeColumnA"), Domain.singleValue(INTEGER, 1L))));
         assertThat(dynamicFilter.isComplete()).isTrue();
         assertThat(dynamicFilter.isAwaitable()).isFalse();
 
@@ -515,8 +508,7 @@ public class TestDynamicFilterService
 
         // dynamic filter should be completed when stage won't have more tasks
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
-                new TestingColumnHandle("probeColumnA"),
-                Domain.singleValue(INTEGER, 1L))));
+                new TestingColumnHandle("probeColumnA"), Domain.singleValue(INTEGER, 1L))));
         assertThat(dynamicFilter.isComplete()).isTrue();
         assertThat(blockedFuture.isDone()).isTrue();
         assertThat(blockedFuture.isCompletedExceptionally()).isFalse();
@@ -1047,7 +1039,8 @@ public class TestDynamicFilterService
         RemoteSourceNode remote = new RemoteSourceNode(new PlanNodeId("remote_id"), new PlanFragmentId("plan_fragment_id"), ImmutableList.of(buildSymbol), Optional.empty(), exchangeType, RetryPolicy.NONE);
         return new PlanFragment(
                 new PlanFragmentId("plan_id"),
-                new JoinNode(new PlanNodeId("join_id"),
+                new JoinNode(
+                        new PlanNodeId("join_id"),
                         INNER,
                         filterNode,
                         new FilterNode(new PlanNodeId("build_filter_node_id"), remote, TRUE),

@@ -8013,9 +8013,9 @@ public class TestAnalyzer
         ColumnLineageInfo colA = lineageInfo.getFirst();
         assertThat(colA.name()).isEqualTo("unionized");
         assertThat(colA.sourceColumns()).containsExactlyInAnyOrder(
-                new ColumnDetail("tpch","s1","t1", "c"),
-                new ColumnDetail("tpch","s1","t2", "b"),
-                new ColumnDetail("tpch","s1","t3", "a"));
+                new ColumnDetail("tpch", "s1", "t1", "c"),
+                new ColumnDetail("tpch", "s1", "t2", "b"),
+                new ColumnDetail("tpch", "s1", "t3", "a"));
     }
 
     @Test
@@ -8035,14 +8035,14 @@ public class TestAnalyzer
         assertThat(colA.name()).isEqualTo("a");
         // The source columns should include both 'a' from t1 and 'b' from t2
         assertThat(colA.sourceColumns()).containsExactlyInAnyOrder(
-                new ColumnDetail("tpch","s1","t1", "a"),
-                new ColumnDetail("tpch","s1","t2", "b"));
+                new ColumnDetail("tpch", "s1", "t1", "a"),
+                new ColumnDetail("tpch", "s1", "t2", "b"));
     }
 
     @Test
     public void testSelectColumnsLineageInfoWithSubquery()
     {
-    String sql = "SELECT (SELECT max(a)+min(b) FROM t2) AS min_max FROM t1 UNION SELECT max(a) FROM t3";
+        String sql = "SELECT (SELECT max(a)+min(b) FROM t2) AS min_max FROM t1 UNION SELECT max(a) FROM t3";
 
         Analysis analysis = analyze(sql);
 
@@ -8056,9 +8056,9 @@ public class TestAnalyzer
         assertThat(colA.name()).isEqualTo("min_max");
         // The source columns should include both 'a' and 'b' from t2 in the subquery and t3.a from the union
         assertThat(colA.sourceColumns()).containsExactlyInAnyOrder(
-                new ColumnDetail("tpch","s1","t2", "a"),
-                new ColumnDetail("tpch","s1","t2", "b"),
-                new ColumnDetail("tpch","s1","t3", "a"));
+                new ColumnDetail("tpch", "s1", "t2", "a"),
+                new ColumnDetail("tpch", "s1", "t2", "b"),
+                new ColumnDetail("tpch", "s1", "t3", "a"));
     }
 
     @Test
@@ -8078,9 +8078,9 @@ public class TestAnalyzer
         assertThat(colA.name()).isEqualTo("a");
         // The source columns should include both 'a' from the subquery and 'b' from t2
         assertThat(colA.sourceColumns()).containsExactlyInAnyOrder(
-                new ColumnDetail("tpch","s1","t1", "a"),
-                new ColumnDetail("tpch","s1","t2", "b"),
-                new ColumnDetail("tpch","s1","t3", "b"));
+                new ColumnDetail("tpch", "s1", "t1", "a"),
+                new ColumnDetail("tpch", "s1", "t2", "b"),
+                new ColumnDetail("tpch", "s1", "t3", "b"));
     }
 
     @Test
@@ -8343,7 +8343,9 @@ public class TestAnalyzer
         planTester.createCatalog(THIRD_CATALOG, MockConnectorFactory.create("third"), ImmutableMap.of());
 
         SchemaTableName table1 = new SchemaTableName("s1", "t1");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table1, ImmutableList.of(
                         new ColumnMetadata("a", BIGINT),
                         new ColumnMetadata("b", BIGINT),
@@ -8352,14 +8354,18 @@ public class TestAnalyzer
                 FAIL));
 
         SchemaTableName table2 = new SchemaTableName("s1", "t2");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table2, ImmutableList.of(
                         new ColumnMetadata("a", BIGINT),
                         new ColumnMetadata("b", BIGINT))),
                 FAIL));
 
         SchemaTableName table3 = new SchemaTableName("s1", "t3");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table3, ImmutableList.of(
                         new ColumnMetadata("a", BIGINT),
                         new ColumnMetadata("b", BIGINT),
@@ -8368,7 +8374,9 @@ public class TestAnalyzer
 
         // table with a hidden column
         SchemaTableName table5 = new SchemaTableName("s1", "t5");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table5, ImmutableList.of(
                         new ColumnMetadata("a", BIGINT),
                         ColumnMetadata.builder().setName("b").setType(BIGINT).setHidden(true).build())),
@@ -8376,7 +8384,9 @@ public class TestAnalyzer
 
         // table with a varchar column
         SchemaTableName table6 = new SchemaTableName("s1", "t6");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table6, ImmutableList.of(
                         new ColumnMetadata("a", BIGINT),
                         new ColumnMetadata("b", VARCHAR),
@@ -8386,7 +8396,9 @@ public class TestAnalyzer
 
         // table with bigint, double, array of bigints and array of doubles column
         SchemaTableName table7 = new SchemaTableName("s1", "t7");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table7, ImmutableList.of(
                         new ColumnMetadata("a", BIGINT),
                         new ColumnMetadata("b", DOUBLE),
@@ -8460,7 +8472,9 @@ public class TestAnalyzer
 
         // type analysis for INSERT
         SchemaTableName table8 = new SchemaTableName("s1", "t8");
-        inSetupTransaction(session -> metadata.createTable(session, TPCH_CATALOG,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                TPCH_CATALOG,
                 new ConnectorTableMetadata(table8, ImmutableList.of(
                         new ColumnMetadata("tinyint_column", TINYINT),
                         new ColumnMetadata("integer_column", INTEGER),
@@ -8484,39 +8498,51 @@ public class TestAnalyzer
         Type doubleNestedRowType = TESTING_TYPE_MANAGER.fromSqlType("row(f1 row(f11 row(f111 bigint, f112 bigint), f12 boolean), f2 boolean)");
 
         SchemaTableName b = new SchemaTableName("a", "b");
-        inSetupTransaction(session -> metadata.createTable(session, CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
                 new ConnectorTableMetadata(b, ImmutableList.of(
                         new ColumnMetadata("x", VARCHAR))),
                 FAIL));
 
         SchemaTableName t1 = new SchemaTableName("a", "t1");
-        inSetupTransaction(session -> metadata.createTable(session, CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
                 new ConnectorTableMetadata(t1, ImmutableList.of(
                         new ColumnMetadata("b", rowType))),
                 FAIL));
 
         SchemaTableName t2 = new SchemaTableName("a", "t2");
-        inSetupTransaction(session -> metadata.createTable(session, CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
                 new ConnectorTableMetadata(t2, ImmutableList.of(
                         new ColumnMetadata("a", rowType))),
                 FAIL));
 
         SchemaTableName t3 = new SchemaTableName("a", "t3");
-        inSetupTransaction(session -> metadata.createTable(session, CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
                 new ConnectorTableMetadata(t3, ImmutableList.of(
                         new ColumnMetadata("b", nestedRowType),
                         new ColumnMetadata("c", BIGINT))),
                 FAIL));
 
         SchemaTableName t4 = new SchemaTableName("a", "t4");
-        inSetupTransaction(session -> metadata.createTable(session, CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
                 new ConnectorTableMetadata(t4, ImmutableList.of(
                         new ColumnMetadata("b", doubleNestedRowType),
                         new ColumnMetadata("c", BIGINT))),
                 FAIL));
 
         SchemaTableName t5 = new SchemaTableName("a", "t5");
-        inSetupTransaction(session -> metadata.createTable(session, CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
+        inSetupTransaction(session -> metadata.createTable(
+                session,
+                CATALOG_FOR_IDENTIFIER_CHAIN_TESTS,
                 new ConnectorTableMetadata(t5, ImmutableList.of(
                         new ColumnMetadata("b", singleFieldRowType))),
                 FAIL));

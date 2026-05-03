@@ -136,8 +136,7 @@ public class TestAddLocalExchangesForTaskScaleWriters
                         return new TableStatistics(
                                 Estimate.of(100),
                                 ImmutableMap.of(
-                                        new MockConnectorColumnHandle("year", INTEGER),
-                                        new ColumnStatistics(Estimate.of(0), Estimate.of(10), Estimate.of(100), Optional.empty())));
+                                        new MockConnectorColumnHandle("year", INTEGER), new ColumnStatistics(Estimate.of(0), Estimate.of(10), Estimate.of(100), Optional.empty())));
                     }
                     return empty();
                 })
@@ -188,7 +187,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_ARBITRARY_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_ARBITRARY_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
 
         assertDistributedPlan(
@@ -204,7 +205,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_ARBITRARY_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_ARBITRARY_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 
@@ -224,7 +227,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_ARBITRARY_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_ARBITRARY_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
 
         assertDistributedPlan(
@@ -240,7 +245,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_ARBITRARY_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_ARBITRARY_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 
@@ -267,7 +274,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                     ImmutableList.of("customer", "year"),
                                     ImmutableList.of("customer", "year"),
                                     exchange(LOCAL, REPARTITION, partitioningHandle,
-                                            exchange(REMOTE, REPARTITION, partitioningHandle,
+                                            exchange(REMOTE,
+                                                    REPARTITION,
+                                                    partitioningHandle,
                                                     tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
         }
     }
@@ -295,7 +304,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                     ImmutableList.of("customer", "year"),
                                     ImmutableList.of("customer", "year"),
                                     exchange(LOCAL, REPARTITION, partitioningHandle,
-                                            exchange(REMOTE, REPARTITION, partitioningHandle,
+                                            exchange(REMOTE,
+                                                    REPARTITION,
+                                                    partitioningHandle,
                                                     tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
         }
     }
@@ -318,7 +329,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, SCALED_WRITER_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
 
         assertDistributedPlan(
@@ -336,7 +349,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, FIXED_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 
@@ -367,7 +382,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, scaledPartitioningHandle,
-                                        exchange(REMOTE, REPARTITION, partitioningHandle,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                partitioningHandle,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
 
         assertDistributedPlan(
@@ -383,7 +400,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, partitioningHandle,
-                                        exchange(REMOTE, REPARTITION, partitioningHandle,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                partitioningHandle,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 
@@ -403,7 +422,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, SCALED_WRITER_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
 
         assertDistributedPlan(
@@ -419,7 +440,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 ImmutableList.of("customer", "year"),
                                 ImmutableList.of("customer", "year"),
                                 exchange(LOCAL, REPARTITION, FIXED_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 tableScan("source_table", ImmutableMap.of("customer", "customer", "year", "year")))))));
     }
 
@@ -440,7 +463,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                 anyTree(
                         node(TableExecuteNode.class,
                                 exchange(LOCAL, REPARTITION, FIXED_HASH_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, FIXED_HASH_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                FIXED_HASH_DISTRIBUTION,
                                                 node(TableScanNode.class))))));
     }
 
@@ -461,7 +486,9 @@ public class TestAddLocalExchangesForTaskScaleWriters
                 anyTree(
                         node(TableExecuteNode.class,
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION,
+                                        exchange(REMOTE,
+                                                REPARTITION,
+                                                SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION,
                                                 node(TableScanNode.class))))));
     }
 

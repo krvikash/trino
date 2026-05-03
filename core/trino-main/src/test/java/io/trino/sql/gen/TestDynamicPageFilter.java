@@ -122,15 +122,13 @@ public class TestDynamicPageFilter
 
         filterEvaluator = createDynamicFilterEvaluator(
                 TupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        Domain.multipleValues(VARCHAR, ImmutableList.of("bc", "cd")))),
+                        column, Domain.multipleValues(VARCHAR, ImmutableList.of("bc", "cd")))),
                 ImmutableMap.of(column, 0));
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {1, 3});
 
         filterEvaluator = createDynamicFilterEvaluator(
                 TupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        Domain.create(ValueSet.of(VARCHAR, utf8Slice("ab")), true))),
+                        column, Domain.create(ValueSet.of(VARCHAR, utf8Slice("ab")), true))),
                 ImmutableMap.of(column, 0));
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {0, 2, 4});
     }
@@ -149,15 +147,13 @@ public class TestDynamicPageFilter
 
         filterEvaluator = createDynamicFilterEvaluator(
                 TupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        Domain.multipleValues(INTEGER, ImmutableList.of(2L, 3L, 4L, 5L)))),
+                        column, Domain.multipleValues(INTEGER, ImmutableList.of(2L, 3L, 4L, 5L)))),
                 ImmutableMap.of(column, 0));
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {1, 3});
 
         filterEvaluator = createDynamicFilterEvaluator(
                 TupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        Domain.create(ValueSet.of(INTEGER, 1L), true))),
+                        column, Domain.create(ValueSet.of(INTEGER, 1L), true))),
                 ImmutableMap.of(column, 0));
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {0, 2, 4});
 
@@ -207,12 +203,13 @@ public class TestDynamicPageFilter
         Type rowType = rowType(new RowType.Field(Optional.of("a"), INTEGER), new RowType.Field(Optional.of("b"), DOUBLE));
         RowBlock rowBlock = createRowBlock(
                 ImmutableList.of(INTEGER, DOUBLE),
-                new Object[] {5, 3.14159265358979}, new Object[] {6, 3.14159265358979}, new Object[] {7, 3.14159265358979});
+                new Object[] {5, 3.14159265358979},
+                new Object[] {6, 3.14159265358979},
+                new Object[] {7, 3.14159265358979});
         Block[] filterBlocks = rowBlock.getFieldBlocks().toArray(new Block[0]);
         FilterEvaluator filterEvaluator = createDynamicFilterEvaluator(
                 TupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        Domain.multipleValues(rowType, ImmutableList.of(new SqlRow(0, filterBlocks), new SqlRow(1, filterBlocks))))),
+                        column, Domain.multipleValues(rowType, ImmutableList.of(new SqlRow(0, filterBlocks), new SqlRow(1, filterBlocks))))),
                 ImmutableMap.of(column, 0));
         SourcePage page = SourcePage.create(new Page(rowBlock));
         // Columnar filter evaluation does not support IN on structural types, therefore this is a no-op filter
