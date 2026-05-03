@@ -174,8 +174,10 @@ public class IcebergPageSinkProvider
                         TypeUtil.join(SchemaParser.fromJson(optimizeHandle.schemaAsJson()), new Schema(MetadataColumns.ROW_ID, MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER)) :
                         SchemaParser.fromJson(optimizeHandle.schemaAsJson());
                 PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, optimizeHandle.partitionSpecAsJson());
-                LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(),
-                        executeHandle.tableLocation(), optimizeHandle.tableStorageProperties());
+                LocationProvider locationProvider = getLocationProvider(
+                        executeHandle.schemaTableName(),
+                        executeHandle.tableLocation(),
+                        optimizeHandle.tableStorageProperties());
                 yield new IcebergPageSink(
                         schema,
                         partitionSpec,
