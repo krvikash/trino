@@ -33,7 +33,7 @@ public class ConstraintApplicationResult<T>
     /**
      * @param remainingExpression the remaining expression, which will be AND-ed with {@code remainingFilter},
      * @param precalculateStatistics Indicates whether engine should consider calculating statistics based on the plan before pushdown,
-     * as the connector may be unable to provide good table statistics for {@code handle}.
+     *         as the connector may be unable to provide good table statistics for {@code handle}.
      */
     public ConstraintApplicationResult(T handle, TupleDomain<ColumnHandle> remainingFilter, ConnectorExpression remainingExpression, boolean precalculateStatistics)
     {
@@ -43,11 +43,11 @@ public class ConstraintApplicationResult<T>
     /**
      * @param retainOriginalPlan use the original plan node as the first alternative.
      * @param alternatives a non-empty list of alternative plans the connector would like to choose from at the worker.
-     * Different alternatives must have different handles.
-     * The engine might prune alternatives from the end of the list, therefore:
-     * 1. Elements should be ordered by priority.
-     * 2. If {@code retainOriginalPlan} is {@code false}, then the first element
-     * should be the most pessimistic (an alternative that can be used for all splits).
+     *         Different alternatives must have different handles.
+     *         The engine might prune alternatives from the end of the list, therefore:
+     *         1. Elements should be ordered by priority.
+     *         2. If {@code retainOriginalPlan} is {@code false}, then the first element
+     *         should be the most pessimistic (an alternative that can be used for all splits).
      */
     public ConstraintApplicationResult(boolean retainOriginalPlan, List<Alternative<T>> alternatives)
     {

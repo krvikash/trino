@@ -199,7 +199,7 @@ public class RedshiftClient
      * other precisions.
      *
      * @see <a href="https://docs.aws.amazon.com/redshift/latest/dg/r_Numeric_types201.html#r_Numeric_types201-decimal-or-numeric-type">
-     * Redshift documentation</a>
+     *         Redshift documentation</a>
      */
     private static final int REDSHIFT_DECIMAL_CUTOFF_PRECISION = 19;
 
@@ -216,7 +216,7 @@ public class RedshiftClient
      * Maximum size of a Redshift CHAR column.
      *
      * @see <a href="https://docs.aws.amazon.com/redshift/latest/dg/r_Character_types.html">
-     * Redshift documentation</a>
+     *         Redshift documentation</a>
      */
     private static final int REDSHIFT_MAX_CHAR = 4096;
 
@@ -224,7 +224,7 @@ public class RedshiftClient
      * Maximum size of a Redshift VARCHAR column.
      *
      * @see <a href="https://docs.aws.amazon.com/redshift/latest/dg/r_Character_types.html">
-     * Redshift documentation</a>
+     *         Redshift documentation</a>
      */
     static final int REDSHIFT_MAX_VARCHAR = 65535;
 
