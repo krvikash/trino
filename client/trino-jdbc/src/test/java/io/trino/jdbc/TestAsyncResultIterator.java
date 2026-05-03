@@ -388,7 +388,8 @@ class TestAsyncResultIterator
 
     static ResultRows fromList(List<List<Object>> values)
     {
-        return new ResultRows() {
+        return new ResultRows()
+        {
             @Override
             public void close() {}
 

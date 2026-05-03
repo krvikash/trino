@@ -798,7 +798,8 @@ public class OracleClient
         int precision = timestampType.getPrecision();
         verifyLongTimestampPrecision(timestampType);
 
-        return new ObjectWriteFunction() {
+        return new ObjectWriteFunction()
+        {
             @Override
             public Class<?> getJavaType()
             {

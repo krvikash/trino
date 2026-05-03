@@ -1171,7 +1171,8 @@ public final class DistributedQueryRunner
 
     private static TestingTrinoClient createClient(TestingTrinoServer testingTrinoServer, Session session, String encoding)
     {
-        return new TestingTrinoClient(testingTrinoServer, new TestingStatementClientFactory() {
+        return new TestingTrinoClient(testingTrinoServer, new TestingStatementClientFactory()
+        {
             @Override
             public StatementClient create(OkHttpClient httpClient, Session session, ClientSession clientSession, String query)
             {
