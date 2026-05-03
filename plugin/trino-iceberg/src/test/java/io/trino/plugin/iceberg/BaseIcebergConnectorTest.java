@@ -10029,7 +10029,7 @@ public abstract class BaseIcebergConnectorTest
             case "varchar -> char(20)":
             case "time(6) -> time(3)":
             case "timestamp(6) -> timestamp(3)":
-            // Iceberg cannot update map keys
+                // Iceberg cannot update map keys
             case "map(integer, varchar) -> map(bigint, varchar)":
                 return Optional.of(setup.asUnsupported());
 
@@ -10072,7 +10072,7 @@ public abstract class BaseIcebergConnectorTest
             case "varchar -> char(20)":
             case "time(6) -> time(3)":
             case "timestamp(6) -> timestamp(3)":
-            // Iceberg cannot update map keys
+                // Iceberg cannot update map keys
             case "map(integer, varchar) -> map(bigint, varchar)":
                 return Optional.of(setup.asUnsupported());
 
