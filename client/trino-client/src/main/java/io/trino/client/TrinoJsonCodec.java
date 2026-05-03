@@ -57,10 +57,10 @@ public class TrinoJsonCodec<T>
                  */
                 .disable(INTERN_FIELD_NAMES)
                 .streamReadConstraints(StreamReadConstraints.builder()
-                    .maxStringLength(Integer.MAX_VALUE)
-                    .maxNestingDepth(Integer.MAX_VALUE)
-                    .maxNumberLength(Integer.MAX_VALUE)
-                    .build())
+                        .maxStringLength(Integer.MAX_VALUE)
+                        .maxNestingDepth(Integer.MAX_VALUE)
+                        .maxNumberLength(Integer.MAX_VALUE)
+                        .build())
                 .build();
 
         return JsonMapper.builder(jsonFactory)
