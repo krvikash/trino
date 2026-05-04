@@ -4398,14 +4398,24 @@ public class LocalExecutionPlanner
                 return Optional.empty();
             }
             return GpuAggregationCompiler.compile(node, source.getLayout())
-                    .map(gpuAggregation -> {
-                        return addGpuOperation(
-                                gpuAggregation,
-                                gpuAggregation.getOutputTypes(),
-                                source,
-                                makeLayout(node),
-                                context,
-                                node.getId());
+                    .map(compileResult -> {
+                        // Chain pipeline stages onto the GPU operator. Only the last call's output
+                        // types and layout are visible downstream; intermediate stages reuse the
+                        // final layout/types since they're never observed externally.
+                        Map<Symbol, Integer> finalLayout = makeLayout(node);
+                        List<Type> finalOutputTypes = compileResult.finalOutputTypes();
+                        PhysicalOperation operation = source;
+                        List<GpuOperation.Factory> stages = compileResult.stages();
+                        for (GpuOperation.Factory stage : stages) {
+                            operation = addGpuOperation(
+                                    stage,
+                                    finalOutputTypes,
+                                    operation,
+                                    finalLayout,
+                                    context,
+                                    node.getId());
+                        }
+                        return operation;
                     });
         }
 

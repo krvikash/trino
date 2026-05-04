@@ -37,6 +37,7 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
@@ -230,6 +231,9 @@ public class CopyToBlocks
         }
         if (type instanceof VarcharType) {
             return new VarcharColumnCopier(columnVector);
+        }
+        if (type instanceof VarbinaryType) {
+            return new VarbinaryColumnCopier(columnVector);
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -520,6 +524,52 @@ public class CopyToBlocks
             byte[] bytes = new byte[dataLength];
             if (dataLength > 0) {
                 hostColumnVector.getData().getBytes(bytes, 0, dataStart, dataLength);
+            }
+
+            return new VariableWidthBlock(
+                    count,
+                    wrappedBuffer(bytes),
+                    offsets,
+                    validityToNulls(hostColumnVector.getValidity(), position, count));
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    /**
+     * cuDF VARBINARY columns are LIST<INT8>: the parent carries offsets and validity, while the
+     * child INT8 column carries the byte data. {@code copyToHost} preserves this structure, so
+     * we reach the data buffer through {@link HostColumnVector#getChildColumnView(int)}.
+     */
+    private static class VarbinaryColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public VarbinaryColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            int[] offsets = new int[count + 1];
+            hostColumnVector.getOffsets().getInts(offsets, 0, (long) position * Integer.BYTES, count + 1);
+            int dataStart = offsets[0];
+            offsets[0] = 0;
+            for (int i = 1; i <= count; i++) {
+                offsets[i] -= dataStart;
+            }
+            int dataLength = offsets[count];
+
+            byte[] bytes = new byte[dataLength];
+            if (dataLength > 0) {
+                hostColumnVector.getChildColumnView(0).getData().getBytes(bytes, 0, dataStart, dataLength);
             }
 
             return new VariableWidthBlock(

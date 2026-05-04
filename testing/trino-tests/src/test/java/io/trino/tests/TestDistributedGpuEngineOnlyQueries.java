@@ -421,20 +421,33 @@ public class TestDistributedGpuEngineOnlyQueries
     @Test
     public void testGpuSumDecimalAggregation()
     {
+        // sum(short_decimal) — input precision 15 (DECIMAL64). PARTIAL on GPU casts to DECIMAL128
+        // before aggregating; CPU FINAL deserializes the 16-byte VARBINARY.
         assertThat(query(
                 """
                 SELECT b, sum(d)
                 FROM (SELECT IF(rand()<42, CAST(i AS decimal(15,2))) AS d, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 GROUP BY b
                 """))
-                .executesWithoutGpu();
+                .executesWithGpu(AggregationNode.class);
 
+        // sum(long_decimal) — input precision 25 (DECIMAL128). PARTIAL extracts four 32-bit
+        // chunks and sums each; combineInt64SumChunks reassembles + checks overflow.
         assertThat(query(
                 """
                 SELECT b, sum(d)
                 FROM (SELECT IF(rand()<42, CAST(i AS decimal(25,2))) AS d, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 GROUP BY b
                 """))
-                .executesWithoutGpu();
+                .executesWithGpu(AggregationNode.class);
+
+        // Global aggregation (no GROUP BY) with long decimal — exercises the GpuGlobalAggregation
+        // code path with chunked sums.
+        assertThat(query(
+                """
+                SELECT sum(d)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(25,2))) AS d FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
     }
 }
