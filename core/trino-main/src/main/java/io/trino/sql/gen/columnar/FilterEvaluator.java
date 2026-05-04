@@ -65,15 +65,14 @@ import static io.trino.type.UnknownType.UNKNOWN;
  * Implementations handle dictionary aware processing through {@link DictionaryAwareColumnarFilter}.
  */
 public sealed interface FilterEvaluator
-        permits
-        AndFilterEvaluator,
-        ColumnarFilterEvaluator,
-        ColumnarFilterEvaluatorWithProjectedArguments,
-        OrFilterEvaluator,
-        PageFilterEvaluator,
-        SelectAllEvaluator,
-        SelectNoneEvaluator,
-        DynamicFilterEvaluator
+        permits AndFilterEvaluator,
+                ColumnarFilterEvaluator,
+                ColumnarFilterEvaluatorWithProjectedArguments,
+                OrFilterEvaluator,
+                PageFilterEvaluator,
+                SelectAllEvaluator,
+                SelectNoneEvaluator,
+                DynamicFilterEvaluator
 {
     Logger log = Logger.get(FilterEvaluator.class);
 
