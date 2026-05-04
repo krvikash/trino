@@ -84,15 +84,15 @@ public final class JoinUtils
         if (node instanceof JoinNode joinNode) {
             return PlanNodeSearcher.searchFrom(joinNode.getRight())
                     .recurseOnlyWhen(planNode -> planNode instanceof ProjectNode ||
-                                    planNode instanceof FilterNode ||
-                                    isLocalRepartitionExchange(planNode) ||
-                                    isLocalGatherExchange(planNode))  // used in cross join case
+                            planNode instanceof FilterNode ||
+                            isLocalRepartitionExchange(planNode) ||
+                            isLocalGatherExchange(planNode))  // used in cross join case
                     .where(planNode -> isRemoteReplicatedExchange(planNode) || isRemoteReplicatedSourceNode(planNode))
                     .matches();
         }
         return PlanNodeSearcher.searchFrom(((SemiJoinNode) node).getFilteringSource())
                 .recurseOnlyWhen(planNode -> planNode instanceof ProjectNode ||
-                                isLocalGatherExchange(planNode))
+                        isLocalGatherExchange(planNode))
                 .where(joinNode -> isRemoteReplicatedExchange(joinNode) || isRemoteReplicatedSourceNode(joinNode))
                 .matches();
     }
