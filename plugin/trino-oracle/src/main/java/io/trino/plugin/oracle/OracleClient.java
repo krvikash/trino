@@ -1011,7 +1011,8 @@ public class OracleClient
     {
         int precision = timestampType.getPrecision();
         checkArgument(precision > MAX_SHORT_PRECISION && precision <= MAX_ORACLE_TIMESTAMP_PRECISION,
-                "Precision is out of range: %s", precision);
+                "Precision is out of range: %s",
+                precision);
     }
 
     public static ColumnMapping oracleTimestampWithTimeZoneColumnMapping()

@@ -137,7 +137,8 @@ public class JdbcDynamicFilteringSplitManager
             }
 
             Duration waitingTime = succinctNanos(System.nanoTime() - startNanos);
-            log.debug("Enumerating splits (query %s, table: %s, waiting time: %s, awaitable: %s, completed: %s)",
+            log.debug(
+                    "Enumerating splits (query %s, table: %s, waiting time: %s, awaitable: %s, completed: %s)",
                     session.getQueryId(),
                     table,
                     waitingTime,
