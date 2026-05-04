@@ -38,6 +38,7 @@ import io.trino.sql.planner.Symbol;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -157,17 +158,23 @@ public sealed interface FilterEvaluator
             Map<Symbol, Integer> layout,
             Optional<String> classNameSuffix)
     {
-        // Between requires evaluate once semantic for the value being tested
-        // Until we can pre-project it into a temporary variable, we apply columnar evaluation only on Reference
+        // When the min and max arguments of a BETWEEN expression are both constants, evaluating them inline is cheaper than AND-ing subexpressions.
+        // Sub-expression value is projected onto a synthesized channel so the inline filter sees a Reference.
+        if (between.min() instanceof Constant && between.max() instanceof Constant) {
+            return createReferenceValueFilterEvaluator(
+                    columnarFilterSubexpressionEvaluationEnabled,
+                    isDebugOutputEnabled,
+                    compiler,
+                    pageFunctionCompiler,
+                    between.value(),
+                    value -> new Between(value, between.min(), between.max()),
+                    layout,
+                    classNameSuffix);
+        }
+        // AND decomposition references the value twice; require a Reference so the value is evaluated once.
         Expression valueExpression = between.value();
         if (!(valueExpression instanceof Reference)) {
             return Optional.empty();
-        }
-
-        // When the min and max arguments of a BETWEEN expression are both constants, evaluating them inline is cheaper than AND-ing subexpressions
-        if (between.min() instanceof Constant && between.max() instanceof Constant) {
-            Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(between, layout);
-            return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
         }
         ResolvedFunction lessThanOrEqual = compiler.getMetadata().resolveOperator(
                 LESS_THAN_OR_EQUAL,
@@ -184,6 +191,45 @@ public sealed interface FilterEvaluator
                                 call(lessThanOrEqual, valueExpression, between.max()))),
                 layout,
                 classNameSuffix);
+    }
+
+    /**
+     * Builds an evaluator for filters whose value must come from a {@link Reference}
+     * (IS_NULL, IS_NOT_NULL, IN, BETWEEN — their compiled columnar filters read the value
+     * off a real input channel). If {@code value} is already a Reference, the filter compiles
+     * directly. Otherwise, when sub-expression evaluation is enabled, {@code value} is
+     * compiled as a page projection and {@code buildFilter} is invoked with the projected
+     * reference; the resulting evaluator wraps the filter with
+     * {@link ColumnarFilterEvaluatorWithProjectedArguments}.
+     */
+    private static Optional<Supplier<FilterEvaluator>> createReferenceValueFilterEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            Expression value,
+            Function<Expression, Expression> buildFilter,
+            Map<Symbol, Integer> layout,
+            Optional<String> classNameSuffix)
+    {
+        if (value instanceof Reference) {
+            return compiler.generateFilter(buildFilter.apply(value), layout)
+                    .map(supplier -> () -> createDictionaryAwareEvaluator(supplier.get()));
+        }
+        if (!columnarFilterSubexpressionEvaluationEnabled) {
+            return Optional.empty();
+        }
+        Optional<Supplier<PageProjection>> projection = compileProjection(pageFunctionCompiler, value, layout, classNameSuffix);
+        if (projection.isEmpty()) {
+            return Optional.empty();
+        }
+        Symbol projectedSymbol = new Symbol(value.type(), "$projected_0");
+        Expression rewrittenFilter = buildFilter.apply(new Reference(value.type(), projectedSymbol.name()));
+        return compiler.generateFilter(rewrittenFilter, ImmutableMap.of(projectedSymbol, 0))
+                .map(supplier -> () -> new ColumnarFilterEvaluatorWithProjectedArguments(
+                        new DebugContext(ImmutableList.of(value), layout, rewrittenFilter.toString(), isDebugOutputEnabled),
+                        ImmutableList.of(projection.get().get()),
+                        createDictionaryAwareEvaluator(supplier.get())));
     }
 
     private static Optional<Supplier<FilterEvaluator>> createInExpressionEvaluator(ColumnarFilterCompiler compiler, In in, Map<Symbol, Integer> layout)

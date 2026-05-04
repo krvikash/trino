@@ -388,6 +388,17 @@ public class TestColumnarFilters
                 new Reference(INTEGER, COL_INT_C));
         assertThatColumnarFilterEvaluationIsSupported(betweenFilter);
         verifyFilter(inputPages, betweenFilter);
+
+        // colA - colB BETWEEN constantA AND constantB
+        betweenFilter = new Between(
+                call(
+                        FUNCTION_RESOLUTION.resolveOperator(SUBTRACT, ImmutableList.of(INTEGER, INTEGER)),
+                        new Reference(INTEGER, COL_INT_A),
+                        new Reference(INTEGER, COL_INT_B)),
+                new Constant(INTEGER, -5L),
+                new Constant(INTEGER, 5L));
+        assertThatColumnarFilterEvaluationIsSupported(betweenFilter);
+        verifyFilter(inputPages, betweenFilter);
     }
 
     @ParameterizedTest
