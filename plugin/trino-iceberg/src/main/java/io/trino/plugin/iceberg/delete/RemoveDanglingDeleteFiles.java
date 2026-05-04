@@ -25,7 +25,6 @@ import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.PartitionSpec;
@@ -263,17 +262,17 @@ public class RemoveDanglingDeleteFiles
             DeleteFilesMetadata.Builder builder,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
-        if (deleteFile.format() == FileFormat.PUFFIN) {
-            if (isDanglingDeletionVectorDelete(deleteFile, dataFilesMinSequenceNumberMetadata)) {
-                metrics.danglingDvFilesCount.incrementAndGet();
-                builder.addDanglingDeleteFile(deleteFile);
+        if (deleteFile.content() == FileContent.POSITION_DELETES) {
+            if (ContentFileUtil.isDV(deleteFile)) {
+                if (isDanglingDeletionVectorDelete(deleteFile, dataFilesMinSequenceNumberMetadata)) {
+                    metrics.danglingDvFilesCount.incrementAndGet();
+                    builder.addDanglingDeleteFile(deleteFile);
+                }
+                else {
+                    builder.addDataFilePathWithDV(deleteFile.referencedDataFile());
+                }
             }
-            else {
-                builder.addDataFilePathWithDV(deleteFile.referencedDataFile());
-            }
-        }
-        else if (deleteFile.content() == FileContent.POSITION_DELETES) {
-            if (isDanglingPositionDelete(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata, builder)) {
+            else if (isDanglingPositionDelete(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata, builder)) {
                 metrics.danglingPositionDeleteFilesCount.incrementAndGet();
                 builder.addDanglingDeleteFile(deleteFile);
             }
