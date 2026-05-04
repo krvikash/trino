@@ -126,7 +126,11 @@ public final class MemoryQueryRunner
         {
             QueryRunner queryRunner = builder()
                     .addCoordinatorProperty("http-server.http.port", "8080")
-                    .addExtraProperty("gpu-acceleration.enabled", "true")
+                    .addExtraProperty("gpu-execution", "true")
+                    .addExtraProperty("task.gpu-execution.enabled", "true")
+                    // GPU is disabled on coordinator unless include-coordinator is set. Disable include-coordinator to force coordinator into more production-like setup.
+                    // This is needed to expose potential problems where operators on workers and coordinator do not match.
+                    .addExtraProperty("node-scheduler.include-coordinator", "false")
                     .setInitialTables(TpchTable.getTables())
                     .build();
             Logger log = Logger.get(MemoryQueryRunner.class);

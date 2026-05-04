@@ -100,6 +100,7 @@ import io.trino.operator.RetryPolicy;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
+import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
@@ -304,7 +305,12 @@ public class ServerMainModule
         binder.bind(PageFunctionCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
         binder.bind(GpuExpressionCompiler.class).in(Scopes.SINGLETON);
-        if (buildConfigObject(FeaturesConfig.class).isGpuAccelerationEnabled()) {
+        newOptionalBinder(binder, GpuConfigurer.class);
+        // Disable GPU execution on coordinator. It's unlikely beneficial but may still cause coordinator instability.
+        boolean gpuExecutionEnabled = (!serverConfig.isCoordinator() || buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) &&
+                buildConfigObject(TaskManagerConfig.class).isGpuExecutionEnabled();
+        binder.bind(Key.get(boolean.class, NodeGpuExecutionEnabled.class)).toInstance(gpuExecutionEnabled);
+        if (gpuExecutionEnabled) {
             configBinder(binder).bindConfig(GpuConfig.class);
             binder.bind(GpuConfigurer.class).asEagerSingleton();
         }

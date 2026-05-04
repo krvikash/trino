@@ -1109,10 +1109,10 @@ public final class BenchmarkRunner
     public static void applyExecutionMode(HiveQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
         switch (mode) {
-            case CPU -> builder.addExtraProperty("gpu-acceleration.enabled", "false");
+            case CPU -> builder.addExtraProperty("gpu-execution", "false");
             case GPU -> builder
-                    .addExtraProperty("gpu-acceleration.enabled", "true")
-                    .addExtraProperty("gpu-acceleration.table-scan-enabled", "true")
+                    .addExtraProperty("gpu-execution", "true")
+                    .addExtraProperty("task.gpu-execution.enabled", "true")
                     // Larger splits than the 64 MB default give a substantial GPU Parquet decode
                     // speedup. TODO reconsider raising further (e.g. 512 MB).
                     .addHiveProperty("hive.max-initial-split-size", "256MB")

@@ -85,6 +85,7 @@ import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Suppliers.memoize;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.metadata.OperatorNameUtil.mangleOperatorName;
 import static io.trino.sql.planner.assertions.PlanAssert.assertPlan;
@@ -672,7 +673,7 @@ public class QueryAssertions
         private void validateResultsWithGpuDisabled(MaterializedResult result)
         {
             Session gpuDisabled = Session.builder(session)
-                    .setSystemProperty("gpu_acceleration_enabled", "false")
+                    .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
                     .build();
             MaterializedResult expected = runner.execute(gpuDisabled, query());
             new ResultAssert(

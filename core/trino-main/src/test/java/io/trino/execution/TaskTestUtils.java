@@ -178,6 +178,7 @@ public final class TaskTestUtils
                 new MockDirectExchangeClientSupplier(),
                 new ExpressionCompiler(pageFunctionCompiler, columnarFilterCompiler),
                 pageFunctionCompiler,
+                /* node GPU execution enabled */ false,
                 new GpuExpressionCompiler(),
                 new JoinFilterFunctionCompiler(PLANNER_CONTEXT.getFunctionManager(), PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), new CompilerConfig()),
                 new IndexJoinLookupStats(),

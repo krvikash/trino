@@ -127,8 +127,7 @@ public class FeaturesConfig
     private boolean mergePartitionedPages = true;
     private int maxGroupingSets = 2048;
 
-    private boolean gpuAccelerationEnabled;
-    private boolean gpuTableScanEnabled;
+    private boolean gpuExecution;
 
     private boolean legacyCatalogRoles;
     private boolean incrementalHashArrayLoadFactorEnabled = true;
@@ -493,31 +492,17 @@ public class FeaturesConfig
         return this;
     }
 
-    public boolean isGpuAccelerationEnabled()
+    public boolean isGpuExecution()
     {
-        return gpuAccelerationEnabled;
+        return gpuExecution;
     }
 
-    @Config("gpu-acceleration.enabled")
-    @ConfigDescription("Enable GPU-accelerated query execution")
+    @Config("gpu-execution")
+    @ConfigDescription("Enable query to use GPU for accelerated execution on workers with GPU provisioned")
     @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
-    public FeaturesConfig setGpuAccelerationEnabled(boolean gpuAccelerationEnabled)
+    public FeaturesConfig setGpuExecution(boolean gpuExecution)
     {
-        this.gpuAccelerationEnabled = gpuAccelerationEnabled;
-        return this;
-    }
-
-    public boolean isGpuTableScanEnabled()
-    {
-        return gpuTableScanEnabled;
-    }
-
-    @Config("gpu-acceleration.table-scan-enabled")
-    @ConfigDescription("Enable GPU-based table scan execution")
-    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
-    public FeaturesConfig setGpuTableScanEnabled(boolean gpuTableScanEnabled)
-    {
-        this.gpuTableScanEnabled = gpuTableScanEnabled;
+        this.gpuExecution = gpuExecution;
         return this;
     }
 

@@ -28,13 +28,16 @@ public class TestHiveGpuConnectorSmokeTest
             throws Exception
     {
         checkState(
-                !new FeaturesConfig().isGpuAccelerationEnabled(),
+                !new FeaturesConfig().isGpuExecution(),
                 "Otherwise %s would be the GPU test and this class redundant",
                 TestHiveConnectorTest.class);
 
         return HiveQueryRunner.builder()
-                .addExtraProperty("gpu-acceleration.enabled", "true")
-                .addExtraProperty("gpu-acceleration.table-scan-enabled", "true")
+                .addExtraProperty("gpu-execution", "true")
+                .addExtraProperty("task.gpu-execution.enabled", "true")
+                // GPU is disabled on coordinator unless include-coordinator is set. Disable include-coordinator to force coordinator into more production-like setup.
+                // This is needed to expose potential problems where operators on workers and coordinator do not match.
+                .addExtraProperty("node-scheduler.include-coordinator", "false")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .addHiveProperty("hive.storage-format", "PARQUET")
                 .build();

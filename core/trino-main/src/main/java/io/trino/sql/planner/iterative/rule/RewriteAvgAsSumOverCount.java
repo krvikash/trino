@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.trino.SystemSessionProperties.isGpuAccelerationEnabled;
+import static io.trino.SystemSessionProperties.isGpuExecutionEnabled;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -92,7 +92,7 @@ public class RewriteAvgAsSumOverCount
     @Override
     public boolean isEnabled(Session session)
     {
-        return isGpuAccelerationEnabled(session);
+        return isGpuExecutionEnabled(session);
     }
 
     @Override

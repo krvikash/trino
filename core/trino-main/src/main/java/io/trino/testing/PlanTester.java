@@ -869,6 +869,7 @@ public class PlanTester
                 },
                 expressionCompiler,
                 pageFunctionCompiler,
+                /* node GPU execution enabled */ false,
                 new GpuExpressionCompiler(),
                 joinFilterFunctionCompiler,
                 new IndexJoinLookupStats(),

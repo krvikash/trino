@@ -15,6 +15,7 @@ package io.trino.execution;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
@@ -58,6 +59,7 @@ public class TaskManagerConfig
     //  as a significant regression was reported
     //  https://starburst-engineering.slack.com/archives/C03A6KCS256/p1707783286307469?thread_ts=1706549021.918299&cid=C03A6KCS256
     private boolean threadPerDriverSchedulerEnabled;
+    private boolean gpuExecutionEnabled;
     private boolean perOperatorCpuTimerEnabled = true;
     private boolean taskCpuTimerEnabled = true;
     private DataSize maxPartialAggregationMemoryUsage = DataSize.of(16, Unit.MEGABYTE);
@@ -126,6 +128,19 @@ public class TaskManagerConfig
     public boolean isThreadPerDriverSchedulerEnabled()
     {
         return threadPerDriverSchedulerEnabled;
+    }
+
+    public boolean isGpuExecutionEnabled()
+    {
+        return gpuExecutionEnabled;
+    }
+
+    @Config("task.gpu-execution.enabled")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public TaskManagerConfig setGpuExecutionEnabled(boolean gpuExecutionEnabled)
+    {
+        this.gpuExecutionEnabled = gpuExecutionEnabled;
+        return this;
     }
 
     @MinDuration("1ms")

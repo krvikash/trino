@@ -26,7 +26,7 @@ import io.trino.sql.planner.iterative.rule.test.BaseRuleTest;
 import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
 import org.junit.jupiter.api.Test;
 
-import static io.trino.SystemSessionProperties.GPU_ACCELERATION_ENABLED;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -49,7 +49,7 @@ final class TestRewriteAvgAsSumOverCount
     void testRewriteAvgBigint()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol output = p.symbol("out", DOUBLE);
@@ -78,7 +78,7 @@ final class TestRewriteAvgAsSumOverCount
     void testRewriteAvgDouble()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", DOUBLE);
                     Symbol output = p.symbol("out", DOUBLE);
@@ -107,7 +107,7 @@ final class TestRewriteAvgAsSumOverCount
     void testRewriteAvgReal()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", REAL);
                     Symbol output = p.symbol("out", REAL);
@@ -138,7 +138,7 @@ final class TestRewriteAvgAsSumOverCount
     void testRewriteAvgWithGroupBy()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol groupKey = p.symbol("grp", BIGINT);
@@ -171,7 +171,7 @@ final class TestRewriteAvgAsSumOverCount
     void testRewriteMixedAggregates()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol avgOutput = p.symbol("avg_out", DOUBLE);
@@ -203,7 +203,7 @@ final class TestRewriteAvgAsSumOverCount
     void testDoesNotFireWhenGpuDisabled()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "false")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol output = p.symbol("out", DOUBLE);
@@ -222,7 +222,7 @@ final class TestRewriteAvgAsSumOverCount
     void testDoesNotFireOnPartialAggregation()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol output = p.symbol("out", DOUBLE);
@@ -242,7 +242,7 @@ final class TestRewriteAvgAsSumOverCount
     void testDoesNotFireForDecimalAvg()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", createDecimalType(10, 2));
                     Symbol output = p.symbol("out", createDecimalType(10, 2));
@@ -261,7 +261,7 @@ final class TestRewriteAvgAsSumOverCount
     void testDoesNotFireWithoutAvg()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol output = p.symbol("out", BIGINT);
@@ -280,7 +280,7 @@ final class TestRewriteAvgAsSumOverCount
     void testDoesNotFireForDistinctAvg()
     {
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_ACCELERATION_ENABLED, "true")
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
                     Symbol input = p.symbol("col", BIGINT);
                     Symbol output = p.symbol("out", DOUBLE);

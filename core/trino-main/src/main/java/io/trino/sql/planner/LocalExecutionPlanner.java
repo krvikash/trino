@@ -133,6 +133,7 @@ import io.trino.operator.gpu.GpuTopN;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
+import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.index.DynamicTupleFilterFactory;
 import io.trino.operator.index.FieldSetFilteringRecordSet;
 import io.trino.operator.index.IndexBuildDriverFactoryProvider;
@@ -356,8 +357,6 @@ import static io.trino.SystemSessionProperties.isColumnarFilterEvaluationEnabled
 import static io.trino.SystemSessionProperties.isDebugOutputEnabled;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.SystemSessionProperties.isForceSpillingOperator;
-import static io.trino.SystemSessionProperties.isGpuAccelerationEnabled;
-import static io.trino.SystemSessionProperties.isGpuTableScanEnabled;
 import static io.trino.SystemSessionProperties.isParallelizeLookupOuterOperator;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
 import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
@@ -464,6 +463,7 @@ public class LocalExecutionPlanner
     private final PageSinkManager pageSinkManager;
     private final DirectExchangeClientSupplier directExchangeClientSupplier;
     private final ExpressionCompiler expressionCompiler;
+    private final boolean nodeGpuExecutionEnabled;
     private final GpuExpressionCompiler gpuExpressionCompiler;
     private final PageFunctionCompiler pageFunctionCompiler;
     private final JoinFilterFunctionCompiler joinFilterFunctionCompiler;
@@ -520,6 +520,7 @@ public class LocalExecutionPlanner
             DirectExchangeClientSupplier directExchangeClientSupplier,
             ExpressionCompiler expressionCompiler,
             PageFunctionCompiler pageFunctionCompiler,
+            @NodeGpuExecutionEnabled boolean nodeGpuExecutionEnabled,
             GpuExpressionCompiler gpuExpressionCompiler,
             JoinFilterFunctionCompiler joinFilterFunctionCompiler,
             IndexJoinLookupStats indexJoinLookupStats,
@@ -556,6 +557,7 @@ public class LocalExecutionPlanner
         this.directExchangeClientSupplier = requireNonNull(directExchangeClientSupplier, "directExchangeClientSupplier is null");
         this.pageSinkManager = requireNonNull(pageSinkManager, "pageSinkManager is null");
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
+        this.nodeGpuExecutionEnabled = nodeGpuExecutionEnabled;
         this.gpuExpressionCompiler = requireNonNull(gpuExpressionCompiler, "gpuExpressionCompiler is null");
         this.pageFunctionCompiler = requireNonNull(pageFunctionCompiler, "pageFunctionCompiler is null");
         this.joinFilterFunctionCompiler = requireNonNull(joinFilterFunctionCompiler, "joinFilterFunctionCompiler is null");
@@ -2017,7 +2019,7 @@ public class LocalExecutionPlanner
 
         private Optional<PhysicalOperation> tryPlanGpuTopN(TopNNode node, PhysicalOperation source, LocalExecutionPlanContext context)
         {
-            if (!isGpuAccelerationEnabled(session) || !source.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+            if (!isGpuExecutionEnabled(session) || !source.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
                 return Optional.empty();
             }
 
@@ -2294,7 +2296,7 @@ public class LocalExecutionPlanner
             }
 
             // First, we try to plan execution on the GPU, if that's not supported, we fall back to the CPU.
-            if (isGpuAccelerationEnabled(session)) {
+            if (isGpuExecutionEnabled(session)) {
                 Optional<PhysicalOperation> sourceGpuOperation = Optional.empty();
                 List<Type> sourceOutputTypes;
 
@@ -2302,8 +2304,7 @@ public class LocalExecutionPlanner
                     sourceOutputTypes = sourceNode.getOutputSymbols().stream()
                             .map(Symbol::type)
                             .collect(toImmutableList());
-                    if (isGpuTableScanEnabled(session) &&
-                            pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle()) &&
+                    if (pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle()) &&
                             // table scan has types supported on the GPU
                             sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
                         // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator?
@@ -2514,8 +2515,7 @@ public class LocalExecutionPlanner
             }
 
             Optional<ConnectorTableCredentials> tableCredentials = context.getTaskContext().getTableCredentials(node.getId());
-            if (isGpuAccelerationEnabled(session) &&
-                    isGpuTableScanEnabled(session) &&
+            if (isGpuExecutionEnabled(session) &&
                     columnTypes.build().stream().allMatch(GpuTypeConversion::isConvertible) &&
                     pageSourceManager.supportsConnectorGpuPageSource(node.getTable().catalogHandle(), node.getTable().connectorHandle())) {
                 OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
@@ -4390,7 +4390,7 @@ public class LocalExecutionPlanner
 
         private Optional<PhysicalOperation> tryPlanGpuAggregation(AggregationNode node, PhysicalOperation source, LocalExecutionPlanContext context)
         {
-            if (!isGpuAccelerationEnabled(session)) {
+            if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
             }
             return GpuAggregationCompiler.compile(node, source.getLayout())
@@ -4913,6 +4913,11 @@ public class LocalExecutionPlanner
                     .add("boundSignature", boundSignature)
                     .toString();
         }
+    }
+
+    private boolean isGpuExecutionEnabled(Session session)
+    {
+        return nodeGpuExecutionEnabled && SystemSessionProperties.isGpuExecutionEnabled(session);
     }
 
     private boolean useSpillingJoinOperator(boolean spillEnabled, Session session)
