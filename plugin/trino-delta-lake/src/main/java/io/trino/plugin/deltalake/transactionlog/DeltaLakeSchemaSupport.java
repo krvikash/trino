@@ -600,7 +600,7 @@ public final class DeltaLakeSchemaSupport
 
     public static Map<String, Object> getColumnTypes(MetadataEntry metadataEntry)
     {
-        return getColumnProperties(metadataEntry, node -> JSON_MAPPER.convertValue(node.get("type"), new TypeReference<>(){}));
+        return getColumnProperties(metadataEntry, node -> JSON_MAPPER.convertValue(node.get("type"), new TypeReference<>() {}));
     }
 
     public static Map<String, String> getColumnComments(MetadataEntry metadataEntry)
@@ -722,7 +722,7 @@ public final class DeltaLakeSchemaSupport
 
     public static Map<String, Map<String, Object>> getColumnsMetadata(MetadataEntry metadataEntry)
     {
-        return getColumnProperties(metadataEntry, node -> JSON_MAPPER.convertValue(node.get("metadata"), new TypeReference<>(){}));
+        return getColumnProperties(metadataEntry, node -> JSON_MAPPER.convertValue(node.get("metadata"), new TypeReference<>() {}));
     }
 
     public static <T> Map<String, T> getColumnProperties(MetadataEntry metadataEntry, Function<JsonNode, T> extractor)
