@@ -121,10 +121,10 @@ public class RewriteCast
     {
         return switch (sourceType.jdbcType()) {
             case OracleTypes.NUMBER,
-                    OracleTypes.VARCHAR,
-                    OracleTypes.NVARCHAR,
-                    OracleTypes.CLOB,
-                    OracleTypes.NCLOB -> true;
+                 OracleTypes.VARCHAR,
+                 OracleTypes.NVARCHAR,
+                 OracleTypes.CLOB,
+                 OracleTypes.NCLOB -> true;
             default -> false;
         };
     }

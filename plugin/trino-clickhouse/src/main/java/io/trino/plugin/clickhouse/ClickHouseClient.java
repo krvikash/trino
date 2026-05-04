@@ -704,20 +704,20 @@ public class ClickHouseClient
             }
             case UInt64 -> {
                 return Optional.of(ColumnMapping.objectMapping(
-                        UINT64_TYPE,
-                        longDecimalReadFunction(UINT64_TYPE, UNNECESSARY),
-                        uInt64WriteFunction(getClickHouseServerVersion(session))));
+                    UINT64_TYPE,
+                    longDecimalReadFunction(UINT64_TYPE, UNNECESSARY),
+                    uInt64WriteFunction(getClickHouseServerVersion(session))));
             }
             case IPv4, IPv6 -> {
                 return Optional.of(ipAddressColumnMapping(column.getOriginalTypeName()));
             }
             case Enum8, Enum16 -> {
                 return Optional.of(ColumnMapping.sliceMapping(
-                        createUnboundedVarcharType(),
-                        varcharReadFunction(createUnboundedVarcharType()),
-                        varcharWriteFunction(),
-                        // TODO (https://github.com/trinodb/trino/issues/7100) Currently pushdown would not work and may require a custom bind expression
-                        DISABLE_PUSHDOWN));
+                    createUnboundedVarcharType(),
+                    varcharReadFunction(createUnboundedVarcharType()),
+                    varcharWriteFunction(),
+                    // TODO (https://github.com/trinodb/trino/issues/7100) Currently pushdown would not work and may require a custom bind expression
+                    DISABLE_PUSHDOWN));
             } // FixedString(n)
             case FixedString, String -> {
                 if (isMapStringAsVarchar(session)) {
@@ -761,10 +761,10 @@ public class ClickHouseClient
             }
             case Types.FLOAT, Types.REAL -> {
                 return Optional.of(ColumnMapping.longMapping(
-                        REAL,
-                        (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)),
-                        realWriteFunction(),
-                        DISABLE_PUSHDOWN));
+                    REAL,
+                    (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)),
+                    realWriteFunction(),
+                    DISABLE_PUSHDOWN));
             }
             case Types.DOUBLE -> {
                 return Optional.of(doubleColumnMapping());
