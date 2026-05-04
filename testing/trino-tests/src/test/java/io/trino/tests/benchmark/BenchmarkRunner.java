@@ -291,12 +291,7 @@ public final class BenchmarkRunner
             Path explainOutputDir = benchmarkDataDir.resolve("explain");
             Files.createDirectories(explainOutputDir);
 
-            AsyncProfiler profiler = profileEvent == ProfileEvent.NONE ? null : AsyncProfiler.getInstance();
-            if (profiler != null) {
-                Files.createDirectories(profileOutputDir);
-                log.info("Profiler output will be written to %s", profileOutputDir.toAbsolutePath());
-                log.info("Profiler event: %s  interval=%s", profileEvent, workload.profileInterval());
-            }
+            ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir);
             log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
             try (DistributedQueryRunner runner = workload.createRunner(data, mode)) {
@@ -324,15 +319,13 @@ public final class BenchmarkRunner
                     }
                 }
 
-                if (profiler != null) {
-                    writeRunMetadata(profileOutputDir, workload, queriesRun, warmup, runs, profileEvent);
-                }
+                session.writeRunMetadata(queriesRun, warmup, runs);
 
                 Map<Integer, List<Measurement>> measurementsByQuery = new LinkedHashMap<>();
                 long totalElapsedMillis = 0;
                 long totalExecutionMillis = 0;
                 for (int queryNumber : queriesRun) {
-                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, profiler, profileOutputDir, explainOutputDir);
+                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, session, explainOutputDir);
                     measurementsByQuery.put(queryNumber, measurements);
                     if (!measurements.isEmpty()) {
                         totalElapsedMillis += averageMillis(measurements, Measurement::elapsedMillis);
@@ -342,9 +335,7 @@ public final class BenchmarkRunner
                 log.info("Sum of averages for all queries: %s ms (execution %s ms)", totalElapsedMillis, totalExecutionMillis);
                 writeTimingsCsv(benchmarkDataDir, measurementsByQuery);
 
-                if (profiler != null) {
-                    mergeCollapsedFiles(profileOutputDir, queriesRun);
-                }
+                session.mergeCollapsedFiles(queriesRun);
             }
 
             return 0;
@@ -360,8 +351,7 @@ public final class BenchmarkRunner
         private List<Measurement> benchmarkQuery(
                 DistributedQueryRunner runner,
                 int queryNumber,
-                AsyncProfiler profiler,
-                Path profileOutputDir,
+                ProfileSession session,
                 Path explainOutputDir)
                 throws IOException
         {
@@ -372,18 +362,13 @@ public final class BenchmarkRunner
 
             List<Measurement> measurements = new ArrayList<>();
             List<IterationResult> measuredIterations = new ArrayList<>();
-            boolean profilerActive = false;
             try (BufferedWriter explainWriter = Files.newBufferedWriter(explainFile, UTF_8)) {
                 for (int i = 0; i < warmup; i++) {
                     log.debug("Starting warmup run of %s", displayName);
                     IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
                     log.debug("Warmup run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
                 }
-                if (profiler != null) {
-                    profiler.execute("start,event=%s,interval=%s,alluser,jstackdepth=%d"
-                            .formatted(profileEvent.name().toLowerCase(Locale.ROOT), workload.profileInterval(), PROFILE_STACK_DEPTH));
-                    profilerActive = true;
-                }
+                session.start();
                 for (int i = 0; i < runs; i++) {
                     log.debug("Starting measured run of %s", displayName);
                     IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
@@ -393,9 +378,7 @@ public final class BenchmarkRunner
                 }
                 // Halt sampling before rendering plans so PlanPrinter frames don't pollute the
                 // flamegraph; the buffer is preserved for the dump that runs after the try block.
-                if (profilerActive) {
-                    profiler.execute("stop");
-                }
+                session.stop();
                 for (int i = 0; i < measuredIterations.size(); i++) {
                     IterationResult iteration = measuredIterations.get(i);
                     explainWriter.write("=== %s run %d/%d ===%n".formatted(displayName, i + 1, runs));
@@ -404,13 +387,11 @@ public final class BenchmarkRunner
                 }
             }
             catch (RuntimeException e) {
-                if (profilerActive) {
-                    try {
-                        profiler.execute("stop");
-                    }
-                    catch (RuntimeException stopError) {
-                        log.warn(stopError, "Profiler stop failed after %s error", displayName);
-                    }
+                try {
+                    session.stop();
+                }
+                catch (Exception stopError) {
+                    log.warn(stopError, "Profiler stop failed after %s error", displayName);
                 }
                 if (isOutOfMemory(e)) {
                     log.warn("%s: FAILED (out of memory) — skipping query", displayName);
@@ -419,15 +400,7 @@ public final class BenchmarkRunner
                 throw e;
             }
 
-            if (profilerActive) {
-                Path snapshot = Files.createTempFile("benchmark-" + displayName + "-", ".collapsed");
-                Path htmlFile = profileOutputDir.resolve(displayName + ".html");
-                profiler.execute("dump,file=%s,collapsed,threads".formatted(snapshot.toAbsolutePath()));
-                profiler.execute("dump,file=%s,flamegraph,threads".formatted(htmlFile.toAbsolutePath()));
-                long kept = postProcessProfile(profileOutputDir, displayName, snapshot, profileEvent, workload);
-                Files.delete(snapshot);
-                log.info("Profiler output for %s post-processed (%d samples kept after idle filter)", displayName, kept);
-            }
+            session.dumpAndPostProcess(displayName);
 
             long averageElapsed = averageMillis(measurements, Measurement::elapsedMillis);
             long averageExecution = averageMillis(measurements, Measurement::executionMillis);
@@ -453,6 +426,120 @@ public final class BenchmarkRunner
             }
         }
         return false;
+    }
+
+    private interface ProfileSession
+    {
+        ProfileSession NOOP = new ProfileSession()
+        {
+            @Override
+            public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs) {}
+
+            @Override
+            public void start() {}
+
+            @Override
+            public void stop() {}
+
+            @Override
+            public void dumpAndPostProcess(String displayName) {}
+
+            @Override
+            public void mergeCollapsedFiles(List<Integer> queriesRun) {}
+        };
+
+        static ProfileSession of(ProfileEvent profileEvent, Workload workload, Path profileOutputDir)
+                throws IOException
+        {
+            if (profileEvent == ProfileEvent.NONE) {
+                return NOOP;
+            }
+            return new AsyncProfileSession(AsyncProfiler.getInstance(), profileEvent, workload, profileOutputDir);
+        }
+
+        void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
+                throws IOException;
+
+        void start()
+                throws IOException;
+
+        void stop()
+                throws IOException;
+
+        void dumpAndPostProcess(String displayName)
+                throws IOException;
+
+        void mergeCollapsedFiles(List<Integer> queriesRun)
+                throws IOException;
+    }
+
+    private static final class AsyncProfileSession
+            implements ProfileSession
+    {
+        private final AsyncProfiler profiler;
+        private final ProfileEvent profileEvent;
+        private final Workload workload;
+        private final Path profileOutputDir;
+        private boolean running;
+
+        AsyncProfileSession(AsyncProfiler profiler, ProfileEvent profileEvent, Workload workload, Path profileOutputDir)
+                throws IOException
+        {
+            this.profiler = profiler;
+            this.profileEvent = profileEvent;
+            this.workload = workload;
+            this.profileOutputDir = profileOutputDir;
+            Files.createDirectories(profileOutputDir);
+            log.info("Profiler output will be written to %s", profileOutputDir.toAbsolutePath());
+            log.info("Profiler event: %s  interval=%s", profileEvent, workload.profileInterval());
+        }
+
+        @Override
+        public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
+                throws IOException
+        {
+            BenchmarkRunner.writeRunMetadata(profileOutputDir, workload, queriesRun, warmup, runs, profileEvent);
+        }
+
+        @Override
+        public void start()
+                throws IOException
+        {
+            profiler.execute("start,event=%s,interval=%s,alluser,jstackdepth=%d"
+                    .formatted(profileEvent.name().toLowerCase(Locale.ROOT), workload.profileInterval(), PROFILE_STACK_DEPTH));
+            running = true;
+        }
+
+        @Override
+        public void stop()
+                throws IOException
+        {
+            if (!running) {
+                return;
+            }
+            profiler.execute("stop");
+            running = false;
+        }
+
+        @Override
+        public void dumpAndPostProcess(String displayName)
+                throws IOException
+        {
+            Path snapshot = Files.createTempFile("benchmark-" + displayName + "-", ".collapsed");
+            Path htmlFile = profileOutputDir.resolve(displayName + ".html");
+            profiler.execute("dump,file=%s,collapsed,threads".formatted(snapshot.toAbsolutePath()));
+            profiler.execute("dump,file=%s,flamegraph,threads".formatted(htmlFile.toAbsolutePath()));
+            long kept = postProcessProfile(profileOutputDir, displayName, snapshot, profileEvent, workload);
+            Files.delete(snapshot);
+            log.info("Profiler output for %s post-processed (%d samples kept after idle filter)", displayName, kept);
+        }
+
+        @Override
+        public void mergeCollapsedFiles(List<Integer> queriesRun)
+                throws IOException
+        {
+            BenchmarkRunner.mergeCollapsedFiles(profileOutputDir, queriesRun);
+        }
     }
 
     @Command(
