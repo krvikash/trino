@@ -1267,7 +1267,6 @@ public class PlanBuilder
             List<PlanNode> sources,
             List<TableArgumentProperties> tableArgumentProperties,
             List<List<String>> copartitioningLists)
-
     {
         return new TableFunctionNode(
                 idAllocator.getNextId(),
