@@ -149,6 +149,7 @@ public class TestColumnarFilters
             .scalar(ConnectorSessionFunction.class)
             .scalar(InstanceFactoryFunction.class)
             .scalar(CustomIsDistinctFrom.class)
+            .scalar(NonDeterministicMultiArgFunction.class)
             .build();
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution(FUNCTION_BUNDLE);
     private static final ColumnarFilterCompiler COMPILER = FUNCTION_RESOLUTION.getColumnarFilterCompiler();
@@ -251,6 +252,34 @@ public class TestColumnarFilters
                 new Reference(INTEGER, COL_INT_A));
         assertThatColumnarFilterEvaluationIsSupported(customInstanceFactoryFilter);
         verifyFilter(inputPages, customInstanceFactoryFilter);
+    }
+
+    @Test
+    public void testIsNullSubExpressionProducingRleNullBlock()
+    {
+        // Bare GeneratedPageProjection (defeats both wrap conditions in
+        // ColumnarFilterEvaluatorWithProjectedArguments) emits an RLE-of-null block when
+        // every projected position is null. The inner createDictionaryAwareEvaluator must
+        // unwrap it before IsNullColumnarFilter / IsNotNullColumnarFilter casts to ValueBlock.
+        List<Page> inputPages = ImmutableList.<Page>builder()
+                .addAll(createInputPages(NullsProvider.RANDOM_NULLS, true))
+                .addAll(createInputPages(NullsProvider.ALL_NULLS, false))
+                .build();
+
+        Expression isNull = new IsNull(call(
+                FUNCTION_RESOLUTION.functionCallBuilder("non_deterministic_multi_arg")
+                        .addArgument(INTEGER, new Reference(INTEGER, "a"))
+                        .addArgument(INTEGER, new Reference(INTEGER, "b"))
+                        .build()
+                        .function(),
+                new Reference(INTEGER, COL_INT_A),
+                new Reference(INTEGER, COL_INT_B)));
+        assertThatColumnarFilterEvaluationIsSupported(isNull);
+        verifyFilter(inputPages, isNull);
+
+        Expression isNotNull = createNotExpression(isNull);
+        assertThatColumnarFilterEvaluationIsSupported(isNotNull);
+        verifyFilter(inputPages, isNotNull);
     }
 
     @Test
@@ -1215,6 +1244,19 @@ public class TestColumnarFilters
         public static boolean isUserAdmin(ConnectorSession session)
         {
             return "admin".equals(session.getUser());
+        }
+    }
+
+    @ScalarFunction(value = "non_deterministic_multi_arg", deterministic = false)
+    public static final class NonDeterministicMultiArgFunction
+    {
+        private NonDeterministicMultiArgFunction() {}
+
+        @SqlNullable
+        @SqlType(StandardTypes.INTEGER)
+        public static Long nonDeterministicMultiArg(@SqlType(StandardTypes.INTEGER) long a, @SqlType(StandardTypes.INTEGER) long b)
+        {
+            return a + b;
         }
     }
 
