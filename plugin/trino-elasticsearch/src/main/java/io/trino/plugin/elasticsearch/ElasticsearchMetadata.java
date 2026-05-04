@@ -143,8 +143,7 @@ public class ElasticsearchMetadata
             .build();
 
     private static final Map<String, ColumnHandle> PASSTHROUGH_QUERY_COLUMNS = ImmutableMap.of(
-            PASSTHROUGH_QUERY_RESULT_COLUMN_NAME,
-            new ElasticsearchColumnHandle(
+            PASSTHROUGH_QUERY_RESULT_COLUMN_NAME, new ElasticsearchColumnHandle(
                     ImmutableList.of(PASSTHROUGH_QUERY_RESULT_COLUMN_NAME),
                     VARCHAR,
                     new IndexMetadata.PrimitiveType("text"),
@@ -565,10 +564,10 @@ public class ElasticsearchMetadata
                     if (!newRegexes.containsKey(columnName) && pattern instanceof Slice slice) {
                         IndexMetadata metadata = client.getIndexMetadata(handle.index());
                         if (metadata.schema()
-                                    .fields().stream()
-                                    .anyMatch(field -> columnName.equals(field.name()) &&
-                                                       ((field.type() instanceof PrimitiveType(String name) && "keyword".equals(name))
-                                                       || column.delegatedField().isPresent()))) {
+                                .fields().stream()
+                                .anyMatch(field -> columnName.equals(field.name()) &&
+                                                   ((field.type() instanceof PrimitiveType(String name) && "keyword".equals(name))
+                                                   || column.delegatedField().isPresent()))) {
                             newRegexes.put(columnName + column.delegatedField().map(delegate -> "." + delegate).orElse(""),
                                     likeToRegexp(slice, escape));
                             continue;

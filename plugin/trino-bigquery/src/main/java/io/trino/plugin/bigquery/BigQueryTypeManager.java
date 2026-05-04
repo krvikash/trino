@@ -392,9 +392,9 @@ public final class BigQueryTypeManager
         List<BigQueryColumnHandle> subColumns = subFields == null ?
                 Collections.emptyList() :
                 subFields.stream()
-                        .filter(this::isSupportedType)
-                        .map(this::toColumnHandle)
-                        .collect(Collectors.toList());
+                .filter(this::isSupportedType)
+                .map(this::toColumnHandle)
+                .collect(Collectors.toList());
         ColumnMapping columnMapping = toTrinoType(field).orElseThrow(() -> new IllegalArgumentException("Unsupported type: " + field));
         return new BigQueryColumnHandle(
                 field.getName(),
