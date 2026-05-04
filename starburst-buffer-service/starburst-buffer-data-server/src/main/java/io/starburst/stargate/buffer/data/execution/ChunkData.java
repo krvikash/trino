@@ -12,7 +12,8 @@ package io.starburst.stargate.buffer.data.execution;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 
-public interface ChunkData
+public sealed interface ChunkData
+        permits MemoryChunkData, DiskChunkData
 {
     ListenableFuture<Void> write(int taskId, int attemptId, Slice data);
 
