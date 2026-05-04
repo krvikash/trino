@@ -3946,7 +3946,8 @@ public abstract class BaseIcebergConnectorTest
     {
         // test multiple partition fields with void transform in front of the other partition fields
         try (TestTable table = newTrinoTable("test_void_transform_", "(a VARCHAR, b BIGINT, c VARCHAR) WITH (partitioning = ARRAY['void(b)', 'c'])")) {
-            String values = """
+            String values =
+                    """
                     (VARCHAR 'abcd', BIGINT '1', VARCHAR 'x'),
                     ('abxy', 2, 'x'),
                     ('xyzd', 3, 'x'),
@@ -5246,7 +5247,8 @@ public abstract class BaseIcebergConnectorTest
         try (TestTable table = newTrinoTable(
                 "test_variant_value_types",
                 "(v variant) WITH (FORMAT_VERSION = 3)")) {
-            String values = """
+            String values =
+                    """
                     VALUES
                     CAST(NULL AS VARIANT),
                     CAST(true AS VARIANT),
@@ -5294,7 +5296,8 @@ public abstract class BaseIcebergConnectorTest
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (NULL, NULL)", 1);
 
             assertThat(query("SELECT * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (
                             ARRAY[CAST(1 AS VARIANT), CAST('hello' AS VARIANT), CAST(NULL AS VARIANT)],
                             CAST(ROW(42, 123) AS ROW(v variant, i integer))),
@@ -9862,7 +9865,8 @@ public abstract class BaseIcebergConnectorTest
             assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
 
             assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName + " ORDER BY id"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (1, VARCHAR 'Alice', BIGINT '0', BIGINT '2'),
                                    (2, VARCHAR 'Bob', BIGINT '1', BIGINT '2')
                             """);
@@ -9872,7 +9876,8 @@ public abstract class BaseIcebergConnectorTest
             assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
 
             assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName + " ORDER BY id"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (1, VARCHAR 'Alice Updated', BIGINT '0', BIGINT '3'),
                                    (2, VARCHAR 'Bob', BIGINT '1', BIGINT '2')
                             """);
