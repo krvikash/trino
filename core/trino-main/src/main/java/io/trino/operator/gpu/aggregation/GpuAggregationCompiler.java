@@ -17,6 +17,9 @@ import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.spi.function.BoundSignature;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
@@ -29,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
@@ -80,6 +84,13 @@ public final class GpuAggregationCompiler
                         aggregation.getOrderingScheme().isPresent());
                 return Optional.empty();
             }
+            compiled.ifPresent(aggregateFunction -> verify(
+                    aggregateFunction.outputType().equals(outputSymbol.type()),
+                    "Expected compiled %s %s aggregate to produce %s but got %s",
+                    aggregation.getResolvedFunction().name(),
+                    step,
+                    outputSymbol.type(),
+                    aggregateFunction.outputType()));
             aggregates.add(compiled.get());
         }
 
@@ -103,22 +114,15 @@ public final class GpuAggregationCompiler
             return Optional.empty();
         }
 
-        // GpuAggregation only emits the function's return type, never the intermediate
-        // accumulator state. For PARTIAL/INTERMEDIATE steps the output symbol is typed as the
-        // intermediate type; running these on GPU when intermediate ≠ return type (e.g.
-        // sum(decimal), whose intermediate is a VARBINARY-serialized accumulator) would feed
-        // the downstream FINAL the wrong block.
-        if (!outputSymbol.type().equals(signature.getReturnType())) {
-            log.debug("Could not compile aggregation function %s: output symbol type %s differs from return type %s", signature, outputSymbol.type(), signature.getReturnType());
-            return Optional.empty();
-        }
-
         List<Expression> arguments = aggregation.getArguments();
-        Type outputType = signature.getReturnType();
+        Type outputType = outputSymbol.type();
 
         return switch (name) {
+            // For count, all steps produce the same type
             case "count" -> compileCount(arguments, sourceLayout, outputType);
+            // For currently supported sum, all steps produce the same type
             case "sum" -> compileSum(arguments, sourceLayout, outputType);
+            // For min and max, all steps produce the same type
             case "min" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
             case "max" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
             default -> Optional.empty();
@@ -142,10 +146,18 @@ public final class GpuAggregationCompiler
 
     private static Optional<GpuAggregateFunction> compileSum(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type outputType)
     {
-        return getSingleColumnReference(arguments, sourceLayout)
-                .filter(column -> isConvertible(column.type()))
-                .flatMap(column -> toDType(outputType)
-                        .map(dType -> new GpuSum(column.channel(), outputType, dType)));
+        Optional<ColumnReference> column = getSingleColumnReference(arguments, sourceLayout);
+        if (column.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Type argumentType = column.get().type();
+        return switch (argumentType) {
+            // For bigint, double and real, argument type == intermediate type == return type, so all 4 Steps share the same shape
+            // cuDF SUM yields the correct total whether the rows are raw values (PARTIAL/SINGLE) or already-summed partials (INTERMEDIATE/FINAL).
+            case BigintType _, DoubleType _, RealType _ -> toDType(argumentType).map(dType -> new GpuSum(column.get().channel(), outputType, dType));
+            default -> Optional.empty();
+        };
     }
 
     private static Optional<GpuAggregateFunction> compileMinMax(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type outputType, MinMaxFactory factory)
