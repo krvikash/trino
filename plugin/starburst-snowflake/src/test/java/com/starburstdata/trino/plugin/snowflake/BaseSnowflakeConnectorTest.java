@@ -1058,6 +1058,70 @@ public abstract class BaseSnowflakeConnectorTest
     }
 
     @Test
+    public void testCoalesceVarcharPredicatePushdown()
+    {
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_coalesce_varchar_pushdown",
+                "(a_int integer, a_varchar varchar(5), b_varchar varchar(5))",
+                List.of(
+                        "1, 'apple', 'red'",
+                        "2, NULL, 'green'",
+                        "3, NULL, NULL"))) {
+
+            // verify that it's not enabled without the session property
+            assertThat(query("SELECT a_varchar FROM " + table.getName() + " WHERE COALESCE(a_varchar, '') = ''"))
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            Session experimentalPushdownEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                    .build();
+
+            assertThat(query(experimentalPushdownEnabled, "SELECT a_int FROM " + table.getName() + " WHERE COALESCE(a_varchar, '') = 'apple'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT a_int FROM " + table.getName() + " WHERE COALESCE(a_varchar, b_varchar, '') = 'green'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT a_int FROM " + table.getName() + " WHERE COALESCE(a_varchar, b_varchar) IS NULL"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT a_int FROM " + table.getName() + " WHERE COALESCE(a_varchar, b_varchar) IS NOT NULL"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(experimentalPushdownEnabled, "SELECT a_int FROM " + table.getName() + " WHERE NOT(COALESCE(a_varchar, '') = 'apple')"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(experimentalPushdownEnabled, "SELECT a_int FROM " + table.getName() + " WHERE COALESCE(COALESCE(a_varchar, b_varchar), '') = 'apple'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testCoalesceMixedCollationPushdown()
+    {
+        try (TestTable table = new TestTable(
+                snowflakeExecutor,
+                getSession().getSchema().orElseThrow() + ".test_coalesce_collation_collision",
+                "(en_col VARCHAR COLLATE 'en', tr_col VARCHAR COLLATE 'tr')",
+                List.of("'t', 't'"))) {
+
+            assertThat(query(getSession(), "SELECT en_col FROM " + table.getName() + " WHERE COALESCE(en_col, tr_col) = 't'"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .result().rowCount().isEqualTo(1);
+
+            Session experimentalPushdownEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                    .build();
+
+            assertThat(query(experimentalPushdownEnabled, "SELECT en_col FROM " + table.getName() + " WHERE COALESCE(en_col, tr_col) = 't'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
     public void testJsonExtractScalarPushdown()
     {
         try (TestTable table = new TestTable(snowflakeExecutor, TEST_SCHEMA + ".test_json_extract_scalar_pushdown", jsonExtractPushdownTestTableDefinition())) {

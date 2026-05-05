@@ -10,12 +10,14 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.Session;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -99,6 +101,25 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
                 ImmutableList.of("'a', 'A'"))) {
             assertThat(query("SELECT * FROM " + testTable.getName() + " WHERE a = b"))
                     .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testCollationFixDisabledCoalesce()
+    {
+        try (TestTable table = new TestTable(
+                snowflakeExecutor,
+                getSession().getSchema().orElseThrow() + ".test_coalesce_collation_collision",
+                "(en_col VARCHAR COLLATE 'en', tr_col VARCHAR COLLATE 'tr')",
+                List.of("'t', 't'"))) {
+            Session experimentalPushdownEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                    .build();
+
+            assertQueryFails(
+                    experimentalPushdownEnabled,
+                    "SELECT en_col FROM " + table.getName() + " WHERE COALESCE(en_col, tr_col) = 't'",
+                    ".*Incompatible collations.*");
         }
     }
 }
