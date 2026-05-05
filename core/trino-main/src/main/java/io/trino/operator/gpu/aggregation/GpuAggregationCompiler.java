@@ -17,7 +17,6 @@ import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.spi.function.BoundSignature;
-import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
@@ -31,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verifyNotNull;
+import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static java.util.Objects.requireNonNull;
@@ -92,12 +92,17 @@ public final class GpuAggregationCompiler
 
     private static Optional<GpuAggregateFunction> compileAggregation(Symbol outputSymbol, Aggregation aggregation, Map<Symbol, Integer> sourceLayout)
     {
+        BoundSignature signature = aggregation.getResolvedFunction().signature();
+        if (!isBuiltinFunctionName(signature.getName())) {
+            return Optional.empty();
+        }
+        String name = signature.getName().functionName();
+
         if (aggregation.isDistinct() || aggregation.getFilter().isPresent() || aggregation.getOrderingScheme().isPresent() || aggregation.getMask().isPresent()) {
             // No DISTINCT, FILTER, ORDER BY, or MASK support yet
             return Optional.empty();
         }
 
-        BoundSignature signature = aggregation.getResolvedFunction().signature();
         // GpuAggregation only emits the function's return type, never the intermediate
         // accumulator state. For PARTIAL/INTERMEDIATE steps the output symbol is typed as the
         // intermediate type; running these on GPU when intermediate ≠ return type (e.g.
@@ -108,23 +113,16 @@ public final class GpuAggregationCompiler
             return Optional.empty();
         }
 
-        CatalogSchemaFunctionName functionName = signature.getName();
+        List<Expression> arguments = aggregation.getArguments();
+        Type outputType = signature.getReturnType();
 
-        if (functionName.catalogName().equals("system") && functionName.schemaName().equals("builtin")) {
-            String name = functionName.functionName();
-            List<Expression> arguments = aggregation.getArguments();
-            Type outputType = signature.getReturnType();
-
-            return switch (name) {
-                case "count" -> compileCount(arguments, sourceLayout, outputType);
-                case "sum" -> compileSum(arguments, sourceLayout, outputType);
-                case "min" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
-                case "max" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
-                default -> Optional.empty();
-            };
-        }
-
-        return Optional.empty();
+        return switch (name) {
+            case "count" -> compileCount(arguments, sourceLayout, outputType);
+            case "sum" -> compileSum(arguments, sourceLayout, outputType);
+            case "min" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
+            case "max" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
+            default -> Optional.empty();
+        };
     }
 
     private static Optional<GpuAggregateFunction> compileCount(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type outputType)
