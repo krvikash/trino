@@ -13,6 +13,7 @@
  */
 package io.trino.tests;
 
+import io.trino.Session;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
@@ -22,6 +23,8 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
+import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
+import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestDistributedGpuEngineOnlyQueries
@@ -406,6 +409,30 @@ public class TestDistributedGpuEngineOnlyQueries
                 HAVING count(*) > 5
                 """))
                 .executesWithGpu(AggregationNode.class);
+    }
+
+    @Override
+    @Test
+    public void testExplainAnalyze()
+    {
+        assertExplainAnalyze(
+                noJoinReordering(BROADCAST),
+                "EXPLAIN ANALYZE SELECT * FROM (SELECT nationkey, regionkey FROM nation GROUP BY nationkey, regionkey) a, nation b WHERE a.regionkey = b.regionkey",
+                "Trino version: .*");
+        // GPU join uses "GpuOperator" for both probe and build pipelines, so the EXPLAIN output
+        // shows merged "Input avg.:" without separate "Left (probe)" / "Right (build)" labels.
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey",
+                "Input avg\\.: .* rows, Input std\\.dev\\.: .*");
+        assertExplainAnalyze(
+                Session.builder(getSession())
+                        .setSystemProperty(ENABLE_DYNAMIC_FILTERING, "false")
+                        .build(),
+                "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey",
+                "Input avg\\.: .* rows, Input std\\.dev\\.: .*");
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey",
+                "Estimates: \\{rows: .* \\(.*\\), cpu: .*, memory: .*, network: .*}");
     }
 
     @Test

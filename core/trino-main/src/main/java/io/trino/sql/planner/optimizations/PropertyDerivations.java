@@ -541,7 +541,7 @@ public final class PropertyDerivations
             ActualProperties probeProperties = inputProperties.get(0);
             ActualProperties buildProperties = inputProperties.get(1);
 
-            boolean unordered = spillPossible(session, node.getType());
+            boolean unordered = spillPossible(session, node.getType()) || gpuJoinPossible(session);
 
             return switch (node.getType()) {
                 case INNER -> {
@@ -931,6 +931,13 @@ public final class PropertyDerivations
             // it might still be set as spillable later on by AddLocalExchanges.
             case RIGHT, FULL -> false; // Currently there is no spill support for outer on the build side.
         };
+    }
+
+    // GPU hash join (cuDF) does not guarantee probe-side output ordering, so streaming
+    // aggregation above a GPU join would produce wrong results.
+    private static boolean gpuJoinPossible(Session session)
+    {
+        return SystemSessionProperties.isGpuExecutionEnabled(session);
     }
 
     public static Optional<Symbol> filterIfMissing(Collection<Symbol> columns, Symbol column)

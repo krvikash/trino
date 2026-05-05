@@ -745,7 +745,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <exclude>**/operator/gpu/*Test*.java</exclude>
+                                <exclude>**/gpu/**/*Test*.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -762,7 +762,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <include>**/operator/gpu/*Test*.java</include>
+                                <include>**/gpu/**/*Test*.java</include>
                             </includes>
                         </configuration>
                     </plugin>

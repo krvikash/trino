@@ -94,6 +94,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.SystemSessionProperties.isGpuExecutionEnabled;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
 import static io.trino.spi.predicate.TupleDomain.extractFixedValues;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
@@ -234,7 +235,7 @@ public final class StreamPropertyDerivations
         public StreamProperties visitJoin(JoinNode node, List<StreamProperties> inputProperties)
         {
             StreamProperties leftProperties = inputProperties.get(0);
-            boolean unordered = spillPossible(session, node);
+            boolean unordered = spillPossible(session, node) || gpuJoinPossible(session);
 
             return switch (node.getType()) {
                 case INNER -> leftProperties
@@ -265,6 +266,13 @@ public final class StreamPropertyDerivations
         private static boolean spillPossible(Session session, JoinNode node)
         {
             return isSpillEnabled(session) && node.isSpillable().orElseThrow(() -> new IllegalArgumentException("spillable not yet set"));
+        }
+
+        // GPU hash join (cuDF) does not guarantee probe-side output ordering, so streaming
+        // aggregation above a GPU join would produce wrong results.
+        private static boolean gpuJoinPossible(Session session)
+        {
+            return isGpuExecutionEnabled(session);
         }
 
         @Override

@@ -130,10 +130,14 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperator;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuTopN;
+import io.trino.operator.gpu.SentinelSinkOperator;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
+import io.trino.operator.gpu.join.GpuJoinBridgeManager;
+import io.trino.operator.gpu.join.GpuJoinBuild;
+import io.trino.operator.gpu.join.GpuLookupJoin;
 import io.trino.operator.index.DynamicTupleFilterFactory;
 import io.trino.operator.index.FieldSetFilteringRecordSet;
 import io.trino.operator.index.IndexBuildDriverFactoryProvider;
@@ -3254,6 +3258,11 @@ public class LocalExecutionPlanner
                             .containsAll(node.getRightOutputSymbols());
 
             LocalExecutionPlanContext buildContext = context.createSubContext();
+            // TODO merge canPlanGpuLookupJoin and tryPlanGpuLookupJoin into single function
+            if (canPlanGpuLookupJoin(node, buildNode, probeSource)) {
+                // Force single build driver: GPU handles build-side parallelism internally.
+                buildContext.setDriverInstanceCount(1);
+            }
             PhysicalOperation buildSource = buildNode.accept(this, buildContext);
 
             List<Integer> buildOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getRightOutputSymbols(), buildSource.getLayout()));
@@ -3309,6 +3318,21 @@ public class LocalExecutionPlanner
             // Wait for build side to be collected before local dynamic filters are
             // consumed by table scan. This way table scan can filter data more efficiently.
             boolean waitForBuild = consumedLocalDynamicFilters;
+
+            Optional<PhysicalOperation> gpuOperation = tryPlanGpuLookupJoin(
+                    node,
+                    probeSource,
+                    buildSource,
+                    probeOutputChannels,
+                    probeJoinChannels,
+                    buildOutputChannels,
+                    buildChannels,
+                    context,
+                    buildContext);
+            if (gpuOperation.isPresent()) {
+                return gpuOperation.get();
+            }
+
             OperatorFactory operator;
             if (useSpillingJoinOperator(spillEnabled, session)) {
                 JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = new JoinBridgeManager<>(
@@ -4405,6 +4429,99 @@ public class LocalExecutionPlanner
                             makeLayout(node),
                             context,
                             node.getId()));
+        }
+
+        private boolean canPlanGpuLookupJoin(JoinNode node, PlanNode buildNode, PhysicalOperation probeSource)
+        {
+            return isGpuExecutionEnabled(session)
+                    && (node.getType() == INNER || node.getType() == LEFT)
+                    && node.getFilter().isEmpty()
+                    && !node.getCriteria().isEmpty()
+                    && probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)
+                    && buildNode.getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible);
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuLookupJoin(
+                JoinNode node,
+                PhysicalOperation probeSource,
+                PhysicalOperation buildSource,
+                List<Integer> probeOutputChannels,
+                List<Integer> probeJoinChannels,
+                List<Integer> buildOutputChannels,
+                List<Integer> buildChannels,
+                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext buildContext)
+        {
+            if (!isGpuExecutionEnabled(session)) {
+                return Optional.empty();
+            }
+            // v1 supports only INNER and LEFT outer.
+            if (node.getType() != INNER && node.getType() != LEFT) {
+                return Optional.empty();
+            }
+            // No filter / non-equi predicates.
+            if (node.getFilter().isPresent()) {
+                return Optional.empty();
+            }
+            // Must have at least one equi-clause; cross-joins go through the nested-loop path.
+            if (node.getCriteria().isEmpty()) {
+                return Optional.empty();
+            }
+            // Every probe and build column must be GPU-convertible (CopyToDevice copies all of them).
+            if (!probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+                return Optional.empty();
+            }
+            if (!buildSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+                return Optional.empty();
+            }
+
+            GpuJoinBridgeManager bridgeManager = new GpuJoinBridgeManager();
+
+            PhysicalOperation joinBuild = addGpuOperation(
+                    new GpuJoinBuild.Factory(
+                            bridgeManager,
+                            Ints.toArray(buildChannels),
+                            Ints.toArray(buildOutputChannels)),
+                    ImmutableList.of(),
+                    buildSource,
+                    ImmutableMap.of(),
+                    buildContext,
+                    node.getId());
+
+            // For the last operator, Driver does not call getOutput(), only addInput() (guarded by needsInput()) and finish() (when input exhausted).
+            // This means that the sink operator can never declare "I temporarily do not want more input", which is incompatible with GPU's operations
+            // contract such as BufferPages. We're a dummy operator so that Driver calls getOutput() allowing the build side to do its work.
+            joinBuild = new PhysicalOperation(new SentinelSinkOperator.Factory(buildContext.getNextOperatorId(), node.getId()), ImmutableMap.of(), joinBuild);
+
+            context.addDriverFactory(false, joinBuild, buildContext);
+
+            // Probe pipeline: probe input flows into a GpuLookupJoin transformation that produces
+            // joined GpuPages, optionally chaining with downstream GPU operators.
+            List<Type> buildOutputTypes = buildOutputChannels.stream()
+                    .map(buildSource.getTypes()::get)
+                    .collect(toImmutableList());
+            List<Type> joinOutputTypes = ImmutableList.<Type>builder()
+                    .addAll(probeOutputChannels.stream().map(probeSource.getTypes()::get).collect(toImmutableList()))
+                    .addAll(buildOutputTypes)
+                    .build();
+
+            GpuLookupJoin.JoinType joinType = (node.getType() == INNER)
+                    ? GpuLookupJoin.JoinType.INNER
+                    : GpuLookupJoin.JoinType.LEFT;
+            GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(
+                    bridgeManager,
+                    Ints.toArray(probeJoinChannels),
+                    Ints.toArray(probeOutputChannels),
+                    joinType,
+                    buildOutputTypes);
+
+            return Optional.of(addGpuOperation(
+                    probeFactory,
+                    joinOutputTypes,
+                    probeSource,
+                    makeLayout(node),
+                    context,
+                    node.getId()));
         }
 
         private OperatorFactory createHashAggregationOperatorFactory(
