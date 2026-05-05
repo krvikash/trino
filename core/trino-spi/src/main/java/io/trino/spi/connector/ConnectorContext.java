@@ -117,4 +117,9 @@ public interface ConnectorContext
     {
         throw new UnsupportedOperationException();
     }
+
+    default ManagedStatisticsClient getManagedStatisticsClient()
+    {
+        throw new UnsupportedOperationException();
+    }
 }

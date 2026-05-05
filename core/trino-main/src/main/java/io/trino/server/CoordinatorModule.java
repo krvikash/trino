@@ -22,12 +22,12 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.multibindings.OptionalBinder;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.trino.connector.ThrowingManagedStatisticsClient;
 import io.trino.cost.CostCalculator;
 import io.trino.cost.CostCalculator.EstimatedExchanges;
 import io.trino.cost.CostCalculatorUsingExchanges;
@@ -117,6 +117,7 @@ import io.trino.server.remotetask.RemoteTaskStats;
 import io.trino.server.ui.WebUiModule;
 import io.trino.server.ui.WorkerResource;
 import io.trino.spi.VersionEmbedder;
+import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.SessionPropertyResolver;
 import io.trino.sql.analyzer.AnalyzerFactory;
@@ -146,6 +147,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.concurrent.Threads.threadsNamed;
@@ -205,7 +207,7 @@ public class CoordinatorModule
                 // For backward compatibility
                 .replaceFirst("QueryManager", "SqlQueryManager"));
         binder.bind(QueryPreparer.class).in(Scopes.SINGLETON);
-        OptionalBinder.newOptionalBinder(binder, SessionSupplier.class).setDefault().to(QuerySessionSupplier.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, SessionSupplier.class).setDefault().to(QuerySessionSupplier.class).in(Scopes.SINGLETON);
         binder.bind(ResourceGroupInfoProvider.class).to(ResourceGroupManager.class).in(Scopes.SINGLETON);
         binder.bind(InternalResourceGroupManager.class).in(Scopes.SINGLETON);
         newExporter(binder).export(InternalResourceGroupManager.class).withGeneratedName();
@@ -430,6 +432,9 @@ public class CoordinatorModule
         executionPolicyBinder.addBinding("phased").to(PhasedExecutionPolicy.class);
 
         install(new QueryExecutionFactoryModule());
+
+        newOptionalBinder(binder, ManagedStatisticsClient.class)
+                .setDefault().to(ThrowingManagedStatisticsClient.class).in(Scopes.SINGLETON);
 
         // cleanup
         closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForStatementResource.class));

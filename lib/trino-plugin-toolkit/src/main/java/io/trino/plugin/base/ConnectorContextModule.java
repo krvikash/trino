@@ -27,6 +27,7 @@ import io.trino.spi.VersionEmbedder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
@@ -64,6 +65,7 @@ public class ConnectorContextModule
         binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());
         binder.bind(PageStreamFactory.class).toInstance(context.getPageStreamFactory());
         binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
+        binder.bind(ManagedStatisticsClient.class).toInstance(context.getManagedStatisticsClient());
         // Note: ModelConnectionSpecsLoader is bound conditionally depending on the catalog configuration in AiClientModule
     }
 }

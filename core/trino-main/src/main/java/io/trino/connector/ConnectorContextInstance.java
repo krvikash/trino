@@ -22,6 +22,7 @@ import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.function.FunctionBundleFactory;
@@ -47,6 +48,7 @@ public class ConnectorContextInstance
     private final CatalogVersion catalogVersion;
     private final String nodeEnvironment;
     private final FunctionBundleFactory functionBundleFactory;
+    private final ManagedStatisticsClient managedStatisticsClient;
 
     public ConnectorContextInstance(
             OpenTelemetry openTelemetry,
@@ -62,7 +64,8 @@ public class ConnectorContextInstance
             PageStreamFactory pageStreamFactory,
             CatalogVersion catalogVersion,
             String nodeEnvironment,
-            FunctionBundleFactory functionBundleFactory)
+            FunctionBundleFactory functionBundleFactory,
+            ManagedStatisticsClient managedStatisticsClient)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
@@ -78,6 +81,7 @@ public class ConnectorContextInstance
         this.catalogVersion = requireNonNull(catalogVersion, "catalogVersion is null");
         this.nodeEnvironment = requireNonNull(nodeEnvironment, "nodeEnvironment is null");
         this.functionBundleFactory = requireNonNull(functionBundleFactory, "functionBundleFactory is null");
+        this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
     }
 
     @Override
@@ -162,5 +166,11 @@ public class ConnectorContextInstance
     public FunctionBundleFactory getFunctionBundleFactory()
     {
         return functionBundleFactory;
+    }
+
+    @Override
+    public ManagedStatisticsClient getManagedStatisticsClient()
+    {
+        return managedStatisticsClient;
     }
 }

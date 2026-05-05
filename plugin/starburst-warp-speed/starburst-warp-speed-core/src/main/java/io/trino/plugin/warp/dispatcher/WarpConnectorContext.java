@@ -23,6 +23,7 @@ import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.function.FunctionBundleFactory;
@@ -143,5 +144,11 @@ public class WarpConnectorContext
     public FunctionBundleFactory getFunctionBundleFactory()
     {
         return connectorContext.getFunctionBundleFactory();
+    }
+
+    @Override
+    public ManagedStatisticsClient getManagedStatisticsClient()
+    {
+        return connectorContext.getManagedStatisticsClient();
     }
 }

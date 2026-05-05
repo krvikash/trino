@@ -41,6 +41,7 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorName;
+import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
@@ -79,6 +80,7 @@ public class DefaultCatalogFactory
     private final int maxPrefetchedInformationSchemaPrefixes;
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
+    private final ManagedStatisticsClient managedStatisticsClient;
 
     private final ConcurrentMap<ConnectorName, ConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
     private final LocalMemoryManager localMemoryManager;
@@ -101,6 +103,7 @@ public class DefaultCatalogFactory
             NodeSchedulerConfig nodeSchedulerConfig,
             AiModelAccessControl aiModelAccessControl,
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
+            ManagedStatisticsClient managedStatisticsClient,
             OptimizerConfig optimizerConfig,
             LocalMemoryManager localMemoryManager,
             SecretsResolver secretsResolver,
@@ -121,6 +124,7 @@ public class DefaultCatalogFactory
         this.maxPrefetchedInformationSchemaPrefixes = optimizerConfig.getMaxPrefetchedInformationSchemaPrefixes();
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
+        this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
         this.localMemoryManager = requireNonNull(localMemoryManager, "localMemoryManager is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
@@ -222,7 +226,8 @@ public class DefaultCatalogFactory
                 pageStreamFactory,
                 catalogVersion,
                 nodeInfo.getEnvironment(),
-                new InternalFunctionBundleFactory());
+                new InternalFunctionBundleFactory(),
+                managedStatisticsClient);
 
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connectorFactory.getClass().getClassLoader())) {
             // TODO: connector factory should take CatalogName
