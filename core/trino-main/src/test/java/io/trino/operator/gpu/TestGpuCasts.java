@@ -143,8 +143,8 @@ public class TestGpuCasts
         assertCastSucceedsForAll(TINYINT, REAL, values);
         assertCastSucceedsForAll(TINYINT, DOUBLE, values);
         assertCastSucceedsForAll(TINYINT, DECIMAL_13_2, values);
-        // DECIMAL(27,5) and NUMBER are not yet supported on GPU
-        assertThat(gpuCast(TINYINT, DECIMAL_27_5)).isNotSupported();
+        assertCastSucceedsForAll(TINYINT, DECIMAL_27_5, values);
+        // NUMBER is not yet supported on GPU
         assertThat(gpuCast(TINYINT, NUMBER)).isNotSupported();
         // VARCHAR(N) supported when N is large enough to hold sign + 3 digits
         assertCastSucceedsForAll(TINYINT, createVarcharType(4), values);
@@ -184,7 +184,7 @@ public class TestGpuCasts
         assertCastSucceedsForAll(SMALLINT, REAL, inRange);
         assertCastSucceedsForAll(SMALLINT, DOUBLE, inRange);
         assertCastSucceedsForAll(SMALLINT, DECIMAL_13_2, inRange);
-        assertThat(gpuCast(SMALLINT, DECIMAL_27_5)).isNotSupported();
+        assertCastSucceedsForAll(SMALLINT, DECIMAL_27_5, inRange);
         assertThat(gpuCast(SMALLINT, NUMBER)).isNotSupported();
         // VARCHAR(N) supported when N is large enough to hold sign + 5 digits
         assertCastSucceedsForAll(SMALLINT, createVarcharType(6), inRange);
@@ -220,7 +220,7 @@ public class TestGpuCasts
         assertCastSucceedsForAll(INTEGER, REAL, inRange);
         assertCastSucceedsForAll(INTEGER, DOUBLE, inRange);
         assertCastSucceedsForAll(INTEGER, DECIMAL_13_2, inRange);
-        assertThat(gpuCast(INTEGER, DECIMAL_27_5)).isNotSupported();
+        assertCastSucceedsForAll(INTEGER, DECIMAL_27_5, inRange);
         assertThat(gpuCast(INTEGER, NUMBER)).isNotSupported();
         // VARCHAR(N) supported when N is large enough to hold sign + 10 digits
         assertCastSucceedsForAll(INTEGER, createVarcharType(11), inRange);
@@ -262,7 +262,7 @@ public class TestGpuCasts
         assertCastSucceedsForAll(BIGINT, BIGINT, inRange);
         assertCastSucceedsForAll(BIGINT, REAL, inRange);
         assertCastSucceedsForAll(BIGINT, DOUBLE, inRange);
-        assertThat(gpuCast(BIGINT, DECIMAL_27_5)).isNotSupported();
+        assertCastSucceedsForAll(BIGINT, DECIMAL_27_5, inRange);
         assertThat(gpuCast(BIGINT, NUMBER)).isNotSupported();
         // VARCHAR(N) supported when N is large enough to hold sign + 19 digits
         assertCastSucceedsForAll(BIGINT, createVarcharType(20), inRange);
@@ -290,21 +290,32 @@ public class TestGpuCasts
         assertCastSucceedsForAll(DECIMAL_13_2, REAL, values);
         assertCastSucceedsForAll(DECIMAL_13_2, DOUBLE, values);
         assertCastSucceedsForAll(DECIMAL_13_2, DECIMAL_13_2, values);
-        assertThat(gpuCast(DECIMAL_13_2, DECIMAL_27_5)).isNotSupported();
+        assertCastSucceedsForAll(DECIMAL_13_2, DECIMAL_27_5, values);
         assertThat(gpuCast(DECIMAL_13_2, NUMBER)).isNotSupported();
     }
 
     @Test
     void testCastFromDecimal27()
     {
+        // DECIMAL(27, 5): range is -9999999999999999999999.99999 .. 9999999999999999999999.99999
+        String[] values = {
+                "CAST(-1 AS DECIMAL(27, 5))",
+                "CAST(0 AS DECIMAL(27, 5))",
+                "CAST(1 AS DECIMAL(27, 5))",
+                "CAST(-9999999999999999999999.99999 AS DECIMAL(27, 5))",
+                "CAST(9999999999999999999999.99999 AS DECIMAL(27, 5))",
+                "CAST(NULL AS DECIMAL(27, 5))",
+        };
+        // Non-zero scale precludes lossless cast to any integer type
         assertThat(gpuCast(DECIMAL_27_5, TINYINT)).isNotSupported();
         assertThat(gpuCast(DECIMAL_27_5, SMALLINT)).isNotSupported();
         assertThat(gpuCast(DECIMAL_27_5, INTEGER)).isNotSupported();
         assertThat(gpuCast(DECIMAL_27_5, BIGINT)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27_5, REAL)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27_5, DOUBLE)).isNotSupported();
+        assertCastSucceedsForAll(DECIMAL_27_5, REAL, values);
+        assertCastSucceedsForAll(DECIMAL_27_5, DOUBLE, values);
+        // decimal(27,5) integer digits (22) exceed decimal(13,2) integer digits (11)
         assertThat(gpuCast(DECIMAL_27_5, DECIMAL_13_2)).isNotSupported();
-        assertThat(gpuCast(DECIMAL_27_5, DECIMAL_27_5)).isNotSupported();
+        assertCastSucceedsForAll(DECIMAL_27_5, DECIMAL_27_5, values);
         assertThat(gpuCast(DECIMAL_27_5, NUMBER)).isNotSupported();
     }
 
