@@ -27,6 +27,7 @@ module trino.spi {
     exports io.trino.spi.catalog;
     exports io.trino.spi.classloader;
     exports io.trino.spi.connector;
+    exports io.trino.spi.connector.ai;
     exports io.trino.spi.eventlistener;
     exports io.trino.spi.exchange;
     exports io.trino.spi.expression;
