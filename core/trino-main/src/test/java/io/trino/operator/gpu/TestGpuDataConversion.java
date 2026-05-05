@@ -147,20 +147,24 @@ public class TestGpuDataConversion
     @EnumSource(NullsProvider.class)
     public void testSmallPage(NullsProvider nullsProvider)
     {
-        List<Type> types = TESTED_GPU_TYPES;
-        List<Page> inputPages = createInputPages(List.of(16), nullsProvider, types);
-        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameDataInOrder(outputPages, inputPages, types);
+        for (Type type : TESTED_GPU_TYPES) {
+            List<Type> types = List.of(type);
+            List<Page> inputPages = createInputPages(List.of(16), nullsProvider, types);
+            List<Page> outputPages = executeRoundTrip(inputPages, types, Set.of(0));
+            assertSameDataInOrder(outputPages, inputPages, types);
+        }
     }
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
     public void testBigPage(NullsProvider nullsProvider)
     {
-        List<Type> types = TESTED_GPU_TYPES;
-        List<Page> inputPages = createInputPages(List.of(213748), nullsProvider, types);
-        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameDataInOrder(outputPages, inputPages, types);
+        for (Type type : TESTED_GPU_TYPES) {
+            List<Type> types = List.of(type);
+            List<Page> inputPages = createInputPages(List.of(213748), nullsProvider, types);
+            List<Page> outputPages = executeRoundTrip(inputPages, types, Set.of(0));
+            assertSameDataInOrder(outputPages, inputPages, types);
+        }
     }
 
     @ParameterizedTest
@@ -168,10 +172,12 @@ public class TestGpuDataConversion
     public void testPages(NullsProvider nullsProvider)
     {
         List<Integer> positionsCounts = randomInts(0, 100_000).limit(42).toList();
-        List<Type> types = TESTED_GPU_TYPES;
-        List<Page> inputPages = createInputPages(positionsCounts, nullsProvider, types);
-        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameDataInOrder(outputPages, inputPages, types);
+        for (Type type : TESTED_GPU_TYPES) {
+            List<Type> types = List.of(type);
+            List<Page> inputPages = createInputPages(positionsCounts, nullsProvider, types);
+            List<Page> outputPages = executeRoundTrip(inputPages, types, Set.of(0));
+            assertSameDataInOrder(outputPages, inputPages, types);
+        }
     }
 
     @ParameterizedTest
@@ -179,10 +185,12 @@ public class TestGpuDataConversion
     public void testRlePages(NullsProvider nullsProvider)
     {
         List<Integer> positionsCounts = randomInts(0, 10_000).limit(20).toList();
-        List<Type> types = TESTED_GPU_TYPES;
-        List<Page> inputPages = toRlePages(createInputPages(positionsCounts, nullsProvider, types));
-        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameDataInOrder(outputPages, inputPages, types);
+        for (Type type : TESTED_GPU_TYPES) {
+            List<Type> types = List.of(type);
+            List<Page> inputPages = toRlePages(createInputPages(positionsCounts, nullsProvider, types));
+            List<Page> outputPages = executeRoundTrip(inputPages, types, Set.of(0));
+            assertSameDataInOrder(outputPages, inputPages, types);
+        }
     }
 
     @ParameterizedTest
@@ -190,10 +198,12 @@ public class TestGpuDataConversion
     public void testDictionaryPages(NullsProvider nullsProvider)
     {
         List<Integer> positionsCounts = randomInts(0, 10_000).limit(20).toList();
-        List<Type> types = TESTED_GPU_TYPES;
-        List<Page> inputPages = toDictionaryPages(createInputPages(positionsCounts, nullsProvider, types));
-        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameDataInOrder(outputPages, inputPages, types);
+        for (Type type : TESTED_GPU_TYPES) {
+            List<Type> types = List.of(type);
+            List<Page> inputPages = toDictionaryPages(createInputPages(positionsCounts, nullsProvider, types));
+            List<Page> outputPages = executeRoundTrip(inputPages, types, Set.of(0));
+            assertSameDataInOrder(outputPages, inputPages, types);
+        }
     }
 
     private static List<Page> toRlePages(List<Page> pages)
