@@ -279,6 +279,7 @@ public class SnowflakeClient
                 .add(new RewriteJsonConstant(jsonType))
                 .add(new RewriteJsonExtract(jsonType))
                 .add(new RewriteJsonExtractScalar())
+                .add(new RewriteWideningCast())
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")

@@ -954,6 +954,110 @@ public abstract class BaseSnowflakeConnectorTest
     }
 
     @Test
+    public void testWideningCastPushdown()
+    {
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_widening_cast_pushdown", """
+                        (
+                            varchar_5 varchar(5),
+                            varchar_20 varchar(20),
+                            int_col integer,
+                            dec_10_2 decimal(10, 2),
+                            dec_15_2 decimal(15, 2),
+                            a_real real,
+                            a_double double,
+                            ts_3 timestamp(3),
+                            ts_6 timestamp(6),
+                            tstz_3 timestamp(3) with time zone,
+                            tstz_6 timestamp(6) with time zone
+                        )""",
+                List.of("'apple', 'apple', 1, 1.50, 1.50, REAL '1.5', DOUBLE '1.5'," +
+                        " TIMESTAMP '2024-01-01 00:00:00.000', TIMESTAMP '2024-01-01 00:00:00.000000'," +
+                        " TIMESTAMP '2024-01-01 00:00:00.000 UTC', TIMESTAMP '2024-01-01 00:00:00.000000 UTC'"))) {
+
+            // verify that it's not enabled without the session property
+            assertThat(query("SELECT varchar_5 FROM " + table.getName() + " WHERE varchar_5 = varchar_20"))
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            Session experimentalPushdownEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                    .build();
+
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE varchar_5 = varchar_20"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE CAST(varchar_5 AS varchar) = 'apple'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE CAST(int_col AS DECIMAL(10, 0)) = 1"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE CAST(int_col AS BIGINT) = 1"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE a_real = a_double"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE dec_10_2 = dec_15_2"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE ts_3 = ts_6"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_5 FROM " + table.getName() + " WHERE tstz_3 = tstz_6"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testNarrowingCastNotPushedDown()
+    {
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_narrowing_cast_not_pushed_down", """
+                        (
+                            varchar_5 varchar(5),
+                            varchar_20 varchar(20),
+                            int_col integer,
+                            dec_10_2 decimal(10, 2),
+                            dec_5_2 decimal(5, 2),
+                            dec_15_5 decimal(15, 5),
+                            dec_10_5 decimal(10, 5),
+                            ts_3 timestamp(3),
+                            ts_6 timestamp(6),
+                            tstz_3 timestamp(3) with time zone,
+                            tstz_6 timestamp(6) with time zone
+                        )""",
+                List.of("'apple', 'apple', 1, 1.50, 1.50, 1.50000, 1.50000," +
+                        " TIMESTAMP '2024-01-01 00:00:00.000', TIMESTAMP '2024-01-01 00:00:00.000000'," +
+                        " TIMESTAMP '2024-01-01 00:00:00.000 UTC', TIMESTAMP '2024-01-01 00:00:00.000000 UTC'"))) {
+
+            Session experimentalPushdownEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                    .build();
+
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(varchar_20 AS varchar(5)) = varchar_5"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(dec_10_2 AS decimal(5, 2)) = dec_5_2"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(dec_10_2 AS decimal(15, 5)) = dec_15_5"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(dec_10_2 AS decimal(10, 5)) = dec_10_5"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(int_col AS decimal(5, 0)) = dec_5_2"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(ts_6 AS timestamp(3)) = ts_3"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(tstz_6 AS timestamp(3) with time zone) = tstz_3"))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(experimentalPushdownEnabled, "SELECT varchar_20 FROM " + table.getName() + " WHERE CAST(int_col AS varchar(20)) = varchar_5"))
+                    .isNotFullyPushedDown(FilterNode.class);
+        }
+    }
+
+    @Test
     public void testJsonExtractScalarPushdown()
     {
         try (TestTable table = new TestTable(snowflakeExecutor, TEST_SCHEMA + ".test_json_extract_scalar_pushdown", jsonExtractPushdownTestTableDefinition())) {
@@ -1271,7 +1375,7 @@ public abstract class BaseSnowflakeConnectorTest
                         "9, 'he\\\\1lo'" // SQL "he\\1lo" => Snowflake "he\1lo" (len 6, 'h' 'e' '\' '1', 'l', 'o')
                 ))) {
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE NULL")).returnsEmptyResult();
-            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE a_varchar")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE a_varchar")).isFullyPushedDown();
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE UPPER(a_varchar)")).isNotFullyPushedDown(FilterNode.class);
 
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'hello'"))
