@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour;
+import com.starburstdata.trino.plugin.snowflake.SnowflakeSessionProperties;
 import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
 import io.trino.plugin.base.expression.ConnectorExpressionRewriter;
@@ -257,6 +258,7 @@ public class SnowflakeClient
         this.connectorFlavour = connectorFlavour;
         this.databasePrefixForSchemaEnabled = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getDatabasePrefixForSchemaEnabled();
         this.collationCorrectionEnabled = snowflakeConfig.isCollationCorrectionEnabled();
+        Predicate<ConnectorSession> experimentalPushdownEnabled = SnowflakeSessionProperties::getExperimentalPushdownEnabled;
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 // Same as addStandardRules but rewrites variables in a custom way.
                 .add(collationCorrectionEnabled ?
@@ -280,6 +282,7 @@ public class SnowflakeClient
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")
+                .when(experimentalPushdownEnabled).map("$like(subject: varchar, pattern: varchar)").to("subject LIKE pattern")
                 .build();
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
                 this.connectorExpressionRewriter,

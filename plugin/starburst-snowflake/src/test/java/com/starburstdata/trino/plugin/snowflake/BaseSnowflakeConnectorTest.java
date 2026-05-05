@@ -1251,6 +1251,119 @@ public abstract class BaseSnowflakeConnectorTest
         }
     }
 
+    @Test
+    public void testLikePushdown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".test_like_pushdown",
+                "(n int, a_varchar VARCHAR(20))",
+                List.of("0, null",
+                        "1, 'hello'",
+                        "2, 'he1lo'",
+                        "3, 'he%lo'",
+                        "4, 'he\\\\lo'", // SQL "he\\lo" => Snowflake "he\lo" (len 5: 'h' 'e' '\' 'l' 'o')
+                        "5, 'HELLO'",
+                        "6, 'helLO'",
+                        "7, 'hello   '",
+                        "8, 'he\\nlo'",  // SQL "he\nlo" => Snowflake "he\nlo" (len 5, 'h' 'e' <new line> 'l' 'o')
+                        "9, 'he\\\\1lo'" // SQL "he\\1lo" => Snowflake "he\1lo" (len 6, 'h' 'e' '\' '1', 'l', 'o')
+                ))) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE NULL")).returnsEmptyResult();
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE a_varchar")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE UPPER(a_varchar)")).isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'hello'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE '%'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(9);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'h%'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(8);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE '%o'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(6);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE '%e%'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(8);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'he_lo'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(5);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'hel_o%'"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(2);
+            // '\' is literal in LIKE patterns; '\%' and '\_' still have '%' and '_' acting as wildcards
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'he\\%lo'")) // actual pattern: 'he\%lo'
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'he\\_lo'")) // actual pattern: 'he\_lo'
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testCompoundPredicatePushdown() {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".test_predicate_pushdown",
+                "(n int, a_varchar VARCHAR(20))",
+                List.of("0, null",
+                        "1, 'hello'",
+                        "2, 'he1lo'",
+                        "3, 'he%lo'",
+                        "4, 'he\\\\lo'", // SQL "he\\lo" => Snowflake "he\lo" (len 5: 'h' 'e' '\' 'l' 'o')
+                        "5, 'HELLO'",
+                        "6, 'helLO'",
+                        "7, 'hello   '",
+                        "8, 'he\\nlo'",  // SQL "he\nlo" => Snowflake "he\nlo" (len 5, 'h' 'e' <new line> 'l' 'o')
+                        "9, 'he\\\\1lo'" // SQL "he\\1lo" => Snowflake "he\1lo" (len 6, 'h' 'e' '\' '1', 'l', 'o')
+                ))) {
+            // These should be pushed down once UPPER/LOWER are pushed down as well
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE UPPER(a_varchar) LIKE 'HE%LO'"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .result().rowCount().isEqualTo(8);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE LOWER(a_varchar) LIKE 'hello'"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .result().rowCount().isEqualTo(3);
+        }
+    }
+
+    @Test
+    public void testCollatedLikePushdown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".collated_like_pushdown",
+                "(a VARCHAR(3) COLLATE 'utf8', b VARCHAR(3) COLLATE 'en-ci')",
+                ImmutableList.of(
+                        "'abc', 'abc'",
+                        "'Abc', 'Abc'",
+                        "'AbC', 'AbC'",
+                        "'abC', 'abC'"
+                )
+        )) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a LIKE 'a_c'"))
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE b LIKE 'a_c'"))
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE b LIKE a"))
+                    .hasCorrectResultsRegardlessOfPushdown();
+        }
+    }
+
+    private Session experimentalPushdownEnabled()
+    {
+        return Session.builder(getSession())
+                .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                .build();
+    }
+
     private static String jsonExtractPushdownTestTableDefinition()
     {
         // Snowflake doesn't allow using `parse_json` in VALUES of INSERT statement so we need to wrap it inside a SELECT
