@@ -34,7 +34,7 @@ public final class PagesSerdeUtil
      * Special checksum value used to verify configuration consistency across nodes (all nodes need to have data integrity configured the same way).
      * It's not just 0, so that hypothetical zero-ed out data is not treated as valid payload with no checksum.
      */
-    public static final long NO_CHECKSUM = 0x0123456789abcdefL;
+    public static final long NO_CHECKSUM = 0x0123456789ABCDEFL;
 
     public static long finalizeChecksum(XxHash64 hash)
     {
