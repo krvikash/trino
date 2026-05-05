@@ -299,7 +299,9 @@ public final class BenchmarkRunner
             try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false)) {
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
                 log.info("Running %s benchmark: %s suite warmup, %s warmup, %s measured runs, reporting average", workload.name(), suiteWarmup, warmup, runs);
-                workload.verifyDataset(runner);
+                if (dataLocation != null) {
+                    workload.verifyDataset(runner);
+                }
                 verifyTableStatistics(runner, workload);
 
                 List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
@@ -640,7 +642,9 @@ public final class BenchmarkRunner
                 workload.validateDataLocation(data);
             }
             try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false)) {
-                workload.verifyDataset(runner);
+                if (dataLocation != null) {
+                    workload.verifyDataset(runner);
+                }
                 verifyTableStatistics(runner, workload);
                 List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
                 for (int queryNumber : queriesRun) {
