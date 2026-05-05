@@ -639,7 +639,7 @@ public class TestGpuExpressions
     @MethodSource("comparisonTestCases")
     public void testComparison(Type type, Comparison.Operator operator, NullsProvider nullsProvider)
     {
-        if ((type instanceof DecimalType decimalType && !decimalType.isShort()) || type == NUMBER) {
+        if (type == NUMBER) {
             // type currently not supported
             assertThat(isConvertible(type)).as("Expected %s to be not supported on GPU", type)
                     .isFalse();
