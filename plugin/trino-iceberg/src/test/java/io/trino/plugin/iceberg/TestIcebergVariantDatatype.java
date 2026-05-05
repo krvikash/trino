@@ -133,10 +133,10 @@ final class TestIcebergVariantDatatype
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(-12345)), "CAST (-12345 as JSON)");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(9876543210L)), "CAST (9876543210 as JSON)");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(-9876543210L)), "CAST (-9876543210 as JSON)");
-        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(10.11F)), "CAST (10.11 as JSON)");
-        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(-10.11F)), "CAST (-10.11 as JSON)");
-        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(14.3D)), "CAST (14.3 as JSON)");
-        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(-14.3D)), "CAST (-14.3 as JSON)");
+        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(10.11f)), "CAST (10.11 as JSON)");
+        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(-10.11f)), "CAST (-10.11 as JSON)");
+        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(14.3d)), "CAST (14.3 as JSON)");
+        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(-14.3d)), "CAST (-14.3 as JSON)");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, EMPTY_OBJECT), "JSON '{}'");
         testVariantTypeMappings(Variant.of(TEST_METADATA, TEST_OBJECT), "JSON '{\"a\":null,\"d\":\"trino\"}'");
         testVariantTypeMappings(Variant.of(TEST_METADATA, SIMILAR_OBJECT), "JSON '{\"a\":123456789,\"c\":\"string\"}'");
@@ -148,7 +148,7 @@ final class TestIcebergVariantDatatype
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.ofIsoTimestampntz("1957-11-07T12:33:54.123456")), "JSON '\"1957-11-07 12:33:54.123456\"'");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(new BigDecimal("123456.789"))), "CAST (123456.789 AS JSON)");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(new BigDecimal("-123456.789"))), "CAST (-123456.789 AS JSON)");
-        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(ByteBuffer.wrap(new byte[] {0x0a, 0x0b, 0x0c, 0x0d}))), "JSON '\"CgsMDQ==\"'");
+        testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of(ByteBuffer.wrap(new byte[] {0x0A, 0x0B, 0x0C, 0x0D}))), "JSON '\"CgsMDQ==\"'");
         testVariantTypeMappings(Variant.of(EMPTY_METADATA, Variants.of("trino")), "JSON '\"trino\"'");
     }
 

@@ -243,17 +243,17 @@ public class CacheDriverFactory
                                 split.split(),
                                 originalTableHandle,
                                 enforcedPredicate
-                                        .filter((columnId, domain) -> commonColumnHandles.containsValue(columnId))
+                                        .filter((columnId, _) -> commonColumnHandles.containsValue(columnId))
                                         .transformKeys(columnId -> commonColumnHandles.inverse().get(columnId)))
                         .transformKeys(commonColumnHandles::get),
-                enforcedPredicate.filter((columnId, domain) -> !commonColumnHandles.containsValue(columnId))));
+                enforcedPredicate.filter((columnId, _) -> !commonColumnHandles.containsValue(columnId))));
     }
 
     private ProjectPredicate projectPredicate(TupleDomain<CacheColumnId> predicate)
     {
         return new ProjectPredicate(
-                predicate.filter((columnId, domain) -> projectedColumns.containsKey(columnId)),
-                Optional.of(predicate.filter((columnId, domain) -> !projectedColumns.containsKey(columnId)))
+                predicate.filter((columnId, _) -> projectedColumns.containsKey(columnId)),
+                Optional.of(predicate.filter((columnId, _) -> !projectedColumns.containsKey(columnId)))
                         .filter(domain -> !domain.isAll())
                         .map(CacheUtils::normalizeTupleDomain)
                         .map(tupleDomainCodec::toJson));
@@ -333,6 +333,6 @@ public class CacheDriverFactory
         return domain.getValues().getValuesProcessor().transform(
                 Ranges::getRangeCount,
                 DiscreteValues::getValuesCount,
-                ignored -> 0);
+                _ -> 0);
     }
 }

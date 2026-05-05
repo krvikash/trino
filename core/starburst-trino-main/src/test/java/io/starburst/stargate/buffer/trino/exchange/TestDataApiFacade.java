@@ -1112,7 +1112,7 @@ public class TestDataApiFacade
             if (responses.isEmpty()) {
                 throw new IllegalStateException("no response recorded for " + key);
             }
-            listClosedChunksCounters.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet();
+            listClosedChunksCounters.computeIfAbsent(key, _ -> new AtomicLong()).incrementAndGet();
             return responses.remove(0);
         }
 
@@ -1123,7 +1123,7 @@ public class TestDataApiFacade
 
         public synchronized long getListClosedChunksCallCount(String exchangeId, OptionalLong pagingId)
         {
-            return listClosedChunksCounters.computeIfAbsent(new ListClosedChunksKey(exchangeId, pagingId), ignored -> new AtomicLong()).get();
+            return listClosedChunksCounters.computeIfAbsent(new ListClosedChunksKey(exchangeId, pagingId), _ -> new AtomicLong()).get();
         }
 
         @Override
@@ -1164,7 +1164,7 @@ public class TestDataApiFacade
             if (responses.isEmpty()) {
                 throw new IllegalStateException("no response recorded for " + key);
             }
-            addDataPagesCounters.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet();
+            addDataPagesCounters.computeIfAbsent(key, _ -> new AtomicLong()).incrementAndGet();
             return responses.remove(0);
         }
 
@@ -1175,7 +1175,7 @@ public class TestDataApiFacade
 
         public synchronized long getAddDataPagesCallCount(String exchangeId, int taskId, int attemptId, long dataPagesId)
         {
-            return addDataPagesCounters.computeIfAbsent(new AddDataPagesKey(exchangeId, taskId, attemptId, dataPagesId), ignored -> new AtomicLong()).get();
+            return addDataPagesCounters.computeIfAbsent(new AddDataPagesKey(exchangeId, taskId, attemptId, dataPagesId), _ -> new AtomicLong()).get();
         }
 
         @Override

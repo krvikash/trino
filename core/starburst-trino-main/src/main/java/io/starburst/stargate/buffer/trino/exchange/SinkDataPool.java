@@ -106,7 +106,7 @@ public class SinkDataPool
         Deque<Slice> queue = getDataQueue(partitionId);
         queue.add(data);
         getDataQueueBytes(partitionId).addAndGet(dataLength);
-        addedDataDistribution.computeIfAbsent(partitionId, ignored -> new AtomicLong()).addAndGet(dataLength);
+        addedDataDistribution.computeIfAbsent(partitionId, _ -> new AtomicLong()).addAndGet(dataLength);
         long retainedSize = data.getRetainedSize();
         verify(retainedSize > 0, "expected retainedSize to be greater than 0; got %s for %s", retainedSize, data);
         updateMemoryUsage(retainedSize);
@@ -134,13 +134,13 @@ public class SinkDataPool
     @GuardedBy("this")
     private AtomicLong getDataQueueBytes(Integer partitionId)
     {
-        return dataQueueBytes.computeIfAbsent(partitionId, ignored -> new AtomicLong());
+        return dataQueueBytes.computeIfAbsent(partitionId, _ -> new AtomicLong());
     }
 
     @GuardedBy("this")
     private Deque<Slice> getDataQueue(Integer partitionId)
     {
-        return dataQueues.computeIfAbsent(partitionId, ignored -> new ArrayDeque<>());
+        return dataQueues.computeIfAbsent(partitionId, _ -> new ArrayDeque<>());
     }
 
     @GuardedBy("this")

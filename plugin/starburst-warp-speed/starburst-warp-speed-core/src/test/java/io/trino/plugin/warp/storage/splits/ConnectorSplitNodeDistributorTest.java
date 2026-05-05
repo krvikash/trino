@@ -86,7 +86,7 @@ public class ConnectorSplitNodeDistributorTest
 
         origMap.forEach((key, value) -> logger.debug("%s=%s", key, value.stream().sorted().collect(Collectors.toList())));
 
-        IntStream.range(0, 10).forEach(index -> {
+        IntStream.range(0, 10).forEach(_ -> {
             Collections.shuffle(nodeIds);
             Map<String, List<Integer>> currentMap = nodeIds.stream()
                     .collect(Collectors.toMap(Function.identity(), nodeId -> IntStream.range(0, globalConfig.getConsistentSplitBucketsPerWorker())
@@ -121,7 +121,7 @@ public class ConnectorSplitNodeDistributorTest
         Map<String, String> keyToNodeMap1 = keys.stream()
                 .collect(Collectors.toMap(Function.identity(), key -> connectorSplitNodeDistributor.getNode(key).getNodeIdentifier()));
         keyToNodeMap1.values().forEach(value -> assertThat(nodesMap).containsKey(value));
-        IntStream.range(0, 10).forEach(i -> {
+        IntStream.range(0, 10).forEach(_ -> {
             Map<String, String> keyToNodeMap2 = keys.stream()
                     .collect(Collectors.toMap(Function.identity(), key -> connectorSplitNodeDistributor.getNode(key).getNodeIdentifier()));
             keyToNodeMap2.values().forEach(value -> assertThat(nodesMap).containsKey(value));
@@ -153,7 +153,7 @@ public class ConnectorSplitNodeDistributorTest
                 for (int i = 0; i < numKeysToTest; i++) {
                     String key = format("%d/Integer/toString/%d", buckets[i], buckets[i]);
                     String node = connectorSplitNodeDistributor.getNode(key).getNodeIdentifier();
-                    nodeToCountMap.compute(node, (k, v) -> Objects.nonNull(v) ? v + 1 : 1);
+                    nodeToCountMap.compute(node, (_, v) -> Objects.nonNull(v) ? v + 1 : 1);
                     key = new ArrayList<>(nodesMap.values()).get(buckets[i] % nodesMap.size()).getNodeIdentifier();
                     if (nodeToRandMap.containsKey(key)) {
                         nodeToRandMap.put(key, nodeToRandMap.get(key) + 1);

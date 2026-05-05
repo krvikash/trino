@@ -98,7 +98,7 @@ public class TestDeltaLakeCacheIds
     public void setup()
     {
         DeltaLakeConfig config = new DeltaLakeConfig();
-        HdfsConfiguration hdfsConfiguration = (context, uri) -> new Configuration(false);
+        HdfsConfiguration hdfsConfiguration = (_, _) -> new Configuration(false);
         HdfsEnvironment hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, new HdfsConfig(), new NoHdfsAuthentication());
         TestingConnectorContext context = new TestingConnectorContext();
         TypeManager typeManager = context.getTypeManager();

@@ -217,7 +217,7 @@ public class RateLimitingTestServer
                     }
                 });
 
-                asyncResponse.register((ConnectionCallback) response -> {
+                asyncResponse.register((ConnectionCallback) _ -> {
                     finalizeRequest(request, asyncResponse, errorResponse(new RuntimeException("client disconnected"), getRateLimitHeaders(request)), processingStart, requestFinalizedGuard);
                 });
             }

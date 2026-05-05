@@ -28,7 +28,7 @@ import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 public class TrinoExceptionMapper
         implements ExceptionMapper<Throwable>
 {
-    public static final int WARP_ERROR_CODE_OFFSET = 0xdb0000;
+    public static final int WARP_ERROR_CODE_OFFSET = 0xDB0000;
     private static final int MAX_DEPTH = 10;
 
     @Override

@@ -114,7 +114,7 @@ public class AlternativesAwareDriverFactory
         // Get or create the page source provider for this alternative (cached per alternative)
         ConnectorPageSourceProvider pageSourceProvider = alternativePageSourceProviders.computeIfAbsent(
                 chosen.tableHandle(),
-                key -> chosen.pageSourceProviderFactory().createPageSourceProvider());
+                _ -> chosen.pageSourceProviderFactory().createPageSourceProvider());
 
         AlternativeDriverFactory alternative = alternatives.get(chosen.tableHandle());
         return alternative.driverFactory().createDriver(driverContext.setAlternativePlanContext(pageSourceProvider, alternative.id()));

@@ -19,13 +19,13 @@ final class JmxTroubleshootingContext
 
     public void putBefore(String objectName, String attributeName, Object attributeValue)
     {
-        before.computeIfAbsent(objectName, k -> new HashMap<>());
+        before.computeIfAbsent(objectName, _ -> new HashMap<>());
         before.get(objectName).put(attributeName, attributeValue);
     }
 
     public void putAfter(String objectName, String attributeName, Object attributeValue)
     {
-        after.computeIfAbsent(objectName, k -> new HashMap<>());
+        after.computeIfAbsent(objectName, _ -> new HashMap<>());
         after.get(objectName).put(attributeName, attributeValue);
     }
 

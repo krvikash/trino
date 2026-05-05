@@ -56,7 +56,7 @@ public abstract class BaseHiveOzoneS3GatewayConnectorSmokeTest
         hiveOzoneS3Gateway = closeAfterClass(new HiveOzoneS3Gateway(bucketName));
 
         DistributedQueryRunner queryRunner = HiveQueryRunner.builder()
-                .setMetastore(distributedQueryRunner -> new BridgingHiveMetastore(
+                .setMetastore(_ -> new BridgingHiveMetastore(
                         testingThriftHiveMetastoreBuilder()
                                 .metastoreClient(hiveOzoneS3Gateway.getHiveHadoop().getHiveMetastoreEndpoint(), TestingTokenAwareMetastoreClientFactory.TIMEOUT)
                                 .build(this::closeAfterClass)))

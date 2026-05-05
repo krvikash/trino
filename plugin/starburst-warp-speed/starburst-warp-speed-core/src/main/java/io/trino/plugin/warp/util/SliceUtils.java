@@ -64,7 +64,7 @@ public class SliceUtils
 
             for (ix = 0; ix < n; ix++) {
                 res <<= 8;
-                int bufValue = ((int) byteBuffer.get(pos + ix) & 0xff);
+                int bufValue = ((int) byteBuffer.get(pos + ix) & 0xFF);
                 res |= bufValue;
             }
         }
@@ -73,7 +73,7 @@ public class SliceUtils
 
             for (ix = 0; ix < n; ix++) {
                 res <<= 8;
-                int bufValue = ((int) byteBuffer.get(pos - ix) & 0xff);
+                int bufValue = ((int) byteBuffer.get(pos - ix) & 0xFF);
                 res |= bufValue;
             }
         }
@@ -118,7 +118,7 @@ public class SliceUtils
         long h1 = hashCodeVersion1(byteBuffer, length);
         long h2 = hashCodeVersion2(byteBuffer, length);
 
-        return (h2 << 32) | (h1 & 0x00000000ffffffffL);
+        return (h2 << 32) | (h1 & 0x00000000FFFFFFFFL);
     }
 
     // is crc is true we calculate crc, if its false we calculate str2int

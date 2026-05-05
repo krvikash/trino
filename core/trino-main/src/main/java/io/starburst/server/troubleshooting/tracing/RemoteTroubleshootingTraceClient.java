@@ -152,7 +152,7 @@ public class RemoteTroubleshootingTraceClient
 
     private void callOnOtherNodesAsync(Function<InternalNode, ListenableFuture<Void>> call)
     {
-        callOnOtherNodesAsync(call, node -> true);
+        callOnOtherNodesAsync(call, _ -> true);
     }
 
     private void callOnOtherNodesAsync(Function<InternalNode, ListenableFuture<Void>> call, Predicate<InternalNode> nodePredicate)

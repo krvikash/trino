@@ -121,20 +121,11 @@ public class LongArrayAdaptiveBlockEncoding
     {
         EncodingMethod method = fromByte(input.readByte());
         switch (method) {
-            case RAW:
-                input.readLongs(values, 0, length);
-                break;
-            case RLE:
-                readRleEncodedLongs(input, values);
-                break;
-            case BITPACKING:
-                BitPackingUtils.decode(input, values, length);
-                break;
-            case BITPACKING_DELTA:
-                BitPackingUtils.decodeDelta(input, values, length);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported encoding method: " + method);
+            case RAW -> input.readLongs(values, 0, length);
+            case RLE -> readRleEncodedLongs(input, values);
+            case BITPACKING -> BitPackingUtils.decode(input, values, length);
+            case BITPACKING_DELTA -> BitPackingUtils.decodeDelta(input, values, length);
+            default -> throw new IllegalArgumentException("Unsupported encoding method: " + method);
         }
     }
 
@@ -172,20 +163,11 @@ public class LongArrayAdaptiveBlockEncoding
 
         output.writeByte(method.getId());
         switch (method) {
-            case RAW:
-                output.writeLongs(values, offset, length);
-                break;
-            case RLE:
-                writeRleEncodedLongs(output, values, offset, length, analysis);
-                break;
-            case BITPACKING:
-                BitPackingUtils.encode(output, values, offset, length);
-                break;
-            case BITPACKING_DELTA:
-                BitPackingUtils.encodeDelta(output, values, offset, length);
-                break;
-            default:
-                throw new IllegalStateException("Unsupported encoding method: " + method);
+            case RAW -> output.writeLongs(values, offset, length);
+            case RLE -> writeRleEncodedLongs(output, values, offset, length, analysis);
+            case BITPACKING -> BitPackingUtils.encode(output, values, offset, length);
+            case BITPACKING_DELTA -> BitPackingUtils.encodeDelta(output, values, offset, length);
+            default -> throw new IllegalStateException("Unsupported encoding method: " + method);
         }
     }
 

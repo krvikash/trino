@@ -92,7 +92,7 @@ public class ChunkHeader
 
     public boolean isValid()
     {
-        return (getTypeAndWarmId() & 0xf) != 0;
+        return (getTypeAndWarmId() & 0xF) != 0;
     }
 
     public boolean hasNulls()
@@ -137,7 +137,7 @@ public class ChunkHeader
         }
 
         // set relative offset and then set start location to invalid
-        chunkHeader.set(ValueLayout.JAVA_SHORT, CHUNK_HEADER_OFFSET_RELATIVE_START_LOC_LOW, (short) (relativeOffset & 0xffff));
+        chunkHeader.set(ValueLayout.JAVA_SHORT, CHUNK_HEADER_OFFSET_RELATIVE_START_LOC_LOW, (short) (relativeOffset & 0xFFFF));
         chunkHeader.set(ValueLayout.JAVA_BYTE, CHUNK_HEADER_OFFSET_RELATIVE_START_LOC_HIGH, (byte) (relativeOffset >> 16));
         chunkHeader.set(ValueLayout.JAVA_INT, CHUNK_HEADER_OFFSET_START_LOC, -1 * StorageLocHomogeneous.STORAGE_LOC_HOMOGENEOUS_INVALID.ordinal());
     }

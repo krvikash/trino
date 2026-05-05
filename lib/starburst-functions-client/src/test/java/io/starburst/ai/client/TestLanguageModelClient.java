@@ -67,7 +67,7 @@ public class TestLanguageModelClient
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
         modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor,
-                (ctx, usage) -> capturedUsage.set(usage));
+                (_, usage) -> capturedUsage.set(usage));
     }
 
     @AfterAll

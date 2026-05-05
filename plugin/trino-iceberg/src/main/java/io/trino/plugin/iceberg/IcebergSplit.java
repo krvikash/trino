@@ -55,7 +55,6 @@ public record IcebergSplit(
 {
     private static final int INSTANCE_SIZE = instanceSize(IcebergSplit.class);
 
-
     public IcebergSplit
     {
         requireNonNull(path, "path is null");

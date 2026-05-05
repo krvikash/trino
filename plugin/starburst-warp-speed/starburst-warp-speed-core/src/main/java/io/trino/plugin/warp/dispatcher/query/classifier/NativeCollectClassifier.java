@@ -108,7 +108,7 @@ public class NativeCollectClassifier
                 collectOptional = createCollect(state);
             }
 
-            collectOptional.ifPresent(collectData -> nativeQueryCollectDataListsByCategory.computeIfAbsent(state.getCurrentCollectCategory(), c -> new ArrayList<>()).add(collectData));
+            collectOptional.ifPresent(collectData -> nativeQueryCollectDataListsByCategory.computeIfAbsent(state.getCurrentCollectCategory(), _ -> new ArrayList<>()).add(collectData));
         }
 
         return queryContext.asBuilder()
@@ -218,7 +218,7 @@ public class NativeCollectClassifier
         // now go from the most important category to the least important one. stop when memory is exhausted
         for (CollectCategory collectCategory : CollectCategory.values()) {
             List<NativeQueryCollectData> nativeQueryCollectDataCategoryList =
-                    nativeQueryCollectDataListsByCategory.computeIfAbsent(collectCategory, c -> new ArrayList<>());
+                    nativeQueryCollectDataListsByCategory.computeIfAbsent(collectCategory, _ -> new ArrayList<>());
 
             // if we reached the string list we need to sort it since we want to take shorter string first for better performance
             // we delay the sort as much as possible in order to avoid it if not required eventually since no string has been taken

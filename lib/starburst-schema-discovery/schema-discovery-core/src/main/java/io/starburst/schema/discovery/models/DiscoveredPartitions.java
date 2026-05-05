@@ -65,7 +65,7 @@ public record DiscoveredPartitions(List<Column> columns, List<DiscoveredPartitio
 
     private static ImmutableMap<LowerCaseString, InferredPartitionProjection> buildNonProjectedPartitionsFromColumns(List<Column> columns)
     {
-        return columns.stream().map(Column::name).collect(toImmutableMap(Function.identity(), ignored -> NON_PROJECTED_PARTITION));
+        return columns.stream().map(Column::name).collect(toImmutableMap(Function.identity(), _ -> NON_PROJECTED_PARTITION));
     }
 
     private static Comparator<DiscoveredPartitionValues> comparePartitionValuesByColumnOrder(List<Column> columns)

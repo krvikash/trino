@@ -543,7 +543,7 @@ public class OracleClient
                     FULL_PUSHDOWN));
         }
 
-        Optional<ColumnMapping> columnMapping  = switch (typeHandle.jdbcType()) {
+        Optional<ColumnMapping> columnMapping = switch (typeHandle.jdbcType()) {
             case Types.SMALLINT -> {
                 yield Optional.of(ColumnMapping.longMapping(
                         SMALLINT,

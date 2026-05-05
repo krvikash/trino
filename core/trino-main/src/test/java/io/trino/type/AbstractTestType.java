@@ -292,7 +292,7 @@ public abstract class AbstractTestType
                     {PreSizedBlockBuilder.class, long.class},
                     {PreSizedBlockBuilder.class, double.class},
                     {PreSizedBlockBuilder.class, Slice.class},
-                    {PreSizedBlockBuilder.class, Object.class}
+                    {PreSizedBlockBuilder.class, Object.class},
             };
 
             for (int i = 0; i < writeMethods.length; i++) {

@@ -93,7 +93,7 @@ public class BenchmarkMemoryCacheManager
                 .collect(toImmutableList());
 
         private final List<Type> columnTypes = columnIds.stream()
-                .map(column -> INTEGER)
+                .map(_ -> INTEGER)
                 .collect(toImmutableList());
         private final PlanSignature[] signatures = IntStream.range(0, 200)
                 .mapToObj(i -> new PlanSignature(

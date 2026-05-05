@@ -219,7 +219,7 @@ public class UnityTransactionLogWriter
             }
 
             Failsafe.with(BACKFILL_RETRY_POLICY).get(
-                    context -> {
+                    _ -> {
                         tableOperations.commitStagedCommits(
                                 tableId,
                                 tableLocation,

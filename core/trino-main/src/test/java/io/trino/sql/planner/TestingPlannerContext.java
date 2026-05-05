@@ -177,7 +177,7 @@ public final class TestingPlannerContext
             JsonCodec<IrJsonPath> irJsonPathJsonCodec = new JsonCodecFactory(jsonMapper).jsonCodec(IrJsonPath.class);
             typeRegistry.addType(new JsonPath2016Type(irJsonPathJsonCodec));
 
-            CacheMetadata cacheMetadata = new CacheMetadata(catalogHandle -> Optional.empty());
+            CacheMetadata cacheMetadata = new CacheMetadata(_ -> Optional.empty());
             return new PlannerContext(
                     metadata,
                     cacheMetadata,

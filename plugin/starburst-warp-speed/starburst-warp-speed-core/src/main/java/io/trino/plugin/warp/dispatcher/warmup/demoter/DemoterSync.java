@@ -56,7 +56,7 @@ public class DemoterSync
     private final Map<Long, DemoteContext> demoterServiceContextMap;
     private final AtomicLong initiator;
 
-    private final AtomicDouble highestPriorityDemoted = new AtomicDouble(0D);
+    private final AtomicDouble highestPriorityDemoted = new AtomicDouble(0d);
 
     @Inject
     public DemoterSync(ShapingLoggerFactory shapingLoggerFactory)

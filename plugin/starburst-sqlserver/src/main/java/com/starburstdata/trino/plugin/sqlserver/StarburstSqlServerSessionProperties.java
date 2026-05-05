@@ -40,7 +40,7 @@ public final class StarburstSqlServerSessionProperties
                         OVERRIDE_CATALOG,
                         "Override SQL Server catalog name",
                         config.getOverrideCatalogName().orElse(null),
-                        value -> {
+                        _ -> {
                             if (!config.isOverrideCatalogEnabled()) {
                                 throw new TrinoException(PERMISSION_DENIED, "Catalog override is disabled");
                             }

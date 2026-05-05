@@ -96,19 +96,19 @@ class NativeExpressionRulesHandlerTest
     {
         return Stream.of(
                 arguments(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
-                        Range.equal(DoubleType.DOUBLE, 5D),
+                        Range.equal(DoubleType.DOUBLE, 5d),
                         PREDICATE_TYPE_VALUES),
                 arguments(LESS_THAN_OPERATOR_FUNCTION_NAME,
-                        Range.lessThan(DoubleType.DOUBLE, 5D),
+                        Range.lessThan(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES),
                 arguments(LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
-                        Range.lessThanOrEqual(DoubleType.DOUBLE, 5D),
+                        Range.lessThanOrEqual(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES),
                 arguments(StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME,
-                        Range.greaterThan(DoubleType.DOUBLE, 5D),
+                        Range.greaterThan(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES),
                 arguments(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
-                        Range.greaterThanOrEqual(DoubleType.DOUBLE, 5D),
+                        Range.greaterThanOrEqual(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES));
     }
 
@@ -291,7 +291,7 @@ class NativeExpressionRulesHandlerTest
                 List.of(new WarpCall(CEIL.getName(),
                                 List.of(createExpectedVariable(doubleVariable1)),
                                 BOOLEAN),
-                        new WarpPrimitiveConstant(5D, DoubleType.DOUBLE)), BOOLEAN);
+                        new WarpPrimitiveConstant(5d, DoubleType.DOUBLE)), BOOLEAN);
         ValueSet valueSet = ValueSet.ofRanges(expectedRange);
         Domain domain = Domain.create(valueSet, false);
         NativeExpression expectedResult = new NativeExpression(expectedPredicateType,
@@ -356,7 +356,7 @@ class NativeExpressionRulesHandlerTest
     @MethodSource("equalOperatorParamsSupported")
     public void testCastRealToVarcharSupported(VarcharType varcharType)
     {
-        float value = 2.624819E2f;
+        float value = 2.624819e2f;
         long intBits = floatToIntBits(value);
         Slice slice = RealOperators.castToVarchar(varcharType.getLength().orElse(VarcharType.UNBOUNDED_LENGTH), intBits);
         Variable columnType = realVariable;

@@ -35,7 +35,7 @@ public class IncludeStrategy
                 List<TestFormat.QueryData> queries = new ArrayList<>();
                 for (TestFormat.QueryData queryData : test.queries_data()) {
                     if (queriesToInclude.contains(queryData.query_id())) {
-                        configuration.computeIfAbsent(TEST_NAME, k -> new ArrayList<>()).add(test.name());
+                        configuration.computeIfAbsent(TEST_NAME, _ -> new ArrayList<>()).add(test.name());
                     }
                     else if (!testsToRun.contains(test.name())) {
                         queries.add(queryData);

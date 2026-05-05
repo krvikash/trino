@@ -32,20 +32,15 @@ public class TestSapHanaPooledConnectorSmokeTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_RENAME_SCHEMA:
-            case SUPPORTS_ARRAY:
-            case SUPPORTS_CREATE_VIEW:
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW:
-            case SUPPORTS_MERGE:
-            case SUPPORTS_ROW_LEVEL_UPDATE:
-                return false;
-
-            case SUPPORTS_UPDATE:
-                return true;
-
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_RENAME_SCHEMA,
+                    SUPPORTS_ARRAY,
+                    SUPPORTS_CREATE_VIEW,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_MERGE,
+                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+            case SUPPORTS_UPDATE -> true;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 }

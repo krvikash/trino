@@ -93,7 +93,7 @@ public class SchemaDiscoverySystemTableProvider
 
     private SchemaDiscoveryController createSchemaDiscoveryController(ConnectorSession session)
     {
-        Function<URI, DiscoveryTrinoFileSystem> fileSystemProvider = uri -> new DiscoveryTrinoFileSystem(trinoFileSystemFactory.create(session));
+        Function<URI, DiscoveryTrinoFileSystem> fileSystemProvider = _ -> new DiscoveryTrinoFileSystem(trinoFileSystemFactory.create(session));
         OrcDataSourceFactory orcDataSourceFactory = (id, size, options, inputFile) -> new HdfsOrcDataSource(id, size, options, inputFile, new FileFormatDataSourceStats());
         ParquetDataSourceFactory parquetDataSourceFactory = (inputFile) -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
         return new SchemaDiscoveryController(fileSystemProvider, parquetDataSourceFactory, orcDataSourceFactory, Dialect.GALAXY, schemaDiscoveryIdentifierConstraint, executor);

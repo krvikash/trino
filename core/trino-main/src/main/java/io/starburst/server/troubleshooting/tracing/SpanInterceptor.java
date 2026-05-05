@@ -52,7 +52,7 @@ public class SpanInterceptor
         QueryId queryId = queryIdByTraceId.get(span.getSpanContext().getTraceId());
         if (null != queryId) {
             if (null != collectSpansForTheseQueryIds.get(queryId)) {
-                Set<SpanData> spanDatas = spansByQueryIds.computeIfAbsent(queryId, q -> ConcurrentHashMap.newKeySet());
+                Set<SpanData> spanDatas = spansByQueryIds.computeIfAbsent(queryId, _ -> ConcurrentHashMap.newKeySet());
                 SpanData spanData = span.toSpanData();
                 spanDatas.add(spanData);
                 spansByQueryIds.put(queryId, spanDatas);

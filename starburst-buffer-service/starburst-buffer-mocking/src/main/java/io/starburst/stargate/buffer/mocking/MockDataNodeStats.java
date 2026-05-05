@@ -51,7 +51,7 @@ public class MockDataNodeStats
 
         public void increment(Key key)
         {
-            stats.computeIfAbsent(key, ignored -> new AtomicLong()).incrementAndGet();
+            stats.computeIfAbsent(key, _ -> new AtomicLong()).incrementAndGet();
         }
 
         public MockDataNodeStats build()

@@ -55,7 +55,6 @@ public final class TransactionLogUtil
         return Location.of(tableLocation).appendPath(TRANSACTION_LOG_DIRECTORY).appendPath(STAGING_COMMIT_DIRECTORY);
     }
 
-
     public static Location getTransactionLogChecksumEntryPath(String transactionLogDir, long entryNumber)
     {
         return Location.of(transactionLogDir).appendPath("%020d.crc".formatted(entryNumber));

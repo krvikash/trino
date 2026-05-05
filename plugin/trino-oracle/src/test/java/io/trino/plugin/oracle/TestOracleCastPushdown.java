@@ -601,7 +601,7 @@ public class TestOracleCastPushdown
     {
         try (CastDataTypeTestTable table = CastDataTypeTestTable.create(3)
                 .addColumn("c_number_high_scale", "number(9, 4)", asList(1.2345, 2.5789, 3.9999))
-                .execute(onRemoteDatabase(), "test_number_");) {
+                .execute(onRemoteDatabase(), "test_number_")) {
             // Lowering scale from 4 to 2 – Expect rounding or truncation
             assertThat(query("SELECT CAST(c_number_high_scale AS decimal(10, 2)) FROM %s".formatted(table.getName())))
                     .skippingTypesCheck()

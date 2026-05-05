@@ -312,7 +312,7 @@ public class StarburstOracleClient
             return handle.createQuery("SELECT COLUMN_NAME, NUM_NULLS, NUM_DISTINCT, AVG_COL_LEN FROM ALL_TAB_COLUMNS WHERE OWNER = :schema AND TABLE_NAME = :table_name")
                     .bind("schema", schema)
                     .bind("table_name", tableName)
-                    .map((rs, ctx) -> new ColumnStatisticsResult(
+                    .map((rs, _) -> new ColumnStatisticsResult(
                             requireNonNull(rs.getString("COLUMN_NAME"), "COLUMN_NAME is null"),
                             Optional.ofNullable(rs.getObject("NUM_NULLS", Long.class)),
                             Optional.ofNullable(rs.getObject("NUM_DISTINCT", Long.class)),

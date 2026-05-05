@@ -102,7 +102,7 @@ public class HudiConnector
     @Override
     public ConnectorPageSinkProvider getPageSinkProvider()
     {
-        return Reflection.newProxy(ConnectorPageSinkProvider.class, (proxy, method, args) -> {
+        return Reflection.newProxy(ConnectorPageSinkProvider.class, (_, _, _) -> {
             throw new UnsupportedOperationException();
         });
     }

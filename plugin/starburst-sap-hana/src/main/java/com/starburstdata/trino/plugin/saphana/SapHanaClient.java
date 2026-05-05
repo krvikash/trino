@@ -453,29 +453,15 @@ public class SapHanaClient
             return mapping;
         }
 
-        switch (typeHandle.jdbcType()) {
-            case Types.BOOLEAN:
-                return Optional.of(booleanColumnMapping());
-
-            case Types.TINYINT:
-                return Optional.of(tinyintColumnMapping());
-
-            case Types.SMALLINT:
-                return Optional.of(smallintColumnMapping());
-
-            case Types.INTEGER:
-                return Optional.of(integerColumnMapping());
-
-            case Types.BIGINT:
-                return Optional.of(bigintColumnMapping());
-
-            case Types.REAL:
-                return Optional.of(realColumnMapping());
-
-            case Types.DOUBLE:
-                return Optional.of(doubleColumnMapping());
-
-            case Types.DECIMAL:
+        Optional<ColumnMapping> jdbcTypeMapping = switch (typeHandle.jdbcType()) {
+            case Types.BOOLEAN -> Optional.of(booleanColumnMapping());
+            case Types.TINYINT -> Optional.of(tinyintColumnMapping());
+            case Types.SMALLINT -> Optional.of(smallintColumnMapping());
+            case Types.INTEGER -> Optional.of(integerColumnMapping());
+            case Types.BIGINT -> Optional.of(bigintColumnMapping());
+            case Types.REAL -> Optional.of(realColumnMapping());
+            case Types.DOUBLE -> Optional.of(doubleColumnMapping());
+            case Types.DECIMAL -> {
                 if (typeHandle.decimalDigits().isEmpty()) {
                     // SAP HANA's SMALLDECIMAL and DECIMAL fit this category
                     //
@@ -492,7 +478,7 @@ public class SapHanaClient
                     // point, so the best option to map them to a DOUBLE.
                     // Hovewer such mapping is not perfect because java's (and so Trino's) DOUBLE data type stores decimal values with 15-16 digits of precision and [-324, +308]
                     // scale which does not fully cover HANA's types
-                    return Optional.of(doubleColumnMapping());
+                    yield Optional.of(doubleColumnMapping());
                 }
 
                 int precision = typeHandle.requiredColumnSize();
@@ -500,44 +486,37 @@ public class SapHanaClient
                 if (precision < 1 || precision > SAP_HANA_MAX_DECIMAL_PRECISION || scale < 0 || scale > precision) {
                     // SAP HANA supports precision [1, 38], and scale [0, precision]
                     log.warn("Unexpected decimal precision: %s", typeHandle);
-                    return Optional.empty();
+                    yield Optional.empty();
                 }
-                return Optional.of(decimalColumnMapping(createDecimalType(precision, scale), UNNECESSARY));
-
-            case Types.CHAR:
-            case Types.NCHAR:
+                yield Optional.of(decimalColumnMapping(createDecimalType(precision, scale), UNNECESSARY));
+            }
+            case Types.CHAR, Types.NCHAR -> {
                 verify(typeHandle.requiredColumnSize() < CharType.MAX_LENGTH, "Unexpected type: %s", typeHandle); // SAP HANA char is shorter than Presto's
-                return Optional.of(charColumnMapping(createCharType(typeHandle.requiredColumnSize()), true));
-
-            case Types.VARCHAR:
-            case Types.NVARCHAR:
-                return Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), true));
-
-            case Types.CLOB:
-            case Types.NCLOB:
+                yield Optional.of(charColumnMapping(createCharType(typeHandle.requiredColumnSize()), true));
+            }
+            case Types.VARCHAR, Types.NVARCHAR -> Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), true));
+            case Types.CLOB, Types.NCLOB -> {
                 VarcharType varcharType = createUnboundedVarcharType();
-                return Optional.of(ColumnMapping.sliceMapping(
+                yield Optional.of(ColumnMapping.sliceMapping(
                         varcharType,
                         varcharReadFunction(varcharType),
                         varcharWriteFunction(),
                         DISABLE_PUSHDOWN));
-
-            case Types.BLOB:
-            case Types.VARBINARY:
-                return Optional.of(varbinaryColumnMapping());
-
-            case Types.DATE:
-                return Optional.of(ColumnMapping.longMapping(
-                        DATE,
-                        (resultSet, index) -> LocalDate.parse(resultSet.getString(index), DATE_FORMATTER).toEpochDay(),
-                        dateWriteFunctionUsingLocalDate()));
-
-            case Types.TIME:
-                return Optional.of(timeColumnMapping());
-
-            case Types.TIMESTAMP:
+            }
+            case Types.BLOB, Types.VARBINARY -> Optional.of(varbinaryColumnMapping());
+            case Types.DATE -> Optional.of(ColumnMapping.longMapping(
+                    DATE,
+                    (resultSet, index) -> LocalDate.parse(resultSet.getString(index), DATE_FORMATTER).toEpochDay(),
+                    dateWriteFunctionUsingLocalDate()));
+            case Types.TIME -> Optional.of(timeColumnMapping());
+            case Types.TIMESTAMP -> {
                 int timestampPrecision = typeHandle.requiredDecimalDigits();
-                return Optional.of(timestampColumnMapping(timestampPrecision));
+                yield Optional.of(timestampColumnMapping(timestampPrecision));
+            }
+            default -> Optional.empty();
+        };
+        if (jdbcTypeMapping.isPresent()) {
+            return jdbcTypeMapping;
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
@@ -966,7 +945,7 @@ public class SapHanaClient
                     .bind("statistics_type", statisticsType)
                     .bind("schema", schema)
                     .bind("table_name", tableName)
-                    .map((rs, ctx) -> {
+                    .map((rs, _) -> {
                         String columnName = requireNonNull(rs.getString("COLUMN_NAME"), "COLUMN_NAME is null");
                         String statsJson = rs.getString("STATISTICS");
 

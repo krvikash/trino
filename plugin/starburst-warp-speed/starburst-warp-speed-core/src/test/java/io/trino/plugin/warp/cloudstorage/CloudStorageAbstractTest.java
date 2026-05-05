@@ -88,8 +88,8 @@ public abstract class CloudStorageAbstractTest
         Assertions.assertTrue(targetFile.exists());
         Assertions.assertEquals(localFile.length(), targetFile.length());
 
-        boolean unused = localFile.delete();
-        unused = targetFile.delete();
+        localFile.delete();
+        targetFile.delete();
         cloudStorage.deleteFile(source);
     }
 

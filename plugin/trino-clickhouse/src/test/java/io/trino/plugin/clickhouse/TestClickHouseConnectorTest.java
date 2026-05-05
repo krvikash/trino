@@ -605,7 +605,7 @@ public class TestClickHouseConnectorTest
                         dataMappingTestSetup.getHighValueLiteral().equals("DATE '9999-12-31'")) {
                     yield Optional.empty();
                 }
-                yield  Optional.of(dataMappingTestSetup);
+                yield Optional.of(dataMappingTestSetup);
             }
             case "time", "time(6)", "timestamp(3) with time zone", "timestamp(6) with time zone" ->
                 Optional.of(dataMappingTestSetup.asUnsupported());

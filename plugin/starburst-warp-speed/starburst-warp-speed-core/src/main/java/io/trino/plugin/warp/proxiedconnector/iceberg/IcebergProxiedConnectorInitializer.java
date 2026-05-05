@@ -46,7 +46,7 @@ public class IcebergProxiedConnectorInitializer
     {
         try {
             Map<String, String> icebergConfig = getIcebergFilteredConfig(config);
-            Module moduleInstance = binder -> {};
+            Module moduleInstance = _ -> {};
             return IcebergConnectorFactory.createConnector(catalogName,
                     icebergConfig,
                     context,

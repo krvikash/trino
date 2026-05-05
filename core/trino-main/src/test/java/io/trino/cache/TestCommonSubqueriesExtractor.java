@@ -161,16 +161,16 @@ public class TestCommonSubqueriesExtractor
         planTester.createCatalog(
                 TEST_CATALOG_NAME,
                 MockConnectorFactory.builder()
-                        .withGetColumns(handle -> ImmutableList.of(
+                        .withGetColumns(_ -> ImmutableList.of(
                                 new ColumnMetadata("column1", BIGINT),
                                 new ColumnMetadata("column2", BIGINT)))
-                        .withGetCacheTableId(handle -> Optional.of(CACHE_TABLE_ID))
+                        .withGetCacheTableId(_ -> Optional.of(CACHE_TABLE_ID))
                         .withGetCanonicalTableHandle(Function.identity())
                         .withGetCacheColumnId(handle -> {
                             MockConnectorColumnHandle column = (MockConnectorColumnHandle) handle;
                             return Optional.of(new CacheColumnId("cache_" + column.name()));
                         })
-                        .withApplyFilter((session, tableHandle, constraint) -> {
+                        .withApplyFilter((_, _, constraint) -> {
                             // predicate is fully subsumed
                             if (constraint.getSummary().equals(CONSTRAINT_1)) {
                                 return Optional.of(new ConstraintApplicationResult<>(
@@ -197,7 +197,7 @@ public class TestCommonSubqueriesExtractor
                             }
                             return Optional.empty();
                         })
-                        .withGetTableProperties((session, tableHandle) -> {
+                        .withGetTableProperties((_, tableHandle) -> {
                             MockConnectorTableHandle handle = (MockConnectorTableHandle) tableHandle;
                             if (handle.getConstraint().equals(CONSTRAINT_2)) {
                                 return new ConnectorTableProperties(TupleDomain.none(), Optional.empty(), Optional.empty(), emptyList());

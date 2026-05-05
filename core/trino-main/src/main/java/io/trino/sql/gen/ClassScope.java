@@ -59,7 +59,7 @@ public class ClassScope
     public void releaseAllContextFields()
     {
         for (FieldDefinition field : contextFields) {
-            releasedContextFields.computeIfAbsent(field.getType(), ignored -> new ArrayDeque<>()).push(field);
+            releasedContextFields.computeIfAbsent(field.getType(), _ -> new ArrayDeque<>()).push(field);
         }
     }
 

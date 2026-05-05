@@ -18,7 +18,6 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
@@ -356,7 +355,7 @@ public class DataApiFacade
 
     private void drainAddDataPagesState(long bufferNodeId)
     {
-        AddDataPagesProcessingState drainingState = addDataPagesProcessingStates.compute(bufferNodeId, (ignored, state) -> {
+        AddDataPagesProcessingState drainingState = addDataPagesProcessingStates.compute(bufferNodeId, (_, state) -> {
             if (state == null) {
                 return null;
             }
@@ -503,6 +502,7 @@ public class DataApiFacade
     }
 
     @Deprecated
+    @SuppressWarnings("CheckReturnValue")
     private ListenableFuture<AddDataPagesResponse> addDataPagesOldRateLimit(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         AtomicLong triesCount = new AtomicLong();
@@ -521,7 +521,7 @@ public class DataApiFacade
             }
             else {
                 requestFuture = SettableFuture.create();
-                ListenableScheduledFuture<Boolean> ignored = listeningScheduledExecutor.schedule(
+                listeningScheduledExecutor.schedule(
                         () -> ((SettableFuture<Optional<RateLimitInfo>>) requestFuture).setFuture(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition)),
                         requestDelayInMillis,
                         MILLISECONDS);
@@ -581,7 +581,7 @@ public class DataApiFacade
             return Optional.empty();
         }
         AtomicBoolean rejected = new AtomicBoolean();
-        AddDataPagesProcessingState state = addDataPagesProcessingStates.compute(bufferNodeId, (ignored, existing) -> {
+        AddDataPagesProcessingState state = addDataPagesProcessingStates.compute(bufferNodeId, (_, existing) -> {
             if (existing != null && existing.draining.get()) {
                 rejected.set(true);
                 return existing;
@@ -904,14 +904,14 @@ public class DataApiFacade
 
     private FailsafeExecutor<Object> getDefaultRetryExecutor(long bufferNodeId)
     {
-        return defaultRetryExecutors.computeIfAbsent(bufferNodeId, ignored ->
+        return defaultRetryExecutors.computeIfAbsent(bufferNodeId, _ ->
                 Failsafe.with(createDefaultRetryPolicy(), createDefaultCircuitBreakerPolicy(bufferNodeId))
                         .with(executor));
     }
 
     private FailsafeExecutor<Object> getAddDataPagesRetryExecutor(long bufferNodeId)
     {
-        return addDataPagesRetryExecutors.computeIfAbsent(bufferNodeId, ignored ->
+        return addDataPagesRetryExecutors.computeIfAbsent(bufferNodeId, _ ->
                 Failsafe.with(createAddDataPagesRetryPolicy(), createAddDataPagesCircuitBreakerPolicy(bufferNodeId))
                         .with(executor));
     }

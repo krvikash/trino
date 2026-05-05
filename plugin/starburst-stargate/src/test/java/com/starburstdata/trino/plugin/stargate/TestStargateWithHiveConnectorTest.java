@@ -57,23 +57,20 @@ public class TestStargateWithHiveConnectorTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_COMMENT_ON_COLUMN:
-                return true;
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW:
-            case SUPPORTS_CREATE_VIEW:
-            case SUPPORTS_MERGE:
-            case SUPPORTS_UPDATE:
-            case SUPPORTS_CREATE_TABLE:
-            case SUPPORTS_RENAME_TABLE:
-            case SUPPORTS_INSERT:
-            case SUPPORTS_DELETE:
-            case SUPPORTS_ADD_COLUMN:
-                // Writes are not enabled
-                return false;
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_COMMENT_ON_COLUMN -> true;
+            // Writes are not enabled
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_CREATE_VIEW,
+                    SUPPORTS_MERGE,
+                    SUPPORTS_UPDATE,
+                    SUPPORTS_CREATE_TABLE,
+                    SUPPORTS_RENAME_TABLE,
+                    SUPPORTS_INSERT,
+                    SUPPORTS_DELETE,
+                    SUPPORTS_ADD_COLUMN -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Test

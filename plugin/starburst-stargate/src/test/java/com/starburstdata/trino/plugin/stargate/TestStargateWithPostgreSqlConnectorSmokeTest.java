@@ -45,32 +45,21 @@ public class TestStargateWithPostgreSqlConnectorSmokeTest
     @SuppressWarnings("DuplicateBranchesInSwitch")
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_TOPN_PUSHDOWN:
-                return true;
-
-            case SUPPORTS_CREATE_TABLE:
-            case SUPPORTS_RENAME_TABLE:
-                // Writes are not enabled
-                return false;
-
-            case SUPPORTS_CREATE_VIEW:
-                // TODO Add support in Remote connector (https://starburstdata.atlassian.net/browse/SEP-4795)
-                return false;
-
-            case SUPPORTS_INSERT:
-            case SUPPORTS_DELETE:
-            case SUPPORTS_MERGE:
-            case SUPPORTS_UPDATE:
-                // Writes are not enabled
-                return false;
-
-            case SUPPORTS_ARRAY:
-                // TODO Add support in Remote connector (https://starburstdata.atlassian.net/browse/SEP-4798)
-                return false;
-
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_TOPN_PUSHDOWN -> true;
+            // Writes are not enabled
+            case SUPPORTS_CREATE_TABLE,
+                    SUPPORTS_RENAME_TABLE -> false;
+            // TODO Add support in Remote connector (https://starburstdata.atlassian.net/browse/SEP-4795)
+            case SUPPORTS_CREATE_VIEW -> false;
+            // Writes are not enabled
+            case SUPPORTS_INSERT,
+                    SUPPORTS_DELETE,
+                    SUPPORTS_MERGE,
+                    SUPPORTS_UPDATE -> false;
+            // TODO Add support in Remote connector (https://starburstdata.atlassian.net/browse/SEP-4798)
+            case SUPPORTS_ARRAY -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 }

@@ -84,13 +84,13 @@ public class JsonSchemaDiscovery
     private static Optional<FormatGuess> regularJsonFileCheck(Optional<byte[]> testBytes)
     {
         return testBytes.filter(bytes -> TextFileLines.testLines(bytes, ALL_MATCH, s -> s.startsWith("{") && s.endsWith("}")))
-                .map(__ -> FORMAT_MATCH_HIGH);
+                .map(_ -> FORMAT_MATCH_HIGH);
     }
 
     private static Supplier<Optional<? extends FormatGuess>> largeJsonFileCheck(Optional<byte[]> testBytes)
     {
         // in case of big jsons, which overflow our test buffer, not whole object might fit, so there is single line with no json end
         return () -> testBytes.filter(bytes -> TextFileLines.testLine(bytes, ANY_MATCH, s -> s.startsWith("{")))
-                .map(__ -> FORMAT_MATCH_LOW);
+                .map(_ -> FORMAT_MATCH_LOW);
     }
 }

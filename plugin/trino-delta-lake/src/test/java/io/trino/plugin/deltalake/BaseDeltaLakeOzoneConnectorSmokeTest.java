@@ -68,23 +68,16 @@ public abstract class BaseDeltaLakeOzoneConnectorSmokeTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_CREATE_VIEW:
-                return true;
-
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW:
-            case SUPPORTS_RENAME_SCHEMA:
-                return false;
-
-            case SUPPORTS_DELETE:
-            case SUPPORTS_UPDATE:
-            case SUPPORTS_MERGE:
-            case SUPPORTS_TRUNCATE:
-                return true;
-
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_CREATE_VIEW -> true;
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_RENAME_SCHEMA -> false;
+            case SUPPORTS_DELETE,
+                    SUPPORTS_UPDATE,
+                    SUPPORTS_MERGE,
+                    SUPPORTS_TRUNCATE -> true;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Override

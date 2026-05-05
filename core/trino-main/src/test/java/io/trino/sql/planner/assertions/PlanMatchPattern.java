@@ -169,7 +169,7 @@ public final class PlanMatchPattern
         for (int i = 0; i < outputSymbolAliases.length; i++) {
             String outputSymbol = outputSymbolAliases[i];
             int index = i;
-            result.withAlias(outputSymbol, (node, session, metadata, symbolAliases) -> {
+            result.withAlias(outputSymbol, (node, _, _, _) -> {
                 List<Symbol> outputSymbols = node.getOutputSymbols();
                 checkState(index < outputSymbols.size(), "outputSymbolAliases size is more than LoadCachedDataPlanNode output symbols");
                 return Optional.ofNullable(outputSymbols.get(index));

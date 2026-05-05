@@ -400,13 +400,13 @@ public class DeltaLakePageSourceProvider
 
         TupleDomain<DeltaLakeColumnHandle> predicateOnPartitioningColumn = predicate
                 .transformKeys(DeltaLakeColumnHandle.class::cast)
-                .filter((columnHandle, domain) -> columnHandle.columnType() == PARTITION_KEY);
+                .filter((columnHandle, _) -> columnHandle.columnType() == PARTITION_KEY);
 
         if (predicateOnPartitioningColumn.getDomains().isPresent() && !partitionMatchesPredicate(split.partitionKeys(), predicateOnPartitioningColumn.getDomains().get())) {
             return TupleDomain.none();
         }
 
-        return predicate.filter((columnHandle, domain) -> ((DeltaLakeColumnHandle) columnHandle).columnType() != PARTITION_KEY)
+        return predicate.filter((columnHandle, _) -> ((DeltaLakeColumnHandle) columnHandle).columnType() != PARTITION_KEY)
                 // remove domains from predicate that fully contain split data because they are irrelevant for filtering
                 .filter((handle, domain) -> !domain.contains(split.statisticsPredicate().getDomain((DeltaLakeColumnHandle) handle, domain.getType())));
     }

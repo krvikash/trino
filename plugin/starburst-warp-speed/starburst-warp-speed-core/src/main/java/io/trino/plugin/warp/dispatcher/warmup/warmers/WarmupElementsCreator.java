@@ -249,6 +249,6 @@ public class WarmupElementsCreator
 
     public static byte getCurrentThreadWarmId()
     {
-        return (byte) (System.identityHashCode(Thread.currentThread()) & 0xf);
+        return (byte) (System.identityHashCode(Thread.currentThread()) & 0xF);
     }
 }

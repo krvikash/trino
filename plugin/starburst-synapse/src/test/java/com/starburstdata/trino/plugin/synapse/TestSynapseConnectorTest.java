@@ -72,21 +72,17 @@ public class TestSynapseConnectorTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
+        return switch (connectorBehavior) {
             // Overriden because Synapse disables connector expression pushdown due to correctness issues with varchar pushdown because of default case-insensitive collation
-            case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN:
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY:
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
-                return false;
-            case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY:
-                return true;
-            case SUPPORTS_MERGE:
-            case SUPPORTS_ROW_LEVEL_UPDATE:
-                return false;
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+            case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN,
+                    SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY,
+                    SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY -> false;
+            case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
+                    SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY -> true;
+            case SUPPORTS_MERGE,
+                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Override

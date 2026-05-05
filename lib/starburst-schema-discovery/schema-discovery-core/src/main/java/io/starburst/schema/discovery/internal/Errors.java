@@ -34,14 +34,14 @@ public class Errors
     @FormatMethod
     public void addTableError(String withinTablePath, @FormatString String error, Object... args)
     {
-        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath).toString(), __ -> Sets.newConcurrentHashSet())
+        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath).toString(), _ -> Sets.newConcurrentHashSet())
                 .add(String.format(error, args));
     }
 
     @FormatMethod
     public void addTableError(TablePath withinTablePath, @FormatString String error, Object... args)
     {
-        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath.path()).toString(), __ -> Sets.newConcurrentHashSet())
+        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath.path()).toString(), _ -> Sets.newConcurrentHashSet())
                 .add(String.format(error, args));
     }
 

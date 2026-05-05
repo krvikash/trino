@@ -341,7 +341,7 @@ public class TestJsonExtract
     public void testNoAutomaticEncodingDetection()
     {
         // Automatic encoding detection treats the following input as UTF-32
-        Slice input = Slices.wrappedBuffer(new byte[] {0x00, 0x00, 0x00, 0x00, 0x7b, 0x22, 0x72, 0x22});
+        Slice input = Slices.wrappedBuffer(new byte[] {0x00, 0x00, 0x00, 0x00, 0x7B, 0x22, 0x72, 0x22});
         assertThat(JsonExtract.extract(input, generateExtractor("$.x", new ScalarValueJsonExtractor())))
                 .isNull();
     }

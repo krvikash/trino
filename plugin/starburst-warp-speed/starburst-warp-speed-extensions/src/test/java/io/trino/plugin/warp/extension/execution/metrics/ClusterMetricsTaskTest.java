@@ -52,7 +52,7 @@ public class ClusterMetricsTaskTest
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers);
 
         List<ClusterMetricsResult> clusterMetricsResults = workers.stream()
-                .map(node -> new ClusterMetricsResult(workerCpuUsage,
+                .map(_ -> new ClusterMetricsResult(workerCpuUsage,
                         workerMemoryAllocated,
                         workerMemoryCapacity,
                         workerStorageAllocated,

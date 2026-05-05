@@ -274,38 +274,31 @@ public class SalesforceJdbcClient
     @Override
     public Optional<ColumnMapping> toColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
     {
-        switch (typeHandle.jdbcType()) {
-            case Types.BOOLEAN:
-                return Optional.of(booleanColumnMapping());
-            case Types.INTEGER:
-                return Optional.of(integerColumnMapping());
-            case Types.BIGINT:
-                return Optional.of(bigintColumnMapping());
-            case Types.DOUBLE:
-                return Optional.of(doubleColumnMapping());
-            case Types.DECIMAL:
+        Optional<ColumnMapping> mapping = switch (typeHandle.jdbcType()) {
+            case Types.BOOLEAN -> Optional.of(booleanColumnMapping());
+            case Types.INTEGER -> Optional.of(integerColumnMapping());
+            case Types.BIGINT -> Optional.of(bigintColumnMapping());
+            case Types.DOUBLE -> Optional.of(doubleColumnMapping());
+            case Types.DECIMAL -> {
                 int decimalDigits = typeHandle.requiredDecimalDigits();
                 int precision = typeHandle.requiredColumnSize() + max(-decimalDigits, 0); // Map decimal(p, -s) (negative scale) to decimal(p+s, 0).
                 if (getDecimalRounding(session) == ALLOW_OVERFLOW) {
                     int scale = min(decimalDigits, getDecimalDefaultScale(session));
-                    return Optional.of(decimalColumnMapping(createDecimalType(MAX_PRECISION, scale), getDecimalRoundingMode(session)));
+                    yield Optional.of(decimalColumnMapping(createDecimalType(MAX_PRECISION, scale), getDecimalRoundingMode(session)));
                 }
-
-                return Optional.of(decimalColumnMapping(createDecimalType(precision, max(decimalDigits, 0))));
-            case Types.VARCHAR:
-                return Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), false));
-            case Types.DATE:
-                return Optional.of(dateColumnMappingUsingSqlDate());
-            case Types.TIME:
-                // CData driver does not support getObject, need to use SQL time
-                // Additionally Salesforce supports millisecond precision but the driver is truncating it
-                // TODO https://starburstdata.atlassian.net/browse/SEP-5893
-                return Optional.of(timeColumnMappingUsingSqlTime());
-            case Types.TIMESTAMP:
-                // CData driver does not support getObject, need to use SQL timestamp
-                // Additionally Salesforce supports millisecond precision but the driver is truncating it
-                // TODO https://starburstdata.atlassian.net/browse/SEP-5893
-                return Optional.of(timestampColumnMappingUsingSqlTimestampWithRounding());
+                yield Optional.of(decimalColumnMapping(createDecimalType(precision, max(decimalDigits, 0))));
+            }
+            case Types.VARCHAR -> Optional.of(defaultVarcharColumnMapping(typeHandle.requiredColumnSize(), false));
+            case Types.DATE -> Optional.of(dateColumnMappingUsingSqlDate());
+            // CData driver does not support getObject, need to use SQL time/timestamp
+            // Additionally Salesforce supports millisecond precision but the driver is truncating it
+            // TODO https://starburstdata.atlassian.net/browse/SEP-5893
+            case Types.TIME -> Optional.of(timeColumnMappingUsingSqlTime());
+            case Types.TIMESTAMP -> Optional.of(timestampColumnMappingUsingSqlTimestampWithRounding());
+            default -> Optional.empty();
+        };
+        if (mapping.isPresent()) {
+            return mapping;
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {

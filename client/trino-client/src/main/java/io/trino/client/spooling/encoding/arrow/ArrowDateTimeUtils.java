@@ -74,7 +74,7 @@ public class ArrowDateTimeUtils
             1_000_000_000L,
             10_000_000_000L,
             100_000_000_000L,
-            1000_000_000_000L
+            1000_000_000_000L,
     };
 
     static final int MAX_PRECISION = 12;

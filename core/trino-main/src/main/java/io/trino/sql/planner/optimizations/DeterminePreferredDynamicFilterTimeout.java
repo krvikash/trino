@@ -164,7 +164,7 @@ public class DeterminePreferredDynamicFilterTimeout
                 DynamicFilterId dynamicFilterId = descriptor.get().getId();
                 PlanNode planNode = dynamicFiltersContext.get(dynamicFilterId);
 
-                DynamicFilterTimeout dynamicFilterTimeout = dynamicFilterBuildSideStates.computeIfAbsent(dynamicFilterId, ignore -> getBuildSideState(getBuildSide(planNode), getDynamicFilterSymbol(planNode, dynamicFilterId)));
+                DynamicFilterTimeout dynamicFilterTimeout = dynamicFilterBuildSideStates.computeIfAbsent(dynamicFilterId, _ -> getBuildSideState(getBuildSide(planNode), getDynamicFilterSymbol(planNode, dynamicFilterId)));
                 switch (dynamicFilterTimeout) {
                     case USE_PREFERRED_TIMEOUT -> expressionBuilder.add(replaceDynamicFilterTimeout((Call) conjunct, smallDynamicFilterWaitTimeoutMillis));
                     case NO_WAIT -> expressionBuilder.add(replaceDynamicFilterTimeout((Call) conjunct, 0));

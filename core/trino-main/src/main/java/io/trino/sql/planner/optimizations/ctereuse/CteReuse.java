@@ -511,7 +511,7 @@ public class CteReuse
                 unifiedColumnHandles,
                 // the enforcedConstraint must be based on columns exposed by the TableScan
                 unificationResult.enforcedProperties().tupleDomainConstraint()
-                        .filter((columnHandle, domain) -> unifiedColumnHandlesSet.contains(columnHandle)),
+                        .filter((columnHandle, _) -> unifiedColumnHandlesSet.contains(columnHandle)),
                 // TODO use the method deriveTableStatisticsForPushdown() to get the statistics for the unified TableScan
                 Optional.empty(),
                 false,
@@ -551,7 +551,7 @@ public class CteReuse
         // prune the parts of enforced filter which are not supported by the exposed columns
         Set<ColumnHandle> unifiedHandlesSet = ImmutableSet.copyOf(COLUMN_HANDLES.getAttribute(unifiedTableScan.attributes()));
         TupleDomain<ColumnHandle> prunedEnforcedTupleDomain = enforcedProperties.tupleDomainConstraint()
-                .filter((columnHandle, domain) -> unifiedHandlesSet.contains(columnHandle));
+                .filter((columnHandle, _) -> unifiedHandlesSet.contains(columnHandle));
 
         List<ConnectorExpression> conjuncts = ConnectorExpressions.extractConjuncts(enforcedProperties.connectorExpressionConstraint()).stream()
                 .filter(conjunct -> extractVariableNames(conjunct).stream()

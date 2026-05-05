@@ -87,7 +87,7 @@ record WarpCachePageSource(StorageEngineTxService txService, ConnectorPageSource
     {
         Metrics.Accumulator result = Metrics.accumulator();
         Map<String, Long> statsMap = new TreeMap<>();
-        customStatsContext.getRegisteredStats().forEach((key, value) -> statsMap.putAll(value.statsCounterMapper()));
+        customStatsContext.getRegisteredStats().forEach((_, value) -> statsMap.putAll(value.statsCounterMapper()));
         statsMap.putAll(customStatsContext.getFixedStats());
 
         Map<String, Metric<?>> metricsMap = statsMap.entrySet().stream().collect(toImmutableMap(

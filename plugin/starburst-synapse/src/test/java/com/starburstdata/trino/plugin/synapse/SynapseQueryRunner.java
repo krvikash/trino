@@ -71,7 +71,7 @@ public final class SynapseQueryRunner
             Iterable<TpchTable<?>> tables)
             throws Exception
     {
-        return createSynapseQueryRunner(Map.of(), synapseServer, catalogName, connectorProperties, coordinatorProperties, tables, Optional.empty(), runner -> {});
+        return createSynapseQueryRunner(Map.of(), synapseServer, catalogName, connectorProperties, coordinatorProperties, tables, Optional.empty(), _ -> {});
     }
 
     public static DistributedQueryRunner createSynapseQueryRunner(

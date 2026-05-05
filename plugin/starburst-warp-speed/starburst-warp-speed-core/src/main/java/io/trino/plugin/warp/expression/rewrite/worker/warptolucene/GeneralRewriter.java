@@ -61,17 +61,17 @@ class GeneralRewriter
 
     boolean handleLike(WarpExpression expression, LuceneRewriteContext context)
     {
-        return rewrite(expression, context, (value, type) -> createLikeQuery(value));
+        return rewrite(expression, context, (value, _) -> createLikeQuery(value));
     }
 
     public boolean handleContains(WarpExpression expression, LuceneRewriteContext context)
     {
-        return rewrite(expression, context, (value, type) -> createContainsQuery(value));
+        return rewrite(expression, context, (value, _) -> createContainsQuery(value));
     }
 
     boolean handleStartsWith(WarpExpression expression, LuceneRewriteContext context)
     {
-        return rewrite(expression, context, (value, type) -> createPrefixQuery(value));
+        return rewrite(expression, context, (value, _) -> createPrefixQuery(value));
     }
 
     boolean handleNotEqual(WarpExpression expression, LuceneRewriteContext context)

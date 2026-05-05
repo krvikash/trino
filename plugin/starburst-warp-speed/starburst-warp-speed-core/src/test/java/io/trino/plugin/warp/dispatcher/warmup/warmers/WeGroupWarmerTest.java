@@ -240,8 +240,8 @@ public class WeGroupWarmerTest
         File localTmpFile = new File(localFileName + ".tmp");
 
         FileUtils.createParentDirectories(localFile);
-        boolean unused = localFile.createNewFile();
-        unused = localTmpFile.createNewFile();
+        localFile.createNewFile();
+        localTmpFile.createNewFile();
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
@@ -254,7 +254,7 @@ public class WeGroupWarmerTest
                 .warmUpElements(List.of())
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
-        doAnswer(invocation -> {
+        doAnswer(_ -> {
             boolean _ = localFile.delete();
             return null;
         }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
@@ -273,8 +273,8 @@ public class WeGroupWarmerTest
         Assertions.assertFalse(localSaveFile.exists());
 
         Assertions.assertTrue(localFile.exists());
-        unused = localFile.delete();
-        unused = localTmpFile.delete();
+        localFile.delete();
+        localTmpFile.delete();
     }
 
     @Test
@@ -287,8 +287,8 @@ public class WeGroupWarmerTest
         File localTmpFile = new File(localFileName + ".tmp");
 
         FileUtils.createParentDirectories(localFile);
-        boolean unused = localFile.createNewFile();
-        unused = localTmpFile.createNewFile();
+        localFile.createNewFile();
+        localTmpFile.createNewFile();
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
@@ -301,7 +301,7 @@ public class WeGroupWarmerTest
                 .warmUpElements(List.of())
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
-        doAnswer(invocation -> {
+        doAnswer(_ -> {
             boolean _ = localFile.delete();
             return null;
         }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
@@ -319,8 +319,8 @@ public class WeGroupWarmerTest
         Assertions.assertFalse(localSaveFile.exists());
 
         Assertions.assertTrue(localFile.exists());
-        unused = localFile.delete();
-        unused = localTmpFile.delete();
+        localFile.delete();
+        localTmpFile.delete();
     }
 
     @Test
@@ -333,8 +333,8 @@ public class WeGroupWarmerTest
         File localTmpFile = new File(localFileName + ".tmp");
 
         FileUtils.createParentDirectories(localFile);
-        boolean unused = localFile.createNewFile();
-        unused = localTmpFile.createNewFile();
+        localFile.createNewFile();
+        localTmpFile.createNewFile();
 
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
         storageObjectMetadata.setLastModified(Instant.now().toEpochMilli());
@@ -347,11 +347,11 @@ public class WeGroupWarmerTest
                 .warmUpElements(List.of())
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
-        doAnswer(invocation -> {
+        doAnswer(_ -> {
             boolean _ = localFile.delete();
             return null;
         }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
-        when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenAnswer(invocation -> {
+        when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenAnswer(_ -> {
             boolean _ = localFile.delete();
             return null;
         });
@@ -368,8 +368,8 @@ public class WeGroupWarmerTest
         Assertions.assertFalse(localSaveFile.exists());
 
         Assertions.assertTrue(localFile.exists());
-        unused = localFile.delete();
-        unused = localTmpFile.delete();
+        localFile.delete();
+        localTmpFile.delete();
     }
 
     record TestInitResults(File localFile,

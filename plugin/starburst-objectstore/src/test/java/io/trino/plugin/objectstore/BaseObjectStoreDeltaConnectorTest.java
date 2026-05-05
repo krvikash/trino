@@ -56,35 +56,31 @@ public abstract class BaseObjectStoreDeltaConnectorTest
     {
         boolean connectorHasBehavior = new GetDeltaLakeConnectorTestBehavior().hasBehavior(connectorBehavior);
 
-        switch (connectorBehavior) {
-            case SUPPORTS_DROP_SCHEMA_CASCADE:
-                return true;
-
-            case SUPPORTS_RENAME_SCHEMA: // ObjectStore supports this via Hive connector
+        return switch (connectorBehavior) {
+            case SUPPORTS_DROP_SCHEMA_CASCADE -> true;
+            // ObjectStore supports this via Hive connector
+            case SUPPORTS_RENAME_SCHEMA -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
-                return true;
-
+                yield true;
+            }
             // ObjectStore adds support for materialized views using Iceberg
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW:
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD:
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE:
-            case SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW:
-//            case SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES: TODO currently not supported for Iceberg materialized views based on Delta tables
-            case SUPPORTS_RENAME_MATERIALIZED_VIEW:
-//            case SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS: -- not supported by Iceberg
-            case SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN:
+            // SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES: TODO currently not supported for Iceberg materialized views based on Delta tables
+            // SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS: not supported by Iceberg
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
+                    SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
+                    SUPPORTS_RENAME_MATERIALIZED_VIEW,
+                    SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
-                return true;
-
-            case SUPPORTS_CREATE_FUNCTION:
-                return false;
-
-            default:
-                // By default, declare all behaviors/features supported by Delta connector
-                return connectorHasBehavior;
-        }
+                yield true;
+            }
+            case SUPPORTS_CREATE_FUNCTION -> false;
+            // By default, declare all behaviors/features supported by Delta connector
+            default -> connectorHasBehavior;
+        };
     }
 
     @Override

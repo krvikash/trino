@@ -202,18 +202,20 @@ public class StarburstSynapseClient
     @Override
     public Optional<ColumnMapping> toColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
     {
-        switch (typeHandle.jdbcType()) {
-            case Types.TIME:
+        Optional<ColumnMapping> mapping = switch (typeHandle.jdbcType()) {
+            case Types.TIME -> {
                 TimeType timeType = createTimeType(typeHandle.requiredDecimalDigits());
-                return Optional.of(ColumnMapping.longMapping(
+                yield Optional.of(ColumnMapping.longMapping(
                         timeType,
                         timeReadFunction(timeType),
                         synapseTimeWriteFunction(timeType.getPrecision())));
-
+            }
             // Synapse does not support text and ntext data types
-            case Types.LONGVARCHAR:
-            case Types.LONGNVARCHAR:
-                return Optional.empty();
+            case Types.LONGVARCHAR, Types.LONGNVARCHAR -> Optional.empty();
+            default -> null;
+        };
+        if (mapping != null) {
+            return mapping;
         }
 
         return super.toColumnMapping(session, connection, typeHandle);
@@ -292,23 +294,22 @@ public class StarburstSynapseClient
                         String ordering = sortItem.sortOrder().isAscending() ? "ASC" : "DESC";
                         String columnSorting = format("%s %s", quoted(sortItem.column().getColumnName()), ordering);
 
-                        switch (sortItem.sortOrder()) {
-                            case ASC_NULLS_FIRST:
+                        return switch (sortItem.sortOrder()) {
+                            case ASC_NULLS_FIRST -> {
                                 // In Synapse ASC implies NULLS FIRST
-                            case DESC_NULLS_LAST:
+                                yield Stream.of(columnSorting);
+                            }
+                            case DESC_NULLS_LAST -> {
                                 // In Synapse DESC implies NULLS LAST
-                                return Stream.of(columnSorting);
-
-                            case ASC_NULLS_LAST:
-                                return Stream.of(
-                                        format("(CASE WHEN %s IS NULL THEN 1 ELSE 0 END) ASC", quoted(sortItem.column().getColumnName())),
-                                        columnSorting);
-                            case DESC_NULLS_FIRST:
-                                return Stream.of(
-                                        format("(CASE WHEN %s IS NULL THEN 1 ELSE 0 END) DESC", quoted(sortItem.column().getColumnName())),
-                                        columnSorting);
-                        }
-                        throw new UnsupportedOperationException("Unsupported sort order: " + sortItem.sortOrder());
+                                yield Stream.of(columnSorting);
+                            }
+                            case ASC_NULLS_LAST -> Stream.of(
+                                    format("(CASE WHEN %s IS NULL THEN 1 ELSE 0 END) ASC", quoted(sortItem.column().getColumnName())),
+                                    columnSorting);
+                            case DESC_NULLS_FIRST -> Stream.of(
+                                    format("(CASE WHEN %s IS NULL THEN 1 ELSE 0 END) DESC", quoted(sortItem.column().getColumnName())),
+                                    columnSorting);
+                        };
                     })
                     .collect(joining(", "));
             return format("SELECT TOP (%d) %s ORDER BY %s", limit, query.substring(start.length()), orderBy);

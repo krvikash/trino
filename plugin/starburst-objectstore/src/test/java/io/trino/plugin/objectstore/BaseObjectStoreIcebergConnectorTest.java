@@ -70,27 +70,22 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     {
         boolean connectorHasBehavior = new GetIcebergConnectorTestBehavior().hasBehavior(connectorBehavior);
 
-        switch (connectorBehavior) {
-            case SUPPORTS_DROP_SCHEMA_CASCADE:
-                return true;
-
-            case SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS:
+        return switch (connectorBehavior) {
+            case SUPPORTS_DROP_SCHEMA_CASCADE -> true;
+            case SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS -> {
                 // TODO when this changes, remove this flag from other BaseObjectStoreConnectorTest subclasses
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
-                return false;
-
+                yield false;
+            }
             // ObjectStore adds support for refreshing views using Hive
-            case SUPPORTS_REFRESH_VIEW:
+            case SUPPORTS_REFRESH_VIEW -> {
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
-                return true;
-
-            case SUPPORTS_CREATE_FUNCTION:
-                return false;
-
-            default:
-                // By default, declare all behaviors/features supported by Iceberg connector
-                return connectorHasBehavior;
-        }
+                yield true;
+            }
+            case SUPPORTS_CREATE_FUNCTION -> false;
+            // By default, declare all behaviors/features supported by Iceberg connector
+            default -> connectorHasBehavior;
+        };
     }
 
     @BeforeAll
@@ -139,33 +134,29 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             // The connector returns UTC instead of the given time zone
             return Optional.of(setup.withNewValueLiteral("TIMESTAMP '2020-02-12 14:03:00.123000 +00:00'"));
         }
-        switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
-            // Iceberg allows updating column types if the update is safe. Safe updates are:
-            // - int to bigint
-            // - float to double
-            // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
-            // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
-            case "row(x integer) -> row(\"y\" integer)":
-                // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
-                return Optional.of(setup.withNewValueLiteral("NULL"));
-            case "tinyint -> smallint":
-            case "bigint -> integer":
-            case "bigint -> smallint":
-            case "bigint -> tinyint":
-            case "decimal(5,3) -> decimal(5,2)":
-            case "char(25) -> char(20)":
-            case "varchar -> char(20)":
-            case "time(6) -> time(3)":
-            case "timestamp(6) -> timestamp(3)":
-            // Iceberg cannot update map keys
-            case "map(integer, varchar) -> map(bigint, varchar)":
-                return Optional.of(setup.asUnsupported());
-
+        // Iceberg allows updating column types if the update is safe. Safe updates are:
+        // - int to bigint
+        // - float to double
+        // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
+        // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
+        return switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
+            // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
+            case "row(x integer) -> row(\"y\" integer)" -> Optional.of(setup.withNewValueLiteral("NULL"));
+            case "tinyint -> smallint",
+                    "bigint -> integer",
+                    "bigint -> smallint",
+                    "bigint -> tinyint",
+                    "decimal(5,3) -> decimal(5,2)",
+                    "char(25) -> char(20)",
+                    "varchar -> char(20)",
+                    "time(6) -> time(3)",
+                    "timestamp(6) -> timestamp(3)",
+                    // Iceberg cannot update map keys
+                    "map(integer, varchar) -> map(bigint, varchar)" -> Optional.of(setup.asUnsupported());
             // Iceberg connector ignores the varchar length
-            case "varchar(100) -> varchar(50)":
-                return Optional.empty();
-        }
-        return Optional.of(setup);
+            case "varchar(100) -> varchar(50)" -> Optional.empty();
+            default -> Optional.of(setup);
+        };
     }
 
     @Override

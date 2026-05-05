@@ -146,7 +146,7 @@ public class CollectTxService
     {
         List<ReadJuffersWarmUpElement> collectJuffersWE = queryParams.getCollectElementsParamsList()
                 .stream()
-                .map(we -> new ReadJuffersWarmUpElement(bufferAllocator, true))
+                .map(_ -> new ReadJuffersWarmUpElement(bufferAllocator, true))
                 .collect(Collectors.toList());
 
         // fill allocation parameters and count total buffer sizes

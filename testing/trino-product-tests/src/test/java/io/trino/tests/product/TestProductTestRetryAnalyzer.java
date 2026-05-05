@@ -127,7 +127,7 @@ public class TestProductTestRetryAnalyzer
         return (ITestNGMethod) Proxy.newProxyInstance(
                 ITestNGMethod.class.getClassLoader(),
                 new Class<?>[] {ITestNGMethod.class},
-                (proxy, method, args) ->
+                (_, method, _) ->
                         switch (method.getName()) {
                             case "getMethodName" -> methodName;
                             case "getTestClass" -> testClass;

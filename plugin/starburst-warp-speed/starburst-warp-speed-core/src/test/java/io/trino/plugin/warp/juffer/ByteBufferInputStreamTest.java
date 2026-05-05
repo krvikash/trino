@@ -51,7 +51,7 @@ public class ByteBufferInputStreamTest
     {
         byteBuffer.position(0);
         try (ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(byteBuffer)) {
-            IntStream.range(0, 100 / Integer.BYTES).forEach((i) -> byteBufferInputStream.readInt());
+            IntStream.range(0, 100 / Integer.BYTES).forEach((_) -> byteBufferInputStream.readInt());
             try {
                 byteBufferInputStream.readInt(); // should be beyond the buffer limits
                 fail("should not get here");

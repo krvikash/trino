@@ -47,7 +47,7 @@ public class Tester
         URI uri = URI.create(in.readLine());
 
         DiscoveryTrinoFileSystem fileSystem = uri.getScheme().equals("s3") ? getS3FileSystem() : Util.fileSystem();
-        SchemaDiscoveryController controller = new SchemaDiscoveryController(__ -> fileSystem, Util.parquetDataSourceFactory, Util.orcDataSourceFactory, TRINO);
+        SchemaDiscoveryController controller = new SchemaDiscoveryController(_ -> fileSystem, Util.parquetDataSourceFactory, Util.orcDataSourceFactory, TRINO);
         Map<String, String> options = new HashMap<>(CsvOptions.standard());
         options.put(GeneralOptions.EXCLUDE_PATTERNS, ".*|*.sql");
         options.put(GeneralOptions.MAX_SAMPLE_TABLES, "500");

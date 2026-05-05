@@ -17,7 +17,7 @@ import io.trino.spi.PageBuilder;
 
 public interface OuterPositionIterator
 {
-    OuterPositionIterator EMPTY_ITERATOR = (pageBuilder, outputChannelOffset) -> false;
+    OuterPositionIterator EMPTY_ITERATOR = (_, _) -> false;
 
     boolean appendToNext(PageBuilder pageBuilder, int outputChannelOffset);
 }

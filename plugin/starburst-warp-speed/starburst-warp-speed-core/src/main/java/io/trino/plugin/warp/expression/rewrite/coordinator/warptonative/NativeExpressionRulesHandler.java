@@ -151,13 +151,13 @@ public class NativeExpressionRulesHandler
             boolean isValid = false;
             String functionName = warpCall.getFunctionName();
             if (context.unsupportedNativeFunctions().contains(functionName)) {
-                context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
+                context.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
                 pushdownPredicatesStats.incunsupported_functions_native();
                 return false;
             }
             Set<RewriteRule> rewriteRules = functionToRewriteRules.get(functionName);
             if (rewriteRules.isEmpty()) {
-                context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
+                context.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
                 pushdownPredicatesStats.incunsupported_functions_native();
             }
             for (RewriteRule rule : rewriteRules) {
@@ -170,7 +170,7 @@ public class NativeExpressionRulesHandler
             return isValid;
         }
         else {
-            context.customStats().compute("unsupported_functions_native", (key, value) -> value == null ? 1L : value + 1);
+            context.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }

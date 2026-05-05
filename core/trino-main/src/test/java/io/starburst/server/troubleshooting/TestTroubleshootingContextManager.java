@@ -68,7 +68,7 @@ public class TestTroubleshootingContextManager
         AtomicBoolean onContextFinishedCalled = new AtomicBoolean();
         HappyPathProvider happyPathProvider = new HappyPathProvider(onContextStartedCalled, onContextFinishedCalled);
 
-        TroubleshootingContextManager manager = createTroubleshootingContextManager(config -> {}, new ThrowingProvider(), happyPathProvider);
+        TroubleshootingContextManager manager = createTroubleshootingContextManager(_ -> {}, new ThrowingProvider(), happyPathProvider);
 
         QueryId queryId = new QueryId("123");
         manager.start(queryId);

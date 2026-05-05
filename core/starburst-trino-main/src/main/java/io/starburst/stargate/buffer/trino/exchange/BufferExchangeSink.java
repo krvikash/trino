@@ -555,8 +555,8 @@ public class BufferExchangeSink
 
         public void add(Integer partition, Long bufferNodeId)
         {
-            bufferNodeToPartitions.computeIfAbsent(bufferNodeId, ignored -> Sets.newConcurrentHashSet()).add(partition);
-            partitionToBufferNodes.computeIfAbsent(partition, ignored -> Sets.newConcurrentHashSet()).add(bufferNodeId);
+            bufferNodeToPartitions.computeIfAbsent(bufferNodeId, _ -> Sets.newConcurrentHashSet()).add(partition);
+            partitionToBufferNodes.computeIfAbsent(partition, _ -> Sets.newConcurrentHashSet()).add(bufferNodeId);
         }
 
         @Override

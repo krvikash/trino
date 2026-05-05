@@ -84,7 +84,7 @@ public class WorkerWarmupTaskTest
                             .table(table)
                             .warpColumn(new RegularColumn(column))
                             .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
-                            .priority(1D)
+                            .priority(1d)
                             .ttl(2)
                             .predicates(Set.of())
                             .build());

@@ -41,7 +41,7 @@ public class FailureGeneratorInvocationHandler
 
     public InvocationHandler getMethodInvocationHandler(Object inst)
     {
-        return (proxy, method, args) -> {
+        return (_, method, args) -> {
             String key = getKey(method.getDeclaringClass().getName(), method.getName());
             FailureAction failureAction = invocationResults.get(key);
             if (failureAction != null && failureAction.shouldExecute()) {

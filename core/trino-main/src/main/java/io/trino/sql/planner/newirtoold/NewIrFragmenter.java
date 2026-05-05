@@ -496,7 +496,7 @@ public class NewIrFragmenter
         {
             PartitioningHandle partitioning = metadata.getTableProperties(session, TABLE_HANDLE.getAttribute(operation.attributes()))
                     .getTablePartitioning()
-                    .filter(value -> Optional.ofNullable(USE_CONNECTOR_NODE_PARTITIONING.getAttribute(operation.attributes()))
+                    .filter(_ -> Optional.ofNullable(USE_CONNECTOR_NODE_PARTITIONING.getAttribute(operation.attributes()))
                             .orElseThrow(() -> new VerifyException(USE_CONNECTOR_NODE_PARTITIONING.name() + " attribute is not set")))
                     .map(TablePartitioning::partitioningHandle)
                     .orElse(SOURCE_DISTRIBUTION);

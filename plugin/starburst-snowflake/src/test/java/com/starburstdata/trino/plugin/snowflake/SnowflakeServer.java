@@ -75,7 +75,7 @@ public final class SnowflakeServer
     public static void executeOnDatabase(String database, String... sqls)
             throws SQLException
     {
-        executeOnDatabaseWithResultSetConsumer(database, (rs) -> {}, sqls);
+        executeOnDatabaseWithResultSetConsumer(database, _ -> {}, sqls);
     }
 
     public static void executeOnDatabaseWithResultSetConsumer(String database, Consumer<ResultSet> consumer, String... sqls)

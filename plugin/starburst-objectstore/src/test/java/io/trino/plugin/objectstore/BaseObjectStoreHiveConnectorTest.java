@@ -56,43 +56,35 @@ public abstract class BaseObjectStoreHiveConnectorTest
     {
         boolean connectorHasBehavior = new GetHiveConnectorTestBehavior().hasBehavior(connectorBehavior);
 
-        switch (connectorBehavior) {
-            case SUPPORTS_MULTI_STATEMENT_WRITES: // multi-statement transaction support is disabled in ObjectStore
+        return switch (connectorBehavior) {
+            // multi-statement transaction support is disabled in ObjectStore
+            case SUPPORTS_MULTI_STATEMENT_WRITES -> {
                 // when this fails remove the `case` for given flag
                 verify(connectorHasBehavior, "Expected support for: %s", connectorBehavior);
-                return false;
-
+                yield false;
+            }
             // GetHiveConnectorTestBehavior sets false because Hive connector doesn't support updates on non-ACID tables
-            case SUPPORTS_UPDATE:
-            case SUPPORTS_ROW_LEVEL_UPDATE:
-                return true;
-
+            case SUPPORTS_UPDATE,
+                    SUPPORTS_ROW_LEVEL_UPDATE -> true;
             // Declared to be had since MERGE-related test cases are overridden
-            case SUPPORTS_MERGE:
-                return true;
-
-            case SUPPORTS_DROP_SCHEMA_CASCADE:
-                return true;
-
+            case SUPPORTS_MERGE -> true;
+            case SUPPORTS_DROP_SCHEMA_CASCADE -> true;
             // ObjectStore adds support for materialized views using Iceberg
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW:
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD:
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE:
-            case SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW:
-            case SUPPORTS_RENAME_MATERIALIZED_VIEW:
-//            case SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS: -- not supported by Iceberg:
-            case SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN:
+            // SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS is not supported by Iceberg
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
+                    SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
+                    SUPPORTS_RENAME_MATERIALIZED_VIEW,
+                    SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
-                return true;
-
-            case SUPPORTS_CREATE_FUNCTION:
-                return false;
-
-            default:
-                // By default, declare all behaviors/features supported by Hive connector
-                return connectorHasBehavior;
-        }
+                yield true;
+            }
+            case SUPPORTS_CREATE_FUNCTION -> false;
+            // By default, declare all behaviors/features supported by Hive connector
+            default -> connectorHasBehavior;
+        };
     }
 
     @Override

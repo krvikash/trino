@@ -56,66 +56,77 @@ public class GlobPattern
         for (int i = 0; i < len; i++) {
             char c = glob.charAt(i);
 
-            switch (c) {
-                case BACKSLASH:
+            boolean appendCurrent = switch (c) {
+                case BACKSLASH -> {
                     if (++i >= len) {
                         error("Missing escaped character", glob, i);
                     }
                     regex.append(c).append(glob.charAt(i));
-                    continue;
-                case '.':
-                case '$':
-                case '(':
-                case ')':
-                case '|':
-                case '+':
-                    // escape regex special chars that are not glob special chars
+                    yield false;
+                }
+                // escape regex special chars that are not glob special chars
+                case '.', '$', '(', ')', '|', '+' -> {
                     regex.append(BACKSLASH);
-                    break;
-                case '*':
+                    yield true;
+                }
+                case '*' -> {
                     regex.append('.');
-                    break;
-                case '?':
+                    yield true;
+                }
+                case '?' -> {
                     regex.append('.');
-                    continue;
-                case '{': // start of a group
+                    yield false;
+                }
+                // start of a group
+                case '{' -> {
                     regex.append("(?:"); // non-capturing
                     curlyOpen++;
-                    continue;
-                case ',':
+                    yield false;
+                }
+                case ',' -> {
                     regex.append(curlyOpen > 0 ? '|' : c);
-                    continue;
-                case '}':
+                    yield false;
+                }
+                case '}' -> {
                     if (curlyOpen > 0) {
                         // end of a group
                         curlyOpen--;
                         regex.append(")");
-                        continue;
+                        yield false;
                     }
-                    break;
-                case '[':
+                    yield true;
+                }
+                case '[' -> {
                     if (setOpen > 0) {
                         error("Unclosed character class", glob, i);
                     }
                     setOpen++;
-                    break;
-                case '^': // ^ inside [...] can be unescaped
+                    yield true;
+                }
+                // ^ inside [...] can be unescaped
+                case '^' -> {
                     if (setOpen == 0) {
                         regex.append(BACKSLASH);
                     }
-                    break;
-                case '!': // [! needs to be translated to [^
+                    yield true;
+                }
+                // [! needs to be translated to [^
+                case '!' -> {
                     regex.append(setOpen > 0 && '[' == glob.charAt(i - 1) ? '^' : '!');
-                    continue;
-                case ']':
-                    // Many set errors like [][] could not be easily detected here,
-                    // as []], []-] and [-] are all valid POSIX glob and java regex.
-                    // We'll just let the regex compiler do the real work.
+                    yield false;
+                }
+                // Many set errors like [][] could not be easily detected here,
+                // as []], []-] and [-] are all valid POSIX glob and java regex.
+                // We'll just let the regex compiler do the real work.
+                case ']' -> {
                     setOpen = 0;
-                    break;
-                default:
+                    yield true;
+                }
+                default -> true;
+            };
+            if (appendCurrent) {
+                regex.append(c);
             }
-            regex.append(c);
         }
 
         if (setOpen > 0) {

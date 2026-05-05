@@ -32,7 +32,7 @@ public class SalesforceTestTable
     public SalesforceTestTable(String jdbcUrl, String tableName, String tableDefinition)
     {
         // Pass in a no-op SqlExecutor as the base class attempts to create the table, but we want to override that functionality here
-        super(sql -> {}, tableName, tableDefinition);
+        super(_ -> {}, tableName, tableDefinition);
 
         this.jdbcUrl = requireNonNull(jdbcUrl, "sqlExecutor is null");
         this.tableName = requireNonNull(tableName, "tableName is null");

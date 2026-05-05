@@ -159,7 +159,7 @@ public class QueryClassifierTest
                     .state(state)
                     .totalRecords(5)
                     .build();
-            weHandleToWarmUpElementByType.computeIfAbsent(columnHandle, e -> new HashMap<>()).put(warmUpType, warmUpElement);
+            weHandleToWarmUpElementByType.computeIfAbsent(columnHandle, _ -> new HashMap<>()).put(warmUpType, warmUpElement);
             warmUpElements.add(warmUpElement);
         }
     }

@@ -300,13 +300,13 @@ public class TestSmartPinningPartitionNodeMapper
 
         // check if there are no duplicate partition -> node mappings
         Map<Integer, Map<Long, Long>> partitionNodeCountMap = new HashMap<>(); // partition -> nodeId -> count
-        mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, (k) -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
-        partitionNodeCountMap.forEach((partition, nodeCountMap) ->
-                assertThat(nodeCountMap).allSatisfy((node, count) ->
+        mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, _ -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
+        partitionNodeCountMap.forEach((_, nodeCountMap) ->
+                assertThat(nodeCountMap).allSatisfy((_, count) ->
                         assertThat(count).isEqualTo(1)));
 
         // check each partition is mapped to expected number of nodes
-        assertThat(mapping.asMap()).allSatisfy((partition, nodes) -> assertThat(nodes).hasSize(expectedNodesPerPartition));
+        assertThat(mapping.asMap()).allSatisfy((_, nodes) -> assertThat(nodes).hasSize(expectedNodesPerPartition));
 
         // check we use expected number of nodes
         assertThat(ImmutableSet.copyOf(mapping.values())).hasSize(expectedNodesUsed);
@@ -316,7 +316,7 @@ public class TestSmartPinningPartitionNodeMapper
 
         // check nodes are used uniformly
         Map<Long, Long> nodeCountMap = new HashMap<>();
-        mapping.forEach((partition, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
+        mapping.forEach((_, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
         long minPartitionsPerNode = nodeCountMap.values().stream().mapToLong(l -> l).min().orElseThrow();
         long maxPartitionsPerNode = nodeCountMap.values().stream().mapToLong(l -> l).max().orElseThrow();
         assertThat(maxPartitionsPerNode - minPartitionsPerNode).isLessThanOrEqualTo(1);
@@ -334,8 +334,8 @@ public class TestSmartPinningPartitionNodeMapper
         int expectedProbesPerNode = probesCount / expectedNodesPerPartition;
         for (int i = 0; i < probesCount; ++i) {
             ListMultimap<Integer, Long> mapping = getFutureValue(mapper.getMapping(0, Optional.empty())).getMapping();
-            mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, (k) -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
-            mapping.forEach((partition, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
+            mapping.forEach((partition, nodeId) -> partitionNodeCountMap.computeIfAbsent(partition, _ -> new HashMap<>()).merge(nodeId, 1L, Long::sum));
+            mapping.forEach((_, nodeId) -> nodeCountMap.merge(nodeId, 1L, Long::sum));
         }
 
         assertThat(partitionNodeCountMap.size()).as("partition count").isEqualTo(expectedPartitionsCount);

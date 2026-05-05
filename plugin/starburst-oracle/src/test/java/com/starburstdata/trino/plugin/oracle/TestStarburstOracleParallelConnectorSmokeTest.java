@@ -39,7 +39,7 @@ public class TestStarburstOracleParallelConnectorSmokeTest
                         .put("oracle.parallel.max-splits-per-scan", "17")
                         .buildOrThrow())
                 .withTables(REQUIRED_TPCH_TABLES)
-                .withSessionModifier(session -> createSession(PARTITIONED_USER, "oracle", PARTITIONED_USER))
+                .withSessionModifier(_ -> createSession(PARTITIONED_USER, "oracle", PARTITIONED_USER))
                 .withCreateUsers(this::createUsers)
                 .withProvisionTables(this::partitionTables)
                 .build();
@@ -61,13 +61,11 @@ public class TestStarburstOracleParallelConnectorSmokeTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_LIMIT_PUSHDOWN:
-            case SUPPORTS_TOPN_PUSHDOWN:
-                // Full pushdown is disabled for parallel connector for correctness - see StarburstOracleClient#is(TopN)LimitGuaranteed
-                return false;
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_LIMIT_PUSHDOWN, SUPPORTS_TOPN_PUSHDOWN ->
+                    // Full pushdown is disabled for parallel connector for correctness - see StarburstOracleClient#is(TopN)LimitGuaranteed
+                    false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 }

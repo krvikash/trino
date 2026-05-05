@@ -428,7 +428,7 @@ public class BufferExchange
     private void registerNewChunkHandles(List<ChunkHandle> newChunkHandles)
     {
         for (ChunkHandle chunkHandle : newChunkHandles) {
-            Deque<ChunkHandle> queue = discoveredChunkHandles.computeIfAbsent(chunkHandle.partitionId(), ignore -> new ArrayDeque<>());
+            Deque<ChunkHandle> queue = discoveredChunkHandles.computeIfAbsent(chunkHandle.partitionId(), _ -> new ArrayDeque<>());
             queue.add(chunkHandle);
             discoveredChunkHandlesCounter++;
             coordinatorMetrics.recordChunkDiscovered(chunkHandle.dataSizeInBytes());

@@ -72,7 +72,7 @@ public class DispatcherSplitSourceTest
                         mock(ConnectorSplit.class)))
                 .collect(Collectors.toList());
         ConnectorSplitSource.ConnectorSplitBatch connectorSplitBatch = mock(ConnectorSplitSource.ConnectorSplitBatch.class);
-        when(connectorSplitBatch.getSplits()).thenAnswer(invocation -> connectorSplits);
+        when(connectorSplitBatch.getSplits()).thenAnswer(_ -> connectorSplits);
         CompletableFuture<ConnectorSplitSource.ConnectorSplitBatch> connectorSplitBatchCompletableFuture = CompletableFuture.completedFuture(connectorSplitBatch);
         when(connectorSplitSource.getNextBatch(eq(maxSize))).thenReturn(connectorSplitBatchCompletableFuture);
 

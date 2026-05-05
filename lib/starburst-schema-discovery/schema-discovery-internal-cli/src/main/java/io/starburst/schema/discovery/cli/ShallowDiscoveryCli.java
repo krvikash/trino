@@ -19,7 +19,7 @@ public class ShallowDiscoveryCli
     static void main(String[] args)
     {
         CommandLine commandLine = new CommandLine(new ShallowDiscoveryCommand());
-        commandLine.setExecutionExceptionHandler((e, __, ___) -> {
+        commandLine.setExecutionExceptionHandler((e, _, _) -> {
             if (Boolean.getBoolean("DEBUG")) {
                 e.printStackTrace();
             }

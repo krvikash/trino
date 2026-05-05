@@ -75,7 +75,7 @@ public class TestAlternativesAwareDriverFactory
     {
         // Track created providers to verify caching
         Map<Integer, ConnectorPageSourceProvider> createdProviders = new HashMap<>();
-        ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) -> {
+        ConnectorAlternativeChooser connectorAlternativeChooser = (_, _, _) -> {
             int chosenIndex = 0;  // Always choose first alternative
             return new ConnectorAlternativeChooser.Choice(chosenIndex, () -> {
                 ConnectorPageSourceProvider provider = new ConnectorPageSourceProvider() {};
@@ -87,7 +87,7 @@ public class TestAlternativesAwareDriverFactory
         };
 
         AlternativesAwareDriverFactory factory = new AlternativesAwareDriverFactory(
-                new AlternativeChooser(catalogHandle -> connectorAlternativeChooser),
+                new AlternativeChooser(_ -> connectorAlternativeChooser),
                 TEST_SESSION,
                 alternatives(ImmutableMap.of("alternative0", new MockOperatorFactory())),
                 CHOOSE_ALTERNATIVE_NODE_ID,
@@ -122,7 +122,7 @@ public class TestAlternativesAwareDriverFactory
         Map<Integer, ConnectorPageSourceProvider> createdProviders = new HashMap<>();
         AtomicInteger currentAlternative = new AtomicInteger(0);
 
-        ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) -> {
+        ConnectorAlternativeChooser connectorAlternativeChooser = (_, _, _) -> {
             int chosenIndex = currentAlternative.get();
             return new ConnectorAlternativeChooser.Choice(chosenIndex, () -> {
                 ConnectorPageSourceProvider provider = new ConnectorPageSourceProvider() {};
@@ -134,7 +134,7 @@ public class TestAlternativesAwareDriverFactory
         };
 
         AlternativesAwareDriverFactory factory = new AlternativesAwareDriverFactory(
-                new AlternativeChooser(catalogHandle -> connectorAlternativeChooser),
+                new AlternativeChooser(_ -> connectorAlternativeChooser),
                 TEST_SESSION,
                 alternatives(ImmutableMap.of(
                         "alternative0", new MockOperatorFactory(),
@@ -188,13 +188,13 @@ public class TestAlternativesAwareDriverFactory
     public void testCorrectAlternativeDriversCreated()
     {
         AtomicInteger currentAlternative = new AtomicInteger(0);
-        ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) ->
+        ConnectorAlternativeChooser connectorAlternativeChooser = (_, _, _) ->
                 new ConnectorAlternativeChooser.Choice(currentAlternative.get(), () -> new ConnectorPageSourceProvider() {});
 
         MockOperatorFactory alternativeOperatorFactory0 = new MockOperatorFactory();
         MockOperatorFactory alternativeOperatorFactory1 = new MockOperatorFactory();
         AlternativesAwareDriverFactory factory = new AlternativesAwareDriverFactory(
-                new AlternativeChooser(catalogHandle -> connectorAlternativeChooser),
+                new AlternativeChooser(_ -> connectorAlternativeChooser),
                 TEST_SESSION,
                 alternatives(ImmutableMap.of(
                         "alternative0", alternativeOperatorFactory0,

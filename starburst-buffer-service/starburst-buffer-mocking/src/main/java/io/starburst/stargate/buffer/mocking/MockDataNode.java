@@ -225,7 +225,7 @@ class MockDataNode
     @GuardedBy("this")
     private ExchangeData getOrCreateExchangeData(String exchangeId)
     {
-        return exchangesData.computeIfAbsent(exchangeId, (key) -> new ExchangeData(exchangeId));
+        return exchangesData.computeIfAbsent(exchangeId, _ -> new ExchangeData(exchangeId));
     }
 
     @GuardedBy("this")

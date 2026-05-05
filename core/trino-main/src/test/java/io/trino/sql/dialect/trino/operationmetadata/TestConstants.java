@@ -240,8 +240,8 @@ public class TestConstants
     public void testDouble()
     {
         // Two different NaN representations
-        double firstNaN = longBitsToDouble(0x7ff0000000000001L);
-        double secondNaN = longBitsToDouble(0x7fffffffffffffffL);
+        double firstNaN = longBitsToDouble(0x7FF0000000000001L);
+        double secondNaN = longBitsToDouble(0x7FFFFFFFFFFFFFFFL);
         assertThat(Double.isNaN(firstNaN)).isTrue();
         assertThat(Double.isNaN(secondNaN)).isTrue();
         // their Java representations are not equal
@@ -275,8 +275,8 @@ public class TestConstants
     public void testReal()
     {
         // Two different NaN representations
-        float firstNaN = intBitsToFloat(0x7f800001);
-        float secondNaN = intBitsToFloat(0x7fffffff);
+        float firstNaN = intBitsToFloat(0x7F800001);
+        float secondNaN = intBitsToFloat(0x7FFFFFFF);
         assertThat(Float.isNaN(firstNaN)).isTrue();
         assertThat(Float.isNaN(secondNaN)).isTrue();
         // their Java representations are not equal
@@ -598,8 +598,8 @@ public class TestConstants
         ArrayType doubleArray = new ArrayType(DOUBLE);
 
         // two different NaN representations
-        double firstNaN = longBitsToDouble(0x7ff0000000000001L);
-        double secondNaN = longBitsToDouble(0x7fffffffffffffffL);
+        double firstNaN = longBitsToDouble(0x7FF0000000000001L);
+        double secondNaN = longBitsToDouble(0x7FFFFFFFFFFFFFFFL);
         Block firstValue = createDoublesBlock(firstNaN, null);
         Block secondValue = createDoublesBlock(secondNaN, null);
         // Constant operations wrapping them are equal

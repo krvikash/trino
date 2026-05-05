@@ -33,7 +33,6 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
-import io.trino.plugin.warp.storage.juffers.BaseJuffer;
 import io.trino.plugin.warp.storage.juffers.JuffersWarmUpElementBase;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.NodeManager;
@@ -297,8 +296,6 @@ public abstract class BaseDictionaryBlockTest
         logger.info("fill buffer with %s expected filled/read rows", shortBuffer.position());
         shortBuffer.position(0);
         when(juffersWE.getRecordBuffer()).thenReturn(shortBuffer);
-        @SuppressWarnings("unused")
-        BaseJuffer juffer = mock(BaseJuffer.class);
         if (collectNulls || queryResultTypeRaw == QueryResultType.QUERY_RESULT_TYPE_ALL_NULL || queryResultTypeRaw == QueryResultType.QUERY_RESULT_TYPE_SINGLE) {
             when(juffersWE.getNullBuffer()).thenReturn(nullBuffer);
             nullBuffer.position(0);

@@ -446,7 +446,7 @@ public class RowGroupDataDaoTest
                         .warmUpElements(warmUpElements)
                         .build();
                 int waitTime = Math.abs((new Random(i).nextInt(Integer.MAX_VALUE) % 10) + 1) * 100;
-                IntStream.range(0, 3).forEach(j -> {
+                IntStream.range(0, 3).forEach(_ -> {
                     wait(waitTime, () -> rowGroupDataDao.get(rowGroupData.getRowGroupKey()));
                     wait(waitTime, () -> rowGroupDataDao.getAll());
                     wait(waitTime, () -> rowGroupDataDao.save(rowGroupData));

@@ -301,12 +301,12 @@ class RangesConverterTest
     @Test
     public void testManyRangesDouble()
     {
-        Range lessRange = Range.lessThanOrEqual(DoubleType.DOUBLE, -9D);
-        Range middleRange1 = Range.range(DoubleType.DOUBLE, 3D, true, 5D, true);
-        Range middleRange2 = Range.range(DoubleType.DOUBLE, 7D, false, 10D, false);
-        Range middleRange3 = Range.range(DoubleType.DOUBLE, 20D, true, 25D, false);
-        Range middleRange4 = Range.range(DoubleType.DOUBLE, 30D, false, 35D, true);
-        Range greater = Range.greaterThanOrEqual(DoubleType.DOUBLE, 90D);
+        Range lessRange = Range.lessThanOrEqual(DoubleType.DOUBLE, -9d);
+        Range middleRange1 = Range.range(DoubleType.DOUBLE, 3d, true, 5d, true);
+        Range middleRange2 = Range.range(DoubleType.DOUBLE, 7d, false, 10d, false);
+        Range middleRange3 = Range.range(DoubleType.DOUBLE, 20d, true, 25d, false);
+        Range middleRange4 = Range.range(DoubleType.DOUBLE, 30d, false, 35d, true);
+        Range greater = Range.greaterThanOrEqual(DoubleType.DOUBLE, 90d);
         SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(DoubleType.DOUBLE, List.of(lessRange,
                 middleRange1,
                 middleRange2,

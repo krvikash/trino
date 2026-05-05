@@ -48,7 +48,7 @@ public final class DateTimes
             1_000_000_000L,
             10_000_000_000L,
             100_000_000_000L,
-            1000_000_000_000L
+            1000_000_000_000L,
     };
 
     private DateTimes() {}
@@ -99,7 +99,7 @@ public final class DateTimes
         LocalDateTime dateTime = LocalDateTime.ofInstant(instant, zoneId);
         long picoFraction = ((long) getMicrosOfSecond(epochMicros)) * PICOSECONDS_PER_MICROSECOND + picosOfMicro;
 
-        return formatTimestamp(precision, dateTime, picoFraction, yearToSecondFormatter, builder -> {});
+        return formatTimestamp(precision, dateTime, picoFraction, yearToSecondFormatter, _ -> {});
     }
 
     public static String formatTimestamp(int precision, LocalDateTime dateTime, long picoFraction, DateTimeFormatter yearToSecondFormatter, Consumer<StringBuilder> zoneIdFormatter)

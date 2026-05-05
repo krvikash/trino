@@ -14,7 +14,7 @@ import io.trino.spi.security.ConnectorIdentity;
 @FunctionalInterface
 public interface DiscoveryLocationAccessControlAdapter
 {
-    DiscoveryLocationAccessControlAdapter ALLOW_ALL = (identity, location, queryId) -> {};
+    DiscoveryLocationAccessControlAdapter ALLOW_ALL = (_, _, _) -> {};
 
     void checkCanUseLocation(ConnectorIdentity identity, String location, String queryId);
 }

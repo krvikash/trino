@@ -91,8 +91,8 @@ public class WarmupRuleServiceTest
         when(dispatcherProxiedConnectorTransformer.createProxiedMetadata(eq(proxiedConnector), any(ConnectorSession.class)))
                 .thenReturn(Pair.of(connectorMetadata, connectorTransactionHandle));
         tableHandle = mock(ConnectorTableHandle.class);
-        when(connectorMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), eq(Optional.empty()), eq(Optional.empty()))).thenAnswer(inv -> tableHandle);
-        when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer((inv) -> columnMap);
+        when(connectorMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), eq(Optional.empty()), eq(Optional.empty()))).thenAnswer(_ -> tableHandle);
+        when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer((_) -> columnMap);
         globalConfig = new GlobalConfig();
         warmupRuleService = new WarmupRuleService(proxiedConnector,
                 storageEngineConstants,

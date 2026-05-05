@@ -305,14 +305,14 @@ public class WarmupDemoterServiceTest
         verify(demoterSync, times(1))
                 .finishDemoteProcess(eq(demoteKey),
                         eq(Double.MIN_VALUE),
-                        eq(0D),
+                        eq(0d),
                         eq(DemoteStatus.NO_ELEMENTS_TO_DEMOTE));
     }
 
     @Test
     public void testWarmupDemoterDecreaseMemoryUsageUntilCleanThreshold()
     {
-        AtomicDouble usageCapacity = new AtomicDouble(0.92D);
+        AtomicDouble usageCapacity = new AtomicDouble(0.92d);
         when(workerCapacityManager.getFractionCurrentUsageFromTotal())
                 .thenAnswer(_ -> {
                     usageCapacity.set(usageCapacity.addAndGet(-0.1));
@@ -428,7 +428,7 @@ public class WarmupDemoterServiceTest
     public void testInitiateSyncDemoteProcess()
     {
         setConfig(defaultMaxThreshold, defaultCleanThreshold, defaultBatchSize, defaultMaxElementsToDemote, List.of());
-        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(100D);
+        when(workerCapacityManager.getFractionCurrentUsageFromTotal()).thenReturn(100d);
         when(demoterSync.tryStartDemoteProcess(
                 eq(demoteKey),
                 eq(warmupDemoterConfig.getMaxUsageThresholdPercentage()),

@@ -249,48 +249,45 @@ public class VerticaClient
             return mappingToVarchar;
         }
 
-        switch (typeHandle.jdbcType()) {
-            case Types.BIT:
-            case Types.BOOLEAN:
-                return Optional.of(booleanColumnMapping());
+        Optional<ColumnMapping> mapping = switch (typeHandle.jdbcType()) {
+            case Types.BIT,
+                    Types.BOOLEAN -> Optional.of(booleanColumnMapping());
             // Vertica's integer type is a 64-bit type for all tiny/small/int/bigint data
             // Vertica does not support the JDBC TINYINT/SMALLINT/INTEGER types, only BIGINT
-            case Types.TINYINT:
-            case Types.SMALLINT:
-            case Types.INTEGER:
-            case Types.BIGINT:
-                return Optional.of(bigintColumnMapping());
-            case Types.DOUBLE:
-            case Types.FLOAT:
-            case Types.REAL:
-                // Disabling pushdown - Vertica is dropping/rounding precision for these types
-                return Optional.of(doubleMapping(DOUBLE, ResultSet::getDouble, doubleWriteFunction(), DISABLE_PUSHDOWN));
-            case Types.NUMERIC:
+            case Types.TINYINT,
+                    Types.SMALLINT,
+                    Types.INTEGER,
+                    Types.BIGINT -> Optional.of(bigintColumnMapping());
+            // Disabling pushdown - Vertica is dropping/rounding precision for these types
+            case Types.DOUBLE,
+                    Types.FLOAT,
+                    Types.REAL -> Optional.of(doubleMapping(DOUBLE, ResultSet::getDouble, doubleWriteFunction(), DISABLE_PUSHDOWN));
+            case Types.NUMERIC -> {
                 int decimalDigits = typeHandle.requiredDecimalDigits();
                 int precision = typeHandle.requiredColumnSize() + max(-decimalDigits, 0);
                 if (getDecimalRounding(session) == ALLOW_OVERFLOW && precision > Decimals.MAX_PRECISION) {
                     int scale = min(decimalDigits, getDecimalDefaultScale(session));
-                    return Optional.of(decimalColumnMapping(createDecimalType(Decimals.MAX_PRECISION, scale), getDecimalRoundingMode(session)));
+                    yield Optional.of(decimalColumnMapping(createDecimalType(Decimals.MAX_PRECISION, scale), getDecimalRoundingMode(session)));
                 }
                 if (precision > Decimals.MAX_PRECISION) {
-                    break;
+                    yield Optional.empty();
                 }
-                return Optional.of(decimalColumnMapping(createDecimalType(precision, max(decimalDigits, 0))));
-            case Types.CHAR:
-                return Optional.of(charColumnMapping(createCharType(typeHandle.requiredColumnSize()), true));
-            case Types.VARCHAR:
-            case Types.LONGVARCHAR:
-                return Optional.of(varcharColumnMapping(createVarcharType(typeHandle.requiredColumnSize()), true));
-            case Types.VARBINARY:
-            case Types.LONGVARBINARY:
-                return Optional.of(varbinaryColumnMapping());
-            case Types.DATE:
-                return Optional.of(ColumnMapping.longMapping(
-                        DATE,
-                        (resultSet, index) -> LocalDate.parse(resultSet.getString(index), DATE_READ_FORMATTER).toEpochDay(),
-                        dateWriteFunctionUsingString()));
-            case Types.TIMESTAMP:
-                return Optional.of(timestampColumnMappingUsingString(createTimestampType(typeHandle.requiredDecimalDigits())));
+                yield Optional.of(decimalColumnMapping(createDecimalType(precision, max(decimalDigits, 0))));
+            }
+            case Types.CHAR -> Optional.of(charColumnMapping(createCharType(typeHandle.requiredColumnSize()), true));
+            case Types.VARCHAR,
+                    Types.LONGVARCHAR -> Optional.of(varcharColumnMapping(createVarcharType(typeHandle.requiredColumnSize()), true));
+            case Types.VARBINARY,
+                    Types.LONGVARBINARY -> Optional.of(varbinaryColumnMapping());
+            case Types.DATE -> Optional.of(ColumnMapping.longMapping(
+                    DATE,
+                    (resultSet, index) -> LocalDate.parse(resultSet.getString(index), DATE_READ_FORMATTER).toEpochDay(),
+                    dateWriteFunctionUsingString()));
+            case Types.TIMESTAMP -> Optional.of(timestampColumnMappingUsingString(createTimestampType(typeHandle.requiredDecimalDigits())));
+            default -> Optional.empty();
+        };
+        if (mapping.isPresent()) {
+            return mapping;
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {

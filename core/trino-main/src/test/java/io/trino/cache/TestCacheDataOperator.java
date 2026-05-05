@@ -352,7 +352,7 @@ public class TestCacheDataOperator
                 operatorIdAllocator.incrementAndGet(),
                 true,
                 false,
-                IntStream.range(0, operatorsCount).mapToObj(i -> operatorFactoryProvider.apply(operatorIdAllocator.incrementAndGet())).toList(),
+                IntStream.range(0, operatorsCount).mapToObj(_ -> operatorFactoryProvider.apply(operatorIdAllocator.incrementAndGet())).toList(),
                 OptionalInt.empty());
     }
 

@@ -138,10 +138,10 @@ public class WorkerWarmupTask
                         warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
                 long sizeInBytes = 0;
                 optionalWarmupRule.ifPresentOrElse(warmupRule -> {
-                    AtomicLong currentUsage = warmupIdUsageMap.computeIfAbsent(warmupRule.getId(), key -> new AtomicLong(0));
+                    AtomicLong currentUsage = warmupIdUsageMap.computeIfAbsent(warmupRule.getId(), _ -> new AtomicLong(0));
                     currentUsage.getAndAdd(sizeInBytes);
                 }, () -> {
-                    AtomicLong currentUsage = defaultRulesMap.computeIfAbsent(WarmupRuleApiMapper.convertModelWarmUpType(warmUpElement.getWarmUpType()), key -> new AtomicLong(0));
+                    AtomicLong currentUsage = defaultRulesMap.computeIfAbsent(WarmupRuleApiMapper.convertModelWarmUpType(warmUpElement.getWarmUpType()), _ -> new AtomicLong(0));
                     currentUsage.getAndAdd(sizeInBytes);
                 });
             }

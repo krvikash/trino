@@ -54,14 +54,14 @@ final class RecursiveDirectoriesFileTracker
         }
         Location potentialTablePath = getPathClosestToRoot(directoryPath);
         return recursiveTableFileCount.size() >= generalOptions.maxSampleTables() ||
-               recursiveTableFileCount.computeIfAbsent(potentialTablePath, __ -> new AtomicInteger()).get() > generalOptions.maxSampleFilesPerTable();
+               recursiveTableFileCount.computeIfAbsent(potentialTablePath, _ -> new AtomicInteger()).get() > generalOptions.maxSampleFilesPerTable();
     }
 
     @Override
     public Optional<ProcessorPath> getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
         Location recursiveTablePath = getPathClosestToRoot(directoryPath);
-        AtomicInteger fileIndex = recursiveTableFileCount.computeIfAbsent(recursiveTablePath, __ -> new AtomicInteger());
+        AtomicInteger fileIndex = recursiveTableFileCount.computeIfAbsent(recursiveTablePath, _ -> new AtomicInteger());
         return getNextSampleFile(filePath, lakehouseFormat, fileIndex);
     }
 

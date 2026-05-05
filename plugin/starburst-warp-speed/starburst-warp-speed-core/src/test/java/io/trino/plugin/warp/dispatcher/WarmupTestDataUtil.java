@@ -161,7 +161,7 @@ public class WarmupTestDataUtil
             boolean isEmpty)
     {
         return generateRowGroupData(columnHandles,
-                warmUpTypes.stream().collect(Collectors.toMap(Function.identity(), c -> WarmUpElementState.VALID)),
+                warmUpTypes.stream().collect(Collectors.toMap(Function.identity(), _ -> WarmUpElementState.VALID)),
                 rowGroupKey,
                 isEmpty);
     }

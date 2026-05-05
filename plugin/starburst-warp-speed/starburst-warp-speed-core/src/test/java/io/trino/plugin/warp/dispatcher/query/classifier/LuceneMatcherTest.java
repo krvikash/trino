@@ -125,7 +125,7 @@ public class LuceneMatcherTest
         Map<ColumnHandle, Domain> columnDomains = columnHandles
                 .stream().collect(Collectors.toMap(
                         Function.identity(),
-                        columnHandle -> Domain.singleValue(VarcharType.createVarcharType(5), Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())))));
+                        _ -> Domain.singleValue(VarcharType.createVarcharType(5), Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())))));
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
@@ -168,7 +168,7 @@ public class LuceneMatcherTest
         Map<ColumnHandle, Domain> columnDomains = columnHandles
                 .stream().collect(Collectors.toMap(
                         Function.identity(),
-                        columnHandleTmp -> domain));
+                        _ -> domain));
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
@@ -210,7 +210,7 @@ public class LuceneMatcherTest
                 .stream()
                 .collect(Collectors.toMap(
                         Function.identity(),
-                        columnHandleTmp -> domain));
+                        _ -> domain));
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
@@ -254,7 +254,7 @@ public class LuceneMatcherTest
                 .stream()
                 .collect(Collectors.toMap(
                         Function.identity(),
-                        columnHandleTmp -> domain));
+                        _ -> domain));
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);

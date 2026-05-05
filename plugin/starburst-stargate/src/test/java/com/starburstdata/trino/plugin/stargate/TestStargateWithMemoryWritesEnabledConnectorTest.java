@@ -49,34 +49,22 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_ADD_COLUMN_WITH_COMMENT:
-            case SUPPORTS_DROP_COLUMN:
-            case SUPPORTS_SET_COLUMN_TYPE:
-            case SUPPORTS_UPDATE:
-                // not supported in memory connector
-                return false;
-
-            case SUPPORTS_RENAME_SCHEMA:
-            case SUPPORTS_RENAME_COLUMN:
-                return true;
-
-            case SUPPORTS_DELETE:
-                // memory connector does not support deletes
-                return false;
-
-            case SUPPORTS_NOT_NULL_CONSTRAINT:
-                // memory connector does not support not-null in create-table
-                return true;
-
-            case SUPPORTS_TRUNCATE:
-                return false;
-            case SUPPORTS_COMMENT_ON_COLUMN:
-                return true;
-
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            // not supported in memory connector
+            case SUPPORTS_ADD_COLUMN_WITH_COMMENT,
+                    SUPPORTS_DROP_COLUMN,
+                    SUPPORTS_SET_COLUMN_TYPE,
+                    SUPPORTS_UPDATE -> false;
+            case SUPPORTS_RENAME_SCHEMA,
+                    SUPPORTS_RENAME_COLUMN -> true;
+            // memory connector does not support deletes
+            case SUPPORTS_DELETE -> false;
+            // memory connector does not support not-null in create-table
+            case SUPPORTS_NOT_NULL_CONSTRAINT -> true;
+            case SUPPORTS_TRUNCATE -> false;
+            case SUPPORTS_COMMENT_ON_COLUMN -> true;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Test

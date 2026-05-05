@@ -49,7 +49,7 @@ class RangesConverter
     static final long LONG_DECIMAL_LOWER_UNBOUNDED_MSB = Long.MIN_VALUE;
     static final long LONG_DECIMAL_LOWER_UNBOUNDED_LSB = 0L;
     static final long LONG_DECIMAL_UPPER_UNBOUNDED_MSB = Long.MAX_VALUE;
-    static final long LONG_DECIMAL_UPPER_UNBOUNDED_LSB = 0xffffffffffffffffL;
+    static final long LONG_DECIMAL_UPPER_UNBOUNDED_LSB = 0xFFFFFFFFFFFFFFFFL;
 
     RangesConverter()
     {

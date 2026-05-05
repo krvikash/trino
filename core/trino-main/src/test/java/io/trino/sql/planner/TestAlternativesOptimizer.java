@@ -411,7 +411,7 @@ public class TestAlternativesOptimizer
 
             Assignments alternativeAssignments = Assignments.copyOf(
                     projectNode.getAssignments().entrySet().stream()
-                            .collect(Collectors.toMap(Map.Entry::getKey, e -> alternativeAssignmentExpression)));
+                            .collect(Collectors.toMap(Map.Entry::getKey, _ -> alternativeAssignmentExpression)));
             ProjectNode alternativeProject = new ProjectNode(
                     context.getIdAllocator().getNextId(),
                     alternativeFilter,

@@ -308,7 +308,7 @@ public class IcebergPageSinkProvider
                 .filter(column -> column.getName().equals(MetadataColumns.ROW_ID.name()))
                 .filter(column -> !column.isRowIdColumn())
                 .findFirst()
-                .ifPresent(column -> {
+                .ifPresent(_ -> {
                     throw new TrinoException(ICEBERG_BAD_DATA, "Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
                 });
     }

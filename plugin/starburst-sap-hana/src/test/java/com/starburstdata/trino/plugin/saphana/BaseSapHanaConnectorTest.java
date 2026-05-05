@@ -42,49 +42,34 @@ public abstract class BaseSapHanaConnectorTest
     @SuppressWarnings("DuplicateBranchesInSwitch") // options here are grouped per-feature
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT:
-            case SUPPORTS_JOIN_PUSHDOWN:
-                return true;
-            case SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE:
-            case SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM:
-            case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE:
-            case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN:
-                return false;
-
-            case SUPPORTS_COMMENT_ON_TABLE:
-            case SUPPORTS_COMMENT_ON_COLUMN:
-            case SUPPORTS_ADD_COLUMN_WITH_COMMENT:
-            case SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT:
-            case SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT:
-                return false;
-
-            case SUPPORTS_RENAME_SCHEMA:
-                return false;
-
-            case SUPPORTS_SET_COLUMN_TYPE:
-            case SUPPORTS_ADD_COLUMN_WITH_POSITION:
-                return false;
-            case SUPPORTS_DROP_NOT_NULL_CONSTRAINT:
-                return false;
-
-            case SUPPORTS_ARRAY:
-            case SUPPORTS_MAP_TYPE:
-            case SUPPORTS_ROW_TYPE:
-            case SUPPORTS_NEGATIVE_DATE:
-                return false;
-
-            case SUPPORTS_MERGE:
-            case SUPPORTS_ROW_LEVEL_UPDATE:
-                return false;
-
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
+                    SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
+                    SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT,
+                    SUPPORTS_JOIN_PUSHDOWN -> true;
+            case SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
+                    SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
+                    SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
+                    SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
+                    SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE,
+                    SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN -> false;
+            case SUPPORTS_COMMENT_ON_TABLE,
+                    SUPPORTS_COMMENT_ON_COLUMN,
+                    SUPPORTS_ADD_COLUMN_WITH_COMMENT,
+                    SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT,
+                    SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT -> false;
+            case SUPPORTS_RENAME_SCHEMA -> false;
+            case SUPPORTS_SET_COLUMN_TYPE,
+                    SUPPORTS_ADD_COLUMN_WITH_POSITION -> false;
+            case SUPPORTS_DROP_NOT_NULL_CONSTRAINT -> false;
+            case SUPPORTS_ARRAY,
+                    SUPPORTS_MAP_TYPE,
+                    SUPPORTS_ROW_TYPE,
+                    SUPPORTS_NEGATIVE_DATE -> false;
+            case SUPPORTS_MERGE,
+                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Test
@@ -112,27 +97,23 @@ public abstract class BaseSapHanaConnectorTest
     @Override
     protected Optional<DataMappingTestSetup> filterDataMappingSmokeTestData(DataMappingTestSetup dataMappingTestSetup)
     {
-        switch (dataMappingTestSetup.getTrinoTypeName()) {
-            case "time":
+        return switch (dataMappingTestSetup.getTrinoTypeName()) {
+            case "time" -> {
                 verify(dataMappingTestSetup.getHighValueLiteral().equals("TIME '23:59:59.999'"), "super has changed high value for TIME");
-                return Optional.of(
+                yield Optional.of(
                         new DataMappingTestSetup(
                                 dataMappingTestSetup.getTrinoTypeName(),
                                 dataMappingTestSetup.getSampleValueLiteral(),
                                 "TIME '23:59:59.000'")); // SAP HANA does not store second fraction, so 23:59:59.999 would became 00:00:00
-            case "time(6)":
-                // TODO https://starburstdata.atlassian.net/browse/SEP-9302
-                return Optional.empty();
-            case "timestamp(3) with time zone":
-            case "timestamp(6) with time zone":
-                return Optional.of(dataMappingTestSetup.asUnsupported());
-
-            case "date":
-                return Optional.of(dataMappingTestSetup)
-                        .filter(testSetup -> !testSetup.getSampleValueLiteral().equals("DATE '1582-10-05'"));
-        }
-
-        return Optional.of(dataMappingTestSetup);
+            }
+            // TODO https://starburstdata.atlassian.net/browse/SEP-9302
+            case "time(6)" -> Optional.empty();
+            case "timestamp(3) with time zone",
+                    "timestamp(6) with time zone" -> Optional.of(dataMappingTestSetup.asUnsupported());
+            case "date" -> Optional.of(dataMappingTestSetup)
+                    .filter(testSetup -> !testSetup.getSampleValueLiteral().equals("DATE '1582-10-05'"));
+            default -> Optional.of(dataMappingTestSetup);
+        };
     }
 
     @Test

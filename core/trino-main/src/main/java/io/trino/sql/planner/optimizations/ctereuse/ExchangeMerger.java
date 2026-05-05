@@ -537,7 +537,7 @@ public class ExchangeMerger
         UnifiedStates currentGroup = new UnifiedStates(unifiedOperation, branches);
         ImmutableList.Builder<TraversalState> traversalStates = ImmutableList.builder();
         ImmutableList.Builder<CheckpointReferences> unifiedBranchToCheckpoint = ImmutableList.builder();
-        sourcesMap.forEach((componentExchange, sources) -> {
+        sourcesMap.forEach((_, sources) -> {
             // mapping to rebase the next downstream operation from the component exchange onto the merged exchange operation:
             // it is an identity mapping because the merged exchange has the same output type as the component exchanges
             FieldMapping unifiedMapping = FieldMapping.identity(relationRowType(trinoType(mergedExchange.result().type())));

@@ -101,7 +101,7 @@ public class SampleFilesCrawler
         ImmutableList.Builder<ProcessorPath> sampleFiles = ImmutableList.builder();
 
         createFileEntryStream(directory)
-                .takeWhile(ignore -> !fileTracker.hasEnoughSampledTables(directory))
+                .takeWhile(_ -> !fileTracker.hasEnoughSampledTables(directory))
                 .filter(file -> file.length() > 0 && filter.test(file.location()))
                 .filter(file -> !fileTracker.hasEnoughSamplesForTable(file.location().parentDirectory()))
                 .flatMap(file -> getNextValidSampleFile(file.location()).stream())

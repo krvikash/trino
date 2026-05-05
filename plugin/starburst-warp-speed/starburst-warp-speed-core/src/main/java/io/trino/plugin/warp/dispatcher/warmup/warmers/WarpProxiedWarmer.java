@@ -323,7 +323,7 @@ public class WarpProxiedWarmer
         for (WarpColumn warpColumn : requiredWarmUpTypeMap.keySet()) {
             if (proxiedWarmupElements.containsKey(warpColumn) && warpColumn instanceof RegularColumn) { //if we warmed/skipped all elements of this column we don't need to add it to priority map.
                 for (WarmupProperties warmupProperties : requiredWarmUpTypeMap.get(warpColumn)) {
-                    priorityMap.compute(warpColumn, (k, v) -> Math.max(warmupProperties.priority(), (v == null) ? 0 : v));
+                    priorityMap.compute(warpColumn, (_, v) -> Math.max(warmupProperties.priority(), (v == null) ? 0 : v));
                 }
             }
         }

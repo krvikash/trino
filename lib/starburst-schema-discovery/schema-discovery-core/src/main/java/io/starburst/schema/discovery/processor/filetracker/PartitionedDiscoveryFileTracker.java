@@ -50,7 +50,7 @@ final class PartitionedDiscoveryFileTracker
     @Override
     public Optional<ProcessorPath> getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
-        AtomicInteger fileIndex = potentialTableFileCount.computeIfAbsent(directoryPath, __ -> new AtomicInteger());
+        AtomicInteger fileIndex = potentialTableFileCount.computeIfAbsent(directoryPath, _ -> new AtomicInteger());
         return getNextSampleFile(filePath, lakehouseFormat, fileIndex);
     }
 }

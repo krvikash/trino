@@ -176,12 +176,12 @@ public class TestCacheDriverFactory
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
         // expect driver for original plan because dynamic filter filters data completely
-        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(input -> TupleDomain.none(), identity()), signature, operatorIdAllocator);
+        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(_ -> TupleDomain.none(), identity()), signature, operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
         // expect driver for original plan because enforced predicate is pruned to empty tuple domain
-        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(identity(), input -> TupleDomain.none()), signature, operatorIdAllocator);
+        cacheDriverFactory = createCacheDriverFactory(new TestPageSourceProviderFactory(identity(), _ -> TupleDomain.none()), signature, operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isEmpty();
 
@@ -190,7 +190,7 @@ public class TestCacheDriverFactory
                 .boxed()
                 .collect(toImmutableList()));
         cacheDriverFactory = createCacheDriverFactory(
-                new TestPageSourceProviderFactory(input -> TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("column"), bigDomain)), identity()),
+                new TestPageSourceProviderFactory(_ -> TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("column"), bigDomain)), identity()),
                 signature,
                 operatorIdAllocator);
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
@@ -288,11 +288,11 @@ public class TestCacheDriverFactory
 
         PageSourceProviderFactory pageSourceProvider = new TestPageSourceProviderFactory(
                 // unenforcedPredicateSupplier
-                input -> TupleDomain.withColumnDomains(ImmutableMap.of(
+                _ -> TupleDomain.withColumnDomains(ImmutableMap.of(
                         projectedScanColumnHandle, singleValue(BIGINT, 300L),
                         nonProjectedScanColumnHandle, singleValue(BIGINT, 310L))),
                 // prunePredicateSupplier
-                input -> TupleDomain.withColumnDomains(ImmutableMap.of(
+                _ -> TupleDomain.withColumnDomains(ImmutableMap.of(
                         projectedScanColumnHandle, singleValue(BIGINT, 400L),
                         nonProjectedScanColumnHandle, singleValue(BIGINT, 410L))));
         DriverFactory driverFactory = createDriverFactory(new AtomicInteger());

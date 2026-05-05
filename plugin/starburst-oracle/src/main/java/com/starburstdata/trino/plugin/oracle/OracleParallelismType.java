@@ -21,14 +21,10 @@ public enum OracleParallelismType
 
     public static OracleParallelismType fromString(String value)
     {
-        switch (requireNonNull(value, "value is null").toLowerCase(ENGLISH)) {
-            case "no_concurrency":
-            case "no_parallelism":
-                return NO_PARALLELISM;
-            case "partitions":
-                return PARTITIONS;
-        }
-
-        throw new IllegalArgumentException(format("Unrecognized value: '%s'", value));
+        return switch (requireNonNull(value, "value is null").toLowerCase(ENGLISH)) {
+            case "no_concurrency", "no_parallelism" -> NO_PARALLELISM;
+            case "partitions" -> PARTITIONS;
+            default -> throw new IllegalArgumentException(format("Unrecognized value: '%s'", value));
+        };
     }
 }

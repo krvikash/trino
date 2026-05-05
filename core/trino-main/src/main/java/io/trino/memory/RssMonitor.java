@@ -95,15 +95,11 @@ public class RssMonitor
             String[] memorySplit = ParseUtil.whitespaces.split(checkLine, 2);
             if (memorySplit.length > 1) {
                 switch (memorySplit[0]) {
-                    case "Active(file):":
-                        activeFile = Optional.of(ParseUtil.parseDecimalMemorySizeToBinary(memorySplit[1]));
-                        break;
-                    case "Inactive(file):":
-                        inactiveFile = Optional.of(ParseUtil.parseDecimalMemorySizeToBinary(memorySplit[1]));
-                        break;
-                    default:
+                    case "Active(file):" -> activeFile = Optional.of(ParseUtil.parseDecimalMemorySizeToBinary(memorySplit[1]));
+                    case "Inactive(file):" -> inactiveFile = Optional.of(ParseUtil.parseDecimalMemorySizeToBinary(memorySplit[1]));
+                    default -> {
                         // do nothing with other lines
-                        break;
+                    }
                 }
             }
         }

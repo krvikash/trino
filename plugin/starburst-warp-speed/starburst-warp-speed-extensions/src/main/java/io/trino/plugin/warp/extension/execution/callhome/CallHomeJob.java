@@ -15,7 +15,6 @@ package io.trino.plugin.warp.extension.execution.callhome;
 
 import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpUriBuilder;
-import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.tools.util.Pair;
@@ -96,7 +95,7 @@ public class CallHomeJob
             HttpUriBuilder threadDumpUriBuilder = uriBuilderFrom(URI.create("http://" + nodeAddress.getHostText() + ":" + nodeAddress.getPortOrDefault(8080)));
             threadDumpUriBuilder.appendPath("v1").appendPath("thread");
 
-            Request request = prepareGet()
+            var _ = prepareGet()
                     .setUri(threadDumpUriBuilder.build())
                     .setHeader(CONTENT_TYPE, "application/json")
                     .setHeader(HeaderName.of("X-Trino-User"), "trino")

@@ -277,7 +277,7 @@ public class ExpressionServiceTest
         Pair<Call, WarpCall> ceilExpression = createCallExpression(CEIL,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, doubleVariable1.getType()));
+                new Constant(5d, doubleVariable1.getType()));
 
         List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, ceilExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(1);
@@ -311,7 +311,7 @@ public class ExpressionServiceTest
         Pair<Call, WarpCall> right = createCallExpression(CEIL,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
 
         Call isNull = new Call(doubleVariable1.getType(),
                 IS_NULL_FUNCTION_NAME,
@@ -359,7 +359,7 @@ public class ExpressionServiceTest
         Pair<Call, WarpCall> expression = createCallExpression(CEIL,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         ConnectorExpression connectorExpression = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -431,7 +431,7 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
 
         Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
@@ -459,7 +459,7 @@ public class ExpressionServiceTest
                                 BOOLEAN,
                                 new FunctionName("unsupported"),
                                 List.of(doubleVariable1)),
-                        new Constant(5D, DoubleType.DOUBLE)));
+                        new Constant(5d, DoubleType.DOUBLE)));
         Call right = new Call(
                 BOOLEAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
@@ -488,7 +488,7 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
@@ -510,8 +510,8 @@ public class ExpressionServiceTest
     {
         ConnectorSession orEnabled = mock(ConnectorSession.class);
         when(orEnabled.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
-        double leftValue = 5D;
-        double rightValue = 10D;
+        double leftValue = 5d;
+        double rightValue = 10d;
         Pair<Call, WarpCall> left = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable1, new Constant(leftValue, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right = createCallExpression(LESS_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(rightValue, DoubleType.DOUBLE));
         ConnectorExpression leftOrExpression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(left.getKey(), right.getKey()));
@@ -531,8 +531,8 @@ public class ExpressionServiceTest
     {
         ConnectorSession orEnabled = mock(ConnectorSession.class);
         when(orEnabled.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class)).thenReturn(true);
-        double leftValue = 5D;
-        double rightValue = 10D;
+        double leftValue = 5d;
+        double rightValue = 10d;
         Pair<Call, WarpCall> left = createCallExpression(GREATER_THAN_OPERATOR_FUNCTION_NAME, doubleVariable1, new Constant(leftValue, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right = createCallExpression(LESS_THAN_OPERATOR_FUNCTION_NAME, doubleVariable2, new Constant(rightValue, DoubleType.DOUBLE));
         ConnectorExpression connectorExpression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(left.getKey(), right.getKey()));
@@ -571,10 +571,10 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(10D, DoubleType.DOUBLE));
+                new Constant(10d, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -591,7 +591,7 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
@@ -600,7 +600,7 @@ public class ExpressionServiceTest
                 .builder()
                 .predicateType(PredicateType.PREDICATE_TYPE_RANGES)
                 .functionType(FunctionType.FUNCTION_TYPE_CEIL)
-                .domain(Domain.create(ValueSet.ofRanges(Range.greaterThan(DoubleType.DOUBLE, 5D)), false))
+                .domain(Domain.create(ValueSet.ofRanges(Range.greaterThan(DoubleType.DOUBLE, 5d)), false))
                 .collectNulls(false)
                 .build());
         Optional<NativeExpression> expectedNativeExpression2 = Optional.of(NativeExpression
@@ -632,15 +632,15 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(10D, DoubleType.DOUBLE));
+                new Constant(10d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> middle = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(3D, DoubleType.DOUBLE),
-                new Constant(1D, DoubleType.DOUBLE));
+                new Constant(3d, DoubleType.DOUBLE),
+                new Constant(1d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(2D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(2d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         ConnectorExpression rightSide = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -662,15 +662,15 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> expectedLeft = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
-                new Constant(10D, DoubleType.DOUBLE));
+                new Constant(10d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> left = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(3D, DoubleType.DOUBLE),
-                new Constant(1D, DoubleType.DOUBLE));
+                new Constant(3d, DoubleType.DOUBLE),
+                new Constant(1d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(2D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(2d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         ConnectorExpression rightSide = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -692,19 +692,19 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(10D, DoubleType.DOUBLE));
+                new Constant(10d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
         Pair<Call, WarpCall> right1 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
-                new Constant(2D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(2d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right2 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
-                new Constant(3D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(3d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         ConnectorExpression leftSide = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -730,19 +730,19 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
         Pair<Call, WarpCall> right1 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
-                new Constant(2D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(2d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right2 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
-                new Constant(3D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(3d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         ConnectorExpression leftSide = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -780,7 +780,7 @@ public class ExpressionServiceTest
         Variable column = new Variable("column", type);
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(column.getType(), column.getName());
         assignments.put(columnHandle.name(), columnHandle);
-        Constant constant = new Constant(5D, DoubleType.DOUBLE);
+        Constant constant = new Constant(5d, DoubleType.DOUBLE);
         ConnectorExpression expression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
         assertThat(warpExpression).isEmpty();
@@ -796,11 +796,11 @@ public class ExpressionServiceTest
         Variable column = new Variable("column", type);
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(column.getType(), column.getName());
         assignments.put(columnHandle.name(), columnHandle);
-        Constant constant = new Constant(5D, DoubleType.DOUBLE);
+        Constant constant = new Constant(5d, DoubleType.DOUBLE);
         ConnectorExpression invalidExpression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
         Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -819,11 +819,11 @@ public class ExpressionServiceTest
         Variable column = new Variable("column", type);
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(column.getType(), column.getName());
         assignments.put(columnHandle.name(), columnHandle);
-        Constant constant = new Constant(5D, DoubleType.DOUBLE);
+        Constant constant = new Constant(5d, DoubleType.DOUBLE);
         ConnectorExpression invalidExpression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
         Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
                 BOOLEAN,
                 AND_FUNCTION_NAME,
@@ -842,7 +842,7 @@ public class ExpressionServiceTest
     {
         Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(5D, DoubleType.DOUBLE));
+                new Constant(5d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
@@ -853,12 +853,12 @@ public class ExpressionServiceTest
                 List.of(expectedLeft1.getKey(), isNanExpression.getKey()));
         Pair<Call, WarpCall> right1 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
-                new Constant(2D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(2d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         Pair<Call, WarpCall> right2 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
-                new Constant(3D, DoubleType.DOUBLE),
-                new Constant(0D, DoubleType.DOUBLE));
+                new Constant(3d, DoubleType.DOUBLE),
+                new Constant(0d, DoubleType.DOUBLE));
         ConnectorExpression rightSide = new Call(
                 BOOLEAN,
                 OR_FUNCTION_NAME,
@@ -883,16 +883,16 @@ public class ExpressionServiceTest
                 List.of(new Call(
                                 BOOLEAN,
                                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
-                                List.of(doubleVariable1, new Constant(4D, DoubleType.DOUBLE))),
+                                List.of(doubleVariable1, new Constant(4d, DoubleType.DOUBLE))),
                         new Call(
                                 BOOLEAN,
                                 StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
-                                List.of(doubleVariable2, new Constant(6D, DoubleType.DOUBLE)))));
+                                List.of(doubleVariable2, new Constant(6d, DoubleType.DOUBLE)))));
 
         Call rightSide = new Call(
                 BOOLEAN,
                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
-                List.of(doubleVariable1, new Constant(2D, DoubleType.DOUBLE)));
+                List.of(doubleVariable1, new Constant(2d, DoubleType.DOUBLE)));
 
         Call expression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(leftSide, rightSide));
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats);
@@ -910,11 +910,11 @@ public class ExpressionServiceTest
                 List.of(new Call(
                                 BOOLEAN,
                                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
-                                List.of(doubleVariable1, new Constant(4D, DoubleType.DOUBLE))),
+                                List.of(doubleVariable1, new Constant(4d, DoubleType.DOUBLE))),
                         new Call(
                                 BOOLEAN,
                                 StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
-                                List.of(doubleVariable2, new Constant(6D, DoubleType.DOUBLE)))));
+                                List.of(doubleVariable2, new Constant(6d, DoubleType.DOUBLE)))));
 
         Call rightSide = new Call(
                 BOOLEAN,
@@ -933,7 +933,7 @@ public class ExpressionServiceTest
         Call leftSide = new Call(
                 BOOLEAN,
                 StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
-                List.of(doubleVariable2, new Constant(6D, DoubleType.DOUBLE)));
+                List.of(doubleVariable2, new Constant(6d, DoubleType.DOUBLE)));
         Call rightSide = new Call(
                 BOOLEAN,
                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
@@ -1161,7 +1161,7 @@ public class ExpressionServiceTest
         ArrayType arrayType = new ArrayType(DoubleType.DOUBLE);
         Call arrayCall = new Call(arrayType,
                 ARRAY_CONSTRUCTOR_FUNCTION_NAME,
-                List.of(new Constant(5D, DoubleType.DOUBLE), new Constant(9D, DoubleType.DOUBLE)));
+                List.of(new Constant(5d, DoubleType.DOUBLE), new Constant(9d, DoubleType.DOUBLE)));
         Call callExpression = new Call(BooleanType.BOOLEAN,
                 IN_PREDICATE_FUNCTION_NAME,
                 List.of(ceilCall, arrayCall));
@@ -1172,14 +1172,14 @@ public class ExpressionServiceTest
                 doubleType);
 
         WarpCall expectedArrayCall = new WarpCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(),
-                List.of(new WarpPrimitiveConstant(5D, DoubleType.DOUBLE), new WarpPrimitiveConstant(9D, DoubleType.DOUBLE)),
+                List.of(new WarpPrimitiveConstant(5d, DoubleType.DOUBLE), new WarpPrimitiveConstant(9d, DoubleType.DOUBLE)),
                 arrayType);
         WarpExpression expectedExpression = new WarpCall(IN_PREDICATE_FUNCTION_NAME.getName(),
                 List.of(expectedCeilCall, expectedArrayCall),
                 BOOLEAN);
         NativeExpression expectedNativeExpression = NativeExpression
                 .builder()
-                .domain(Domain.create(ValueSet.ofRanges(Range.equal(doubleType, 5D), Range.equal(doubleType, 9D)), false))
+                .domain(Domain.create(ValueSet.ofRanges(Range.equal(doubleType, 5d), Range.equal(doubleType, 9d)), false))
                 .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
                 .functionType(FunctionType.FUNCTION_TYPE_CEIL)
                 .collectNulls(false)

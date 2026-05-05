@@ -53,48 +53,45 @@ public class TestDynamoDbConnectorTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_PREDICATE_PUSHDOWN:
-            case SUPPORTS_DYNAMIC_FILTER_PUSHDOWN:
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY:
-                return true;
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
-            case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN:
-            case SUPPORTS_ARRAY:
-            case SUPPORTS_LIMIT_PUSHDOWN:
-            case SUPPORTS_TOPN_PUSHDOWN:
-            case SUPPORTS_TOPN_PUSHDOWN_WITH_VARCHAR:
-            case SUPPORTS_AGGREGATION_PUSHDOWN:
-            case SUPPORTS_JOIN_PUSHDOWN:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
-            case SUPPORTS_CREATE_SCHEMA:
-            case SUPPORTS_RENAME_TABLE:
-            case SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS:
-            case SUPPORTS_COMMENT_ON_TABLE:
-            case SUPPORTS_COMMENT_ON_COLUMN:
-            case SUPPORTS_SET_COLUMN_TYPE:
-            case SUPPORTS_CREATE_VIEW:
-            case SUPPORTS_CREATE_MATERIALIZED_VIEW:
-            case SUPPORTS_DELETE:
-            case SUPPORTS_ROW_LEVEL_DELETE:
-            case SUPPORTS_CANCELLATION:
-            case SUPPORTS_CREATE_TABLE:
-            case SUPPORTS_CREATE_TABLE_WITH_DATA:
-            case SUPPORTS_INSERT:
-            case SUPPORTS_TRUNCATE:
-            case SUPPORTS_ADD_COLUMN:
-            case SUPPORTS_RENAME_COLUMN:
-            case SUPPORTS_MERGE:
-            case SUPPORTS_UPDATE:
-            case SUPPORTS_ROW_TYPE:
-            case SUPPORTS_NATIVE_QUERY:
-                return false;
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_PREDICATE_PUSHDOWN,
+                    SUPPORTS_DYNAMIC_FILTER_PUSHDOWN,
+                    SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY -> true;
+            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
+                    SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
+                    SUPPORTS_ARRAY,
+                    SUPPORTS_LIMIT_PUSHDOWN,
+                    SUPPORTS_TOPN_PUSHDOWN,
+                    SUPPORTS_TOPN_PUSHDOWN_WITH_VARCHAR,
+                    SUPPORTS_AGGREGATION_PUSHDOWN,
+                    SUPPORTS_JOIN_PUSHDOWN,
+                    SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN,
+                    SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
+                    SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY,
+                    SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
+                    SUPPORTS_CREATE_SCHEMA,
+                    SUPPORTS_RENAME_TABLE,
+                    SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
+                    SUPPORTS_COMMENT_ON_TABLE,
+                    SUPPORTS_COMMENT_ON_COLUMN,
+                    SUPPORTS_SET_COLUMN_TYPE,
+                    SUPPORTS_CREATE_VIEW,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_DELETE,
+                    SUPPORTS_ROW_LEVEL_DELETE,
+                    SUPPORTS_CANCELLATION,
+                    SUPPORTS_CREATE_TABLE,
+                    SUPPORTS_CREATE_TABLE_WITH_DATA,
+                    SUPPORTS_INSERT,
+                    SUPPORTS_TRUNCATE,
+                    SUPPORTS_ADD_COLUMN,
+                    SUPPORTS_RENAME_COLUMN,
+                    SUPPORTS_MERGE,
+                    SUPPORTS_UPDATE,
+                    SUPPORTS_ROW_TYPE,
+                    SUPPORTS_NATIVE_QUERY -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Override

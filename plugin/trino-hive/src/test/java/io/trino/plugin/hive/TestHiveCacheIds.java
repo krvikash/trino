@@ -85,7 +85,7 @@ public class TestHiveCacheIds
     {
         executorService = newScheduledThreadPool(1);
         HiveConfig config = new HiveConfig();
-        HdfsConfiguration hdfsConfiguration = (context, uri) -> new Configuration(false);
+        HdfsConfiguration hdfsConfiguration = (_, _) -> new Configuration(false);
         HdfsEnvironment hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, new HdfsConfig(), new NoHdfsAuthentication());
         HivePartitionManager hivePartitionManager = new HivePartitionManager(config);
         HiveMetadataFactory metadataFactory = new HiveMetadataFactory(

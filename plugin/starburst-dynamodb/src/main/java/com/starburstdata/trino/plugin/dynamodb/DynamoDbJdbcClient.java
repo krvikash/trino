@@ -445,36 +445,24 @@ public class DynamoDbJdbcClient
         // Trino treats this as false and causes correctness issues when these predicates are pushed down to the driver
         // Therefore all predicates are pushed down for specific datatype except non-equality operator and datatype specific unsupported operators.
         // For some of the types, it was tricky to create a test table in DynamoDB which returns as a specific type in Trino.
-        switch (typeHandle.jdbcType()) {
-            case Types.BIT:
-            case Types.BOOLEAN:
-                // Error if pushdown is enabled (besides the null issue):
-                // Invalid FilterExpression: Incorrect operand type for operator or function; operator or function: <=, operand type: BOOL.
-                return Optional.of(booleanMapping(BOOLEAN, ResultSet::getBoolean, booleanWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_BOOLEAN_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
-            case Types.TINYINT:
-                return Optional.of(longMapping(TINYINT, ResultSet::getByte, tinyintWriteFunction(), DISABLE_PUSHDOWN));
-            case Types.SMALLINT:
-                return Optional.of(longMapping(SMALLINT, ResultSet::getShort, smallintWriteFunction(), DISABLE_PUSHDOWN));
-            case Types.INTEGER:
-                return Optional.of(longMapping(INTEGER, ResultSet::getInt, integerWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
-            case Types.BIGINT:
-                return Optional.of(longMapping(BIGINT, ResultSet::getLong, bigintWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
-            case Types.REAL:
-            case Types.FLOAT:
-                return Optional.of(longMapping(REAL, (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)), realWriteFunction(), DISABLE_PUSHDOWN));
-            case Types.DOUBLE:
-                return Optional.of(doubleMapping(DOUBLE, ResultSet::getDouble, doubleWriteFunction(), DISABLE_PUSHDOWN));
-            case Types.VARCHAR:
-            case Types.NVARCHAR:
-            case Types.LONGVARCHAR:
-            case Types.LONGNVARCHAR:
-                return Optional.of(defaultVarcharColumnMapping(session, typeHandle.requiredColumnSize()));
-            case Types.BINARY:
-            case Types.VARBINARY:
-            case Types.LONGVARBINARY:
-                return Optional.of(varbinaryColumnMapping());
-            case Types.DATE:
-                return Optional.of(longMapping(DATE, dateReadFunctionUsingString(), dateWriteFunctionUsingLocalDate(), DISABLE_PUSHDOWN));
+        Optional<ColumnMapping> mapping = switch (typeHandle.jdbcType()) {
+            case Types.BIT, Types.BOOLEAN ->
+                    // Error if pushdown is enabled (besides the null issue):
+                    // Invalid FilterExpression: Incorrect operand type for operator or function; operator or function: <=, operand type: BOOL.
+                    Optional.of(booleanMapping(BOOLEAN, ResultSet::getBoolean, booleanWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_BOOLEAN_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
+            case Types.TINYINT -> Optional.of(longMapping(TINYINT, ResultSet::getByte, tinyintWriteFunction(), DISABLE_PUSHDOWN));
+            case Types.SMALLINT -> Optional.of(longMapping(SMALLINT, ResultSet::getShort, smallintWriteFunction(), DISABLE_PUSHDOWN));
+            case Types.INTEGER -> Optional.of(longMapping(INTEGER, ResultSet::getInt, integerWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
+            case Types.BIGINT -> Optional.of(longMapping(BIGINT, ResultSet::getLong, bigintWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
+            case Types.REAL, Types.FLOAT -> Optional.of(longMapping(REAL, (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)), realWriteFunction(), DISABLE_PUSHDOWN));
+            case Types.DOUBLE -> Optional.of(doubleMapping(DOUBLE, ResultSet::getDouble, doubleWriteFunction(), DISABLE_PUSHDOWN));
+            case Types.VARCHAR, Types.NVARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> Optional.of(defaultVarcharColumnMapping(session, typeHandle.requiredColumnSize()));
+            case Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY -> Optional.of(varbinaryColumnMapping());
+            case Types.DATE -> Optional.of(longMapping(DATE, dateReadFunctionUsingString(), dateWriteFunctionUsingLocalDate(), DISABLE_PUSHDOWN));
+            default -> Optional.empty();
+        };
+        if (mapping.isPresent()) {
+            return mapping;
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {

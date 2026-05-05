@@ -367,7 +367,7 @@ public class WorkerWarmingService
             while (elementsToRemove.get() > 0) {
                 WarpColumn warpColumn = newRequiredWarmUpTypeMap.keys().stream().findAny().orElseThrow();
                 Set<WarmupProperties> warmupProperties = newRequiredWarmUpTypeMap.get(warpColumn);
-                warmupProperties.removeIf(x -> elementsToRemove.getAndDecrement() > 0);
+                warmupProperties.removeIf(_ -> elementsToRemove.getAndDecrement() > 0);
             }
         }
 
@@ -529,7 +529,7 @@ public class WorkerWarmingService
                     .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column))))
                     .forEach(column -> {
                         RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column);
-                        Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, v -> new HashSet<>());
+                        Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, _ -> new HashSet<>());
                         properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_DATA));
                     });
         }
@@ -580,11 +580,11 @@ public class WorkerWarmingService
                     .filter(warpColumn -> {
                         List<ColumnHandle> columnHandles = List.of(columnNameToColumnHandle.get(warpColumn.getName()));
                         return columnHandles.stream()
-                                .allMatch(columnHandle -> warmupTypeValidators.getOrDefault(warmupRule.getWarmUpType(), x -> false)
+                                .allMatch(columnHandle -> warmupTypeValidators.getOrDefault(warmupRule.getWarmUpType(), _ -> false)
                                         .test(dispatcherProxiedConnectorTransformer.getColumnType(columnHandle)));
                     })
                     .forEach(warpColumn -> {
-                        Map<WarmUpType, WarmupProperties> warmUpTypeToProperties = matchingRules.computeIfAbsent(warpColumn, c -> new HashMap<>());
+                        Map<WarmUpType, WarmupProperties> warmUpTypeToProperties = matchingRules.computeIfAbsent(warpColumn, _ -> new HashMap<>());
                         TransformFunction transformFunction = (warpColumn instanceof TransformedColumn transformedColumn) ?
                                 transformedColumn.getTransformFunction() : TransformFunction.NONE;
                         warmUpTypeToProperties.put(warmupRule.getWarmUpType(),
@@ -679,13 +679,13 @@ public class WorkerWarmingService
     {
         Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = new HashMap<>();
         for (Map.Entry<WarpColumn, WarmupProperties> entry : requiredWarmUpTypeMap.entries()) {
-            Map<WarmUpType, WarmupProperties> existingWarmUpTypeToProperties = requiredWarmupMap.computeIfAbsent(entry.getKey(), c -> new HashMap<>());
+            Map<WarmUpType, WarmupProperties> existingWarmUpTypeToProperties = requiredWarmupMap.computeIfAbsent(entry.getKey(), _ -> new HashMap<>());
             existingWarmUpTypeToProperties.put(entry.getValue().warmUpType(), entry.getValue());
         }
 
         Map<WarpColumn, Map<WarmUpType, WarmUpElement>> existingWarmupMap = new HashMap<>();
         for (WarmUpElement warmUpElement : warmUpElements) {
-            Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = existingWarmupMap.computeIfAbsent(warmUpElement.getWarpColumn(), c -> new HashMap<>());
+            Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = existingWarmupMap.computeIfAbsent(warmUpElement.getWarpColumn(), _ -> new HashMap<>());
             existingWarmUpTypeToElement.put(warmUpElement.getWarmUpType(), warmUpElement);
         }
 

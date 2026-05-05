@@ -264,13 +264,13 @@ public class ShapingLoggerTest
                 ShapingLogger.MODE.FORMAT);
 
         Thread thread1 = new Thread(() -> {
-            IntStream.range(0, 25).forEach(i -> shapingLogger.warn("Message %d", 123));
-            IntStream.range(0, 25).forEach(i -> shapingLogger.warn("Message %d", 456));
+            IntStream.range(0, 25).forEach(_ -> shapingLogger.warn("Message %d", 123));
+            IntStream.range(0, 25).forEach(_ -> shapingLogger.warn("Message %d", 456));
         });
 
         Thread thread2 = new Thread(() -> {
-            IntStream.range(0, 35).forEach(i -> shapingLogger.warn("Message %d", 123));
-            IntStream.range(0, 35).forEach(i -> shapingLogger.warn("Message %d", 456));
+            IntStream.range(0, 35).forEach(_ -> shapingLogger.warn("Message %d", 123));
+            IntStream.range(0, 35).forEach(_ -> shapingLogger.warn("Message %d", 456));
         });
 
         thread1.start();

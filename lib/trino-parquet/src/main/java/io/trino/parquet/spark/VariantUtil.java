@@ -271,48 +271,26 @@ public final class VariantUtil
         checkIndex(pos, value.length);
         int basicType = value[pos] & BASIC_TYPE_MASK;
         int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
-        switch (basicType) {
-            case SHORT_STR:
-                return 1 + typeInfo;
-            case OBJECT:
-                return handleObject(value, pos,
-                        (size, idSize, offsetSize, idStart, offsetStart, dataStart) ->
-                                dataStart - pos + readUnsigned(value, offsetStart + size * offsetSize, offsetSize));
-            case ARRAY:
-                return handleArray(value, pos, (size, offsetSize, offsetStart, dataStart) ->
-                        dataStart - pos + readUnsigned(value, offsetStart + size * offsetSize, offsetSize));
-            default:
-                switch (typeInfo) {
-                    case NULL:
-                    case TRUE:
-                    case FALSE:
-                        return 1;
-                    case INT1:
-                        return 2;
-                    case INT2:
-                        return 3;
-                    case INT4:
-                    case DATE:
-                    case FLOAT:
-                        return 5;
-                    case INT8:
-                    case DOUBLE:
-                    case TIMESTAMP:
-                    case TIMESTAMP_NTZ:
-                        return 9;
-                    case DECIMAL4:
-                        return 6;
-                    case DECIMAL8:
-                        return 10;
-                    case DECIMAL16:
-                        return 18;
-                    case BINARY:
-                    case LONG_STR:
-                        return 1 + U32_SIZE + readUnsigned(value, pos + 1, U32_SIZE);
-                    default:
-                        throw new IllegalArgumentException("Unexpected type: " + typeInfo);
-                }
-        }
+        return switch (basicType) {
+            case SHORT_STR -> 1 + typeInfo;
+            case OBJECT -> handleObject(value, pos,
+                    (size, _, offsetSize, _, offsetStart, dataStart) ->
+                            dataStart - pos + readUnsigned(value, offsetStart + size * offsetSize, offsetSize));
+            case ARRAY -> handleArray(value, pos, (size, offsetSize, offsetStart, dataStart) ->
+                    dataStart - pos + readUnsigned(value, offsetStart + size * offsetSize, offsetSize));
+            default -> switch (typeInfo) {
+                case NULL, TRUE, FALSE -> 1;
+                case INT1 -> 2;
+                case INT2 -> 3;
+                case INT4, DATE, FLOAT -> 5;
+                case INT8, DOUBLE, TIMESTAMP, TIMESTAMP_NTZ -> 9;
+                case DECIMAL4 -> 6;
+                case DECIMAL8 -> 10;
+                case DECIMAL16 -> 18;
+                case BINARY, LONG_STR -> 1 + U32_SIZE + readUnsigned(value, pos + 1, U32_SIZE);
+                default -> throw new IllegalArgumentException("Unexpected type: " + typeInfo);
+            };
+        };
     }
 
     private static IllegalStateException unexpectedType(Type type)

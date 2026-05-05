@@ -44,7 +44,7 @@ public interface GroupByHash
     NonEvictableLoadingCache<Type, Class<? extends GroupByHash>> specializedGroupByHashClasses = buildNonEvictableCache(
             CacheBuilder.newBuilder()
                 .maximumSize(256),
-            CacheLoader.from(type -> isolateGroupByHashClass()));
+            CacheLoader.from(_ -> isolateGroupByHashClass()));
 
     static Class<? extends GroupByHash> isolateGroupByHashClass()
     {

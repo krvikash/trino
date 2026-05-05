@@ -353,7 +353,7 @@ public class TestMemoryCacheManager
                     .mapToObj(col -> new CacheColumnId("col" + col))
                     .collect(toImmutableList());
             List<Type> columnsTypes = columns
-                    .stream().map(col -> INTEGER)
+                    .stream().map(_ -> INTEGER)
                     .collect(toImmutableList());
             PlanSignature signature = new PlanSignature(
                     new SignatureKey("sig"),
@@ -380,7 +380,7 @@ public class TestMemoryCacheManager
         // add another channel for col1
         List<CacheColumnId> columns = ImmutableList.of(new CacheColumnId("col1"), new CacheColumnId("col100"));
         List<Type> columnsTypes = columns
-                .stream().map(col -> INTEGER)
+                .stream().map(_ -> INTEGER)
                 .collect(toImmutableList());
         PlanSignature signature = new PlanSignature(
                 new SignatureKey("sig"),
@@ -503,7 +503,7 @@ public class TestMemoryCacheManager
                 new SignatureKey(signature),
                 Optional.empty(),
                 ImmutableList.copyOf(ids),
-                Stream.of(ids).map(ignore -> (Type) INTEGER).collect(toImmutableList()));
+                Stream.of(ids).map(_ -> (Type) INTEGER).collect(toImmutableList()));
     }
 
     private static PlanSignature createAggregationPlanSignature(String signature, CacheColumnId... ids)
@@ -512,7 +512,7 @@ public class TestMemoryCacheManager
                 new SignatureKey(signature),
                 Optional.of(emptyList()),
                 ImmutableList.copyOf(ids),
-                Stream.of(ids).map(ignore -> (Type) INTEGER).collect(toImmutableList()));
+                Stream.of(ids).map(_ -> (Type) INTEGER).collect(toImmutableList()));
     }
 
     static Page createOneMegaBytePage()

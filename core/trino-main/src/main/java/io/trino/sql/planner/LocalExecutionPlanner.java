@@ -2470,7 +2470,7 @@ public class LocalExecutionPlanner
                 // Load from cache alternative does not have table handle.
                 // Cache alternatives have specific ordering and are handled explicitly,
                 // therefore table handle is not needed.
-                tableHandleProvider = ignored -> createCacheTableHandle();
+                tableHandleProvider = _ -> createCacheTableHandle();
                 // when splits are cached dynamic filter needs to be static during split processing
                 LoadCachedDataPlanNode loadCachedData = getLoadCachedDataPlanNode(node);
                 TableScanNode commonTableScan = node.getOriginalTableScan().tableScanNode();

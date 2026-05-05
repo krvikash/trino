@@ -248,7 +248,7 @@ public class ExpressionService
                     if (rule.isEmpty()) {
                         res = Optional.empty();
                         pushdownPredicatesStats.incunsupported_functions();
-                        customStats.compute("unsupported_functions", (key, value) -> value == null ? 1L : value + 1);
+                        customStats.compute("unsupported_functions", (_, value) -> value == null ? 1L : value + 1);
                     }
                     else {
                         ConnectorExpressionRule.RewriteContext<WarpExpression> context = createContext(assignments, session, unsupportedFunctions, customStats);
@@ -330,7 +330,7 @@ public class ExpressionService
             }
         }
         if (!anyMatch) {
-            customStats.compute("unsupported_functions", (key, value) -> value == null ? 1L : value + 1);
+            customStats.compute("unsupported_functions", (_, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions();
         }
         return res;

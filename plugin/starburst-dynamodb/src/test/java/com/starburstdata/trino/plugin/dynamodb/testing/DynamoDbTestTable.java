@@ -58,7 +58,7 @@ public class DynamoDbTestTable
     public DynamoDbTestTable(DynamoDbConfig config, SqlExecutor sqlExecutor, String namePrefix, List<ColumnSetup> columns)
     {
         // Pass in a no-op SqlExecutor as the base class attempts to create the table, but the driver does not support CREATE TABLE
-        super(sql -> {}, namePrefix, "");
+        super(_ -> {}, namePrefix, "");
 
         this.config = requireNonNull(config, "config is null");
         this.sqlExecutor = requireNonNull(sqlExecutor, "sqlExecutor is null");

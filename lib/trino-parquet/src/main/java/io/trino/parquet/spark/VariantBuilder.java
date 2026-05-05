@@ -374,7 +374,7 @@ public class VariantBuilder
             throw new JsonParseException(parser, "Unexpected null token");
         }
         switch (token) {
-            case START_OBJECT: {
+            case START_OBJECT -> {
                 ArrayList<FieldEntry> fields = new ArrayList<>();
                 int start = writePos;
                 while (parser.nextToken() != JsonToken.END_OBJECT) {
@@ -385,9 +385,8 @@ public class VariantBuilder
                     buildJson(parser);
                 }
                 finishWritingObject(start, fields);
-                break;
             }
-            case START_ARRAY: {
+            case START_ARRAY -> {
                 ArrayList<Integer> offsets = new ArrayList<>();
                 int start = writePos;
                 while (parser.nextToken() != JsonToken.END_ARRAY) {
@@ -395,34 +394,22 @@ public class VariantBuilder
                     buildJson(parser);
                 }
                 finishWritingArray(start, offsets);
-                break;
             }
-            case VALUE_STRING:
-                appendString(parser.getText());
-                break;
-            case VALUE_NUMBER_INT:
+            case VALUE_STRING -> appendString(parser.getText());
+            case VALUE_NUMBER_INT -> {
                 try {
                     appendLong(parser.getLongValue());
                 }
-                catch (InputCoercionException ignored) {
+                catch (InputCoercionException _) {
                     // If the value doesn't fit any integer type, parse it as decimal or floating instead.
                     parseFloatingPoint(parser);
                 }
-                break;
-            case VALUE_NUMBER_FLOAT:
-                parseFloatingPoint(parser);
-                break;
-            case VALUE_TRUE:
-                appendBoolean(true);
-                break;
-            case VALUE_FALSE:
-                appendBoolean(false);
-                break;
-            case VALUE_NULL:
-                appendNull();
-                break;
-            default:
-                throw new JsonParseException(parser, "Unexpected token " + token);
+            }
+            case VALUE_NUMBER_FLOAT -> parseFloatingPoint(parser);
+            case VALUE_TRUE -> appendBoolean(true);
+            case VALUE_FALSE -> appendBoolean(false);
+            case VALUE_NULL -> appendNull();
+            default -> throw new JsonParseException(parser, "Unexpected token " + token);
         }
     }
 

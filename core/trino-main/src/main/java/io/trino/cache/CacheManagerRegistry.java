@@ -229,7 +229,7 @@ public class CacheManagerRegistry
         this.cacheManager = cacheManager;
 
         // revoke cache memory when revoking target is reached
-        memoryPool.addListener(pool -> {
+        memoryPool.addListener(_ -> {
             if (memoryRevokingNeeded(0)) {
                 scheduleMemoryRevoke();
             }

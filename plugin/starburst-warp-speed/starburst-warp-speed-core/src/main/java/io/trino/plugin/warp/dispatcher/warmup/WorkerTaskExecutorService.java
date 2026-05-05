@@ -214,7 +214,7 @@ public class WorkerTaskExecutorService
             if (submittedRowGroups.size() + pendingTasks.size() < queueSize) {
                 UUID newTaskId = task.getId();
                 try {
-                    UUID savedTaskId = submittedRowGroups.computeIfAbsent(task.getRowGroupKey(), k -> {
+                    UUID savedTaskId = submittedRowGroups.computeIfAbsent(task.getRowGroupKey(), _ -> {
                         statsWorkerTaskExecutorService.inctask_scheduled();
                         task.taskScheduled();
                         executeTask(task);

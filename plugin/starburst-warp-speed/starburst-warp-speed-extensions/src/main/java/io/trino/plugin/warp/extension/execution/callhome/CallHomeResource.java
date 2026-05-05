@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 @Path(CallHomeResource.CALL_HOME_PATH)
-////@Api(value = "Call Home", tags = "Call Home")
+//@Api(value = "Call Home", tags = "Call Home")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @TaskResourceMarker
@@ -50,7 +50,7 @@ public class CallHomeResource
 
     @POST
     @Audit
-    ////@ApiOperation(value = "call-home", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    //@ApiOperation(value = "call-home", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, Object> triggerCallHome(CallHomeData callHomeData)
     {
         Optional<Integer> optionalResult = Optional.empty();

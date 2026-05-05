@@ -65,7 +65,7 @@ public class RateMonitor
         if (intervalInMillis == MAX_INTERVAL_IN_MILLIS) {
             log.error("Rate limit interval %d larger than MAX_INTERVAL_IN_MILLIS %d", expectedTotalTimeInMillis - averageProcessTimeInMillis, MAX_INTERVAL_IN_MILLIS);
         }
-        Deque<Long> executionSchedule = executionSchedules.computeIfAbsent(bufferNodeId, ignored -> new ArrayDeque<>());
+        Deque<Long> executionSchedule = executionSchedules.computeIfAbsent(bufferNodeId, _ -> new ArrayDeque<>());
         long now = tickerReadMillis();
 
         //noinspection SynchronizationOnLocalVariableOrMethodParameter

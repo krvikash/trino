@@ -66,7 +66,7 @@ class ConnectorFeaturesTestHelper
     void skipDuplicateTestCoverage(String methodName, Class<?>... args)
     {
         try {
-            Method ignored = objectStoreConnectorFeaturesTestClass.getDeclaredMethod(methodName, args); // validate we have the override
+            var _ = objectStoreConnectorFeaturesTestClass.getDeclaredMethod(methodName, args); // validate we have the override
             if (isTestSpecializedForConnector(methodName, args)) {
                 fail("Method %s(%s) became overridden and should no longer be skipped in %s".formatted(methodName, Arrays.toString(args), objectStoreConnectorFeaturesTestClass));
             }

@@ -321,7 +321,7 @@ public class TestVerticaTableStatistics
                     .hasEntrySatisfying(handle("nans_only"), statsCloseTo(null, 2, 0.1, null, null)) // nulls faction is 0.1 (unknown) because we can't calculate it when the rows are only nan and null
                     .hasEntrySatisfying(handle("nans_and_numbers"), statsCloseTo(null, 3, 0, null, null))
                     .hasEntrySatisfying(handle("nans_and_numbers_and_null"), statsCloseTo(null, 3, 0, null, null))
-                    .hasEntrySatisfying(handle("large_doubles"), statsCloseTo(null, 2, 0.5, -5.03719E22, null))
+                    .hasEntrySatisfying(handle("large_doubles"), statsCloseTo(null, 2, 0.5, -5.03719e22, null))
                     .hasEntrySatisfying(handle("short_decimals_big_fraction"), statsCloseTo(null, 2, 0.5, null, 1.234567890123456))
                     .hasEntrySatisfying(handle("short_decimals_big_integral"), statsCloseTo(null, 2, 0.5, null, 123456789012345.6))
                     .hasEntrySatisfying(handle("long_decimals_big_fraction"), statsCloseTo(null, 2, 0.5, null, 1.2345678901234567890123456789012345678))

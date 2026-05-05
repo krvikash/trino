@@ -54,7 +54,7 @@ public class DeltaLakeProxiedConnectorInitializer
                     deltaLakeConfig,
                     context,
                     Optional.empty(),
-                    optionalProxyModule.orElse(ignored -> {}));
+                    optionalProxyModule.orElse(_ -> {}));
         }
         catch (Exception e) {
             throw new RuntimeException("cant create delta-lake connector", e);

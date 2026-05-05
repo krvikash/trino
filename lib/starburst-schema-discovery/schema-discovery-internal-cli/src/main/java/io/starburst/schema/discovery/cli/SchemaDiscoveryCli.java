@@ -45,7 +45,7 @@ public class SchemaDiscoveryCli
         Map<String, CommandLine.IHelpSectionRenderer> helpMap = new HashMap<>(commandLine.getHelpSectionMap());
         helpMap.put(SECTION_KEY_FOOTER, new OptionsHelp());
         commandLine.setHelpSectionMap(helpMap);
-        commandLine.setExecutionExceptionHandler((e, __, ___) -> {
+        commandLine.setExecutionExceptionHandler((e, _, _) -> {
             if (Boolean.getBoolean("DEBUG")) {
                 e.printStackTrace();
             }

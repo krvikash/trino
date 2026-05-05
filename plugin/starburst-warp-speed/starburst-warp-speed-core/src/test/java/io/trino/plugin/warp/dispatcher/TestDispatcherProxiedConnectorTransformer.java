@@ -207,7 +207,7 @@ public class TestDispatcherProxiedConnectorTransformer
     public void testGetHostAddressForSplitLastWorker()
     {
         List<DispatcherSplit> splits = IntStream.range(0, 100)
-                .mapToObj(i -> {
+                .mapToObj(_ -> {
                     DispatcherSplit split = mock(DispatcherSplit.class);
                     when(split.getPath()).thenReturn(UUID.randomUUID().toString());
                     when(split.getStart()).thenReturn(0L);

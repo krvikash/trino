@@ -591,10 +591,10 @@ public final class CommonSubqueriesExtractor
                 .addAll(scanColumnIds)
                 .build();
         TupleDomain<CacheColumnId> retainedTupleDomain = extractedTupleDomain
-                .filter((columnId, domain) -> retainedColumnIds.contains(columnId));
+                .filter((columnId, _) -> retainedColumnIds.contains(columnId));
         // Remaining expression and non-projected domains must be part of signature key
         TupleDomain<CacheColumnId> remainingTupleDomain = extractedTupleDomain
-                .filter((columnId, domain) -> !retainedColumnIds.contains(columnId));
+                .filter((columnId, _) -> !retainedColumnIds.contains(columnId));
         if (!remainingTupleDomain.isAll() || !extractionResult.getRemainingExpression().equals(TRUE)) {
             Expression remainingDomainExpression = new DomainTranslator(plannerContext.getMetadata()).toPredicate(
                     remainingTupleDomain.transformKeys(id -> columnIdToSymbol(id, commonColumnIds.get(id).type())));
@@ -629,7 +629,7 @@ public final class CommonSubqueriesExtractor
         subplan.getOriginalSymbolMapping().forEach(columnIdMapping::putIfAbsent);
         // Create new symbols for column ids that were not used in original subplan, but are part of common subquery now
         commonColumnIds
-                .forEach((key, value) -> columnIdMapping.computeIfAbsent(key, ignored -> symbolAllocator.newSymbol(value)));
+                .forEach((key, value) -> columnIdMapping.computeIfAbsent(key, _ -> symbolAllocator.newSymbol(value)));
         return ImmutableMap.copyOf(columnIdMapping);
     }
 
@@ -749,7 +749,7 @@ public final class CommonSubqueriesExtractor
                 session,
                 idAllocator,
                 plannerContext,
-                node -> PlanNodeStatsEstimate.unknown())
+                _ -> PlanNodeStatsEstimate.unknown())
                 .mainAlternative();
 
         // If ValuesNode was returned as a result of pushing down predicates we fall back

@@ -13,5 +13,5 @@ public enum SapHanaParallelismType
 {
     NO_PARALLELISM,
     PARTITIONS,
-    /**/;
+    /**/
 }

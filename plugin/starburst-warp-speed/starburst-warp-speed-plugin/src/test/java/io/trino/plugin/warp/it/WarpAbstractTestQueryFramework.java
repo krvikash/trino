@@ -190,12 +190,10 @@ public abstract class WarpAbstractTestQueryFramework
     protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode, Target target)
             throws IOException
     {
-        URI baseUrl;
-        switch (target) {
-            case COORDINATOR, CACHE_MGR -> baseUrl = getQueryRunner().getCoordinator().getBaseUrl();
-            case WORKER -> baseUrl = ((DistributedQueryRunner) getQueryRunner()).getServers().getFirst().getBaseUrl();
-            default -> throw new RuntimeException("unknown option " + target);
-        }
+        URI baseUrl = switch (target) {
+            case COORDINATOR, CACHE_MGR -> getQueryRunner().getCoordinator().getBaseUrl();
+            case WORKER -> ((DistributedQueryRunner) getQueryRunner()).getServers().getFirst().getBaseUrl();
+        };
         int trinoPort = baseUrl.getPort();
         int port = HttpServerLifeCycleHandler.getWarpRestPort(trinoPort)
                 .orElseThrow(() -> new IllegalStateException("No warp REST port registered for Trino port " + trinoPort));
@@ -238,6 +236,6 @@ public abstract class WarpAbstractTestQueryFramework
     {
         COORDINATOR,
         WORKER,
-        CACHE_MGR;
+        CACHE_MGR
     }
 }

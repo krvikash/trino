@@ -154,7 +154,7 @@ public class WarpClient
     {
         return Failsafe.with(RetryPolicy.builder()
                         .withMaxAttempts(2)
-                        .onFailedAttempt((executionAttemptedEvent) -> logger.warn("failed executing %s REST command to URI %s", callerName, uri))
+                        .onFailedAttempt(_ -> logger.warn("failed executing %s REST command to URI %s", callerName, uri))
                         .withDelay(Duration.ofSeconds(10))
                         .handle(IOException.class, UncheckedIOException.class, IllegalStateException.class)
                         .build())

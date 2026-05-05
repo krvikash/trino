@@ -32,7 +32,7 @@ public class MockDrainedStorage
 
     public synchronized void addChunk(String exchangeId, int partitionId, long chunkId, long bufferNodeId, List<DataPage> data)
     {
-        drainedChunks.computeIfAbsent(exchangeId, ignored -> new HashMap<>()).put(new ChunkKey(bufferNodeId, partitionId, chunkId), data);
+        drainedChunks.computeIfAbsent(exchangeId, _ -> new HashMap<>()).put(new ChunkKey(bufferNodeId, partitionId, chunkId), data);
     }
 
     public synchronized Optional<List<DataPage>> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)

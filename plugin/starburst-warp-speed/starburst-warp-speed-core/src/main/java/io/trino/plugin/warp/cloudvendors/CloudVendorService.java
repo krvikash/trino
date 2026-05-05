@@ -162,6 +162,6 @@ public abstract class CloudVendorService
                         .abortIf(completionPredicate)
                         .onRetry(event -> logger.warn("failed to execute cloud request, retrying. Attempt=%d", event.getAttemptCount()))
                         .build())
-                .get(context -> request.call());
+                .get(_ -> request.call());
     }
 }

@@ -87,7 +87,7 @@ public class TestStarburstOracleClient
                 new JdbcMetadataConfig().setAggregationPushdownEnabled(true),
                 new JdbcStatisticsConfig(),
                 new OracleConfig(),
-                session -> {
+                _ -> {
                     throw new UnsupportedOperationException();
                 },
                 new DefaultQueryBuilder(RemoteQueryModifier.NONE),

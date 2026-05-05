@@ -1068,14 +1068,14 @@ public class DispatcherMetadata
     private static List<CustomStat> mergeCustomStats(List<CustomStat> first, List<CustomStat> second)
     {
         Map<String, Long> customStatsMap = second.stream()
-                .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, b) -> a, HashMap::new));
+                .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, _) -> a, HashMap::new));
         return mergeCustomStats(first, customStatsMap);
     }
 
     private static List<CustomStat> mergeCustomStats(List<CustomStat> customStats, Map<String, Long> customStatsMap)
     {
         Map<String, Long> allStatsMap = customStats.stream()
-                .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, b) -> a, HashMap::new));
+                .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, _) -> a, HashMap::new));
         customStatsMap.forEach((key, value) -> allStatsMap.merge(createFixedStatKey(DispatcherPageSourceStats.createKey(), key), value, Long::sum));
 
         return allStatsMap.entrySet().stream()

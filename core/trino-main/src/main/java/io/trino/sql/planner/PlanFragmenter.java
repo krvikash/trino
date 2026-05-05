@@ -607,7 +607,7 @@ public class PlanFragmenter
             TableScanNode scan = node.getOriginalTableScan().tableScanNode();
             PartitioningHandle partitioning = metadata.getTableProperties(session, scan.getTable())
                     .getTablePartitioning()
-                    .filter(value -> scan.isUseConnectorNodePartitioning())
+                    .filter(_ -> scan.isUseConnectorNodePartitioning())
                     .map(TablePartitioning::partitioningHandle)
                     .orElse(SOURCE_DISTRIBUTION);
             context.get().addSourceDistribution(node.getId(), partitioning, metadata, session);

@@ -97,7 +97,7 @@ final class TestReplacePartialTopNWithLimit
                 .build();
         PlanTester planTester = PlanTester.create(session);
         MockConnectorFactory mockFactory = MockConnectorFactory.builder()
-                .withApplyPartialTopN((connectorSession, handle, sortProperties, count) -> {
+                .withApplyPartialTopN((_, handle, sortProperties, _) -> {
                     MockConnectorTableHandle tableHandle = (MockConnectorTableHandle) handle;
                     if (tableHandle.getTableName().equals(SORTED_TABLE) &&
                             sortProperties.equals(ImmutableList.of(new SortingProperty<>(COLUMN_HANDLE_A, ASC_NULLS_FIRST)))) {
@@ -323,7 +323,7 @@ final class TestReplacePartialTopNWithLimit
                 .build();
         try (PlanTester planTester = PlanTester.create(session)) {
             MockConnectorFactory mockFactory = MockConnectorFactory.builder()
-                    .withApplyPartialTopN((connectorSession, handle, sortProperties, count) -> {
+                    .withApplyPartialTopN((_, handle, _, _) -> {
                         MockConnectorTableHandle tableHandle = (MockConnectorTableHandle) handle;
                         if (tableHandle.getTableName().equals(SORTED_TABLE)) {
                             return Optional.of(new ApplyPartialTopNResult(false, handle));

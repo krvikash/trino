@@ -237,7 +237,7 @@ public class WarpReadIndexInputTest
 
     ByteBuffer[] allocateLuceneByteBuffers()
     {
-        return IntStream.range(0, 4).mapToObj((i) -> allocateByteBuffer()).toList().toArray(new ByteBuffer[0]);
+        return IntStream.range(0, 4).mapToObj((_) -> allocateByteBuffer()).toList().toArray(new ByteBuffer[0]);
     }
 
     @Test

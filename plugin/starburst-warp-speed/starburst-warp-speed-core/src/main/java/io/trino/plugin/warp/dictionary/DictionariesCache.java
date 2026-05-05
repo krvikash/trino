@@ -87,7 +87,7 @@ public class DictionariesCache
     private void initCache(DictionaryCacheConfig dictionaryConfig)
     {
         Weigher<DictionaryKey, DataValueDictionary> weighByLength =
-                (dictionaryKey, dataValueDictionary) -> dataValueDictionary.getDictionaryWeight();
+                (_, dataValueDictionary) -> dataValueDictionary.getDictionaryWeight();
         activeConfig = dictionaryConfig;
         RemovalListener<DictionaryKey, DataValueDictionary> listener = removalNotification -> {
             if (!removalNotification.wasEvicted()) { //do nothing

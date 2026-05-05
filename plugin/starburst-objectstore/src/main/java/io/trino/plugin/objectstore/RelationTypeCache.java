@@ -72,7 +72,7 @@ public final class RelationTypeCache
                 .maximumSize(10_000));
 
         tableTypeCounters = DEFAULT_TABLE_TYPE_ORDER.stream()
-                .collect(toImmutableMap(identity(), ignore -> new DecayCounter(ExponentialDecay.seconds(toIntExact(HOURS.toSeconds(1))))));
+                .collect(toImmutableMap(identity(), _ -> new DecayCounter(ExponentialDecay.seconds(toIntExact(HOURS.toSeconds(1))))));
         tableTypeCounters.get(DEFAULT_TABLE_TYPE).add(1);
     }
 

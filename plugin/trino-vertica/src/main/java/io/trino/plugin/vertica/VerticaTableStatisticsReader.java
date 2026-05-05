@@ -212,7 +212,7 @@ public final class VerticaTableStatisticsReader
             // The empty '' returns XML to standard output
             return handle.createQuery("SELECT EXPORT_STATISTICS('', :schema_table_name)")
                     .bind("schema_table_name", format("%s.%s", remoteTableName.getSchemaName().orElse(null), remoteTableName.getTableName()))
-                    .map((rs, ctx) -> {
+                    .map((rs, _) -> {
                         try {
                             String exportStatistics = rs.getString("EXPORT_STATISTICS");
                             return XML_MAPPER.readValue(exportStatistics, Schema.class);
@@ -234,7 +234,7 @@ public final class VerticaTableStatisticsReader
                             "GROUP BY column_name")
                     .bind("schema", remoteTableName.getCatalogName().orElse(null))
                     .bind("table_name", remoteTableName.getTableName())
-                    .map((rs, ctx) -> new AbstractMap.SimpleEntry<>(rs.getString("column_name"), rs.getLong("size")))
+                    .map((rs, _) -> new AbstractMap.SimpleEntry<>(rs.getString("column_name"), rs.getLong("size")))
                     .stream()
                     .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
         }

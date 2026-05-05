@@ -36,36 +36,19 @@ public final class TestSynapsePoolConnectorSmokeTest
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY:
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
-                return false;
-
-            case SUPPORTS_JOIN_PUSHDOWN:
-                return true;
-
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM:
-                return false;
-
-            case SUPPORTS_COMMENT_ON_TABLE:
-            case SUPPORTS_COMMENT_ON_COLUMN:
-                return false;
-
-            case SUPPORTS_RENAME_SCHEMA:
-                return false;
-
-            case SUPPORTS_ARRAY:
-                return false;
-
-            case SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS:
-                return false;
-
-            case SUPPORTS_MERGE:
-            case SUPPORTS_ROW_LEVEL_UPDATE:
-                return false;
-
-            default:
-                return super.hasBehavior(connectorBehavior);
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY,
+                    SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY -> false;
+            case SUPPORTS_JOIN_PUSHDOWN -> true;
+            case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM -> false;
+            case SUPPORTS_COMMENT_ON_TABLE,
+                    SUPPORTS_COMMENT_ON_COLUMN -> false;
+            case SUPPORTS_RENAME_SCHEMA -> false;
+            case SUPPORTS_ARRAY -> false;
+            case SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS -> false;
+            case SUPPORTS_MERGE,
+                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 }

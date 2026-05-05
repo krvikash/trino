@@ -130,23 +130,12 @@ final class TestSortTempFileFactory
                 BlockBuilder blockBuilder = pageBuilder.getBlockBuilder(columnIndex);
 
                 switch (column.getType().getBase()) {
-                    case IDENTIFIER:
-                        BIGINT.writeLong(blockBuilder, column.getIdentifier(row));
-                        break;
-                    case INTEGER:
-                        INTEGER.writeLong(blockBuilder, column.getInteger(row));
-                        break;
-                    case DATE:
-                        DATE.writeLong(blockBuilder, column.getDate(row));
-                        break;
-                    case DOUBLE:
-                        DOUBLE.writeDouble(blockBuilder, column.getDouble(row));
-                        break;
-                    case VARCHAR:
-                        createUnboundedVarcharType().writeSlice(blockBuilder, Slices.utf8Slice(column.getString(row)));
-                        break;
-                    default:
-                        throw new IllegalArgumentException("Unsupported type " + column.getType());
+                    case IDENTIFIER -> BIGINT.writeLong(blockBuilder, column.getIdentifier(row));
+                    case INTEGER -> INTEGER.writeLong(blockBuilder, column.getInteger(row));
+                    case DATE -> DATE.writeLong(blockBuilder, column.getDate(row));
+                    case DOUBLE -> DOUBLE.writeDouble(blockBuilder, column.getDouble(row));
+                    case VARCHAR -> createUnboundedVarcharType().writeSlice(blockBuilder, Slices.utf8Slice(column.getString(row)));
+                    default -> throw new IllegalArgumentException("Unsupported type " + column.getType());
                 }
             }
             if (pageBuilder.isFull()) {

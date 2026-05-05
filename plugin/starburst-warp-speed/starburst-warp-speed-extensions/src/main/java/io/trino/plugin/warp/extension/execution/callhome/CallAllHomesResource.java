@@ -49,7 +49,7 @@ import static java.util.Objects.requireNonNull;
 
 @Singleton
 @Path(CALL_ALL_HOMES_PATH)
-////@Api(value = "Call All Homes", tags = "Call Home")
+//@Api(value = "Call All Homes", tags = "Call Home")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @TaskResourceMarker(worker = false)
@@ -77,7 +77,7 @@ public class CallAllHomesResource
 
     @POST
     @Audit
-    ////@ApiOperation(value = "call-all-homes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
+    //@ApiOperation(value = "call-all-homes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public void executeCallAllHomes(CallHomeData callHomeData)
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();

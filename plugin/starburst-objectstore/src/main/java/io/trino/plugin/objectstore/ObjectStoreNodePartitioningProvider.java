@@ -63,7 +63,7 @@ public class ObjectStoreNodePartitioningProvider
     public Optional<ConnectorBucketNodeMap> getBucketNodeMapping(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorPartitioningHandle partitioningHandle)
     {
         TableType tableType = tableType(partitioningHandle);
-        return delegate(tableType, transactionHandle, (partitioningProvider, transaction) ->
+        return delegate(tableType, transactionHandle, (partitioningProvider, _) ->
                 partitioningProvider.getBucketNodeMapping(transactionHandle, sessionProperties.unwrap(tableType, session), partitioningHandle));
     }
 
@@ -71,7 +71,7 @@ public class ObjectStoreNodePartitioningProvider
     public ToIntFunction<ConnectorSplit> getSplitBucketFunction(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorPartitioningHandle partitioningHandle, int bucketCount)
     {
         TableType tableType = tableType(partitioningHandle);
-        return delegate(tableType, transactionHandle, (partitioningProvider, transaction) ->
+        return delegate(tableType, transactionHandle, (partitioningProvider, _) ->
                 partitioningProvider.getSplitBucketFunction(transactionHandle, sessionProperties.unwrap(tableType, session), partitioningHandle, bucketCount));
     }
 
@@ -79,7 +79,7 @@ public class ObjectStoreNodePartitioningProvider
     public BucketFunction getBucketFunction(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorPartitioningHandle partitioningHandle, List<Type> partitionChannelTypes, int bucketCount)
     {
         TableType tableType = tableType(partitioningHandle);
-        return delegate(tableType, transactionHandle, (partitioningProvider, transaction) ->
+        return delegate(tableType, transactionHandle, (partitioningProvider, _) ->
                 partitioningProvider.getBucketFunction(transactionHandle, sessionProperties.unwrap(tableType, session), partitioningHandle, partitionChannelTypes, bucketCount));
     }
 

@@ -123,7 +123,7 @@ public class TestDeterminePreferredDynamicFilterTimeout
                                 new MockConnectorColumnHandle("c_2", INTEGER), new ColumnStatistics(
                                         Estimate.unknown(), Estimate.of(400), Estimate.unknown(), Optional.empty()))));
         MockConnectorFactory connectorFactory = MockConnectorFactory.builder()
-                .withGetTableHandle((session, table) -> {
+                .withGetTableHandle((_, table) -> {
                     if (tables.containsKey(table.getTableName())) {
                         return new MockConnectorTableHandle(table);
                     }

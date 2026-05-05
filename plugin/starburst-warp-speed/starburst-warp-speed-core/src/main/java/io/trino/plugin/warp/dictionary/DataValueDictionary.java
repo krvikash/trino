@@ -97,7 +97,7 @@ public class DataValueDictionary
             addKeyLock.lock();
             try {
                 Object value = getKeyValue(key);
-                index = writeDictionary.computeIfAbsent(value, (x) -> {
+                index = writeDictionary.computeIfAbsent(value, (_) -> {
                     int incDictionaryWeight = addedWeight(value);
                     if (writeDictionary.size() == dictionaryMaxSize || (incDictionaryWeight + dictionaryWeight > maxDictionaryCacheWeight)) {
                         throw new DictionaryException("dictionary get failed due max size", WarmUpElementState.State.FAILED_TEMPORARILY, dictionaryKey, DictionaryState.DICTIONARY_MAX_EXCEPTION);

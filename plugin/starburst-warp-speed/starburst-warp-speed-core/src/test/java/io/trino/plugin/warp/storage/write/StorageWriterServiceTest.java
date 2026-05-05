@@ -248,7 +248,7 @@ public class StorageWriterServiceTest
 
         long[][] values = new long[][] {
                 new long[] {Long.MAX_VALUE, 7, Long.MIN_VALUE},
-                new long[] {1, 2, 3}
+                new long[] {1, 2, 3},
         };
 
         Page page = buildArrayType_BigIntPage(values);
@@ -304,7 +304,7 @@ public class StorageWriterServiceTest
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
 
         String[][] values = new String[][] {
-                new String[] {null}
+                new String[] {null},
         };
 
         Page page = buildArrayType_VarcharPage(values);
@@ -323,7 +323,7 @@ public class StorageWriterServiceTest
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
 
         String[][] values = new String[][] {
-                new String[] {"a", null}
+                new String[] {"a", null},
         };
 
         Page page = buildArrayType_VarcharPage(values);
