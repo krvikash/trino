@@ -111,7 +111,9 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     private static boolean isClusterUnavailable(Throwable throwable)
     {
         String stackTrace = getStackTraceAsString(throwable);
-        return stackTrace.contains(DATABRICKS_CLUSTER_PENDING_MATCH) || stackTrace.contains(DATABRICKS_CLUSTER_TERMINATED_MATCH);
+        return stackTrace.contains(DATABRICKS_CLUSTER_PENDING_MATCH) || stackTrace.contains(DATABRICKS_CLUSTER_TERMINATED_MATCH)
+                // safe to retry 502 only during session open — no statement was executed
+                || (stackTrace.contains("HTTP request failed by code: 502") && stackTrace.contains("TOpenSessionReq"));
     }
 
     private void createTpchTables(QueryRunner queryRunner)
