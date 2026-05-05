@@ -57,7 +57,9 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class GpuTestUtils
@@ -81,6 +83,7 @@ public final class GpuTestUtils
             .add(createDecimalType(27, 4))
             .add(createDecimalType(38, 10))
             .add(VARCHAR)
+            .add(VARBINARY)
             .build();
 
     private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
@@ -138,6 +141,9 @@ public final class GpuTestUtils
         }
         if (type == VARCHAR) {
             return createVarcharBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == VARBINARY) {
+            return createVarbinaryBlocks(positionsCounts, nullsProvider);
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -418,6 +424,58 @@ public final class GpuTestUtils
                     return builder.build();
                 })
                 .collect(toImmutableList());
+    }
+
+    private static List<Block> createVarbinaryBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Iterator<byte[]> bytes = generateInputBytes().iterator();
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            builder.writeEntry(Slices.wrappedBuffer(bytes.next()));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    /**
+     * Cycle through a fixture of byte arrays mixed with random payloads. Includes byte
+     * sequences that are not valid UTF-8 to verify the GPU path is byte-transparent.
+     */
+    private static Stream<byte[]> generateInputBytes()
+    {
+        List<byte[]> fixtures = ImmutableList.<byte[]>builder()
+                .add(new byte[0])
+                .add(new byte[] {0x00})
+                .add(new byte[] {0x00, 0x01, 0x02, 0x03})
+                .add(new byte[] {(byte) 0xFF, (byte) 0xFE, (byte) 0xFD, (byte) 0xFC})
+                .add(new byte[] {(byte) 0xC0, (byte) 0x80}) // overlong NUL — not valid UTF-8
+                .add(new byte[] {(byte) 0xED, (byte) 0xA0, (byte) 0x80}) // unpaired surrogate — not valid UTF-8
+                .add("test".getBytes(UTF_8))
+                .add("the quick brown fox".getBytes(UTF_8))
+                .add(new byte[] {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF})
+                .add(new byte[256])
+                .build();
+        Random random = new Random(42);
+        Stream<byte[]> randomBytes = Stream.generate(() -> {
+            byte[] b = new byte[random.nextInt(64)];
+            random.nextBytes(b);
+            return b;
+        });
+        return Streams.zip(
+                        Stream.generate(() -> fixtures).flatMap(List::stream),
+                        randomBytes,
+                        List::of)
+                .flatMap(List::stream);
     }
 
     /**

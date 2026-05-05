@@ -561,6 +561,9 @@ public class GpuExpressionCompiler
         protected Optional<CompilationResult> visitComparison(Comparison comparison, Void context)
         {
             verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
+            if (toDType(comparison.left().type()).filter(DType::isNestedType).isPresent()) {
+                return Optional.empty();
+            }
             Optional<CompilationResult> leftCompiled = comparison.left().accept(this, context);
             if (leftCompiled.isEmpty()) {
                 return Optional.empty();
@@ -588,6 +591,9 @@ public class GpuExpressionCompiler
         @Override
         protected Optional<CompilationResult> visitBetween(Between between, Void context)
         {
+            if (toDType(between.value().type()).filter(DType::isNestedType).isPresent()) {
+                return Optional.empty();
+            }
             return compileNary(
                     ImmutableList.of(between.value(), between.min(), between.max()),
                     args -> new GpuBetween(args.get(0), args.get(1), args.get(2)),
@@ -599,6 +605,9 @@ public class GpuExpressionCompiler
         {
             Optional<GpuTypeMapping> typeMapping = toGpuMapping(in.value().type());
             if (typeMapping.isEmpty()) {
+                return Optional.empty();
+            }
+            if (typeMapping.get().dType().isNestedType()) {
                 return Optional.empty();
             }
 

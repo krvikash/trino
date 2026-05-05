@@ -294,6 +294,7 @@ public final class GpuAggregationCompiler
     {
         return getSingleColumnReference(arguments, sourceLayout)
                 .flatMap(column -> toDType(returnType)
+                        .filter(dType -> !dType.isNestedType())
                         .map(dType -> AggregateCompilation.simple(returnType, factory.create(column.channel(), returnType, dType))));
     }
 

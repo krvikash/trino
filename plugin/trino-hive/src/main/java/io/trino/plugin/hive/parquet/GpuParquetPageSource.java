@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.hive.parquet;
 
+import ai.rapids.cudf.BaseDeviceMemoryBuffer;
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
@@ -31,9 +33,11 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
@@ -189,7 +193,7 @@ public class GpuParquetPageSource
                                 .orElseThrow(() -> new TrinoException(
                                         HIVE_UNSUPPORTED_FORMAT,
                                         format("Unsupported type for GPU: %s", trinoType)));
-                        @Own ColumnVector evolved = evolveColumn(gpuColumn.getBaseColumnName(), cudfCol, expectedDType);
+                        @Own ColumnVector evolved = evolveColumn(gpuColumn.getBaseColumnName(), cudfCol, expectedDType, trinoType);
                         yield new Column.DeviceMemory(evolved);
                     }
 
@@ -233,7 +237,7 @@ public class GpuParquetPageSource
      *       integer type rather than a decimal type.</li>
      * </ul>
      */
-    private static @Move ColumnVector evolveColumn(String columnName, @Borrow ColumnVector cudfCol, DType expectedDType)
+    private static @Move ColumnVector evolveColumn(String columnName, @Borrow ColumnVector cudfCol, DType expectedDType, Type trinoType)
     {
         DType actualDType = cudfCol.getType();
         if (actualDType.equals(expectedDType)) {
@@ -248,6 +252,19 @@ public class GpuParquetPageSource
         if (isIntegerType(actualDType) && (isIntegerType(expectedDType) || expectedDType.isDecimalType())
                 && expectedDType.getSizeInBytes() >= actualDType.getSizeInBytes()) {
             return cudfCol.castTo(expectedDType);
+        }
+        if (trinoType instanceof VarbinaryType && actualDType.equals(DType.STRING) && expectedDType.equals(DType.LIST)) {
+            // cuDF reads Parquet BINARY as STRING; reinterpret the byte payload as LIST<UINT8>.
+            // The STRING data buffer becomes the child UINT8 column; offsets and validity carry
+            // over unchanged.
+            BaseDeviceMemoryBuffer dataBuffer = cudfCol.getData();
+            long childRowCount = dataBuffer == null ? 0 : dataBuffer.getLength();
+            try (ColumnView childView = new ColumnView(DType.UINT8, childRowCount, Optional.of(0L), dataBuffer, null);
+                    ColumnView listView = new ColumnView(DType.LIST, cudfCol.getRowCount(),
+                            Optional.of(cudfCol.getNullCount()),
+                            cudfCol.getValid(), cudfCol.getOffsets(), new ColumnView[] {childView})) {
+                return listView.copyToColumnVector();
+            }
         }
         throw new TrinoException(
                 HIVE_UNSUPPORTED_FORMAT,

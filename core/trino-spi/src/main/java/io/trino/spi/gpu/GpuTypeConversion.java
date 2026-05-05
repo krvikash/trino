@@ -16,6 +16,7 @@ package io.trino.spi.gpu;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
+import ai.rapids.cudf.HostColumnVectorCore;
 import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.Scalar;
 import io.airlift.slice.Slice;
@@ -44,6 +45,7 @@ import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
@@ -59,6 +61,8 @@ import static java.util.Objects.requireNonNull;
 public final class GpuTypeConversion
 {
     private GpuTypeConversion() {}
+
+    private static final HostColumnVector.DataType BYTE_LIST_ELEMENT_TYPE = new HostColumnVector.BasicType(false, DType.UINT8);
 
     private static final Logger log = Logger.getLogger(GpuTypeConversion.class.getName());
 
@@ -162,6 +166,16 @@ public final class GpuTypeConversion
                     DType.STRING,
                     value -> Scalar.fromUTF8String(value.map(v -> ((Slice) v).getBytes()).orElse(null)),
                     GpuTypeConversion::copyVarcharBlocksToDevice));
+
+            case VarbinaryType _ -> Optional.of(new GpuTypeMapping(
+                    DType.LIST,
+                    value -> value.map(v -> {
+                        byte[] bytes = ((Slice) v).getBytes();
+                        try (ColumnVector child = ColumnVector.fromUnsignedBytes(bytes)) {
+                            return Scalar.listFromColumnView(child);
+                        }
+                    }).orElseGet(() -> Scalar.listFromNull(BYTE_LIST_ELEMENT_TYPE)),
+                    GpuTypeConversion::copyVarbinaryBlocksToDevice));
 
             default -> {
                 log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
@@ -621,6 +635,128 @@ public final class GpuTypeConversion
         finally {
             if (data != null) {
                 data.close();
+            }
+            if (offsets != null) {
+                offsets.close();
+            }
+            if (validity != null) {
+                validity.close();
+            }
+        }
+    }
+
+    /**
+     * VARBINARY is represented as DType.LIST with DType.UINT8 element.
+     * Layout: top-level list has (rows+1) int offsets and a top-level validity buffer.
+     */
+    private static @Move ColumnVector copyVarbinaryBlocksToDevice(Blocks blocks)
+    {
+        int totalPositions = blocks.positionCount();
+        if (totalPositions == 0) {
+            HostMemoryBuffer offsets = null;
+            HostMemoryBuffer childData = null;
+            HostColumnVectorCore child = null;
+            try {
+                offsets = HostMemoryBuffer.allocate(Integer.BYTES);
+                childData = HostMemoryBuffer.allocate(0);
+                offsets.setInt(0, 0);
+                child = new HostColumnVectorCore(DType.UINT8, 0, Optional.of(0L), childData, null, null, List.of());
+                childData = null;
+                try (HostColumnVector hcv = new HostColumnVector(DType.LIST, 0, Optional.of(0L), null, null, offsets, List.of(child))) {
+                    child = null;
+                    offsets = null;
+                    return hcv.copyToDevice();
+                }
+            }
+            finally {
+                if (child != null) {
+                    child.close();
+                }
+                if (offsets != null) {
+                    offsets.close();
+                }
+                if (childData != null) {
+                    childData.close();
+                }
+            }
+        }
+
+        HostMemoryBuffer offsets = null;
+        HostMemoryBuffer childData = null;
+        HostMemoryBuffer validity = null;
+        HostColumnVectorCore child = null;
+        try {
+            OffsetsResult offsetsResult = buildVarcharOffsets(blocks, totalPositions);
+            offsets = offsetsResult.buffer();
+            long totalDataBytes = offsetsResult.totalDataBytes();
+
+            childData = HostMemoryBuffer.allocate(Math.max(totalDataBytes, 1));
+            long dataByteOffset = 0;
+            for (Block block : blocks.blocks()) {
+                int count = block.getPositionCount();
+                switch (block) {
+                    case RunLengthEncodedBlock rle -> {
+                        VariableWidthBlock value = (VariableWidthBlock) rle.getValue();
+                        Slice slice = value.getSlice(0);
+                        int sliceLen = slice.length();
+                        if (sliceLen > 0) {
+                            byte[] sliceBytes = slice.byteArray();
+                            int sliceOffset = slice.byteArrayOffset();
+                            for (int i = 0; i < count; i++) {
+                                childData.setBytes(dataByteOffset, sliceBytes, sliceOffset, sliceLen);
+                                dataByteOffset += sliceLen;
+                            }
+                        }
+                    }
+                    case DictionaryBlock dictionaryBlock -> {
+                        VariableWidthBlock dictionary = (VariableWidthBlock) dictionaryBlock.getUnderlyingValueBlock();
+                        int arrayBase = dictionary.getRawArrayBase();
+                        int[] rawOffsets = dictionary.getRawOffsets();
+                        Slice rawSlice = dictionary.getRawSlice();
+                        for (int i = 0; i < count; i++) {
+                            int underlyingPos = dictionaryBlock.getUnderlyingValuePosition(i);
+                            int start = rawOffsets[arrayBase + underlyingPos];
+                            int len = rawOffsets[arrayBase + underlyingPos + 1] - start;
+                            if (len > 0) {
+                                childData.setBytes(dataByteOffset, rawSlice.byteArray(), rawSlice.byteArrayOffset() + start, len);
+                            }
+                            dataByteOffset += len;
+                        }
+                    }
+                    case VariableWidthBlock valueBlock -> {
+                        int arrayBase = valueBlock.getRawArrayBase();
+                        int[] rawOffsets = valueBlock.getRawOffsets();
+                        Slice rawSlice = valueBlock.getRawSlice();
+                        int blockDataStart = rawOffsets[arrayBase];
+                        int blockDataLength = rawOffsets[arrayBase + count] - blockDataStart;
+                        if (blockDataLength > 0) {
+                            childData.setBytes(dataByteOffset, rawSlice.byteArray(), rawSlice.byteArrayOffset() + blockDataStart, blockDataLength);
+                        }
+                        dataByteOffset += blockDataLength;
+                    }
+                    default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
+                }
+            }
+
+            ValidityResult validityResult = buildValidity(blocks, totalPositions);
+            validity = validityResult.buffer();
+            long nullCount = validityResult.nullCount();
+
+            child = new HostColumnVectorCore(DType.UINT8, totalDataBytes, Optional.of(0L), childData, null, null, List.of());
+            childData = null;
+            try (HostColumnVector hcv = new HostColumnVector(DType.LIST, totalPositions, Optional.of(nullCount), null, validity, offsets, List.of(child))) {
+                child = null;
+                offsets = null;
+                validity = null;
+                return hcv.copyToDevice();
+            }
+        }
+        finally {
+            if (child != null) {
+                child.close();
+            }
+            if (childData != null) {
+                childData.close();
             }
             if (offsets != null) {
                 offsets.close();

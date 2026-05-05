@@ -420,6 +420,39 @@ public class TestDistributedGpuEngineOnlyQueries
     }
 
     @Test
+    public void testGpuVarbinaryAggregation()
+    {
+        // VARBINARY maps to nested DType.LIST<UINT8>; cuDF can't reduce LIST for min/max for now
+        String source = "(SELECT IF(rand()<42, to_utf8(CAST(i AS varchar))) AS v FROM (UNNEST(sequence(0, 100))) t(i))";
+
+        assertThat(query("SELECT min(v) FROM " + source))
+                .executesWithoutGpu();
+        assertThat(query("SELECT max(v) FROM " + source))
+                .executesWithoutGpu();
+        assertThat(query("SELECT count(v) FROM " + source))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuVarbinaryFilter()
+    {
+        // VARBINARY maps to nested DType.LIST<UINT8>; cuDF binary_op does not support nested
+        // operands, so comparison/between/in on VARBINARY columns must stay on CPU.
+        String source = "(SELECT to_utf8(CAST(i AS varchar)) AS v FROM (UNNEST(sequence(0, 100))) t(i))";
+
+        assertThat(query("SELECT v FROM " + source + " WHERE v = X'3432'"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT v FROM " + source + " WHERE v != X'3432'"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT v FROM " + source + " WHERE v < X'3432'"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT v FROM " + source + " WHERE v BETWEEN X'3130' AND X'3530'"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT v FROM " + source + " WHERE v IN (X'3432', X'3433')"))
+                .executesWithoutGpu();
+    }
+
+    @Test
     public void testGpuSumDecimalAggregation()
     {
         // sum(short_decimal) — input precision 15 (DECIMAL64). PARTIAL on GPU casts to DECIMAL128
