@@ -108,8 +108,7 @@ public class HiveMetadataFactory
             @UsingSystemSecurity boolean usingSystemSecurity,
             @AllowHiveTableRename boolean allowTableRename)
     {
-        this(
-                locationAccessControl,
+        this(locationAccessControl,
                 catalogName,
                 metastoreFactory,
                 fileWriterFactories,

@@ -138,8 +138,7 @@ public class OrcPageSourceFactory
             FileFormatDataSourceStats stats,
             HiveConfig hiveConfig)
     {
-        this(
-                config.toOrcReaderOptions(),
+        this(config.toOrcReaderOptions(),
                 fileSystemFactory,
                 stats,
                 hiveConfig.getOrcLegacyDateTimeZone(),

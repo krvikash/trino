@@ -143,8 +143,7 @@ public class HiveSplitManager
             JsonCodec<HiveCacheSplitId> splitIdCodec,
             SplitAffinityProvider splitAffinityProvider)
     {
-        this(
-                transactionManager,
+        this(transactionManager,
                 partitionManager,
                 fileSystemFactory,
                 versionEmbedder.embedVersion(new BoundedExecutor(executorService, hiveConfig.getMaxSplitIteratorThreads())),

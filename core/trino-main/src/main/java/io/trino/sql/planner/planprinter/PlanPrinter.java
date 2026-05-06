@@ -805,8 +805,7 @@ public class PlanPrinter
         @Override
         public Void visitDynamicFilterSource(DynamicFilterSourceNode node, Context context)
         {
-            addNode(
-                    node,
+            addNode(node,
                     "DynamicFilterSource",
                     ImmutableMap.of("dynamicFilterAssignments", printDynamicFilterAssignments(node.getDynamicFilters())),
                     context);
@@ -1748,8 +1747,7 @@ public class PlanPrinter
         @Override
         public Void visitAdaptivePlanNode(AdaptivePlanNode node, Context context)
         {
-            addNode(
-                    node,
+            addNode(node,
                     "AdaptivePlan",
                     ImmutableMap.of(),
                     ImmutableList.of(node.getId()),

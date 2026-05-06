@@ -76,8 +76,7 @@ public class DeltaLakeTableHandle
             @JsonProperty("readVersion") long readVersion,
             @JsonProperty("timeTravel") boolean timeTravel)
     {
-        this(
-                schemaName,
+        this(schemaName,
                 tableName,
                 managed,
                 tableId,

@@ -3828,8 +3828,7 @@ public class IcebergMetadata
         Table table = transaction.table();
         if (handle.getSnapshotId().isEmpty()) {
             // No snapshot, table is empty
-            verify(
-                    computedStatistics.size() == 1,
+            verify(computedStatistics.size() == 1,
                     "The computedStatistics size must be 1: %s",
                     computedStatistics);
             ComputedStatistics statistics = getOnlyElement(computedStatistics);

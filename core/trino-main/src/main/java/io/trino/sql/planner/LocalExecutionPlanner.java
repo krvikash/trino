@@ -775,8 +775,7 @@ public class LocalExecutionPlanner
 
         public LocalExecutionPlanContext(TaskContext taskContext, Metadata metadata, AlternativeChooser alternativeChooser)
         {
-            this(
-                    taskContext,
+            this(taskContext,
                     metadata,
                     alternativeChooser,
                     new ArrayList<>(),
@@ -4959,8 +4958,7 @@ public class LocalExecutionPlanner
 
         PhysicalOperation(OperatorFactory operatorFactory, Map<Symbol, Integer> layout, PhysicalOperation source)
         {
-            this(
-                    ImmutableList.<OperatorFactory>builder()
+            this(ImmutableList.<OperatorFactory>builder()
                             .addAll(source.getPipelineTail())
                             .add(operatorFactory)
                             .build(),

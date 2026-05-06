@@ -513,8 +513,7 @@ public class AdaptivePlanner
         @Override
         public PlanNode visitAdaptivePlanNode(AdaptivePlanNode node, RewriteContext<List<SubPlan>> context)
         {
-            verify(
-                    !containsAdaptivePlanNode(node.getCurrentPlan()),
+            verify(!containsAdaptivePlanNode(node.getCurrentPlan()),
                     "Adaptive plan node cannot have a nested adaptive plan node");
             return node.getCurrentPlan();
         }
@@ -526,8 +525,7 @@ public class AdaptivePlanner
         @Override
         public PlanNode visitAdaptivePlanNode(AdaptivePlanNode node, RewriteContext<List<SubPlan>> context)
         {
-            verify(
-                    !containsAdaptivePlanNode(node.getInitialPlan()),
+            verify(!containsAdaptivePlanNode(node.getInitialPlan()),
                     "Adaptive plan node cannot have a nested adaptive plan node");
             return node.getInitialPlan();
         }

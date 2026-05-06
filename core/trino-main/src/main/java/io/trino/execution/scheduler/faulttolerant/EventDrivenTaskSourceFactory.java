@@ -93,8 +93,7 @@ public class EventDrivenTaskSourceFactory
             ConsistentHashingAddressProvider consistentHashingAddressProvider,
             QueryManagerConfig queryManagerConfig)
     {
-        this(
-                splitSourceFactory,
+        this(splitSourceFactory,
                 executor,
                 currentNode,
                 nodeManager,

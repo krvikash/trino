@@ -259,8 +259,7 @@ public final class SystemSessionProperties
 
     public SystemSessionProperties()
     {
-        this(
-                new QueryManagerConfig(),
+        this(new QueryManagerConfig(),
                 new SpoolingEnabledConfig(),
                 new TaskManagerConfig(),
                 new MemoryManagerConfig(),

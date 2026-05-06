@@ -333,8 +333,7 @@ public abstract class BaseCostBasedPlanTest
         public Void visitExchange(ExchangeNode node, Integer indent)
         {
             Partitioning partitioning = node.getPartitioningScheme().getPartitioning();
-            output(
-                    indent,
+            output(indent,
                     "%s exchange (%s, %s, %s)",
                     node.getScope().name().toLowerCase(ENGLISH),
                     node.getType(),
@@ -350,8 +349,7 @@ public abstract class BaseCostBasedPlanTest
         @Override
         public Void visitAggregation(AggregationNode node, Integer indent)
         {
-            output(
-                    indent,
+            output(indent,
                     "%s aggregation over (%s)",
                     node.getStep().name().toLowerCase(ENGLISH),
                     node.getGroupingKeys().stream()
