@@ -23,8 +23,10 @@ import io.trino.operator.project.PageProcessor;
 import io.trino.operator.project.PageProcessorMetrics;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ShortArrayBlock;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
@@ -37,6 +39,7 @@ import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
+import io.trino.sql.planner.SymbolsExtractor;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -47,12 +50,14 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntFunction;
 
 import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
@@ -76,9 +81,7 @@ public class BenchmarkColumnarFilter
     private static final long CONSTANT = 8456;
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
     private static final String COL_0 = "$col_0";
-    private static final Map<Symbol, Integer> LAYOUT_BIGINT = ImmutableMap.of(new Symbol(BIGINT, COL_0), 0);
-    private static final Map<Symbol, Integer> LAYOUT_INTEGER = ImmutableMap.of(new Symbol(INTEGER, COL_0), 0);
-    private static final Map<Symbol, Integer> LAYOUT_SMALLINT = ImmutableMap.of(new Symbol(SMALLINT, COL_0), 0);
+    private static final String COL_1 = "$col_1";
 
     private PageProcessor compiledProcessor;
     private final List<Page> inputPages = new ArrayList<>();
@@ -111,6 +114,15 @@ public class BenchmarkColumnarFilter
                         new Constant(type, CONSTANT), new Reference(type, COL_0));
             }
         },
+        LESS_THAN_TWO_COLUMNS {
+            @Override
+            Expression getExpression(Type type)
+            {
+                return call(
+                        FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(type, type)),
+                        new Reference(type, COL_0), new Reference(type, COL_1));
+            }
+        },
         IS_NULL {
             @Override
             Expression getExpression(Type type)
@@ -135,41 +147,57 @@ public class BenchmarkColumnarFilter
     @Setup
     public void setup()
     {
+        Type type = getType(dataType);
+        Expression filter = filterProvider.getExpression(type);
+        List<Symbol> referencedSymbols = SymbolsExtractor.extractUnique(filter).stream()
+                .sorted(Comparator.comparing(Symbol::name))
+                .toList();
+        int channelCount = referencedSymbols.size();
+        ImmutableMap.Builder<Symbol, Integer> layoutBuilder = ImmutableMap.builder();
+        ImmutableList.Builder<Reference> projections = ImmutableList.builder();
+        for (int channel = 0; channel < channelCount; channel++) {
+            Symbol symbol = referencedSymbols.get(channel);
+            layoutBuilder.put(symbol, channel);
+            projections.add(new Reference(symbol.type(), symbol.name()));
+        }
+        Map<Symbol, Integer> layout = layoutBuilder.buildOrThrow();
+
+        // Mix dictionary and RLE pages alongside the ValueBlock ones so the JIT profile of every
+        // per-row call site (block.isNull, block.getInt, block.getUnderlyingValuePosition, ...)
+        // sees all three block shapes that occur in real workloads.
         for (int pageCount = 0; pageCount < 20; pageCount++) {
-            Block block = switch (dataType) {
-                case StandardTypes.BIGINT -> createLongsBlock(8192, nullsPercentage);
-                case StandardTypes.INTEGER -> createIntsBlock(8192, nullsPercentage);
-                case StandardTypes.SMALLINT -> createShortsBlock(8192, nullsPercentage);
-                default -> throw new UnsupportedOperationException();
-            };
-            inputPages.add(new Page(block.getPositionCount(), block));
+            inputPages.add(buildPage(channelCount, _ -> createValueBlock(8192, nullsPercentage)));
+        }
+        for (int pageCount = 0; pageCount < 5; pageCount++) {
+            inputPages.add(buildPage(channelCount, _ -> createDictionaryBlock(8192, nullsPercentage)));
+            inputPages.add(buildPage(channelCount, _ -> createRleBlock(8192)));
+        }
+        if (nullsPercentage > 0) {
+            inputPages.add(buildPage(channelCount, _ -> createRleNullBlock(8192)));
         }
 
-        Type type = switch (dataType) {
-            case StandardTypes.BIGINT -> BIGINT;
-            case StandardTypes.INTEGER -> INTEGER;
-            case StandardTypes.SMALLINT -> SMALLINT;
-            default -> throw new UnsupportedOperationException();
-        };
-        Map<Symbol, Integer> layout = switch (dataType) {
-            case StandardTypes.BIGINT -> LAYOUT_BIGINT;
-            case StandardTypes.INTEGER -> LAYOUT_INTEGER;
-            case StandardTypes.SMALLINT -> LAYOUT_SMALLINT;
-            default -> throw new UnsupportedOperationException();
-        };
         ExpressionCompiler expressionCompiler = FUNCTION_RESOLUTION.getExpressionCompiler();
         compiledProcessor = expressionCompiler.compilePageProcessor(
                         columnarEvaluationEnabled,
                         true,
                         false,
                         true,
-                        Optional.of(filterProvider.getExpression(type)),
+                        Optional.of(filter),
                         Optional.empty(),
-                        ImmutableList.of(new Reference(type, COL_0)),
+                        projections.build(),
                         layout,
                         Optional.empty(),
                         OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
+    }
+
+    private static Page buildPage(int channelCount, IntFunction<Block> blockForChannel)
+    {
+        Block[] blocks = new Block[channelCount];
+        for (int channel = 0; channel < channelCount; channel++) {
+            blocks[channel] = blockForChannel.apply(channel);
+        }
+        return new Page(blocks[0].getPositionCount(), blocks);
     }
 
     @Benchmark
@@ -208,6 +236,37 @@ public class BenchmarkColumnarFilter
                 }
             }
         }
+    }
+
+    private Block createValueBlock(int positions, int nullsPercentage)
+    {
+        return switch (dataType) {
+            case StandardTypes.BIGINT -> createLongsBlock(positions, nullsPercentage);
+            case StandardTypes.INTEGER -> createIntsBlock(positions, nullsPercentage);
+            case StandardTypes.SMALLINT -> createShortsBlock(positions, nullsPercentage);
+            default -> throw new UnsupportedOperationException();
+        };
+    }
+
+    private Block createDictionaryBlock(int positions, int nullsPercentage)
+    {
+        Block valueBlock = createValueBlock(positions, nullsPercentage);
+        int[] ids = new int[positions];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = i;
+        }
+        return DictionaryBlock.create(positions, valueBlock, ids);
+    }
+
+    private Block createRleBlock(int positions)
+    {
+        Block valueBlock = createValueBlock(1, 0);
+        return RunLengthEncodedBlock.create(valueBlock, positions);
+    }
+
+    private Block createRleNullBlock(int positions)
+    {
+        return RunLengthEncodedBlock.create(getType(dataType), null, positions);
     }
 
     private static Block createShortsBlock(int positionsCount, int nullsPercentage)
@@ -253,6 +312,16 @@ public class BenchmarkColumnarFilter
             }
         }
         return new LongArrayBlock(positionsCount, Optional.of(isNull), values);
+    }
+
+    private static Type getType(String dataType)
+    {
+        return switch (dataType) {
+            case StandardTypes.BIGINT -> BIGINT;
+            case StandardTypes.INTEGER -> INTEGER;
+            case StandardTypes.SMALLINT -> SMALLINT;
+            default -> throw new UnsupportedOperationException();
+        };
     }
 
     static {
