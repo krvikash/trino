@@ -302,7 +302,9 @@ public class AdaptivePlanner
     }
 
     private Map<ExchangeSourceId, SubPlan> getUnchangedSubPlans(
-            PlanNode adaptivePlan, Set<PlanNodeId> changedPlanIds, Map<ExchangeSourceId, SubPlan> exchangeSourceIdToSubPlan)
+            PlanNode adaptivePlan,
+            Set<PlanNodeId> changedPlanIds,
+            Map<ExchangeSourceId, SubPlan> exchangeSourceIdToSubPlan)
     {
         Set<PlanNodeId> changedPlanIdsWithDownstream = new HashSet<>();
         for (PlanNodeId changedId : changedPlanIds) {
