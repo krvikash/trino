@@ -66,6 +66,7 @@ import io.trino.plugin.jdbc.expression.JdbcConnectorExpressionRewriterBuilder;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.plugin.jdbc.expression.RewriteAnd;
 import io.trino.plugin.jdbc.expression.RewriteExactNumericConstant;
+import io.trino.plugin.jdbc.expression.RewriteIn;
 import io.trino.plugin.jdbc.expression.RewriteOr;
 import io.trino.plugin.jdbc.expression.RewriteVarcharConstant;
 import io.trino.plugin.jdbc.expression.RewriteVariable;
@@ -281,6 +282,7 @@ public class SnowflakeClient
                 .add(new RewriteJsonExtractScalar())
                 .add(new RewriteCoalesce())
                 .add(new RewriteWideningCast())
+                .add(new RewriteIn())
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")

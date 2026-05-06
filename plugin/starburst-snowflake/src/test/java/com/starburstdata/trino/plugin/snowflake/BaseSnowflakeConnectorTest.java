@@ -1255,6 +1255,47 @@ public abstract class BaseSnowflakeConnectorTest
     }
 
     @Test
+    public void testInPredicatePushdown()
+    {
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_in_predicate_pushdown",
+                "(id int, id2 int)",
+                List.of(
+                        "1, 2",
+                        "2, 3",
+                        "4, 4",
+                        "NULL, 5"))) {
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE id IN (1, id2)"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE id IN (0, 1) OR id2 IN (1, 2)"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE id IN (2, 3) OR id2 IN (0, 1)"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE id IN (0, NULL)"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(0);
+        }
+    }
+
+    @Test
+    public void testInPredicateMixedCollationPushdown()
+    {
+        try (TestTable table = new TestTable(
+                snowflakeExecutor,
+                getSession().getSchema().orElseThrow() + ".test_in_collation_collision",
+                "(en_col VARCHAR COLLATE 'en', tr_col VARCHAR COLLATE 'tr')",
+                List.of("'t', 'r'"))) {
+            assertThat(query(getSession(), "SELECT en_col FROM " + table.getName() + " WHERE 't' IN (en_col, tr_col)"))
+                    .isFullyPushedDown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
     @Override
     public void testCharTrailingSpace()
     {

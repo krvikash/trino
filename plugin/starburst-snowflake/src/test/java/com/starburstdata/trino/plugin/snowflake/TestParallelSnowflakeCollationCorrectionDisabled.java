@@ -122,4 +122,23 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
                     ".*Incompatible collations.*");
         }
     }
+
+    @Test
+    public void testCollationCorrectionDisabledIn()
+    {
+        try (TestTable table = new TestTable(
+                snowflakeExecutor,
+                getSession().getSchema().orElseThrow() + ".test_in_collation_collision",
+                "(en_col VARCHAR COLLATE 'en', tr_col VARCHAR COLLATE 'tr')",
+                List.of("'t', 't'"))) {
+            Session experimentalPushdownEnabled = Session.builder(getSession())
+                    .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                    .build();
+
+            assertQueryFails(
+                    experimentalPushdownEnabled,
+                    "SELECT en_col FROM " + table.getName() + " WHERE 't' IN (en_col, tr_col)",
+                    ".*Incompatible collations.*");
+        }
+    }
 }
