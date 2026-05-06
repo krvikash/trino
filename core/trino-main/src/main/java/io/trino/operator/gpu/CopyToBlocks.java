@@ -544,6 +544,9 @@ public class CopyToBlocks
      * cuDF VARBINARY columns are LIST<INT8>: the parent carries offsets and validity, while the
      * child INT8 column carries the byte data. {@code copyToHost} preserves this structure, so
      * we reach the data buffer through {@link HostColumnVector#getChildColumnView(int)}.
+     *
+     * <p>Null list elements have offsets[i+1] == offsets[i] in cuDF, so the per-row length is 0
+     * and no bytes are read for nulls; the validity bitmap is the source of truth.
      */
     private static class VarbinaryColumnCopier
             implements ColumnCopier
