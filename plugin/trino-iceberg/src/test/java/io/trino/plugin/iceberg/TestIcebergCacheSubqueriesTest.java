@@ -21,8 +21,11 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.sql.TestTable;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +51,7 @@ public class TestIcebergCacheSubqueriesTest
     }
 
     @Test
+    @Disabled("Flaky - see ENG-9659 and ENG-12580")
     public void testDoUsePartiallyCachedResultsWhenDataWasDeletedFromUnpartitionedTable()
     {
         try (TestTable testTable = new TestTable(
@@ -79,6 +83,7 @@ public class TestIcebergCacheSubqueriesTest
     }
 
     @Test
+    @Disabled("Flaky - see ENG-10548 and ENG-12580")
     public void testTimeTravelQueryCache()
     {
         try (TestTable testTable = new TestTable(
@@ -112,6 +117,7 @@ public class TestIcebergCacheSubqueriesTest
     }
 
     @Test
+    @Disabled("Flaky - see ENG-10361 and ENG-12580")
     public void testChangeWhenSchemaEvolved()
     {
         try (TestTable testTable = new TestTable(
@@ -138,6 +144,28 @@ public class TestIcebergCacheSubqueriesTest
             assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
             assertThat(getScanOperatorInputPositions(result.queryId())).isEqualTo(0);
         }
+    }
+
+    @Override
+    @Test
+    @Disabled("Flaky - see ENG-10621 and ENG-12580")
+    public void testSubsequentQueryReadsFromCache()
+    {
+    }
+
+    @Override
+    @Test
+    @Disabled("Flaky - see ENG-9462 and ENG-12580")
+    public void testSubsequentQueryReadsFromCacheWithDynamicFilterOnDataColumn()
+    {
+    }
+
+    @Override
+    @ParameterizedTest
+    @MethodSource("isDynamicRowFilteringEnabled")
+    @Disabled("Flaky - see ENG-9396 and ENG-12580")
+    public void testDynamicFilterCache(boolean isDynamicRowFilteringEnabled)
+    {
     }
 
     @Override
