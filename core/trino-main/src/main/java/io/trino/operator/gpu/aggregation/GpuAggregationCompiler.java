@@ -174,11 +174,9 @@ public final class GpuAggregationCompiler
             // addGpuOperation's outputTypes only matters for the *terminal* layout of the chained
             // GPU operator, and addGpuOperation appends our subsequent stages onto the same
             // GpuOperator instance with its own output type bookkeeping.
-        }
 
-        // Rebuild aggregates with rewired input channels: each compilation's GpuSum on a derived
-        // column needs its inputChannel pointing at the pre-projection-appended channel.
-        if (currentDerivedChannel != sourceColumnCount) {
+            // Rebuild aggregates with rewired input channels: each compilation's GpuSum on a derived
+            // column needs its inputChannel pointing at the pre-projection-appended channel.
             ImmutableList.Builder<GpuAggregateFunction> rewired = ImmutableList.builder();
             for (int i = 0; i < compilations.size(); i++) {
                 AggregateCompilation compilation = compilations.get(i);
