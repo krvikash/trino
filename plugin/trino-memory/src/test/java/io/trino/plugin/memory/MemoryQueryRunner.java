@@ -128,6 +128,7 @@ public final class MemoryQueryRunner
                     .addCoordinatorProperty("http-server.http.port", "8080")
                     .addExtraProperty("gpu-execution", "true")
                     .addExtraProperty("task.gpu-execution.enabled", "true")
+                    .addWorkerProperty("gpu.memory.pool-size", "4GB")
                     // GPU is disabled on coordinator unless include-coordinator is set. Disable include-coordinator to force coordinator into more production-like setup.
                     // This is needed to expose potential problems where operators on workers and coordinator do not match.
                     .addExtraProperty("node-scheduler.include-coordinator", "false")
