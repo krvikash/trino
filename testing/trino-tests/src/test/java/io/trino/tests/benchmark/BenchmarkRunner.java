@@ -1113,10 +1113,8 @@ public final class BenchmarkRunner
             case GPU -> builder
                     .addExtraProperty("gpu-execution", "true")
                     .addExtraProperty("task.gpu-execution.enabled", "true")
-                    // Larger splits than the 64 MB default give a substantial GPU Parquet decode
-                    // speedup. TODO reconsider raising further (e.g. 512 MB).
-                    .addHiveProperty("hive.max-initial-split-size", "256MB")
-                    .addHiveProperty("hive.max-split-size", "256MB");
+                    .addHiveProperty("hive.max-initial-split-size", "512MB")
+                    .addHiveProperty("hive.max-split-size", "512MB");
         }
     }
 
