@@ -17,6 +17,9 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.SourcePage;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
@@ -122,5 +125,15 @@ public class TestColumnarFilterCompiler
                 block)));
         int[] output = new int[5];
         assertThat(filter.filterPositionsRange(SESSION, output, 0, 5, page)).isEqualTo(2);
+    }
+
+    @Test
+    public void testBlockSubtypeHierarchy()
+    {
+        // ColumnarFilterCompiler#setUnderlyingPositions inlines the per-row Block dispatch
+        // by emitting an instanceof chain over the three permitted Block subtypes. If a new
+        // subtype is ever added, that dispatch must be updated to handle it.
+        assertThat(Block.class.getPermittedSubclasses())
+                .containsExactlyInAnyOrder(ValueBlock.class, DictionaryBlock.class, RunLengthEncodedBlock.class);
     }
 }

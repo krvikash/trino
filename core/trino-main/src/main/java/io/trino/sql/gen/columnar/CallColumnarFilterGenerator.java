@@ -62,17 +62,18 @@ import static io.airlift.bytecode.instruction.Constant.loadBoolean;
 import static io.airlift.bytecode.instruction.Constant.loadDouble;
 import static io.airlift.bytecode.instruction.Constant.loadLong;
 import static io.airlift.bytecode.instruction.Constant.loadString;
-import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.BLOCK_POSITION;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
+import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.VALUE_BLOCK_POSITION;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.DEFAULT_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
 import static io.trino.sql.gen.BytecodeUtils.loadConstant;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.createClassInstance;
-import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.declareBlockVariables;
+import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.declareInputVariables;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockMayHaveNull;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockPositionNotNull;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateGetInputChannels;
+import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.setUnderlyingPositions;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.updateOutputPositions;
 import static io.trino.util.CompilerUtils.makeClassName;
 import static java.lang.String.format;
@@ -144,7 +145,7 @@ public class CallColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(arguments, layout, page, scope, body);
+        declareInputVariables(arguments, layout, page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         Variable position = scope.declareVariable(int.class, "position");
@@ -158,8 +159,10 @@ public class CallColumnarFilterGenerator
 
         /* if (block_0.mayHaveNull() || block_1.mayHaveNull()...) {
          *     for (position = offset; position < offset + size; position++) {
-         *         if (!block_0.isNull(position) && !block_1.isNull(position)...) {
-         *             boolean result = call_function(position, block_0, block_1, ...);
+         *         // underlyingPosition_N type-dispatched per Block subtype (see setUnderlyingPositions)
+         *         ...
+         *         if (!valueBlock_0.isNull(underlyingPosition_0) && !valueBlock_1.isNull(underlyingPosition_1)...) {
+         *             boolean result = call_function(valueBlock_0, underlyingPosition_0, valueBlock_1, underlyingPosition_1, ...);
          *             outputPositions[outputPositionsCount] = position;
          *             outputPositionsCount += result ? 1 : 0;
          *         }
@@ -170,15 +173,19 @@ public class CallColumnarFilterGenerator
                 .initialize(position.set(offset))
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
-                .body(new IfStatement()
-                        .condition(generateBlockPositionNotNull(arguments, layout, functionNullability.getArgumentNullable(), scope, position))
-                        .ifTrue(new BytecodeBlock()
-                                .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope, position)
-                                        .putVariable(result))
-                                .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount)))));
+                .body(new BytecodeBlock()
+                        .append(setUnderlyingPositions(arguments, layout, scope, position))
+                        .append(new IfStatement()
+                                .condition(generateBlockPositionNotNull(arguments, layout, functionNullability.getArgumentNullable(), scope, position))
+                                .ifTrue(new BytecodeBlock()
+                                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope)
+                                                .putVariable(result))
+                                        .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))))));
 
         /* for (position = offset; position < offset + size; position++) {
-         *     boolean result = call_function(position, block_0, block_1, ...);
+         *     // underlyingPosition_N type-dispatched per Block subtype (see setUnderlyingPositions)
+         *     ...
+         *     boolean result = call_function(valueBlock_0, underlyingPosition_0, valueBlock_1, underlyingPosition_1, ...);
          *     outputPositions[outputPositionsCount] = position;
          *     outputPositionsCount += result ? 1 : 0;
          * }
@@ -188,7 +195,8 @@ public class CallColumnarFilterGenerator
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
                 .body(new BytecodeBlock()
-                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope, position)
+                        .append(setUnderlyingPositions(arguments, layout, scope, position))
+                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope)
                                 .putVariable(result))
                         .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))));
 
@@ -212,7 +220,7 @@ public class CallColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(arguments, layout, page, scope, body);
+        declareInputVariables(arguments, layout, page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         Variable index = scope.declareVariable(int.class, "index");
@@ -228,8 +236,10 @@ public class CallColumnarFilterGenerator
         /* if (block_0.mayHaveNull() || block_1.mayHaveNull()...) {
          *     for (int index = offset; index < offset + size; index++) {
          *         int position = activePositions[index];
-         *         if (!block_0.isNull(position) && !block_1.isNull(position)...) {
-         *             boolean result = call_function(position, block_0, block_1, ...);
+         *         // underlyingPosition_N type-dispatched per Block subtype (see setUnderlyingPositions)
+         *         ...
+         *         if (!valueBlock_0.isNull(underlyingPosition_0) && !valueBlock_1.isNull(underlyingPosition_1)...) {
+         *             boolean result = call_function(valueBlock_0, underlyingPosition_0, valueBlock_1, underlyingPosition_1, ...);
          *             outputPositions[outputPositionsCount] = position;
          *             outputPositionsCount += result ? 1 : 0;
          *         }
@@ -242,16 +252,19 @@ public class CallColumnarFilterGenerator
                 .update(index.increment())
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
+                        .append(setUnderlyingPositions(arguments, layout, scope, position))
                         .append(new IfStatement()
                                 .condition(generateBlockPositionNotNull(arguments, layout, functionNullability.getArgumentNullable(), scope, position))
                                 .ifTrue(new BytecodeBlock()
-                                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope, position)
+                                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope)
                                                 .putVariable(result))
                                         .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))))));
 
         /* for (int index = offset; index < offset + size; index++) {
          *     int position = activePositions[index];
-         *     boolean result = call_function(position, block_0, block_1, ...);
+         *     // underlyingPosition_N type-dispatched per Block subtype (see setUnderlyingPositions)
+         *     ...
+         *     boolean result = call_function(valueBlock_0, underlyingPosition_0, valueBlock_1, underlyingPosition_1, ...);
          *     outputPositions[outputPositionsCount] = position;
          *     outputPositionsCount += result ? 1 : 0;
          * }
@@ -262,7 +275,8 @@ public class CallColumnarFilterGenerator
                 .update(index.increment())
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
-                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope, position)
+                        .append(setUnderlyingPositions(arguments, layout, scope, position))
+                        .append(generateFullInvocation(functionManager, instance, callSiteBinder, function, arguments, layout, scope)
                                 .putVariable(result))
                         .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount))));
 
@@ -275,8 +289,7 @@ public class CallColumnarFilterGenerator
             ResolvedFunction function,
             List<Expression> arguments,
             Map<Symbol, Integer> layout,
-            Scope scope,
-            BytecodeExpression position)
+            Scope scope)
     {
         return generateFullInvocation(
                 functionManager,
@@ -287,8 +300,7 @@ public class CallColumnarFilterGenerator
                 function,
                 arguments,
                 layout,
-                scope,
-                position);
+                scope);
     }
 
     private static BytecodeBlock generateFullInvocation(
@@ -298,8 +310,7 @@ public class CallColumnarFilterGenerator
             ResolvedFunction function,
             List<Expression> arguments,
             Map<Symbol, Integer> layout,
-            Scope scope,
-            BytecodeExpression position)
+            Scope scope)
     {
         String functionName = function.signature().getName().functionName();
         BytecodeBlock block = new BytecodeBlock()
@@ -332,7 +343,9 @@ public class CallColumnarFilterGenerator
             if (argumentExpression instanceof Reference reference) {
                 Integer channel = layout.get(Symbol.from(reference));
                 checkState(channel != null, "Reference not in layout: %s", reference.name());
-                block.append(generateInputReference(scope.getVariable("block_" + channel), position));
+                block.append(generateInputReference(
+                        scope.getVariable("valueBlock_" + channel),
+                        scope.getVariable("underlyingPosition_" + channel)));
             }
             else if (argumentExpression instanceof Constant constant) {
                 block.append(generateConstant(binder, constant));
@@ -350,7 +363,7 @@ public class CallColumnarFilterGenerator
         ImmutableList.Builder<InvocationConvention.InvocationArgumentConvention> builder = ImmutableList.builderWithExpectedSize(arguments.size());
         for (Expression argumentExpression : arguments) {
             if (argumentExpression instanceof Reference) {
-                builder.add(BLOCK_POSITION);
+                builder.add(VALUE_BLOCK_POSITION);
             }
             else if (argumentExpression instanceof Constant) {
                 builder.add(NEVER_NULL);

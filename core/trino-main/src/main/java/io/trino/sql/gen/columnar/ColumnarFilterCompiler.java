@@ -25,6 +25,7 @@ import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
 import io.airlift.bytecode.Scope;
 import io.airlift.bytecode.Variable;
+import io.airlift.bytecode.control.IfStatement;
 import io.airlift.bytecode.expression.BytecodeExpression;
 import io.airlift.bytecode.expression.BytecodeExpressions;
 import io.airlift.log.Logger;
@@ -37,6 +38,8 @@ import io.trino.operator.project.InputChannels;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.function.OperatorType;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.gen.CallSiteBinder;
@@ -263,27 +266,67 @@ public class ColumnarFilterCompiler
         }
     }
 
-    static void declareBlockVariables(List<? extends Expression> expressions, Map<Symbol, Integer> layout, Parameter page, Scope scope, BytecodeBlock body)
+    // Declares one set of variables per distinct input channel referenced by `expressions`:
+    //   block_N             — the raw Block from the page (any wrapper shape)
+    //   valueBlock_N        — block_N.getUnderlyingValueBlock(), hoisted once per page so the
+    //                         value-access call site is monomorphic per Trino type
+    //   underlyingPosition_N — int slot, assigned per row by setUnderlyingPositions
+    static void declareInputVariables(List<? extends Expression> expressions, Map<Symbol, Integer> layout, Parameter page, Scope scope, BytecodeBlock body)
     {
-        Set<Integer> inputFields = new HashSet<>(); // There may be multiple References on the same input block
+        Set<Integer> seen = new HashSet<>(); // There may be multiple References on the same input channel
         for (Expression expression : expressions) {
             if (!(expression instanceof Reference reference)) {
                 continue;
             }
             Integer field = layout.get(Symbol.from(reference));
             checkState(field != null, "Reference not in layout: %s", reference.name());
-            if (inputFields.contains(field)) {
+            if (!seen.add(field)) {
                 continue;
             }
-            scope.declareVariable(
+            Variable rawBlock = scope.declareVariable(
                     "block_" + field,
                     body,
-                    page.invoke(
-                            "getBlock",
-                            Block.class,
-                            constantInt(field)));
-            inputFields.add(field);
+                    page.invoke("getBlock", Block.class, constantInt(field)));
+            scope.declareVariable(
+                    "valueBlock_" + field,
+                    body,
+                    rawBlock.invoke("getUnderlyingValueBlock", ValueBlock.class));
+            scope.declareVariable(int.class, "underlyingPosition_" + field);
         }
+    }
+
+    // Sets underlyingPosition_N for every distinct referenced channel by inlining the dispatch:
+    //   if (block_N instanceof ValueBlock) underlyingPosition_N = position;
+    //   else if (block_N instanceof DictionaryBlock) underlyingPosition_N = ((DictionaryBlock) block_N).getId(position);
+    //   else underlyingPosition_N = 0; // RunLengthEncodedBlock — Block is sealed
+    // Replaces a per-row Block.getUnderlyingValuePosition v-call. When all three concrete subtypes
+    // reach the same loop body, the v-call site goes megamorphic and the JIT can no longer inline
+    // the cheap per-subtype implementations through type-profile guards. The inline if/else lets
+    // each branch be statically inlined.
+    static BytecodeBlock setUnderlyingPositions(List<? extends Expression> expressions, Map<Symbol, Integer> layout, Scope scope, Variable position)
+    {
+        BytecodeBlock block = new BytecodeBlock();
+        Set<Integer> seen = new HashSet<>();
+        for (Expression expression : expressions) {
+            if (!(expression instanceof Reference reference)) {
+                continue;
+            }
+            Integer field = layout.get(Symbol.from(reference));
+            checkState(field != null, "Reference not in layout: %s", reference.name());
+            if (!seen.add(field)) {
+                continue;
+            }
+            Variable rawBlock = scope.getVariable("block_" + field);
+            Variable underlyingPosition = scope.getVariable("underlyingPosition_" + field);
+            block.append(new IfStatement()
+                    .condition(rawBlock.instanceOf(ValueBlock.class))
+                    .ifTrue(underlyingPosition.set(position))
+                    .ifFalse(new IfStatement()
+                            .condition(rawBlock.instanceOf(DictionaryBlock.class))
+                            .ifTrue(underlyingPosition.set(rawBlock.cast(DictionaryBlock.class).invoke("getId", int.class, position)))
+                            .ifFalse(underlyingPosition.set(constantInt(0)))));
+        }
+        return block;
     }
 
     static BytecodeExpression generateBlockMayHaveNull(List<? extends Expression> expressions, Map<Symbol, Integer> layout, Scope scope)
@@ -332,9 +375,14 @@ public class ColumnarFilterCompiler
             if (expression instanceof Reference reference && !isNullableArgument.get(i)) {
                 Integer field = layout.get(Symbol.from(reference));
                 checkState(field != null, "Reference not in layout: %s", reference.name());
+                // Null-check the unwrapped ValueBlock so the isNull receiver matches
+                // the value-access call site. underlyingPosition_N is set per row by
+                // setUnderlyingPositions.
+                Variable valueBlock = scope.getVariable("valueBlock_" + field);
+                Variable underlyingPosition = scope.getVariable("underlyingPosition_" + field);
                 isNotNull = BytecodeExpressions.and(
                         isNotNull,
-                        BytecodeExpressions.not(scope.getVariable("block_" + field).invoke("isNull", boolean.class, position)));
+                        BytecodeExpressions.not(valueBlock.invoke("isNull", boolean.class, underlyingPosition)));
             }
         }
         return isNotNull;

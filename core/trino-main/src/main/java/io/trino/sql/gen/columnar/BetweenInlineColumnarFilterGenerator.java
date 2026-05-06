@@ -51,10 +51,11 @@ import static io.airlift.bytecode.expression.BytecodeExpressions.lessThan;
 import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
 import static io.trino.sql.gen.columnar.CallColumnarFilterGenerator.generateInvocation;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.createClassInstance;
-import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.declareBlockVariables;
+import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.declareInputVariables;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockMayHaveNull;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateBlockPositionNotNull;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.generateGetInputChannels;
+import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.setUnderlyingPositions;
 import static io.trino.sql.gen.columnar.ColumnarFilterCompiler.updateOutputPositions;
 import static io.trino.util.CompilerUtils.makeClassName;
 import static java.util.Objects.requireNonNull;
@@ -132,7 +133,7 @@ public class BetweenInlineColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(ImmutableList.of(valueReference), layout, page, scope, body);
+        declareInputVariables(ImmutableList.of(valueReference), layout, page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         Variable position = scope.declareVariable(int.class, "position");
@@ -144,10 +145,11 @@ public class BetweenInlineColumnarFilterGenerator
 
         /* if (block_0.mayHaveNull()) {
          *     for (position = offset; position < offset + size; position++) {
-         *         if (!block_0.isNull(position)) {
-         *             boolean result = less_than_or_equal(constant, block_0, position);
+         *         // underlyingPosition_0 type-dispatched per Block subtype (see setUnderlyingPositions)
+         *         if (!valueBlock_0.isNull(underlyingPosition_0)) {
+         *             boolean result = less_than_or_equal(constant, valueBlock_0, underlyingPosition_0);
          *             if (result) {
-         *                 result = less_than_or_equal(block_0, position, constant);
+         *                 result = less_than_or_equal(valueBlock_0, underlyingPosition_0, constant);
          *             }
          *             outputPositions[outputPositionsCount] = position;
          *             outputPositionsCount += result ? 1 : 0;
@@ -159,14 +161,17 @@ public class BetweenInlineColumnarFilterGenerator
                 .initialize(position.set(offset))
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
-                .body(new IfStatement()
-                        .condition(generateBlockPositionNotNull(ImmutableList.of(valueReference), layout, scope, position))
-                        .ifTrue(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount))));
+                .body(new BytecodeBlock()
+                        .append(setUnderlyingPositions(ImmutableList.of(valueReference), layout, scope, position))
+                        .append(new IfStatement()
+                                .condition(generateBlockPositionNotNull(ImmutableList.of(valueReference), layout, scope, position))
+                                .ifTrue(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount)))));
 
         /* for (position = offset; position < offset + size; position++) {
-         *     boolean result = less_than_or_equal(constant, block_0, position);
+         *     // underlyingPosition_0 type-dispatched per Block subtype (see setUnderlyingPositions)
+         *     boolean result = less_than_or_equal(constant, valueBlock_0, underlyingPosition_0);
          *     if (result) {
-         *         result = less_than_or_equal(block_0, position, constant);
+         *         result = less_than_or_equal(valueBlock_0, underlyingPosition_0, constant);
          *     }
          *     outputPositions[outputPositionsCount] = position;
          *     outputPositionsCount += result ? 1 : 0;
@@ -176,7 +181,9 @@ public class BetweenInlineColumnarFilterGenerator
                 .initialize(position.set(offset))
                 .condition(lessThan(position, add(offset, size)))
                 .update(position.increment())
-                .body(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount)));
+                .body(new BytecodeBlock()
+                        .append(setUnderlyingPositions(ImmutableList.of(valueReference), layout, scope, position))
+                        .append(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount))));
 
         body.append(outputPositionsCount.ret());
     }
@@ -198,7 +205,7 @@ public class BetweenInlineColumnarFilterGenerator
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        declareBlockVariables(ImmutableList.of(valueReference), layout, page, scope, body);
+        declareInputVariables(ImmutableList.of(valueReference), layout, page, scope, body);
 
         Variable outputPositionsCount = scope.declareVariable("outputPositionsCount", body, constantInt(0));
         Variable index = scope.declareVariable(int.class, "index");
@@ -212,10 +219,11 @@ public class BetweenInlineColumnarFilterGenerator
         /* if (block_0.mayHaveNull()) {
          *     for (int index = offset; index < offset + size; index++) {
          *         int position = activePositions[index];
-         *         if (!block_0.isNull(position)) {
-         *             boolean result = less_than_or_equal(constant, block_0, position);
+         *         // underlyingPosition_0 type-dispatched per Block subtype (see setUnderlyingPositions)
+         *         if (!valueBlock_0.isNull(underlyingPosition_0)) {
+         *             boolean result = less_than_or_equal(constant, valueBlock_0, underlyingPosition_0);
          *             if (result) {
-         *                 result = less_than_or_equal(block_0, position, constant);
+         *                 result = less_than_or_equal(valueBlock_0, underlyingPosition_0, constant);
          *             }
          *             outputPositions[outputPositionsCount] = position;
          *             outputPositionsCount += result ? 1 : 0;
@@ -229,15 +237,17 @@ public class BetweenInlineColumnarFilterGenerator
                 .update(index.increment())
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
+                        .append(setUnderlyingPositions(ImmutableList.of(valueReference), layout, scope, position))
                         .append(new IfStatement()
                                 .condition(generateBlockPositionNotNull(ImmutableList.of(valueReference), layout, scope, position))
                                 .ifTrue(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount)))));
 
         /* for (int index = offset; index < offset + size; index++) {
          *     int position = activePositions[index];
-         *     boolean result = less_than_or_equal(constant, block_0, position);
+         *     // underlyingPosition_0 type-dispatched per Block subtype (see setUnderlyingPositions)
+         *     boolean result = less_than_or_equal(constant, valueBlock_0, underlyingPosition_0);
          *     if (result) {
-         *         result = less_than_or_equal(block_0, position, constant);
+         *         result = less_than_or_equal(valueBlock_0, underlyingPosition_0, constant);
          *     }
          *     outputPositions[outputPositionsCount] = position;
          *     outputPositionsCount += result ? 1 : 0;
@@ -249,6 +259,7 @@ public class BetweenInlineColumnarFilterGenerator
                 .update(index.increment())
                 .body(new BytecodeBlock()
                         .append(position.set(activePositions.getElement(index)))
+                        .append(setUnderlyingPositions(ImmutableList.of(valueReference), layout, scope, position))
                         .append(computeAndAssignResult(binder, scope, result, position, outputPositions, outputPositionsCount))));
 
         body.append(outputPositionsCount.ret());
@@ -257,11 +268,11 @@ public class BetweenInlineColumnarFilterGenerator
     private BytecodeBlock computeAndAssignResult(CallSiteBinder binder, Scope scope, Variable result, Variable position, Parameter outputPositions, Variable outputPositionsCount)
     {
         return new BytecodeBlock()
-                .append(generateInvocation(functionManager, binder, lessThanOrEqual, leftArguments, layout, scope, position)
+                .append(generateInvocation(functionManager, binder, lessThanOrEqual, leftArguments, layout, scope)
                         .putVariable(result))
                 .append(new IfStatement()
                         .condition(result)
-                        .ifTrue(generateInvocation(functionManager, binder, lessThanOrEqual, rightArguments, layout, scope, position)
+                        .ifTrue(generateInvocation(functionManager, binder, lessThanOrEqual, rightArguments, layout, scope)
                                 .putVariable(result)))
                 .append(updateOutputPositions(result, position, outputPositions, outputPositionsCount));
     }
