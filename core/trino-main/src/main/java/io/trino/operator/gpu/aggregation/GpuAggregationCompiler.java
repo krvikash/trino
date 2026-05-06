@@ -178,7 +178,7 @@ public final class GpuAggregationCompiler
             currentAggChannel += slotCount;
 
             if (compilation.postProjection().isPresent()) {
-                postProjections.add(new Projection.Gpu(compilation.postProjection().get().rebind(aggChannel)));
+                postProjections.add(new Projection.Gpu(compilation.postProjection().get().rebind(aggChannel, slotCount)));
             }
             else {
                 verify(slotCount == 1, "Aggregate without post-projection must have exactly one slot, got %s", slotCount);
@@ -399,7 +399,7 @@ public final class GpuAggregationCompiler
                     VARBINARY,
                     List.of(cast),
                     List.of(sum),
-                    Optional.of(new PostProjection(1, channels -> new CompiledExpression(
+                    Optional.of(new PostProjection(channels -> new CompiledExpression(
                             new GpuDecimal128AsVarbinary(),
                             new InputChannels(List.of(channels[0])),
                             GpuScore.POTENTIAL))));
@@ -431,7 +431,7 @@ public final class GpuAggregationCompiler
                     VARBINARY,
                     chunks,
                     sums,
-                    Optional.of(new PostProjection(4, channels -> new CompiledExpression(
+                    Optional.of(new PostProjection(channels -> new CompiledExpression(
                             new GpuCombineSumChunksToVarbinary(decimal128Type),
                             new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3])),
                             GpuScore.POTENTIAL))));
@@ -467,9 +467,9 @@ public final class GpuAggregationCompiler
      * compiler doesn't know the absolute aggregation result channels until the layout is fixed,
      * so each per-aggregate compilation hands back a closure that takes the resolved channels.
      */
-    private record PostProjection(int slotCount, ChannelToExpression buildExpression)
+    private record PostProjection(ChannelToExpression buildExpression)
     {
-        CompiledExpression rebind(int firstSlotChannel)
+        CompiledExpression rebind(int firstSlotChannel, int slotCount)
         {
             int[] channels = new int[slotCount];
             for (int i = 0; i < slotCount; i++) {
