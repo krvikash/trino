@@ -126,29 +126,18 @@ public final class GpuAggregationCompiler
     {
         boolean needsPipeline = compilations.stream().anyMatch(c -> !c.preProjection().isEmpty() || c.postProjection().isPresent());
 
-        // Aggregation result layout: [groupKeys ..., per-aggregate slot results in order]
-        ImmutableList.Builder<GpuAggregateFunction> aggregates = ImmutableList.builder();
-        // Track the channel of each aggregate's first slot in the aggregation output, so the
-        // post-projection can reference it.
-        int[] aggResultChannels = new int[compilations.size()];
-        int currentAggChannel = groupByChannels.length;
-        for (int i = 0; i < compilations.size(); i++) {
-            aggResultChannels[i] = currentAggChannel;
-            aggregates.addAll(compilations.get(i).aggregates());
-            currentAggChannel += compilations.get(i).aggregates().size();
-        }
-
-        GpuAggregation.Factory aggregation = new GpuAggregation.Factory(
-                aggregates.build(),
-                groupByChannels,
-                groupByTypes,
-                step.isInputRaw());
-
         if (!needsPipeline) {
+            ImmutableList.Builder<GpuAggregateFunction> aggregates = ImmutableList.builder();
+            for (AggregateCompilation compilation : compilations) {
+                aggregates.addAll(compilation.aggregates());
+            }
+            GpuAggregation.Factory aggregation = new GpuAggregation.Factory(
+                    aggregates.build(),
+                    groupByChannels,
+                    groupByTypes,
+                    step.isInputRaw());
             return new CompileResult(List.of(aggregation), aggregation.getOutputTypes());
         }
-
-        List<GpuOperation.Factory> stages = new ArrayList<>();
 
         // Pre-projection: pass through all source columns, then append derived columns (chunks /
         // upcasts) for each aggregate that needs them. The aggregation's input channels for those
@@ -157,45 +146,9 @@ public final class GpuAggregationCompiler
         for (int i = 0; i < sourceColumnCount; i++) {
             preProjections.add(new Projection.PassThrough(i));
         }
-        // Track where each aggregate's derived columns landed in the pre-projection output.
-        int[] aggregateDerivedChannelStart = new int[compilations.size()];
-        int currentDerivedChannel = sourceColumnCount;
-        for (int i = 0; i < compilations.size(); i++) {
-            AggregateCompilation compilation = compilations.get(i);
-            aggregateDerivedChannelStart[i] = currentDerivedChannel;
-            for (CompiledExpression derivedExpression : compilation.preProjection()) {
-                preProjections.add(new Projection.Gpu(derivedExpression));
-            }
-            currentDerivedChannel += compilation.preProjection().size();
-        }
-        if (currentDerivedChannel != sourceColumnCount) {
-            stages.add(new GpuProject.Factory(preProjections.build()));
-            // The pre-projection's intermediate layout types aren't tracked because
-            // addGpuOperation's outputTypes only matters for the *terminal* layout of the chained
-            // GPU operator, and addGpuOperation appends our subsequent stages onto the same
-            // GpuOperator instance with its own output type bookkeeping.
-
-            // Rebuild aggregates with rewired input channels: each compilation's GpuSum on a derived
-            // column needs its inputChannel pointing at the pre-projection-appended channel.
-            ImmutableList.Builder<GpuAggregateFunction> rewired = ImmutableList.builder();
-            for (int i = 0; i < compilations.size(); i++) {
-                AggregateCompilation compilation = compilations.get(i);
-                int derivedStart = aggregateDerivedChannelStart[i];
-                for (int slot = 0; slot < compilation.aggregates().size(); slot++) {
-                    GpuAggregateFunction original = compilation.aggregates().get(slot);
-                    rewired.add(compilation.preProjection().isEmpty()
-                            ? original
-                            : compilation.rewireInputChannel(slot, derivedStart + slot));
-                }
-            }
-            aggregation = new GpuAggregation.Factory(
-                    rewired.build(),
-                    groupByChannels,
-                    groupByTypes,
-                    step.isInputRaw());
-        }
-        stages.add(aggregation);
-
+        // Aggregates with input channels rewired to point at appended pre-projection columns when
+        // a derived input is present; left unchanged otherwise.
+        ImmutableList.Builder<GpuAggregateFunction> aggregates = ImmutableList.builder();
         // Post-projection: pass-through group keys, then either pass-through or run the
         // per-aggregate post-projection on its slot results.
         ImmutableList.Builder<Projection> postProjections = ImmutableList.builder();
@@ -204,10 +157,26 @@ public final class GpuAggregationCompiler
             postProjections.add(new Projection.PassThrough(i));
             postProjectionTypes.add(groupByTypes.get(i));
         }
-        for (int i = 0; i < compilations.size(); i++) {
-            AggregateCompilation compilation = compilations.get(i);
-            int aggChannel = aggResultChannels[i];
+
+        int currentDerivedChannel = sourceColumnCount;
+        int currentAggChannel = groupByChannels.length;
+        for (AggregateCompilation compilation : compilations) {
+            int derivedStart = currentDerivedChannel;
+            for (CompiledExpression derivedExpression : compilation.preProjection()) {
+                preProjections.add(new Projection.Gpu(derivedExpression));
+            }
+            currentDerivedChannel += compilation.preProjection().size();
+
+            int aggChannel = currentAggChannel;
             int slotCount = compilation.aggregates().size();
+            for (int slot = 0; slot < slotCount; slot++) {
+                GpuAggregateFunction original = compilation.aggregates().get(slot);
+                aggregates.add(compilation.preProjection().isEmpty()
+                        ? original
+                        : compilation.rewireInputChannel(slot, derivedStart + slot));
+            }
+            currentAggChannel += slotCount;
+
             if (compilation.postProjection().isPresent()) {
                 postProjections.add(new Projection.Gpu(compilation.postProjection().get().rebind(aggChannel)));
             }
@@ -217,6 +186,20 @@ public final class GpuAggregationCompiler
             }
             postProjectionTypes.add(compilation.outputType());
         }
+
+        List<GpuOperation.Factory> stages = new ArrayList<>();
+        if (currentDerivedChannel != sourceColumnCount) {
+            stages.add(new GpuProject.Factory(preProjections.build()));
+            // The pre-projection's intermediate layout types aren't tracked because
+            // addGpuOperation's outputTypes only matters for the *terminal* layout of the chained
+            // GPU operator, and addGpuOperation appends our subsequent stages onto the same
+            // GpuOperator instance with its own output type bookkeeping.
+        }
+        stages.add(new GpuAggregation.Factory(
+                aggregates.build(),
+                groupByChannels,
+                groupByTypes,
+                step.isInputRaw()));
         stages.add(new GpuProject.Factory(postProjections.build()));
 
         return new CompileResult(stages, postProjectionTypes.build());
