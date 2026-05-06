@@ -13,7 +13,7 @@
  */
 package io.trino.operator.gpu;
 
-import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.Cuda;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
@@ -111,6 +111,8 @@ public class CopyToBlocks
             int[] columnIndexToCopierIndex = new int[inputPage.columnCount()];
             @Own List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
             @Own Column[] newColumns = new Column[inputPage.columnCount()];
+            @Own List<HostColumnVector> hostColumnVectors = new ArrayList<>();
+            boolean syncFailed = false;
             try {
                 Optional<List<Integer>> desiredBlockPositions = IntStream.range(0, inputPage.columnCount())
                         .mapToObj(columnIndex -> switch (inputPage.column(columnIndex)) {
@@ -127,13 +129,39 @@ public class CopyToBlocks
                 checkState(desiredBlockPositions.isEmpty(), "Pre-existing blocks");
 
                 int positionCount = inputPage.positionCount();
+                // Cuda.DEFAULT_STREAM is the per-thread default stream (PTDS, enforced at startup
+                // by GpuConfigurer). Launch all device→host transfers on it so host-side allocation
+                // and bookkeeping overlap with in-flight DMA, then synchronize once.
+                try {
+                    for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
+                        if (inputPage.column(columnIndex) instanceof DeviceMemory deviceMemory) {
+                            hostColumnVectors.add(deviceMemory.columnVector().copyToHostAsync(Cuda.DEFAULT_STREAM));
+                        }
+                    }
+                    Cuda.DEFAULT_STREAM.sync();
+                }
+                catch (RuntimeException e) {
+                    // Sync before the finally-close to prevent freeing pinned host buffers that
+                    // in-flight DMAs may still be writing into.
+                    try {
+                        Cuda.DEFAULT_STREAM.sync();
+                    }
+                    catch (RuntimeException syncException) {
+                        syncFailed = true;
+                        e.addSuppressed(syncException);
+                    }
+                    throw e;
+                }
+
+                int hostColumnVectorIndex = 0;
                 for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                     switch (inputPage.column(columnIndex)) {
                         case Blocks _ -> {}
-                        case DeviceMemory deviceMemory -> {
+                        case DeviceMemory _ -> {
                             columnIndexToCopierIndex[columnIndex] = copiers.size();
                             Type type = types.get(columnIndex);
-                            copiers.add(createColumnCopier(deviceMemory.columnVector(), type));
+                            HostColumnVector hostColumnVector = hostColumnVectors.get(hostColumnVectorIndex++);
+                            copiers.add(createColumnCopier(hostColumnVector, type));
                         }
                     }
                 }
@@ -185,6 +213,10 @@ public class CopyToBlocks
                         }
                     }
                     copiers.forEach(closer::register);
+                    if (!syncFailed) {
+                        hostColumnVectors.forEach(closer::register);
+                    }
+                    // else: stream sync failed; buffers may have in-flight DMAs and must be leaked
                 }
             }
         }
@@ -196,44 +228,44 @@ public class CopyToBlocks
         }
     }
 
-    private @Move ColumnCopier createColumnCopier(@Borrow ColumnVector columnVector, Type type)
+    private @Move ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
     {
         if (type == BOOLEAN || type == TINYINT) {
-            return new ByteColumnCopier(columnVector);
+            return new ByteColumnCopier(hostColumnVector);
         }
         if (type == SMALLINT) {
-            return new ShortColumnCopier(columnVector);
+            return new ShortColumnCopier(hostColumnVector);
         }
         if (type == INTEGER || type == DATE) {
-            return new IntColumnCopier(columnVector);
+            return new IntColumnCopier(hostColumnVector);
         }
         if (type == BIGINT) {
-            return new LongColumnCopier(columnVector);
+            return new LongColumnCopier(hostColumnVector);
         }
         if (type instanceof DecimalType decimalType) {
             return decimalType.isShort()
-                    ? new LongColumnCopier(columnVector)
-                    : new Int128ColumnCopier(columnVector);
+                    ? new LongColumnCopier(hostColumnVector)
+                    : new Int128ColumnCopier(hostColumnVector);
         }
         if (type instanceof TimestampType timestampType) {
             return switch (timestampType.getPrecision()) {
-                case 0 -> new RescaledLongColumnCopier(columnVector, 1_000_000L);
-                case 3 -> new RescaledLongColumnCopier(columnVector, 1_000L);
-                case 6 -> new LongColumnCopier(columnVector);
+                case 0 -> new RescaledLongColumnCopier(hostColumnVector, 1_000_000L);
+                case 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
+                case 6 -> new LongColumnCopier(hostColumnVector);
                 default -> throw new UnsupportedOperationException("Unsupported type: " + type);
             };
         }
         if (type == REAL) {
-            return new RealColumnCopier(columnVector);
+            return new RealColumnCopier(hostColumnVector);
         }
         if (type == DOUBLE) {
-            return new DoubleColumnCopier(columnVector);
+            return new DoubleColumnCopier(hostColumnVector);
         }
         if (type instanceof VarcharType) {
-            return new VarcharColumnCopier(columnVector);
+            return new VarcharColumnCopier(hostColumnVector);
         }
         if (type instanceof VarbinaryType) {
-            return new VarbinaryColumnCopier(columnVector);
+            return new VarbinaryColumnCopier(hostColumnVector);
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -272,12 +304,11 @@ public class CopyToBlocks
     private static class ByteColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public ByteColumnCopier(ColumnVector columnVector)
+        public ByteColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) use ColumnVector.copyToHostAsync(stream) to get parallel transfers for all columns being copied
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -289,20 +320,17 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class ShortColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public ShortColumnCopier(ColumnVector columnVector)
+        public ShortColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -315,20 +343,17 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class IntColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public IntColumnCopier(ColumnVector columnVector)
+        public IntColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -340,20 +365,17 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class LongColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public LongColumnCopier(ColumnVector columnVector)
+        public LongColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -365,21 +387,18 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class RescaledLongColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
         private final long multiplier;
 
-        public RescaledLongColumnCopier(ColumnVector columnVector, long multiplier)
+        public RescaledLongColumnCopier(@Borrow HostColumnVector hostColumnVector, long multiplier)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
             this.multiplier = multiplier;
         }
 
@@ -395,20 +414,17 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class RealColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public RealColumnCopier(ColumnVector columnVector)
+        public RealColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -426,20 +442,17 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class DoubleColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public DoubleColumnCopier(ColumnVector columnVector)
+        public DoubleColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -457,10 +470,7 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     /**
@@ -471,11 +481,11 @@ public class CopyToBlocks
     private static class Int128ColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public Int128ColumnCopier(ColumnVector columnVector)
+        public Int128ColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -492,21 +502,17 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private static class VarcharColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public VarcharColumnCopier(ColumnVector columnVector)
+        public VarcharColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) use ColumnVector.copyToHostAsync(stream) to get parallel transfers for all columns being copied
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -534,10 +540,7 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     /**
@@ -551,11 +554,11 @@ public class CopyToBlocks
     private static class VarbinaryColumnCopier
             implements ColumnCopier
     {
-        private final @Own HostColumnVector hostColumnVector;
+        private final @Borrow HostColumnVector hostColumnVector;
 
-        public VarbinaryColumnCopier(ColumnVector columnVector)
+        public VarbinaryColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            this.hostColumnVector = columnVector.copyToHost();
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -583,10 +586,7 @@ public class CopyToBlocks
         }
 
         @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        public void close() {}
     }
 
     private interface ColumnCopier

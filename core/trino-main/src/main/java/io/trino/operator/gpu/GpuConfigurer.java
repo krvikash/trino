@@ -39,6 +39,11 @@ public class GpuConfigurer
         requireNonNull(config, "config is null");
 
         var _ = Rmm.isInitialized(); // trigger static initializer before taking the lock
+        // CopyToBlocks uses Cuda.DEFAULT_STREAM for async device→host transfers, relying on
+        // per-thread stream semantics: each operator thread has its own stream, enabling independent
+        // pipelining. Without PTDS, DEFAULT_STREAM is the global legacy stream, causing cross-thread
+        // contention and incorrect Cuda.DEFAULT_STREAM.sync() behavior.
+        checkState(Cuda.isPtdsEnabled(), "PTDS must be enabled in the cuDF native library; current build uses legacy default stream");
         synchronized (initializationLock) {
             if (Rmm.isInitialized()) {
                 // This is normal in tests, but not normal in production
@@ -50,7 +55,7 @@ public class GpuConfigurer
             long poolSize = poolSizeBytes(config);
             checkArgument(poolSize >= 0, "GPU pool size must not be negative, got %s bytes", poolSize);
 
-            log.info("Initializing RMM: allocationMode=%s, poolSize=%s; PTDS=%s", config.getAllocationMode(), succinctBytes(poolSize), Cuda.isPtdsEnabled());
+            log.info("Initializing RMM: allocationMode=%s, poolSize=%s", config.getAllocationMode(), succinctBytes(poolSize));
             Rmm.initialize(allocationMode, null, poolSize);
         }
     }
