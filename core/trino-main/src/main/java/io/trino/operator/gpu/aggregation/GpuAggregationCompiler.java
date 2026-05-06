@@ -98,13 +98,13 @@ public final class GpuAggregationCompiler
                         aggregation.getOrderingScheme().isPresent());
                 return Optional.empty();
             }
-            compiled.ifPresent(aggregateFunction -> verify(
-                    aggregateFunction.outputType().equals(outputSymbol.type()),
+            compiled.ifPresent(compilation -> verify(
+                    compilation.outputType().equals(outputSymbol.type()),
                     "Expected compiled %s %s aggregate to produce %s but got %s",
                     aggregation.getResolvedFunction().name(),
                     step,
                     outputSymbol.type(),
-                    aggregateFunction.outputType()));
+                    compilation.outputType()));
             compilations.add(compiled.get());
         }
 
