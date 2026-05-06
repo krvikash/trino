@@ -11,12 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.join.unspilled;
+package io.trino.operator.join.nonspilling;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.join.LookupSource;
-import io.trino.operator.join.unspilled.JoinProbe.JoinProbeFactory;
+import io.trino.operator.join.nonspilling.JoinProbe.JoinProbeFactory;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;

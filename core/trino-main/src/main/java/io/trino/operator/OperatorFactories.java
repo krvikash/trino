@@ -15,10 +15,10 @@ package io.trino.operator;
 
 import io.trino.operator.join.JoinBridgeManager;
 import io.trino.operator.join.LookupSourceFactory;
+import io.trino.operator.join.nonspilling.JoinProbe;
+import io.trino.operator.join.nonspilling.PartitionedLookupSourceFactory;
 import io.trino.operator.join.spilling.JoinProbe.JoinProbeFactory;
 import io.trino.operator.join.spilling.LookupJoinOperatorFactory;
-import io.trino.operator.join.unspilled.JoinProbe;
-import io.trino.operator.join.unspilled.PartitionedLookupSourceFactory;
 import io.trino.spi.type.Type;
 import io.trino.spiller.PartitioningSpillerFactory;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -56,7 +56,7 @@ public final class OperatorFactories
                 .collect(toImmutableList());
         InterpretedHashGenerator hashGenerator = InterpretedHashGenerator.createPagePrefixHashGenerator(hashTypes, hashCompiler);
 
-        return createAdapterOperatorFactory(new io.trino.operator.join.unspilled.LookupJoinOperatorFactory(
+        return createAdapterOperatorFactory(new io.trino.operator.join.nonspilling.LookupJoinOperatorFactory(
                 operatorId,
                 planNodeId,
                 lookupSourceFactory,
