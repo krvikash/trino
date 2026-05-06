@@ -421,12 +421,11 @@ public final class GpuAggregationCompiler
                     chunkExpression(sourceChannel, 2, DType.UINT32),
                     chunkExpression(sourceChannel, 3, DType.INT32));
 
-            // Aggregation: 4 INT64 sums. cuDF's grouped SUM on UINT32/INT32 widens to INT64;
-            // combineInt64SumChunks accepts any 8-byte type for chunks 0..2 and requires INT64
-            // for chunk 3, so INT64 across the board satisfies it.
-            // Output Trino type on each slot is irrelevant — the aggregate result columns are
-            // consumed by the post-projection, never copied to a Trino block. We use BIGINT as
-            // a convenient placeholder.
+            // Aggregation: 4 INT64 sums (BIGINT in Trino terms). cuDF's grouped SUM on UINT32/INT32
+            // widens to INT64; combineInt64SumChunks accepts any 8-byte type for chunks 0..2 and
+            // requires INT64 for chunk 3, so INT64 across the board satisfies it. The slot result
+            // columns are consumed by the post-projection and never copied to a Trino block, so the
+            // Trino type only has to match the cuDF dtype.
             AggregateSlotFactory chunkSum = channel -> new GpuSum(channel, BigintType.BIGINT, DType.INT64);
             List<AggregateSlotFactory> sums = List.of(chunkSum, chunkSum, chunkSum, chunkSum);
 
