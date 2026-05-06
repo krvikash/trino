@@ -192,10 +192,6 @@ public final class GpuAggregationCompiler
         List<GpuOperation.Factory> stages = new ArrayList<>();
         if (currentDerivedChannel != sourceColumnCount) {
             stages.add(new GpuProject.Factory(preProjections.build()));
-            // The pre-projection's intermediate layout types aren't tracked because
-            // addGpuOperation's outputTypes only matters for the *terminal* layout of the chained
-            // GPU operator, and addGpuOperation appends our subsequent stages onto the same
-            // GpuOperator instance with its own output type bookkeeping.
         }
         stages.add(new GpuAggregation.Factory(
                 aggregates.build(),

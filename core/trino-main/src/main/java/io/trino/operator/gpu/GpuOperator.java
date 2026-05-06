@@ -86,7 +86,7 @@ public abstract class GpuOperator
             this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
         }
 
-        public abstract BaseFactory withAdditionalOperation(GpuOperation.Factory additionalOperation, List<Type> newOutputTypes);
+        public abstract BaseFactory withAdditionalOperations(List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes);
 
         @Override
         public void noMoreOperators()
@@ -138,15 +138,15 @@ public abstract class GpuOperator
         }
 
         @Override
-        public BaseFactory withAdditionalOperation(GpuOperation.Factory additionalOperation, List<Type> newOutputTypes)
+        public BaseFactory withAdditionalOperations(List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes)
         {
-            // TODO: The new operation may require additional columns on GPU that were not needed by existing operations.
+            // TODO: The new operations may require additional columns on GPU that were not needed by existing operations.
             //  When we add support for selective column copying (copying only columns needed by GPU operations),
             //  we'll need to update the set of columns copied to GPU here.
             //  https://starburstdata.atlassian.net/browse/ENG-9808
             List<GpuOperation.Factory> newOperations = ImmutableList.<GpuOperation.Factory>builder()
                     .addAll(operations)
-                    .add(additionalOperation)
+                    .addAll(additionalOperations)
                     .build();
             return new SourceFactory(operatorId, planNodeId, sourceFactory, newOperations, newOutputTypes);
         }
@@ -209,15 +209,15 @@ public abstract class GpuOperator
         }
 
         @Override
-        public BaseFactory withAdditionalOperation(GpuOperation.Factory additionalOperation, List<Type> newOutputTypes)
+        public BaseFactory withAdditionalOperations(List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes)
         {
-            // TODO: The new operation may require additional columns on GPU that were not needed by existing operations.
+            // TODO: The new operations may require additional columns on GPU that were not needed by existing operations.
             //  When we add support for selective column copying (copying only columns needed by GPU operations),
             //  we'll need to update the set of columns copied to GPU here.
             //  https://starburstdata.atlassian.net/browse/ENG-9808
             List<GpuOperation.Factory> newOperations = ImmutableList.<GpuOperation.Factory>builder()
                     .addAll(operations)
-                    .add(additionalOperation)
+                    .addAll(additionalOperations)
                     .build();
             return new Factory(operatorId, planNodeId, sourceFactory, newOperations, newOutputTypes);
         }

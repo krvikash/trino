@@ -4398,25 +4398,13 @@ public class LocalExecutionPlanner
                 return Optional.empty();
             }
             return GpuAggregationCompiler.compile(node, source.getLayout())
-                    .map(compileResult -> {
-                        // Chain pipeline stages onto the GPU operator. Only the last call's output
-                        // types and layout are visible downstream; intermediate stages reuse the
-                        // final layout/types since they're never observed externally.
-                        Map<Symbol, Integer> finalLayout = makeLayout(node);
-                        List<Type> finalOutputTypes = compileResult.finalOutputTypes();
-                        PhysicalOperation operation = source;
-                        List<GpuOperation.Factory> stages = compileResult.stages();
-                        for (GpuOperation.Factory stage : stages) {
-                            operation = addGpuOperation(
-                                    stage,
-                                    finalOutputTypes,
-                                    operation,
-                                    finalLayout,
-                                    context,
-                                    node.getId());
-                        }
-                        return operation;
-                    });
+                    .map(compileResult -> addGpuOperations(
+                            compileResult.stages(),
+                            compileResult.finalOutputTypes(),
+                            source,
+                            makeLayout(node),
+                            context,
+                            node.getId()));
         }
 
         private OperatorFactory createHashAggregationOperatorFactory(
@@ -4527,23 +4515,41 @@ public class LocalExecutionPlanner
             LocalExecutionPlanContext context,
             PlanNodeId nodeId)
     {
+        return addGpuOperations(ImmutableList.of(gpuOperation), outputTypes, source, outputLayout, context, nodeId);
+    }
+
+    /**
+     * Append a sequence of GPU operations to {@code source} as one chained {@link GpuOperator}.
+     * {@code finalOutputTypes} and {@code outputLayout} describe the operator's output after the
+     * full sequence runs; intermediate stages aren't separately observable, so callers don't have
+     * to thread per-stage types.
+     */
+    private PhysicalOperation addGpuOperations(
+            List<GpuOperation.Factory> gpuOperations,
+            List<Type> finalOutputTypes,
+            PhysicalOperation source,
+            Map<Symbol, Integer> outputLayout,
+            LocalExecutionPlanContext context,
+            PlanNodeId nodeId)
+    {
+        checkArgument(!gpuOperations.isEmpty(), "gpuOperations is empty");
         List<OperatorFactory> sourcePipeline = source.getPipelineTail();
         // Check if source is already a GPU operation - chain onto it
         if (!sourcePipeline.isEmpty() && sourcePipeline.getLast() instanceof GpuOperator.BaseFactory gpuSource) {
             List<OperatorFactory> newPipeline = ImmutableList.<OperatorFactory>builder()
                     .addAll(sourcePipeline.subList(0, sourcePipeline.size() - 1))
-                    .add(gpuSource.withAdditionalOperation(gpuOperation, outputTypes))
+                    .add(gpuSource.withAdditionalOperations(gpuOperations, finalOutputTypes))
                     .build();
             return new PhysicalOperation(newPipeline, source.pipelineHeadAlternatives, source.chooseAlternativePlanNodeId, outputLayout);
         }
-        // Source is not GPU - create new GPU operator
+        // Source is not GPU - create new GPU operator with all operations
         return new PhysicalOperation(
                 new GpuOperator.Factory(
                         context.getNextOperatorId(),
                         nodeId,
                         source.getTypes(),
-                        ImmutableList.of(gpuOperation),
-                        outputTypes),
+                        ImmutableList.copyOf(gpuOperations),
+                        finalOutputTypes),
                 outputLayout,
                 source);
     }
