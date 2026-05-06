@@ -367,12 +367,18 @@ public final class GpuAggregationCompiler
             preProjection = List.copyOf(preProjection);
             aggregates = List.copyOf(aggregates);
             requireNonNull(postProjection, "postProjection is null");
+            verify(!aggregates.isEmpty(), "aggregates is empty");
             // The pipeline builder rewires aggregate i's input channel to pre-projection column i
             // (see GpuAggregationCompiler#buildPipeline), so a non-empty pre-projection must have
             // one derived column per aggregate slot.
             verify(preProjection.isEmpty() || preProjection.size() == aggregates.size(),
                     "preProjection size %s must match aggregates size %s when non-empty",
                     preProjection.size(), aggregates.size());
+            // The pipeline builder pass-throughs the single aggregate slot when no post-projection
+            // is provided, so multi-slot compilations must declare one.
+            verify(postProjection.isPresent() || aggregates.size() == 1,
+                    "Aggregate without post-projection must have exactly one slot, got %s",
+                    aggregates.size());
         }
 
         static AggregateCompilation simple(Type outputType, GpuAggregateFunction aggregate)
