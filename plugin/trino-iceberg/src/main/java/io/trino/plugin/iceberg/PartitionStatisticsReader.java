@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.iceberg.IcebergFileFormat.fromIceberg;
@@ -95,7 +96,7 @@ public final class PartitionStatisticsReader
                 fromIceberg(fileFormat),
                 ImmutableMap.of(),
                 null,
-                null,
+                OptionalLong.empty(),
                 Optional.empty(),
                 formatVersion(table),
                 false);
