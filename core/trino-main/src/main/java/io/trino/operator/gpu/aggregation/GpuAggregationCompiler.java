@@ -129,7 +129,9 @@ public final class GpuAggregationCompiler
         if (!needsPipeline) {
             ImmutableList.Builder<GpuAggregateFunction> aggregates = ImmutableList.builder();
             for (AggregateCompilation compilation : compilations) {
-                aggregates.addAll(compilation.aggregates());
+                // Simple compilations have no preProjection, so their factories ignore the channel
+                // and return the pre-bound aggregate; the value below is unused.
+                aggregates.add(compilation.aggregates().getFirst().build(0));
             }
             GpuAggregation.Factory aggregation = new GpuAggregation.Factory(
                     aggregates.build(),
@@ -170,10 +172,10 @@ public final class GpuAggregationCompiler
             int aggChannel = currentAggChannel;
             int slotCount = compilation.aggregates().size();
             for (int slot = 0; slot < slotCount; slot++) {
-                GpuAggregateFunction original = compilation.aggregates().get(slot);
-                aggregates.add(compilation.preProjection().isEmpty()
-                        ? original
-                        : compilation.rewireInputChannel(slot, derivedStart + slot));
+                // For simple compilations (empty preProjection) the factory ignores the channel
+                // and returns the pre-bound aggregate; otherwise it wires up the appended
+                // pre-projection column.
+                aggregates.add(compilation.aggregates().get(slot).build(derivedStart + slot));
             }
             currentAggChannel += slotCount;
 
@@ -347,18 +349,18 @@ public final class GpuAggregationCompiler
      * @param preProjection compiled expressions appended to the pre-projection stage as derived
      * input columns (e.g. the four chunks for long-decimal sum). Empty for
      * simple aggregates that read the source column directly.
-     * @param aggregates one or more {@link GpuAggregateFunction} entries — multiple for chunked
-     * aggregations like long-decimal sum (4 INT64 sums of UINT32/INT32 chunks).
-     * Each function's {@code inputChannel} points into the *pre-projection
-     * output*: at the original source column when {@code preProjection} is
-     * empty, or at the appended derived column otherwise.
+     * @param aggregates one or more aggregate slot factories — multiple for chunked aggregations
+     * like long-decimal sum (4 INT64 sums of UINT32/INT32 chunks). Each factory
+     * receives the resolved input channel (the appended derived column when
+     * {@code preProjection} is non-empty; the source channel otherwise) and
+     * returns the configured {@link GpuAggregateFunction}.
      * @param postProjection optional reshape from N slot result columns back to one output column
      * — e.g. reassembling four chunk sums into a 16-byte LIST&lt;INT8&gt;.
      */
     private record AggregateCompilation(
             Type outputType,
             List<CompiledExpression> preProjection,
-            List<GpuAggregateFunction> aggregates,
+            List<AggregateSlotFactory> aggregates,
             Optional<PostProjection> postProjection)
     {
         AggregateCompilation
@@ -368,7 +370,7 @@ public final class GpuAggregationCompiler
             aggregates = List.copyOf(aggregates);
             requireNonNull(postProjection, "postProjection is null");
             verify(!aggregates.isEmpty(), "aggregates is empty");
-            // The pipeline builder rewires aggregate i's input channel to pre-projection column i
+            // The pipeline builder routes aggregate i's input channel to pre-projection column i
             // (see GpuAggregationCompiler#buildPipeline), so a non-empty pre-projection must have
             // one derived column per aggregate slot.
             verify(preProjection.isEmpty() || preProjection.size() == aggregates.size(),
@@ -383,7 +385,7 @@ public final class GpuAggregationCompiler
 
         static AggregateCompilation simple(Type outputType, GpuAggregateFunction aggregate)
         {
-            return new AggregateCompilation(outputType, List.of(), List.of(aggregate), Optional.empty());
+            return new AggregateCompilation(outputType, List.of(), List.of(_ -> aggregate), Optional.empty());
         }
 
         static AggregateCompilation shortDecimalSumPartial(int sourceChannel, DecimalType inputDecimalType, DType decimal128Type)
@@ -398,13 +400,11 @@ public final class GpuAggregationCompiler
                     (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
                     new InputChannels(List.of(sourceChannel)),
                     GpuScore.POTENTIAL);
-            // The aggregate's inputChannel is rewired to point at the appended cast column when
-            // the pipeline is built. Use 0 here as a placeholder.
-            GpuSum sum = new GpuSum(0, decimalSumOutputType(inputDecimalType), decimal128Type);
+            Type sumOutputType = decimalSumOutputType(inputDecimalType);
             return new AggregateCompilation(
                     VARBINARY,
                     List.of(cast),
-                    List.of(sum),
+                    List.of(channel -> new GpuSum(channel, sumOutputType, decimal128Type)),
                     Optional.of(new PostProjection(channels -> new CompiledExpression(
                             new GpuDecimal128AsVarbinary(),
                             new InputChannels(List.of(channels[0])),
@@ -427,11 +427,8 @@ public final class GpuAggregationCompiler
             // Output Trino type on each slot is irrelevant — the aggregate result columns are
             // consumed by the post-projection, never copied to a Trino block. We use BIGINT as
             // a convenient placeholder.
-            List<GpuAggregateFunction> sums = List.of(
-                    new GpuSum(0, BigintType.BIGINT, DType.INT64),
-                    new GpuSum(0, BigintType.BIGINT, DType.INT64),
-                    new GpuSum(0, BigintType.BIGINT, DType.INT64),
-                    new GpuSum(0, BigintType.BIGINT, DType.INT64));
+            AggregateSlotFactory chunkSum = channel -> new GpuSum(channel, BigintType.BIGINT, DType.INT64);
+            List<AggregateSlotFactory> sums = List.of(chunkSum, chunkSum, chunkSum, chunkSum);
 
             return new AggregateCompilation(
                     VARBINARY,
@@ -450,22 +447,18 @@ public final class GpuAggregationCompiler
                     new InputChannels(List.of(sourceChannel)),
                     GpuScore.POTENTIAL);
         }
+    }
 
-        /**
-         * Returns a copy of the GpuAggregateFunction at slot {@code slotIndex} with its input
-         * channel rewired to {@code newChannel}. Used to point chunked-sum aggregates at the
-         * pre-projection-appended columns.
-         */
-        GpuAggregateFunction rewireInputChannel(int slotIndex, int newChannel)
-        {
-            GpuAggregateFunction function = aggregates.get(slotIndex);
-            // Only GpuSum (used for chunked decimal sum and short-decimal cast) needs rewiring
-            // here — and only when the aggregate has a derived input column.
-            if (function instanceof GpuSum sum) {
-                return new GpuSum(newChannel, sum.outputType(), sum.outputDType());
-            }
-            throw new UnsupportedOperationException("rewireInputChannel not implemented for " + function.getClass().getSimpleName());
-        }
+    /**
+     * Builds a single aggregate slot once its input channel is known. For simple aggregates the
+     * channel is encoded at compile time and the factory ignores its argument; for chunked-sum
+     * aggregates the factory wires the supplied pre-projection channel into a fresh
+     * {@link GpuAggregateFunction}.
+     */
+    @FunctionalInterface
+    private interface AggregateSlotFactory
+    {
+        GpuAggregateFunction build(int inputChannel);
     }
 
     /**
