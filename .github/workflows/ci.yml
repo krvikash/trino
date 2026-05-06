@@ -438,7 +438,7 @@ jobs:
     timeout-minutes: 60
     if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bigquery')) || (github.event_name == 'workflow_dispatch')"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
       - name: Set up AWS code-artifacts login
@@ -951,7 +951,7 @@ jobs:
     outputs:
       sql-pool-name: ${{ steps.start-pool.outputs.SYNAPSE_SQL_POOL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Azure Login
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
         with:
@@ -1174,7 +1174,7 @@ jobs:
     # Ignore status of tests, but only stop the pool if it was started
     if: "${{ always() && needs.synapse-start-pool.outputs.sql-pool-name != '' }}"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Azure Login
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
         with:
@@ -1585,7 +1585,7 @@ jobs:
       github.event_name == 'push' && github.ref == 'refs/heads/master' ||
       github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ai')
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
