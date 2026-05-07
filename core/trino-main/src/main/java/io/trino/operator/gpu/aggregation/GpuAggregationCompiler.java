@@ -21,8 +21,10 @@ import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
 import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
 import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
+import io.trino.operator.gpu.expression.GpuExtractDecimalStateChunk;
 import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.BoundSignature;
@@ -265,16 +267,23 @@ public final class GpuAggregationCompiler
                     toDType(argumentType).map(dType -> AggregateCompilation.simple(outputType, new GpuSum(column.get().channel(), outputType, dType)));
             case DecimalType _ ->
                 // sum(decimal(p,s)) → decimal(38,s) with a VARBINARY-serialized intermediate.
-                // Step matrix:
-                //   PARTIAL      : decimal(p,s) → VARBINARY        — supported (chunked GPU sum)
-                //   INTERMEDIATE : VARBINARY    → VARBINARY        — TODO: deserialize, sum, re-serialize
-                //   FINAL        : VARBINARY    → decimal(38,s)    — TODO: deserialize, sum, emit decimal
-                //   SINGLE       : decimal(p,s) → decimal(38,s)    — TODO: chunked sum + final reduce
+                // Decimal-typed argument means PARTIAL (decimal → VARBINARY) or SINGLE (decimal → decimal).
                     switch (step) {
                         case PARTIAL -> compileSumDecimalPartial(column.get(), outputType, (DecimalType) finalStepOutputType);
-                        case FINAL, INTERMEDIATE, SINGLE -> Optional.empty();
+                        case SINGLE -> Optional.empty(); // TODO: chunked sum + final reduce
+                        case FINAL, INTERMEDIATE -> throw new IllegalStateException(
+                                "decimal argument unexpected at sum(decimal) step " + step);
                     };
-            default -> Optional.empty();
+            default ->
+                // FINAL / INTERMEDIATE of sum(decimal) read the VARBINARY intermediate state, not
+                // the original decimal argument. Recognize by the function return type.
+                    (column.get().type().equals(VARBINARY) && finalStepOutputType instanceof DecimalType decimalReturn)
+                            ? switch (step) {
+                                case FINAL -> compileSumDecimalFinal(column.get(), outputType, decimalReturn);
+                                case INTERMEDIATE -> Optional.empty(); // TODO: deserialize, sum, re-serialize
+                                case PARTIAL, SINGLE -> Optional.empty();
+                            }
+                            : Optional.empty();
         };
     }
 
@@ -289,6 +298,15 @@ public final class GpuAggregationCompiler
             return Optional.of(AggregateCompilation.shortDecimalSumPartial(column.channel(), argumentType, decimal128Type));
         }
         return Optional.of(AggregateCompilation.longDecimalSumPartial(column.channel(), decimal128Type));
+    }
+
+    private static Optional<AggregateCompilation> compileSumDecimalFinal(ColumnReference column, Type outputType, DecimalType finalStepOutputType)
+    {
+        verify(column.type().equals(VARBINARY), "sum(decimal) FINAL input must be VARBINARY, got %s", column.type());
+        verify(outputType.equals(finalStepOutputType),
+                "sum(decimal) FINAL output type must equal function return type, got %s vs %s", outputType, finalStepOutputType);
+        DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -finalStepOutputType.getScale());
+        return Optional.of(AggregateCompilation.decimalSumFinal(column.channel(), decimal128Type, finalStepOutputType));
     }
 
     private static Optional<AggregateCompilation> compileMinMax(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type returnType, MinMaxFactory factory)
@@ -441,6 +459,43 @@ public final class GpuAggregationCompiler
         {
             return new CompiledExpression(
                     new GpuExtractInt32Chunk(chunkIdx, chunkType),
+                    new InputChannels(List.of(sourceChannel)),
+                    GpuScore.POTENTIAL);
+        }
+
+        static AggregateCompilation decimalSumFinal(int sourceChannel, DType decimal128Type, Type outputType)
+        {
+            // Pre-projection: unpack the VARBINARY intermediate state of sum(decimal) into 5 fixed-
+            // width components — 4 INT32 chunks of the 128-bit running sum, plus the running
+            // overflow long. Variable-length input (8/16/24 byte rows from CPU PARTIAL or uniform
+            // 16-byte from GPU PARTIAL) is handled inside GpuExtractDecimalStateChunk.
+            List<CompiledExpression> components = List.of(
+                    decimalStateComponentExpression(sourceChannel, 0),
+                    decimalStateComponentExpression(sourceChannel, 1),
+                    decimalStateComponentExpression(sourceChannel, 2),
+                    decimalStateComponentExpression(sourceChannel, 3),
+                    decimalStateComponentExpression(sourceChannel, 4));
+
+            // Aggregation: 5 INT64 sums, mirroring longDecimalSumPartial — cuDF SUM widens
+            // UINT32/INT32 inputs to INT64 with the right (zero/sign) extension. The 5th sum
+            // accumulates the per-state overflow long.
+            AggregateSlotFactory chunkSum = channel -> new GpuSum(channel, BigintType.BIGINT, DType.INT64);
+            List<AggregateSlotFactory> sums = List.of(chunkSum, chunkSum, chunkSum, chunkSum, chunkSum);
+
+            return new AggregateCompilation(
+                    outputType,
+                    components,
+                    sums,
+                    Optional.of(new PostProjection(channels -> new CompiledExpression(
+                            new GpuCombineDecimalStateSumsToDecimal128(decimal128Type),
+                            new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3], channels[4])),
+                            GpuScore.POTENTIAL))));
+        }
+
+        private static CompiledExpression decimalStateComponentExpression(int sourceChannel, int componentIdx)
+        {
+            return new CompiledExpression(
+                    new GpuExtractDecimalStateChunk(componentIdx),
                     new InputChannels(List.of(sourceChannel)),
                     GpuScore.POTENTIAL);
         }

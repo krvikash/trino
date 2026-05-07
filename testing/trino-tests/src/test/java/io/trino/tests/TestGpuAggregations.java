@@ -85,6 +85,36 @@ public class TestGpuAggregations
     }
 
     @Test
+    public void testGpuSumDecimal()
+    {
+        // Short decimal (precision <= 18) — global SUM. Verifies PARTIAL → FINAL on GPU.
+        assertThat(query(
+                """
+                SELECT sum(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(12, 2))) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // Short decimal — grouped SUM. Same path as q18's FINAL on orderkey.
+        assertThat(query(
+                """
+                SELECT b, sum(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(12, 2))) AS a, i % 10 AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // Long decimal (precision > 18) — exercises the chunked Int128 PARTIAL plus the new FINAL.
+        assertThat(query(
+                """
+                SELECT b, sum(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(26, 4))) AS a, i % 10 AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
     public void testAvgDecompositionRemovesRedundantCast()
     {
         // RewriteAvgAsSumOverCount always introduces CAST(input AS double) before sum/count.
