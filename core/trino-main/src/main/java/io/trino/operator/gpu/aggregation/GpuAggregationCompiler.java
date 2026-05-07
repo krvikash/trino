@@ -90,8 +90,9 @@ public final class GpuAggregationCompiler
             Optional<AggregateCompilation> compiled = compileAggregation(outputSymbol, aggregation, sourceLayout, step);
             if (compiled.isEmpty()) {
                 log.debug(
-                        "Could not compile aggregation function %s with filter=%s mask=%s distinct=%s ordered=%s",
+                        "Could not compile aggregation function %s at step %s with filter=%s mask=%s distinct=%s ordered=%s",
                         aggregation.getResolvedFunction().signature(),
+                        step,
                         aggregation.getFilter().isPresent(),
                         aggregation.getMask().isPresent(),
                         aggregation.isDistinct(),
