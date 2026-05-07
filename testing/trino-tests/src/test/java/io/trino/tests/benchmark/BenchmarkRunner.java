@@ -769,13 +769,13 @@ public final class BenchmarkRunner
     }
 
     /**
-     * Concatenate per-query collapsed files into one cross-query file and delete the inputs.
+     * Concatenate per-query collapsed files into one cross-query file.
      */
     private static void mergeCollapsedFiles(Path profileOutputDir, List<Integer> queriesRun)
             throws IOException
     {
         Path merged = profileOutputDir.resolve("merged.collapsed");
-        List<Path> consumed = new ArrayList<>(queriesRun.size());
+        int mergedCount = 0;
         try (OutputStream out = Files.newOutputStream(merged)) {
             for (int queryNumber : queriesRun) {
                 Path perQueryFile = profileOutputDir.resolve("%s.filtered.collapsed".formatted(displayName(queryNumber)));
@@ -783,14 +783,11 @@ public final class BenchmarkRunner
                     continue;
                 }
                 Files.copy(perQueryFile, out);
-                consumed.add(perQueryFile);
+                mergedCount++;
             }
         }
-        for (Path perQueryFile : consumed) {
-            Files.deleteIfExists(perQueryFile);
-        }
-        log.info("Merged collapsed stacks written to %s (%d per-query files consumed and deleted)",
-                merged, consumed.size());
+        log.info("Merged collapsed stacks written to %s (%d per-query files merged)",
+                merged, mergedCount);
     }
 
     /**
