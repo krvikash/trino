@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.Session;
 import io.trino.metadata.Split;
@@ -29,6 +30,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -37,6 +39,7 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.type.Type;
 import io.trino.split.PageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -271,6 +274,7 @@ public abstract class GpuOperator
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.topOperation = requireNonNull(topOperation, "topOperation is null");
+        operatorContext.setLatestMetrics(new Metrics(ImmutableMap.of("GPU Operator", new LongCount(1))));
     }
 
     @Override
