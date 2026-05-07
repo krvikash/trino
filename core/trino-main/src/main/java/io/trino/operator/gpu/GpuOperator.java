@@ -95,6 +95,9 @@ public abstract class GpuOperator
         public void noMoreOperators()
         {
             closed = true;
+            for (GpuOperation.Factory factory : operations) {
+                factory.noMoreOperators();
+            }
         }
     }
 

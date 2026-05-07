@@ -100,5 +100,11 @@ public interface GpuOperation
     interface Factory
     {
         GpuOperation create(GpuOperation source);
+
+        /**
+         * Called when the enclosing operator factory is closed and no more operators will be created.
+         * Implementations may release shared resources that were held in anticipation of further operators.
+         */
+        default void noMoreOperators() {}
     }
 }
