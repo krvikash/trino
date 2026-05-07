@@ -213,13 +213,10 @@ public abstract class BaseTpchWorkload
 
     private static Optional<Path> readExistingExternalLocation(DistributedQueryRunner runner, String table)
     {
-        String createSql;
-        try {
-            createSql = (String) runner.execute("SHOW CREATE TABLE hive.tpch." + table).getOnlyValue();
-        }
-        catch (RuntimeException e) {
+        if ((Long) runner.execute("SELECT count(*) FROM hive.information_schema.tables WHERE table_schema = 'tpch' AND table_name = '%s'".formatted(table)).getOnlyValue() == 0) {
             return Optional.empty();
         }
+        String createSql = (String) runner.execute("SHOW CREATE TABLE hive.tpch." + table).getOnlyValue();
         Matcher matcher = EXTERNAL_LOCATION_PATTERN.matcher(createSql);
         if (!matcher.find()) {
             return Optional.empty();
