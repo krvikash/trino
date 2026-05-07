@@ -49,6 +49,7 @@ import java.lang.management.ManagementFactory;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -170,6 +171,7 @@ public final class BenchmarkRunner
         }
         CommandLine cli = new CommandLine(new RootCommand());
         cli.addSubcommand("run", new RunCommand(workload));
+        cli.addSubcommand("runner", new QueryRunnerCommand(workload));
         cli.addSubcommand("generate", new GenerateCommand(workload));
         cli.addSubcommand("record", new RecordCommand(workload));
         return cli.execute(args);
@@ -294,7 +296,7 @@ public final class BenchmarkRunner
             ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir);
             log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
-            try (DistributedQueryRunner runner = workload.createRunner(data, mode)) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false)) {
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
                 log.info("Running %s benchmark: %s suite warmup, %s warmup, %s measured runs, reporting average", workload.name(), suiteWarmup, warmup, runs);
                 workload.verifyDataset(runner);
@@ -543,6 +545,44 @@ public final class BenchmarkRunner
     }
 
     @Command(
+            name = "runner",
+            mixinStandardHelpOptions = true,
+            description = "Start query runner (workload-specific).")
+    static final class QueryRunnerCommand
+            implements Callable<Integer>
+    {
+        private final Workload workload;
+
+        @Option(names = {"-m", "--mode"},
+                description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
+        ExecutionMode mode = ExecutionMode.CPU;
+
+        QueryRunnerCommand(Workload workload)
+        {
+            this.workload = workload;
+        }
+
+        @Override
+        public Integer call()
+                throws Exception
+        {
+            enableDebugLogging();
+            Path data = workload.defaultDataLocation();
+            workload.validateDataLocation(data);
+            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true)) {
+                log.info("======== SERVER STARTED (%s) ========", mode);
+                log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+                verifyTableStatistics(queryRunner, workload);
+
+                // Query runner runs in the background. It will terminate the process when its shut down cleanly.
+                while (true) {
+                    Thread.sleep(Duration.ofDays(1));
+                }
+            }
+        }
+    }
+
+    @Command(
             name = "generate",
             mixinStandardHelpOptions = true,
             description = "Generate the benchmark dataset into the data directory (workload-specific).")
@@ -599,7 +639,7 @@ public final class BenchmarkRunner
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
-            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU)) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false)) {
                 workload.verifyDataset(runner);
                 verifyTableStatistics(runner, workload);
                 List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);

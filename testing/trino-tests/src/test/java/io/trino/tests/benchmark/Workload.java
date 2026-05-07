@@ -53,7 +53,7 @@ public interface Workload
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.
      */
-    DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode)
+    DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
             throws Exception;
 
     /**

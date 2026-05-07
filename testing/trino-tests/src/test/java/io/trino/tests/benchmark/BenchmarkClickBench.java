@@ -224,10 +224,10 @@ public final class BenchmarkClickBench
         }
 
         @Override
-        public DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode)
+        public DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
                 throws Exception
         {
-            return setup(mode, false, dataLocation);
+            return setup(mode, bind8080, dataLocation);
         }
 
         @Override
@@ -312,28 +312,6 @@ public final class BenchmarkClickBench
     public static Path dataLocation()
     {
         return new ClickBenchWorkload().defaultDataLocation().resolve("hits");
-    }
-
-    public static class CpuRunner
-    {
-        static void main()
-                throws Exception
-        {
-            DistributedQueryRunner queryRunner = setup(BenchmarkRunner.ExecutionMode.CPU, true, new ClickBenchWorkload().defaultDataLocation());
-            log.info("======== SERVER STARTED (CPU) ========");
-            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
-        }
-    }
-
-    public static class GpuRunner
-    {
-        static void main()
-                throws Exception
-        {
-            DistributedQueryRunner queryRunner = setup(BenchmarkRunner.ExecutionMode.GPU, true, new ClickBenchWorkload().defaultDataLocation());
-            log.info("======== SERVER STARTED (GPU) ========");
-            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
-        }
     }
 
     public static class CpuBenchmark

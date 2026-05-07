@@ -109,7 +109,7 @@ public abstract class BaseTpchWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode)
+    public DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
             throws Exception
     {
         // Persist the in-process FileHiveMetastore (and therefore ANALYZE-collected stats)
@@ -126,6 +126,9 @@ public abstract class BaseTpchWorkload
                 .setSkipTimezoneSetup(true)
                 .addHiveProperty("hive.parquet.time-zone", "UTC")
                 .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL);
+        if (bind8080) {
+            builder.addCoordinatorProperty("http-server.http.port", "8080");
+        }
         BenchmarkRunner.applyExecutionMode(builder, mode);
         DistributedQueryRunner runner = builder.build();
 
