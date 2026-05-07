@@ -37,6 +37,8 @@ public class TestGpuAggregations
                 // GPU is disabled on coordinator unless include-coordinator is set. Disable include-coordinator to force coordinator into more production-like setup.
                 // This is needed to expose potential problems where operators on workers and coordinator do not match.
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
+                // PushAggregationIntoValues uses CPU execution path. Disable it to get more exposure for GPU execution code path
+                .addExtraProperty("optimizer.push-aggregation-into-values-enabled", "false")
                 .build();
     }
 
