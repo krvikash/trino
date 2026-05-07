@@ -152,8 +152,7 @@ public class TestTransformCorrelatedGlobalAggregationWithProjection
                                         join(LEFT, builder -> builder
                                                 .left(assignUniqueId("unique",
                                                         values(ImmutableMap.of("corr", 0))))
-                                                .right(project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                        values(ImmutableMap.of("a", 0, "b", 1))))))));
+                                                .right(values(ImmutableMap.of("a", 0, "b", 1)))))));
     }
 
     @Test
