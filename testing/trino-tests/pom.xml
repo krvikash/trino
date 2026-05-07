@@ -676,9 +676,6 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <!-- TestBenchmarkClickBench requires a data set to be downloaded from S3 -->
-                                <exclude>**/TestBenchmarkClickBench.java</exclude>
-                                <exclude>**/TestBenchmarkClickBenchGpu.java</exclude>
                                 <exclude>**/TestDistributedGpuEngineOnlyQueries.java</exclude>
                                 <exclude>**/TestGpuAggregations.java</exclude>
                                 <exclude>**/TestGpuOrderByQueries.java</exclude>
@@ -698,8 +695,6 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <!-- TODO: TestBenchmarkClickBenchGpu may fail with Query exceeded per-node memory limit when run from maven -->
-                                <!--<include>**/TestBenchmarkClickBenchGpu.java</include>-->
                                 <include>**/TestDistributedGpuEngineOnlyQueries.java</include>
                                 <include>**/TestGpuAggregations.java</include>
                                 <include>**/TestGpuOrderByQueries.java</include>
