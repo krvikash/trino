@@ -13,6 +13,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Suppliers;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -30,6 +31,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @ThreadSafe
 public class LocalDiskAllocator
 {
+    private static final Logger log = Logger.get(LocalDiskAllocator.class);
     private static final long DISK_SPACE_CACHE_SECONDS = 1;
 
     private final long capacityBytes;
@@ -55,9 +57,11 @@ public class LocalDiskAllocator
         while (true) {
             long current = allocatedBytes.get();
             if (!hasSpace(current, bytes, usableSpace)) {
+                log.debug("Disk allocation failed: requested=%s, allocated=%s, capacity=%s, usableSpace=%s", bytes, current, capacityBytes, usableSpace);
                 return Optional.empty();
             }
             if (allocatedBytes.compareAndSet(current, current + bytes)) {
+                log.debug("Disk allocation succeeded: requested=%s, allocated=%s/%s", bytes, current + bytes, capacityBytes);
                 return Optional.of(new DiskSpaceLease(this, bytes));
             }
         }
@@ -73,6 +77,7 @@ public class LocalDiskAllocator
         checkArgument(bytes >= 0, "bytes must be non-negative");
         long updated = allocatedBytes.addAndGet(-bytes);
         verify(updated >= 0, "allocatedBytes (%s) < release amount (%s)", updated + bytes, bytes);
+        log.debug("Disk space released: bytes=%s, allocatedAfter=%s/%s", bytes, updated, capacityBytes);
     }
 
     @VisibleForTesting

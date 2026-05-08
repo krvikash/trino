@@ -72,6 +72,7 @@ public class DiskDirectoryTracker
         }
         try {
             deleteRecursively(path, ALLOW_INSECURE);
+            log.debug("Released directory %s", path);
         }
         catch (IOException e) {
             log.warn(e, "Failed to delete directory: %s", path);

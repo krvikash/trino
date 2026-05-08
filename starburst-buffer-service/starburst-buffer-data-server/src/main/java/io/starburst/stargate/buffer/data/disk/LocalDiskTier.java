@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.disk;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 
@@ -28,6 +29,8 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class LocalDiskTier
 {
+    private static final Logger log = Logger.get(LocalDiskTier.class);
+
     private final Path directory;
     private final Optional<DataSize> memorySkipThreshold;
     private final LocalDiskAllocator allocator;
@@ -55,6 +58,8 @@ public class LocalDiskTier
     {
         if (memorySkipThreshold.isEmpty()
                 || exchangeCumulativeClosedBytes < memorySkipThreshold.get().toBytes()) {
+            log.debug("Disk tier skipped for exchange %s chunk %s: cumulativeClosedBytes=%s, threshold=%s",
+                    exchangeId, chunkId, exchangeCumulativeClosedBytes, memorySkipThreshold.map(DataSize::toBytes).orElse(-1L));
             return Optional.empty();
         }
 
