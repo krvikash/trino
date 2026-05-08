@@ -105,6 +105,19 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key"))
+            .put("deprecated_snowflake_jdbc",
+                    ImmutableSet.of(
+                            "connection-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "keystore-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password",
+                            "snowflake.connection-private-key",
+                            "snowflake.connection-private-key.passphrase",
+                            "snowflake.proxy.password"))
             .put("druid",
                     ImmutableSet.of(
                             "connection-password",

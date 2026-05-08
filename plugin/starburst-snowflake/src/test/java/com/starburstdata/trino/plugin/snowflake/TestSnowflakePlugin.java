@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestSnowflakePlugin
 {
@@ -27,9 +28,10 @@ public class TestSnowflakePlugin
     {
         Plugin plugin = new TestingSnowflakePlugin();
         List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(plugin.getConnectorFactories());
-        assertThat(connectorFactories.size()).isEqualTo(2);
+        assertThat(connectorFactories).hasSize(3);
 
-        connectorFactories.get(0).create("test",
+        connectorFactory(connectorFactories, "deprecated_snowflake_jdbc")
+                .create("test",
                         ImmutableMap.of(
                                 "connection-url", "jdbc:snowflake:test",
                                 "connection-user", "test",
@@ -41,8 +43,8 @@ public class TestSnowflakePlugin
                         new TestingConnectorContext())
                 .shutdown();
 
-        connectorFactories.get(1).create(
-                        "test",
+        connectorFactory(connectorFactories, "snowflake_parallel")
+                .create("test",
                         ImmutableMap.of(
                                 "connection-url", "jdbc:snowflake:test",
                                 "connection-user", "test",
@@ -56,12 +58,34 @@ public class TestSnowflakePlugin
     }
 
     @Test
+    public void testSnowflakeJdbcConnectorNameThrows()
+    {
+        Plugin plugin = new TestingSnowflakePlugin();
+        List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(plugin.getConnectorFactories());
+
+        assertThatThrownBy(() -> connectorFactory(connectorFactories, "snowflake_jdbc")
+                .create("my_catalog",
+                        ImmutableMap.of(),
+                        new TestingConnectorContext()))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("""
+                            The snowflake_jdbc connector is DEPRECATED.
+                            It will be removed in a future release.
+                            Please migrate to the snowflake_parallel connector.
+                            If you need to continue using the JDBC connector temporarily, set connector.name=deprecated_snowflake_jdbc.
+                            """);
+    }
+
+    @Test
     public void testCreateConnectorWithProxySettings()
     {
         Plugin plugin = new TestingSnowflakePlugin();
         List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(plugin.getConnectorFactories());
 
         for (ConnectorFactory factory : connectorFactories) {
+            if (factory.getName().equals("snowflake_jdbc")) {
+                continue;
+            }
             factory.create(
                             "test",
                             ImmutableMap.of(
@@ -77,5 +101,13 @@ public class TestSnowflakePlugin
                             new TestingConnectorContext())
                     .shutdown();
         }
+    }
+
+    private static ConnectorFactory connectorFactory(List<ConnectorFactory> factories, String name)
+    {
+        return factories.stream()
+                .filter(f -> f.getName().equals(name))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No factory named: " + name));
     }
 }

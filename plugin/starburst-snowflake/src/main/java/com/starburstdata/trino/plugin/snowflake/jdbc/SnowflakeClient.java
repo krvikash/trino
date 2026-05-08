@@ -15,7 +15,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour;
-import io.airlift.log.Logger;
 import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
 import io.trino.plugin.base.expression.ConnectorExpressionRewriter;
@@ -125,7 +124,7 @@ import static com.google.common.base.Throwables.getRootCause;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.JDBC;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
 import static com.starburstdata.trino.plugin.snowflake.jdbc.DatabaseSchemaName.parseDatabaseSchemaName;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
@@ -198,8 +197,6 @@ import static java.util.stream.Collectors.joining;
 public class SnowflakeClient
         extends BaseJdbcClient
 {
-    private static final Logger log = Logger.get(SnowflakeClient.class);
-
     public static final String IDENTIFIER_QUOTE = "\"";
 
     public static final String DATABASE_SEPARATOR = ".";
@@ -249,13 +246,6 @@ public class SnowflakeClient
             RemoteQueryModifier queryModifier)
     {
         super(IDENTIFIER_QUOTE, connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, queryModifier, true);
-        if (connectorFlavour == JDBC) {
-            log.warn("*************************************************************");
-            log.warn("* The snowflake_jdbc connector is DEPRECATED                *");
-            log.warn("* It will be removed in a future release.                   *");
-            log.warn("* Please migrate to the snowflake_parallel connector.       *");
-            log.warn("*************************************************************");
-        }
         this.jsonType = typeManager.getType(new TypeSignature(JSON));
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
         this.connectorFlavour = connectorFlavour;
@@ -535,7 +525,7 @@ public class SnowflakeClient
     public boolean isTopNGuaranteed(ConnectorSession session)
     {
         // The data returned conforms to TopN requirements, but can be returned out of order
-        return connectorFlavour == JDBC;
+        return connectorFlavour == DEPRECATED_JDBC;
     }
 
     @Override

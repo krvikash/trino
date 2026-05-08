@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.snowflake;
 
 public enum SnowflakeConnectorFlavour
 {
-    JDBC("snowflake_jdbc"),
+    DEPRECATED_JDBC("deprecated_snowflake_jdbc"),
     PARALLEL("snowflake_parallel");
 
     private final String name;

@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static com.google.common.base.Verify.verify;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.JDBC;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.JDBC_URL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.PASSWORD;
@@ -67,7 +67,7 @@ public class SnowflakeQueryRunner
     public static Builder<?> jdbcBuilder()
     {
         return new Builder<>(createSessionForUser(USER))
-                .withConnectorName(JDBC.getName());
+                .withConnectorName(DEPRECATED_JDBC.getName());
     }
 
     public static Builder<?> parallelBuilder()

@@ -16,7 +16,7 @@ import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
 
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.JDBC;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
 
 public class SnowflakePlugin
@@ -27,8 +27,9 @@ public class SnowflakePlugin
     {
         return ImmutableList.of(
                 new JdbcConnectorFactory(
-                        JDBC.getName(),
-                        () -> new SnowflakeJdbcClientModule(JDBC)),
+                        DEPRECATED_JDBC.getName(),
+                        () -> new SnowflakeJdbcClientModule(DEPRECATED_JDBC)),
+                new RemovedSnowflakeJdbcConnectorFactory(),
                 new SnowflakeParallelConnectorFactory(PARALLEL.getName()));
     }
 }
