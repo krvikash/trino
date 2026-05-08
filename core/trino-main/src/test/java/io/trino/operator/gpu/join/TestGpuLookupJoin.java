@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 
@@ -206,7 +207,7 @@ final class TestGpuLookupJoin
             this.bufferPages = new BufferPages();
             Set<Integer> deviceChannels = IntStream.range(0, buildTypes.size()).boxed().collect(toImmutableSet());
             CopyToDevice copyToDevice = new CopyToDevice(bufferPages, buildTypes, deviceChannels);
-            GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels);
+            GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels, Optional.empty());
             this.build = factory.create(copyToDevice);
         }
 
@@ -254,7 +255,7 @@ final class TestGpuLookupJoin
             List<Page> probePages)
     {
         GpuLookupJoin.Factory factory = new GpuLookupJoin.Factory(
-                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes);
+                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, false);
         try {
             return executeGpuOperation(probePages, probeTypes, outputTypes, factory::create);
         }

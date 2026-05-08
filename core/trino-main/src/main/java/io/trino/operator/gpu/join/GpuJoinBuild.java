@@ -16,8 +16,12 @@ package io.trino.operator.gpu.join;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.Table;
+import ai.rapids.cudf.ast.AstExpression;
+import ai.rapids.cudf.ast.CompiledExpression;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
+import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -29,6 +33,7 @@ import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -45,19 +50,25 @@ public final class GpuJoinBuild
         private final GpuJoinBridgeManager bridgeManager;
         private final int[] buildKeyChannels;
         private final int[] buildOutputChannels;
+        private final Optional<AstExpression> filter;
 
-        public Factory(GpuJoinBridgeManager bridgeManager, int[] buildKeyChannels, int[] buildOutputChannels)
+        public Factory(
+                GpuJoinBridgeManager bridgeManager,
+                int[] buildKeyChannels,
+                int[] buildOutputChannels,
+                Optional<AstExpression> filter)
         {
             this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
             this.buildKeyChannels = requireNonNull(buildKeyChannels, "buildKeyChannels is null").clone();
             checkArgument(this.buildKeyChannels.length > 0, "buildKeyChannels must not be empty");
             this.buildOutputChannels = requireNonNull(buildOutputChannels, "buildOutputChannels is null").clone();
+            this.filter = requireNonNull(filter, "filter is null");
         }
 
         @Override
         public GpuOperation create(GpuOperation source)
         {
-            return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels);
+            return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels, filter);
         }
     }
 
@@ -65,18 +76,29 @@ public final class GpuJoinBuild
     private final GpuJoinBridgeManager bridgeManager;
     private final int[] buildKeyChannels;
     private final int[] buildOutputChannels;
+    private final Optional<AstExpression> filter;
+
     private final List<@Own Table> bufferedTables = new ArrayList<>();
-    private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
+    private final ClosingRef<Table> buildSourceTable = ClosingRef.empty();
+    private final ClosingRef<Table> buildKeyTable = ClosingRef.empty();
     private final ClosingRef<HashJoin> hashJoin = ClosingRef.empty();
+    private final ClosingRef<CompiledExpression> compiledFilter = ClosingRef.empty();
+    private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
     private boolean published;
     private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
-    private GpuJoinBuild(GpuOperation source, GpuJoinBridgeManager bridgeManager, int[] buildKeyChannels, int[] buildOutputChannels)
+    private GpuJoinBuild(
+            GpuOperation source,
+            GpuJoinBridgeManager bridgeManager,
+            int[] buildKeyChannels,
+            int[] buildOutputChannels,
+            Optional<AstExpression> filter)
     {
         this.source = requireNonNull(source, "source is null");
         this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
         this.buildKeyChannels = buildKeyChannels;
         this.buildOutputChannels = buildOutputChannels;
+        this.filter = requireNonNull(filter, "filter is null");
     }
 
     @Override
@@ -127,27 +149,44 @@ public final class GpuJoinBuild
 
         if (bufferedTables.isEmpty()) {
             // build side empty
-            bridgeManager.publishBridge(null, null, this::allProbesFinished);
+            bridgeManager.publishBridge(new EmptyBuildSide(), this::allProbesFinished);
+            return;
+        }
+
+        buildSourceTable.set(concatenateAndClose(bufferedTables));
+        bufferedTables.clear();
+
+        buildKeyTable.set(selectColumns(buildSourceTable.borrow(), buildKeyChannels));
+
+        // Join output data from the build side
+        @Nullable @Borrow Table buildOutputTable;
+        if (buildOutputChannels.length > 0) {
+            this.buildOutputTable.set(selectColumns(buildSourceTable.borrow(), buildOutputChannels));
+            buildOutputTable = this.buildOutputTable.borrow();
         }
         else {
-            try (ClosingRef<Table> buildTable = ClosingRef.empty();
-                    ClosingRef<Table> buildKeyTable = ClosingRef.empty()) {
-                buildTable.set(concatenateAndClose(bufferedTables));
-                bufferedTables.clear();
-                buildKeyTable.set(selectColumns(buildTable.borrow(), buildKeyChannels));
-                @Nullable @Borrow Table buildOutputTable;
-                if (buildOutputChannels.length > 0) {
-                    this.buildOutputTable.set(selectColumns(buildTable.borrow(), buildOutputChannels));
-                    buildOutputTable = this.buildOutputTable.borrow();
-                }
-                else {
-                    buildOutputTable = null;
-                }
-                hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/false));
-                buildKeyTable.close();
+            buildOutputTable = null;
+        }
 
-                bridgeManager.publishBridge(hashJoin.borrow(), buildOutputTable, this::allProbesFinished);
-            }
+        if (filter.isEmpty()) {
+            buildSourceTable.close();
+            hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/false));
+            buildKeyTable.close();
+            bridgeManager.publishBridge(
+                    new GpuJoinBridge.HashJoinBridge(
+                            hashJoin.borrow(),
+                            buildOutputTable),
+                    this::allProbesFinished);
+        }
+        else {
+            compiledFilter.set(filter.get().compile());
+            bridgeManager.publishBridge(
+                    new FilteredHashJoinBridge(
+                            buildSourceTable.borrow(),
+                            buildKeyTable.borrow(),
+                            compiledFilter.borrow(),
+                            buildOutputTable),
+                    this::allProbesFinished);
         }
     }
 
@@ -164,8 +203,11 @@ public final class GpuJoinBuild
             closer.register(source);
             bufferedTables.forEach(closer::register);
             bufferedTables.clear();
-            closer.register(buildOutputTable);
+            closer.register(buildSourceTable);
+            closer.register(buildKeyTable);
             closer.register(hashJoin);
+            closer.register(compiledFilter);
+            closer.register(buildOutputTable);
             probesAllFinishedFuture.setException(new Exception("Closed"));
         }
         catch (Exception e) {

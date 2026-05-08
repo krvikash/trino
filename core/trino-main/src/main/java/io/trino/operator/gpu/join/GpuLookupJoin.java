@@ -17,14 +17,16 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.GatherMap;
-import ai.rapids.cudf.HashJoin;
+import ai.rapids.cudf.NullEquality;
 import ai.rapids.cudf.OutOfBoundsPolicy;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.gpu.GpuOperation;
-import io.trino.operator.gpu.join.GpuJoinBridgeManager.GpuJoinBridge;
+import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
+import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
+import io.trino.operator.gpu.join.GpuJoinBridge.HashJoinBridge;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -65,19 +67,22 @@ public final class GpuLookupJoin
         private final int[] probeOutputChannels;
         private final JoinType joinType;
         private final List<Type> buildOutputTypes;
+        private final boolean filteredJoin;
 
         public Factory(
                 GpuJoinBridgeManager bridgeManager,
                 int[] probeKeyChannels,
                 int[] probeOutputChannels,
                 JoinType joinType,
-                List<Type> buildOutputTypes)
+                List<Type> buildOutputTypes,
+                boolean filteredJoin)
         {
             this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
             this.probeKeyChannels = requireNonNull(probeKeyChannels, "probeKeyChannels is null").clone();
             this.probeOutputChannels = requireNonNull(probeOutputChannels, "probeOutputChannels is null").clone();
             this.joinType = requireNonNull(joinType, "joinType is null");
             this.buildOutputTypes = ImmutableList.copyOf(requireNonNull(buildOutputTypes, "buildOutputTypes is null"));
+            this.filteredJoin = filteredJoin;
         }
 
         @Override
@@ -89,7 +94,8 @@ public final class GpuLookupJoin
                     probeKeyChannels,
                     probeOutputChannels,
                     joinType,
-                    buildOutputTypes);
+                    buildOutputTypes,
+                    filteredJoin);
         }
 
         @Override
@@ -106,6 +112,7 @@ public final class GpuLookupJoin
     private final int[] probeOutputChannels;
     private final JoinType joinType;
     private final List<Type> buildOutputTypes;
+    private final boolean filteredJoin;
 
     private GpuLookupJoin(
             GpuOperation source,
@@ -113,7 +120,8 @@ public final class GpuLookupJoin
             int[] probeKeyChannels,
             int[] probeOutputChannels,
             JoinType joinType,
-            List<Type> buildOutputTypes)
+            List<Type> buildOutputTypes,
+            boolean filteredJoin)
     {
         this.source = requireNonNull(source, "source is null");
         this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
@@ -122,6 +130,7 @@ public final class GpuLookupJoin
         this.probeOutputChannels = probeOutputChannels;
         this.joinType = joinType;
         this.buildOutputTypes = buildOutputTypes;
+        this.filteredJoin = filteredJoin;
     }
 
     @Override
@@ -149,11 +158,10 @@ public final class GpuLookupJoin
         };
     }
 
-    private Optional<@Move GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge bridge)
+    private Optional<@Move GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge)
     {
         boolean probeSideEmpty = probePage.positionCount() == 0;
-        HashJoin hashJoin = bridge.hashJoin();
-        boolean buildSideEmpty = hashJoin == null;
+        boolean buildSideEmpty = joinBridge instanceof EmptyBuildSide;
 
         switch (joinType) {
             case INNER -> {
@@ -172,10 +180,28 @@ public final class GpuLookupJoin
         }
 
         try (Table probeKeyTable = buildTableFromChannels(probePage, probeKeyChannels)) {
-            @Own GatherMap[] maps = switch (joinType) {
-                case INNER -> probeKeyTable.innerJoinGatherMaps(hashJoin);
-                case LEFT -> probeKeyTable.leftJoinGatherMaps(hashJoin);
-            };
+            @Own GatherMap[] maps;
+            if (!filteredJoin) {
+                HashJoinBridge bridge = (HashJoinBridge) joinBridge;
+                maps = switch (joinType) {
+                    case INNER -> probeKeyTable.innerJoinGatherMaps(bridge.hashJoin());
+                    case LEFT -> probeKeyTable.leftJoinGatherMaps(bridge.hashJoin());
+                };
+            }
+            else {
+                FilteredHashJoinBridge bridge = (FilteredHashJoinBridge) joinBridge;
+                // The compiled AST references columns by their source-layout channel index, so
+                // hand the kernel the full probe page (wrapped as a cuDF Table view) and the
+                // full build source table; the kernel only reads columns the AST refers to.
+                try (Table probeSourceTable = buildTableFromPage(probePage)) {
+                    maps = switch (joinType) {
+                        case INNER ->
+                                Table.mixedInnerJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
+                        case LEFT ->
+                                Table.mixedLeftJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
+                    };
+                }
+            }
             try {
                 verify(maps.length == 2, "Expected exactly 2 gather maps from join, got %s", maps.length);
                 GatherMap probeGatherMap = maps[0];
@@ -190,10 +216,10 @@ public final class GpuLookupJoin
                 // cuDF Table rejects an empty column array; skip creating the probe
                 // output table when there are no probe output columns (e.g. COUNT(*)).
                 if (probeOutputChannels.length == 0) {
-                    return Optional.of(assembleOutput(null, probeGatherMap, bridge.buildOutputTable(), buildGatherMap, rows));
+                    return Optional.of(assembleOutput(null, probeGatherMap, joinBridge.buildOutputTable(), buildGatherMap, rows));
                 }
                 try (Table probleTable = buildTableFromChannels(probePage, probeOutputChannels)) {
-                    return Optional.of(assembleOutput(probleTable, probeGatherMap, bridge.buildOutputTable(), buildGatherMap, rows));
+                    return Optional.of(assembleOutput(probleTable, probeGatherMap, joinBridge.buildOutputTable(), buildGatherMap, rows));
                 }
             }
             finally {
@@ -289,6 +315,16 @@ public final class GpuLookupJoin
             selected[i] = ((DeviceMemory) page.column(channels[i])).columnVector();
         }
         return new Table(selected);
+    }
+
+    private static @Own Table buildTableFromPage(@Borrow GpuPage page)
+    {
+        int columnCount = page.columnCount();
+        @Borrow ColumnVector[] columns = new ColumnVector[columnCount];
+        for (int i = 0; i < columnCount; i++) {
+            columns[i] = ((DeviceMemory) page.column(i)).columnVector();
+        }
+        return new Table(columns);
     }
 
     @Override

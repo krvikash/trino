@@ -13,17 +13,14 @@
  */
 package io.trino.operator.gpu.join;
 
-import ai.rapids.cudf.HashJoin;
-import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.ReferenceCount;
-import io.trino.spi.gpu.borrow.Borrow;
-import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Lifecycle coordinator for the {@link GpuJoinBridge} shared between the build-side
@@ -65,41 +62,11 @@ public final class GpuJoinBridgeManager
         referenceCount.release();
     }
 
-    public void publishBridge(@Nullable @Borrow HashJoin hashJoin, @Nullable @Borrow Table buildOutputTable, Runnable onRelease)
+    public void publishBridge(GpuJoinBridge bridge, Runnable onRelease)
     {
+        requireNonNull(bridge, "bridge is null");
         checkState(!bridgeFuture.isDone(), "Bridge future already done");
-        bridgeFuture.set(new GpuJoinBridge(hashJoin, buildOutputTable));
+        bridgeFuture.set(bridge);
         referenceCount.getFreeFuture().addListener(onRelease, directExecutor());
-    }
-
-    public static final class GpuJoinBridge
-    {
-        private final @Nullable @Borrow HashJoin hashJoin;
-        private final @Nullable @Borrow Table buildOutputTable;
-
-        private GpuJoinBridge(
-                @Nullable @Borrow HashJoin hashJoin,
-                @Nullable @Borrow Table buildOutputTable)
-        {
-            this.hashJoin = hashJoin;
-            this.buildOutputTable = buildOutputTable;
-        }
-
-        /**
-         * @return the cuDF hash join, or null when the build side is empty
-         */
-        public @Nullable @Borrow HashJoin hashJoin()
-        {
-            return hashJoin;
-        }
-
-        /**
-         * @return the build-side output table to gather from, or null when the join has no
-         * build-side output columns or build side is empty
-         */
-        public @Nullable @Borrow Table buildOutputTable()
-        {
-            return buildOutputTable;
-        }
     }
 }

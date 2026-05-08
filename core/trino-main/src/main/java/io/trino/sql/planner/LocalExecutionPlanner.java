@@ -13,6 +13,7 @@
  */
 package io.trino.sql.planner;
 
+import ai.rapids.cudf.ast.AstExpression;
 import com.google.common.base.Throwables;
 import com.google.common.base.VerifyException;
 import com.google.common.cache.CacheBuilder;
@@ -135,8 +136,10 @@ import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
+import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.operator.gpu.join.GpuJoinBridgeManager;
 import io.trino.operator.gpu.join.GpuJoinBuild;
+import io.trino.operator.gpu.join.GpuJoinFilterCompiler;
 import io.trino.operator.gpu.join.GpuLookupJoin;
 import io.trino.operator.index.DynamicTupleFilterFactory;
 import io.trino.operator.index.FieldSetFilteringRecordSet;
@@ -3258,10 +3261,18 @@ public class LocalExecutionPlanner
                             .containsAll(node.getRightOutputSymbols());
 
             LocalExecutionPlanContext buildContext = context.createSubContext();
-            // TODO merge canPlanGpuLookupJoin and tryPlanGpuLookupJoin into single function
-            if (canPlanGpuLookupJoin(node, buildNode, probeSource)) {
-                // Force single build driver: GPU handles build-side parallelism internally.
-                buildContext.setDriverInstanceCount(1);
+            Optional<PhysicalOperation> gpuOperation = tryPlanGpuLookupJoin(
+                    node,
+                    buildNode,
+                    buildSymbols,
+                    probeSource,
+                    probeOutputChannels,
+                    probeJoinChannels,
+                    localDynamicFilters,
+                    context,
+                    buildContext);
+            if (gpuOperation.isPresent()) {
+                return gpuOperation.get();
             }
             PhysicalOperation buildSource = buildNode.accept(this, buildContext);
 
@@ -3318,20 +3329,6 @@ public class LocalExecutionPlanner
             // Wait for build side to be collected before local dynamic filters are
             // consumed by table scan. This way table scan can filter data more efficiently.
             boolean waitForBuild = consumedLocalDynamicFilters;
-
-            Optional<PhysicalOperation> gpuOperation = tryPlanGpuLookupJoin(
-                    node,
-                    probeSource,
-                    buildSource,
-                    probeOutputChannels,
-                    probeJoinChannels,
-                    buildOutputChannels,
-                    buildChannels,
-                    context,
-                    buildContext);
-            if (gpuOperation.isPresent()) {
-                return gpuOperation.get();
-            }
 
             OperatorFactory operator;
             if (useSpillingJoinOperator(spillEnabled, session)) {
@@ -4431,49 +4428,72 @@ public class LocalExecutionPlanner
                             node.getId()));
         }
 
-        private boolean canPlanGpuLookupJoin(JoinNode node, PlanNode buildNode, PhysicalOperation probeSource)
-        {
-            return isGpuExecutionEnabled(session)
-                    && (node.getType() == INNER || node.getType() == LEFT)
-                    && node.getFilter().isEmpty()
-                    && !node.getCriteria().isEmpty()
-                    && probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)
-                    && buildNode.getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible);
-        }
-
         private Optional<PhysicalOperation> tryPlanGpuLookupJoin(
                 JoinNode node,
+                PlanNode buildNode,
+                List<Symbol> buildSymbols,
                 PhysicalOperation probeSource,
-                PhysicalOperation buildSource,
                 List<Integer> probeOutputChannels,
                 List<Integer> probeJoinChannels,
-                List<Integer> buildOutputChannels,
-                List<Integer> buildChannels,
+                Set<DynamicFilterId> localDynamicFilters,
                 LocalExecutionPlanContext context,
                 LocalExecutionPlanContext buildContext)
         {
             if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
             }
-            // v1 supports only INNER and LEFT outer.
+
             if (node.getType() != INNER && node.getType() != LEFT) {
                 return Optional.empty();
             }
-            // No filter / non-equi predicates.
-            if (node.getFilter().isPresent()) {
-                return Optional.empty();
-            }
-            // Must have at least one equi-clause; cross-joins go through the nested-loop path.
+            GpuLookupJoin.JoinType joinType = (node.getType() == INNER)
+                    ? GpuLookupJoin.JoinType.INNER
+                    : GpuLookupJoin.JoinType.LEFT;
+
+            // Must have at least one equi-clause
             if (node.getCriteria().isEmpty()) {
                 return Optional.empty();
             }
+
             // Every probe and build column must be GPU-convertible (CopyToDevice copies all of them).
             if (!probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
                 return Optional.empty();
             }
-            if (!buildSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+            if (!buildNode.getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
                 return Optional.empty();
             }
+
+            // Join filter
+            Optional<CudfAstExpression> compiledFilter = Optional.empty();
+            if (node.getFilter().isPresent()) {
+                compiledFilter = GpuJoinFilterCompiler.compile(node.getFilter().get());
+                if (compiledFilter.isEmpty()) {
+                    return Optional.empty();
+                }
+            }
+
+            // Force single build driver: GPU handles build-side parallelism internally.
+            buildContext.setDriverInstanceCount(1);
+            PhysicalOperation buildSource = buildNode.accept(this, buildContext);
+
+            List<Integer> buildOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getRightOutputSymbols(), buildSource.getLayout()));
+            List<Integer> buildChannels = ImmutableList.copyOf(getChannelsForSymbols(buildSymbols, buildSource.getLayout()));
+
+            int operatorId = buildContext.getNextOperatorId();
+            boolean partitioned = !isBuildSideReplicated(node);
+            Optional<LocalDynamicFilterConsumer> localDynamicFilter = createDynamicFilter(buildSource, node, context, localDynamicFilters, partitioned);
+            if (localDynamicFilter.isPresent()) {
+                buildSource = createDynamicFilterSourceOperatorFactory(
+                        operatorId,
+                        localDynamicFilter.get(),
+                        node,
+                        partitioned,
+                        buildContext.getDriverInstanceCount().orElse(1) == 1,
+                        buildSource);
+            }
+
+            Map<Symbol, Integer> buildLayout = buildSource.getLayout();
+            Optional<AstExpression> filter = compiledFilter.map(ast -> ast.toCudfAst(probeSource.getLayout(), buildLayout));
 
             GpuJoinBridgeManager bridgeManager = new GpuJoinBridgeManager();
 
@@ -4481,7 +4501,8 @@ public class LocalExecutionPlanner
                     new GpuJoinBuild.Factory(
                             bridgeManager,
                             Ints.toArray(buildChannels),
-                            Ints.toArray(buildOutputChannels)),
+                            Ints.toArray(buildOutputChannels),
+                            filter),
                     ImmutableList.of(),
                     buildSource,
                     ImmutableMap.of(),
@@ -4495,8 +4516,6 @@ public class LocalExecutionPlanner
 
             context.addDriverFactory(false, joinBuild, buildContext);
 
-            // Probe pipeline: probe input flows into a GpuLookupJoin transformation that produces
-            // joined GpuPages, optionally chaining with downstream GPU operators.
             List<Type> buildOutputTypes = buildOutputChannels.stream()
                     .map(buildSource.getTypes()::get)
                     .collect(toImmutableList());
@@ -4505,15 +4524,14 @@ public class LocalExecutionPlanner
                     .addAll(buildOutputTypes)
                     .build();
 
-            GpuLookupJoin.JoinType joinType = (node.getType() == INNER)
-                    ? GpuLookupJoin.JoinType.INNER
-                    : GpuLookupJoin.JoinType.LEFT;
+            // Probe pipeline
             GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(
                     bridgeManager,
                     Ints.toArray(probeJoinChannels),
                     Ints.toArray(probeOutputChannels),
                     joinType,
-                    buildOutputTypes);
+                    buildOutputTypes,
+                    filter.isPresent());
 
             return Optional.of(addGpuOperation(
                     probeFactory,
