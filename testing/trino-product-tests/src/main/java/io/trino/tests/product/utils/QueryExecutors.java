@@ -136,7 +136,7 @@ public final class QueryExecutors
                             || stackTrace.contains("The current cluster state is Pending") || stackTrace.contains("The current cluster state is Terminated");
                 })
                 .withDelay(Duration.of(30, ChronoUnit.SECONDS))
-                .withMaxRetries(40)
+                .withMaxRetries(60)
                 .onRetry(event -> log.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
                 .build();
 
