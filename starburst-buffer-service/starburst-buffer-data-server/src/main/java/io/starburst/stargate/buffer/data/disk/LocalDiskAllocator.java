@@ -35,6 +35,8 @@ public class LocalDiskAllocator
     private static final long DISK_SPACE_CACHE_SECONDS = 1;
 
     private final long capacityBytes;
+    private final long highWatermark;
+    private final long lowWatermark;
     private final AtomicLong allocatedBytes = new AtomicLong();
     private final Supplier<Long> availableDiskSpaceBytes;
 
@@ -43,6 +45,8 @@ public class LocalDiskAllocator
     {
         requireNonNull(config, "config is null");
         this.capacityBytes = requireNonNull(config.getCapacity(), "capacity is null").toBytes();
+        this.lowWatermark = (long) (capacityBytes * config.getSpoolingLowWatermark());
+        this.highWatermark = (long) (capacityBytes * config.getSpoolingHighWatermark());
         Path directory = requireNonNull(config.getDirectory(), "directory is null");
         this.availableDiskSpaceBytes = Suppliers.memoizeWithExpiration(
                 () -> Math.min(readDiskUsableSpace(directory), capacityBytes),
@@ -67,9 +71,24 @@ public class LocalDiskAllocator
         }
     }
 
-    private boolean hasSpace(long current, long requested, long usableSpace)
+    public boolean belowHighWatermark()
     {
-        return usableSpace >= current + requested;
+        return allocatedBytes.get() < highWatermark;
+    }
+
+    public boolean aboveLowWatermark()
+    {
+        return allocatedBytes.get() > lowWatermark;
+    }
+
+    public long getRequiredBytesToRelease()
+    {
+        return Math.max(0, allocatedBytes.get() - lowWatermark);
+    }
+
+    public double getAllocationPercentage()
+    {
+        return 100.0 * allocatedBytes.get() / capacityBytes;
     }
 
     void release(long bytes)
@@ -84,6 +103,11 @@ public class LocalDiskAllocator
     long getAllocatedBytes()
     {
         return allocatedBytes.get();
+    }
+
+    private boolean hasSpace(long current, long requested, long usableSpace)
+    {
+        return usableSpace >= current + requested;
     }
 
     private static long readDiskUsableSpace(Path directory)

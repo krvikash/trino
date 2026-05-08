@@ -26,6 +26,8 @@ public class LocalDiskTierConfig
     private Path directory;
     private DataSize capacity;
     private DataSize memorySkipThreshold;
+    private double spoolingHighWatermark = 0.8;
+    private double spoolingLowWatermark = 0.5;
 
     @NotNull
     @FileExists
@@ -71,6 +73,36 @@ public class LocalDiskTierConfig
     {
         checkArgument(memorySkipThreshold == null || memorySkipThreshold.toBytes() > 0, "memorySkipThreshold must be positive");
         this.memorySkipThreshold = memorySkipThreshold;
+        return this;
+    }
+
+    public double getSpoolingHighWatermark()
+    {
+        return spoolingHighWatermark;
+    }
+
+    @Config("local-disk.spooling-high-watermark")
+    @ConfigHidden
+    @ConfigDescription("Disk utilization ratio above which spooling to remote storage is triggered")
+    public LocalDiskTierConfig setSpoolingHighWatermark(double spoolingHighWatermark)
+    {
+        checkArgument(spoolingHighWatermark > 0 && spoolingHighWatermark <= 1, "spoolingHighWatermark must be in (0, 1]");
+        this.spoolingHighWatermark = spoolingHighWatermark;
+        return this;
+    }
+
+    public double getSpoolingLowWatermark()
+    {
+        return spoolingLowWatermark;
+    }
+
+    @Config("local-disk.spooling-low-watermark")
+    @ConfigHidden
+    @ConfigDescription("Disk utilization ratio at which spooling to remote storage stops")
+    public LocalDiskTierConfig setSpoolingLowWatermark(double spoolingLowWatermark)
+    {
+        checkArgument(spoolingLowWatermark > 0 && spoolingLowWatermark < 1, "spoolingLowWatermark must be in (0, 1)");
+        this.spoolingLowWatermark = spoolingLowWatermark;
         return this;
     }
 }
