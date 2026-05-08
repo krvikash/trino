@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.execution;
 
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
+import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -102,7 +103,7 @@ public class TestPartition
         LocalDiskTierConfig config = new LocalDiskTierConfig()
                 .setDirectory(tempDir)
                 .setCapacity(DataSize.of(10, MEGABYTE));
-        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 
     private Partition createPartition(Optional<LocalDiskTier> localDiskTier)

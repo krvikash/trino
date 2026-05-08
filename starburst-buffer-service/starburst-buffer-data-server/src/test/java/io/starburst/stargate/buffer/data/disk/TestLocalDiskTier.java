@@ -279,7 +279,7 @@ public class TestLocalDiskTier
         LocalDiskTierConfig config = new LocalDiskTierConfig()
                 .setDirectory(rootDirectory)
                 .setCapacity(DEFAULT_CAPACITY);
-        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 
     private LocalDiskTier createDiskTierWithThreshold(DataSize threshold)
@@ -293,6 +293,6 @@ public class TestLocalDiskTier
                 .setDirectory(tempDir)
                 .setCapacity(capacity)
                 .setMemorySkipThreshold(threshold);
-        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 }

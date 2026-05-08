@@ -37,14 +37,14 @@ public class LocalDiskTier
     private final DiskDirectoryTracker directoryTracker;
 
     @Inject
-    public LocalDiskTier(BufferNodeId bufferNodeId, LocalDiskTierConfig config)
+    public LocalDiskTier(BufferNodeId bufferNodeId, LocalDiskTierConfig config, LocalDiskAllocator allocator)
     {
         requireNonNull(bufferNodeId, "bufferNodeId is null");
         requireNonNull(config, "config is null");
         Path rootDirectory = requireNonNull(config.getDirectory(), "directory is null").normalize();
         this.directory = rootDirectory.resolve(String.valueOf(bufferNodeId.getLongValue()));
         this.memorySkipThreshold = config.getMemorySkipThreshold();
-        this.allocator = new LocalDiskAllocator(config);
+        this.allocator = requireNonNull(allocator, "allocator is null");
         this.directoryTracker = new DiskDirectoryTracker();
         initializeDirectories(rootDirectory, this.directory, directoryTracker);
     }
@@ -56,6 +56,7 @@ public class LocalDiskTier
             int chunkSizeInBytes,
             long exchangeCumulativeClosedBytes)
     {
+        validateExchangeIdAsPathSegment(directory, exchangeId);
         if (memorySkipThreshold.isEmpty()
                 || exchangeCumulativeClosedBytes < memorySkipThreshold.get().toBytes()) {
             log.debug("Disk tier skipped for exchange %s chunk %s: cumulativeClosedBytes=%s, threshold=%s",
@@ -84,11 +85,6 @@ public class LocalDiskTier
     public Optional<DiskSpaceLease> allocate(long bytes)
     {
         return allocator.allocate(bytes);
-    }
-
-    public void validateExchangeId(String exchangeId)
-    {
-        validateExchangeIdAsPathSegment(directory, exchangeId);
     }
 
     public Path partitionDirectory(String exchangeId, int partitionId)

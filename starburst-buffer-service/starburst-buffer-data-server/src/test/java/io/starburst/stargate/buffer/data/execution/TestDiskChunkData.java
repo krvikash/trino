@@ -15,6 +15,7 @@ import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
 import io.starburst.stargate.buffer.data.disk.DiskSpaceLease;
+import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
@@ -253,6 +254,6 @@ public class TestDiskChunkData
                 .setDirectory(tempDir)
                 .setCapacity(capacity)
                 .setMemorySkipThreshold(DataSize.of(1, BYTE));
-        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 }

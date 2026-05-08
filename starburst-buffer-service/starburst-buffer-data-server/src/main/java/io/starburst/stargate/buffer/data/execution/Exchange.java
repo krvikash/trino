@@ -32,7 +32,6 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
-import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 
@@ -94,7 +93,6 @@ public class Exchange
     private final Duration chunkListPollTimeout;
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
-    private final Optional<LocalDiskTier> localDiskTier;
     private final ChunkDataFactory chunkDataFactory;
     private final AtomicLong cumulativeClosedBytes = new AtomicLong();
 
@@ -141,7 +139,6 @@ public class Exchange
             ExchangeState initialState,
             SpoolingStorage spoolingStorage,
             SpooledChunksByExchange spooledChunksByExchange,
-            Optional<LocalDiskTier> localDiskTier,
             ChunkDataFactory chunkDataFactory,
             int chunkTargetSizeInBytes,
             int chunkMaxSizeInBytes,
@@ -161,8 +158,6 @@ public class Exchange
         this.exchangeId = requireNonNull(exchangeId, "exchangeId is null");
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunksByExchange is null");
-        this.localDiskTier = requireNonNull(localDiskTier, "localDiskTier is null");
-        this.localDiskTier.ifPresent(localDisk -> localDisk.validateExchangeId(exchangeId));
         this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         checkArgument(chunkTargetSizeInBytes <= chunkMaxSizeInBytes, "chunkTargetSizeInBytes %s larger than chunkMaxSizeInBytes %s", chunkTargetSizeInBytes, chunkMaxSizeInBytes);
         this.chunkTargetSizeInBytes = chunkTargetSizeInBytes;

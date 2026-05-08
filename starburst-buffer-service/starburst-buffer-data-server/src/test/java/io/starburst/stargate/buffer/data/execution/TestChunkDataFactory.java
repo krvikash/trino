@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -141,7 +142,8 @@ public class TestChunkDataFactory
 
     private LocalDiskTier createDiskTier(Optional<DataSize> memorySkipThreshold, DataSize capacity)
     {
-        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), createDiskTierConfig(memorySkipThreshold, capacity));
+        LocalDiskTierConfig config = createDiskTierConfig(memorySkipThreshold, capacity);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 
     private LocalDiskTierConfig createDiskTierConfig(Optional<DataSize> memorySkipThreshold, DataSize capacity)
