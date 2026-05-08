@@ -1,54 +1,54 @@
 IR version = 1
 %0 = query() : () -> "boolean" ({
     ^query
-        %944 = table_scan() : () -> "multiset(row(bigint,bigint,decimal(7,2),bigint))" ()
+        %936 = table_scan() : () -> "multiset(row(bigint,bigint,decimal(7,2),bigint))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.web_returns$data@4600928459638848296", table_scan:column_handles = "7:wr_returning_customer_sk:bigint, 10:wr_returning_addr_sk:bigint, 15:wr_return_amt:decimal(7,2), 24:wr_returned_date_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,decimal(7,2),bigint)", ir.has_side_effects = "false", ir.safe = "true"}
-        %1250 = filter(%944) : ("multiset(row(bigint,bigint,decimal(7,2),bigint))") -> "multiset(row(bigint,bigint,decimal(7,2),bigint))" ({
-            ^predicate (%951 : "row(bigint,bigint,decimal(7,2),bigint)")
-                %2368 = field_reference(%951) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
+        %1242 = filter(%936) : ("multiset(row(bigint,bigint,decimal(7,2),bigint))") -> "multiset(row(bigint,bigint,decimal(7,2),bigint))" ({
+            ^predicate (%943 : "row(bigint,bigint,decimal(7,2),bigint)")
+                %2360 = field_reference(%943) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "3"}
-                %2369 = constant() : () -> "varchar" ()
+                %2361 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2370 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_2361]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2371 = constant() : () -> "boolean" ()
+                %2362 = constant() : () -> "varchar" ()
+                    {constant:value = "[type=varchar, value=df_2326]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2363 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2372 = constant() : () -> "integer" ()
+                %2364 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=20000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2373 = call(%2368, %2369, %2370, %2371, %2372) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %2365 = call(%2360, %2361, %2362, %2363, %2364) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %2378 = return(%2373) : ("boolean") -> "boolean" ()
+                %2370 = return(%2365) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
-        %1296 = table_scan() : () -> "multiset(row(bigint,integer))" ()
+        %1288 = table_scan() : () -> "multiset(row(bigint,integer))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.date_dim$data@879409309086531902", table_scan:column_handles = "1:d_date_sk:bigint, 7:d_year:integer", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,integer)", ir.has_side_effects = "false", ir.safe = "true"}
-        %1374 = filter(%1296) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint,integer))" ({
-            ^predicate (%1303 : "row(bigint,integer)")
-                %1350 = field_reference(%1303) : ("row(bigint,integer)") -> "integer" ()
+        %1366 = filter(%1288) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint,integer))" ({
+            ^predicate (%1295 : "row(bigint,integer)")
+                %1342 = field_reference(%1295) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
-                %1351 = constant() : () -> "integer" ()
+                %1343 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2002]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1352 = comparison(%1350, %1351) : ("integer", "integer") -> "boolean" ()
+                %1344 = comparison(%1342, %1343) : ("integer", "integer") -> "boolean" ()
                     {comparison:operator = "EQUAL"}
-                %1355 = return(%1352) : ("boolean") -> "boolean" ()
+                %1347 = return(%1344) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
-        %1381 = project(%1374) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint))" ({
-            ^assignments (%1377 : "row(bigint,integer)")
-                %1378 = field_reference(%1377) : ("row(bigint,integer)") -> "bigint" ()
+        %1373 = project(%1366) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint))" ({
+            ^assignments (%1369 : "row(bigint,integer)")
+                %1370 = field_reference(%1369) : ("row(bigint,integer)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1379 = row(%1378) : ("bigint") -> "row(bigint)" ()
+                %1371 = row(%1370) : ("bigint") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1380 = return(%1379) : ("row(bigint)") -> "row(bigint)" ()
+                %1372 = return(%1371) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-        %1412 = exchange(%1381) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
-            ^inputSelector (%1408 : "row(bigint)")
-                %1409 = field_reference(%1408) : ("row(bigint)") -> "bigint" ()
+        %1404 = exchange(%1373) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%1400 : "row(bigint)")
+                %1401 = field_reference(%1400) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1410 = row(%1409) : ("bigint") -> "row(bigint)" ()
+                %1402 = row(%1401) : ("bigint") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1411 = return(%1410) : ("row(bigint)") -> "row(bigint)" ()
+                %1403 = return(%1402) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^boundArguments (%41 : "row(bigint)")
@@ -64,13 +64,13 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
-        %1479 = exchange(%1412) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
-            ^inputSelector (%1475 : "row(bigint)")
-                %1476 = field_reference(%1475) : ("row(bigint)") -> "bigint" ()
+        %1471 = exchange(%1404) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%1467 : "row(bigint)")
+                %1468 = field_reference(%1467) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1477 = row(%1476) : ("bigint") -> "row(bigint)" ()
+                %1469 = row(%1468) : ("bigint") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1478 = return(%1477) : ("row(bigint)") -> "row(bigint)" ()
+                %1470 = return(%1469) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^boundArguments (%52 : "row(bigint)")
@@ -86,7 +86,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
-        %1554 = join(%1250, %1479) : ("multiset(row(bigint,bigint,decimal(7,2),bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint,decimal(7,2)))" ({
+        %1546 = join(%1242, %1471) : ("multiset(row(bigint,bigint,decimal(7,2),bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint,decimal(7,2)))" ({
             ^leftCriteriaSelector (%59 : "row(bigint,bigint,decimal(7,2),bigint)")
                 %60 = field_reference(%59) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -109,43 +109,43 @@ IR version = 1
                 %70 = return(%69) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^leftOutputSelector (%1537 : "row(bigint,bigint,decimal(7,2),bigint)")
-                %1538 = field_reference(%1537) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
+            ^leftOutputSelector (%1529 : "row(bigint,bigint,decimal(7,2),bigint)")
+                %1530 = field_reference(%1529) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1539 = field_reference(%1537) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
+                %1531 = field_reference(%1529) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1540 = field_reference(%1537) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "decimal(7,2)" ()
+                %1532 = field_reference(%1529) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1541 = row(%1538, %1539, %1540) : ("bigint", "bigint", "decimal(7,2)") -> "row(bigint,bigint,decimal(7,2))" ()
+                %1533 = row(%1530, %1531, %1532) : ("bigint", "bigint", "decimal(7,2)") -> "row(bigint,bigint,decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1542 = return(%1541) : ("row(bigint,bigint,decimal(7,2))") -> "row(bigint,bigint,decimal(7,2))" ()
+                %1534 = return(%1533) : ("row(bigint,bigint,decimal(7,2))") -> "row(bigint,bigint,decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^rightOutputSelector (%1543 : "row(bigint)")
-                %1544 = constant() : () -> "empty row" ()
+            ^rightOutputSelector (%1535 : "row(bigint)")
+                %1536 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1545 = return(%1544) : ("empty row") -> "empty row" ()
+                %1537 = return(%1536) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^dynamicFilterTargetSelector (%80 : "row(bigint)")
-                %1546 = field_reference(%80) : ("row(bigint)") -> "bigint" ()
+                %1538 = field_reference(%80) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0"}
-                %2409 = row(%1546) : ("bigint") -> "row(bigint)" ()
-                %2410 = return(%2409) : ("row(bigint)") -> "row(bigint)" ()
+                %2401 = row(%1538) : ("bigint") -> "row(bigint)" ()
+                %2402 = return(%2401) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_2361""]"}
-        %1665 = exchange(%1554) : ("multiset(row(bigint,bigint,decimal(7,2)))") -> "multiset(row(bigint,bigint,decimal(7,2)))" ({
-            ^inputSelector (%1659 : "row(bigint,bigint,decimal(7,2))")
-                %1660 = field_reference(%1659) : ("row(bigint,bigint,decimal(7,2))") -> "bigint" ()
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_2326""]"}
+        %1657 = exchange(%1546) : ("multiset(row(bigint,bigint,decimal(7,2)))") -> "multiset(row(bigint,bigint,decimal(7,2)))" ({
+            ^inputSelector (%1651 : "row(bigint,bigint,decimal(7,2))")
+                %1652 = field_reference(%1651) : ("row(bigint,bigint,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1661 = field_reference(%1659) : ("row(bigint,bigint,decimal(7,2))") -> "bigint" ()
+                %1653 = field_reference(%1651) : ("row(bigint,bigint,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1662 = field_reference(%1659) : ("row(bigint,bigint,decimal(7,2))") -> "decimal(7,2)" ()
+                %1654 = field_reference(%1651) : ("row(bigint,bigint,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1663 = row(%1660, %1661, %1662) : ("bigint", "bigint", "decimal(7,2)") -> "row(bigint,bigint,decimal(7,2))" ()
+                %1655 = row(%1652, %1653, %1654) : ("bigint", "bigint", "decimal(7,2)") -> "row(bigint,bigint,decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1664 = return(%1663) : ("row(bigint,bigint,decimal(7,2))") -> "row(bigint,bigint,decimal(7,2))" ()
+                %1656 = return(%1655) : ("row(bigint,bigint,decimal(7,2))") -> "row(bigint,bigint,decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^boundArguments (%91 : "row(bigint,bigint,decimal(7,2))")
@@ -167,19 +167,19 @@ IR version = 1
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.customer_address$data@3308787911813009439", table_scan:column_handles = "1:ca_address_sk:bigint, 9:ca_state:varchar", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,varchar)", ir.has_side_effects = "false", ir.safe = "true"}
         %99 = filter(%98) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^predicate (%100 : "row(bigint,varchar)")
-                %2383 = field_reference(%100) : ("row(bigint,varchar)") -> "varchar" ()
+                %2375 = field_reference(%100) : ("row(bigint,varchar)") -> "varchar" ()
                     {field_reference:index = "1"}
-                %2384 = constant() : () -> "varchar" ()
+                %2376 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2385 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_2357]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2386 = constant() : () -> "boolean" ()
+                %2377 = constant() : () -> "varchar" ()
+                    {constant:value = "[type=varchar, value=df_2322]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2378 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2387 = constant() : () -> "integer" ()
+                %2379 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2388 = call(%2383, %2384, %2385, %2386, %2387) : ("varchar", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %2380 = call(%2375, %2376, %2377, %2378, %2379) : ("varchar", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""varchar"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %2393 = return(%2388) : ("boolean") -> "boolean" ()
+                %2385 = return(%2380) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %108 = exchange(%99) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
@@ -232,7 +232,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %133 = join(%1665, %121) : ("multiset(row(bigint,bigint,decimal(7,2)))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,decimal(7,2),varchar))" ({
+        %133 = join(%1657, %121) : ("multiset(row(bigint,bigint,decimal(7,2)))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,decimal(7,2),varchar))" ({
             ^leftCriteriaSelector (%134 : "row(bigint,bigint,decimal(7,2))")
                 %135 = field_reference(%134) : ("row(bigint,bigint,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -273,10 +273,10 @@ IR version = 1
                 %154 = return(%153) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^dynamicFilterTargetSelector (%2411 : "row(bigint,varchar)")
-                %2412 = constant() : () -> "empty row" ()
+            ^dynamicFilterTargetSelector (%2403 : "row(bigint,varchar)")
+                %2404 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2413 = return(%2412) : ("empty row") -> "empty row" ()
+                %2405 = return(%2404) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[]", join:statistics_and_cost_summary = "{""outputRowCount"":1.0926858216940539E7,""outputSizeInBytes"":2.6559416442782655E8,""cpuCost"":6.518592151421931E9,""memoryCost"":9.618270580597015E7,""networkCost"":3.927570119831096E8}"}
@@ -430,19 +430,19 @@ IR version = 1
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.customer$data@2201162249508106077", table_scan:column_handles = "1:c_customer_sk:bigint, 2:c_customer_id:varchar, 5:c_current_addr_sk:bigint, 8:c_salutation:varchar, 9:c_first_name:varchar, 10:c_last_name:varchar, 11:c_preferred_cust_flag:varchar, 12:c_birth_day:integer, 13:c_birth_month:integer, 14:c_birth_year:integer, 15:c_birth_country:varchar, 16:c_login:varchar, 17:c_email_address:varchar, 18:c_last_review_date_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,varchar,bigint,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %233 = filter(%232) : ("multiset(row(bigint,varchar,bigint,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(bigint,varchar,bigint,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
             ^predicate (%234 : "row(bigint,varchar,bigint,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %2396 = field_reference(%234) : ("row(bigint,varchar,bigint,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %2388 = field_reference(%234) : ("row(bigint,varchar,bigint,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "2"}
-                %2397 = constant() : () -> "varchar" ()
+                %2389 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2398 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_2372]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2399 = constant() : () -> "boolean" ()
+                %2390 = constant() : () -> "varchar" ()
+                    {constant:value = "[type=varchar, value=df_2337]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2391 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2400 = constant() : () -> "integer" ()
+                %2392 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2401 = call(%2396, %2397, %2398, %2399, %2400) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %2393 = call(%2388, %2389, %2390, %2391, %2392) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %2406 = return(%2401) : ("boolean") -> "boolean" ()
+                %2398 = return(%2393) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %242 = table_scan() : () -> "multiset(row(bigint,varchar))" ()
@@ -577,11 +577,11 @@ IR version = 1
             ^dynamicFilterTargetSelector (%308 : "row(bigint)")
                 %309 = field_reference(%308) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2414 = row(%309) : ("bigint") -> "row(bigint)" ()
-                %2415 = return(%2414) : ("row(bigint)") -> "row(bigint)" ()
+                %2406 = row(%309) : ("bigint") -> "row(bigint)" ()
+                %2407 = return(%2406) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_2372""]", join:statistics_and_cost_summary = "{""outputRowCount"":261427.40759529904,""outputSizeInBytes"":3.518931384050655E7,""cpuCost"":3.6713753258405066E9,""memoryCost"":8216560.941176471,""networkCost"":8216560.941176471}"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_2337""]", join:statistics_and_cost_summary = "{""outputRowCount"":261427.40759529904,""outputSizeInBytes"":3.518931384050655E7,""cpuCost"":3.6713753258405066E9,""memoryCost"":8216560.941176471,""networkCost"":8216560.941176471}"}
         %312 = exchange(%276) : ("multiset(row(bigint,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(bigint,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
             ^inputSelector (%313 : "row(bigint,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
                 %314 = field_reference(%313) : ("row(bigint,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
@@ -739,10 +739,10 @@ IR version = 1
                 %391 = return(%390) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^dynamicFilterTargetSelector (%2416 : "row(bigint,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %2417 = constant() : () -> "empty row" ()
+            ^dynamicFilterTargetSelector (%2408 : "row(bigint,varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %2409 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2418 = return(%2417) : ("empty row") -> "empty row" ()
+                %2410 = return(%2409) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[]", join:statistics_and_cost_summary = "{""outputRowCount"":472636.9999629639,""outputSizeInBytes"":7.073158915714872E7,""cpuCost"":1.4373514812180973E10,""memoryCost"":5.0068261664047265E8,""networkCost"":3.551125055245438E9}"}
@@ -798,7 +798,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
-        %513 = join(%1665, %501) : ("multiset(row(bigint,bigint,decimal(7,2)))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,decimal(7,2),varchar))" ({
+        %513 = join(%1657, %501) : ("multiset(row(bigint,bigint,decimal(7,2)))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,decimal(7,2),varchar))" ({
             ^leftCriteriaSelector (%514 : "row(bigint,bigint,decimal(7,2))")
                 %515 = field_reference(%514) : ("row(bigint,bigint,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -839,10 +839,10 @@ IR version = 1
                 %534 = return(%533) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^dynamicFilterTargetSelector (%2419 : "row(bigint,varchar)")
-                %2420 = constant() : () -> "empty row" ()
+            ^dynamicFilterTargetSelector (%2411 : "row(bigint,varchar)")
+                %2412 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2421 = return(%2420) : ("empty row") -> "empty row" ()
+                %2413 = return(%2412) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[]", join:statistics_and_cost_summary = "{""outputRowCount"":1.0926858216940539E7,""outputSizeInBytes"":2.6559416442782655E8,""cpuCost"":6.518592151421931E9,""memoryCost"":9.618270580597015E7,""networkCost"":3.927570119831096E8}"}
@@ -1006,650 +1006,634 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
-        %619 = project(%613) : ("multiset(row(varchar,decimal(38,2)))") -> "multiset(row(decimal(38,2),varchar,boolean))" ({
-            ^assignments (%620 : "row(varchar,decimal(38,2))")
-                %621 = field_reference(%620) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %622 = field_reference(%620) : ("row(varchar,decimal(38,2))") -> "varchar" ()
-                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %623 = constant() : () -> "boolean" ()
-                    {constant:value = "[type=boolean, value=true]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %624 = row(%621, %622, %623) : ("decimal(38,2)", "varchar", "boolean") -> "row(decimal(38,2),varchar,boolean)" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %625 = return(%624) : ("row(decimal(38,2),varchar,boolean)") -> "row(decimal(38,2),varchar,boolean)" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            })
-            {ir.has_side_effects = "false"}
-        %626 = aggregation(%619) : ("multiset(row(decimal(38,2),varchar,boolean))") -> "multiset(row(varchar,varbinary))" ({
-            ^aggregates (%627 : "multiset(row(decimal(38,2),varchar,boolean))")
-                %628 = aggregate_call(%627) : ("multiset(row(decimal(38,2),varchar,boolean))") -> "varbinary" ({
-                    ^arguments (%629 : "row(decimal(38,2),varchar,boolean)")
-                        %630 = field_reference(%629) : ("row(decimal(38,2),varchar,boolean)") -> "decimal(38,2)" ()
-                            {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %631 = row(%630) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
+        %619 = aggregation(%613) : ("multiset(row(varchar,decimal(38,2)))") -> "multiset(row(varchar,varbinary))" ({
+            ^aggregates (%620 : "multiset(row(varchar,decimal(38,2)))")
+                %621 = aggregate_call(%620) : ("multiset(row(varchar,decimal(38,2)))") -> "varbinary" ({
+                    ^arguments (%622 : "row(varchar,decimal(38,2))")
+                        %623 = field_reference(%622) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
+                            {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                        %624 = row(%623) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %632 = return(%631) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
+                        %625 = return(%624) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%633 : "row(decimal(38,2),varchar,boolean)")
-                        %634 = constant() : () -> "empty row" ()
+                    ^filterSelector (%626 : "row(varchar,decimal(38,2))")
+                        %627 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %635 = return(%634) : ("empty row") -> "empty row" ()
+                        %628 = return(%627) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%636 : "row(decimal(38,2),varchar,boolean)")
-                        %637 = field_reference(%636) : ("row(decimal(38,2),varchar,boolean)") -> "boolean" ()
-                            {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %638 = row(%637) : ("boolean") -> "row(boolean)" ()
-                            {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %639 = return(%638) : ("row(boolean)") -> "row(boolean)" ()
-                            {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-                    }, {
-                    ^orderingSelector (%640 : "row(decimal(38,2),varchar,boolean)")
-                        %641 = constant() : () -> "empty row" ()
+                    ^maskSelector (%629 : "row(varchar,decimal(38,2))")
+                        %630 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %642 = return(%641) : ("empty row") -> "empty row" ()
+                        %631 = return(%630) : ("empty row") -> "empty row" ()
+                            {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
+                    }, {
+                    ^orderingSelector (%632 : "row(varchar,decimal(38,2))")
+                        %633 = constant() : () -> "empty row" ()
+                            {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                        %634 = return(%633) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
                     {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(38,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(38,2)"":""decimal(38,2)""},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %643 = row(%628) : ("varbinary") -> "row(varbinary)" ()
+                %635 = row(%621) : ("varbinary") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %644 = return(%643) : ("row(varbinary)") -> "row(varbinary)" ()
+                %636 = return(%635) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%645 : "row(decimal(38,2),varchar,boolean)")
-                %646 = field_reference(%645) : ("row(decimal(38,2),varchar,boolean)") -> "varchar" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %647 = row(%646) : ("varchar") -> "row(varchar)" ()
+            ^groupingKeysSelector (%637 : "row(varchar,decimal(38,2))")
+                %638 = field_reference(%637) : ("row(varchar,decimal(38,2))") -> "varchar" ()
+                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %639 = row(%638) : ("varchar") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %648 = return(%647) : ("row(varchar)") -> "row(varchar)" ()
+                %640 = return(%639) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[]", aggregation:pre_grouped_indexes = "[]", aggregation:step = "PARTIAL", aggregation:input_reducing = "true", ir.has_side_effects = "false"}
-        %649 = exchange(%626) : ("multiset(row(varchar,varbinary))") -> "multiset(row(varchar,varbinary))" ({
-            ^inputSelector (%650 : "row(varchar,varbinary)")
-                %651 = field_reference(%650) : ("row(varchar,varbinary)") -> "varchar" ()
+        %641 = exchange(%619) : ("multiset(row(varchar,varbinary))") -> "multiset(row(varchar,varbinary))" ({
+            ^inputSelector (%642 : "row(varchar,varbinary)")
+                %643 = field_reference(%642) : ("row(varchar,varbinary)") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %652 = field_reference(%650) : ("row(varchar,varbinary)") -> "varbinary" ()
+                %644 = field_reference(%642) : ("row(varchar,varbinary)") -> "varbinary" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %653 = row(%651, %652) : ("varchar", "varbinary") -> "row(varchar,varbinary)" ()
+                %645 = row(%643, %644) : ("varchar", "varbinary") -> "row(varchar,varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %654 = return(%653) : ("row(varchar,varbinary)") -> "row(varchar,varbinary)" ()
+                %646 = return(%645) : ("row(varchar,varbinary)") -> "row(varchar,varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%655 : "row(varchar,varbinary)")
-                %656 = field_reference(%655) : ("row(varchar,varbinary)") -> "varchar" ()
+            ^boundArguments (%647 : "row(varchar,varbinary)")
+                %648 = field_reference(%647) : ("row(varchar,varbinary)") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %657 = row(%656) : ("varchar") -> "row(varchar)" ()
+                %649 = row(%648) : ("varchar") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %658 = return(%657) : ("row(varchar)") -> "row(varchar)" ()
+                %650 = return(%649) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%659 : "row(varchar,varbinary)")
-                %660 = constant() : () -> "empty row" ()
+            ^orderingSelector (%651 : "row(varchar,varbinary)")
+                %652 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %661 = return(%660) : ("empty row") -> "empty row" ()
+                %653 = return(%652) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %662 = exchange(%649) : ("multiset(row(varchar,varbinary))") -> "multiset(row(varchar,varbinary))" ({
-            ^inputSelector (%663 : "row(varchar,varbinary)")
-                %664 = field_reference(%663) : ("row(varchar,varbinary)") -> "varchar" ()
+        %654 = exchange(%641) : ("multiset(row(varchar,varbinary))") -> "multiset(row(varchar,varbinary))" ({
+            ^inputSelector (%655 : "row(varchar,varbinary)")
+                %656 = field_reference(%655) : ("row(varchar,varbinary)") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %665 = field_reference(%663) : ("row(varchar,varbinary)") -> "varbinary" ()
+                %657 = field_reference(%655) : ("row(varchar,varbinary)") -> "varbinary" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %666 = row(%664, %665) : ("varchar", "varbinary") -> "row(varchar,varbinary)" ()
+                %658 = row(%656, %657) : ("varchar", "varbinary") -> "row(varchar,varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %667 = return(%666) : ("row(varchar,varbinary)") -> "row(varchar,varbinary)" ()
+                %659 = return(%658) : ("row(varchar,varbinary)") -> "row(varchar,varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%668 : "row(varchar,varbinary)")
-                %669 = constant() : () -> "empty row" ()
+            ^boundArguments (%660 : "row(varchar,varbinary)")
+                %661 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %670 = return(%669) : ("empty row") -> "empty row" ()
+                %662 = return(%661) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%671 : "row(varchar,varbinary)")
-                %672 = constant() : () -> "empty row" ()
+            ^orderingSelector (%663 : "row(varchar,varbinary)")
+                %664 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %673 = return(%672) : ("empty row") -> "empty row" ()
+                %665 = return(%664) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %674 = aggregation(%662) : ("multiset(row(varchar,varbinary))") -> "multiset(row(varchar,decimal(38,2)))" ({
-            ^aggregates (%675 : "multiset(row(varchar,varbinary))")
-                %676 = aggregate_call(%675) : ("multiset(row(varchar,varbinary))") -> "decimal(38,2)" ({
-                    ^arguments (%677 : "row(varchar,varbinary)")
-                        %678 = field_reference(%677) : ("row(varchar,varbinary)") -> "varbinary" ()
+        %666 = aggregation(%654) : ("multiset(row(varchar,varbinary))") -> "multiset(row(varchar,decimal(38,2)))" ({
+            ^aggregates (%667 : "multiset(row(varchar,varbinary))")
+                %668 = aggregate_call(%667) : ("multiset(row(varchar,varbinary))") -> "decimal(38,2)" ({
+                    ^arguments (%669 : "row(varchar,varbinary)")
+                        %670 = field_reference(%669) : ("row(varchar,varbinary)") -> "varbinary" ()
                             {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %679 = row(%678) : ("varbinary") -> "row(varbinary)" ()
+                        %671 = row(%670) : ("varbinary") -> "row(varbinary)" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %680 = return(%679) : ("row(varbinary)") -> "row(varbinary)" ()
+                        %672 = return(%671) : ("row(varbinary)") -> "row(varbinary)" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%681 : "row(varchar,varbinary)")
-                        %682 = constant() : () -> "empty row" ()
+                    ^filterSelector (%673 : "row(varchar,varbinary)")
+                        %674 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %683 = return(%682) : ("empty row") -> "empty row" ()
+                        %675 = return(%674) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%684 : "row(varchar,varbinary)")
-                        %685 = constant() : () -> "empty row" ()
+                    ^maskSelector (%676 : "row(varchar,varbinary)")
+                        %677 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %686 = return(%685) : ("empty row") -> "empty row" ()
+                        %678 = return(%677) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%687 : "row(varchar,varbinary)")
-                        %688 = constant() : () -> "empty row" ()
+                    ^orderingSelector (%679 : "row(varchar,varbinary)")
+                        %680 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %689 = return(%688) : ("empty row") -> "empty row" ()
+                        %681 = return(%680) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
                     {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(38,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(38,2)"":""decimal(38,2)""},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %690 = row(%676) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
+                %682 = row(%668) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %691 = return(%690) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
+                %683 = return(%682) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%692 : "row(varchar,varbinary)")
-                %693 = field_reference(%692) : ("row(varchar,varbinary)") -> "varchar" ()
+            ^groupingKeysSelector (%684 : "row(varchar,varbinary)")
+                %685 = field_reference(%684) : ("row(varchar,varbinary)") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %694 = row(%693) : ("varchar") -> "row(varchar)" ()
+                %686 = row(%685) : ("varchar") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %695 = return(%694) : ("row(varchar)") -> "row(varchar)" ()
+                %687 = return(%686) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[]", aggregation:pre_grouped_indexes = "[]", aggregation:step = "FINAL", aggregation:input_reducing = "false", ir.has_side_effects = "false"}
-        %696 = exchange(%674) : ("multiset(row(varchar,decimal(38,2)))") -> "multiset(row(varchar,decimal(38,2)))" ({
-            ^inputSelector (%697 : "row(varchar,decimal(38,2))")
-                %698 = field_reference(%697) : ("row(varchar,decimal(38,2))") -> "varchar" ()
+        %688 = exchange(%666) : ("multiset(row(varchar,decimal(38,2)))") -> "multiset(row(varchar,decimal(38,2)))" ({
+            ^inputSelector (%689 : "row(varchar,decimal(38,2))")
+                %690 = field_reference(%689) : ("row(varchar,decimal(38,2))") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %699 = field_reference(%697) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
+                %691 = field_reference(%689) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %700 = row(%698, %699) : ("varchar", "decimal(38,2)") -> "row(varchar,decimal(38,2))" ()
+                %692 = row(%690, %691) : ("varchar", "decimal(38,2)") -> "row(varchar,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %701 = return(%700) : ("row(varchar,decimal(38,2))") -> "row(varchar,decimal(38,2))" ()
+                %693 = return(%692) : ("row(varchar,decimal(38,2))") -> "row(varchar,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%702 : "row(varchar,decimal(38,2))")
-                %703 = constant() : () -> "empty row" ()
+            ^boundArguments (%694 : "row(varchar,decimal(38,2))")
+                %695 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %704 = return(%703) : ("empty row") -> "empty row" ()
+                %696 = return(%695) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%705 : "row(varchar,decimal(38,2))")
-                %706 = constant() : () -> "empty row" ()
+            ^orderingSelector (%697 : "row(varchar,decimal(38,2))")
+                %698 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %707 = return(%706) : ("empty row") -> "empty row" ()
+                %699 = return(%698) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %708 = project(%696) : ("multiset(row(varchar,decimal(38,2)))") -> "multiset(row(varchar,decimal(38,3)))" ({
-            ^assignments (%709 : "row(varchar,decimal(38,2))")
-                %710 = field_reference(%709) : ("row(varchar,decimal(38,2))") -> "varchar" ()
+        %700 = project(%688) : ("multiset(row(varchar,decimal(38,2)))") -> "multiset(row(varchar,decimal(38,3)))" ({
+            ^assignments (%701 : "row(varchar,decimal(38,2))")
+                %702 = field_reference(%701) : ("row(varchar,decimal(38,2))") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %711 = field_reference(%709) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
+                %703 = field_reference(%701) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %712 = constant() : () -> "decimal(2,1)" ()
+                %704 = constant() : () -> "decimal(2,1)" ()
                     {constant:value = "[type=decimal(2,1), value=1.2]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %713 = call(%711, %712) : ("decimal(38,2)", "decimal(2,1)") -> "decimal(38,3)" ()
+                %705 = call(%703, %704) : ("decimal(38,2)", "decimal(2,1)") -> "decimal(38,3)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,3)"",""argumentTypes"":[""decimal(38,2)"",""decimal(2,1)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %714 = row(%710, %713) : ("varchar", "decimal(38,3)") -> "row(varchar,decimal(38,3))" ()
+                %706 = row(%702, %705) : ("varchar", "decimal(38,3)") -> "row(varchar,decimal(38,3))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %715 = return(%714) : ("row(varchar,decimal(38,3))") -> "row(varchar,decimal(38,3))" ()
+                %707 = return(%706) : ("row(varchar,decimal(38,3))") -> "row(varchar,decimal(38,3))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
-        %716 = exchange(%708) : ("multiset(row(varchar,decimal(38,3)))") -> "multiset(row(varchar,decimal(38,3)))" ({
-            ^inputSelector (%717 : "row(varchar,decimal(38,3))")
-                %718 = field_reference(%717) : ("row(varchar,decimal(38,3))") -> "varchar" ()
+        %708 = exchange(%700) : ("multiset(row(varchar,decimal(38,3)))") -> "multiset(row(varchar,decimal(38,3)))" ({
+            ^inputSelector (%709 : "row(varchar,decimal(38,3))")
+                %710 = field_reference(%709) : ("row(varchar,decimal(38,3))") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %719 = field_reference(%717) : ("row(varchar,decimal(38,3))") -> "decimal(38,3)" ()
+                %711 = field_reference(%709) : ("row(varchar,decimal(38,3))") -> "decimal(38,3)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %720 = row(%718, %719) : ("varchar", "decimal(38,3)") -> "row(varchar,decimal(38,3))" ()
+                %712 = row(%710, %711) : ("varchar", "decimal(38,3)") -> "row(varchar,decimal(38,3))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %721 = return(%720) : ("row(varchar,decimal(38,3))") -> "row(varchar,decimal(38,3))" ()
+                %713 = return(%712) : ("row(varchar,decimal(38,3))") -> "row(varchar,decimal(38,3))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%722 : "row(varchar,decimal(38,3))")
-                %723 = constant() : () -> "empty row" ()
+            ^boundArguments (%714 : "row(varchar,decimal(38,3))")
+                %715 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %724 = return(%723) : ("empty row") -> "empty row" ()
+                %716 = return(%715) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%725 : "row(varchar,decimal(38,3))")
-                %726 = constant() : () -> "empty row" ()
+            ^orderingSelector (%717 : "row(varchar,decimal(38,3))")
+                %718 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %727 = return(%726) : ("empty row") -> "empty row" ()
+                %719 = return(%718) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %728 = join(%359, %716) : ("multiset(row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))", "multiset(row(varchar,decimal(38,3)))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^leftCriteriaSelector (%729 : "row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %730 = field_reference(%729) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+        %720 = join(%359, %708) : ("multiset(row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))", "multiset(row(varchar,decimal(38,3)))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^leftCriteriaSelector (%721 : "row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %722 = field_reference(%721) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %731 = row(%730) : ("varchar") -> "row(varchar)" ()
+                %723 = row(%722) : ("varchar") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %732 = return(%731) : ("row(varchar)") -> "row(varchar)" ()
+                %724 = return(%723) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^rightCriteriaSelector (%733 : "row(varchar,decimal(38,3))")
-                %734 = field_reference(%733) : ("row(varchar,decimal(38,3))") -> "varchar" ()
+            ^rightCriteriaSelector (%725 : "row(varchar,decimal(38,3))")
+                %726 = field_reference(%725) : ("row(varchar,decimal(38,3))") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %735 = row(%734) : ("varchar") -> "row(varchar)" ()
+                %727 = row(%726) : ("varchar") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %736 = return(%735) : ("row(varchar)") -> "row(varchar)" ()
+                %728 = return(%727) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^filter (%737 : "row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)", %738 : "row(varchar,decimal(38,3))")
-                %739 = field_reference(%737) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+            ^filter (%729 : "row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)", %730 : "row(varchar,decimal(38,3))")
+                %731 = field_reference(%729) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %740 = cast(%739) : ("decimal(38,2)") -> "decimal(38,3)" ()
+                %732 = cast(%731) : ("decimal(38,2)") -> "decimal(38,3)" ()
                     {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %741 = field_reference(%738) : ("row(varchar,decimal(38,3))") -> "decimal(38,3)" ()
+                %733 = field_reference(%730) : ("row(varchar,decimal(38,3))") -> "decimal(38,3)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %742 = comparison(%740, %741) : ("decimal(38,3)", "decimal(38,3)") -> "boolean" ()
+                %734 = comparison(%732, %733) : ("decimal(38,3)", "decimal(38,3)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %743 = return(%742) : ("boolean") -> "boolean" ()
+                %735 = return(%734) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^leftOutputSelector (%744 : "row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %745 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+            ^leftOutputSelector (%736 : "row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %737 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %746 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %738 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %747 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %739 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %748 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %740 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %749 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %741 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %750 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %742 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %751 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %743 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %752 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %744 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %753 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %745 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %754 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %746 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %755 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %747 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %756 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %748 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %757 = field_reference(%744) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %749 = field_reference(%736) : ("row(varchar,decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "13", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %758 = row(%745, %746, %747, %748, %749, %750, %751, %752, %753, %754, %755, %756, %757) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %750 = row(%737, %738, %739, %740, %741, %742, %743, %744, %745, %746, %747, %748, %749) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %759 = return(%758) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %751 = return(%750) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^rightOutputSelector (%760 : "row(varchar,decimal(38,3))")
-                %761 = constant() : () -> "empty row" ()
+            ^rightOutputSelector (%752 : "row(varchar,decimal(38,3))")
+                %753 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %762 = return(%761) : ("empty row") -> "empty row" ()
+                %754 = return(%753) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^dynamicFilterTargetSelector (%763 : "row(varchar,decimal(38,3))")
-                %764 = field_reference(%763) : ("row(varchar,decimal(38,3))") -> "varchar" ()
+            ^dynamicFilterTargetSelector (%755 : "row(varchar,decimal(38,3))")
+                %756 = field_reference(%755) : ("row(varchar,decimal(38,3))") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2422 = row(%764) : ("varchar") -> "row(varchar)" ()
-                %2423 = return(%2422) : ("row(varchar)") -> "row(varchar)" ()
+                %2414 = row(%756) : ("varchar") -> "row(varchar)" ()
+                %2415 = return(%2414) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_2357""]", join:statistics_and_cost_summary = "{""outputRowCount"":463547.8268867531,""outputSizeInBytes"":7.398433395067072E7,""cpuCost"":2.5723147813667503E10,""memoryCost"":9.579593584992623E8,""networkCost"":6.982366246855494E9}"}
-        %767 = top_n(%728) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^orderingSelector (%768 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %769 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_2322""]", join:statistics_and_cost_summary = "{""outputRowCount"":463547.8268867531,""outputSizeInBytes"":7.398433395067072E7,""cpuCost"":2.537295772541313E10,""memoryCost"":9.579593584992623E8,""networkCost"":6.960512530421612E9}"}
+        %759 = top_n(%720) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^orderingSelector (%760 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %761 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %770 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %762 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %771 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %763 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %772 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %764 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %773 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %765 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %774 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %766 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %775 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %767 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %776 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %768 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %777 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %769 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %778 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %770 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %779 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %771 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %780 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %772 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %781 = field_reference(%768) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+                %773 = field_reference(%760) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %782 = row(%769, %770, %771, %772, %773, %774, %775, %776, %777, %778, %779, %780, %781) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %774 = row(%761, %762, %763, %764, %765, %766, %767, %768, %769, %770, %771, %772, %773) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %783 = return(%782) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %775 = return(%774) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {top_n:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", top_n:limit = "100", top_n:step = "PARTIAL", ir.has_side_effects = "false"}
-        %784 = exchange(%767) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^inputSelector (%785 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %786 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+        %776 = exchange(%759) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^inputSelector (%777 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %778 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %787 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %779 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %788 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %780 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %789 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %781 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %790 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %782 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %791 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %783 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %792 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %784 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %793 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %785 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %794 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %786 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %795 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %787 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %796 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %788 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %797 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %789 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %798 = field_reference(%785) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %790 = field_reference(%777) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %799 = row(%786, %787, %788, %789, %790, %791, %792, %793, %794, %795, %796, %797, %798) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %791 = row(%778, %779, %780, %781, %782, %783, %784, %785, %786, %787, %788, %789, %790) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %800 = return(%799) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %792 = return(%791) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%801 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %802 = constant() : () -> "empty row" ()
+            ^boundArguments (%793 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %794 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %803 = return(%802) : ("empty row") -> "empty row" ()
+                %795 = return(%794) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%804 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %805 = constant() : () -> "empty row" ()
+            ^orderingSelector (%796 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %797 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %806 = return(%805) : ("empty row") -> "empty row" ()
+                %798 = return(%797) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPARTITION", exchange:scope = "LOCAL", exchange:partitioning_handle = "ROUND_ROBIN", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %807 = top_n(%784) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^orderingSelector (%808 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %809 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+        %799 = top_n(%776) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^orderingSelector (%800 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %801 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %810 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %802 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %811 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %803 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %812 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %804 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %813 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %805 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %814 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %806 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %815 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %807 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %816 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %808 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %817 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %809 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %818 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %810 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %819 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %811 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %820 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %812 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %821 = field_reference(%808) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+                %813 = field_reference(%800) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %822 = row(%809, %810, %811, %812, %813, %814, %815, %816, %817, %818, %819, %820, %821) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %814 = row(%801, %802, %803, %804, %805, %806, %807, %808, %809, %810, %811, %812, %813) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %823 = return(%822) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %815 = return(%814) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {top_n:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", top_n:limit = "100", top_n:step = "PARTIAL", ir.has_side_effects = "false"}
-        %824 = exchange(%807) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^inputSelector (%825 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %826 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+        %816 = exchange(%799) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^inputSelector (%817 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %818 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %827 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %819 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %828 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %820 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %829 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %821 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %830 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %822 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %831 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %823 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %832 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %824 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %833 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %825 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %834 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %826 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %835 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %827 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %836 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %828 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %837 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %829 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %838 = field_reference(%825) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %830 = field_reference(%817) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %839 = row(%826, %827, %828, %829, %830, %831, %832, %833, %834, %835, %836, %837, %838) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %831 = row(%818, %819, %820, %821, %822, %823, %824, %825, %826, %827, %828, %829, %830) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %840 = return(%839) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %832 = return(%831) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%841 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %842 = constant() : () -> "empty row" ()
+            ^boundArguments (%833 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %834 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %843 = return(%842) : ("empty row") -> "empty row" ()
+                %835 = return(%834) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%844 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %845 = constant() : () -> "empty row" ()
+            ^orderingSelector (%836 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %837 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %846 = return(%845) : ("empty row") -> "empty row" ()
+                %838 = return(%837) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %847 = top_n(%824) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^orderingSelector (%848 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %849 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+        %839 = top_n(%816) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^orderingSelector (%840 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %841 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %850 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %842 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %851 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %843 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %852 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %844 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %853 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %845 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %854 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %846 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %855 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %847 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %856 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %848 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %857 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %849 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %858 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %850 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %859 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %851 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %860 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %852 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %861 = field_reference(%848) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+                %853 = field_reference(%840) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %862 = row(%849, %850, %851, %852, %853, %854, %855, %856, %857, %858, %859, %860, %861) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %854 = row(%841, %842, %843, %844, %845, %846, %847, %848, %849, %850, %851, %852, %853) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %863 = return(%862) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %855 = return(%854) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {top_n:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", top_n:limit = "100", top_n:step = "PARTIAL", ir.has_side_effects = "false"}
-        %864 = exchange(%847) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^inputSelector (%865 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %866 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+        %856 = exchange(%839) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^inputSelector (%857 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %858 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %867 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %859 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %868 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %860 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %869 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %861 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %870 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %862 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %871 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %863 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %872 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %864 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %873 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %865 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %874 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %866 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %875 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %867 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %876 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %868 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %877 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %869 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %878 = field_reference(%865) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %870 = field_reference(%857) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %879 = row(%866, %867, %868, %869, %870, %871, %872, %873, %874, %875, %876, %877, %878) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %871 = row(%858, %859, %860, %861, %862, %863, %864, %865, %866, %867, %868, %869, %870) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %880 = return(%879) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %872 = return(%871) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%881 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %882 = constant() : () -> "empty row" ()
+            ^boundArguments (%873 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %874 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %883 = return(%882) : ("empty row") -> "empty row" ()
+                %875 = return(%874) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%884 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %885 = constant() : () -> "empty row" ()
+            ^orderingSelector (%876 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %877 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %886 = return(%885) : ("empty row") -> "empty row" ()
+                %878 = return(%877) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %887 = exchange(%864) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^inputSelector (%888 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %889 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+        %879 = exchange(%856) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^inputSelector (%880 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %881 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %890 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %882 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %891 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %883 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %892 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %884 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %893 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %885 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %894 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %886 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %895 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %887 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %896 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %888 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %897 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %889 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %898 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %890 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %899 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %891 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %900 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %892 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %901 = field_reference(%888) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %893 = field_reference(%880) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %902 = row(%889, %890, %891, %892, %893, %894, %895, %896, %897, %898, %899, %900, %901) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %894 = row(%881, %882, %883, %884, %885, %886, %887, %888, %889, %890, %891, %892, %893) : ("decimal(38,2)", "varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %903 = return(%902) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
+                %895 = return(%894) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^boundArguments (%904 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %905 = constant() : () -> "empty row" ()
+            ^boundArguments (%896 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %897 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %906 = return(%905) : ("empty row") -> "empty row" ()
+                %898 = return(%897) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
-            ^orderingSelector (%907 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %908 = constant() : () -> "empty row" ()
+            ^orderingSelector (%899 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %900 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %909 = return(%908) : ("empty row") -> "empty row" ()
+                %901 = return(%900) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %910 = top_n(%887) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
-            ^orderingSelector (%911 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %912 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+        %902 = top_n(%879) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))" ({
+            ^orderingSelector (%903 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %904 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %913 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %905 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %914 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %906 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %915 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %907 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %916 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %908 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %917 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %909 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %918 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %910 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %919 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %911 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %920 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %912 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %921 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %913 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %922 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %914 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %923 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %915 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %924 = field_reference(%911) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+                %916 = field_reference(%903) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %925 = row(%912, %913, %914, %915, %916, %917, %918, %919, %920, %921, %922, %923, %924) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %917 = row(%904, %905, %906, %907, %908, %909, %910, %911, %912, %913, %914, %915, %916) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %926 = return(%925) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %918 = return(%917) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {top_n:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", top_n:limit = "100", top_n:step = "FINAL", ir.has_side_effects = "false"}
-        %927 = output(%910) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "boolean" ({
-            ^outputFieldSelector (%928 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
-                %929 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+        %919 = output(%902) : ("multiset(row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint))") -> "boolean" ({
+            ^outputFieldSelector (%920 : "row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)")
+                %921 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %930 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %922 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %931 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %923 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %932 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %924 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %933 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %925 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %934 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %926 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %935 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %927 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %936 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
+                %928 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "integer" ()
                     {field_reference:index = "8", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %937 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %929 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "9", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %938 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %930 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "10", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %939 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
+                %931 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "varchar" ()
                     {field_reference:index = "11", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %940 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
+                %932 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "bigint" ()
                     {field_reference:index = "12", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %941 = field_reference(%928) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
+                %933 = field_reference(%920) : ("row(decimal(38,2),varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint)") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %942 = row(%929, %930, %931, %932, %933, %934, %935, %936, %937, %938, %939, %940, %941) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %934 = row(%921, %922, %923, %924, %925, %926, %927, %928, %929, %930, %931, %932, %933) : ("varchar", "varchar", "varchar", "varchar", "varchar", "integer", "integer", "integer", "varchar", "varchar", "varchar", "bigint", "decimal(38,2)") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %943 = return(%942) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
+                %935 = return(%934) : ("row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))") -> "row(varchar,varchar,varchar,varchar,varchar,integer,integer,integer,varchar,varchar,varchar,bigint,decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {output:column_names = "[""c_customer_id"",""c_salutation"",""c_first_name"",""c_last_name"",""c_preferred_cust_flag"",""c_birth_day"",""c_birth_month"",""c_birth_year"",""c_birth_country"",""c_login"",""c_email_address"",""c_last_review_date_sk"",""ctr_total_return""]", ir.has_side_effects = "true", ir.terminal = "true"}

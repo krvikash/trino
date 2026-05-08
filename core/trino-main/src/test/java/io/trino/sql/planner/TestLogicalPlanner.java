@@ -1415,16 +1415,15 @@ public class TestLogicalPlanner
                                                 singleGroupingSet("o_custkey"),
                                                 ImmutableMap.of(Optional.of("count"), aggregationFunction("count", ImmutableList.of("o_orderkey"))),
                                                 ImmutableList.of(),
-                                                ImmutableList.of("non_null"),
+                                                ImmutableList.of(),
                                                 Optional.empty(),
                                                 SINGLE,
-                                                project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                        aggregation(
-                                                                singleGroupingSet("o_orderkey", "o_custkey"),
-                                                                ImmutableMap.of(),
-                                                                Optional.empty(),
-                                                                FINAL,
-                                                                anyTree(tableScan("orders", ImmutableMap.of("o_orderkey", "orderkey", "o_custkey", "custkey")))))))))));
+                                                aggregation(
+                                                        singleGroupingSet("o_orderkey", "o_custkey"),
+                                                        ImmutableMap.of(),
+                                                        Optional.empty(),
+                                                        FINAL,
+                                                        anyTree(tableScan("orders", ImmutableMap.of("o_orderkey", "orderkey", "o_custkey", "custkey"))))))))));
     }
 
     @Test

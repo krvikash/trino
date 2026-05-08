@@ -368,7 +368,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -377,11 +377,10 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(filter(TRUE,
-                                                                                values("a", "b")))
-                                                                        .right(values("c", "d")).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(filter(TRUE,
+                                                                        values("a", "b")))
+                                                                .right(values("c", "d")).build()))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
@@ -405,7 +404,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -417,14 +416,13 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                filter(TRUE,
-                                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                                .left(project(
-                                                                                        filter(TRUE,
-                                                                                                values("a", "b"))))
-                                                                                .right(values("c", "d"))
-                                                                                .build()))))))));
+                                                        filter(TRUE,
+                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                        .left(project(
+                                                                                filter(TRUE,
+                                                                                        values("a", "b"))))
+                                                                        .right(values("c", "d"))
+                                                                        .build())))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
@@ -444,7 +442,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -453,11 +451,10 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(values("a", "b"))
-                                                                        .right(filter(TRUE,
-                                                                                values("c", "d"))).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(values("a", "b"))
+                                                                .right(filter(TRUE,
+                                                                        values("c", "d"))).build()))))));
 
         // Test with nested joins
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
@@ -481,7 +478,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -490,14 +487,13 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(filter(TRUE,
-                                                                                join(INNER, nestedJoinBuilder -> nestedJoinBuilder
-                                                                                        .equiCriteria("key_a", "key_b")
-                                                                                        .left(values("a", "key_a"))
-                                                                                        .right(values("b", "key_b")))))
-                                                                        .right(values("c", "d")).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(filter(TRUE,
+                                                                        join(INNER, nestedJoinBuilder -> nestedJoinBuilder
+                                                                                .equiCriteria("key_a", "key_b")
+                                                                                .left(values("a", "key_a"))
+                                                                                .right(values("b", "key_b")))))
+                                                                .right(values("c", "d")).build()))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
@@ -520,7 +516,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -529,14 +525,13 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(filter(TRUE,
-                                                                                join(LEFT, nestedJoinBuilder -> nestedJoinBuilder
-                                                                                        .equiCriteria("key_a", "key_b")
-                                                                                        .left(values("a", "key_a"))
-                                                                                        .right(values("b", "key_b")))))
-                                                                        .right(values("c", "d")).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(filter(TRUE,
+                                                                        join(LEFT, nestedJoinBuilder -> nestedJoinBuilder
+                                                                                .equiCriteria("key_a", "key_b")
+                                                                                .left(values("a", "key_a"))
+                                                                                .right(values("b", "key_b")))))
+                                                                .right(values("c", "d")).build()))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
@@ -559,7 +554,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -568,14 +563,13 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(filter(TRUE,
-                                                                                join(RIGHT, nestedJoinBuilder -> nestedJoinBuilder
-                                                                                        .equiCriteria("key_a", "key_b")
-                                                                                        .left(values("a", "key_a"))
-                                                                                        .right(values("b", "key_b")))))
-                                                                        .right(values("c", "d")).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(filter(TRUE,
+                                                                        join(RIGHT, nestedJoinBuilder -> nestedJoinBuilder
+                                                                                .equiCriteria("key_a", "key_b")
+                                                                                .left(values("a", "key_a"))
+                                                                                .right(values("b", "key_b")))))
+                                                                .right(values("c", "d")).build()))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
@@ -598,7 +592,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -607,14 +601,13 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(filter(TRUE,
-                                                                                join(FULL, nestedJoinBuilder -> nestedJoinBuilder
-                                                                                        .equiCriteria("key_a", "key_b")
-                                                                                        .left(values("a", "key_a"))
-                                                                                        .right(values("b", "key_b")))))
-                                                                        .right(values("c", "d")).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(filter(TRUE,
+                                                                        join(FULL, nestedJoinBuilder -> nestedJoinBuilder
+                                                                                .equiCriteria("key_a", "key_b")
+                                                                                .left(values("a", "key_a"))
+                                                                                .right(values("b", "key_b")))))
+                                                                .right(values("c", "d")).build()))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
@@ -634,7 +627,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         singleGroupingSet("corr", "unique"),
                                         ImmutableMap.of(Optional.of("sum_agg"), aggregationFunction("sum", ImmutableList.of("c"))),
                                         ImmutableList.of(),
-                                        ImmutableList.of("non_null"),
+                                        ImmutableList.of(),
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
@@ -642,12 +635,11 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         assignUniqueId("unique",
                                                                 values("corr")))
                                                 .right(
-                                                        project(ImmutableMap.of("non_null", expression(TRUE)),
-                                                                join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                        .left(join(INNER, subSubQueryJoinBuilder -> subSubQueryJoinBuilder
-                                                                                .left(values("a", "b"))
-                                                                                .right(values("c", "d")).build()))
-                                                                        .right(values("e", "f")).build())))))));
+                                                        join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
+                                                                .left(join(INNER, subSubQueryJoinBuilder -> subSubQueryJoinBuilder
+                                                                        .left(values("a", "b"))
+                                                                        .right(values("c", "d")).build()))
+                                                                .right(values("e", "f")).build()))))));
 
         tester().assertThat(new TransformCorrelatedGlobalAggregationWithoutProjection(tester().getPlannerContext()))
                 .on(p -> p.correlatedJoin(
