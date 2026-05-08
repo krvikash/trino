@@ -169,6 +169,12 @@ public final class Fixed12Block
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return valueIsNull != null && valueIsNull[position + positionOffset];
+    }
+
+    @Override
     public Fixed12Block getSingleValueBlock(int position)
     {
         checkReadablePosition(this, position);

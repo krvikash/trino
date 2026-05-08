@@ -163,6 +163,12 @@ public final class Int128ArrayBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return valueIsNull != null && valueIsNull[position + positionOffset];
+    }
+
+    @Override
     public Int128ArrayBlock getSingleValueBlock(int position)
     {
         checkReadablePosition(this, position);

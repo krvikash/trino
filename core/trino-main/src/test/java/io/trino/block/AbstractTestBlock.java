@@ -81,10 +81,14 @@ public abstract class AbstractTestBlock
                 assertThat(isNull).isPresent();
                 for (int i = 0; i < valueBlock.getPositionCount(); i++) {
                     assertThat(isNull.get().getBoolean(i)).isEqualTo(valueBlock.isNull(i));
+                    assertThat(valueBlock.isNullUnchecked(i)).isEqualTo(valueBlock.isNull(i));
                 }
             }
             else {
                 assertThat(isNull).isEmpty();
+                for (int i = 0; i < valueBlock.getPositionCount(); i++) {
+                    assertThat(valueBlock.isNullUnchecked(i)).isFalse();
+                }
             }
         }
     }

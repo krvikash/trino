@@ -162,7 +162,7 @@ public class CallColumnarFilterGenerator
          *     for (position = offset; position < offset + size; position++) {
          *         // underlyingPosition_N type-dispatched per Block subtype (see setUnderlyingPositions)
          *         ...
-         *         if (!valueBlock_0.isNull(underlyingPosition_0) && !valueBlock_1.isNull(underlyingPosition_1)...) {
+         *         if (!valueBlock_0.isNullUnchecked(underlyingPosition_0) && !valueBlock_1.isNullUnchecked(underlyingPosition_1)...) {
          *             boolean result = call_function(valueBlock_0, underlyingPosition_0, valueBlock_1, underlyingPosition_1, ...);
          *             outputPositions[outputPositionsCount] = position;
          *             outputPositionsCount += result ? 1 : 0;
@@ -239,7 +239,7 @@ public class CallColumnarFilterGenerator
          *         int position = activePositions[index];
          *         // underlyingPosition_N type-dispatched per Block subtype (see setUnderlyingPositions)
          *         ...
-         *         if (!valueBlock_0.isNull(underlyingPosition_0) && !valueBlock_1.isNull(underlyingPosition_1)...) {
+         *         if (!valueBlock_0.isNullUnchecked(underlyingPosition_0) && !valueBlock_1.isNullUnchecked(underlyingPosition_1)...) {
          *             boolean result = call_function(valueBlock_0, underlyingPosition_0, valueBlock_1, underlyingPosition_1, ...);
          *             outputPositions[outputPositionsCount] = position;
          *             outputPositionsCount += result ? 1 : 0;

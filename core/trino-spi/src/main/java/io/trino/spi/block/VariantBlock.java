@@ -368,6 +368,12 @@ public final class VariantBlock
         return isNull[startOffset + position];
     }
 
+    @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return isNull != null && isNull[startOffset + position];
+    }
+
     public record VariantNestedBlocks(Block metadataBlock, Block valueBlock)
     {
         public VariantNestedBlocks

@@ -166,6 +166,12 @@ public final class ByteArrayBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return valueIsNull != null && valueIsNull[position + arrayOffset];
+    }
+
+    @Override
     public ByteArrayBlock getSingleValueBlock(int position)
     {
         checkReadablePosition(this, position);

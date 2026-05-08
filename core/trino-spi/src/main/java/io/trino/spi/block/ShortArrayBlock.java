@@ -148,6 +148,12 @@ public final class ShortArrayBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return valueIsNull != null && valueIsNull[position + arrayOffset];
+    }
+
+    @Override
     public ShortArrayBlock getSingleValueBlock(int position)
     {
         checkReadablePosition(this, position);

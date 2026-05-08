@@ -191,6 +191,12 @@ public final class VariableWidthBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return valueIsNull != null && valueIsNull[position + arrayOffset];
+    }
+
+    @Override
     public VariableWidthBlock getSingleValueBlock(int position)
     {
         if (isNull(position)) {

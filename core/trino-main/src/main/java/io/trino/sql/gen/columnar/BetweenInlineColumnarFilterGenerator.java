@@ -146,7 +146,7 @@ public class BetweenInlineColumnarFilterGenerator
         /* if (block_0.mayHaveNull()) {
          *     for (position = offset; position < offset + size; position++) {
          *         // underlyingPosition_0 type-dispatched per Block subtype (see setUnderlyingPositions)
-         *         if (!valueBlock_0.isNull(underlyingPosition_0)) {
+         *         if (!valueBlock_0.isNullUnchecked(underlyingPosition_0)) {
          *             boolean result = less_than_or_equal(constant, valueBlock_0, underlyingPosition_0);
          *             if (result) {
          *                 result = less_than_or_equal(valueBlock_0, underlyingPosition_0, constant);
@@ -220,7 +220,7 @@ public class BetweenInlineColumnarFilterGenerator
          *     for (int index = offset; index < offset + size; index++) {
          *         int position = activePositions[index];
          *         // underlyingPosition_0 type-dispatched per Block subtype (see setUnderlyingPositions)
-         *         if (!valueBlock_0.isNull(underlyingPosition_0)) {
+         *         if (!valueBlock_0.isNullUnchecked(underlyingPosition_0)) {
          *             boolean result = less_than_or_equal(constant, valueBlock_0, underlyingPosition_0);
          *             if (result) {
          *                 result = less_than_or_equal(valueBlock_0, underlyingPosition_0, constant);

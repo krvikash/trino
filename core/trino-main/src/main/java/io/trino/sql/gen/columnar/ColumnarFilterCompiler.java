@@ -382,7 +382,7 @@ public class ColumnarFilterCompiler
                 Variable underlyingPosition = scope.getVariable("underlyingPosition_" + field);
                 isNotNull = BytecodeExpressions.and(
                         isNotNull,
-                        BytecodeExpressions.not(valueBlock.invoke("isNull", boolean.class, underlyingPosition)));
+                        BytecodeExpressions.not(valueBlock.invoke("isNullUnchecked", boolean.class, underlyingPosition)));
             }
         }
         return isNotNull;

@@ -148,6 +148,12 @@ public final class LongArrayBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return valueIsNull != null && valueIsNull[position + arrayOffset];
+    }
+
+    @Override
     public LongArrayBlock getSingleValueBlock(int position)
     {
         checkReadablePosition(this, position);

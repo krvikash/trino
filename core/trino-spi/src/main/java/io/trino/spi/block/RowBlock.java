@@ -380,6 +380,12 @@ public final class RowBlock
         return rowIsNull[startOffset + position];
     }
 
+    @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return rowIsNull != null && rowIsNull[startOffset + position];
+    }
+
     /**
      * Returns the row fields from the specified block. The block maybe a RunLengthEncodedBlock, or
      * DictionaryBlock, but the underlying block must be a RowBlock. The returned field blocks will be the same

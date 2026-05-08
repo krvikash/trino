@@ -134,6 +134,12 @@ public final class BooleanArrayBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return false;
+    }
+
+    @Override
     public BooleanArrayBlock getSingleValueBlock(int position)
     {
         checkReadablePosition(this, position);

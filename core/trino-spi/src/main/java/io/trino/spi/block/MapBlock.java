@@ -538,6 +538,12 @@ public final class MapBlock
     }
 
     @Override
+    public boolean isNullUnchecked(int position)
+    {
+        return mapIsNull != null && mapIsNull[position + startOffset];
+    }
+
+    @Override
     public MapBlock getUnderlyingValueBlock()
     {
         return this;
