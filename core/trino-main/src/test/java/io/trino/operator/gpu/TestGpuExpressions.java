@@ -543,6 +543,9 @@ public class TestGpuExpressions
         assertThat(gpuEnabledOperators)
                 .contains(
                         "bigint + bigint",
+                        "decimal(3,0) * decimal(3,0)",
+                        "decimal(13,0) * decimal(13,0)",
+                        "decimal(13,0) * decimal(13,2)",
                         "CAST bigint AS integer",
                         "CAST double AS bigint",
                         "CAST real AS tinyint",
@@ -633,6 +636,37 @@ public class TestGpuExpressions
         testArithmetic(OperatorType.MULTIPLY, nullsProvider);
         testArithmetic(OperatorType.DIVIDE, nullsProvider);
         testArithmetic(OperatorType.MODULUS, nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testShortDecimalMultiply(NullsProvider nullsProvider)
+    {
+        testShortDecimalMultiply(createDecimalType(5, 2), createDecimalType(5, 2), nullsProvider);
+        testShortDecimalMultiply(createDecimalType(3, 0), createDecimalType(4, 0), nullsProvider);
+        testShortDecimalMultiply(createDecimalType(8, 4), createDecimalType(9, 5), nullsProvider);
+        testShortDecimalMultiply(createDecimalType(1, 0), createDecimalType(13, 2), nullsProvider);
+        // result overflows into DECIMAL128 (p1 + p2 > 18)
+        testShortDecimalMultiply(createDecimalType(10, 2), createDecimalType(10, 2), nullsProvider);
+        testShortDecimalMultiply(createDecimalType(13, 0), createDecimalType(13, 0), nullsProvider);
+        testShortDecimalMultiply(createDecimalType(18, 0), createDecimalType(18, 0), nullsProvider);
+    }
+
+    private void testShortDecimalMultiply(DecimalType leftType, DecimalType rightType, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(leftType, rightType);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBlock(leftType, positionsCount, nullsProvider),
+                createBlock(rightType, positionsCount, nullsProvider)));
+
+        Expression expression = new Call(
+                functionResolution.resolveOperator(OperatorType.MULTIPLY, List.of(leftType, rightType)),
+                ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
