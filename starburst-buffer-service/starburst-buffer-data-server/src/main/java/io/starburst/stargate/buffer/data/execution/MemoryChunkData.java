@@ -49,7 +49,7 @@ public final class MemoryChunkData
     private final XxHash64 hash = new XxHash64();
     private final Slice headerSlice = Slices.allocate(DATA_PAGE_HEADER_SIZE);
 
-    private int numBytesWritten;
+    private int writtenBytes;
     private int dataSizeInBytes;
     private int numDataPages;
     @GuardedBy("this")
@@ -85,7 +85,7 @@ public final class MemoryChunkData
     @Override
     public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
     {
-        int writableBytes = chunkSizeInBytes - numBytesWritten;
+        int writableBytes = chunkSizeInBytes - writtenBytes;
         int dataSize = data.length();
         int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
         checkArgument(requiredStorageSize <= writableBytes, "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
@@ -94,7 +94,7 @@ public final class MemoryChunkData
             hash.update(data);
         }
         numDataPages++;
-        numBytesWritten += requiredStorageSize;
+        writtenBytes += requiredStorageSize;
         dataSizeInBytes += dataSize;
 
         SliceOutput headerSliceOutput = headerSlice.getOutput();
@@ -110,7 +110,7 @@ public final class MemoryChunkData
     @Override
     public boolean hasEnoughSpace(int requiredStorageSize)
     {
-        int writableBytes = chunkSizeInBytes - numBytesWritten;
+        int writableBytes = chunkSizeInBytes - writtenBytes;
         return requiredStorageSize <= writableBytes;
     }
 
