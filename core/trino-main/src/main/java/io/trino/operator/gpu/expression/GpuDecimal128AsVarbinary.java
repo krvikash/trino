@@ -35,7 +35,7 @@ public class GpuDecimal128AsVarbinary
         implements GpuExpression
 {
     @Override
-    public @Move ColumnVector evaluate(int positionCount, @Borrow List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
     {
         checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
         @Borrow ColumnVector input = inputColumns.getFirst();
