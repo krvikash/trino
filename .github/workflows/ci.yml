@@ -2266,17 +2266,6 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-docker: true
       - uses: ./.github/actions/setup
-      # TODO (https://starburstdata.atlassian.net/browse/ENG-12575) remove this once we have an AMI with GPU drivers pre-installed
-      - name: Install GPU drivers
-        run: |
-          .github/bin/retry sudo apt update
-          .github/bin/retry sudo apt install -y ubuntu-drivers-common
-          .github/bin/retry sudo apt install -y --no-install-recommends \
-            nvidia-headless-no-dkms-595-server \
-            nvidia-utils-595-server \
-            libnvidia-compute-595-server \
-            linux-modules-nvidia-595-server-$(uname -r)
-          sudo modprobe nvidia
       - name: Maven Install
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
