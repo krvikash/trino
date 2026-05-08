@@ -17,10 +17,12 @@ import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.operator.HashArraySizeSupplier;
 import io.trino.operator.IncrementalLoadFactorHashArraySizeSupplier;
+import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -60,11 +62,14 @@ public class JoinHashSupplier
             PagesHashStrategy pagesHashStrategy,
             LongArrayList addresses,
             List<ObjectArrayList<Block>> channels,
+            IntArrayList positionCounts,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
             HashArraySizeSupplier hashArraySizeSupplier,
-            OptionalInt singleBigintJoinChannel)
+            OptionalInt singleBigintJoinChannel,
+            List<Integer> joinChannels,
+            InterpretedHashGenerator hashGenerator)
     {
         this.session = requireNonNull(session, "session is null");
         this.addresses = requireNonNull(addresses, "addresses is null");
@@ -90,7 +95,7 @@ public class JoinHashSupplier
 
         this.pagesHash = switch (getPagesHashType(addresses, singleBigintJoinChannel)) {
             case BIGINT -> new BigintPagesHash(addresses, pagesHashStrategy, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.getAsInt());
-            case DEFAULT -> new DefaultPagesHash(addresses, pagesHashStrategy, positionLinksFactoryBuilder, hashArraySizeSupplier);
+            case DEFAULT -> new DefaultPagesHash(addresses, pagesHashStrategy, channels, positionCounts, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
         };
         this.positionLinks = positionLinksFactoryBuilder.isEmpty() ? Optional.empty() : Optional.of(positionLinksFactoryBuilder.build());
     }

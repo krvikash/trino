@@ -530,6 +530,155 @@ public class TestHashJoinOperator
     }
 
     @Test
+    public void testInnerJoinWithVarcharNullBuild()
+    {
+        testInnerJoinWithVarcharNullBuild(false);
+        testInnerJoinWithVarcharNullBuild(true);
+    }
+
+    private void testInnerJoinWithVarcharNullBuild(boolean parallelBuild)
+    {
+        TaskContext taskContext = createTaskContext();
+
+        // Single VARCHAR hash channel routes through DefaultPagesHash (not BigintPagesHash).
+        // Multiple pages exercise the per-page offset accumulation in the constructor.
+        List<Type> buildTypes = ImmutableList.of(VARCHAR);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
+                .row("a")
+                .row((String) null)
+                .pageBreak()
+                .row("b")
+                .row((String) null)
+                .row("a")
+                .pageBreak()
+                .row("c");
+        BuildSideSetup buildSideSetup = setupBuildSide(partitionFunctionProvider, parallelBuild, taskContext, buildPages, Optional.empty());
+        JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
+
+        List<Type> probeTypes = ImmutableList.of(VARCHAR);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
+        List<Page> probeInput = probePages
+                .row("a")
+                .row("b")
+                .row("c")
+                .row("d")
+                .build();
+        OperatorFactory joinOperatorFactory = innerJoinOperatorFactory(lookupSourceFactory, probePages, false);
+
+        instantiateBuildDrivers(buildSideSetup, taskContext);
+        buildLookupSource(executor, buildSideSetup);
+
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
+                .row("a", "a")
+                .row("a", "a")
+                .row("b", "b")
+                .row("c", "c")
+                .build();
+
+        assertOperatorEquals(joinOperatorFactory, taskContext.addPipelineContext(0, true, true, false).addDriverContext(), probeInput, expected, true);
+    }
+
+    @Test
+    public void testInnerJoinWithMultiColumnBuildHash()
+    {
+        testInnerJoinWithMultiColumnBuildHash(false);
+        testInnerJoinWithMultiColumnBuildHash(true);
+    }
+
+    private void testInnerJoinWithMultiColumnBuildHash(boolean parallelBuild)
+    {
+        TaskContext taskContext = createTaskContext();
+
+        // Multi-column hashChannels exercise DefaultPagesHash with joinBlocks.length > 1.
+        // No nulls on the build side: every page hits the all-non-null fast path.
+        List<Type> buildTypes = ImmutableList.of(VARCHAR, BIGINT);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0, 1), buildTypes)
+                .row("a", 1L)
+                .row("b", 2L)
+                .pageBreak()
+                .row("a", 1L)
+                .row("a", 2L)
+                .pageBreak()
+                .row("c", 3L);
+        BuildSideSetup buildSideSetup = setupBuildSide(partitionFunctionProvider, parallelBuild, taskContext, buildPages, Optional.empty());
+        JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
+
+        List<Type> probeTypes = ImmutableList.of(VARCHAR, BIGINT);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0, 1), probeTypes);
+        List<Page> probeInput = probePages
+                .row("a", 1L)
+                .row("b", 1L)
+                .row("c", 3L)
+                .row("a", 2L)
+                .build();
+        OperatorFactory joinOperatorFactory = innerJoinOperatorFactory(lookupSourceFactory, probePages, false);
+
+        instantiateBuildDrivers(buildSideSetup, taskContext);
+        buildLookupSource(executor, buildSideSetup);
+
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
+                .row("a", 1L, "a", 1L)
+                .row("a", 1L, "a", 1L)
+                .row("c", 3L, "c", 3L)
+                .row("a", 2L, "a", 2L)
+                .build();
+
+        assertOperatorEquals(joinOperatorFactory, taskContext.addPipelineContext(0, true, true, false).addDriverContext(), probeInput, expected, true);
+    }
+
+    @Test
+    public void testInnerJoinWithMultiColumnBuildHashAndNullBuild()
+    {
+        testInnerJoinWithMultiColumnBuildHashAndNullBuild(false);
+        testInnerJoinWithMultiColumnBuildHashAndNullBuild(true);
+    }
+
+    private void testInnerJoinWithMultiColumnBuildHashAndNullBuild(boolean parallelBuild)
+    {
+        TaskContext taskContext = createTaskContext();
+
+        // Multi-column hashChannels with nulls in either column exercise DefaultPagesHash with
+        // multiple nullableBlocks and getNonNullPositions returning a non-empty result.
+        List<Type> buildTypes = ImmutableList.of(VARCHAR, BIGINT);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0, 1), buildTypes)
+                .row("a", 1L)
+                .row(null, 1L)
+                .row("a", null)
+                .pageBreak()
+                .row("b", 2L)
+                .row("a", 1L)
+                .pageBreak()
+                .row(null, null)
+                .row("c", 3L);
+        BuildSideSetup buildSideSetup = setupBuildSide(partitionFunctionProvider, parallelBuild, taskContext, buildPages, Optional.empty());
+        JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactory = buildSideSetup.getLookupSourceFactoryManager();
+
+        List<Type> probeTypes = ImmutableList.of(VARCHAR, BIGINT);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0, 1), probeTypes);
+        List<Page> probeInput = probePages
+                .row("a", 1L)
+                .row("a", 2L)
+                .row("b", 2L)
+                .row("c", 3L)
+                .row(null, 1L)
+                .build();
+        OperatorFactory joinOperatorFactory = innerJoinOperatorFactory(lookupSourceFactory, probePages, false);
+
+        instantiateBuildDrivers(buildSideSetup, taskContext);
+        buildLookupSource(executor, buildSideSetup);
+
+        // Build rows with nulls in any hash column do not match probe rows.
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
+                .row("a", 1L, "a", 1L)
+                .row("a", 1L, "a", 1L)
+                .row("b", 2L, "b", 2L)
+                .row("c", 3L, "c", 3L)
+                .build();
+
+        assertOperatorEquals(joinOperatorFactory, taskContext.addPipelineContext(0, true, true, false).addDriverContext(), probeInput, expected, true);
+    }
+
+    @Test
     public void testProbeOuterJoin()
     {
         testProbeOuterJoin(false);

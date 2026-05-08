@@ -201,6 +201,28 @@ class TestInterpretedHashGenerator
     }
 
     @Test
+    void testHashNonNullsBlockArrayMatchesPageOverload()
+    {
+        List<Type> types = ImmutableList.of(BIGINT, BIGINT);
+        InterpretedHashGenerator hashGenerator = InterpretedHashGenerator.createChannelsHashGenerator(
+                types, new int[] {0, 1}, compiler);
+
+        int positionCount = 20;
+        Block[] blocks = createRandomData(types, positionCount, 0.25f);
+
+        int[] positions = getNonNullPositions(blocks, positionCount);
+        long[] pageHashes = new long[positionCount];
+        long[] blockArrayHashes = new long[positionCount];
+
+        hashGenerator.hashNonNulls(new Page(blocks), positions, pageHashes);
+        hashGenerator.hashNonNulls(blocks, positions, blockArrayHashes);
+
+        for (int position : positions) {
+            assertThat(blockArrayHashes[position]).isEqualTo(pageHashes[position]);
+        }
+    }
+
+    @Test
     void testBatchedRawHashesZeroLength()
     {
         List<Type> types = createTestingTypes(typeOperators);
