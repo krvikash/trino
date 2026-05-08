@@ -16,7 +16,6 @@ package io.trino.operator.gpu;
 import ai.rapids.cudf.Table;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -40,7 +39,7 @@ public final class GpuUtils
     /**
      * Closes all non-null columns in the array. Elements may be null if the array was partially populated.
      */
-    public static void closeColumns(@Own Column[] columns)
+    public static void closeColumns(@Move Column[] columns)
     {
         for (Column column : columns) {
             if (column != null) {
