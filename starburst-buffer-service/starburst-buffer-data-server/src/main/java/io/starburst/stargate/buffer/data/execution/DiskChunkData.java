@@ -34,6 +34,7 @@ import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.finalizeChecksum;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.LOCAL_DISK;
 import static java.util.Objects.requireNonNull;
 
 public final class DiskChunkData
@@ -191,10 +192,15 @@ public final class DiskChunkData
     }
 
     @Override
-    public int getReclaimableHeapBytes()
+    public ChunkPlacement chunkPlacement()
     {
-        // Disk-backed chunks hold no heap memory to reclaim
-        return 0;
+        return LOCAL_DISK;
+    }
+
+    @Override
+    public int getReclaimableBytes()
+    {
+        return chunkSizeInBytes;
     }
 
     @Override

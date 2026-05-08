@@ -32,6 +32,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.finalizeChecksum;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.MEMORY;
 import static java.util.Objects.requireNonNull;
 
 public final class MemoryChunkData
@@ -158,7 +159,13 @@ public final class MemoryChunkData
     }
 
     @Override
-    public synchronized int getReclaimableHeapBytes()
+    public ChunkPlacement chunkPlacement()
+    {
+        return MEMORY;
+    }
+
+    @Override
+    public synchronized int getReclaimableBytes()
     {
         return sliceLeases.get().size() * chunkSliceSizeInBytes;
     }
@@ -216,7 +223,8 @@ public final class MemoryChunkData
 
                 Futures.addCallback(
                         currentSliceOutput,
-                        new FutureCallback<>() {
+                        new FutureCallback<>()
+                        {
                             @Override
                             public void onSuccess(SliceOutput sliceOutput)
                             {

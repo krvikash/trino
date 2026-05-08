@@ -690,7 +690,7 @@ public class ChunkManager
             for (Exchange exchange : exchangesSortedBySizeDesc) {
                 for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
                     for (Chunk chunk : partition.getClosedChunks()) {
-                        int reclaimableHeapBytes = chunk.getReclaimableHeapBytes();
+                        int reclaimableHeapBytes = chunk.getReclaimableBytes();
                         if (reclaimableHeapBytes > 0) {
                             chunks.add(chunk);
                         }
@@ -719,7 +719,7 @@ public class ChunkManager
                     for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
                         Optional<Chunk> candidate = partition.closeOpenChunkAndGet();
                         if (candidate.isPresent()) {
-                            nominatedMemory += candidate.get().getReclaimableHeapBytes();
+                            nominatedMemory += candidate.get().getReclaimableBytes();
                         }
                         if (nominatedMemory >= requiredMemory) {
                             break;

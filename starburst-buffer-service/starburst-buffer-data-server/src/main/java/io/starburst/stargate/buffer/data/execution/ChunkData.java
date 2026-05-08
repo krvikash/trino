@@ -15,6 +15,16 @@ import io.airlift.slice.Slice;
 public sealed interface ChunkData
         permits MemoryChunkData, DiskChunkData
 {
+    enum ChunkPlacement
+    {
+        MEMORY,
+        LOCAL_DISK
+    }
+
+    ChunkPlacement chunkPlacement();
+
+    int getReclaimableBytes();
+
     ListenableFuture<Void> write(int taskId, int attemptId, Slice data);
 
     boolean hasEnoughSpace(int requiredStorageSize);
@@ -24,8 +34,6 @@ public sealed interface ChunkData
     boolean isEmpty();
 
     ChunkDataLease get();
-
-    int getReclaimableHeapBytes();
 
     void close();
 

@@ -114,13 +114,13 @@ public class Chunk
         return chunkData != null;
     }
 
-    public synchronized int getReclaimableHeapBytes()
+    public synchronized int getReclaimableBytes()
     {
-        checkState(closed, "getReclaimableHeapBytes() called on an open check");
+        checkState(closed, "getReclaimableBytes() called on an open chunk");
         if (chunkData == null) {
             return 0;
         }
-        return chunkData.getReclaimableHeapBytes();
+        return chunkData.getReclaimableBytes();
     }
 
     public ChunkHandle getHandle()
