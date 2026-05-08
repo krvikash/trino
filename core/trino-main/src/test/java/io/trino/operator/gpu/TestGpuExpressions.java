@@ -280,6 +280,33 @@ public class TestGpuExpressions
     }
 
     @Test
+    public void testRealToIntegerCastPrecision()
+    {
+        // Odd integers in [2^23, 2^24) are exactly representable in float32 but adding 0.5
+        // requires 25 significand bits, exceeding float32's 24. IEEE 754 round-to-nearest-even
+        // rounds the sum up to value+1 (because the last kept bit is 1), producing an off-by-one
+        // after truncation. The GPU must widen to float64 for the rounding arithmetic to match
+        // CPU semantics.
+        int[] values = {
+                (1 << 23) + 1,
+                (1 << 24) - 1,
+                -((1 << 23) + 1),
+                -((1 << 24) - 1),
+        };
+
+        Expression expression = new Cast(field(0, REAL), INTEGER);
+        Map<Symbol, Integer> layout = layoutFor(List.of(REAL));
+        CompiledExpression compiledGpu = gpuCompiler.compileExpression(expression, layout).orElseThrow();
+        PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
+
+        for (int value : values) {
+            long realBits = Float.floatToIntBits((float) value);
+            Page input = new Page(nativeValueToBlock(REAL, realBits));
+            assertGpuMatchesCpuForCast(List.of(input), List.of(REAL), expression, cpuProcessor, compiledGpu);
+        }
+    }
+
+    @Test
     public void testNumericOperatorsCorrectnessSmoke()
     {
         List<Type> testedTypes = List.of(

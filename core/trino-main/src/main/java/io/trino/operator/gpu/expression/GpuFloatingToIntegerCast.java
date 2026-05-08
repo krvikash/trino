@@ -126,14 +126,14 @@ public class GpuFloatingToIntegerCast
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector source = argument.evaluate(positionCount, inputColumns)) {
+        try (@Own ClosingOnce<ColumnVector> source = ClosingOnce.own(argument.evaluate(positionCount, inputColumns))) {
             // Range check: input strictly within (lowerBoundExclusive, upperBoundExclusive).
             // IEEE comparisons against NaN return false, so NaN/±Inf/finite-OOR all end up out of range.
             // Null inputs propagate as null through the comparisons; anyTrue ignores nulls.
             try (@Own Scalar lower = floatingScalar(sourceDType, lowerBoundExclusive);
                     @Own Scalar upper = floatingScalar(sourceDType, upperBoundExclusive);
-                    @Own ClosingOnce<ColumnVector> aboveLower = ClosingOnce.own(source.binaryOp(GREATER, lower, DType.BOOL8));
-                    @Own ClosingOnce<ColumnVector> belowUpper = ClosingOnce.own(source.binaryOp(LESS, upper, DType.BOOL8));
+                    @Own ClosingOnce<ColumnVector> aboveLower = ClosingOnce.own(source.borrow().binaryOp(GREATER, lower, DType.BOOL8));
+                    @Own ClosingOnce<ColumnVector> belowUpper = ClosingOnce.own(source.borrow().binaryOp(LESS, upper, DType.BOOL8));
                     @Own ClosingOnce<ColumnVector> inRange = ClosingOnce.own(aboveLower.borrow().binaryOp(NULL_LOGICAL_AND, belowUpper.borrow(), DType.BOOL8))) {
                 aboveLower.close();
                 belowUpper.close();
@@ -144,18 +144,22 @@ public class GpuFloatingToIntegerCast
                     }
                 }
             }
-            // Round half-away-from-zero, matching Trino's CPU semantics (sign(x) * floor(|x| + 0.5)).
-            // Identity used: trunc(x + sign(x) * 0.5) == round_half_away_from_zero(x).
-            // cuDF's float→int castTo truncates toward zero, so adding signed_half then casting yields the rounded integer.
-            try (@Own Scalar zero = floatingScalar(sourceDType, 0.0);
-                    @Own Scalar halfStepTowardNegativeInfinity = floatingScalar(sourceDType, -0.5);
-                    @Own Scalar halfStepTowardPositiveInfinity = floatingScalar(sourceDType, 0.5);
-                    @Own ClosingOnce<ColumnVector> negativeMask = ClosingOnce.own(source.binaryOp(LESS, zero, DType.BOOL8));
-                    @Own ClosingOnce<ColumnVector> halfStepAwayFromZero = ClosingOnce.own(negativeMask.borrow().ifElse(halfStepTowardNegativeInfinity, halfStepTowardPositiveInfinity));
-                    @Own ColumnVector shifted = source.binaryOp(ADD, halfStepAwayFromZero.borrow(), sourceDType)) {
-                negativeMask.close();
-                halfStepAwayFromZero.close();
-                return shifted.castTo(targetDType);
+            // Round half-away-from-zero: trunc(x + sign(x) * 0.5), matching CPU's MathFunctions.round(double).
+            // The rounding arithmetic is always performed in FLOAT64 to match CPU semantics and to avoid
+            // precision loss for FLOAT32 inputs (e.g. float32 9999999.0f + 0.5f = 10000000.0f).
+            try (@Own ClosingOnce<ColumnVector> wideSource = ClosingOnce.own(source.borrow().castTo(DType.FLOAT64))) {
+                source.close();
+                try (@Own Scalar zero = floatingScalar(DType.FLOAT64, 0.0);
+                        @Own Scalar halfStepTowardNegativeInfinity = floatingScalar(DType.FLOAT64, -0.5);
+                        @Own Scalar halfStepTowardPositiveInfinity = floatingScalar(DType.FLOAT64, 0.5);
+                        @Own ClosingOnce<ColumnVector> negativeMask = ClosingOnce.own(wideSource.borrow().binaryOp(LESS, zero, DType.BOOL8));
+                        @Own ClosingOnce<ColumnVector> halfStepAwayFromZero = ClosingOnce.own(negativeMask.borrow().ifElse(halfStepTowardNegativeInfinity, halfStepTowardPositiveInfinity));
+                        @Own ColumnVector shifted = wideSource.borrow().binaryOp(ADD, halfStepAwayFromZero.borrow(), DType.FLOAT64)) {
+                    wideSource.close();
+                    negativeMask.close();
+                    halfStepAwayFromZero.close();
+                    return shifted.castTo(targetDType);
+                }
             }
         }
     }
