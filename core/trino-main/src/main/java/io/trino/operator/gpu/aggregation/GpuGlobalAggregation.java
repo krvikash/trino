@@ -62,7 +62,7 @@ final class GpuGlobalAggregation
         @Own Column[] outputColumns = new Column[aggregates.size()];
         try {
             for (int i = 0; i < aggregates.size(); i++) {
-                try (@Own Scalar scalar = aggregates.get(i).emptyResult()) {
+                try (Scalar scalar = aggregates.get(i).emptyResult()) {
                     outputColumns[i] = new DeviceMemory(ColumnVector.fromScalar(scalar, 1));
                 }
             }
@@ -88,7 +88,7 @@ final class GpuGlobalAggregation
             for (int i = 0; i < aggregates.size(); i++) {
                 GpuAggregateFunction aggregate = aggregates.get(i);
                 checkState(aggregate.inputChannel().isEmpty(), "Aggregate %s requires input column but none were buffered", aggregate.getClass().getSimpleName());
-                try (@Own Scalar scalar = aggregate.reduce(totalBufferedRowCount)) {
+                try (Scalar scalar = aggregate.reduce(totalBufferedRowCount)) {
                     outputColumns[i] = new DeviceMemory(ColumnVector.fromScalar(scalar, 1));
                 }
             }
@@ -103,7 +103,7 @@ final class GpuGlobalAggregation
     {
         checkState(!inputTables.isEmpty(), "Expected non-empty inputTables");
 
-        try (@Own Table concatenated = concatenateAndClose(inputTables)) {
+        try (Table concatenated = concatenateAndClose(inputTables)) {
             return reduce(concatenated);
         }
     }
@@ -114,7 +114,7 @@ final class GpuGlobalAggregation
         try {
             for (int i = 0; i < aggregates.size(); i++) {
                 GpuAggregateFunction aggregate = aggregates.get(i);
-                try (@Own Scalar scalar = reduce(input, aggregate)) {
+                try (Scalar scalar = reduce(input, aggregate)) {
                     outputColumns[i] = new DeviceMemory(ColumnVector.fromScalar(scalar, 1));
                 }
             }

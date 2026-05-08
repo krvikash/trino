@@ -19,7 +19,6 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -47,8 +46,8 @@ public class GpuBinaryExpression
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
-                @Own ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
+                ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
             return leftResult.binaryOp(operation, rightResult, outputType);
         }
     }

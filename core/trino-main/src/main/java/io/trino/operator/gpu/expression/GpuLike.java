@@ -17,7 +17,6 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,10 +53,10 @@ public class GpuLike
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector searched = this.searched.evaluate(positionCount, inputColumns);
+        try (ColumnVector searched = this.searched.evaluate(positionCount, inputColumns);
                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9846) should these Scalars be reused between calls?
-                @Own Scalar patternScalar = Scalar.fromString(pattern);
-                @Own Scalar escapeScalar = Scalar.fromString(escape)) {
+                Scalar patternScalar = Scalar.fromString(pattern);
+                Scalar escapeScalar = Scalar.fromString(escape)) {
             return searched.like(patternScalar, escapeScalar);
         }
     }

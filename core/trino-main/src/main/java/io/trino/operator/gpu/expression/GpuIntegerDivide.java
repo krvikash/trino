@@ -20,7 +20,6 @@ import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -57,16 +56,16 @@ public class GpuIntegerDivide
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
-                @Own ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
+                ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
             // Trino's CPU evaluator never invokes the divide implementation when an operand is null —
             // it short-circuits to a null result. Masking the divisor-zero detection by
             // "left IS NOT NULL" restores the same shape: a non-null zero divisor only matters when
             // the dividend is also non-null.
-            try (@Own Scalar zero = zero(operandType);
-                    @Own ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
-                    @Own ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
-                    @Own ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
+            try (Scalar zero = zero(operandType);
+                    ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
+                    ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
+                    ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
                 divisorIsZero.close();
                 dividendNotNull.close();
                 if (anyTrue(divByZero)) {
@@ -76,11 +75,11 @@ public class GpuIntegerDivide
             // For two's-complement integers, MIN_VALUE / -1 overflows because -MIN_VALUE is
             // unrepresentable in the same width. Detected via (left == MIN_VALUE) AND (right == -1);
             // nulls in either operand naturally propagate to FALSE under cuDF's null-aware AND.
-            try (@Own Scalar min = integerScalar(operandType, minValue(operandType));
-                    @Own Scalar negOne = integerScalar(operandType, -1);
-                    @Own ClosingOnce<ColumnVector> leftIsMin = ClosingOnce.own(leftResult.equalTo(min));
-                    @Own ClosingOnce<ColumnVector> rightIsNegOne = ClosingOnce.own(rightResult.equalTo(negOne));
-                    @Own ColumnVector bothMatch = leftIsMin.borrow().binaryOp(NULL_LOGICAL_AND, rightIsNegOne.borrow(), DType.BOOL8)) {
+            try (Scalar min = integerScalar(operandType, minValue(operandType));
+                    Scalar negOne = integerScalar(operandType, -1);
+                    ClosingOnce<ColumnVector> leftIsMin = ClosingOnce.own(leftResult.equalTo(min));
+                    ClosingOnce<ColumnVector> rightIsNegOne = ClosingOnce.own(rightResult.equalTo(negOne));
+                    ColumnVector bothMatch = leftIsMin.borrow().binaryOp(NULL_LOGICAL_AND, rightIsNegOne.borrow(), DType.BOOL8)) {
                 leftIsMin.close();
                 rightIsNegOne.close();
                 if (anyTrue(bothMatch)) {

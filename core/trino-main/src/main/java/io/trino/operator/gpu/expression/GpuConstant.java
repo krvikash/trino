@@ -18,7 +18,6 @@ import ai.rapids.cudf.Scalar;
 import io.trino.spi.gpu.GpuTypeConversion.ToScalar;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +40,7 @@ public class GpuConstant
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own Scalar scalar = toScalar.copyToScalar(value)) {
+        try (Scalar scalar = toScalar.copyToScalar(value)) {
             return ColumnVector.fromScalar(scalar, positionCount);
         }
     }

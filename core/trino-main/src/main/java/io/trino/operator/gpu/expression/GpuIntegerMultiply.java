@@ -20,7 +20,6 @@ import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -60,14 +59,14 @@ public class GpuIntegerMultiply
         // product round-trips through the narrow type. For BIGINT widerType is DECIMAL128;
         // cuDF discards the outType for decimal binary ops and picks scale=0+0=0 itself
         // (see BinaryOperable.implicitConversion), which is the DType we want.
-        try (@Own ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                @Own ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
-                @Own ClosingOnce<ColumnVector> wideProduct = ClosingOnce.own(leftResult.borrow().binaryOp(MUL, rightResult.borrow(), widerType))) {
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
+                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+                ClosingOnce<ColumnVector> wideProduct = ClosingOnce.own(leftResult.borrow().binaryOp(MUL, rightResult.borrow(), widerType))) {
             leftResult.close();
             rightResult.close();
-            try (@Own ClosingRef<ColumnVector> narrowed = ClosingRef.own(wideProduct.borrow().castTo(operandType))) {
-                try (@Own ClosingOnce<ColumnVector> roundTripped = ClosingOnce.own(narrowed.borrow().castTo(widerType));
-                        @Own ColumnVector mismatch = wideProduct.borrow().binaryOp(NOT_EQUAL, roundTripped.borrow(), DType.BOOL8)) {
+            try (ClosingRef<ColumnVector> narrowed = ClosingRef.own(wideProduct.borrow().castTo(operandType))) {
+                try (ClosingOnce<ColumnVector> roundTripped = ClosingOnce.own(narrowed.borrow().castTo(widerType));
+                        ColumnVector mismatch = wideProduct.borrow().binaryOp(NOT_EQUAL, roundTripped.borrow(), DType.BOOL8)) {
                     wideProduct.close();
                     roundTripped.close();
                     if (anyTrue(mismatch)) {

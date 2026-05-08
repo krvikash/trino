@@ -18,7 +18,6 @@ import ai.rapids.cudf.DType;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -46,11 +45,11 @@ public class GpuWideningShortDecimalMultiply
         // Widen inputs to DECIMAL128 so the product doesn't overflow DECIMAL64.
         // No overflow detection needed: both inputs have at most 18 digits,
         // so the product needs at most 36 digits, which fits in DECIMAL128 (38 digits).
-        try (@Own ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                @Own ColumnVector leftWide = leftResult.borrow().castTo(DType.create(DECIMAL128, leftResult.borrow().getType().getScale()))) {
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
+                ColumnVector leftWide = leftResult.borrow().castTo(DType.create(DECIMAL128, leftResult.borrow().getType().getScale()))) {
             leftResult.close();
-            try (@Own ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
-                    @Own ColumnVector rightWide = rightResult.borrow().castTo(DType.create(DECIMAL128, rightResult.borrow().getType().getScale()))) {
+            try (ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+                    ColumnVector rightWide = rightResult.borrow().castTo(DType.create(DECIMAL128, rightResult.borrow().getType().getScale()))) {
                 rightResult.close();
                 return leftWide.binaryOp(MUL, rightWide, outputType);
             }

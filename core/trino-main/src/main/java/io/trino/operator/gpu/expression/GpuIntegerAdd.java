@@ -21,7 +21,6 @@ import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -61,18 +60,18 @@ public class GpuIntegerAdd
         // Sign bit of (left ^ result) is set iff left and result differ in sign;
         // ANDing with (right ^ result) and testing < 0 checks that property on the
         // sign bit only, vectorized against the (possibly wrapped) cuDF ADD result.
-        try (@Own ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                @Own ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
-                @Own ClosingRef<ColumnVector> result = ClosingRef.own(leftResult.borrow().binaryOp(ADD, rightResult.borrow(), operandType));
-                @Own ClosingOnce<ColumnVector> leftXor = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
+                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+                ClosingRef<ColumnVector> result = ClosingRef.own(leftResult.borrow().binaryOp(ADD, rightResult.borrow(), operandType));
+                ClosingOnce<ColumnVector> leftXor = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
             leftResult.close();
-            try (@Own ClosingOnce<ColumnVector> rightXor = ClosingOnce.own(rightResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
+            try (ClosingOnce<ColumnVector> rightXor = ClosingOnce.own(rightResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
                 rightResult.close();
-                try (@Own ClosingOnce<ColumnVector> signBits = ClosingOnce.own(leftXor.borrow().binaryOp(BITWISE_AND, rightXor.borrow(), operandType))) {
+                try (ClosingOnce<ColumnVector> signBits = ClosingOnce.own(leftXor.borrow().binaryOp(BITWISE_AND, rightXor.borrow(), operandType))) {
                     leftXor.close();
                     rightXor.close();
-                    try (@Own Scalar zero = zero(operandType);
-                            @Own ColumnVector overflow = signBits.borrow().binaryOp(LESS, zero, DType.BOOL8)) {
+                    try (Scalar zero = zero(operandType);
+                            ColumnVector overflow = signBits.borrow().binaryOp(LESS, zero, DType.BOOL8)) {
                         signBits.close();
                         if (anyTrue(overflow)) {
                             throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, format("%s addition overflow", operandTrinoTypeName));

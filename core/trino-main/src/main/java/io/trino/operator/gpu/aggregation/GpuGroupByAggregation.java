@@ -64,7 +64,7 @@ final class GpuGroupByAggregation
     {
         checkState(!inputTables.isEmpty(), "Expected non-empty inputTables");
 
-        try (@Own Table concatenated = concatenateAndClose(inputTables)) {
+        try (Table concatenated = concatenateAndClose(inputTables)) {
             GroupByAggregationOnColumn[] aggregations = new GroupByAggregationOnColumn[aggregates.size()];
             for (int i = 0; i < aggregates.size(); i++) {
                 GpuAggregateFunction aggregate = aggregates.get(i);
@@ -80,7 +80,7 @@ final class GpuGroupByAggregation
                     GroupByOptions.builder().withIgnoreNullKeys(false).build(),
                     groupByChannels);
 
-            try (@Own Table result = groupBy.aggregate(aggregations)) {
+            try (Table result = groupBy.aggregate(aggregations)) {
                 return convertResultToGpuPage(result);
             }
         }

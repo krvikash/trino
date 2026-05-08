@@ -18,7 +18,6 @@ import ai.rapids.cudf.RegexProgram;
 import ai.rapids.cudf.Scalar;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -45,14 +44,14 @@ public class GpuRegexpReplace
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns)) {
             if (hasBackreferences) {
                 RegexProgram program = new RegexProgram(cudfPattern, EXTRACT);
                 return sourceColumn.stringReplaceWithBackrefs(program, cudfReplacement);
             }
             else {
                 RegexProgram program = new RegexProgram(cudfPattern, NON_CAPTURE);
-                try (@Own Scalar replacementScalar = Scalar.fromString(cudfReplacement)) {
+                try (Scalar replacementScalar = Scalar.fromString(cudfReplacement)) {
                     return sourceColumn.replaceRegex(program, replacementScalar);
                 }
             }

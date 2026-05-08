@@ -18,7 +18,6 @@ import ai.rapids.cudf.DType;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -37,8 +36,8 @@ public class GpuStringLength
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ClosingOnce<ColumnVector> input = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
-                @Own ColumnVector charLengths = input.borrow().getCharLengths()) {
+        try (ClosingOnce<ColumnVector> input = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
+                ColumnVector charLengths = input.borrow().getCharLengths()) {
             input.close();
             // cuDF returns INT32; Trino's length() returns BIGINT.
             return charLengths.castTo(DType.INT64);

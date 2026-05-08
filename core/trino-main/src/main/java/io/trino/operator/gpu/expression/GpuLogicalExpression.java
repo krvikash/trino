@@ -20,7 +20,6 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -55,10 +54,10 @@ public class GpuLogicalExpression
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns))) {
+        try (ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns))) {
             for (int i = 1; i < operands.size(); i++) {
-                try (@Own ColumnVector left = result.take();
-                        @Own ColumnVector right = operands.get(i).evaluate(positionCount, inputColumns)) {
+                try (ColumnVector left = result.take();
+                        ColumnVector right = operands.get(i).evaluate(positionCount, inputColumns)) {
                     result.set(left.binaryOp(operation, right, DType.BOOL8));
                 }
             }

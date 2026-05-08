@@ -16,7 +16,6 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.ColumnVector;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -35,7 +34,7 @@ public class GpuNot
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector result = operand.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector result = operand.evaluate(positionCount, inputColumns)) {
             return result.not();
         }
     }

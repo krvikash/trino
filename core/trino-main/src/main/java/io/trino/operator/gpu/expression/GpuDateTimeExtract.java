@@ -19,7 +19,6 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 import java.util.Map;
@@ -43,8 +42,8 @@ public class GpuDateTimeExtract
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ClosingOnce<ColumnVector> timestamp = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
-                @Own ColumnVector extracted = field.extract(timestamp.borrow())) {
+        try (ClosingOnce<ColumnVector> timestamp = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
+                ColumnVector extracted = field.extract(timestamp.borrow())) {
             timestamp.close();
             return extracted.castTo(field.resultDType());
         }

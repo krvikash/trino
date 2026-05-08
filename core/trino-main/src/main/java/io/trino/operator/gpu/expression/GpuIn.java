@@ -25,7 +25,6 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuTypeConversion.ToColumn;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 
 import java.util.List;
@@ -54,16 +53,16 @@ public class GpuIn
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ClosingOnce<ColumnVector> valueColumn = ClosingOnce.own(value.evaluate(positionCount, inputColumns));
-                @Own ClosingOnce<ColumnVector> inList = ClosingOnce.own(buildInListColumn())) {
-            try (@Own ClosingRef<ColumnVector> result = ClosingRef.own(valueColumn.borrow().contains(inList.borrow()))) {
+        try (ClosingOnce<ColumnVector> valueColumn = ClosingOnce.own(value.evaluate(positionCount, inputColumns));
+                ClosingOnce<ColumnVector> inList = ClosingOnce.own(buildInListColumn())) {
+            try (ClosingRef<ColumnVector> result = ClosingRef.own(valueColumn.borrow().contains(inList.borrow()))) {
                 valueColumn.close();
                 inList.close();
                 if (hasNull) {
                     // if the list contains NULL and no match is found, return NULL instead of FALSE
-                    try (@Own Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
-                            @Own Scalar falseScalar = Scalar.fromBool(false);
-                            @Own ColumnVector isFalse = result.borrow().equalTo(falseScalar)) {
+                    try (Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
+                            Scalar falseScalar = Scalar.fromBool(false);
+                            ColumnVector isFalse = result.borrow().equalTo(falseScalar)) {
                         return isFalse.ifElse(nullScalar, result.borrow());
                     }
                 }

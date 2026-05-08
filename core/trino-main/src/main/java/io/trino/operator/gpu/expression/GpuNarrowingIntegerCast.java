@@ -20,7 +20,6 @@ import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -62,14 +61,14 @@ public class GpuNarrowingIntegerCast
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector source = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector source = argument.evaluate(positionCount, inputColumns)) {
             // Detect OOR directly: (source < min) OR (source > max). Nulls in source propagate to NULL on
             // both comparisons; NULL_LOGICAL_OR yields NULL when both operands are NULL, which anyTrue ignores.
-            try (@Own Scalar lower = integerScalar(sourceDType, minValue(targetDType));
-                    @Own Scalar upper = integerScalar(sourceDType, maxValue(targetDType));
-                    @Own ClosingOnce<ColumnVector> belowLower = ClosingOnce.own(source.binaryOp(LESS, lower, DType.BOOL8));
-                    @Own ClosingOnce<ColumnVector> aboveUpper = ClosingOnce.own(source.binaryOp(GREATER, upper, DType.BOOL8));
-                    @Own ColumnVector outOfRange = belowLower.borrow().binaryOp(NULL_LOGICAL_OR, aboveUpper.borrow(), DType.BOOL8)) {
+            try (Scalar lower = integerScalar(sourceDType, minValue(targetDType));
+                    Scalar upper = integerScalar(sourceDType, maxValue(targetDType));
+                    ClosingOnce<ColumnVector> belowLower = ClosingOnce.own(source.binaryOp(LESS, lower, DType.BOOL8));
+                    ClosingOnce<ColumnVector> aboveUpper = ClosingOnce.own(source.binaryOp(GREATER, upper, DType.BOOL8));
+                    ColumnVector outOfRange = belowLower.borrow().binaryOp(NULL_LOGICAL_OR, aboveUpper.borrow(), DType.BOOL8)) {
                 belowLower.close();
                 aboveUpper.close();
                 if (anyTrue(outOfRange)) {

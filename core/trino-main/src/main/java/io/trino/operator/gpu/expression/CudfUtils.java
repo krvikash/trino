@@ -18,7 +18,6 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 /**
  * Utilities helpful when working with rapids cudf library.
@@ -76,14 +75,14 @@ final class CudfUtils
 
     static boolean anyTrue(@Borrow ColumnVector boolColumn)
     {
-        try (@Own Scalar any = boolColumn.any()) {
+        try (Scalar any = boolColumn.any()) {
             return any.isValid() && any.getBoolean();
         }
     }
 
     static boolean allTrue(@Borrow ColumnVector boolColumn)
     {
-        try (@Own Scalar all = boolColumn.all()) {
+        try (Scalar all = boolColumn.all()) {
             return all.isValid() && all.getBoolean();
         }
     }

@@ -95,8 +95,8 @@ public class GpuFilter
                 .map(DeviceMemory::columnVector)
                 .collect(toImmutableList());
 
-        try (@Own ColumnVector mask = filter.expression().evaluate(input.positionCount(), inputs)) {
-            try (@Own Scalar sum = mask.sum(DType.INT32)) {
+        try (ColumnVector mask = filter.expression().evaluate(input.positionCount(), inputs)) {
+            try (Scalar sum = mask.sum(DType.INT32)) {
                 int retained = sum.isValid() ? sum.getInt() : 0;
                 if (retained == 0) {
                     return Optional.empty();
@@ -120,8 +120,8 @@ public class GpuFilter
                 // This must hold, otherwise we would not be doing GPU evaluation
                 checkState(!columnVectors.isEmpty(), "No column vectors found");
 
-                try (@Own Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
-                        @Own Table filtered = table.filter(mask)) {
+                try (Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
+                        Table filtered = table.filter(mask)) {
                     for (int i = 0; i < columnVectors.size(); i++) {
                         int columnIndex = columnVectorToIndex[i];
                         filteredColumns[columnIndex] = new DeviceMemory(filtered.getColumn(i));

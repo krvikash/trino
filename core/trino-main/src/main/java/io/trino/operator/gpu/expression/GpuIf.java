@@ -20,7 +20,6 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -56,10 +55,10 @@ public class GpuIf
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ClosingOnce<ColumnVector> conditionRaw = ClosingOnce.own(condition.evaluate(positionCount, inputColumns));
-                @Own Scalar falseScalar = Scalar.fromBool(false);
+        try (ClosingOnce<ColumnVector> conditionRaw = ClosingOnce.own(condition.evaluate(positionCount, inputColumns));
+                Scalar falseScalar = Scalar.fromBool(false);
                 // Treat NULL as FALSE so the false branch covers it, matching Trino IF semantics.
-                @Own ClosingOnce<ColumnVector> conditionMask = ClosingOnce.own(conditionRaw.borrow().replaceNulls(falseScalar))) {
+                ClosingOnce<ColumnVector> conditionMask = ClosingOnce.own(conditionRaw.borrow().replaceNulls(falseScalar))) {
             conditionRaw.close();
             // Every row selects the true branch — skip filter+scatter (and the unused negated mask).
             if (allTrue(conditionMask.borrow())) {
@@ -70,15 +69,15 @@ public class GpuIf
             }
             // TODO (https://starburstdata.atlassian.net/browse/ENG-12126) when both branches are infallible, evaluate them eagerly and combine with ifElse instead of filter+scatter.
             // TODO (https://starburstdata.atlassian.net/browse/ENG-12126) when both branches are infallible on all-NULL input, evaluate them with masked inputs instead of filter+scatter.
-            try (@Own Scalar zero = Scalar.fromInt(0);
-                    @Own ColumnVector sequence = ColumnVector.sequence(zero, positionCount);
-                    @Own Table sequenceTable = new Table(sequence)) {
-                try (@Own ColumnVector trueResult = filterAndEvaluate(trueValue, conditionMask.borrow(), inputColumns);
-                        @Own Table trueIndices = sequenceTable.filter(conditionMask.borrow());
-                        @Own ColumnVector notConditionMask = conditionMask.borrow().not()) {
+            try (Scalar zero = Scalar.fromInt(0);
+                    ColumnVector sequence = ColumnVector.sequence(zero, positionCount);
+                    Table sequenceTable = new Table(sequence)) {
+                try (ColumnVector trueResult = filterAndEvaluate(trueValue, conditionMask.borrow(), inputColumns);
+                        Table trueIndices = sequenceTable.filter(conditionMask.borrow());
+                        ColumnVector notConditionMask = conditionMask.borrow().not()) {
                     conditionMask.close();
-                    try (@Own ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns);
-                            @Own Table falseIndices = sequenceTable.filter(notConditionMask)) {
+                    try (ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns);
+                            Table falseIndices = sequenceTable.filter(notConditionMask)) {
                         return scatterCombine(positionCount, trueIndices.getColumn(0), falseIndices.getColumn(0), trueResult, falseResult);
                     }
                 }
@@ -96,8 +95,8 @@ public class GpuIf
         @Borrow ColumnVector[] tableColumns = inputColumns.isEmpty()
                 ? new ColumnVector[] {mask}
                 : inputColumns.toArray(ColumnVector[]::new);
-        try (@Own Table inputTable = new Table(tableColumns);
-                @Own Table filtered = inputTable.filter(mask)) {
+        try (Table inputTable = new Table(tableColumns);
+                Table filtered = inputTable.filter(mask)) {
             int filteredRowCount = (int) filtered.getRowCount();
             ImmutableList.Builder<@Borrow ColumnVector> filteredColumns = ImmutableList.builderWithExpectedSize(inputColumns.size());
             for (int i = 0; i < inputColumns.size(); i++) {
@@ -123,13 +122,13 @@ public class GpuIf
         // `falseResult` rows into the remaining positions (`falseIndices`). Because every original
         // position is in exactly one of the two index lists, the second scatter overwrites every
         // remaining NULL and the final column has no leftover NULLs from the initial target.
-        try (@Own Scalar nullScalar = Scalar.fromNull(trueResult.getType());
-                @Own ColumnVector initialTarget = ColumnVector.fromScalar(nullScalar, positionCount);
-                @Own Table initialTable = new Table(initialTarget);
-                @Own Table trueResultTable = new Table(trueResult);
-                @Own Table partial = trueResultTable.scatter(trueIndices, initialTable);
-                @Own Table falseResultTable = new Table(falseResult);
-                @Own Table finalTable = falseResultTable.scatter(falseIndices, partial)) {
+        try (Scalar nullScalar = Scalar.fromNull(trueResult.getType());
+                ColumnVector initialTarget = ColumnVector.fromScalar(nullScalar, positionCount);
+                Table initialTable = new Table(initialTarget);
+                Table trueResultTable = new Table(trueResult);
+                Table partial = trueResultTable.scatter(trueIndices, initialTable);
+                Table falseResultTable = new Table(falseResult);
+                Table finalTable = falseResultTable.scatter(falseIndices, partial)) {
             return finalTable.getColumn(0).incRefCount();
         }
     }

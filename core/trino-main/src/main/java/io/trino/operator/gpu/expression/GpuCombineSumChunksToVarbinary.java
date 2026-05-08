@@ -20,7 +20,6 @@ import ai.rapids.cudf.Table;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -59,12 +58,12 @@ public class GpuCombineSumChunksToVarbinary
     {
         checkState(inputColumns.size() == 4, "Expected 4 chunk columns, got %s", inputColumns.size());
 
-        try (@Own Table chunks = new Table(
+        try (Table chunks = new Table(
                 inputColumns.get(0),
                 inputColumns.get(1),
                 inputColumns.get(2),
                 inputColumns.get(3));
-                @Own Table assembled = Aggregation128Utils.combineInt64SumChunks(chunks, decimal128Type)) {
+                Table assembled = Aggregation128Utils.combineInt64SumChunks(chunks, decimal128Type)) {
             checkState(assembled.getNumberOfColumns() == 2, "Expected 2-column result, got %s", assembled.getNumberOfColumns());
             if (anyTrue(assembled.getColumn(0))) {
                 throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, "Decimal overflow");
@@ -79,15 +78,15 @@ public class GpuCombineSumChunksToVarbinary
      */
     static @Move ColumnVector decimal128ToBytes(@Borrow ColumnVector decimal128)
     {
-        try (@Own ColumnVector chunk0 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.UINT32, 0);
-                @Own ColumnVector chunk1 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.UINT32, 1);
-                @Own ColumnVector chunk2 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.UINT32, 2);
-                @Own ColumnVector chunk3 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.INT32, 3);
+        try (ColumnVector chunk0 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.UINT32, 0);
+                ColumnVector chunk1 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.UINT32, 1);
+                ColumnVector chunk2 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.UINT32, 2);
+                ColumnVector chunk3 = Aggregation128Utils.extractInt32Chunk(decimal128, DType.INT32, 3);
                 // asByteList(false) keeps native byte order, matching cuDF's DECIMAL128 layout.
-                @Own ColumnVector bytes0 = chunk0.asByteList(false);
-                @Own ColumnVector bytes1 = chunk1.asByteList(false);
-                @Own ColumnVector bytes2 = chunk2.asByteList(false);
-                @Own ColumnVector bytes3 = chunk3.asByteList(false)) {
+                ColumnVector bytes0 = chunk0.asByteList(false);
+                ColumnVector bytes1 = chunk1.asByteList(false);
+                ColumnVector bytes2 = chunk2.asByteList(false);
+                ColumnVector bytes3 = chunk3.asByteList(false)) {
             return ColumnVector.listConcatenateByRow(bytes0, bytes1, bytes2, bytes3);
         }
     }

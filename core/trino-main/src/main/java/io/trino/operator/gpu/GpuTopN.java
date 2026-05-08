@@ -135,8 +135,8 @@ public final class GpuTopN
             return Optional.empty();
         }
 
-        try (@Own Table concatenated = concatenateAndClose(inputTables)) {
-            try (@Own Table sorted = concatenated.orderBy(toOrderByArgs())) {
+        try (Table concatenated = concatenateAndClose(inputTables)) {
+            try (Table sorted = concatenated.orderBy(toOrderByArgs())) {
                 return Optional.of(applyLimit(sorted, limit));
             }
         }

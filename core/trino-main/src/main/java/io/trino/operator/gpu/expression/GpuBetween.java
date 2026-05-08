@@ -18,7 +18,6 @@ import ai.rapids.cudf.DType;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -44,12 +43,12 @@ public class GpuBetween
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ClosingOnce<ColumnVector> valueResult = ClosingOnce.own(value.evaluate(positionCount, inputColumns))) {
-            try (@Own ClosingOnce<ColumnVector> minResult = ClosingOnce.own(min.evaluate(positionCount, inputColumns))) {
-                try (@Own ColumnVector greaterOrEqual = valueResult.borrow().binaryOp(GREATER_EQUAL, minResult.borrow(), DType.BOOL8)) {
+        try (ClosingOnce<ColumnVector> valueResult = ClosingOnce.own(value.evaluate(positionCount, inputColumns))) {
+            try (ClosingOnce<ColumnVector> minResult = ClosingOnce.own(min.evaluate(positionCount, inputColumns))) {
+                try (ColumnVector greaterOrEqual = valueResult.borrow().binaryOp(GREATER_EQUAL, minResult.borrow(), DType.BOOL8)) {
                     minResult.close();
-                    try (@Own ClosingOnce<ColumnVector> maxResult = ClosingOnce.own(max.evaluate(positionCount, inputColumns))) {
-                        try (@Own ColumnVector lessOrEqual = valueResult.borrow().binaryOp(LESS_EQUAL, maxResult.borrow(), DType.BOOL8)) {
+                    try (ClosingOnce<ColumnVector> maxResult = ClosingOnce.own(max.evaluate(positionCount, inputColumns))) {
+                        try (ColumnVector lessOrEqual = valueResult.borrow().binaryOp(LESS_EQUAL, maxResult.borrow(), DType.BOOL8)) {
                             valueResult.close();
                             maxResult.close();
                             return greaterOrEqual.binaryOp(NULL_LOGICAL_AND, lessOrEqual, DType.BOOL8);

@@ -20,7 +20,6 @@ import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -51,14 +50,14 @@ public class GpuIntegerModulo
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
-                @Own ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
+                ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
             // Trino's CPU evaluator short-circuits modulus when an operand is null. Mask the
             // divisor-zero detection by "left IS NOT NULL" so the GPU side matches.
-            try (@Own Scalar zero = zero(operandType);
-                    @Own ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
-                    @Own ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
-                    @Own ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
+            try (Scalar zero = zero(operandType);
+                    ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
+                    ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
+                    ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
                 divisorIsZero.close();
                 dividendNotNull.close();
                 if (anyTrue(divByZero)) {

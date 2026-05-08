@@ -21,7 +21,6 @@ import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
@@ -62,18 +61,18 @@ public class GpuIntegerSubtract
         // (left ^ right) is set iff operands differ in sign; ANDing with (left ^
         // result) and testing < 0 checks that property on the sign bit only,
         // vectorized against the (possibly wrapped) cuDF SUB result.
-        try (@Own ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                @Own ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
-                @Own ClosingRef<ColumnVector> result = ClosingRef.own(leftResult.borrow().binaryOp(SUB, rightResult.borrow(), operandType));
-                @Own ClosingOnce<ColumnVector> signsDiffer = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, rightResult.borrow(), operandType))) {
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
+                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+                ClosingRef<ColumnVector> result = ClosingRef.own(leftResult.borrow().binaryOp(SUB, rightResult.borrow(), operandType));
+                ClosingOnce<ColumnVector> signsDiffer = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, rightResult.borrow(), operandType))) {
             rightResult.close();
-            try (@Own ClosingOnce<ColumnVector> resultSignDiffersFromLeft = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
+            try (ClosingOnce<ColumnVector> resultSignDiffersFromLeft = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
                 leftResult.close();
-                try (@Own ClosingOnce<ColumnVector> signBits = ClosingOnce.own(signsDiffer.borrow().binaryOp(BITWISE_AND, resultSignDiffersFromLeft.borrow(), operandType))) {
+                try (ClosingOnce<ColumnVector> signBits = ClosingOnce.own(signsDiffer.borrow().binaryOp(BITWISE_AND, resultSignDiffersFromLeft.borrow(), operandType))) {
                     signsDiffer.close();
                     resultSignDiffersFromLeft.close();
-                    try (@Own Scalar zero = zero(operandType);
-                            @Own ColumnVector overflow = signBits.borrow().binaryOp(LESS, zero, DType.BOOL8)) {
+                    try (Scalar zero = zero(operandType);
+                            ColumnVector overflow = signBits.borrow().binaryOp(LESS, zero, DType.BOOL8)) {
                         signBits.close();
                         if (anyTrue(overflow)) {
                             throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, format("%s subtraction overflow", operandTrinoTypeName));
