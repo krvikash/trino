@@ -22,7 +22,7 @@ import java.util.Arrays;
 import static io.trino.block.BlockAssertions.createRandomBlockForType;
 import static io.trino.block.BlockAssertions.createRandomDictionaryBlock;
 import static io.trino.block.BlockAssertions.createRandomRleBlock;
-import static io.trino.operator.join.unspilled.JoinProbe.getNonNullPositions;
+import static io.trino.operator.join.NullablePositions.getNonNullPositions;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
 

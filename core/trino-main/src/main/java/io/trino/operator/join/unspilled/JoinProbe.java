@@ -13,20 +13,16 @@
  */
 package io.trino.operator.join.unspilled;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
 import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.join.LookupSource;
+import io.trino.operator.join.NullablePositions;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BooleanArrayBlock;
-import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
-import io.trino.spi.block.ValueBlock;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
 import static java.util.Objects.requireNonNull;
@@ -160,7 +156,7 @@ public class JoinProbe
         }
 
         long[] joinPositionCache = new long[positionCount];
-        int[] positions = getNonNullPositions(nullableBlocks, nullableBlocksCount, positionCount);
+        int[] positions = NullablePositions.getNonNullPositions(nullableBlocks, nullableBlocksCount, positionCount);
         long[] hashes = new long[positionCount];
         if (nullableBlocksCount > 0 && positions.length < positionCount) {
             Arrays.fill(joinPositionCache, -1);
@@ -173,161 +169,6 @@ public class JoinProbe
         lookupSource.getJoinPosition(positions, probePage, page, hashes, joinPositionCache);
 
         return joinPositionCache;
-    }
-
-    @VisibleForTesting
-    static int[] getNonNullPositions(Block[] nullableBlocks, int nullableBlocksCount, int positionCount)
-    {
-        if (nullableBlocksCount == 0) {
-            // no nullable blocks, all positions are non-null
-            int[] positions = new int[positionCount];
-            for (int position = 0; position < positionCount; position++) {
-                positions[position] = position;
-            }
-            return positions;
-        }
-        if (nullableBlocksCount == 1) {
-            // Special case for a single nullable block to avoid the need for explicit `boolean[] isNull`
-            int[] outputPositions = new int[positionCount];
-            int outputPositionsCount = getNonNullPositions(nullableBlocks[0], positionCount, outputPositions);
-            if (outputPositionsCount == positionCount) {
-                return outputPositions;
-            }
-            return Arrays.copyOf(outputPositions, outputPositionsCount);
-        }
-
-        boolean[] isNull = new boolean[positionCount];
-        for (int i = 0; i < nullableBlocksCount - 1; i++) {
-            Block nullableBlock = nullableBlocks[i];
-            getNonNullPositions(nullableBlock, isNull);
-        }
-
-        int[] outputPositions = new int[positionCount];
-        // For the last nullable block, we need to fill outputPositions and count non-null positions
-        int outputPositionsCount = getNonNullPositionsLast(nullableBlocks[nullableBlocksCount - 1], isNull, outputPositions);
-        if (outputPositionsCount == positionCount) {
-            return outputPositions;
-        }
-        return Arrays.copyOf(outputPositions, outputPositionsCount);
-    }
-
-    private static int getNonNullPositions(Block nullableBlock, int positionCount, int[] outputPositions)
-    {
-        switch (nullableBlock) {
-            case RunLengthEncodedBlock rleBlock -> {
-                if (rleBlock.isNull(0)) {
-                    return 0; // all positions are null
-                }
-            }
-            case DictionaryBlock dictionaryBlock -> {
-                ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<BooleanArrayBlock> dictionaryIsNullBlock = dictionary.getNulls();
-                if (dictionaryIsNullBlock.isPresent()) {
-                    int outputPositionCount = 0;
-                    boolean[] dictionaryIsNull = dictionaryIsNullBlock.get().getRawValues();
-                    int isNullOffset = dictionaryIsNullBlock.get().getRawValuesOffset();
-                    for (int position = 0; position < positionCount; position++) {
-                        boolean isNull = dictionaryIsNull[isNullOffset + dictionaryBlock.getId(position)];
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNull ? 0 : 1;
-                    }
-                    return outputPositionCount;
-                }
-            }
-            case ValueBlock valueBlock -> {
-                Optional<BooleanArrayBlock> isNullsBlock = valueBlock.getNulls();
-                if (isNullsBlock.isPresent()) {
-                    int outputPositionCount = 0;
-                    boolean[] isNulls = isNullsBlock.get().getRawValues();
-                    int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-                    for (int position = 0; position < positionCount; position++) {
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNulls[isNullOffset + position] ? 0 : 1;
-                    }
-                    return outputPositionCount;
-                }
-            }
-        }
-        for (int position = 0; position < positionCount; position++) {
-            outputPositions[position] = position;
-        }
-        return positionCount;
-    }
-
-    private static void getNonNullPositions(Block nullableBlock, boolean[] isNull)
-    {
-        switch (nullableBlock) {
-            case RunLengthEncodedBlock rleBlock -> {
-                if (rleBlock.isNull(0)) {
-                    Arrays.fill(isNull, true);
-                }
-            }
-            case DictionaryBlock dictionaryBlock -> {
-                ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<BooleanArrayBlock> dictionaryIsNullBlock = dictionary.getNulls();
-                if (dictionaryIsNullBlock.isPresent()) {
-                    boolean[] dictionaryIsNull = dictionaryIsNullBlock.get().getRawValues();
-                    int isNullOffset = dictionaryIsNullBlock.get().getRawValuesOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= dictionaryIsNull[isNullOffset + dictionaryBlock.getId(position)];
-                    }
-                }
-            }
-            case ValueBlock valueBlock -> {
-                Optional<BooleanArrayBlock> isNullsBlock = valueBlock.getNulls();
-                if (isNullsBlock.isPresent()) {
-                    boolean[] isNulls = isNullsBlock.get().getRawValues();
-                    int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= isNulls[isNullOffset + position];
-                    }
-                }
-            }
-        }
-    }
-
-    private static int getNonNullPositionsLast(Block nullableBlock, boolean[] isNull, int[] outputPositions)
-    {
-        int outputPositionCount = 0;
-        switch (nullableBlock) {
-            case RunLengthEncodedBlock rleBlock -> {
-                if (rleBlock.isNull(0)) {
-                    return 0;
-                }
-            }
-            case DictionaryBlock dictionaryBlock -> {
-                ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<BooleanArrayBlock> dictionaryIsNullBlock = dictionary.getNulls();
-                if (dictionaryIsNullBlock.isPresent()) {
-                    boolean[] dictionaryIsNull = dictionaryIsNullBlock.get().getRawValues();
-                    int isNullOffset = dictionaryIsNullBlock.get().getRawValuesOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= dictionaryIsNull[isNullOffset + dictionaryBlock.getId(position)];
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNull[position] ? 0 : 1;
-                    }
-                    return outputPositionCount;
-                }
-            }
-            case ValueBlock valueBlock -> {
-                Optional<BooleanArrayBlock> isNullsBlock = valueBlock.getNulls();
-                if (isNullsBlock.isPresent()) {
-                    boolean[] isNulls = isNullsBlock.get().getRawValues();
-                    int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= isNulls[isNullOffset + position];
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNull[position] ? 0 : 1;
-                    }
-                    return outputPositionCount;
-                }
-            }
-        }
-        for (int position = 0; position < isNull.length; position++) {
-            outputPositions[outputPositionCount] = position;
-            outputPositionCount += isNull[position] ? 0 : 1;
-        }
-        return outputPositionCount;
     }
 
     private static boolean hasOnlyRleBlocks(Page probePage)
