@@ -15,6 +15,7 @@ package io.trino.tests.benchmark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
@@ -256,6 +257,9 @@ public final class BenchmarkRunner
         @Option(names = {"-q", "--query"}, description = "A specific query number to run (can be repeated)")
         List<Integer> queries = new ArrayList<>();
 
+        @Option(names = {"-s", "--skip-query"}, description = "A query number to skip; recorded as all-zero timings in the CSV (can be repeated)")
+        List<Integer> skipQueries = new ArrayList<>();
+
         @Option(names = {"-p", "--profile"},
                 description = "async-profiler event: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ProfileEvent profileEvent = ProfileEvent.NONE;
@@ -279,6 +283,10 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
+            if (!queries.isEmpty() && !skipQueries.isEmpty()) {
+                throw new IllegalArgumentException("--query and --skip-query are mutually exclusive");
+            }
+
             if (debug) {
                 enableDebugLogging();
             }
@@ -304,12 +312,17 @@ public final class BenchmarkRunner
                 }
                 verifyTableStatistics(runner, workload);
 
+                Set<Integer> skipped = ImmutableSet.copyOf(skipQueries);
                 List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
 
                 List<Integer> suiteQueries = workload.defaultQueries();
                 for (int round = 1; round <= suiteWarmup; round++) {
                     log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
                     for (int queryNumber : suiteQueries) {
+                        if (skipped.contains(queryNumber)) {
+                            log.debug("Suite prewarm %s: skipped (--skip-query)", displayName(queryNumber));
+                            continue;
+                        }
                         log.debug("Starting warmup run of %s", displayName(queryNumber));
                         try {
                             runner.execute(workload.readQuery(queryNumber));
@@ -329,6 +342,11 @@ public final class BenchmarkRunner
                 long totalElapsedMillis = 0;
                 long totalExecutionMillis = 0;
                 for (int queryNumber : queriesRun) {
+                    if (skipped.contains(queryNumber)) {
+                        log.info("%s: skipped (--skip-query)", displayName(queryNumber));
+                        measurementsByQuery.put(queryNumber, List.of());
+                        continue;
+                    }
                     List<Measurement> measurements = benchmarkQuery(runner, queryNumber, session, explainOutputDir);
                     measurementsByQuery.put(queryNumber, measurements);
                     if (!measurements.isEmpty()) {
