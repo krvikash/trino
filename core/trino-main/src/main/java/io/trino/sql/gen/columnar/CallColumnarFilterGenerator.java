@@ -64,6 +64,7 @@ import static io.airlift.bytecode.instruction.Constant.loadLong;
 import static io.airlift.bytecode.instruction.Constant.loadString;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.VALUE_BLOCK_POSITION;
+import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.VALUE_BLOCK_POSITION_NOT_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.DEFAULT_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
@@ -360,10 +361,14 @@ public class CallColumnarFilterGenerator
 
     private static ScalarFunctionImplementation getScalarFunctionImplementation(FunctionManager functionManager, ResolvedFunction resolvedFunction, List<Expression> arguments)
     {
+        FunctionNullability functionNullability = resolvedFunction.functionNullability();
         ImmutableList.Builder<InvocationConvention.InvocationArgumentConvention> builder = ImmutableList.builderWithExpectedSize(arguments.size());
-        for (Expression argumentExpression : arguments) {
+        for (int i = 0; i < arguments.size(); i++) {
+            Expression argumentExpression = arguments.get(i);
             if (argumentExpression instanceof Reference) {
-                builder.add(VALUE_BLOCK_POSITION);
+                // Non-nullable args are null-checked by the columnar filter loop before invocation,
+                // so VALUE_BLOCK_POSITION_NOT_NULL avoids a redundant per-row null guard inside the function MH.
+                builder.add(functionNullability.getArgumentNullable().get(i) ? VALUE_BLOCK_POSITION : VALUE_BLOCK_POSITION_NOT_NULL);
             }
             else if (argumentExpression instanceof Constant) {
                 builder.add(NEVER_NULL);
