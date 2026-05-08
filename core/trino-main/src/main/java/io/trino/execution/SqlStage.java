@@ -442,7 +442,9 @@ public final class SqlStage
                     node.getType(),
                     node.getScope(),
                     node.getPartitioningScheme().withBucketCount(bucketCountProvider.apply(node.getPartitioningScheme().getPartitioning().getHandle())),
-                    node.getSources(),
+                    node.getSources().stream()
+                            .map(context::rewrite)
+                            .collect(toImmutableList()),
                     node.getInputs(),
                     node.getOrderingScheme());
         }

@@ -475,7 +475,7 @@ public class PlanTester
         this.indexManager = new IndexManager(createIndexProvider(catalogManager));
         NodeScheduler nodeScheduler = new NodeScheduler(new UniformNodeSelectorFactory(CURRENT_NODE, nodeManager, nodeSchedulerConfig, new NodeTaskMap(finalizerService)));
         this.sessionPropertyManager = createSessionPropertyManager(catalogManager, taskManagerConfig, cacheConfig, optimizerConfig);
-        this.nodePartitioningManager = new NodePartitioningManager(nodeScheduler, createNodePartitioningProvider(catalogManager));
+        this.nodePartitioningManager = new NodePartitioningManager(nodeScheduler, createNodePartitioningProvider(catalogManager), optimizerConfig);
         this.partitionFunctionProvider = new PartitionFunctionProvider(hashCompiler, createNodePartitioningProvider(catalogManager));
         TableProceduresRegistry tableProceduresRegistry = new TableProceduresRegistry(createTableProceduresProvider(catalogManager));
         FunctionManager functionManager = new FunctionManager(createFunctionProvider(catalogManager), globalFunctionCatalog, languageFunctionManager);
@@ -1074,6 +1074,7 @@ public class PlanTester
                 getPlannerContext(),
                 optimizers,
                 planFragmenter,
+                false,
                 new PlanSanityChecker(false),
                 warningCollector,
                 planOptimizersStatsCollector,
@@ -1091,6 +1092,7 @@ public class PlanTester
                 statsCalculator,
                 costCalculator,
                 new NodeVersion("test"),
+                optimizerConfig,
                 formatOptions);
     }
 

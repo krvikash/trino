@@ -98,6 +98,7 @@ public class OptimizerConfig
     private double tableScanNodePartitioningMinBucketToTaskRatio = 0.5;
     private boolean mergeProjectWithValues = true;
     private boolean forceSingleNodeOutput;
+    private boolean forceSingleNodeQuery;
     private boolean useExactPartitioning;
     private boolean useCostBasedPartitioning = true;
     private boolean useSubPlanAlternatives = true;
@@ -792,6 +793,19 @@ public class OptimizerConfig
     public OptimizerConfig setForceSingleNodeOutput(boolean value)
     {
         this.forceSingleNodeOutput = value;
+        return this;
+    }
+
+    public boolean isForceSingleNodeQuery()
+    {
+        return forceSingleNodeQuery;
+    }
+
+    @Config("experimental.force-single-node-query")
+    @ConfigDescription("Force every query to be planned as a single fragment scheduled on one worker; skips remote exchanges. Forfeits cross-node parallelism and data locality.")
+    public OptimizerConfig setForceSingleNodeQuery(boolean value)
+    {
+        this.forceSingleNodeQuery = value;
         return this;
     }
 

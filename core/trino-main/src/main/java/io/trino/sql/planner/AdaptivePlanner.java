@@ -93,6 +93,7 @@ public class AdaptivePlanner
     private final PlannerContext plannerContext;
     private final List<AdaptivePlanOptimizer> planOptimizers;
     private final PlanFragmenter planFragmenter;
+    private final boolean forceSingleNodeQuery;
     private final PlanSanityChecker planSanityChecker;
     private final WarningCollector warningCollector;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
@@ -104,6 +105,7 @@ public class AdaptivePlanner
             PlannerContext plannerContext,
             List<AdaptivePlanOptimizer> planOptimizers,
             PlanFragmenter planFragmenter,
+            boolean forceSingleNodeQuery,
             PlanSanityChecker planSanityChecker,
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
@@ -113,6 +115,7 @@ public class AdaptivePlanner
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
         this.planFragmenter = requireNonNull(planFragmenter, "planFragmenter is null");
+        this.forceSingleNodeQuery = forceSingleNodeQuery;
         this.planSanityChecker = requireNonNull(planSanityChecker, "planSanityChecker is null");
         this.warningCollector = requireNonNull(warningCollector, "warningCollector is null");
         this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
@@ -215,7 +218,7 @@ public class AdaptivePlanner
         SubPlan finalPlan = planFragmenter.createSubPlans(
                 session,
                 new Plan(adaptivePlan, StatsAndCosts.empty()),
-                false,
+                forceSingleNodeQuery,
                 warningCollector,
                 fragmentIdAllocator,
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), adaptivePlan.getOutputSymbols()),

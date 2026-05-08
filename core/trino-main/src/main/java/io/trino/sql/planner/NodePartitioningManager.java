@@ -65,14 +65,17 @@ public class NodePartitioningManager
 {
     private final NodeScheduler nodeScheduler;
     private final CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider;
+    private final boolean forceSingleNodeQuery;
 
     @Inject
     public NodePartitioningManager(
             NodeScheduler nodeScheduler,
-            CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider)
+            CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider,
+            OptimizerConfig optimizerConfig)
     {
         this.nodeScheduler = requireNonNull(nodeScheduler, "nodeScheduler is null");
         this.partitioningProvider = requireNonNull(partitioningProvider, "partitioningProvider is null");
+        this.forceSingleNodeQuery = requireNonNull(optimizerConfig, "optimizerConfig is null").isForceSingleNodeQuery();
     }
 
     public NodePartitionMap getNodePartitioningMap(Session session, PartitioningHandle partitioningHandle, int partitionCount)
@@ -209,6 +212,14 @@ public class NodePartitioningManager
 
     public BucketNodeMap getBucketNodeMap(Session session, PartitioningHandle partitioningHandle, int partitionCount)
     {
+        if (forceSingleNodeQuery && partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
+            // In single-node-query mode every plan is a single fragment and may have a SystemPartitioningHandle
+            // (typically SINGLE) reaching this method together with split sources. System partitionings have no
+            // connector bucketing, so collapse all splits into a single bucket pinned to the node returned by
+            // systemBucketToNode.
+            List<InternalNode> nodes = systemBucketToNode(session, partitioningHandle, new AtomicReference<>(), partitionCount);
+            return new BucketNodeMap(_ -> 0, ImmutableList.of(nodes.get(0)));
+        }
         Optional<ConnectorBucketNodeMap> bucketNodeMap = getConnectorBucketNodeMap(session, partitioningHandle);
         int bucketCount = bucketNodeMap.map(ConnectorBucketNodeMap::getBucketCount).orElseGet(() -> getDefaultBucketCount(session));
         ToIntFunction<Split> splitToBucket = getSplitToBucket(session, partitioningHandle, bucketCount);

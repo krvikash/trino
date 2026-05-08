@@ -1172,6 +1172,7 @@ public final class BenchmarkRunner
             case GPU -> builder
                     .addExtraProperty("gpu-execution", "true")
                     .addExtraProperty("task.gpu-execution.enabled", "true")
+                    .addExtraProperty("experimental.force-single-node-query", "true")
                     .addHiveProperty("hive.max-initial-split-size", "512MB")
                     .addHiveProperty("hive.max-split-size", "512MB");
         }

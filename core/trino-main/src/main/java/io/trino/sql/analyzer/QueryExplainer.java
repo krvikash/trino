@@ -34,6 +34,7 @@ import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.SubPlan;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.planprinter.PlanPrinter;
+import io.trino.sql.planner.sanity.PlanSanityChecker;
 import io.trino.sql.tree.CreateCatalog;
 import io.trino.sql.tree.CreateMaterializedView;
 import io.trino.sql.tree.CreateSchema;
@@ -75,6 +76,8 @@ public class QueryExplainer
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
     private final NodeVersion version;
+    private final boolean forceSingleNodeQuery;
+    private final PlanSanityChecker planSanityChecker;
     private final FormatOptions formatOptions;
 
     QueryExplainer(
@@ -86,6 +89,8 @@ public class QueryExplainer
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             NodeVersion version,
+            boolean forceSingleNodeQuery,
+            PlanSanityChecker planSanityChecker,
             FormatOptions formatOptions)
     {
         this.planOptimizers = requireNonNull(planOptimizersFactory.getPlanOptimizers(), "planOptimizers is null");
@@ -96,6 +101,8 @@ public class QueryExplainer
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
         this.version = requireNonNull(version, "version is null");
+        this.forceSingleNodeQuery = forceSingleNodeQuery;
+        this.planSanityChecker = requireNonNull(planSanityChecker, "planSanityChecker is null");
         this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
@@ -208,6 +215,7 @@ public class QueryExplainer
                 session,
                 planOptimizers,
                 alternativeOptimizers,
+                planSanityChecker,
                 idAllocator,
                 plannerContext,
                 statsCalculator,
@@ -231,13 +239,13 @@ public class QueryExplainer
 
         Optional<Program> optimizedProgram = planOptions.newIrProgram();
         if (optimizedProgram.isPresent()) {
-            Optional<SubPlan> optionalFragmentedPlan = planFragmenter.createSubPlans(session, optimizedProgram.get(), false, warningCollector);
+            Optional<SubPlan> optionalFragmentedPlan = planFragmenter.createSubPlans(session, optimizedProgram.get(), forceSingleNodeQuery, warningCollector);
             if (optionalFragmentedPlan.isPresent()) {
                 return optionalFragmentedPlan.get();
             }
         }
 
-        return planFragmenter.createSubPlans(session, planOptions.oldIrPlan(), false, warningCollector);
+        return planFragmenter.createSubPlans(session, planOptions.oldIrPlan(), forceSingleNodeQuery, warningCollector);
     }
 
     private static <T extends Statement> Optional<String> explainDataDefinition(T statement, List<Expression> parameters)
