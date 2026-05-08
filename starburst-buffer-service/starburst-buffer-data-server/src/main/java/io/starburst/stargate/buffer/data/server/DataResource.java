@@ -165,37 +165,37 @@ public class DataResource
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
+
+            ListenableFuture<ChunkList> chunkListFuture = withTimeout(chunkManager.listClosedChunks(
+                    exchangeId,
+                    pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId)), getAsyncTimeout(clientMaxWait).toJavaTime(), timeoutExecutor);
+
+            addCallback(chunkListFuture, new FutureCallback<>()
+            {
+                @Override
+                public void onSuccess(ChunkList result)
+                {
+                    if (!asyncResponse.isDone()) {
+                        asyncResponse.resume(Response.ok(result).build());
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable throwable)
+                {
+                    reportException(logger, throwable, "error on %s", "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId));
+                    if (!asyncResponse.isDone()) {
+                        asyncResponse.resume(errorResponse(throwable));
+                    }
+                }
+            }, responseExecutor);
         }
         catch (Throwable e) {
+            reportException(logger, e, "error on GET /%s/closedChunks?pagingId=%s", exchangeId, pagingId);
             if (!asyncResponse.isDone()) {
                 asyncResponse.resume(errorResponse(e));
             }
-            return;
         }
-
-        ListenableFuture<ChunkList> chunkListFuture = withTimeout(chunkManager.listClosedChunks(
-                exchangeId,
-                pagingId == null ? OptionalLong.empty() : OptionalLong.of(pagingId)), getAsyncTimeout(clientMaxWait).toJavaTime(), timeoutExecutor);
-
-        addCallback(chunkListFuture, new FutureCallback<>()
-        {
-            @Override
-            public void onSuccess(ChunkList result)
-            {
-                if (!asyncResponse.isDone()) {
-                    asyncResponse.resume(Response.ok(result).build());
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable throwable)
-            {
-                reportException(logger, throwable, "error on %s", "GET /%s/closedChunks?pagingId=%s".formatted(exchangeId, pagingId));
-                if (!asyncResponse.isDone()) {
-                    asyncResponse.resume(errorResponse(throwable));
-                }
-            }
-        }, responseExecutor);
     }
 
     @POST
@@ -652,7 +652,8 @@ public class DataResource
             return;
         }
 
-        outputStream.setWriteListener(new WriteListener() {
+        outputStream.setWriteListener(new WriteListener()
+        {
             private final AtomicBoolean done = new AtomicBoolean();
 
             @Override
@@ -747,7 +748,8 @@ public class DataResource
     private void consumeRequestAndCompleteAsyncResponse(String clientId, AsyncResponse response, ServletInputStream inputStream, long processingStart, Optional<Throwable> throwable)
     {
         byte[] skipBuffer = new byte[SKIP_BUFFER_SIZE];
-        inputStream.setReadListener(new ReadListener() {
+        inputStream.setReadListener(new ReadListener()
+        {
             @Override
             public void onDataAvailable()
                     throws IOException
@@ -792,7 +794,8 @@ public class DataResource
     private static class ReleasableReadListener
             implements ReadListener
     {
-        private enum State {
+        private enum State
+        {
             DELEGATE_SET,
             DELEGATE_RELEASED
         }
