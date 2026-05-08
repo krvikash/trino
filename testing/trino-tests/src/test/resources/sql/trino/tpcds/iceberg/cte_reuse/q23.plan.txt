@@ -841,7 +841,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %433 = project(%419) : ("multiset(row(bigint,integer,decimal(7,2)))") -> "multiset(row(decimal(18,2),bigint))" ({
+        %433 = project(%419) : ("multiset(row(bigint,integer,decimal(7,2)))") -> "multiset(row(decimal(17,2),bigint))" ({
             ^assignments (%434 : "row(bigint,integer,decimal(7,2))")
                 %435 = field_reference(%434) : ("row(bigint,integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -849,53 +849,53 @@ IR version = 1
                     {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %437 = field_reference(%434) : ("row(bigint,integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %438 = call(%436, %437) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(18,2)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(18,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %438 = call(%436, %437) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(17,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %439 = field_reference(%434) : ("row(bigint,integer,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %440 = row(%438, %439) : ("decimal(18,2)", "bigint") -> "row(decimal(18,2),bigint)" ()
+                %440 = row(%438, %439) : ("decimal(17,2)", "bigint") -> "row(decimal(17,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %441 = return(%440) : ("row(decimal(18,2),bigint)") -> "row(decimal(18,2),bigint)" ()
+                %441 = return(%440) : ("row(decimal(17,2),bigint)") -> "row(decimal(17,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
-        %442 = aggregation(%433) : ("multiset(row(decimal(18,2),bigint))") -> "multiset(row(bigint,varbinary))" ({
-            ^aggregates (%443 : "multiset(row(decimal(18,2),bigint))")
-                %444 = aggregate_call(%443) : ("multiset(row(decimal(18,2),bigint))") -> "varbinary" ({
-                    ^arguments (%445 : "row(decimal(18,2),bigint)")
-                        %446 = field_reference(%445) : ("row(decimal(18,2),bigint)") -> "decimal(18,2)" ()
+        %442 = aggregation(%433) : ("multiset(row(decimal(17,2),bigint))") -> "multiset(row(bigint,varbinary))" ({
+            ^aggregates (%443 : "multiset(row(decimal(17,2),bigint))")
+                %444 = aggregate_call(%443) : ("multiset(row(decimal(17,2),bigint))") -> "varbinary" ({
+                    ^arguments (%445 : "row(decimal(17,2),bigint)")
+                        %446 = field_reference(%445) : ("row(decimal(17,2),bigint)") -> "decimal(17,2)" ()
                             {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %447 = row(%446) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
+                        %447 = row(%446) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %448 = return(%447) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                        %448 = return(%447) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%449 : "row(decimal(18,2),bigint)")
+                    ^filterSelector (%449 : "row(decimal(17,2),bigint)")
                         %450 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %451 = return(%450) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%452 : "row(decimal(18,2),bigint)")
+                    ^maskSelector (%452 : "row(decimal(17,2),bigint)")
                         %453 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %454 = return(%453) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%455 : "row(decimal(18,2),bigint)")
+                    ^orderingSelector (%455 : "row(decimal(17,2),bigint)")
                         %456 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %457 = return(%456) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %458 = row(%444) : ("varbinary") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %459 = return(%458) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%460 : "row(decimal(18,2),bigint)")
-                %461 = field_reference(%460) : ("row(decimal(18,2),bigint)") -> "bigint" ()
+            ^groupingKeysSelector (%460 : "row(decimal(17,2),bigint)")
+                %461 = field_reference(%460) : ("row(decimal(17,2),bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %462 = row(%461) : ("bigint") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -1051,7 +1051,7 @@ IR version = 1
                         %540 = return(%539) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %541 = row(%527) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %542 = return(%541) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
@@ -1219,7 +1219,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false"}
-        %6491 = project(%6433) : ("multiset(row(bigint,integer,decimal(7,2)))") -> "multiset(row(decimal(18,2),bigint))" ({
+        %6491 = project(%6433) : ("multiset(row(bigint,integer,decimal(7,2)))") -> "multiset(row(decimal(17,2),bigint))" ({
             ^assignments (%640 : "row(bigint,integer,decimal(7,2))")
                 %6492 = field_reference(%640) : ("row(bigint,integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "1"}
@@ -1227,49 +1227,49 @@ IR version = 1
                     {cast:to_type = "decimal(10,0)"}
                 %6494 = field_reference(%640) : ("row(bigint,integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2"}
-                %6495 = call(%6493, %6494) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(18,2)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(18,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %6495 = call(%6493, %6494) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(17,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %6497 = field_reference(%640) : ("row(bigint,integer,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "0"}
-                %6499 = row(%6495, %6497) : ("decimal(18,2)", "bigint") -> "row(decimal(18,2),bigint)" ()
-                %6500 = return(%6499) : ("row(decimal(18,2),bigint)") -> "row(decimal(18,2),bigint)" ()
+                %6499 = row(%6495, %6497) : ("decimal(17,2)", "bigint") -> "row(decimal(17,2),bigint)" ()
+                %6500 = return(%6499) : ("row(decimal(17,2),bigint)") -> "row(decimal(17,2),bigint)" ()
                     {ir.terminal = "true"}
             })
-        %6571 = aggregation(%6491) : ("multiset(row(decimal(18,2),bigint))") -> "multiset(row(bigint,varbinary))" ({
-            ^aggregates (%6567 : "multiset(row(decimal(18,2),bigint))")
-                %6572 = aggregate_call(%6567) : ("multiset(row(decimal(18,2),bigint))") -> "varbinary" ({
-                    ^arguments (%651 : "row(decimal(18,2),bigint)")
-                        %6573 = field_reference(%651) : ("row(decimal(18,2),bigint)") -> "decimal(18,2)" ()
+        %6571 = aggregation(%6491) : ("multiset(row(decimal(17,2),bigint))") -> "multiset(row(bigint,varbinary))" ({
+            ^aggregates (%6567 : "multiset(row(decimal(17,2),bigint))")
+                %6572 = aggregate_call(%6567) : ("multiset(row(decimal(17,2),bigint))") -> "varbinary" ({
+                    ^arguments (%651 : "row(decimal(17,2),bigint)")
+                        %6573 = field_reference(%651) : ("row(decimal(17,2),bigint)") -> "decimal(17,2)" ()
                             {field_reference:index = "0"}
-                        %6574 = row(%6573) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
-                        %6575 = return(%6574) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                        %6574 = row(%6573) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
+                        %6575 = return(%6574) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                             {ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%655 : "row(decimal(18,2),bigint)")
+                    ^filterSelector (%655 : "row(decimal(17,2),bigint)")
                         %6576 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %6577 = return(%6576) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%658 : "row(decimal(18,2),bigint)")
+                    ^maskSelector (%658 : "row(decimal(17,2),bigint)")
                         %6578 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %6579 = return(%6578) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%661 : "row(decimal(18,2),bigint)")
+                    ^orderingSelector (%661 : "row(decimal(17,2),bigint)")
                         %6580 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %6581 = return(%6580) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary"}
                 %6583 = row(%6572) : ("varbinary") -> "row(varbinary)" ()
                 %6584 = return(%6583) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%666 : "row(decimal(18,2),bigint)")
-                %667 = field_reference(%666) : ("row(decimal(18,2),bigint)") -> "bigint" ()
+            ^groupingKeysSelector (%666 : "row(decimal(17,2),bigint)")
+                %667 = field_reference(%666) : ("row(decimal(17,2),bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %668 = row(%667) : ("bigint") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -1424,7 +1424,7 @@ IR version = 1
                         %9217 = return(%9216) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)"}
                 %9219 = row(%9208) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                 %9220 = return(%9219) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
                     {ir.terminal = "true"}
@@ -1600,7 +1600,7 @@ IR version = 1
                 %836 = constant() : () -> "decimal(17,6)" ()
                     {constant:value = "[type=decimal(17,6), value=0.500000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %837 = call(%835, %836) : ("decimal(38,2)", "decimal(17,6)") -> "decimal(38,6)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,2)"",""decimal(17,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,2)"",""decimal(17,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %838 = row(%837) : ("decimal(38,6)") -> "row(decimal(38,6))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %839 = return(%838) : ("row(decimal(38,6))") -> "row(decimal(38,6))" ()
@@ -1759,7 +1759,7 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_6619""]"}
-        %919 = project(%894) : ("multiset(row(integer,decimal(7,2)))") -> "multiset(row(decimal(18,2)))" ({
+        %919 = project(%894) : ("multiset(row(integer,decimal(7,2)))") -> "multiset(row(decimal(17,2)))" ({
             ^assignments (%920 : "row(integer,decimal(7,2))")
                 %921 = field_reference(%920) : ("row(integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -1767,50 +1767,50 @@ IR version = 1
                     {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %923 = field_reference(%920) : ("row(integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %924 = call(%922, %923) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(18,2)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(18,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %925 = row(%924) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
+                %924 = call(%922, %923) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(17,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %925 = row(%924) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %926 = return(%925) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                %926 = return(%925) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
-        %927 = aggregation(%919) : ("multiset(row(decimal(18,2)))") -> "multiset(row(varbinary))" ({
-            ^aggregates (%928 : "multiset(row(decimal(18,2)))")
-                %929 = aggregate_call(%928) : ("multiset(row(decimal(18,2)))") -> "varbinary" ({
-                    ^arguments (%930 : "row(decimal(18,2))")
-                        %931 = field_reference(%930) : ("row(decimal(18,2))") -> "decimal(18,2)" ()
+        %927 = aggregation(%919) : ("multiset(row(decimal(17,2)))") -> "multiset(row(varbinary))" ({
+            ^aggregates (%928 : "multiset(row(decimal(17,2)))")
+                %929 = aggregate_call(%928) : ("multiset(row(decimal(17,2)))") -> "varbinary" ({
+                    ^arguments (%930 : "row(decimal(17,2))")
+                        %931 = field_reference(%930) : ("row(decimal(17,2))") -> "decimal(17,2)" ()
                             {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %932 = row(%931) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
+                        %932 = row(%931) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %933 = return(%932) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                        %933 = return(%932) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%934 : "row(decimal(18,2))")
+                    ^filterSelector (%934 : "row(decimal(17,2))")
                         %935 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %936 = return(%935) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%937 : "row(decimal(18,2))")
+                    ^maskSelector (%937 : "row(decimal(17,2))")
                         %938 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %939 = return(%938) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%940 : "row(decimal(18,2))")
+                    ^orderingSelector (%940 : "row(decimal(17,2))")
                         %941 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %942 = return(%941) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %943 = row(%929) : ("varbinary") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %944 = return(%943) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%945 : "row(decimal(18,2))")
+            ^groupingKeysSelector (%945 : "row(decimal(17,2))")
                 %946 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %947 = return(%946) : ("empty row") -> "empty row" ()
@@ -2273,7 +2273,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %1380 = project(%1366) : ("multiset(row(bigint,integer,decimal(7,2)))") -> "multiset(row(decimal(18,2),bigint))" ({
+        %1380 = project(%1366) : ("multiset(row(bigint,integer,decimal(7,2)))") -> "multiset(row(decimal(17,2),bigint))" ({
             ^assignments (%1381 : "row(bigint,integer,decimal(7,2))")
                 %1382 = field_reference(%1381) : ("row(bigint,integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -2281,53 +2281,53 @@ IR version = 1
                     {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1384 = field_reference(%1381) : ("row(bigint,integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1385 = call(%1383, %1384) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(18,2)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(18,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %1385 = call(%1383, %1384) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(17,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1386 = field_reference(%1381) : ("row(bigint,integer,decimal(7,2))") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1387 = row(%1385, %1386) : ("decimal(18,2)", "bigint") -> "row(decimal(18,2),bigint)" ()
+                %1387 = row(%1385, %1386) : ("decimal(17,2)", "bigint") -> "row(decimal(17,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %1388 = return(%1387) : ("row(decimal(18,2),bigint)") -> "row(decimal(18,2),bigint)" ()
+                %1388 = return(%1387) : ("row(decimal(17,2),bigint)") -> "row(decimal(17,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
-        %1389 = aggregation(%1380) : ("multiset(row(decimal(18,2),bigint))") -> "multiset(row(bigint,varbinary))" ({
-            ^aggregates (%1390 : "multiset(row(decimal(18,2),bigint))")
-                %1391 = aggregate_call(%1390) : ("multiset(row(decimal(18,2),bigint))") -> "varbinary" ({
-                    ^arguments (%1392 : "row(decimal(18,2),bigint)")
-                        %1393 = field_reference(%1392) : ("row(decimal(18,2),bigint)") -> "decimal(18,2)" ()
+        %1389 = aggregation(%1380) : ("multiset(row(decimal(17,2),bigint))") -> "multiset(row(bigint,varbinary))" ({
+            ^aggregates (%1390 : "multiset(row(decimal(17,2),bigint))")
+                %1391 = aggregate_call(%1390) : ("multiset(row(decimal(17,2),bigint))") -> "varbinary" ({
+                    ^arguments (%1392 : "row(decimal(17,2),bigint)")
+                        %1393 = field_reference(%1392) : ("row(decimal(17,2),bigint)") -> "decimal(17,2)" ()
                             {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %1394 = row(%1393) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
+                        %1394 = row(%1393) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %1395 = return(%1394) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                        %1395 = return(%1394) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%1396 : "row(decimal(18,2),bigint)")
+                    ^filterSelector (%1396 : "row(decimal(17,2),bigint)")
                         %1397 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %1398 = return(%1397) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%1399 : "row(decimal(18,2),bigint)")
+                    ^maskSelector (%1399 : "row(decimal(17,2),bigint)")
                         %1400 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %1401 = return(%1400) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%1402 : "row(decimal(18,2),bigint)")
+                    ^orderingSelector (%1402 : "row(decimal(17,2),bigint)")
                         %1403 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %1404 = return(%1403) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1405 = row(%1391) : ("varbinary") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1406 = return(%1405) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%1407 : "row(decimal(18,2),bigint)")
-                %1408 = field_reference(%1407) : ("row(decimal(18,2),bigint)") -> "bigint" ()
+            ^groupingKeysSelector (%1407 : "row(decimal(17,2),bigint)")
+                %1408 = field_reference(%1407) : ("row(decimal(17,2),bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1409 = row(%1408) : ("bigint") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -2483,7 +2483,7 @@ IR version = 1
                         %1487 = return(%1486) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1488 = row(%1474) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1489 = return(%1488) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
@@ -2505,7 +2505,7 @@ IR version = 1
                 %1783 = constant() : () -> "decimal(17,6)" ()
                     {constant:value = "[type=decimal(17,6), value=0.500000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1784 = call(%1782, %1783) : ("decimal(38,2)", "decimal(17,6)") -> "decimal(38,6)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,2)"",""decimal(17,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,2)"",""decimal(17,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1785 = row(%1784) : ("decimal(38,6)") -> "row(decimal(38,6))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1786 = return(%1785) : ("row(decimal(38,6))") -> "row(decimal(38,6))" ()
@@ -2664,7 +2664,7 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_6663""]"}
-        %1866 = project(%1841) : ("multiset(row(integer,decimal(7,2)))") -> "multiset(row(decimal(18,2)))" ({
+        %1866 = project(%1841) : ("multiset(row(integer,decimal(7,2)))") -> "multiset(row(decimal(17,2)))" ({
             ^assignments (%1867 : "row(integer,decimal(7,2))")
                 %1868 = field_reference(%1867) : ("row(integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -2672,50 +2672,50 @@ IR version = 1
                     {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1870 = field_reference(%1867) : ("row(integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1871 = call(%1869, %1870) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(18,2)" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(18,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %1872 = row(%1871) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
+                %1871 = call(%1869, %1870) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(17,2)"",""argumentTypes"":[""decimal(10,0)"",""decimal(7,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %1872 = row(%1871) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %1873 = return(%1872) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                %1873 = return(%1872) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
-        %1874 = aggregation(%1866) : ("multiset(row(decimal(18,2)))") -> "multiset(row(varbinary))" ({
-            ^aggregates (%1875 : "multiset(row(decimal(18,2)))")
-                %1876 = aggregate_call(%1875) : ("multiset(row(decimal(18,2)))") -> "varbinary" ({
-                    ^arguments (%1877 : "row(decimal(18,2))")
-                        %1878 = field_reference(%1877) : ("row(decimal(18,2))") -> "decimal(18,2)" ()
+        %1874 = aggregation(%1866) : ("multiset(row(decimal(17,2)))") -> "multiset(row(varbinary))" ({
+            ^aggregates (%1875 : "multiset(row(decimal(17,2)))")
+                %1876 = aggregate_call(%1875) : ("multiset(row(decimal(17,2)))") -> "varbinary" ({
+                    ^arguments (%1877 : "row(decimal(17,2))")
+                        %1878 = field_reference(%1877) : ("row(decimal(17,2))") -> "decimal(17,2)" ()
                             {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %1879 = row(%1878) : ("decimal(18,2)") -> "row(decimal(18,2))" ()
+                        %1879 = row(%1878) : ("decimal(17,2)") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                        %1880 = return(%1879) : ("row(decimal(18,2))") -> "row(decimal(18,2))" ()
+                        %1880 = return(%1879) : ("row(decimal(17,2))") -> "row(decimal(17,2))" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%1881 : "row(decimal(18,2))")
+                    ^filterSelector (%1881 : "row(decimal(17,2))")
                         %1882 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %1883 = return(%1882) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%1884 : "row(decimal(18,2))")
+                    ^maskSelector (%1884 : "row(decimal(17,2))")
                         %1885 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %1886 = return(%1885) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%1887 : "row(decimal(18,2))")
+                    ^orderingSelector (%1887 : "row(decimal(17,2))")
                         %1888 = constant() : () -> "empty row" ()
                             {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                         %1889 = return(%1888) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "varbinary", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1890 = row(%1876) : ("varbinary") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1891 = return(%1890) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%1892 : "row(decimal(18,2))")
+            ^groupingKeysSelector (%1892 : "row(decimal(17,2))")
                 %1893 = constant() : () -> "empty row" ()
                     {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1894 = return(%1893) : ("empty row") -> "empty row" ()
@@ -2803,7 +2803,7 @@ IR version = 1
                         %1936 = return(%1935) : ("empty row") -> "empty row" ()
                             {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(18,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1937 = row(%1923) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1938 = return(%1937) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
