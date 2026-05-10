@@ -170,7 +170,8 @@ public final class QueryExecutors
                 stackTrace.contains("TOpenSessionReq") ||
                 stackTrace.contains("The current cluster state is Pending") ||
                 stackTrace.contains("The current cluster state is Terminated") ||
-                stackTrace.contains("The cluster is temporarily unavailable");
+                stackTrace.contains("The cluster is temporarily unavailable") ||
+                stackTrace.contains("AWSCatalogMetastoreClient.isCompatibleWith");
     }
 
     public static QueryExecutor onHudi()
