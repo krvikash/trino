@@ -1035,6 +1035,65 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
+    public void testSubstring(NullsProvider nullsProvider)
+    {
+        int varcharChannel = 0;
+        int startChannel = 1;
+        int positionsCount = 64;
+        List<Type> inputTypes = List.of(VARCHAR, BIGINT);
+
+        List<Page> inputPages = new ArrayList<>();
+        inputPages.add(new Page(positionsCount,
+                createBlock(VARCHAR, positionsCount, nullsProvider),
+                createBigintBlock(positionsCount, nullsProvider, -20, 20)));
+        // Edge cases that random data may not cover: start=0 (empty), negative start beyond string length, start past end
+        for (long start : List.of(0L, 1L, -1L, -100L, 100L, (long) Integer.MAX_VALUE, (long) Integer.MIN_VALUE)) {
+            inputPages.add(new Page(
+                    nativeValueToBlock(VARCHAR, Slices.utf8Slice("hello")),
+                    nativeValueToBlock(BIGINT, start)));
+        }
+
+        Expression expression = new Call(
+                functionResolution.resolveFunction("substring", fromTypes(VARCHAR, BIGINT)),
+                ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testSubstringWithLength(NullsProvider nullsProvider)
+    {
+        int varcharChannel = 0;
+        int startChannel = 1;
+        int lengthChannel = 2;
+        int positionsCount = 64;
+        List<Type> inputTypes = List.of(VARCHAR, BIGINT, BIGINT);
+
+        List<Page> inputPages = new ArrayList<>();
+        inputPages.add(new Page(positionsCount,
+                createBlock(VARCHAR, positionsCount, nullsProvider),
+                createBigintBlock(positionsCount, nullsProvider, -20, 20),
+                createBigintBlock(positionsCount, nullsProvider, -5, 20)));
+        // Edge cases that random data may not cover: start=0, negative start, length<=0, start/length past end
+        for (long start : List.of(0L, 1L, -1L, -100L, 100L)) {
+            for (long length : List.of(-1L, 0L, 1L, 100L)) {
+                inputPages.add(new Page(
+                        nativeValueToBlock(VARCHAR, Slices.utf8Slice("hello")),
+                        nativeValueToBlock(BIGINT, start),
+                        nativeValueToBlock(BIGINT, length)));
+            }
+        }
+
+        Expression expression = new Call(
+                functionResolution.resolveFunction("substring", fromTypes(VARCHAR, BIGINT, BIGINT)),
+                ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT), field(lengthChannel, BIGINT)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel, lengthChannel));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
     public void testIn(NullsProvider nullsProvider)
     {
         testIn(BIGINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);

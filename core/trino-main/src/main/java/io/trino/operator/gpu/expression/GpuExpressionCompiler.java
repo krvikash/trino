@@ -348,6 +348,11 @@ public class GpuExpressionCompiler
                                 compiled.score()));
             }
 
+            // TODO: add substring support for char(x)
+            if (name.equals("substring") && call.arguments().getFirst().type() instanceof VarcharType) {
+                return compileSubstring(call, context);
+            }
+
             if (name.equals("regexp_replace")) {
                 return compileRegexpReplace(call, context);
             }
@@ -509,6 +514,39 @@ public class GpuExpressionCompiler
                                 compiled.score()));
             }
             return Optional.empty();
+        }
+
+        private Optional<CompilationResult> compileSubstring(Call call, Void context)
+        {
+            int argCount = call.arguments().size();
+            // substring has only 2-arg (source, start) and 3-arg (source, start, length) overloads
+            if (argCount < 2 || argCount > 3) {
+                return Optional.empty();
+            }
+
+            Optional<CompilationResult> sourceCompiled = call.arguments().get(0).accept(this, context);
+            if (sourceCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+            Optional<CompilationResult> startCompiled = call.arguments().get(1).accept(this, context);
+            if (startCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Optional<GpuExpression> lengthExpression = Optional.empty();
+            List<CompilationResult> results = ImmutableList.of(sourceCompiled.get(), startCompiled.get());
+            if (argCount == 3) {
+                Optional<CompilationResult> lengthCompiled = call.arguments().get(2).accept(this, context);
+                if (lengthCompiled.isEmpty()) {
+                    return Optional.empty();
+                }
+                lengthExpression = Optional.of(lengthCompiled.get().expression());
+                results = ImmutableList.of(sourceCompiled.get(), startCompiled.get(), lengthCompiled.get());
+            }
+
+            return Optional.of(new CompilationResult(
+                    new GpuSubstring(sourceCompiled.get().expression(), startCompiled.get().expression(), lengthExpression),
+                    maxScore(results, POTENTIAL)));
         }
 
         private Optional<CompilationResult> compileRegexpReplace(Call call, Void context)
