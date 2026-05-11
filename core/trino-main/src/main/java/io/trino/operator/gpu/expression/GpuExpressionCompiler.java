@@ -420,6 +420,17 @@ public class GpuExpressionCompiler
                     if (leftType == DOUBLE && rightType == DOUBLE) {
                         yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.SUB, outputType));
                     }
+                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal
+                            && leftDecimal.isShort() && rightDecimal.isShort()) {
+                        if (call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
+                            // Infallible: the result type is always wide enough for any difference.
+                            // The CPU's subtractShortShortShort confirms this with an unchecked a * aRescale - b * bRescale.
+                            yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.SUB, outputType));
+                        }
+                        // Both inputs have at most 18 digits, so the difference needs at most 36 digits (DECIMAL128 holds 38).
+                        // Widen inputs to DECIMAL128 before subtracting.
+                        yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.SUB, outputType));
+                    }
                     yield Optional.empty();
                 }
                 case MULTIPLY -> {
@@ -449,8 +460,9 @@ public class GpuExpressionCompiler
                             // The CPU's multiplyShortShortShort confirms this with an unchecked a * b.
                             yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MUL, outputType));
                         }
-                        // Result overflows DECIMAL64, widen inputs to DECIMAL128 before multiplying
-                        yield Optional.of(new GpuWideningShortDecimalMultiply(left, right, outputType));
+                        // Both inputs have at most 18 digits, so the product needs at most 36 digits (DECIMAL128 holds 38).
+                        // Widen inputs to DECIMAL128 before multiplying.
+                        yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.MUL, outputType));
                     }
 
                     yield Optional.empty();
