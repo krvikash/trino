@@ -115,6 +115,50 @@ public class TestGpuAggregations
     }
 
     @Test
+    public void testGpuBoolOr()
+    {
+        // rand() < 42 is always true but prevents constant folding;
+        // AND i % 3 != 0 makes ~1/3 of rows null
+
+        assertThat(query(
+                """
+                SELECT bool_or(a)
+                FROM (SELECT IF(rand()<42 AND i % 3 != 0, i % 2 = 0) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, bool_or(a)
+                FROM (SELECT IF(rand()<42 AND i % 3 != 0, i % 2 = 0) AS a, i % 10 AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuBoolAnd()
+    {
+        // rand() < 42 is always true but prevents constant folding;
+        // AND i % 3 != 0 makes ~1/3 of rows null
+
+        assertThat(query(
+                """
+                SELECT bool_and(a)
+                FROM (SELECT IF(rand()<42 AND i % 3 != 0, i % 2 = 0) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, bool_and(a)
+                FROM (SELECT IF(rand()<42 AND i % 3 != 0, i % 2 = 0) AS a, i % 10 AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
     public void testAvgDecompositionRemovesRedundantCast()
     {
         // RewriteAvgAsSumOverCount always introduces CAST(input AS double) before sum/count.

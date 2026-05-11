@@ -233,8 +233,8 @@ public final class GpuAggregationCompiler
             // For currently supported sum, all steps produce the same type
             case "sum" -> compileSum(arguments, sourceLayout, step, outputType, signature.getReturnType());
             // For min and max, all steps produce the same type
-            case "min" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
-            case "max" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
+            case "min", "bool_and" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
+            case "max", "bool_or" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
             default -> Optional.empty();
         };
     }

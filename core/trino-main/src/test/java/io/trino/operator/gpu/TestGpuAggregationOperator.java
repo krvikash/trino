@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static ai.rapids.cudf.DType.BOOL8;
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.block.BlockAssertions.getOnlyValue;
@@ -408,6 +409,90 @@ final class TestGpuAggregationOperator
                 new GpuMax(1, type, toDType(type).orElseThrow()),
                 "max",
                 List.of(type));
+    }
+
+    @Test
+    void testBoolOrGlobalEmpty()
+    {
+        assertGpuMatchesCpu(
+                createEmptyPage(List.of(BOOLEAN)),
+                List.of(BOOLEAN),
+                new GpuMax(0, BOOLEAN, BOOL8),
+                "bool_or",
+                List.of(BOOLEAN));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testBoolOrGlobal(NullsProvider nullsProvider)
+    {
+        Block block = createBlock(BOOLEAN, 100, nullsProvider);
+
+        assertGpuMatchesCpu(
+                new Page(block),
+                List.of(BOOLEAN),
+                new GpuMax(0, BOOLEAN, BOOL8),
+                "bool_or",
+                List.of(BOOLEAN));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testGroupByBoolOr(NullsProvider nullsProvider)
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBlock(BOOLEAN, 100, nullsProvider);
+        Page inputPage = new Page(groupByBlock, valueBlock);
+
+        assertGpuGroupByMatchesCpu(
+                inputPage,
+                BIGINT,
+                BOOLEAN,
+                new GpuMax(1, BOOLEAN, BOOL8),
+                "bool_or",
+                List.of(BOOLEAN));
+    }
+
+    @Test
+    void testBoolAndGlobalEmpty()
+    {
+        assertGpuMatchesCpu(
+                createEmptyPage(List.of(BOOLEAN)),
+                List.of(BOOLEAN),
+                new GpuMin(0, BOOLEAN, BOOL8),
+                "bool_and",
+                List.of(BOOLEAN));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testBoolAndGlobal(NullsProvider nullsProvider)
+    {
+        Block block = createBlock(BOOLEAN, 100, nullsProvider);
+
+        assertGpuMatchesCpu(
+                new Page(block),
+                List.of(BOOLEAN),
+                new GpuMin(0, BOOLEAN, BOOL8),
+                "bool_and",
+                List.of(BOOLEAN));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testGroupByBoolAnd(NullsProvider nullsProvider)
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBlock(BOOLEAN, 100, nullsProvider);
+        Page inputPage = new Page(groupByBlock, valueBlock);
+
+        assertGpuGroupByMatchesCpu(
+                inputPage,
+                BIGINT,
+                BOOLEAN,
+                new GpuMin(1, BOOLEAN, BOOL8),
+                "bool_and",
+                List.of(BOOLEAN));
     }
 
     static Stream<Type> allConvertibleTypes()
