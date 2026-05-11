@@ -18,7 +18,6 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.datatype.ColumnSetup;
 import io.trino.testing.sql.TemporaryRelation;
-import org.assertj.core.error.AssertJMultipleFailuresError;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +65,7 @@ public final class SqlDataTypeTest
             verifySelect(queryRunner, session, dataSetup.tableName());
             verifyPredicate(queryRunner, session, dataSetup.tableName());
         }
-        catch (AssertJMultipleFailuresError e) {
+        catch (Exception e) {
             log.warn(e, "Retrying SqlDataTypeTest.execute in Salesforce connector");
             try (TemporaryRelation _ = dataSetup.setupTemporaryRelation(unmodifiableList(testCases))) {
                 verifySelect(queryRunner, session, dataSetup.tableName());
