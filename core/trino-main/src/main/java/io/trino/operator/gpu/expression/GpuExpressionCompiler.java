@@ -445,9 +445,8 @@ public class GpuExpressionCompiler
                     if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal
                             && leftDecimal.isShort() && rightDecimal.isShort()) {
                         if (call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
-                            // Infallible: the planner derives r_precision >= a_precision + b_precision,
-                            // so the result type is always wide enough for any product. The CPU's
-                            // multiplyShortShortShort confirms this with an unchecked a * b.
+                            // Infallible: the result type is always wide enough for any product.
+                            // The CPU's multiplyShortShortShort confirms this with an unchecked a * b.
                             yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MUL, outputType));
                         }
                         // Result overflows DECIMAL64, widen inputs to DECIMAL128 before multiplying
