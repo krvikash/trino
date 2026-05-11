@@ -570,6 +570,9 @@ public class TestGpuExpressions
         assertThat(gpuEnabledOperators)
                 .contains(
                         "bigint + bigint",
+                        "decimal(3,0) + decimal(3,0)",
+                        "decimal(13,0) + decimal(13,0)",
+                        "decimal(13,0) + decimal(13,2)",
                         "decimal(3,0) - decimal(3,0)",
                         "decimal(13,0) - decimal(13,0)",
                         "decimal(13,0) - decimal(13,2)",
@@ -584,9 +587,8 @@ public class TestGpuExpressions
                         "- bigint",
                         "- decimal(13,2)",
                         "HASH CODE bigint",
-                        "decimal(3,0) + decimal(3,0)", // short decimal arithmetic example
                         "decimal(27,5) + decimal(27,5)", // long decimal arithmetic example
-                        "decimal(27,0) - decimal(3,0)"); // decimal arithmetic with different operand types
+                        "decimal(27,0) - decimal(3,0)"); // long-short decimal arithmetic
     }
 
     private static List<@Nullable TrinoNumber> numericValuesToTest()
@@ -666,6 +668,36 @@ public class TestGpuExpressions
         testArithmetic(OperatorType.MULTIPLY, nullsProvider);
         testArithmetic(OperatorType.DIVIDE, nullsProvider);
         testArithmetic(OperatorType.MODULUS, nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testShortDecimalAdd(NullsProvider nullsProvider)
+    {
+        testShortDecimalAdd(createDecimalType(5, 2), createDecimalType(5, 2), nullsProvider);
+        testShortDecimalAdd(createDecimalType(3, 0), createDecimalType(4, 0), nullsProvider);
+        testShortDecimalAdd(createDecimalType(8, 4), createDecimalType(9, 5), nullsProvider);
+        testShortDecimalAdd(createDecimalType(1, 0), createDecimalType(13, 2), nullsProvider);
+        // result overflows into DECIMAL128 (integral + scale + 1 > 18)
+        testShortDecimalAdd(createDecimalType(18, 0), createDecimalType(18, 18), nullsProvider);
+        testShortDecimalAdd(createDecimalType(18, 0), createDecimalType(18, 0), nullsProvider);
+    }
+
+    private void testShortDecimalAdd(DecimalType leftType, DecimalType rightType, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(leftType, rightType);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBlock(leftType, positionsCount, nullsProvider),
+                createBlock(rightType, positionsCount, nullsProvider)));
+
+        Expression expression = new Call(
+                functionResolution.resolveOperator(OperatorType.ADD, List.of(leftType, rightType)),
+                ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest

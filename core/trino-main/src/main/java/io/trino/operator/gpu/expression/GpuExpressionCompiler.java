@@ -399,6 +399,17 @@ public class GpuExpressionCompiler
                     if (leftType == DOUBLE && rightType == DOUBLE) {
                         yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.ADD, outputType));
                     }
+                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal
+                            && leftDecimal.isShort() && rightDecimal.isShort()) {
+                        if (call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
+                            // Infallible: the result type is always wide enough for any sum.
+                            // The CPU's addShortShortShort confirms this with an unchecked a * aRescale + b * bRescale.
+                            yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.ADD, outputType));
+                        }
+                        // Both inputs have at most 18 digits, so the sum needs at most 36 digits (DECIMAL128 holds 38).
+                        // Widen inputs to DECIMAL128 before adding.
+                        yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.ADD, outputType));
+                    }
                     yield Optional.empty();
                 }
                 case SUBTRACT -> {
