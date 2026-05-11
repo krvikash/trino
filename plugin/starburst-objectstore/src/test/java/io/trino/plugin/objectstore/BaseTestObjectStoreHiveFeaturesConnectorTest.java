@@ -2064,13 +2064,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testShowSchemasLikeWithEscape()
-    {
-        skipDuplicateTestCoverage("testShowSchemasLikeWithEscape");
-    }
-
-    @Test
-    @Override
     public void testShowTables()
     {
         skipDuplicateTestCoverage("testShowTables");

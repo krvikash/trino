@@ -1607,13 +1607,6 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
-    public void testShowSchemasLikeWithEscape()
-    {
-        skipDuplicateTestCoverage("testShowSchemasLikeWithEscape");
-    }
-
-    @Test
-    @Override
     public void testShowTables()
     {
         skipDuplicateTestCoverage("testShowTables");
