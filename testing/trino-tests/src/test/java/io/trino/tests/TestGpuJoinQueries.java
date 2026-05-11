@@ -96,7 +96,8 @@ public class TestGpuJoinQueries
     @Test
     public void testTinyInnerJoinExecutesOnGpu()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT t.x
                 FROM (VALUES 1, 2, 3, 4, 5) t(x)
                 JOIN (VALUES 2, 4) u(x) ON t.x = u.x
