@@ -17,6 +17,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import com.google.errorprone.annotations.CheckReturnValue;
 import io.trino.Session;
 import io.trino.cost.StatsAndCosts;
@@ -85,6 +86,7 @@ import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Suppliers.memoize;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.ImmutableSetMultimap.toImmutableSetMultimap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Sets.intersection;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
@@ -658,13 +660,20 @@ public class QueryAssertions
         {
             QueryResultAndExecutionStats result = executeAndGetExecutionStats();
 
-            // Validate not GPU usage
-            List<String> gpuOperators = result.queryStats().getOperatorSummaries().stream()
-                    .filter(summary -> summary.getOperatorType().contains("Gpu"))
-                    .map(OperatorStats::getOperatorType)
-                    .toList();
-            if (!gpuOperators.isEmpty()) {
-                throw new AssertionError("Query executed with GPU: " + gpuOperators);
+            // Validate no GPU usage
+            PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
+            Multimap<PlanNodeId, String> gpuPlanNodes = result.queryStats().getOperatorSummaries().stream()
+                    .filter(operatorStats -> operatorStats.getOperatorType().equals("GpuOperator"))
+                    .collect(toImmutableSetMultimap(OperatorStats::getPlanNodeId, OperatorStats::getOperatorType));
+            if (!gpuPlanNodes.isEmpty()) {
+                List<String> withGpu = PlanNodeSearcher.searchFrom(queryPlan)
+                        .findAll()
+                        .stream()
+                        .filter(planNode -> gpuPlanNodes.containsKey(planNode.getId()))
+                        .map(planNode -> "%s: %s %s".formatted(planNode.getId(), planNode.getClass().getSimpleName(), gpuPlanNodes.get(planNode.getId())))
+                        .sorted()
+                        .collect(toImmutableList());
+                throw new AssertionError("Query executed with GPU: " + withGpu);
             }
 
             // Validate results (just in case)
