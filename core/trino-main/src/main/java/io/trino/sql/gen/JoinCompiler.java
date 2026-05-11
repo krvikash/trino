@@ -51,6 +51,7 @@ import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
@@ -241,6 +242,7 @@ public class JoinCompiler
         generateGetChannelCountMethod(classDefinition, outputChannels.size());
         generateGetSizeInBytesMethod(classDefinition, sizeField);
         generateAppendToMethod(classDefinition, outputChannels, channelFields);
+        generateAppendToBuildersMethod(classDefinition, outputChannels, channelFields);
         generateHashRowMethod(classDefinition, callSiteBinder, joinChannelTypes);
         generateRowIdenticalToRowMethod(classDefinition, callSiteBinder, joinChannelTypes);
         generatePositionEqualsRowMethod(classDefinition, callSiteBinder, joinChannelTypes, joinChannelFields, true);
@@ -351,6 +353,35 @@ public class JoinCompiler
             pageBuilderOutputChannel++;
         }
         appendToBody.ret();
+    }
+
+    private static void generateAppendToBuildersMethod(ClassDefinition classDefinition, List<Integer> outputChannels, List<FieldDefinition> channelFields)
+    {
+        Parameter blockIndex = arg("blockIndex", int.class);
+        Parameter blockPosition = arg("blockPosition", int.class);
+        Parameter builders = arg("builders", PreSizedBlockBuilder[].class);
+        MethodDefinition appendToMethod = classDefinition.declareMethod(a(PUBLIC), "appendTo", type(void.class), blockIndex, blockPosition, builders);
+
+        Variable thisVariable = appendToMethod.getThis();
+        BytecodeBlock body = appendToMethod.getBody();
+
+        Variable block = appendToMethod.getScope().declareVariable(Block.class, "block");
+        int builderIndex = 0;
+        for (int outputChannel : outputChannels) {
+            body.append(block.set(
+                    thisVariable.getField(channelFields.get(outputChannel))
+                            .invoke("get", Object.class, blockIndex)
+                            .cast(Block.class)));
+
+            body.comment("builders[%s].append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(blockPosition));", builderIndex)
+                    .append(builders.getElement(builderIndex).invoke(
+                            "append",
+                            void.class,
+                            block.invoke("getUnderlyingValueBlock", ValueBlock.class),
+                            block.invoke("getUnderlyingValuePosition", int.class, blockPosition)));
+            builderIndex++;
+        }
+        body.ret();
     }
 
     private void generateHashRowMethod(ClassDefinition classDefinition, CallSiteBinder callSiteBinder, List<Type> joinChannelTypes)

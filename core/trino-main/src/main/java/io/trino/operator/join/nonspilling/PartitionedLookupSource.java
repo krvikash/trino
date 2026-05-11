@@ -23,6 +23,7 @@ import io.trino.operator.join.OuterPositionIterator;
 import io.trino.operator.join.TrackingLookupSourceSupplier;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.type.Type;
 import jakarta.annotation.Nullable;
 
@@ -223,6 +224,26 @@ public class PartitionedLookupSource
         lookupSources[partition].appendTo(joinPosition, pageBuilder, outputChannelOffset);
         if (outerPositionTracker != null) {
             outerPositionTracker.positionVisited(partition, joinPosition);
+        }
+    }
+
+    @Override
+    public void appendTo(long[] positions, int offset, int length, PreSizedBlockBuilder[] builders)
+    {
+        for (int i = 0; i < length; i++) {
+            long partitionedJoinPosition = positions[offset + i];
+            if (partitionedJoinPosition == JOIN_POSITION_NOT_FOUND) {
+                for (PreSizedBlockBuilder builder : builders) {
+                    builder.appendNull();
+                }
+                continue;
+            }
+            int partition = decodePartition(partitionedJoinPosition);
+            int joinPosition = decodeJoinPosition(partitionedJoinPosition);
+            lookupSources[partition].appendTo(joinPosition, builders);
+            if (outerPositionTracker != null) {
+                outerPositionTracker.positionVisited(partition, joinPosition);
+            }
         }
     }
 

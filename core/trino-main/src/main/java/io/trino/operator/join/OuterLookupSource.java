@@ -18,6 +18,7 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.annotation.NotThreadSafe;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 
 import java.util.function.Supplier;
 
@@ -97,6 +98,13 @@ public final class OuterLookupSource
     public void appendTo(long position, PageBuilder pageBuilder, int outputChannelOffset)
     {
         lookupSource.appendTo(position, pageBuilder, outputChannelOffset);
+        outerPositionTracker.positionVisited(position);
+    }
+
+    @Override
+    public void appendTo(long position, PreSizedBlockBuilder[] builders)
+    {
+        lookupSource.appendTo(position, builders);
         outerPositionTracker.positionVisited(position);
     }
 

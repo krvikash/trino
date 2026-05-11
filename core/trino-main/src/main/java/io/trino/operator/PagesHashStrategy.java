@@ -15,6 +15,7 @@ package io.trino.operator;
 
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 
 public interface PagesHashStrategy
 {
@@ -32,6 +33,12 @@ public interface PagesHashStrategy
      * Appends all values at the specified position to the page builder starting at {@code outputChannelOffset}.
      */
     void appendTo(int blockIndex, int position, PageBuilder pageBuilder, int outputChannelOffset);
+
+    /**
+     * Appends all values at the specified position to the provided builders. Each builder
+     * receives the value for the corresponding output channel.
+     */
+    void appendTo(int blockIndex, int position, PreSizedBlockBuilder[] builders);
 
     /**
      * Calculates the hash code at {@code position} in {@code page}. Page must have the same number of

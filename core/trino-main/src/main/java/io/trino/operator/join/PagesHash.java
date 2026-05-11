@@ -15,6 +15,7 @@ package io.trino.operator.join;
 
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 
 public interface PagesHash
 {
@@ -29,6 +30,8 @@ public interface PagesHash
     int[] getAddressIndex(int[] positions, Page hashChannelsPage, long[] rawHashes);
 
     void appendTo(long position, PageBuilder pageBuilder, int outputChannelOffset);
+
+    void appendTo(long position, PreSizedBlockBuilder[] builders);
 
     static int getHashPosition(long rawHash, long mask)
     {

@@ -1314,6 +1314,66 @@ public class TestHashJoinOperator
     }
 
     @Test
+    public void testFullOuterJoinWithNonEmptyLookupSource()
+    {
+        testFullOuterJoinWithNonEmptyLookupSource(false, false);
+        testFullOuterJoinWithNonEmptyLookupSource(false, true);
+        testFullOuterJoinWithNonEmptyLookupSource(true, false);
+        testFullOuterJoinWithNonEmptyLookupSource(true, true);
+    }
+
+    private void testFullOuterJoinWithNonEmptyLookupSource(boolean parallelBuild, boolean singleBigintLookupSource)
+    {
+        TaskContext taskContext = createTaskContext();
+
+        // build factory (outer build side, so single-partition builds use OuterLookupSource)
+        List<Type> buildTypes = ImmutableList.of(BIGINT);
+        RowPagesBuilder buildPages = rowPagesBuilder(Ints.asList(0), buildTypes)
+                .row(1L)
+                .row(2L)
+                .row(3L);
+        BuildSideSetup buildSideSetup = setupBuildSide(partitionFunctionProvider, parallelBuild, taskContext, buildPages, Optional.empty(), singleBigintLookupSource, true);
+        JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = buildSideSetup.getLookupSourceFactoryManager();
+
+        // probe factory
+        List<Type> probeTypes = ImmutableList.of(BIGINT);
+        RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), probeTypes);
+        List<Page> probeInput = probePages
+                .row(1L)
+                .row(2L)
+                .row((String) null)
+                .row(3L)
+                .row(4L)
+                .build();
+        OperatorFactory joinOperatorFactory = join(
+                fullOuterJoin(),
+                0,
+                new PlanNodeId("test"),
+                lookupSourceFactoryManager,
+                false,
+                probePages.getTypes(),
+                Ints.asList(0),
+                Optional.empty(),
+                HASH_COMPILER,
+                OptionalInt.empty());
+
+        // build drivers and operators
+        instantiateBuildDrivers(buildSideSetup, taskContext);
+        buildLookupSource(executor, buildSideSetup);
+
+        // every build row is matched, so the build-outer side emits nothing; the null
+        // probe and the unmatched probe row (4) pad the build columns with nulls.
+        MaterializedResult expected = MaterializedResult.resultBuilder(taskContext.getSession(), concat(probeTypes, buildTypes))
+                .row(1L, 1L)
+                .row(2L, 2L)
+                .row(null, null)
+                .row(3L, 3L)
+                .row(4L, null)
+                .build();
+        assertOperatorEquals(joinOperatorFactory, taskContext.addPipelineContext(0, true, true, false).addDriverContext(), probeInput, expected, true);
+    }
+
+    @Test
     public void testInnerJoinWithNonEmptyLookupSourceAndEmptyProbe()
     {
         testInnerJoinWithNonEmptyLookupSourceAndEmptyProbe(false, false);

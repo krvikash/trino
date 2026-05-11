@@ -133,6 +133,18 @@ public final class JoinTestUtils
             Optional<InternalJoinFilterFunction> filterFunction,
             boolean enableSingleChannelBigintLookupSource)
     {
+        return setupBuildSide(partitionFunctionProvider, parallelBuild, taskContext, buildPages, filterFunction, enableSingleChannelBigintLookupSource, false);
+    }
+
+    public static BuildSideSetup setupBuildSide(
+            PartitionFunctionProvider partitionFunctionProvider,
+            boolean parallelBuild,
+            TaskContext taskContext,
+            RowPagesBuilder buildPages,
+            Optional<InternalJoinFilterFunction> filterFunction,
+            boolean enableSingleChannelBigintLookupSource,
+            boolean buildOuter)
+    {
         Optional<JoinFilterFunctionCompiler.JoinFilterFunctionFactory> filterFunctionFactory = filterFunction
                 .map(function -> (_, addresses, pages) -> new StandardJoinFilterFunction(function, addresses, pages));
 
@@ -184,10 +196,10 @@ public final class JoinTestUtils
                         .map(buildPages.getTypes()::get)
                         .collect(toImmutableList()),
                 partitionCount,
-                false,
+                buildOuter,
                 HASH_COMPILER);
         JoinBridgeManager<PartitionedLookupSourceFactory> lookupSourceFactoryManager = new JoinBridgeManager<PartitionedLookupSourceFactory>(
-                false,
+                buildOuter,
                 factory,
                 factory.getOutputTypes());
 

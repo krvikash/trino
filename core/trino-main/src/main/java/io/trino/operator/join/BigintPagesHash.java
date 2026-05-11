@@ -21,6 +21,7 @@ import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -288,6 +289,16 @@ public final class BigintPagesHash
         int blockPosition = decodePosition(pageAddress);
 
         pagesHashStrategy.appendTo(blockIndex, blockPosition, pageBuilder, outputChannelOffset);
+    }
+
+    @Override
+    public void appendTo(long position, PreSizedBlockBuilder[] builders)
+    {
+        long pageAddress = addresses.getLong(toIntExact(position));
+        int blockIndex = decodeSliceIndex(pageAddress);
+        int blockPosition = decodePosition(pageAddress);
+
+        pagesHashStrategy.appendTo(blockIndex, blockPosition, builders);
     }
 
     private boolean isPositionNull(int blockIndex, int blockPosition)

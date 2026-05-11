@@ -18,6 +18,7 @@ import com.google.common.primitives.Ints;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.type.Type;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.BlockTypeOperators.BlockPositionComparison;
@@ -113,6 +114,16 @@ public class SimplePagesHashStrategy
             Block block = channel.get(blockIndex);
             pageBuilder.getBlockBuilder(outputChannelOffset).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(position));
             outputChannelOffset++;
+        }
+    }
+
+    @Override
+    public void appendTo(int blockIndex, int position, PreSizedBlockBuilder[] builders)
+    {
+        for (int i = 0; i < outputChannels.length; i++) {
+            List<Block> channel = channels.get(outputChannels[i]);
+            Block block = channel.get(blockIndex);
+            builders[i].append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(position));
         }
     }
 

@@ -15,6 +15,7 @@ package io.trino.operator.join;
 
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import jakarta.annotation.Nullable;
 
 import java.util.Optional;
@@ -153,6 +154,12 @@ public final class JoinHash
     public void appendTo(long position, PageBuilder pageBuilder, int outputChannelOffset)
     {
         pagesHash.appendTo(position, pageBuilder, outputChannelOffset);
+    }
+
+    @Override
+    public void appendTo(long position, PreSizedBlockBuilder[] builders)
+    {
+        pagesHash.appendTo(position, builders);
     }
 
     @Override

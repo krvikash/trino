@@ -207,7 +207,7 @@ public class PageJoiner
             if (lookupSource.isJoinPositionEligible(joinPosition, probe.getPosition(), probe.getPage())) {
                 currentProbePositionProducedRow = true;
 
-                pageBuilder.appendRow(probe, lookupSource, joinPosition);
+                pageBuilder.appendRow(probe, joinPosition);
                 joinSourcePositions++;
             }
 
@@ -261,7 +261,7 @@ public class PageJoiner
     private Page buildOutputPage()
     {
         verifyNotNull(probe);
-        Page outputPage = pageBuilder.build(probe);
+        Page outputPage = pageBuilder.build(probe, verifyNotNull(lookupSource));
         pageBuilder.reset();
         return outputPage;
     }

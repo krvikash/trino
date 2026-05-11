@@ -14,6 +14,8 @@
 package io.trino.operator.join.nonspilling;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.join.LookupSource;
 import io.trino.operator.join.nonspilling.JoinProbe.JoinProbeFactory;
@@ -23,6 +25,8 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.PreSizedBlockBuilder;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import org.junit.jupiter.api.Test;
@@ -30,7 +34,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static io.trino.operator.InterpretedHashGenerator.createPagePrefixHashGenerator;
+import static io.trino.operator.project.PageProcessor.MAX_BATCH_SIZE;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestLookupJoinPageBuilder
@@ -56,12 +62,12 @@ public class TestLookupJoinPageBuilder
 
         int joinPosition = 0;
         while (!lookupJoinPageBuilder.isFull() && probe.advanceNextPosition()) {
-            lookupJoinPageBuilder.appendRow(probe, lookupSource, joinPosition++);
+            lookupJoinPageBuilder.appendRow(probe, joinPosition++);
             lookupJoinPageBuilder.appendNullForBuild(probe);
         }
         assertThat(lookupJoinPageBuilder.isEmpty()).isFalse();
 
-        Page output = lookupJoinPageBuilder.build(probe);
+        Page output = lookupJoinPageBuilder.build(probe, lookupSource);
         assertThat(output.getChannelCount()).isEqualTo(4);
         assertThat(output.getBlock(0)).isInstanceOf(DictionaryBlock.class);
         assertThat(output.getBlock(1)).isInstanceOf(DictionaryBlock.class);
@@ -104,10 +110,13 @@ public class TestLookupJoinPageBuilder
 
         // empty
         JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
-        Page output = lookupJoinPageBuilder.build(probe);
+        Page output = lookupJoinPageBuilder.build(probe, lookupSource);
         assertThat(output.getChannelCount()).isEqualTo(2);
         assertThat(output.getBlock(0)).isInstanceOf(LongArrayBlock.class);
         assertThat(output.getPositionCount()).isEqualTo(0);
+        // build block must be a real empty block, not a null slot
+        assertThat(output.getBlock(1)).isNotNull();
+        assertThat(output.getBlock(1).getPositionCount()).isEqualTo(0);
         lookupJoinPageBuilder.reset();
 
         // the probe covers non-sequential positions
@@ -116,9 +125,9 @@ public class TestLookupJoinPageBuilder
             if (joinPosition % 2 == 1) {
                 continue;
             }
-            lookupJoinPageBuilder.appendRow(probe, lookupSource, joinPosition);
+            lookupJoinPageBuilder.appendRow(probe, joinPosition);
         }
-        output = lookupJoinPageBuilder.build(probe);
+        output = lookupJoinPageBuilder.build(probe, lookupSource);
         assertThat(output.getChannelCount()).isEqualTo(2);
         assertThat(output.getBlock(0)).isInstanceOf(DictionaryBlock.class);
         assertThat(output.getPositionCount()).isEqualTo(entries / 2);
@@ -131,9 +140,9 @@ public class TestLookupJoinPageBuilder
         // the probe covers everything
         probe = joinProbeFactory.createJoinProbe(page, lookupSource);
         for (int joinPosition = 0; probe.advanceNextPosition(); joinPosition++) {
-            lookupJoinPageBuilder.appendRow(probe, lookupSource, joinPosition);
+            lookupJoinPageBuilder.appendRow(probe, joinPosition);
         }
-        output = lookupJoinPageBuilder.build(probe);
+        output = lookupJoinPageBuilder.build(probe, lookupSource);
         assertThat(output.getChannelCount()).isEqualTo(2);
         assertThat(output.getBlock(0)).isNotInstanceOf(DictionaryBlock.class);
         assertThat(output.getPositionCount()).isEqualTo(entries);
@@ -149,9 +158,9 @@ public class TestLookupJoinPageBuilder
             if (joinPosition < 10 || joinPosition >= 50) {
                 continue;
             }
-            lookupJoinPageBuilder.appendRow(probe, lookupSource, joinPosition);
+            lookupJoinPageBuilder.appendRow(probe, joinPosition);
         }
-        output = lookupJoinPageBuilder.build(probe);
+        output = lookupJoinPageBuilder.build(probe, lookupSource);
         assertThat(output.getChannelCount()).isEqualTo(2);
         assertThat(output.getBlock(0)).isNotInstanceOf(DictionaryBlock.class);
         assertThat(output.getPositionCount()).isEqualTo(40);
@@ -176,10 +185,152 @@ public class TestLookupJoinPageBuilder
 
         // append the same row many times should also flush in the end
         probe.advanceNextPosition();
-        for (int i = 0; i < 300_000; i++) {
-            lookupJoinPageBuilder.appendRow(probe, lookupSource, 0);
+        for (int i = 0; i < 300_000 && !lookupJoinPageBuilder.isFull(); i++) {
+            lookupJoinPageBuilder.appendRow(probe, 0);
         }
         assertThat(lookupJoinPageBuilder.isFull()).isTrue();
+    }
+
+    @Test
+    public void testAllNullForBuild()
+    {
+        int entries = 100;
+        BlockBuilder blockBuilder = BIGINT.createFixedSizeBlockBuilder(entries);
+        for (int i = 0; i < entries; i++) {
+            BIGINT.writeLong(blockBuilder, i);
+        }
+        Block block = blockBuilder.build();
+        Page page = new Page(block);
+
+        List<Type> types = ImmutableList.of(BIGINT);
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        LookupSource lookupSource = new TestLookupSource(types, page);
+        JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
+
+        while (probe.advanceNextPosition()) {
+            lookupJoinPageBuilder.appendNullForBuild(probe);
+        }
+        Page output = lookupJoinPageBuilder.build(probe, lookupSource);
+        assertThat(output.getChannelCount()).isEqualTo(2);
+        assertThat(output.getPositionCount()).isEqualTo(entries);
+        for (int i = 0; i < entries; i++) {
+            assertThat(output.getBlock(0).isNull(i)).isFalse();
+            assertThat(BIGINT.getLong(output.getBlock(0), i)).isEqualTo(i);
+            assertThat(output.getBlock(1).isNull(i)).isTrue();
+        }
+    }
+
+    @Test
+    public void testRepeatBuildRow()
+    {
+        int positionCount = 50;
+        Block probeBlock = RunLengthEncodedBlock.create(BIGINT, 7L, positionCount);
+        Page probePage = new Page(probeBlock);
+
+        BlockBuilder buildBlockBuilder = BIGINT.createFixedSizeBlockBuilder(1);
+        BIGINT.writeLong(buildBlockBuilder, 42);
+        Page buildPage = new Page(buildBlockBuilder.build());
+
+        List<Type> types = ImmutableList.of(BIGINT);
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        LookupSource lookupSource = new TestLookupSource(types, buildPage);
+        JoinProbe probe = joinProbeFactory.createJoinProbe(probePage, lookupSource);
+        assertThat(probe.areProbeJoinChannelsRunLengthEncoded()).isTrue();
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
+
+        probe.advanceNextPosition();
+        lookupJoinPageBuilder.appendRow(probe, 0);
+        lookupJoinPageBuilder.repeatBuildRow();
+
+        Page output = lookupJoinPageBuilder.build(probe, lookupSource);
+        assertThat(output.getChannelCount()).isEqualTo(2);
+        assertThat(output.getPositionCount()).isEqualTo(positionCount);
+        assertThat(output.getBlock(0)).isInstanceOf(RunLengthEncodedBlock.class);
+        assertThat(output.getBlock(1)).isInstanceOf(RunLengthEncodedBlock.class);
+        for (int i = 0; i < positionCount; i++) {
+            assertThat(BIGINT.getLong(output.getBlock(0), i)).isEqualTo(7L);
+            assertThat(BIGINT.getLong(output.getBlock(1), i)).isEqualTo(42L);
+        }
+    }
+
+    @Test
+    public void testCapacityShrinksForWideBuild()
+    {
+        // Wide VARCHAR build column: each row contributes ~2 KB of payload, so a batch
+        // sized at the initial capacity (MAX_BATCH_SIZE / 16 = 512 rows) is ~1 MiB,
+        // above the 1 MiB output budget. After the first flush the estimator
+        // should shrink subsequent batches below the initial capacity.
+        int sourcePositions = MAX_BATCH_SIZE;
+        Slice wide = Slices.utf8Slice("x".repeat(2048));
+        BlockBuilder blockBuilder = VARCHAR.createBlockBuilder(null, sourcePositions);
+        for (int i = 0; i < sourcePositions; i++) {
+            VARCHAR.writeSlice(blockBuilder, wide);
+        }
+        Block block = blockBuilder.build();
+        Page page = new Page(block);
+
+        List<Type> types = ImmutableList.of(VARCHAR);
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        LookupSource lookupSource = new TestLookupSource(types, page);
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
+
+        JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
+        long joinPosition = 0;
+        while (!lookupJoinPageBuilder.isFull() && probe.advanceNextPosition()) {
+            lookupJoinPageBuilder.appendRow(probe, joinPosition++);
+        }
+        int firstBatchSize = lookupJoinPageBuilder.getPositionCount();
+        assertThat(firstBatchSize).isEqualTo(MAX_BATCH_SIZE / 16);
+        Page firstPage = lookupJoinPageBuilder.build(probe, lookupSource);
+        assertThat(firstPage.getSizeInBytes()).isGreaterThan(1_000_000L);
+        lookupJoinPageBuilder.reset();
+
+        probe = joinProbeFactory.createJoinProbe(page, lookupSource);
+        while (!lookupJoinPageBuilder.isFull() && probe.advanceNextPosition()) {
+            lookupJoinPageBuilder.appendRow(probe, joinPosition++);
+        }
+        int secondBatchSize = lookupJoinPageBuilder.getPositionCount();
+        assertThat(secondBatchSize).isLessThan(firstBatchSize);
+    }
+
+    @Test
+    public void testCapacityGrowsForNarrowBuild()
+    {
+        // BIGINT build column: ~8 bytes per row leaves the byte budget non-binding,
+        // so successive batches should double in capacity until they reach MAX_BATCH_SIZE.
+        int sourcePositions = MAX_BATCH_SIZE * 4;
+        BlockBuilder blockBuilder = BIGINT.createFixedSizeBlockBuilder(sourcePositions);
+        for (int i = 0; i < sourcePositions; i++) {
+            BIGINT.writeLong(blockBuilder, i);
+        }
+        Block block = blockBuilder.build();
+        Page page = new Page(block);
+
+        List<Type> types = ImmutableList.of(BIGINT);
+        JoinProbeFactory joinProbeFactory = new JoinProbeFactory(ImmutableList.of(0), ImmutableList.of(0), false, createPagePrefixHashGenerator(types, HASH_COMPILER));
+        LookupSource lookupSource = new TestLookupSource(types, page);
+        LookupJoinPageBuilder lookupJoinPageBuilder = new LookupJoinPageBuilder(types);
+
+        long joinPosition = 0;
+        int previousBatchSize = 0;
+        for (int batch = 0; batch < 6; batch++) {
+            JoinProbe probe = joinProbeFactory.createJoinProbe(page, lookupSource);
+            while (!lookupJoinPageBuilder.isFull() && probe.advanceNextPosition()) {
+                lookupJoinPageBuilder.appendRow(probe, joinPosition++);
+            }
+            int batchSize = lookupJoinPageBuilder.getPositionCount();
+            if (batch == 0) {
+                assertThat(batchSize).isEqualTo(MAX_BATCH_SIZE / 16);
+            }
+            else {
+                assertThat(batchSize).isGreaterThanOrEqualTo(previousBatchSize);
+            }
+            previousBatchSize = batchSize;
+            lookupJoinPageBuilder.build(probe, lookupSource);
+            lookupJoinPageBuilder.reset();
+        }
+        assertThat(previousBatchSize).isEqualTo(MAX_BATCH_SIZE);
     }
 
     private static final class TestLookupSource
@@ -227,7 +378,7 @@ public class TestLookupJoinPageBuilder
         @Override
         public long getJoinPosition(int position, Page hashChannelsPage, Page allChannelsPage)
         {
-            throw new UnsupportedOperationException();
+            return 0;
         }
 
         @Override
@@ -248,6 +399,15 @@ public class TestLookupJoinPageBuilder
             for (int i = 0; i < types.size(); i++) {
                 Block block = page.getBlock(i);
                 pageBuilder.getBlockBuilder(i).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition((int) position));
+            }
+        }
+
+        @Override
+        public void appendTo(long position, PreSizedBlockBuilder[] builders)
+        {
+            for (int i = 0; i < types.size(); i++) {
+                Block block = page.getBlock(i);
+                builders[i].append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition((int) position));
             }
         }
 

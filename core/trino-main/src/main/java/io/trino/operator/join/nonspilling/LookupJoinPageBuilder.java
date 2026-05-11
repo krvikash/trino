@@ -13,55 +13,69 @@
  */
 package io.trino.operator.join.nonspilling;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.operator.join.LookupSource;
 import io.trino.spi.Page;
-import io.trino.spi.PageBuilder;
+import io.trino.spi.PageCapacityEstimator;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.Type;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.List;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Verify.verify;
+import static io.trino.operator.join.LookupSource.JOIN_POSITION_NOT_FOUND;
 import static io.trino.operator.project.PageProcessor.MAX_BATCH_SIZE;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 import static java.util.Objects.requireNonNull;
 
 /**
- * This page builder creates pages with dictionary blocks:
- * normal dictionary blocks for the probe side and the original blocks for the build side.
+ * Builds output pages for non-spilling lookup joins.
  * <p>
- * TODO use dictionary blocks (probably extended kind) to avoid data copying for build side
+ * Probe-side columns reuse the source block directly when the probe indices
+ * cover the whole block, a {@code getRegion} slice when they are contiguous
+ * but partial, and a dictionary block otherwise.
+ * <p>
+ * Build-side columns are recorded as join positions during {@link #appendRow}
+ * and {@link #appendNullForBuild} and materialized at {@link #build} via
+ * {@link PreSizedBlockBuilder}; the {@link LookupSource#JOIN_POSITION_NOT_FOUND}
+ * sentinel produces nulls for unmatched outer-join rows.
+ * <p>
+ * TODO use dictionary blocks (probably an extended kind) to avoid copying the
+ *      build side entirely.
  */
 public class LookupJoinPageBuilder
 {
     private final IntArrayList probeIndexBuilder = new IntArrayList();
-    private final PageBuilder buildPageBuilder;
+    private final LongArrayList buildPositions = new LongArrayList();
+    private final List<Type> buildTypes;
     private final int buildOutputChannelCount;
-    private long estimatedProbeBlockBytes;
-    private long estimatedProbeRowSize = -1;
+    private final PageCapacityEstimator capacityEstimator;
     private int previousPosition = -1;
     private boolean isSequentialProbeIndices = true;
     private boolean repeatBuildRow;
 
     public LookupJoinPageBuilder(List<Type> buildTypes)
     {
-        this.buildPageBuilder = new PageBuilder(requireNonNull(buildTypes, "buildTypes is null"));
-        this.buildOutputChannelCount = buildTypes.size();
+        this.buildTypes = ImmutableList.copyOf(requireNonNull(buildTypes, "buildTypes is null"));
+        this.buildOutputChannelCount = this.buildTypes.size();
+        // Start the position estimate low; recordPage grows it toward MAX_BATCH_SIZE
+        // for narrow rows and shrinks it for wide rows to honor the page byte budget.
+        this.capacityEstimator = new PageCapacityEstimator(MAX_BATCH_SIZE / 16, MAX_BATCH_SIZE, DEFAULT_MAX_PAGE_SIZE_IN_BYTES);
     }
 
     public boolean isFull()
     {
-        return estimatedProbeBlockBytes + buildPageBuilder.getSizeInBytes() >= DEFAULT_MAX_PAGE_SIZE_IN_BYTES ||
-                buildPageBuilder.getPositionCount() >= MAX_BATCH_SIZE ||
-                buildPageBuilder.isFull();
+        return capacityEstimator.isFull(probeIndexBuilder.size());
     }
 
     public boolean isEmpty()
     {
-        return probeIndexBuilder.isEmpty() && buildPageBuilder.isEmpty();
+        return probeIndexBuilder.isEmpty();
     }
 
     public int getPositionCount()
@@ -73,42 +87,30 @@ public class LookupJoinPageBuilder
 
     public void reset()
     {
-        // be aware that probeIndexBuilder will not clear its capacity
+        // be aware that probeIndexBuilder and buildPositions will not clear their capacity
         probeIndexBuilder.clear();
-        buildPageBuilder.reset();
-        estimatedProbeBlockBytes = 0;
-        estimatedProbeRowSize = -1;
+        buildPositions.clear();
         previousPosition = -1;
         isSequentialProbeIndices = true;
         repeatBuildRow = false;
     }
 
     /**
-     * append the index for the probe and copy the row for the build
+     * append the index for the probe and record the build position for deferred materialization
      */
-    public void appendRow(JoinProbe probe, LookupSource lookupSource, long joinPosition)
+    public void appendRow(JoinProbe probe, long joinPosition)
     {
-        // probe side
         appendProbeIndex(probe);
-
-        // build side
-        buildPageBuilder.declarePosition();
-        lookupSource.appendTo(joinPosition, buildPageBuilder, 0);
+        buildPositions.add(joinPosition);
     }
 
     /**
-     * append the index for the probe and append nulls for the build
+     * append the index for the probe and a sentinel for the build (null padding at flush time)
      */
     public void appendNullForBuild(JoinProbe probe)
     {
-        // probe side
         appendProbeIndex(probe);
-
-        // build side
-        buildPageBuilder.declarePosition();
-        for (int i = 0; i < buildOutputChannelCount; i++) {
-            buildPageBuilder.getBlockBuilder(i).appendNull();
-        }
+        buildPositions.add(JOIN_POSITION_NOT_FOUND);
     }
 
     public void repeatBuildRow()
@@ -116,14 +118,14 @@ public class LookupJoinPageBuilder
         repeatBuildRow = true;
     }
 
-    public Page build(JoinProbe probe)
+    public Page build(JoinProbe probe, LookupSource lookupSource)
     {
         if (repeatBuildRow) {
-            return buildRepeatedPage(probe);
+            return buildRepeatedPage(probe, lookupSource);
         }
 
         int outputPositions = probeIndexBuilder.size();
-        verify(buildPageBuilder.getPositionCount() == outputPositions);
+        verify(buildPositions.size() == outputPositions);
 
         int[] probeOutputChannels = probe.getOutputChannels();
         Block[] blocks = new Block[probeOutputChannels.length + buildOutputChannelCount];
@@ -151,21 +153,25 @@ public class LookupJoinPageBuilder
             }
         }
 
+        PreSizedBlockBuilder[] builders = createBuilders(outputPositions);
+        lookupSource.appendTo(buildPositions.elements(), 0, outputPositions, builders);
         int offset = probeOutputChannels.length;
         for (int i = 0; i < buildOutputChannelCount; i++) {
-            blocks[offset + i] = buildPageBuilder.getBlockBuilder(i).build();
+            blocks[offset + i] = builders[i].build();
             verify(blocks[offset + i].getPositionCount() == outputPositions);
         }
-        return new Page(outputPositions, blocks);
+        Page page = new Page(outputPositions, blocks);
+        capacityEstimator.recordPage(page.getSizeInBytes(), outputPositions);
+        return page;
     }
 
-    private Page buildRepeatedPage(JoinProbe probe)
+    private Page buildRepeatedPage(JoinProbe probe, LookupSource lookupSource)
     {
         // Build match can be repeated only if there is a single build row match
         // and probe join channels are run length encoded.
         verify(probe.areProbeJoinChannelsRunLengthEncoded());
-        verify(buildPageBuilder.getPositionCount() == 1);
         verify(probeIndexBuilder.size() == 1);
+        verify(buildPositions.size() == 1);
         verify(probeIndexBuilder.getInt(0) == 0);
 
         int positionCount = probe.getPage().getPositionCount();
@@ -176,21 +182,30 @@ public class LookupJoinPageBuilder
             blocks[i] = probe.getPage().getBlock(probeOutputChannels[i]);
         }
 
+        PreSizedBlockBuilder[] builders = createBuilders(1);
+        lookupSource.appendTo(buildPositions.elements(), 0, 1, builders);
         int offset = probeOutputChannels.length;
         for (int i = 0; i < buildOutputChannelCount; i++) {
-            Block buildBlock = buildPageBuilder.getBlockBuilder(i).build();
-            blocks[offset + i] = RunLengthEncodedBlock.create(buildBlock, positionCount);
+            blocks[offset + i] = RunLengthEncodedBlock.create(builders[i].build(), positionCount);
         }
 
         return new Page(positionCount, blocks);
+    }
+
+    private PreSizedBlockBuilder[] createBuilders(int expectedEntries)
+    {
+        PreSizedBlockBuilder[] builders = new PreSizedBlockBuilder[buildOutputChannelCount];
+        for (int i = 0; i < buildOutputChannelCount; i++) {
+            builders[i] = buildTypes.get(i).createPreSizedBlockBuilder(expectedEntries);
+        }
+        return builders;
     }
 
     @Override
     public String toString()
     {
         return toStringHelper(this)
-                .add("estimatedSize", estimatedProbeBlockBytes + buildPageBuilder.getSizeInBytes())
-                .add("positionCount", buildPageBuilder.getPositionCount())
+                .add("positionCount", probeIndexBuilder.size())
                 .toString();
     }
 
@@ -200,55 +215,7 @@ public class LookupJoinPageBuilder
         // positions to be appended should be in ascending order
         verify(position >= 0 && previousPosition <= position);
         isSequentialProbeIndices &= position == previousPosition + 1 || previousPosition == -1;
-
-        // Update probe indices and size
+        previousPosition = position;
         probeIndexBuilder.add(position);
-        estimatedProbeBlockBytes += Integer.BYTES;
-
-        // Update memory usage for probe side.
-        //
-        // The size of the probe cannot be easily calculated given
-        // (1) the structure of Block is recursive,
-        // (2) an inner block can serve as multiple views (e.g., in a dictionary block).
-        //     Without a dedup at the granularity of rows, we cannot tell if we are overcounting, and
-        // (3) even we are able to dedup magically, calling getRegionSizeInBytes can be expensive.
-        //     For example, consider a dictionary block inside an array block;
-        //     calling getRegionSizeInBytes(p, 1) of the array block can lead to calling getRegionSizeInBytes with an arbitrary length for the dictionary block,
-        //     which is very expensive.
-        //
-        // To workaround the memory accounting complexity yet having a relatively reasonable estimation, we use sizeInBytes / positionCount as the size for each row.
-        // It can be shown that the output page is bounded within range [buildPageBuilder.getSizeInBytes(), buildPageBuilder.getSizeInBytes + probe.getPage().getSizeInBytes()].
-        //
-        // This is under the assumption that the position of a probe is non-decreasing.
-        // if position > previousPosition, we know it is a new row to append and we accumulate the estimated row size (sizeInBytes / positionCount);
-        // otherwise we do not count because we know it is duplicated with the previous appended row.
-        // So in the worst case, we can only accumulate up to the sizeInBytes of the probe page.
-        //
-        // On the other hand, we do not want to produce a page that is too small if the build size is too small (e.g., the build side is with all nulls).
-        // That means we only appended a few small rows in the probe and reached the probe end.
-        // But that is going to happen anyway because we have to flush the page whenever we reach the probe end.
-        // So with or without precise memory accounting, the output page is small anyway.
-
-        if (previousPosition != position) {
-            previousPosition = position;
-            estimatedProbeBlockBytes += getEstimatedProbeRowSize(probe);
-        }
-    }
-
-    private long getEstimatedProbeRowSize(JoinProbe probe)
-    {
-        if (estimatedProbeRowSize != -1) {
-            return estimatedProbeRowSize;
-        }
-
-        long estimatedProbeRowSize = 0;
-        for (int index : probe.getOutputChannels()) {
-            Block block = probe.getPage().getBlock(index);
-            // Estimate the size of the probe row
-            estimatedProbeRowSize += block.getSizeInBytes() / block.getPositionCount();
-        }
-
-        this.estimatedProbeRowSize = estimatedProbeRowSize;
-        return estimatedProbeRowSize;
     }
 }

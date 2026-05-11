@@ -19,6 +19,7 @@ import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -295,6 +296,16 @@ public final class DefaultPagesHash
         int blockPosition = decodePosition(pageAddress);
 
         pagesHashStrategy.appendTo(blockIndex, blockPosition, pageBuilder, outputChannelOffset);
+    }
+
+    @Override
+    public void appendTo(long position, PreSizedBlockBuilder[] builders)
+    {
+        long pageAddress = addresses.getLong(toIntExact(position));
+        int blockIndex = decodeSliceIndex(pageAddress);
+        int blockPosition = decodePosition(pageAddress);
+
+        pagesHashStrategy.appendTo(blockIndex, blockPosition, builders);
     }
 
     private boolean positionEqualsCurrentRowIgnoreNulls(int leftPosition, byte rawHash, int rightPosition, Page rightPage)
