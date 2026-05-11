@@ -57,6 +57,7 @@ import io.trino.spi.type.TimeType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
 import java.sql.Connection;
@@ -315,16 +316,18 @@ public class StarburstSynapseClient
     @Override
     protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
     {
-        return Jdbi.open(connection).createQuery("""
-                        SELECT c.name AS column_name, collation_name  FROM sys.columns c
-                        INNER JOIN sys.tables t on c.object_id = t.object_id
-                        INNER JOIN sys.schemas s on s.schema_id = t.schema_id
-                        WHERE s.name = :schema_name and t.name = :table_name
-                        """)
-                .bind("schema_name", remoteTableName.getSchemaName().orElseThrow())
-                .bind("table_name", remoteTableName.getTableName())
-                .collectRows(toImmutableMap(rowView -> rowView.getColumn("column_name", String.class),
-                        rowView -> getCaseSensitivityForCollation(rowView.getColumn("collation_name", String.class))));
+        try (Handle handle = Jdbi.open(connection)) {
+            return handle.createQuery("""
+                            SELECT c.name AS column_name, collation_name FROM sys.columns c
+                            INNER JOIN sys.tables t on c.object_id = t.object_id
+                            INNER JOIN sys.schemas s on s.schema_id = t.schema_id
+                            WHERE s.name = :schema_name and t.name = :table_name
+                            """)
+                    .bind("schema_name", remoteTableName.getSchemaName().orElseThrow())
+                    .bind("table_name", remoteTableName.getTableName())
+                    .collectRows(toImmutableMap(rowView -> rowView.getColumn("column_name", String.class),
+                            rowView -> getCaseSensitivityForCollation(rowView.getColumn("collation_name", String.class))));
+        }
     }
 
     private static CaseSensitivity getCaseSensitivityForCollation(String collation)
