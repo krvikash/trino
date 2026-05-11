@@ -83,8 +83,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Suppliers.memoize;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.collect.Sets.intersection;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.metadata.OperatorNameUtil.mangleOperatorName;
@@ -621,20 +623,31 @@ public class QueryAssertions
             validateResultsWithGpuDisabled(result.result().result());
 
             // Validate GPU usage
-            Set<PlanNodeId> possiblePlanNodeIds = PlanNodeSearcher.searchFrom(result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot())
+            PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
+            Set<PlanNodeId> matchingPlanNodeIds = PlanNodeSearcher.searchFrom(queryPlan)
                     .where(planNodeType::isInstance)
                     .findAll()
                     .stream()
                     .map(PlanNode::getId)
                     .collect(toImmutableSet());
-            checkState(!possiblePlanNodeIds.isEmpty(), "Plan node %s not found in the query plan", planNodeType);
+            checkState(!matchingPlanNodeIds.isEmpty(), "Plan node %s not found in the query plan", planNodeType);
 
-            Optional<OperatorStats> gpuOperator = result.queryStats().getOperatorSummaries().stream()
-                    .filter(operatorStats -> possiblePlanNodeIds.contains(operatorStats.getPlanNodeId()))
-                    .filter(summary -> summary.getOperatorType().equals("GpuOperator"))
-                    .findAny();
-            if (gpuOperator.isEmpty()) {
-                throw new AssertionError("Query plan has PlanNodes of %s: %s, but none of these was executing with GpuOperator".formatted(planNodeType, possiblePlanNodeIds));
+            Set<PlanNodeId> gpuPlanNodes = result.queryStats().getOperatorSummaries().stream()
+                    .filter(operatorStats -> operatorStats.getOperatorType().equals("GpuOperator"))
+                    .map(OperatorStats::getPlanNodeId)
+                    .collect(toImmutableSet());
+            if (intersection(matchingPlanNodeIds, gpuPlanNodes).isEmpty()) {
+                List<String> gpuPlanNodeClasses = PlanNodeSearcher.searchFrom(queryPlan)
+                        .findAll()
+                        .stream()
+                        .filter(planNode -> gpuPlanNodes.contains(planNode.getId()))
+                        .map(planNode -> planNode.getClass().getSimpleName())
+                        .sorted()
+                        .collect(toImmutableList());
+                throw new AssertionError("Query plan has PlanNodes of %s: %s, but none of these was executing with GpuOperator. These did: %s".formatted(
+                        planNodeType,
+                        matchingPlanNodeIds,
+                        gpuPlanNodeClasses));
             }
 
             return this;
