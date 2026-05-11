@@ -16,8 +16,10 @@ package io.trino.operator.gpu.join;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.Table;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -30,22 +32,10 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static io.trino.operator.gpu.GpuUtils.concatenateAndClose;
 import static java.util.Objects.requireNonNull;
 
-/**
- * Sink GPU operation for the build side of a hash join. Buffers the cuDF {@link Table}s
- * produced from build-side pages and, when the upstream signals {@link Finished},
- * concatenates them, builds the cuDF {@link HashJoin}, and publishes the resulting
- * {@link GpuJoinBridge} via the shared {@link GpuJoinBridgeManager}.
- * <p>
- * After publishing, the operation stays {@link Blocked} on the bridge's free future and only
- * reports {@link Finished} once every probe operator has closed and the probe operator factory
- * has been closed. This mirrors the CPU {@code HashBuilderOperator} lifecycle, where the build
- * driver lives until the lookup source is no longer needed.
- * <p>
- * This operation never emits a {@link Data} result.
- */
 public final class GpuJoinBuild
         implements GpuOperation
 {
@@ -76,9 +66,10 @@ public final class GpuJoinBuild
     private final int[] buildKeyChannels;
     private final int[] buildOutputChannels;
     private final List<@Own Table> bufferedTables = new ArrayList<>();
-
+    private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
+    private final ClosingRef<HashJoin> hashJoin = ClosingRef.empty();
     private boolean published;
-    private @Nullable ListenableFuture<Void> probesAllFinishedFuture;
+    private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
     private GpuJoinBuild(GpuOperation source, GpuJoinBridgeManager bridgeManager, int[] buildKeyChannels, int[] buildOutputChannels)
     {
@@ -134,68 +125,52 @@ public final class GpuJoinBuild
         checkState(!published, "already published");
         published = true;
 
-        @Own Table buildTable = null;
-        @Own Table buildKeyTable = null;
-        @Own Table buildPayloadTable = null;
-        @Own HashJoin hashJoin = null;
-        try {
-            if (!bufferedTables.isEmpty()) {
-                buildTable = concatenateAndClose(bufferedTables);
+        if (bufferedTables.isEmpty()) {
+            // build side empty
+            bridgeManager.publishBridge(null, null, this::allProbesFinished);
+        }
+        else {
+            try (ClosingRef<Table> buildTable = ClosingRef.empty();
+                    ClosingRef<Table> buildKeyTable = ClosingRef.empty()) {
+                buildTable.set(concatenateAndClose(bufferedTables));
                 bufferedTables.clear();
-                buildKeyTable = selectColumns(buildTable, buildKeyChannels);
+                buildKeyTable.set(selectColumns(buildTable.borrow(), buildKeyChannels));
+                @Nullable @Borrow Table buildOutputTable;
                 if (buildOutputChannels.length > 0) {
-                    buildPayloadTable = selectColumns(buildTable, buildOutputChannels);
+                    this.buildOutputTable.set(selectColumns(buildTable.borrow(), buildOutputChannels));
+                    buildOutputTable = this.buildOutputTable.borrow();
                 }
-                hashJoin = new HashJoin(buildKeyTable, /*compareNullsEqual=*/false);
+                else {
+                    buildOutputTable = null;
+                }
+                hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/false));
                 buildKeyTable.close();
-                buildKeyTable = null;
-            }
-            // else: build received zero rows; bridge holds null HashJoin and probe handles it.
 
-            // Bridge is created with refCount=1 (the seed held by the manager). publishBridge()
-            // will acquire additional refs for registered probe operators before completing the future.
-            GpuJoinBridge bridge = new GpuJoinBridge(buildPayloadTable, hashJoin, 1);
-            hashJoin = null;
-            buildPayloadTable = null;
-            // Capture before publishing: once published, this build operator no longer owns the bridge,
-            // but the free future is safe to observe — it fires when refCount reaches zero.
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9840) memory accounting for the build side until probe side is finished
-            probesAllFinishedFuture = bridge.getFreeFuture();
-            bridgeManager.publishBridge(bridge);
-        }
-        catch (Throwable t) {
-            closeQuietly(t, hashJoin);
-            closeQuietly(t, buildPayloadTable);
-            closeQuietly(t, buildKeyTable);
-            throw t;
-        }
-        finally {
-            if (buildTable != null) {
-                buildTable.close();
+                bridgeManager.publishBridge(hashJoin.borrow(), buildOutputTable, this::allProbesFinished);
             }
-            for (Table table : bufferedTables) {
-                if (table != null) {
-                    table.close();
-                }
-            }
-            bufferedTables.clear();
         }
     }
 
-    @Override
-    public void close()
+    void allProbesFinished()
     {
-        try {
-            source.close();
-        }
-        finally {
-            // If publishBuild() was not called (cancellation or upstream failure), free buffered
-            // tables. The bridge future stays pending; Trino's task-failure mechanism unblocks
-            // probe operators.
-            for (Table table : bufferedTables) {
-                table.close();
-            }
+        probesAllFinishedFuture.set(null);
+        close();
+    }
+
+    @Override
+    public synchronized void close()
+    {
+        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+            closer.register(source);
+            bufferedTables.forEach(closer::register);
             bufferedTables.clear();
+            closer.register(buildOutputTable);
+            closer.register(hashJoin);
+            probesAllFinishedFuture.setException(new Exception("Closed"));
+        }
+        catch (Exception e) {
+            throwIfUnchecked(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -206,20 +181,5 @@ public final class GpuJoinBuild
             selected[i] = source.getColumn(channels[i]);
         }
         return new Table(selected);
-    }
-
-    private static void closeQuietly(Throwable cause, AutoCloseable resource)
-    {
-        if (resource == null) {
-            return;
-        }
-        try {
-            resource.close();
-        }
-        catch (Throwable closeEx) {
-            if (closeEx != cause) {
-                cause.addSuppressed(closeEx);
-            }
-        }
     }
 }

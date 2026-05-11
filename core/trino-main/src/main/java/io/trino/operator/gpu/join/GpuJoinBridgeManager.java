@@ -13,13 +13,20 @@
  */
 package io.trino.operator.gpu.join;
 
+import ai.rapids.cudf.HashJoin;
+import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.trino.spi.gpu.borrow.Own;
+import io.trino.operator.ReferenceCount;
+import io.trino.spi.gpu.borrow.Borrow;
+import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.getDone;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Lifecycle coordinator for the {@link GpuJoinBridge} shared between the build-side
@@ -60,16 +67,11 @@ public final class GpuJoinBridgeManager
     private boolean probeFactoryClosed;
 
     /**
-     * Registers a probe operator that will use the bridge. Must be called exactly once per
-     * {@link GpuLookupJoin} instance, from {@link GpuLookupJoin.Factory#create}.
-     * <p>
-     * If the bridge has already been published, this method acquires an additional reference
-     * immediately. Otherwise, the reference is pre-allocated as part of the initial refCount
-     * that {@link #publishBridge} will set.
+     * Registers a probe operator that will use the bridge.
      * <p>
      * Every registered operator must eventually call {@link #probeOperatorClosed}.
      */
-    public synchronized void probeOperatorCreated()
+    private synchronized void probeOperatorCreated()
     {
         checkState(!probeFactoryClosed, "probeOperatorFactoryClosed already called");
         if (bridgePublished) {
@@ -121,20 +123,14 @@ public final class GpuJoinBridgeManager
 
     public ListenableFuture<GpuJoinBridge> getBridgeFuture()
     {
-        return bridgeFuture;
+        probeOperatorCreated();
+        return nonCancellationPropagating(bridgeFuture);
     }
 
-    /**
-     * Called by the build driver once it has assembled the {@link GpuJoinBridge}. Acquires
-     * one reference per registered probe operator (plus the seed), then publishes the bridge
-     * by completing {@link #getBridgeFuture()}.
-     * <p>
-     * {@code bridgeFuture.set()} is called outside the monitor so that any listeners
-     * attached to the future do not fire while the lock is held.
-     */
-    public void publishBridge(@Own GpuJoinBridge bridge)
+    public void publishBridge(@Nullable @Borrow HashJoin hashJoin, @Nullable @Borrow Table buildOutputTable, Runnable onRelease)
     {
-        boolean seedRelease;
+        GpuJoinBridge bridge = new GpuJoinBridge(hashJoin, buildOutputTable, onRelease);
+        boolean probeFactoryClosed;
         synchronized (this) {
             checkState(!bridgePublished, "Bridge already published");
             bridgePublished = true;
@@ -143,12 +139,57 @@ public final class GpuJoinBridgeManager
             for (int i = 0; i < probeOperatorCount; i++) {
                 bridge.retain();
             }
-            seedRelease = probeFactoryClosed;
+            probeFactoryClosed = this.probeFactoryClosed;
         }
         // Set the future outside the monitor so listeners don't fire while we hold the lock.
         bridgeFuture.set(bridge);
-        if (seedRelease) {
+        if (probeFactoryClosed) {
             bridge.release();
+        }
+    }
+
+    public static final class GpuJoinBridge
+    {
+        private final @Nullable @Borrow HashJoin hashJoin;
+        private final @Nullable @Borrow Table buildOutputTable;
+        private final ReferenceCount refCount;
+
+        private GpuJoinBridge(
+                @Nullable @Borrow HashJoin hashJoin,
+                @Nullable @Borrow Table buildOutputTable,
+                Runnable onRelease)
+        {
+            this.hashJoin = hashJoin;
+            this.buildOutputTable = buildOutputTable;
+            this.refCount = new ReferenceCount(1);
+            this.refCount.getFreeFuture().addListener(requireNonNull(onRelease, "onRelease is null"), directExecutor());
+        }
+
+        /**
+         * @return the cuDF hash join, or null when the build side is empty
+         */
+        public @Nullable @Borrow HashJoin hashJoin()
+        {
+            return hashJoin;
+        }
+
+        /**
+         * @return the build-side output table to gather from, or null when the join has no
+         * build-side output columns or build side is empty
+         */
+        public @Nullable @Borrow Table buildOutputTable()
+        {
+            return buildOutputTable;
+        }
+
+        private void retain()
+        {
+            refCount.retain();
+        }
+
+        private void release()
+        {
+            refCount.release();
         }
     }
 }

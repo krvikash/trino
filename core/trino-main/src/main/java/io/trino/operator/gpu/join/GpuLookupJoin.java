@@ -24,6 +24,8 @@ import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.join.GpuJoinBridgeManager.GpuJoinBridge;
+import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -38,6 +40,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
@@ -45,15 +48,6 @@ import static io.trino.operator.gpu.GpuUtils.closeColumns;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
-/**
- * Probe side of a GPU hash join. Pulls probe pages from {@code source}, blocks on the
- * shared {@link GpuJoinBridge} until the build side completes, and then for each probe
- * page emits a {@link Data} containing the joined rows.
- * <p>
- * Supports {@link JoinType#INNER} and {@link JoinType#LEFT}. The output column layout is
- * the probe-output channels followed by the build-output channels (matching the layout
- * the planner derives from {@code JoinNode.getOutputSymbols()}).
- */
 public final class GpuLookupJoin
         implements GpuOperation
 {
@@ -89,7 +83,6 @@ public final class GpuLookupJoin
         @Override
         public GpuOperation create(GpuOperation source)
         {
-            bridgeManager.probeOperatorCreated();
             return new GpuLookupJoin(
                     source,
                     bridgeManager,
@@ -114,8 +107,6 @@ public final class GpuLookupJoin
     private final JoinType joinType;
     private final List<Type> buildOutputTypes;
 
-    private @Nullable GpuJoinBridge bridge;
-
     private GpuLookupJoin(
             GpuOperation source,
             GpuJoinBridgeManager bridgeManager,
@@ -136,12 +127,10 @@ public final class GpuLookupJoin
     @Override
     public @Move Result execute()
     {
-        if (bridge == null) {
-            if (!bridgeFuture.isDone()) {
-                return new Blocked(asVoid(bridgeFuture));
-            }
-            bridge = getDone(bridgeFuture);
+        if (!bridgeFuture.isDone()) {
+            return new Blocked(asVoid(bridgeFuture));
         }
+        GpuJoinBridge bridge = getDone(bridgeFuture);
 
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
@@ -158,7 +147,7 @@ public final class GpuLookupJoin
         };
     }
 
-    private Optional<@Move GpuPage> processProbePage(@Borrow GpuPage probePage, @Borrow GpuJoinBridge bridge)
+    private Optional<@Move GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge bridge)
     {
         int probeRowCount = probePage.positionCount();
         HashJoin hashJoin = bridge.hashJoin();
@@ -189,10 +178,10 @@ public final class GpuLookupJoin
                 // cuDF Table rejects an empty column array; skip creating the probe
                 // output table when there are no probe output columns (e.g. COUNT(*)).
                 if (probeOutputChannels.length == 0) {
-                    return Optional.of(assembleOutput(null, probeGatherMap, bridge.buildTable(), buildGatherMap, rows));
+                    return Optional.of(assembleOutput(null, probeGatherMap, bridge.buildOutputTable(), buildGatherMap, rows));
                 }
                 try (Table probleTable = buildTableFromChannels(probePage, probeOutputChannels)) {
-                    return Optional.of(assembleOutput(probleTable, probeGatherMap, bridge.buildTable(), buildGatherMap, rows));
+                    return Optional.of(assembleOutput(probleTable, probeGatherMap, bridge.buildOutputTable(), buildGatherMap, rows));
                 }
             }
             finally {
@@ -301,12 +290,13 @@ public final class GpuLookupJoin
     @Override
     public void close()
     {
-        try {
-            source.close();
+        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+            closer.register(source);
+            closer.register(bridgeManager::probeOperatorClosed);
         }
-        finally {
-            bridgeManager.probeOperatorClosed();
-            bridge = null;
+        catch (Exception e) {
+            throwIfUnchecked(e);
+            throw new RuntimeException(e);
         }
     }
 }
