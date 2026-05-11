@@ -127,6 +127,8 @@ public final class GpuLookupJoin
     @Override
     public @Move Result execute()
     {
+        // TODO short-circuit when probe side is empty
+
         if (!bridgeFuture.isDone()) {
             return new Blocked(asVoid(bridgeFuture));
         }
@@ -149,14 +151,24 @@ public final class GpuLookupJoin
 
     private Optional<@Move GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge bridge)
     {
-        int probeRowCount = probePage.positionCount();
+        boolean probeSideEmpty = probePage.positionCount() == 0;
         HashJoin hashJoin = bridge.hashJoin();
+        boolean buildSideEmpty = hashJoin == null;
 
-        if (hashJoin == null) {
-            return processEmptyBuild(probePage, probeRowCount);
-        }
-        if (probeRowCount == 0) {
-            return Optional.empty();
+        switch (joinType) {
+            case INNER -> {
+                if (probeSideEmpty || buildSideEmpty) {
+                    return Optional.empty();
+                }
+            }
+            case LEFT -> {
+                if (probeSideEmpty) {
+                    return Optional.empty();
+                }
+                if (buildSideEmpty) {
+                    return Optional.of(emitProbeRowsWithNullBuild(probePage));
+                }
+            }
         }
 
         try (Table probeKeyTable = buildTableFromChannels(probePage, probeKeyChannels)) {
@@ -192,15 +204,7 @@ public final class GpuLookupJoin
         }
     }
 
-    private Optional<@Move GpuPage> processEmptyBuild(@Borrow GpuPage probePage, int probeRowCount)
-    {
-        return switch (joinType) {
-            case INNER -> Optional.empty();
-            case LEFT -> probeRowCount == 0 ? Optional.empty() : Optional.of(emitProbeRowsWithNullBuild(probePage, probeRowCount));
-        };
-    }
-
-    private @Move GpuPage emitProbeRowsWithNullBuild(@Borrow GpuPage probePage, int rows)
+    private @Move GpuPage emitProbeRowsWithNullBuild(@Borrow GpuPage probePage)
     {
         @Own Column[] outputColumns = new Column[probeOutputChannels.length + buildOutputTypes.size()];
         try {
@@ -213,10 +217,10 @@ public final class GpuLookupJoin
                 DType dType = GpuTypeConversion.toDType(type)
                         .orElseThrow(() -> new IllegalStateException("Build type not GPU convertible: " + type));
                 try (Scalar nullScalar = Scalar.fromNull(dType)) {
-                    outputColumns[probeOutputChannels.length + i] = new DeviceMemory(ColumnVector.fromScalar(nullScalar, rows));
+                    outputColumns[probeOutputChannels.length + i] = new DeviceMemory(ColumnVector.fromScalar(nullScalar, probePage.positionCount()));
                 }
             }
-            return new GpuPage(rows, outputColumns);
+            return new GpuPage(probePage.positionCount(), outputColumns);
         }
         finally {
             closeColumns(outputColumns);
