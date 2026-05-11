@@ -294,10 +294,6 @@ public class TestIcebergCacheIds
         int partitionSpecId2 = 2;
         assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, partitionSpecId1, unpartitionedPartitionDataJson, List.of())))
                 .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, partitionSpecId2, unpartitionedPartitionDataJson, List.of())));
-
-        // different partitionDataJson should make ids different
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.PARQUET, unpartitionedPartitionSpecJson, PartitionData.toJson(new PartitionData(new Long[] {1L})), List.of())));
     }
 
     @Test

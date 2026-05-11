@@ -208,7 +208,6 @@ public class IcebergSplitManager
                 icebergSplit.getStart(),
                 icebergSplit.getLength(),
                 icebergSplit.getFileSize(),
-                icebergSplit.getPartitionDataJson(),
                 icebergSplit.getDeletes()))));
     }
 }
