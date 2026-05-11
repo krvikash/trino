@@ -94,7 +94,7 @@ public class TestGpuJoinQueries
     }
 
     @Test
-    public void testTinyInnerJoinExecutesOnGpu()
+    public void testTinyInnerJoin()
     {
         assertThat(query(
                 """
@@ -106,14 +106,14 @@ public class TestGpuJoinQueries
     }
 
     @Test
-    public void testInnerJoinExecutesOnGpu()
+    public void testInnerJoin()
     {
         assertThat(query("SELECT l.orderkey, o.orderstatus FROM lineitem l JOIN orders o ON l.orderkey = o.orderkey"))
                 .executesWithGpu(JoinNode.class);
     }
 
     @Test
-    public void testLeftJoinExecutesOnGpu()
+    public void testLeftJoin()
     {
         assertThat(query("SELECT c.custkey, o.orderkey FROM customer c LEFT JOIN orders o ON c.custkey = o.custkey"))
                 .executesWithGpu(JoinNode.class);
