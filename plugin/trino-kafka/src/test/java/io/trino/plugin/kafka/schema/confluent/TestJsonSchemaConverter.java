@@ -53,6 +53,7 @@ import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 final class TestJsonSchemaConverter
 {
@@ -253,6 +254,86 @@ final class TestJsonSchemaConverter
         assertThatThrownBy(() -> jsonSchemaConverter.convertJsonSchema(FalseSchema.builder().build(), "subject"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("Schema FalseSchema not supported");
+    }
+
+    @Test
+    void testAnyOfMergesIncompatibleRowTypes()
+    {
+        // anyOf with $ref to multiple object schemas with different fields
+        // should merge into a superset RowType (union of all fields)
+        ObjectSchema roleOnly = ObjectSchema.builder()
+                .addPropertySchema("role_name", StringSchema.builder().requiresString(true).build())
+                .addPropertySchema("policy_id", StringSchema.builder().requiresString(true).build())
+                .build();
+        ObjectSchema roleWithGroup = ObjectSchema.builder()
+                .addPropertySchema("role_name", StringSchema.builder().requiresString(true).build())
+                .addPropertySchema("ad_groups", ArraySchema.builder().allItemSchema(StringSchema.builder().requiresString(true).build()).build())
+                .addPropertySchema("remove_user", CombinedSchema.anyOf(ImmutableList.of(
+                        BooleanSchema.builder().build(), NullSchema.builder().build())).build())
+                .addPropertySchema("policy_id", StringSchema.builder().requiresString(true).build())
+                .build();
+        ObjectSchema roleWithEntitlement = ObjectSchema.builder()
+                .addPropertySchema("catalog_name", StringSchema.builder().requiresString(true).build())
+                .addPropertySchema("role_name", StringSchema.builder().requiresString(true).build())
+                .addPropertySchema("ad_groups", ArraySchema.builder().allItemSchema(StringSchema.builder().requiresString(true).build()).build())
+                .addPropertySchema("grants", ArraySchema.builder().allItemSchema(
+                        ObjectSchema.builder()
+                                .addPropertySchema("entitlement_id", StringSchema.builder().requiresString(true).build())
+                                .addPropertySchema("table_name", StringSchema.builder().requiresString(true).build())
+                                .addPropertySchema("schema_name", StringSchema.builder().requiresString(true).build())
+                                .build()).build())
+                .addPropertySchema("policy_id", StringSchema.builder().requiresString(true).build())
+                .addPropertySchema("output_port_id", StringSchema.builder().requiresString(true).build())
+                .build();
+
+        ObjectSchema schema = ObjectSchema.builder()
+                .addPropertySchema("correlationId", StringSchema.builder().requiresString(true).build())
+                .addPropertySchema("entitlements", CombinedSchema.anyOf(ImmutableList.of(roleOnly, roleWithGroup, roleWithEntitlement)).build())
+                .build();
+
+        JsonSchemaConverter jsonSchemaConverter = new JsonSchemaConverter(EmptyFieldStrategy.IGNORE);
+        Map<String, Type> types = jsonSchemaConverter.convertJsonSchema(schema, "subject").stream()
+                .collect(toImmutableMap(KafkaTopicFieldDescription::name, KafkaTopicFieldDescription::type));
+
+        assertThat(types).hasSize(2);
+        assertThat(types.get("correlationId")).isEqualTo(VARCHAR);
+
+        RowType entitlementsType = (RowType) types.get("entitlements");
+        assertThat(entitlementsType.getFields())
+                .extracting(field -> field.getName().orElseThrow(), RowType.Field::getType)
+                .containsExactlyInAnyOrder(
+                        tuple("role_name", VARCHAR),
+                        tuple("policy_id", VARCHAR),
+                        tuple("ad_groups", new ArrayType(VARCHAR)),
+                        tuple("remove_user", BOOLEAN),
+                        tuple("catalog_name", VARCHAR),
+                        tuple("grants", new ArrayType(RowType.from(ImmutableList.<RowType.Field>builder()
+                                .add(new RowType.Field(Optional.of("entitlement_id"), VARCHAR))
+                                .add(new RowType.Field(Optional.of("schema_name"), VARCHAR))
+                                .add(new RowType.Field(Optional.of("table_name"), VARCHAR))
+                                .build()))),
+                        tuple("output_port_id", VARCHAR));
+    }
+
+    @Test
+    void testAnyOfRowTypeMergeConflictingFieldTypes()
+    {
+        // Two objects with same field name but different types should fail
+        ObjectSchema objA = ObjectSchema.builder()
+                .addPropertySchema("value", StringSchema.builder().requiresString(true).build())
+                .build();
+        ObjectSchema objB = ObjectSchema.builder()
+                .addPropertySchema("value", NumberSchema.builder().requiresInteger(true).build())
+                .build();
+
+        ObjectSchema schema = ObjectSchema.builder()
+                .addPropertySchema("field", CombinedSchema.anyOf(ImmutableList.of(objA, objB)).build())
+                .build();
+
+        JsonSchemaConverter jsonSchemaConverter = new JsonSchemaConverter(EmptyFieldStrategy.IGNORE);
+        assertThatThrownBy(() -> jsonSchemaConverter.convertJsonSchema(schema, "subject"))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Field 'value' has conflicting types");
     }
 
     @Test

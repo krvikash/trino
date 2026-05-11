@@ -35,6 +35,8 @@ import org.everit.json.schema.Schema;
 import org.everit.json.schema.StringSchema;
 import org.everit.json.schema.TrueSchema;
 
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -324,9 +326,11 @@ public class JsonSchemaConverter
         }
 
         /**
-         * Resolve multiple types to a single type if all the types are the same
-         * Otherwise, throw exception, e.g. integer + boolean
-         * If the input list is empty, return Optional.empty()
+         * Resolve multiple types to a single type if all the types are the same.
+         * If all types are RowTypes with different fields, merge them into a
+         * superset union (for anyOf/oneOf with multiple object $refs).
+         * Otherwise, throw exception, e.g. integer + boolean.
+         * If the input list is empty, return Optional.empty().
          */
         private static Optional<Type> resolveTypes(List<Type> types)
         {
@@ -340,7 +344,37 @@ public class JsonSchemaConverter
                 return Optional.of(getOnlyElement(uniqueTypes));
             }
 
+            if (uniqueTypes.stream().allMatch(RowType.class::isInstance)) {
+                return Optional.of(mergeRowTypes(types));
+            }
+
             throw new UnsupportedOperationException("Incompatible types: " + types);
+        }
+
+        private static RowType mergeRowTypes(List<Type> rowTypes)
+        {
+            Map<String, Type> mergedFields = new LinkedHashMap<>();
+            for (Type type : rowTypes) {
+                RowType rowType = (RowType) type;
+                Set<String> seen = new HashSet<>();
+                for (RowType.Field field : rowType.getFields()) {
+                    String fieldName = field.getName()
+                            .orElseThrow(() -> new UnsupportedOperationException("Cannot merge anonymous RowType fields"));
+                    if (!seen.add(fieldName)) {
+                        throw new UnsupportedOperationException(
+                                format("RowType contains duplicate field name: '%s'", fieldName));
+                    }
+                    Type existingType = mergedFields.get(fieldName);
+                    if (existingType != null && !existingType.equals(field.getType())) {
+                        throw new UnsupportedOperationException(
+                                format("Field '%s' has conflicting types: %s vs %s", fieldName, existingType, field.getType()));
+                    }
+                    mergedFields.putIfAbsent(fieldName, field.getType());
+                }
+            }
+            ImmutableList.Builder<RowType.Field> fields = ImmutableList.builder();
+            mergedFields.forEach((name, fieldType) -> fields.add(RowType.field(name, fieldType)));
+            return RowType.from(fields.build());
         }
     }
 }
