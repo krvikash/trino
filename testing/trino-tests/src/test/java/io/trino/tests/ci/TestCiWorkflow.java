@@ -52,6 +52,7 @@ public class TestCiWorkflow
         String uploadTestResultsStepName = "Upload test results";
         String uploadTestResultsToDatadogStepName = "Upload test results to Datadog";
         Set<String> nonTestSteps = ImmutableSet.of(
+                "Cancel merge queue workflow",
                 uploadTestResultsStepName,
                 uploadTestResultsToDatadogStepName,
                 "Maven Install");
