@@ -22,6 +22,7 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.TestingSession;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -1096,6 +1097,240 @@ public abstract class BaseSnowflakeConnectorTest
             assertQuery("SELECT * FROM " + tableName + " WHERE x = char 'test  '", "VALUES 'test'");
             assertQuery("SELECT * FROM " + tableName + " WHERE x = char 'test        '", "VALUES 'test'");
             assertQueryReturnsEmptyResult("SELECT * FROM " + tableName + " WHERE x = char ' test'");
+        }
+    }
+
+    @Test
+    public void testCollatedColumnJoinPushdown()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable leftTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".left_collated_join",
+                "(lowercase_a VARCHAR COLLATE 'en-ci')",
+                ImmutableList.of("('a')"));
+             TestTable rightTable = new TestTable(
+                     onRemoteDatabase(),
+                     schema + ".right_collated_join",
+                     "(uppercase_a VARCHAR COLLATE 'en-ci')",
+                     ImmutableList.of("('A')"))) {
+            Session joinPushdownSession = joinPushdownEnabled(getSession());
+            String leftTableName = leftTable.getName();
+            String rightTableName = rightTable.getName();
+
+            String innerJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l INNER JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+                    leftTableName,
+                    rightTableName);
+            assertThat(query(joinPushdownSession, innerJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .result().rowCount().isEqualTo(1); // TODO, INCORRECT
+            assertThat(query(innerJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .joinIsNotFullyPushedDown()
+                    .returnsEmptyResult();
+
+            String leftJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l LEFT JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+                    leftTableName,
+                    rightTableName);
+            assertThat(query(joinPushdownSession, leftJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isFullyPushedDown()
+                    .result()
+                    .rows()
+                    .singleElement()
+                    .extracting(materializedRow -> materializedRow.getField(1))
+                    .isNotNull();
+            assertThat(query(leftJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .joinIsNotFullyPushedDown()
+                    .result()
+                    .rows()
+                    .singleElement()
+                    .extracting(materializedRow -> materializedRow.getField(1))
+                    .isNull();
+
+            String rightJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l RIGHT JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+                    leftTableName,
+                    rightTableName);
+            assertThat(query(joinPushdownSession, rightJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isFullyPushedDown()
+                    .result()
+                    .rows()
+                    .singleElement()
+                    .extracting(materializedRow -> materializedRow.getField(0))
+                    .isNotNull();
+            assertThat(query(rightJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .joinIsNotFullyPushedDown()
+                    .result()
+                    .rows()
+                    .singleElement()
+                    .extracting(materializedRow -> materializedRow.getField(0))
+                    .isNull();
+
+            String fullJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l FULL JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+                    leftTableName,
+                    rightTableName);
+            assertThat(query(joinPushdownSession, fullJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isFullyPushedDown()
+                    .result()
+                    .rowCount()
+                    .isEqualTo(1); // TODO, INCORRECT
+            assertThat(query(fullJoin))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .joinIsNotFullyPushedDown()
+                    .result()
+                    .rowCount()
+                    .isEqualTo(2);
+        }
+    }
+
+    @Test
+    public void testCollatedDisjointInPushdown()
+    {
+        // Confirmed with query history that these get simplified into an IN predicate.
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".trimmed_in",
+                "(a_with_space VARCHAR COLLATE 'trim')",
+                ImmutableList.of(
+                        "(' t')",
+                        "('m ')",
+                        "(' z ')"))) {
+            assertThat(query("SELECT * FROM " + testTable.getName() +
+                    " WHERE a_with_space = 't' OR a_with_space = 'm' OR a_with_space = 'z'"))
+                    .result().rowCount().isEqualTo(3); // TODO, INCORRECT
+        }
+    }
+
+    @Test
+    public void testCollatedPredicatePushdown()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".case_insensitive_equals",
+                "(a VARCHAR COLLATE 'en-ci')",
+                ImmutableList.of("('a')", "('A')"))) {
+            @Language("SQL")
+            String select = "SELECT * FROM " + testTable.getName() + " WHERE a = 'a'";
+            Session withoutPushdown = Session.builder(getSession())
+                    .setSystemProperty("allow_pushdown_into_connectors", "false")
+                    .build();
+            assertThat(query(select))
+                    .result().rowCount().isEqualTo(2); // TODO, INCORRECT
+            assertThat(query(withoutPushdown, select))
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testCollatedTopNPushdown()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".top_n_first_upper",
+                "(a VARCHAR COLLATE 'upper')",
+                ImmutableList.of("('a')", "('A')", "('b')", "('B')"))) {
+            @Language("SQL")
+            String top2 = "SELECT a FROM " + testTable.getName() + " ORDER BY a ASC LIMIT 2";
+            Session topNPushdownDisabled = Session.builder(getSession())
+                    .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "topn_pushdown_enabled", "false")
+                    .build();
+            assertThat(query(top2))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a'), ('A')");
+            assertThat(query(topNPushdownDisabled, top2))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('A'), ('B')");
+        }
+    }
+
+    @Test
+    public void testCollatedUpdate()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".update_upper",
+                "(updateable VARCHAR, mykey VARCHAR COLLATE 'upper')",
+                ImmutableList.of("('updateme'), ('a')", "('dont update me'), ('A')"))) {
+            @Language("SQL")
+            String update = "UPDATE " + testTable.getName() + " SET updateable = 'updated' WHERE mykey = 'a'";
+            assertUpdate(update, 2); // TODO, INCORRECT
+        }
+    }
+
+    @Test
+    public void testCollatedDelete()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".delete_upper",
+                "(my_key VARCHAR COLLATE 'upper')",
+                ImmutableList.of("('a')", "('A')"))) {
+            @Language("SQL")
+            String delete = "DELETE FROM " + testTable.getName() + " WHERE my_key = 'a'";
+            assertUpdate(delete, 2); // TODO, INCORRECT
+        }
+    }
+
+    @Test
+    public void testCollatedExpression()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".delete_upper",
+                "(en VARCHAR COLLATE 'en', tr VARCHAR COLLATE 'tr')",
+                ImmutableList.of("('a'), ('A')"))) {
+            String collationRegex = ".*\\QIncompatible collations: 'tr' and 'en'\\E";
+            Session withoutPushdown = Session.builder(getSession())
+                    .setSystemProperty("allow_pushdown_into_connectors", "false")
+                    .build();
+
+
+            @Language("SQL")
+            String equalToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en = tr";
+            assertQueryFails(equalToQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, equalToQuery);
+
+            @Language("SQL")
+            String notEqualToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en <> tr";
+            assertQueryFails(notEqualToQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, notEqualToQuery);
+
+            @Language("SQL")
+            String identicalQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en IS NOT DISTINCT FROM tr";
+            assertQueryFails(identicalQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, identicalQuery);
+
+            @Language("SQL")
+            String greaterThanQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en > tr";
+            assertQueryFails(greaterThanQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, greaterThanQuery);
+
+            @Language("SQL")
+            String greaterThanEqualToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en >= tr";
+            assertQueryFails(greaterThanEqualToQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, greaterThanEqualToQuery);
+
+            @Language("SQL")
+            String lessThanQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en < tr";
+            assertQueryFails(lessThanQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, lessThanQuery);
+
+            @Language("SQL")
+            String lessThanEqualToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en <= tr";
+            assertQueryFails(lessThanEqualToQuery, collationRegex);
+            assertQuerySucceeds(withoutPushdown, lessThanEqualToQuery);
         }
     }
 
