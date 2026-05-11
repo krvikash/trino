@@ -25,7 +25,6 @@ import jakarta.annotation.Nullable;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.airlift.concurrent.MoreFutures.getDone;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -54,7 +53,7 @@ public final class GpuJoinBridgeManager
     private final SettableFuture<GpuJoinBridge> bridgeFuture = SettableFuture.create();
 
     @GuardedBy("this")
-    private boolean bridgePublished;
+    private @Nullable GpuJoinBridge bridge;
     /**
      * Number of probe operators registered before the bridge was published.
      */
@@ -74,8 +73,8 @@ public final class GpuJoinBridgeManager
     private synchronized void probeOperatorCreated()
     {
         checkState(!probeFactoryClosed, "probeOperatorFactoryClosed already called");
-        if (bridgePublished) {
-            getDone(bridgeFuture).retain();
+        if (bridge != null) {
+            bridge.retain();
         }
         else {
             probeOperatorCount++;
@@ -90,11 +89,11 @@ public final class GpuJoinBridgeManager
     {
         GpuJoinBridge bridgeToRelease;
         synchronized (this) {
-            if (!bridgePublished) {
+            if (bridge == null) {
                 probeOperatorCount--;
                 return;
             }
-            bridgeToRelease = getDone(bridgeFuture);
+            bridgeToRelease = bridge;
         }
         bridgeToRelease.release();
     }
@@ -112,11 +111,11 @@ public final class GpuJoinBridgeManager
         synchronized (this) {
             checkState(!probeFactoryClosed, "probeOperatorFactoryClosed already called");
             probeFactoryClosed = true;
-            if (!bridgePublished) {
+            if (bridge == null) {
                 // Build has not finished yet; publishBridge() will release the seed.
                 return;
             }
-            bridgeToRelease = getDone(bridgeFuture);
+            bridgeToRelease = bridge;
         }
         bridgeToRelease.release();
     }
@@ -132,8 +131,8 @@ public final class GpuJoinBridgeManager
         GpuJoinBridge bridge = new GpuJoinBridge(hashJoin, buildOutputTable, onRelease);
         boolean probeFactoryClosed;
         synchronized (this) {
-            checkState(!bridgePublished, "Bridge already published");
-            bridgePublished = true;
+            checkState(this.bridge == null, "Bridge already published");
+            this.bridge = bridge;
             // Acquire one ref per probe operator registered before publish; the bridge was
             // created with initialRefCount=1 (seed only) and needs probeOperatorCount more.
             for (int i = 0; i < probeOperatorCount; i++) {
