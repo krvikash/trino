@@ -64,6 +64,9 @@ public final class ParquetGpuPageSourceFactory
         try {
             AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
             FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
+
+            // todo; pass ParquetReaderOptions constructed from config+session from caller
+            // https://starburstdata.atlassian.net/browse/ENG-13773
             ParquetReaderOptions options = ParquetReaderOptions.builder()
                     // Raise the size of the max read because we are reading everything up front into an in-memory byte array
                     // The default for CPU is tailored for lazy materialization and early cut-off of page source
@@ -84,6 +87,8 @@ public final class ParquetGpuPageSourceFactory
                     memoryContext,
                     stats);
 
+            // todo; pass ParquetReaderOptions constructed from config+session from caller
+            // https://starburstdata.atlassian.net/browse/ENG-13773
             ParquetReaderOptions parquetReaderOptions = ParquetReaderOptions.builder()
                     .withMaxFooterReadSize(options.getMaxFooterReadSize())
                     .build();
