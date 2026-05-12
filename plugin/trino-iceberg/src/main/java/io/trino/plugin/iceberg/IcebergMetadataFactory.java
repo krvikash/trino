@@ -26,6 +26,7 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
 import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
@@ -65,6 +66,7 @@ public class IcebergMetadataFactory
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
     private final DeletionVectorWriter deletionVectorWriter;
     private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
+    private final ConnectorExpressionEvaluator evaluator;
 
     @Inject
     public IcebergMetadataFactory(
@@ -85,7 +87,8 @@ public class IcebergMetadataFactory
             @ForIcebergMetadata ExecutorService metadataExecutorService,
             @ForIcebergPlanning ExecutorService icebergPlanningExecutor,
             @ForIcebergFileDelete ExecutorService icebergFileDeleteExecutor,
-            IcebergConfig config)
+            IcebergConfig config,
+            ConnectorExpressionEvaluator evaluator)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -121,6 +124,7 @@ public class IcebergMetadataFactory
         this.removeDanglingDeleteFiles = requireNonNull(removeDanglingDeleteFiles, "removeDanglingDeleteFiles is null");
         this.materializedViewRefreshMaxSnapshotsToExpire = config.getMaterializedViewRefreshMaxSnapshotsToExpire();
         this.materializedViewRefreshSnapshotRetentionPeriod = config.getMaterializedViewRefreshSnapshotRetentionPeriod();
+        this.evaluator = requireNonNull(evaluator, "evaluator is null");
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -148,6 +152,7 @@ public class IcebergMetadataFactory
                 icebergPlanningExecutor,
                 icebergFileDeleteExecutor,
                 materializedViewRefreshMaxSnapshotsToExpire,
-                materializedViewRefreshSnapshotRetentionPeriod);
+                materializedViewRefreshSnapshotRetentionPeriod,
+                evaluator);
     }
 }

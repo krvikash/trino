@@ -24,6 +24,7 @@ import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesSplitSource;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -71,6 +72,7 @@ public class IcebergSplitManager
     private final ExecutorService icebergPlanningExecutor;
     private final JsonCodec<IcebergCacheSplitId> splitIdCodec;
     private final SplitAffinityProvider splitAffinityProvider;
+    private final ConnectorExpressionEvaluator evaluator;
 
     @Inject
     public IcebergSplitManager(
@@ -80,7 +82,8 @@ public class IcebergSplitManager
             @ForIcebergSplitSource ListeningExecutorService splitSourceExecutor,
             @ForIcebergSplitManager ExecutorService icebergPlanningExecutor,
             JsonCodec<IcebergCacheSplitId> splitIdCodec,
-            SplitAffinityProvider splitAffinityProvider)
+            SplitAffinityProvider splitAffinityProvider,
+            ConnectorExpressionEvaluator evaluator)
     {
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
@@ -89,6 +92,7 @@ public class IcebergSplitManager
         this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
         this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
+        this.evaluator = requireNonNull(evaluator, "evaluator is null");
     }
 
     @Override
@@ -131,7 +135,8 @@ public class IcebergSplitManager
                 getMinimumAssignedSplitWeight(session),
                 splitAffinityProvider,
                 metricsReporter,
-                splitSourceExecutor);
+                splitSourceExecutor,
+                evaluator);
 
         return new ClassLoaderSafeConnectorSplitSource(splitSource, IcebergSplitManager.class.getClassLoader());
     }

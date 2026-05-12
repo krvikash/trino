@@ -34,6 +34,7 @@ import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
@@ -143,7 +144,8 @@ public class TestIcebergCacheIds
                 newDirectExecutorService(),
                 newDirectExecutorService(),
                 newDirectExecutorService(),
-                icebergConfig);
+                icebergConfig,
+                ConnectorExpressionEvaluator.NO_OP);
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),
                 createJsonCodec(IcebergColumnHandle.class));
@@ -154,7 +156,8 @@ public class TestIcebergCacheIds
                 listeningDecorator(newSingleThreadExecutor()),
                 newSingleThreadScheduledExecutor(),
                 createJsonCodec(IcebergCacheSplitId.class),
-                new NoopSplitAffinityProvider());
+                new NoopSplitAffinityProvider(),
+                ConnectorExpressionEvaluator.NO_OP);
     }
 
     @AfterAll
