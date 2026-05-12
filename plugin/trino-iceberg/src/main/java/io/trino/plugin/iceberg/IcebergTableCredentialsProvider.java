@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
+import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 
 import java.util.Map;
@@ -28,6 +29,7 @@ public class IcebergTableCredentialsProvider
 {
     private final TrinoCatalog catalog;
     private final Map<SchemaTableName, IcebergTableCredentials> tableCredentials = new ConcurrentHashMap<>();
+    private final Map<IcebergTableHandle, IcebergTableCredentials> scanTableCredentials = new ConcurrentHashMap<>();
 
     public IcebergTableCredentialsProvider(TrinoCatalog catalog)
     {
@@ -40,8 +42,22 @@ public class IcebergTableCredentialsProvider
                 new IcebergTableCredentials(catalog.loadTable(session, key).io().properties())));
     }
 
+    public Optional<ConnectorTableCredentials> getScanTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        if (!(tableHandle instanceof IcebergTableHandle handle)) {
+            throw new IllegalArgumentException("Unsupported ConnectorTableHandle type: " + tableHandle.getClass().getName());
+        }
+
+        return Optional.ofNullable(scanTableCredentials.get(handle));
+    }
+
     public void putTableCredentials(SchemaTableName schemaTableName, IcebergTableCredentials credentials)
     {
         tableCredentials.put(schemaTableName, credentials);
+    }
+
+    public void putScanTableCredentials(IcebergTableHandle tableHandle, IcebergTableCredentials credentials)
+    {
+        scanTableCredentials.put(tableHandle, credentials);
     }
 }

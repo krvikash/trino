@@ -635,7 +635,8 @@ public class IcebergMetadata
     @Override
     public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        return tableCredentialsProvider.getTableCredentials(session, getSchemaTableName(tableHandle));
+        return tableCredentialsProvider.getScanTableCredentials(session, tableHandle)
+                .or(() -> tableCredentialsProvider.getTableCredentials(session, getSchemaTableName(tableHandle)));
     }
 
     @Override
@@ -648,6 +649,11 @@ public class IcebergMetadata
     public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableFunctionHandle tableFunctionHandle)
     {
         return tableCredentialsProvider.getTableCredentials(session, getSchemaTableName(tableFunctionHandle));
+    }
+
+    public void updateScanCredentials(IcebergTableHandle handle, IcebergTableCredentials credentials)
+    {
+        tableCredentialsProvider.putScanTableCredentials(handle, credentials);
     }
 
     private static SchemaTableName getSchemaTableName(ConnectorTableHandle tableHandle)
