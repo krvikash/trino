@@ -32,8 +32,8 @@ import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.query.QueryAssertions;
-import io.trino.sql.tree.ComparisonExpression;
-import io.trino.sql.tree.ComparisonExpression.Operator;
+import io.trino.sql.tree.ComparisonPredicate;
+import io.trino.sql.tree.ComparisonPredicate.Operator;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
@@ -2348,7 +2348,7 @@ public class TestSalesforceConnectorTest
         MaterializedResult results = getQueryRunner().execute(format("SELECT id__c FROM %s__c", TIMESTAMP_PUSH_DOWN_TABLE_NAME));
         assertThat(results.getOnlyColumnAsSet()).containsExactlyElementsOf(ImmutableSet.of("0", "1", "2", "3"));
 
-        for (ComparisonExpression.Operator operator : Arrays.stream(Operator.values()).filter(operator -> operator != Operator.EQUAL).collect(toImmutableSet())) {
+        for (ComparisonPredicate.Operator operator : Arrays.stream(ComparisonPredicate.Operator.values()).filter(operator -> operator != Operator.EQUAL).collect(toImmutableSet())) {
             assertThat(query("SELECT id__c FROM " + TIMESTAMP_PUSH_DOWN_TABLE_NAME + "__c where createddate " + operator.getValue() + " TIMESTAMP '2020-10-26 11:02:01.999 UTC'"))
                     .isFullyPushedDown();
         }
