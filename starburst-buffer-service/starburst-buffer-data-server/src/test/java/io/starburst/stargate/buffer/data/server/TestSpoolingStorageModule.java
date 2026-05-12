@@ -97,14 +97,51 @@ public class TestSpoolingStorageModule
                 .hasMessageContaining("Local filesystem spooling is not supported");
     }
 
+    @Test
+    public void testTrinoFsDriverFailsForLocalWithoutAllowFlag(@TempDir Path tempDir)
+    {
+        assertThatThrownBy(() -> createBootstrap(false, Map.of(
+                "spooling.directory", "file://" + tempDir,
+                "spooling.storage-driver", "TRINO_FS")))
+                .hasMessageContaining("Local filesystem spooling is not supported");
+    }
+
+    @Test
+    public void testTrinoFsDriverFailsForUnsupportedScheme()
+    {
+        assertThatThrownBy(() -> createBootstrap(false, Map.of(
+                "spooling.directory", "hdfs://nameservice/spooling",
+                "spooling.storage-driver", "TRINO_FS")))
+                .hasMessageContaining("Scheme hdfs is not supported by TRINO_FS spooling driver");
+    }
+
+    @Test
+    public void testTrinoFsDriverFailsForUnsupportedSchemeWithPrefix()
+    {
+        assertThatThrownBy(() -> createBootstrap(false, Optional.of("buffer"), Map.of(
+                "buffer.spooling.directory", "hdfs://nameservice/spooling",
+                "buffer.spooling.storage-driver", "TRINO_FS")))
+                .hasMessageContaining("Scheme hdfs is not supported by TRINO_FS spooling driver");
+    }
+
     private static void createBootstrap(Map<String, String> properties)
     {
-        createBootstrap(Optional.empty(), properties);
+        createBootstrap(true, Optional.empty(), properties);
     }
 
     private static void createBootstrap(Optional<String> configPrefix, Map<String, String> properties)
     {
-        Bootstrap app = new Bootstrap(new SpoolingStorageModule(configPrefix, true));
+        createBootstrap(true, configPrefix, properties);
+    }
+
+    private static void createBootstrap(boolean bindConfigsOnly, Map<String, String> properties)
+    {
+        createBootstrap(bindConfigsOnly, Optional.empty(), properties);
+    }
+
+    private static void createBootstrap(boolean bindConfigsOnly, Optional<String> configPrefix, Map<String, String> properties)
+    {
+        Bootstrap app = new Bootstrap(new SpoolingStorageModule(configPrefix, bindConfigsOnly));
         app.quiet()
                 .doNotInitializeLogging()
                 .setRequiredConfigurationProperties(ImmutableMap.copyOf(properties))
