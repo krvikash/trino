@@ -287,6 +287,8 @@ public class SnowflakeClient
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")
                 .when(experimentalPushdownEnabled).map("$like(subject: varchar, pattern: varchar)").to("subject LIKE pattern")
+                .when(experimentalPushdownEnabled).map("lower(value: varchar)").to("lower(value)")
+                .when(experimentalPushdownEnabled).map("upper(value: varchar)").to("upper(value)")
                 .build();
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
                 this.connectorExpressionRewriter,

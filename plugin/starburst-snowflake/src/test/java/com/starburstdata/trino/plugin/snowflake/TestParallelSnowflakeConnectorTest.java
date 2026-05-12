@@ -1636,6 +1636,69 @@ public class TestParallelSnowflakeConnectorTest
                 "snowflakeQueryExecutionTime");
     }
 
+    @Test
+    public void testUpperLowerPushdown()
+    {
+        Session experimentalPushdownDisabled = Session.builder(getSession())
+                .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "false")
+                .build();
+        String schema = getSession().getSchema().orElseThrow();
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schema + ".collated_expression",
+                """
+                        (
+                            null_string VARCHAR,
+                            unbounded VARCHAR,
+                            upper_collation VARCHAR COLLATE 'upper',
+                            turkish_uppercase_i VARCHAR COLLATE 'tr',
+                            one_to_many VARCHAR,
+                            context_dependent VARCHAR
+                        )
+                        """,
+                ImmutableList.of("NULL, 'Hello World!', 'a', 'I', 'ﬃ', 'ΣΣΣ'"))) {
+            String testTableName = testTable.getName();
+            @Language("SQL")
+            String select = "SELECT * FROM " + testTableName +
+                    " WHERE LOWER(null_string) IS NULL AND UPPER(null_string) IS NULL";
+            assertThat(query(experimentalPushdownEnabled(), select))
+                    .isFullyPushedDown();
+            assertThat(query(experimentalPushdownDisabled, select))
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query(experimentalPushdownEnabled(), "SELECT * FROM " + testTableName +
+                    " WHERE LOWER(unbounded) = 'a' AND UPPER(unbounded) = 'A'"))
+                    .isFullyPushedDown();
+
+            assertThat(query(experimentalPushdownEnabled(), "SELECT * FROM " + testTableName + " WHERE LOWER(upper_collation) = 'a'"))
+                    .isFullyPushedDown();
+
+            assertThat(query(experimentalPushdownEnabled(), "SELECT * FROM " + testTableName + " WHERE LOWER(turkish_uppercase_i) = 'i'"))
+                    .isFullyPushedDown();
+
+            // [ENG-14343] Known unicode bugs.
+            // Trino UPPER/LOWER only does codepoint -> codepoint mapping.
+            // Snowflake implements a "full mapping" according to the unicode standard.
+            @Language("SQL")
+            String oneToManyCodepointQuery = "SELECT * FROM " + testTableName + " WHERE UPPER(one_to_many) = 'FFI'";
+            assertThat(query(experimentalPushdownDisabled, oneToManyCodepointQuery)).returnsEmptyResult();
+            assertThat(query(experimentalPushdownEnabled(), oneToManyCodepointQuery))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .result()
+                    .rowCount()
+                    .isEqualTo(1);
+
+            @Language("SQL")
+            String contextDependentQuery = "SELECT * FROM " + testTableName + " WHERE LOWER(context_dependent) = 'σσς'";
+            assertThat(query(experimentalPushdownDisabled, contextDependentQuery)).returnsEmptyResult();
+            assertThat(query(experimentalPushdownEnabled(), contextDependentQuery))
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .result()
+                    .rowCount()
+                    .isEqualTo(1);
+        }
+    }
+
     private Session experimentalPushdownEnabled()
     {
         return Session.builder(getSession())
