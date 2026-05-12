@@ -22,7 +22,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Suppliers;
 import com.google.common.base.VerifyException;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -30,7 +29,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
@@ -38,7 +36,6 @@ import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.EmbeddingType;
-import io.trino.cache.NonEvictableCache;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.metastore.Column;
@@ -277,7 +274,6 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -288,8 +284,6 @@ import static com.google.common.collect.Iterables.size;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.difference;
 import static io.airlift.units.Duration.ZERO;
-import static io.trino.cache.CacheUtils.uncheckedCacheGet;
-import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.filesystem.Locations.isS3Tables;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TRINO_MATERIALIZED_VIEW;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TRINO_VIEW;
@@ -579,8 +573,8 @@ public class IcebergMetadata
     private final int materializedViewRefreshMaxSnapshotsToExpire;
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
     private final Map<IcebergTableHandle, AtomicReference<TableStatistics>> tableStatisticsCache = new ConcurrentHashMap<>();
-    private final NonEvictableCache<SchemaTableName, IcebergTableCredentials> tableCredentialsCache;
     private final Map<String, org.apache.iceberg.Metrics> fileMetrics = new HashMap<>();
+    private final IcebergTableCredentialsProvider tableCredentialsProvider;
     private final DeletionVectorWriter deletionVectorWriter;
     private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
 
@@ -635,42 +629,25 @@ public class IcebergMetadata
         this.materializedViewRefreshSnapshotRetentionPeriod = materializedViewRefreshSnapshotRetentionPeriod;
         this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
         this.removeDanglingDeleteFiles = requireNonNull(removeDanglingDeleteFiles, "removeDanglingDeleteFiles is null");
-        this.tableCredentialsCache = buildNonEvictableCache(CacheBuilder.newBuilder());
+        this.tableCredentialsProvider = new IcebergTableCredentialsProvider(catalog);
     }
 
     @Override
     public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        return getOrLoadTableCredentials(session, getSchemaTableName(tableHandle));
+        return tableCredentialsProvider.getTableCredentials(session, getSchemaTableName(tableHandle));
     }
 
     @Override
     public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
     {
-        return getOrLoadTableCredentials(session, getSchemaTableName(tableHandle));
+        return tableCredentialsProvider.getTableCredentials(session, getSchemaTableName(tableHandle));
     }
 
     @Override
     public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableFunctionHandle tableFunctionHandle)
     {
-        return getOrLoadTableCredentials(session, getSchemaTableName(tableFunctionHandle));
-    }
-
-    private Optional<ConnectorTableCredentials> getOrLoadTableCredentials(ConnectorSession session, SchemaTableName schemaTableName)
-    {
-        try {
-            return Optional.of(uncheckedCacheGet(
-                    tableCredentialsCache,
-                    schemaTableName,
-                    () -> {
-                        BaseTable baseTable = catalog.loadTable(session, schemaTableName);
-                        return new IcebergTableCredentials(baseTable.io().properties());
-                    }));
-        }
-        catch (UncheckedExecutionException e) {
-            throwIfUnchecked(e.getCause());
-            throw e;
-        }
+        return tableCredentialsProvider.getTableCredentials(session, getSchemaTableName(tableFunctionHandle));
     }
 
     private static SchemaTableName getSchemaTableName(ConnectorTableHandle tableHandle)
@@ -1836,9 +1813,8 @@ public class IcebergMetadata
             Optional<String> branch,
             List<PositionDeleteFiles> previousDeleteFiles)
     {
-        Schema schema = SchemaParser.fromJson(schemaAsJson);
-        SortFieldInfo sortInfo = getSupportedSortFields(schema, table.sortOrder());
-        tableCredentialsCache.put(name, IcebergTableCredentials.forFileIO(table.io()));
+        SortFieldInfo sortInfo = getSupportedSortFields(table.schema(), table.sortOrder());
+        tableCredentialsProvider.putTableCredentials(name, IcebergTableCredentials.forFileIO(table.io()));
         return new IcebergWritableTableHandle(
                 name,
                 formatVersion(table),
