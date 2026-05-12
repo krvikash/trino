@@ -91,7 +91,8 @@ public final class BenchmarkRunner
         /**
          * {@code event=cpu}: perf_events on Linux, itimer fallback on macOS.
          */
-        CPU
+        CPU,
+        WALL,
     }
 
     /**
