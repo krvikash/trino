@@ -37,10 +37,10 @@ import io.trino.sql.dialect.trino.operation.In;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Logical;
+import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
-import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
@@ -656,7 +656,7 @@ final class TestScalarProgramBuilder
     @Test
     public void testSwitch()
     {
-        io.trino.sql.ir.Switch switchExpression = new io.trino.sql.ir.Switch(
+        io.trino.sql.ir.Match switchExpression = new io.trino.sql.ir.Match(
                 new io.trino.sql.ir.Constant(BIGINT, 0L),
                 ImmutableList.of(
                         new WhenClause(new io.trino.sql.ir.Constant(BIGINT, 1L), new io.trino.sql.ir.Constant(BOOLEAN, true)),
@@ -669,7 +669,7 @@ final class TestScalarProgramBuilder
         Constant constantOperationThen1 = new Constant("%3", BOOLEAN, true);
         Constant constantOperationThen2 = new Constant("%4", BOOLEAN, false);
         Constant constantOperationDefault = new Constant("%5", BOOLEAN, null);
-        Switch switchOperation = new Switch(
+        Match matchOperation = new Match(
                 "%6",
                 constantOperationOperand.result(),
                 ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result()),
@@ -692,7 +692,7 @@ final class TestScalarProgramBuilder
                         constantOperationThen1,
                         constantOperationThen2,
                         constantOperationDefault,
-                        switchOperation),
+                        matchOperation),
                 BOOLEAN);
     }
 

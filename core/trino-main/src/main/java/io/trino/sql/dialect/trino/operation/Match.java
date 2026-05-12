@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.TrinoDialect;
-import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -32,11 +32,11 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
-import static io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata.NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
-public final class Switch
+public final class Match
         extends TrinoOperation
 {
     private final Result result;
@@ -46,12 +46,12 @@ public final class Switch
     private final Value defaultValue;
     private final Map<AttributeKey, Object> attributes;
 
-    public Switch(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes)
     {
         this(resultName, operand, when, then, defaultValue, sourceAttributes, ImmutableMap.of());
     }
 
-    public Switch(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -106,7 +106,7 @@ public final class Switch
         }
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(SwitchOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        attributes.putAll(MatchOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -159,7 +159,7 @@ public final class Switch
         if (index >= 1 + when.size() && index < 1 + when.size() + then.size()) {
             newThen.set(index - when.size() - 1, newArgument);
         }
-        return new Switch(
+        return new Match(
                 result.name(),
                 index == 0 ? newArgument : operand,
                 newWhen,
@@ -171,7 +171,7 @@ public final class Switch
     @Override
     public Operation withResultName(String newName)
     {
-        return new Switch(newName, operand, when, then, defaultValue, emptySourceAttributes(1 + when.size() + then.size() + 1));
+        return new Match(newName, operand, when, then, defaultValue, emptySourceAttributes(1 + when.size() + then.size() + 1));
     }
 
     @Override
@@ -183,6 +183,6 @@ public final class Switch
     @Override
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
     {
-        return visitor.visitSwitch(this, context);
+        return visitor.visitMatch(this, context);
     }
 }

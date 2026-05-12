@@ -59,6 +59,7 @@ import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Logical;
+import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
@@ -67,7 +68,6 @@ import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.Sort;
-import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TopNRanking;
@@ -3205,7 +3205,7 @@ class TestCreateOperation
     }
 
     @Test
-    public void testSwitch()
+    public void testMatch()
     {
         Constant constantOperationOperand = new Constant("%0", BIGINT, 0L);
         Constant constantOperationWhen1 = new Constant("%1", BIGINT, 1L);
@@ -3214,7 +3214,7 @@ class TestCreateOperation
         Constant constantOperationThen2 = new Constant("%4", BOOLEAN, false);
         Constant constantOperationDefault = new Constant("%5", BOOLEAN, null);
 
-        Switch switchOperation = new Switch(
+        Match matchOperation = new Match(
                 "%6",
                 constantOperationOperand.result(),
                 ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result()),
@@ -3229,7 +3229,7 @@ class TestCreateOperation
                         constantOperationDefault.attributes()));
 
         Operation actualSwitchOperation = TESTING_TRINO_DIALECT.createOperation(
-                SwitchOperationMetadata.NAME,
+                MatchOperationMetadata.NAME,
                 "%6",
                 ImmutableList.of(
                         constantOperationOperand.result(),
@@ -3245,12 +3245,12 @@ class TestCreateOperation
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false));
 
-        assertThat(actualSwitchOperation).isEqualTo(switchOperation);
+        assertThat(actualSwitchOperation).isEqualTo(matchOperation);
         assertThat(actualSwitchOperation.result().type()).isEqualTo(irType(BOOLEAN));
 
         // wrong argument count
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                SwitchOperationMetadata.NAME,
+                MatchOperationMetadata.NAME,
                 "%6",
                 ImmutableList.of(
                         constantOperationOperand.result(),
@@ -3264,7 +3264,7 @@ class TestCreateOperation
                 .hasMessage("Switch operation must have at least four arguments");
 
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                SwitchOperationMetadata.NAME,
+                MatchOperationMetadata.NAME,
                 "%6",
                 ImmutableList.of(
                         constantOperationOperand.result(),
@@ -3282,7 +3282,7 @@ class TestCreateOperation
 
         // wrong region count
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                SwitchOperationMetadata.NAME,
+                MatchOperationMetadata.NAME,
                 "%6",
                 ImmutableList.of(
                         constantOperationOperand.result(),

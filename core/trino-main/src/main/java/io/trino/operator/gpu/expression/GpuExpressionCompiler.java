@@ -56,10 +56,10 @@ import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Logical;
+import io.trino.sql.ir.Match;
 import io.trino.sql.ir.NullIf;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
-import io.trino.sql.ir.Switch;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
 import io.trino.type.JoniRegexp;
@@ -812,7 +812,7 @@ public final class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<GpuExpression> visitSwitch(Switch node, Void context)
+        protected Optional<GpuExpression> visitMatch(Match node, Void context)
         {
             // TODO support simple CASE on GPU
             return Optional.empty();

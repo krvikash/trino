@@ -15,7 +15,7 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.trino.sql.dialect.trino.operation.Switch;
+import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
@@ -31,7 +31,7 @@ import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveIr
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static java.util.stream.Collectors.partitioningBy;
 
-public class SwitchOperationMetadata
+public class MatchOperationMetadata
         implements TrinoOperationMetadata
 {
     public static final String NAME = "switch";
@@ -59,7 +59,7 @@ public class SwitchOperationMetadata
                 .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
         Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
 
-        return new Switch(
+        return new Match(
                 resultName,
                 arguments.getFirst(),
                 arguments.subList(1, arguments.size() / 2),
@@ -72,7 +72,7 @@ public class SwitchOperationMetadata
     @Override
     public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
     {
-        return SwitchOperationMetadata::deriveAttributes;
+        return MatchOperationMetadata::deriveAttributes;
     }
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)

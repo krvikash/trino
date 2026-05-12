@@ -152,6 +152,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitMatch(Match operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitNullIf(NullIf operation, C context)
     {
         return visitOperation(operation, context);
@@ -183,11 +188,6 @@ public abstract class TrinoOperationVisitor<R, C>
     }
 
     public R visitSort(Sort operation, C context)
-    {
-        return visitOperation(operation, context);
-    }
-
-    public R visitSwitch(Switch operation, C context)
     {
         return visitOperation(operation, context);
     }

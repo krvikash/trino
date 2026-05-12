@@ -36,12 +36,12 @@ import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
-import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Match;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
@@ -399,7 +399,7 @@ public class ToOldIrScalarRewriter
         }
 
         @Override
-        public Expression visitSwitch(Switch operation, Context context)
+        public Expression visitMatch(io.trino.sql.dialect.trino.operation.Match operation, Context context)
         {
             List<Expression> arguments = operation.arguments().stream()
                     .map(context::getOperation)
@@ -416,7 +416,7 @@ public class ToOldIrScalarRewriter
             }
             Expression defaultValue = arguments.getLast();
 
-            return new io.trino.sql.ir.Switch(operand, whenClauses.build(), defaultValue);
+            return new Match(operand, whenClauses.build(), defaultValue);
         }
     }
 

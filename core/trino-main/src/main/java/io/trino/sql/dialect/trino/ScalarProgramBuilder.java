@@ -33,10 +33,10 @@ import io.trino.sql.dialect.trino.operation.In;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Logical;
+import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
-import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
@@ -397,6 +397,46 @@ public class ScalarProgramBuilder
     }
 
     @Override
+    protected Operation visitMatch(io.trino.sql.ir.Match node, Context context)
+    {
+        Operation operand = node.operand().accept(this, context);
+        List<Operation> when = node.whenClauses().stream()
+                .map(WhenClause::getOperand)
+                .map(expression -> expression.accept(this, context))
+                .collect(toImmutableList());
+        List<Operation> then = node.whenClauses().stream()
+                .map(WhenClause::getResult)
+                .map(expression -> expression.accept(this, context))
+                .collect(toImmutableList());
+        Operation defaultValue = node.defaultValue().accept(this, context);
+
+        ImmutableList.Builder<Map<AttributeKey, Object>> sourceAttributes = ImmutableList.builder();
+        sourceAttributes.add(operand.attributes());
+        when.stream()
+                .map(Operation::attributes)
+                .forEach(sourceAttributes::add);
+        then.stream()
+                .map(Operation::attributes)
+                .forEach(sourceAttributes::add);
+        sourceAttributes.add(defaultValue.attributes());
+
+        String resultName = nameAllocator.newName();
+        Match matchOperation = new Match(
+                resultName,
+                operand.result(),
+                when.stream()
+                        .map(Operation::result)
+                        .collect(toImmutableList()),
+                then.stream()
+                        .map(Operation::result)
+                        .collect(toImmutableList()),
+                defaultValue.result(),
+                sourceAttributes.build());
+        context.block().addOperation(matchOperation);
+        return matchOperation;
+    }
+
+    @Override
     protected Operation visitNullIf(io.trino.sql.ir.NullIf node, Context context)
     {
         Operation first = node.first().accept(this, context);
@@ -446,46 +486,6 @@ public class ScalarProgramBuilder
                         .collect(toImmutableList()));
         context.block().addOperation(row);
         return row;
-    }
-
-    @Override
-    protected Operation visitSwitch(io.trino.sql.ir.Switch node, Context context)
-    {
-        Operation operand = node.operand().accept(this, context);
-        List<Operation> when = node.whenClauses().stream()
-                .map(WhenClause::getOperand)
-                .map(expression -> expression.accept(this, context))
-                .collect(toImmutableList());
-        List<Operation> then = node.whenClauses().stream()
-                .map(WhenClause::getResult)
-                .map(expression -> expression.accept(this, context))
-                .collect(toImmutableList());
-        Operation defaultValue = node.defaultValue().accept(this, context);
-
-        ImmutableList.Builder<Map<AttributeKey, Object>> sourceAttributes = ImmutableList.builder();
-        sourceAttributes.add(operand.attributes());
-        when.stream()
-                .map(Operation::attributes)
-                .forEach(sourceAttributes::add);
-        then.stream()
-                .map(Operation::attributes)
-                .forEach(sourceAttributes::add);
-        sourceAttributes.add(defaultValue.attributes());
-
-        String resultName = nameAllocator.newName();
-        Switch switchOperation = new Switch(
-                resultName,
-                operand.result(),
-                when.stream()
-                        .map(Operation::result)
-                        .collect(toImmutableList()),
-                then.stream()
-                        .map(Operation::result)
-                        .collect(toImmutableList()),
-                defaultValue.result(),
-                sourceAttributes.build());
-        context.block().addOperation(switchOperation);
-        return switchOperation;
     }
 
     /**

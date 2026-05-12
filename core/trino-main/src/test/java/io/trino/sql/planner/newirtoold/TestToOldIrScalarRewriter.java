@@ -40,10 +40,10 @@ import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Logical;
+import io.trino.sql.ir.Match;
 import io.trino.sql.ir.NullIf;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
-import io.trino.sql.ir.Switch;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.newir.Block;
 import io.trino.sql.planner.Symbol;
@@ -784,9 +784,9 @@ class TestToOldIrScalarRewriter
     }
 
     @Test
-    public void testSwitch()
+    public void testMatch()
     {
-        Switch switchExpression = new Switch(
+        Match matchExpression = new Match(
                 new Reference(BOOLEAN, "c"),
                 ImmutableList.of(
                         new WhenClause(new Constant(BOOLEAN, true), new Reference(BIGINT, "a")),
@@ -799,7 +799,7 @@ class TestToOldIrScalarRewriter
         FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation3 = new FieldReference("%4", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation3 = new io.trino.sql.dialect.trino.operation.Constant("%5", BIGINT, 0L);
-        io.trino.sql.dialect.trino.operation.Switch switchOperation = new io.trino.sql.dialect.trino.operation.Switch(
+        io.trino.sql.dialect.trino.operation.Match matchOperation = new io.trino.sql.dialect.trino.operation.Match(
                 "%6",
                 fieldReferenceOperation1.result(),
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result()),
@@ -812,7 +812,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation2.attributes(),
                         fieldReferenceOperation3.attributes(),
                         constantOperation3.attributes()));
-        Return returnOperation = new Return("%7", switchOperation.result(), switchOperation.attributes());
+        Return returnOperation = new Return("%7", matchOperation.result(), matchOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
@@ -823,10 +823,10 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation2,
                         fieldReferenceOperation3,
                         constantOperation3,
-                        switchOperation,
+                        matchOperation,
                         returnOperation));
 
-        assertRoundtrip(switchExpression, rewritten);
+        assertRoundtrip(matchExpression, rewritten);
     }
 
     @Test

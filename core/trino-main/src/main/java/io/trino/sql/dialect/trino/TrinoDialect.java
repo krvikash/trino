@@ -53,6 +53,7 @@ import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
@@ -61,7 +62,6 @@ import io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.RowOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
-import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata;
@@ -309,6 +309,7 @@ public final class TrinoDialect
                 new LambdaOperationMetadata(),
                 new LimitOperationMetadata(),
                 new LogicalOperationMetadata(),
+                new MatchOperationMetadata(),
                 new NullIfOperationMetadata(),
                 new OutputOperationMetadata(),
                 new ProjectOperationMetadata(),
@@ -317,7 +318,6 @@ public final class TrinoDialect
                 new RowOperationMetadata(),
                 new SemiJoinOperationMetadata(),
                 new SortOperationMetadata(),
-                new SwitchOperationMetadata(),
                 new TopNOperationMetadata(),
                 new TopNRankingOperationMetadata(),
                 new UnionOperationMetadata(),
