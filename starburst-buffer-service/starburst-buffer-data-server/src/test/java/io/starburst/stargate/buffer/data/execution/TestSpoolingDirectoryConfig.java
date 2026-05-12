@@ -17,6 +17,8 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver.NATIVE;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver.TRINO_FS;
 
 public class TestSpoolingDirectoryConfig
 {
@@ -25,7 +27,8 @@ public class TestSpoolingDirectoryConfig
     {
         assertRecordedDefaults(recordDefaults(SpoolingDirectoryConfig.class)
                 .setSpoolingDirectory(null)
-                .setAllowLocalSpooling(false));
+                .setAllowLocalSpooling(false)
+                .setStorageDriver(NATIVE));
     }
 
     @Test
@@ -34,11 +37,13 @@ public class TestSpoolingDirectoryConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("spooling.directory", "s3://spooling-bucket")
                 .put("testing.allow-local-spooling", "true")
+                .put("spooling.storage-driver", "TRINO_FS")
                 .buildOrThrow();
 
         SpoolingDirectoryConfig expected = new SpoolingDirectoryConfig()
                 .setSpoolingDirectory("s3://spooling-bucket/")
-                .setAllowLocalSpooling(true);
+                .setAllowLocalSpooling(true)
+                .setStorageDriver(TRINO_FS);
 
         assertFullMapping(properties, expected);
     }

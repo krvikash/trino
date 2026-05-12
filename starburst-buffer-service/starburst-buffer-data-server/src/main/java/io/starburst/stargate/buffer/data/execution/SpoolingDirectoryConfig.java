@@ -12,16 +12,19 @@ package io.starburst.stargate.buffer.data.execution;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
 
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver.NATIVE;
 
 public class SpoolingDirectoryConfig
 {
     private URI spoolingDirectory;
     private boolean allowLocalSpooling;
+    private SpoolingStorageDriver storageDriver = NATIVE;
 
     @NotNull
     public URI getSpoolingDirectory()
@@ -52,6 +55,20 @@ public class SpoolingDirectoryConfig
     public SpoolingDirectoryConfig setAllowLocalSpooling(boolean allowLocalSpooling)
     {
         this.allowLocalSpooling = allowLocalSpooling;
+        return this;
+    }
+
+    @NotNull
+    public SpoolingStorageDriver getStorageDriver()
+    {
+        return storageDriver;
+    }
+
+    @Config("spooling.storage-driver")
+    @ConfigDescription("Selects which spooling backend implementation to use. NATIVE uses backend-specific SDKs (default). TRINO_FS uses the generic TrinoFileSystem abstraction.")
+    public SpoolingDirectoryConfig setStorageDriver(SpoolingStorageDriver storageDriver)
+    {
+        this.storageDriver = storageDriver;
         return this;
     }
 }
