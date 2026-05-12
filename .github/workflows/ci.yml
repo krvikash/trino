@@ -118,9 +118,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because maven-checks ${{ matrix.java-version }} failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "maven-checks ${{ matrix.java-version }}"
 
   artifact-checks:
     needs: path-filters
@@ -172,9 +170,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because artifact-checks failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "artifact-checks"
 
   check-commits-dispatcher:
     needs: path-filters
@@ -277,9 +273,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because error-prone-checks failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "error-prone-checks"
 
   test-jdbc-compatibility:
     needs: path-filters
@@ -350,9 +344,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because test-jdbc-compatibility failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "test-jdbc-compatibility"
 
   # -----------------------------------------------------------
   # Synapse tests - start a SQL pool if needed
@@ -436,7 +428,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "synapse-prepare"
   synapse-tests:
     name: synapse-tests (${{ matrix.synapse-test }}${{ matrix.profile != '' && format(', {0}', matrix.profile) || '' }})
     runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-arm64, latest ]
@@ -562,7 +554,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "synapse-tests"
   # --------------------------------------------------------------
   # After synapse tests finish, tear down SQL pool
   # --------------------------------------------------------------
@@ -596,7 +588,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "synapse-stop-pool"
 
   test-other-modules:
     needs: path-filters
@@ -734,7 +726,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "test-other-modules"
 
   starburst-functions-ai-tests:
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
@@ -814,9 +806,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because test-other-modules failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "starburst-functions-ai-tests"
 
   build-test-matrix:
     needs: path-filters
@@ -880,9 +870,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because build-test-matrix failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "build-test-matrix"
 
   test:
     name: ${{ matrix.name != '' && matrix.name || format('test ({0}, {1})', matrix.modules, matrix.profile) }}
@@ -1488,9 +1476,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because test (${{ matrix.modules }}, ${{ matrix.profile }}, ${{ matrix.jdk }}) failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "test (${{ matrix.modules }}, ${{ matrix.profile }}, ${{ matrix.jdk }})"
 
   build-pt:
     needs: path-filters
@@ -1811,9 +1797,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because build-pt failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "build-pt"
 
   pt:
     runs-on: ${{ matrix.runners != null && matrix.runners || fromJSON('["self-hosted", "gha-fleet-ec2-4cpu-16gb-amd64", "latest" ]') }}
@@ -1973,9 +1957,7 @@ jobs:
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because pt (${{ matrix.config }}, ${{ matrix.suite }}, ${{ matrix.jdk }}) failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
+        run: .github/bin/cancel-merge-queue-workflow.sh "pt (${{ matrix.config }}, ${{ matrix.suite }}, ${{ matrix.jdk }})"
 
   build-success:
     if: ${{ always() }} # if `failure()` would not work for cancellations, `!success()` would not work for skipped jobs
