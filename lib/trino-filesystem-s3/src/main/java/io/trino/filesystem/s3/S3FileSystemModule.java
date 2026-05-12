@@ -26,6 +26,7 @@ import io.trino.filesystem.switching.SwitchingFileSystemFactory;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static com.google.inject.Scopes.SINGLETON;
@@ -37,19 +38,32 @@ import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class S3FileSystemModule
         extends AbstractConfigurationAwareModule
 {
+    private final Optional<String> configPrefix;
+
+    public S3FileSystemModule()
+    {
+        this(Optional.empty());
+    }
+
+    public S3FileSystemModule(Optional<String> configPrefix)
+    {
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+    }
+
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(S3FileSystemConfig.class);
+        configBinder(binder).bindConfig(S3FileSystemConfig.class, configPrefix.orElse(null));
 
-        if (buildConfigObject(S3SecurityMappingEnabledConfig.class).isEnabled()) {
-            install(new S3SecurityMappingModule());
+        if (buildConfigObject(S3SecurityMappingEnabledConfig.class, configPrefix.orElse(null)).isEnabled()) {
+            install(new S3SecurityMappingModule(configPrefix));
         }
         else {
             newOptionalBinder(binder, Key.get(TrinoFileSystemFactory.class, FileSystemS3.class))
@@ -63,10 +77,22 @@ public class S3FileSystemModule
     public static class S3SecurityMappingModule
             extends AbstractConfigurationAwareModule
     {
+        private final Optional<String> configPrefix;
+
+        public S3SecurityMappingModule()
+        {
+            this(Optional.empty());
+        }
+
+        public S3SecurityMappingModule(Optional<String> configPrefix)
+        {
+            this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+        }
+
         @Override
         protected void setup(Binder binder)
         {
-            S3SecurityMappingConfig config = buildConfigObject(S3SecurityMappingConfig.class);
+            S3SecurityMappingConfig config = buildConfigObject(S3SecurityMappingConfig.class, configPrefix.orElse(null));
 
             binder.bind(S3SecurityMappingProvider.class).to(DefaultS3SecurityMappingProvider.class).in(SINGLETON);
             binder.bind(boolean.class).annotatedWith(ForS3ClientCaching.class).toInstance(true);
