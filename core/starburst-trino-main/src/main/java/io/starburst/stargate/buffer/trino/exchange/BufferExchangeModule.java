@@ -16,13 +16,16 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.configuration.ConditionalModule;
 import io.airlift.http.client.HttpClient;
 import io.airlift.json.JsonBinder;
 import io.airlift.node.NodeInfo;
 import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.ForBufferDataClient;
+import io.starburst.stargate.buffer.data.client.spooling.trinofs.TrinoFsClientModule;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
@@ -46,6 +49,8 @@ import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.DataApiBinder.dataApiBinder;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolingClientDriver.TRINO_FS;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.NONE;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
@@ -149,6 +154,14 @@ public class BufferExchangeModule
             }
 
             dataApiBinder(binder, super::install).bindHttpDataApi("exchange.buffer-data");
+
+            install(ConditionalModule.conditionalModule(
+                    DataApiConfig.class,
+                    "exchange.buffer-data",
+                    config -> config.getSpoolingClientDriver() == TRINO_FS
+                            && config.getSpoolingStorageType() != NONE,
+                    new TrinoFsClientModule("exchange.buffer-data")));
+
             binder.bind(ApiFactory.class).to(RealBufferingServiceApiFactory.class);
         }
 

@@ -175,6 +175,36 @@
             <artifactId>jmxutils</artifactId>
         </dependency>
 
+        <!--
+            trino-filesystem-* are wired into the buffer-service exchange via reflection-style
+            Guice installs in TrinoFsClientModule (starburst-buffer-data-client). starburst-trino-main
+            itself references no symbol from these jars, but they must be on its classpath since the
+            buffer-service exchange runs in trino-main's classloader (no plugin separation).
+        -->
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-azure</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-gcs</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-s3</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>configuration-testing</artifactId>
