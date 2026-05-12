@@ -124,6 +124,38 @@ public class TestSpoolingStorageModule
                 .hasMessageContaining("Scheme hdfs is not supported by TRINO_FS spooling driver");
     }
 
+    @Test
+    public void testTrinoFsDriverBindsConfigsOnlyForS3WithPrefix()
+    {
+        // Verifies that in bindConfigsOnly mode (embedded coordinator-only bootstrap) the
+        // TRINO_FS branch binds both TrinoFsSpoolingConfig and the underlying
+        // trino-filesystem-s3 config so that backend-tuning properties are recognized.
+        createBootstrap(Optional.of("buffer"), Map.of(
+                "buffer.spooling.directory", "s3://bucket/spool",
+                "buffer.spooling.storage-driver", "TRINO_FS",
+                "buffer.spooling.trino-fs.executor-threads", "100",
+                "buffer.s3.region", "us-east-1"));
+    }
+
+    @Test
+    public void testTrinoFsDriverBindsConfigsOnlyForGcsWithPrefix()
+    {
+        createBootstrap(Optional.of("buffer"), Map.of(
+                "buffer.spooling.directory", "gs://bucket/spool",
+                "buffer.spooling.storage-driver", "TRINO_FS",
+                "buffer.spooling.trino-fs.delete-executor-threads", "20",
+                "buffer.gcs.project-id", "my-project"));
+    }
+
+    @Test
+    public void testTrinoFsDriverBindsConfigsOnlyForAzureWithPrefix()
+    {
+        createBootstrap(Optional.of("buffer"), Map.of(
+                "buffer.spooling.directory", "abfs://container@account.dfs.core.windows.net/spool",
+                "buffer.spooling.storage-driver", "TRINO_FS",
+                "buffer.azure.endpoint", "core.windows.net"));
+    }
+
     private static void createBootstrap(Map<String, String> properties)
     {
         createBootstrap(true, Optional.empty(), properties);

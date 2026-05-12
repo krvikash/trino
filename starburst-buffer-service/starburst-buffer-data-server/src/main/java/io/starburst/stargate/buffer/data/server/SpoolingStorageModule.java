@@ -38,14 +38,7 @@ public class SpoolingStorageModule
         SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
         switch (spoolingDirectoryConfig.getStorageDriver()) {
             case NATIVE -> install(new NativeSpoolingStorageModule(configPrefix, bindConfigsOnly));
-            case TRINO_FS -> {
-                if (configPrefix.isPresent()) {
-                    binder.addError("spooling.storage-driver=TRINO_FS is not supported with a config prefix yet");
-                }
-                else if (!bindConfigsOnly) {
-                    install(new TrinoFsSpoolingStorageModule());
-                }
-            }
+            case TRINO_FS -> install(new TrinoFsSpoolingStorageModule(configPrefix, bindConfigsOnly));
         }
     }
 }

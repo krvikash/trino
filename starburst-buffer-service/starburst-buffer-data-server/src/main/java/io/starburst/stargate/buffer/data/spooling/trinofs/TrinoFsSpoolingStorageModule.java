@@ -13,6 +13,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
+import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
@@ -20,18 +21,22 @@ import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.filesystem.azure.AzureFileSystemModule;
+import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsFileSystemModule;
 import io.trino.filesystem.local.LocalFileSystemConfig;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.filesystem.s3.FileSystemS3;
+import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemModule;
 import io.trino.spi.security.ConnectorIdentity;
 import jakarta.annotation.PreDestroy;
 
 import java.net.URI;
+import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -54,16 +59,30 @@ import static java.util.Objects.requireNonNull;
  * <p>Both executor pools are shut down with {@code shutdownNow()} so that any in-flight
  * blocking call receives an interrupt; cancellation of futures returned by
  * {@link TrinoFsSpoolingStorage} relies on the same mechanism.
+ *
+ * <p>When {@code bindConfigsOnly} is {@code true}, only the scheme-specific config
+ * classes are bound and the storage backend, executors, and {@link TrinoFileSystemFactory}
+ * are not wired. This matches the behavior of {@link io.starburst.stargate.buffer.data.server.NativeSpoolingStorageModule}'s
+ * config-only mode used by embedded coordinator-only bootstraps.
  */
 public class TrinoFsSpoolingStorageModule
         extends AbstractConfigurationAwareModule
 {
+    private final Optional<String> configPrefix;
+    private final boolean bindConfigsOnly;
+
+    public TrinoFsSpoolingStorageModule(Optional<String> configPrefix, boolean bindConfigsOnly)
+    {
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+        this.bindConfigsOnly = bindConfigsOnly;
+    }
+
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(TrinoFsSpoolingConfig.class);
+        configBinder(binder).bindConfig(TrinoFsSpoolingConfig.class, configPrefix.orElse(null));
 
-        SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class);
+        SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
         URI spoolingDirectory = spoolingDirectoryConfig.getSpoolingDirectory();
         String scheme = spoolingDirectory.getScheme();
         if (scheme == null || scheme.equals("file") || scheme.equals("local")) {
@@ -77,53 +96,92 @@ public class TrinoFsSpoolingStorageModule
             // LocalFileSystemFactory is documented in trino-filesystem as "for testing"; it
             // caches a single LocalFileSystem instance and ignores ConnectorIdentity. Use behind
             // testing.allow-local-spooling=true only.
-            configBinder(binder).bindConfig(LocalFileSystemConfig.class);
-            binder.bind(TrinoFileSystemFactory.class).to(LocalFileSystemFactory.class).in(SINGLETON);
+            configBinder(binder).bindConfig(LocalFileSystemConfig.class, configPrefix.orElse(null));
+            if (!bindConfigsOnly) {
+                binder.bind(TrinoFileSystemFactory.class).to(LocalFileSystemFactory.class).in(SINGLETON);
+            }
         }
         else if (scheme.equals("s3") || scheme.equals("s3a") || scheme.equals("s3n")) {
-            install(new S3FileSystemModule());
-            // S3FileSystemModule binds TrinoFileSystemFactory under @FileSystemS3.
-            // Link the unannotated key to the annotated one so we share the singleton.
-            binder.bind(TrinoFileSystemFactory.class).to(Key.get(TrinoFileSystemFactory.class, FileSystemS3.class));
+            if (bindConfigsOnly) {
+                configBinder(binder).bindConfig(S3FileSystemConfig.class, configPrefix.orElse(null));
+            }
+            else {
+                install(new S3FileSystemModule(configPrefix));
+                // S3FileSystemModule binds TrinoFileSystemFactory under @FileSystemS3.
+                // Link the unannotated key to the annotated one so we share the singleton.
+                binder.bind(TrinoFileSystemFactory.class).to(Key.get(TrinoFileSystemFactory.class, FileSystemS3.class));
+            }
         }
         else if (scheme.equals("gs")) {
-            install(new GcsFileSystemModule());
-            binder.bind(TrinoFileSystemFactory.class).to(GcsFileSystemFactory.class).in(SINGLETON);
+            if (bindConfigsOnly) {
+                configBinder(binder).bindConfig(GcsFileSystemConfig.class, configPrefix.orElse(null));
+            }
+            else {
+                install(new GcsFileSystemModule(configPrefix));
+                binder.bind(TrinoFileSystemFactory.class).to(GcsFileSystemFactory.class).in(SINGLETON);
+            }
         }
         else if (scheme.equals("abfs") || scheme.equals("abfss") || scheme.equals("wasb") || scheme.equals("wasbs")) {
-            install(new AzureFileSystemModule());
-            binder.bind(TrinoFileSystemFactory.class).to(AzureFileSystemFactory.class).in(SINGLETON);
+            if (bindConfigsOnly) {
+                configBinder(binder).bindConfig(AzureFileSystemConfig.class, configPrefix.orElse(null));
+            }
+            else {
+                install(new AzureFileSystemModule(configPrefix));
+                binder.bind(TrinoFileSystemFactory.class).to(AzureFileSystemFactory.class).in(SINGLETON);
+            }
         }
         else {
             binder.addError("Scheme %s is not supported by TRINO_FS spooling driver".formatted(scheme));
+            return;
         }
 
-        binder.bind(SpoolingStorage.class).to(TrinoFsSpoolingStorage.class).in(SINGLETON);
-        binder.bind(TrinoFsExecutorLifecycle.class).in(SINGLETON);
+        if (!bindConfigsOnly) {
+            install(activeBindingsModule());
+        }
     }
 
-    @Provides
-    @Singleton
-    @ForTrinoFsSpooling
-    static TrinoFileSystem trinoFileSystem(TrinoFileSystemFactory factory)
+    private static Module activeBindingsModule()
     {
-        return factory.create(ConnectorIdentity.ofUser("buffer"));
+        // @Provides methods live in a separate module so that they are not registered when
+        // bindConfigsOnly is true. Otherwise Guice would eagerly create the @Singleton bindings
+        // and fail because their dependencies (TrinoFileSystemFactory, TrinoFsSpoolingStorage)
+        // are not bound in config-only mode.
+        return new ActiveBindingsModule();
     }
 
-    @Provides
-    @Singleton
-    @ForTrinoFsSpooling
-    static ListeningExecutorService trinoFsExecutor(TrinoFsSpoolingConfig config)
+    private static class ActiveBindingsModule
+            extends AbstractConfigurationAwareModule
     {
-        return newPool(config.getExecutorThreads(), "trino-fs-spooling-%s");
-    }
+        @Override
+        protected void setup(Binder binder)
+        {
+            binder.bind(SpoolingStorage.class).to(TrinoFsSpoolingStorage.class).in(SINGLETON);
+            binder.bind(TrinoFsExecutorLifecycle.class).in(SINGLETON);
+        }
 
-    @Provides
-    @Singleton
-    @ForTrinoFsSpoolingDelete
-    static ListeningExecutorService trinoFsDeleteExecutor(TrinoFsSpoolingConfig config)
-    {
-        return newPool(config.getDeleteExecutorThreads(), "trino-fs-spooling-delete-%s");
+        @Provides
+        @Singleton
+        @ForTrinoFsSpooling
+        static TrinoFileSystem trinoFileSystem(TrinoFileSystemFactory factory)
+        {
+            return factory.create(ConnectorIdentity.ofUser("buffer"));
+        }
+
+        @Provides
+        @Singleton
+        @ForTrinoFsSpooling
+        static ListeningExecutorService trinoFsExecutor(TrinoFsSpoolingConfig config)
+        {
+            return newPool(config.getExecutorThreads(), "trino-fs-spooling-%s");
+        }
+
+        @Provides
+        @Singleton
+        @ForTrinoFsSpoolingDelete
+        static ListeningExecutorService trinoFsDeleteExecutor(TrinoFsSpoolingConfig config)
+        {
+            return newPool(config.getDeleteExecutorThreads(), "trino-fs-spooling-delete-%s");
+        }
     }
 
     private static ListeningExecutorService newPool(int threads, String nameFormat)
