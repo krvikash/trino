@@ -582,13 +582,14 @@ public class TestGpuExpressions
                         "CAST bigint AS integer",
                         "CAST double AS bigint",
                         "CAST real AS tinyint",
-                        "CAST double AS real")
+                        "CAST double AS real",
+                        "decimal(27,5) + decimal(27,5)",
+                        "decimal(27,0) - decimal(3,0)",
+                        "decimal(27,0) * decimal(3,0)")
                 .doesNotContain(
                         "- bigint",
                         "- decimal(13,2)",
-                        "HASH CODE bigint",
-                        "decimal(27,5) + decimal(27,5)", // long decimal arithmetic example
-                        "decimal(27,0) - decimal(3,0)"); // long-short decimal arithmetic
+                        "HASH CODE bigint");
     }
 
     private static List<@Nullable TrinoNumber> numericValuesToTest()
@@ -685,19 +686,7 @@ public class TestGpuExpressions
 
     private void testShortDecimalAdd(DecimalType leftType, DecimalType rightType, NullsProvider nullsProvider)
     {
-        int channelA = 0;
-        int channelB = 1;
-        List<Type> inputTypes = List.of(leftType, rightType);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
-                createBlock(leftType, positionsCount, nullsProvider),
-                createBlock(rightType, positionsCount, nullsProvider)));
-
-        Expression expression = new Call(
-                functionResolution.resolveOperator(OperatorType.ADD, List.of(leftType, rightType)),
-                ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        testDecimalBinaryOp(OperatorType.ADD, leftType, rightType, nullsProvider);
     }
 
     @ParameterizedTest
@@ -715,19 +704,7 @@ public class TestGpuExpressions
 
     private void testShortDecimalSubtract(DecimalType leftType, DecimalType rightType, NullsProvider nullsProvider)
     {
-        int channelA = 0;
-        int channelB = 1;
-        List<Type> inputTypes = List.of(leftType, rightType);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
-                createBlock(leftType, positionsCount, nullsProvider),
-                createBlock(rightType, positionsCount, nullsProvider)));
-
-        Expression expression = new Call(
-                functionResolution.resolveOperator(OperatorType.SUBTRACT, List.of(leftType, rightType)),
-                ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        testDecimalBinaryOp(OperatorType.SUBTRACT, leftType, rightType, nullsProvider);
     }
 
     @ParameterizedTest
@@ -746,6 +723,41 @@ public class TestGpuExpressions
 
     private void testShortDecimalMultiply(DecimalType leftType, DecimalType rightType, NullsProvider nullsProvider)
     {
+        testDecimalBinaryOp(OperatorType.MULTIPLY, leftType, rightType, nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLongDecimalAdd(NullsProvider nullsProvider)
+    {
+        testDecimalBinaryOp(OperatorType.ADD, createDecimalType(27, 5), createDecimalType(27, 5), nullsProvider);
+        testDecimalBinaryOp(OperatorType.ADD, createDecimalType(27, 0), createDecimalType(3, 0), nullsProvider);
+        testDecimalBinaryOp(OperatorType.ADD, createDecimalType(19, 0), createDecimalType(18, 0), nullsProvider);
+        testDecimalBinaryOp(OperatorType.ADD, createDecimalType(25, 4), createDecimalType(13, 2), nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLongDecimalSubtract(NullsProvider nullsProvider)
+    {
+        testDecimalBinaryOp(OperatorType.SUBTRACT, createDecimalType(27, 5), createDecimalType(27, 5), nullsProvider);
+        testDecimalBinaryOp(OperatorType.SUBTRACT, createDecimalType(27, 0), createDecimalType(3, 0), nullsProvider);
+        testDecimalBinaryOp(OperatorType.SUBTRACT, createDecimalType(19, 0), createDecimalType(18, 0), nullsProvider);
+        testDecimalBinaryOp(OperatorType.SUBTRACT, createDecimalType(25, 4), createDecimalType(13, 2), nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLongDecimalMultiply(NullsProvider nullsProvider)
+    {
+        testDecimalBinaryOp(OperatorType.MULTIPLY, createDecimalType(25, 4), createDecimalType(13, 2), nullsProvider);
+        testDecimalBinaryOp(OperatorType.MULTIPLY, createDecimalType(20, 2), createDecimalType(18, 2), nullsProvider);
+        testDecimalBinaryOp(OperatorType.MULTIPLY, createDecimalType(27, 0), createDecimalType(3, 0), nullsProvider);
+        testDecimalBinaryOp(OperatorType.MULTIPLY, createDecimalType(19, 0), createDecimalType(19, 0), nullsProvider);
+    }
+
+    private void testDecimalBinaryOp(OperatorType operatorType, DecimalType leftType, DecimalType rightType, NullsProvider nullsProvider)
+    {
         int channelA = 0;
         int channelB = 1;
         List<Type> inputTypes = List.of(leftType, rightType);
@@ -755,7 +767,7 @@ public class TestGpuExpressions
                 createBlock(rightType, positionsCount, nullsProvider)));
 
         Expression expression = new Call(
-                functionResolution.resolveOperator(OperatorType.MULTIPLY, List.of(leftType, rightType)),
+                functionResolution.resolveOperator(operatorType, List.of(leftType, rightType)),
                 ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));

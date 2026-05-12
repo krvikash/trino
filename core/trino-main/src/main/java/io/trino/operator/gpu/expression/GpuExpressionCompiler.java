@@ -399,16 +399,16 @@ public class GpuExpressionCompiler
                     if (leftType == DOUBLE && rightType == DOUBLE) {
                         yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.ADD, outputType));
                     }
-                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal
-                            && leftDecimal.isShort() && rightDecimal.isShort()) {
-                        if (call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
+                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal) {
+                        if (leftDecimal.isShort() && rightDecimal.isShort()
+                                && call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
                             // Infallible: the result type is always wide enough for any sum.
                             // The CPU's addShortShortShort confirms this with an unchecked a * aRescale + b * bRescale.
                             yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.ADD, outputType));
                         }
-                        // Both inputs have at most 18 digits, so the sum needs at most 36 digits (DECIMAL128 holds 38).
-                        // Widen inputs to DECIMAL128 before adding.
-                        yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.ADD, outputType));
+                        if (addSubtractFitsInDecimal128(leftDecimal, rightDecimal)) {
+                            yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.ADD, outputType));
+                        }
                     }
                     yield Optional.empty();
                 }
@@ -431,16 +431,16 @@ public class GpuExpressionCompiler
                     if (leftType == DOUBLE && rightType == DOUBLE) {
                         yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.SUB, outputType));
                     }
-                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal
-                            && leftDecimal.isShort() && rightDecimal.isShort()) {
-                        if (call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
+                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal) {
+                        if (leftDecimal.isShort() && rightDecimal.isShort()
+                                && call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
                             // Infallible: the result type is always wide enough for any difference.
                             // The CPU's subtractShortShortShort confirms this with an unchecked a * aRescale - b * bRescale.
                             yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.SUB, outputType));
                         }
-                        // Both inputs have at most 18 digits, so the difference needs at most 36 digits (DECIMAL128 holds 38).
-                        // Widen inputs to DECIMAL128 before subtracting.
-                        yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.SUB, outputType));
+                        if (addSubtractFitsInDecimal128(leftDecimal, rightDecimal)) {
+                            yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.SUB, outputType));
+                        }
                     }
                     yield Optional.empty();
                 }
@@ -464,16 +464,18 @@ public class GpuExpressionCompiler
                     if (leftType == DOUBLE && rightType == DOUBLE) {
                         yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MUL, outputType));
                     }
-                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal
-                            && leftDecimal.isShort() && rightDecimal.isShort()) {
-                        if (call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
+                    if (leftType instanceof DecimalType leftDecimal && rightType instanceof DecimalType rightDecimal) {
+                        if (leftDecimal.isShort() && rightDecimal.isShort()
+                                && call.type() instanceof DecimalType resultDecimal && resultDecimal.isShort()) {
                             // Infallible: the result type is always wide enough for any product.
                             // The CPU's multiplyShortShortShort confirms this with an unchecked a * b.
                             yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.MUL, outputType));
                         }
-                        // Both inputs have at most 18 digits, so the product needs at most 36 digits (DECIMAL128 holds 38).
-                        // Widen inputs to DECIMAL128 before multiplying.
-                        yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.MUL, outputType));
+                        if (leftDecimal.getPrecision() + rightDecimal.getPrecision() <= 38) {
+                            // Product fits in DECIMAL128 without rescaling (resultRescale is always 0
+                            // when raw precision <= 38). Widen both inputs to DECIMAL128 before multiplying.
+                            yield Optional.of(new GpuWideningShortDecimalArithmetic(left, right, BinaryOp.MUL, outputType));
+                        }
                     }
 
                     yield Optional.empty();
@@ -523,6 +525,17 @@ public class GpuExpressionCompiler
                 default -> Optional.empty();
             };
             return gpuExpression.map(expression -> new CompilationResult(expression, maxScore(args, POTENTIAL)));
+        }
+
+        // Checks whether the raw result precision for decimal add/subtract (before capping at 38)
+        // fits in DECIMAL128. When it does, cuDF can perform scale alignment and the operation
+        // without intermediate overflow, and the output scale matches the result type's scale
+        // (no rescaling needed).
+        private static boolean addSubtractFitsInDecimal128(DecimalType left, DecimalType right)
+        {
+            int integral = Math.max(left.getPrecision() - left.getScale(), right.getPrecision() - right.getScale());
+            int scale = Math.max(left.getScale(), right.getScale());
+            return integral + scale + 1 <= 38;
         }
 
         private Optional<CompilationResult> compileDateTimeExtract(Expression argument, GpuDateTimeExtract.Field field, Void context)
