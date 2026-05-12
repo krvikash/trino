@@ -75,7 +75,7 @@ public final class BenchmarkTpchSf30
                 throws Exception
         {
             System.exit(BenchmarkRunner.run(
-                    new String[] {"run", "--mode", "CPU", "-w", "3", "-r", "6"},
+                    new String[] {"run", "--mode", "CPU"},
                     new TpchSf30Workload(),
                     BenchmarkTpchSf30.class));
         }
@@ -87,7 +87,7 @@ public final class BenchmarkTpchSf30
                 throws Exception
         {
             System.exit(BenchmarkRunner.run(
-                    new String[] {"run", "--mode", "GPU", "-w", "3", "-r", "6"},
+                    new String[] {"run", "--mode", "GPU"},
                     new TpchSf30Workload(),
                     BenchmarkTpchSf30.class));
         }
