@@ -14,6 +14,7 @@
 package io.trino.plugin.deltalake;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.DataSize;
@@ -30,6 +31,8 @@ import io.trino.plugin.deltalake.transactionlog.statistics.DeltaLakeFileStatisti
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
+import io.trino.spi.connector.ConnectorExpressionEvaluator.EvaluationResult;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -57,7 +60,6 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.FULL_REFRESH;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.createStatisticsPredicate;
@@ -75,7 +77,6 @@ import static io.trino.plugin.deltalake.util.DeltaLakeDomains.pathMatchesPredica
 import static io.trino.spi.connector.FixedSplitSource.emptySplitSource;
 import static java.lang.Math.clamp;
 import static java.util.Objects.requireNonNull;
-import static java.util.function.Function.identity;
 
 public class DeltaLakeSplitManager
         implements ConnectorSplitManager
@@ -90,6 +91,7 @@ public class DeltaLakeSplitManager
     private final JsonCodec<DeltaLakeCacheSplitId> splitIdCodec;
     private final DeltaLakeTransactionManager deltaLakeTransactionManager;
     private final SplitAffinityProvider splitAffinityProvider;
+    private final ConnectorExpressionEvaluator evaluator;
 
     @Inject
     public DeltaLakeSplitManager(
@@ -100,7 +102,8 @@ public class DeltaLakeSplitManager
             DeltaLakeFileSystemFactory fileSystemFactory,
             JsonCodec<DeltaLakeCacheSplitId> splitIdCodec,
             DeltaLakeTransactionManager deltaLakeTransactionManager,
-            SplitAffinityProvider splitAffinityProvider)
+            SplitAffinityProvider splitAffinityProvider,
+            ConnectorExpressionEvaluator evaluator)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.transactionLogAccess = requireNonNull(transactionLogAccess, "transactionLogAccess is null");
@@ -112,6 +115,7 @@ public class DeltaLakeSplitManager
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
         this.deltaLakeTransactionManager = requireNonNull(deltaLakeTransactionManager, "deltaLakeTransactionManager is null");
         this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
+        this.evaluator = requireNonNull(evaluator, "evaluator is null");
     }
 
     @Override
@@ -230,6 +234,9 @@ public class DeltaLakeSplitManager
         List<DeltaLakeColumnMetadata> predicatedColumns = schema.stream()
                 .filter(column -> predicatedColumnNames.contains(column.name()))
                 .collect(toImmutableList());
+        Map<String, ColumnHandle> assignments = constraint.getAssignments();
+        ConnectorExpressionEvaluator.Prepared prepared = evaluator.prepare(
+                session, constraint.getExpression());
         return validDataFiles
                 .flatMap(addAction -> {
                     if (tableHandle.getAnalyzeHandle().isPresent() &&
@@ -272,17 +279,19 @@ public class DeltaLakeSplitManager
                         return Stream.empty();
                     }
 
-                    if (constraint.predicate().isPresent()) {
-                        Map<String, Optional<String>> partitionValues = addAction.getCanonicalPartitionValues();
-                        Map<ColumnHandle, NullableValue> deserializedValues = constraint.getPredicateColumns().orElseThrow().stream()
-                                .map(DeltaLakeColumnHandle.class::cast)
-                                .filter(column -> column.isBaseColumn() && partitionValues.containsKey(column.baseColumnName()))
-                                .collect(toImmutableMap(identity(), column -> new NullableValue(
-                                        column.baseType(),
-                                        deserializePartitionValue(column, partitionValues.get(column.baseColumnName())))));
-                        if (!constraint.predicate().get().test(deserializedValues)) {
-                            return Stream.empty();
+                    Map<String, Optional<String>> partitionValues = addAction.getCanonicalPartitionValues();
+                    ImmutableMap.Builder<String, NullableValue> deserializedValues = ImmutableMap.builder();
+                    for (String argument : prepared.getArguments()) {
+                        DeltaLakeColumnHandle column = (DeltaLakeColumnHandle) assignments.get(argument);
+                        Optional<String> partitionValue = partitionValues.get(column.baseColumnName());
+                        if (column.isBaseColumn() && partitionValue != null) {
+                            NullableValue deserializedValue = new NullableValue(column.baseType(), deserializePartitionValue(column, partitionValue));
+                            deserializedValues.put(argument, deserializedValue);
                         }
+                    }
+
+                    if (prepared.tryEvaluate(deserializedValues.buildOrThrow()) instanceof EvaluationResult.Value(var value) && Boolean.FALSE.equals(value)) {
+                        return Stream.empty();
                     }
 
                     return splitsForFile(

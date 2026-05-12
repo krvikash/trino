@@ -52,6 +52,7 @@ import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
@@ -148,7 +149,8 @@ public class TestDeltaLakeCacheIds
                 newDirectExecutorService(),
                 new MetastoreTypeConfig(),
                 transactionLogReaderFactory,
-                new NoOpTableCredentialsProvider());
+                new NoOpTableCredentialsProvider(),
+                ConnectorExpressionEvaluator.NO_OP);
         metadata = new DeltaLakeCacheMetadata(
                 createJsonCodec(DeltaLakeCacheTableId.class),
                 createJsonCodec(DeltaLakeColumnHandle.class));
@@ -160,7 +162,8 @@ public class TestDeltaLakeCacheIds
                 deltaLakeFileSystemFactory,
                 createJsonCodec(DeltaLakeCacheSplitId.class),
                 new DeltaLakeTransactionManager(metadataFactory),
-                new NoopSplitAffinityProvider());
+                new NoopSplitAffinityProvider(),
+                ConnectorExpressionEvaluator.NO_OP);
     }
 
     @AfterAll
