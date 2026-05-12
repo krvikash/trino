@@ -15,6 +15,10 @@ import org.testcontainers.lifecycle.Startable;
 public class AzuriteBlobStorage
         implements Startable
 {
+    public static final String ACCOUNT = "devstoreaccount1";
+    // Well-known Azurite account key (https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite)
+    public static final String ACCOUNT_KEY = "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==";
+
     private final GenericContainer<?> container;
 
     public AzuriteBlobStorage()
@@ -40,9 +44,14 @@ public class AzuriteBlobStorage
         container.stop();
     }
 
+    public String getBlobEndpoint()
+    {
+        return "http://127.0.0.1:" + container.getMappedPort(10000) + "/" + ACCOUNT;
+    }
+
     public String getConnectionString()
     {
         // This is the default connection string defined by the azurite container
-        return "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:" + container.getMappedPort(10000) + "/devstoreaccount1;";
+        return "DefaultEndpointsProtocol=http;AccountName=" + ACCOUNT + ";AccountKey=" + ACCOUNT_KEY + ";BlobEndpoint=" + getBlobEndpoint() + ";";
     }
 }

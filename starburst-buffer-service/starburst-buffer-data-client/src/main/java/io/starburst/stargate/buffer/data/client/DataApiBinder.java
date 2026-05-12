@@ -18,10 +18,12 @@ import io.airlift.configuration.ConditionalModule;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.http.client.HttpClientConfig;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingClientDriver;
 import io.starburst.stargate.buffer.data.client.spooling.azure.AzureBlobSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.noop.NoopSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
+import io.starburst.stargate.buffer.data.client.spooling.trinofs.TrinoFsSpooledChunkReader;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.BlobServiceAsyncClientProvider;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
@@ -74,16 +76,27 @@ public class DataApiBinder
                 config -> config.getSpoolingStorageType() == NONE,
                 binder -> binder.bind(SpooledChunkReader.class).to(NoopSpooledChunkReader.class).in(Scopes.SINGLETON)));
 
+        // When spooling-client-driver=TRINO_FS, spooled-chunk reads go through
+        // TrinoFsSpooledChunkReader, which delegates to a single TrinoFileSystem chosen by the
+        // embedder (e.g. TrinoFsClientModule installed by starburst-trino-main) based on
+        // spooling-storage-type. The TrinoFileSystem and its backing executor are bound
+        // under @ForTrinoFsSpooling.
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
                 dataApiName,
-                config -> config.getSpoolingStorageType() == LOCAL,
+                config -> config.getSpoolingClientDriver() == SpoolingClientDriver.TRINO_FS && config.getSpoolingStorageType() != NONE,
+                binder -> binder.bind(SpooledChunkReader.class).to(TrinoFsSpooledChunkReader.class).in(Scopes.SINGLETON)));
+
+        moduleInstall.accept(ConditionalModule.conditionalModule(
+                DataApiConfig.class,
+                dataApiName,
+                config -> config.getSpoolingStorageType() == LOCAL && config.getSpoolingClientDriver() == SpoolingClientDriver.NATIVE,
                 binder -> binder.bind(SpooledChunkReader.class).to(LocalSpooledChunkReader.class).in(Scopes.SINGLETON)));
 
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
                 dataApiName,
-                config -> config.getSpoolingStorageType() == S3 || config.getSpoolingStorageType() == GCS,
+                config -> (config.getSpoolingStorageType() == S3 || config.getSpoolingStorageType() == GCS) && config.getSpoolingClientDriver() == SpoolingClientDriver.NATIVE,
                 binder -> {
                     configBinder(binder).bindConfig(S3ClientConfig.class, dataApiName);
                     binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(Scopes.SINGLETON);
@@ -93,7 +106,7 @@ public class DataApiBinder
         moduleInstall.accept(ConditionalModule.conditionalModule(
                 DataApiConfig.class,
                 dataApiName,
-                config -> config.getSpoolingStorageType() == AZURE,
+                config -> config.getSpoolingStorageType() == AZURE && config.getSpoolingClientDriver() == SpoolingClientDriver.NATIVE,
                 binder -> {
                     configBinder(binder).bindConfig(AzureBlobClientConfig.class, dataApiName);
                     binder.bind(BlobServiceAsyncClient.class).toProvider(BlobServiceAsyncClientProvider.class).in(Scopes.SINGLETON);
