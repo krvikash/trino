@@ -39,6 +39,7 @@ import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.util.EmbedVersion;
@@ -87,7 +88,7 @@ public class TestHiveCacheIds
         HiveConfig config = new HiveConfig();
         HdfsConfiguration hdfsConfiguration = (_, _) -> new Configuration(false);
         HdfsEnvironment hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, new HdfsConfig(), new NoHdfsAuthentication());
-        HivePartitionManager hivePartitionManager = new HivePartitionManager(config);
+        HivePartitionManager hivePartitionManager = new HivePartitionManager(config, ConnectorExpressionEvaluator.NO_OP);
         HiveMetadataFactory metadataFactory = new HiveMetadataFactory(
                 LocationAccessControl.ALLOW_ALL,
                 new CatalogName("hive"),
@@ -125,7 +126,8 @@ public class TestHiveCacheIds
                 new EmbedVersion("test"),
                 TESTING_TYPE_MANAGER,
                 createJsonCodec(HiveCacheSplitId.class),
-                new NoopSplitAffinityProvider());
+                new NoopSplitAffinityProvider(),
+                ConnectorExpressionEvaluator.NO_OP);
     }
 
     @AfterAll

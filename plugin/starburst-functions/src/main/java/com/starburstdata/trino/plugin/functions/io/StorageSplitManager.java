@@ -28,6 +28,7 @@ import io.trino.plugin.hive.InternalHiveSplit;
 import io.trino.plugin.hive.fs.TrinoFileStatus;
 import io.trino.plugin.hive.util.InternalHiveSplitFactory;
 import io.trino.spi.SplitWeight;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -114,7 +115,9 @@ public class StorageSplitManager
                     Optional.empty(),
                     maxInitialSplitSize,
                     forceLocalScheduling,
-                    Optional.empty());
+                    Optional.empty(),
+                    session,
+                    ConnectorExpressionEvaluator.NO_OP);
 
             ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
             try {
