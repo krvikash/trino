@@ -324,6 +324,36 @@ final class TestStorageFunctions
         assertQueryFails(
                 "SELECT * FROM TABLE(load(location=>'s3://dummy', columns=>DESCRIPTOR(\"regionkey\" BIGINT)))",
                 "FORMAT and COLUMNS arguments must be both specified or both omitted");
+
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'PARQUET', columns=>DESCRIPTOR(\"id\" INT), field_separator=>','))",
+                "Cannot specify field separator for storage format: PARQUET");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', field_separator=>''))",
+                "FIELD_SEPARATOR must be a single character string, but was: ''");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', field_separator=>',,'))",
+                "FIELD_SEPARATOR must be a single character string, but was: ',,'");
+
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'PARQUET', columns=>DESCRIPTOR(\"id\" INT), quote_char=>','))",
+                "Cannot specify quote for storage format: PARQUET");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', quote_char=>''))",
+                "QUOTE_CHAR must be a single character string, but was: ''");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', quote_char=>',,'))",
+                "QUOTE_CHAR must be a single character string, but was: ',,'");
+
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'PARQUET', columns=>DESCRIPTOR(\"id\" INT), escape_char=>','))",
+                "Cannot specify escape for storage format: PARQUET");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', escape_char=>''))",
+                "ESCAPE_CHAR must be a single character string, but was: ''");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', escape_char=>',,'))",
+                "ESCAPE_CHAR must be a single character string, but was: ',,'");
     }
 
     @Test
@@ -344,6 +374,23 @@ final class TestStorageFunctions
     void testUnsupportedFileSystem()
     {
         assertQueryFails("SELECT * FROM TABLE(load(location=>'hdfs://dummy'))", "Invalid location: hdfs://dummy");
+    }
+
+    @Test
+    void testLoadCsvWithCustomSeparators()
+            throws Exception
+    {
+        Location location = Location.of("s3://test-bucket/csv_custom_separators");
+        fileSystem.createDirectory(location);
+
+        // Use pipe as separator, double quote as quote, backslash as escape
+        fileSystem.newOutputFile(location.appendPath("test.csv")).createExclusive("id|name|value\n1|\"John\\\"Doe\"|100\n2|Jane|200".getBytes(UTF_8));
+
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/csv_custom_separators/', 'CSV', DESCRIPTOR(\"id\" VARCHAR, \"name\" VARCHAR, \"value\" VARCHAR), 1, '|', '\"', '\\'))"))
+                .matches("VALUES (VARCHAR '1', VARCHAR 'John\"Doe', VARCHAR '100'), ('2', 'Jane', '200')");
+
+        assertThat(query("SELECT * FROM TABLE(load(location=>'s3://test-bucket/csv_custom_separators/', skip_header=>1, field_separator=>'|', quote_char=>'\"', escape_char=>'\\'))"))
+                .matches("VALUES (VARCHAR '1', VARCHAR 'John\"Doe', VARCHAR '100'), ('2', 'Jane', '200')");
     }
 
     @ParameterizedTest

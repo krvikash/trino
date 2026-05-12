@@ -18,6 +18,7 @@ import com.google.inject.Provider;
 import io.airlift.slice.Slice;
 import io.starburst.schema.discovery.SchemaDiscoveryController;
 import io.starburst.schema.discovery.SchemaDiscoveryErrorCode;
+import io.starburst.schema.discovery.formats.csv.CsvOptions;
 import io.starburst.schema.discovery.formats.orc.OrcDataSourceFactory;
 import io.starburst.schema.discovery.formats.parquet.ParquetDataSourceFactory;
 import io.starburst.schema.discovery.generation.Dialect;
@@ -99,6 +100,9 @@ public class Load
     private static final String FORMAT_ARGUMENT_NAME = "FORMAT";
     private static final String DESCRIPTOR_ARGUMENT_NAME = "COLUMNS";
     private static final String SKIP_HEADER_ARGUMENT_NAME = "SKIP_HEADER";
+    private static final String FIELD_SEPARATOR_ARGUMENT_NAME = "FIELD_SEPARATOR";
+    private static final String QUOTE_CHAR_ARGUMENT_NAME = "QUOTE_CHAR";
+    private static final String ESCAPE_CHAR_ARGUMENT_NAME = "ESCAPE_CHAR";
 
     // Make timeout configurable in the future if needed
     private static final Integer SCHEMA_DISCOVERY_TIMEOUT_SECONDS = 30;
@@ -148,6 +152,21 @@ public class Load
                                     .type(INTEGER)
                                     .defaultValue(null)
                                     .build())
+                            .add(ScalarArgumentSpecification.builder()
+                                    .name(FIELD_SEPARATOR_ARGUMENT_NAME)
+                                    .type(VARCHAR)
+                                    .defaultValue(null)
+                                    .build())
+                            .add(ScalarArgumentSpecification.builder()
+                                    .name(QUOTE_CHAR_ARGUMENT_NAME)
+                                    .type(VARCHAR)
+                                    .defaultValue(null)
+                                    .build())
+                            .add(ScalarArgumentSpecification.builder()
+                                    .name(ESCAPE_CHAR_ARGUMENT_NAME)
+                                    .type(VARCHAR)
+                                    .defaultValue(null)
+                                    .build())
                             .build(),
                     GENERIC_TABLE);
         }
@@ -163,7 +182,13 @@ public class Load
             ScalarArgument formatArgument = (ScalarArgument) arguments.get(FORMAT_ARGUMENT_NAME);
             DescriptorArgument descriptorArgument = (DescriptorArgument) arguments.get(DESCRIPTOR_ARGUMENT_NAME);
             ScalarArgument headerArgument = (ScalarArgument) arguments.get(SKIP_HEADER_ARGUMENT_NAME);
+            ScalarArgument fieldSeparatorArgument = (ScalarArgument) arguments.get(FIELD_SEPARATOR_ARGUMENT_NAME);
+            ScalarArgument quoteCharArgument = (ScalarArgument) arguments.get(QUOTE_CHAR_ARGUMENT_NAME);
+            ScalarArgument escapeArgument = (ScalarArgument) arguments.get(ESCAPE_CHAR_ARGUMENT_NAME);
             OptionalInt skipHeader = headerArgument.getNullableValue().isNull() ? OptionalInt.empty() : OptionalInt.of(((Number) headerArgument.getValue()).intValue());
+            Optional<Character> fieldSeparator = getSingleCharacter(FIELD_SEPARATOR_ARGUMENT_NAME, fieldSeparatorArgument);
+            Optional<Character> quote = getSingleCharacter(QUOTE_CHAR_ARGUMENT_NAME, quoteCharArgument);
+            Optional<Character> escape = getSingleCharacter(ESCAPE_CHAR_ARGUMENT_NAME, escapeArgument);
             checkFunctionArgument(
                     formatArgument.getNullableValue().isNull() == descriptorArgument.getDescriptor().isEmpty(),
                     "%s and %s arguments must be both specified or both omitted", FORMAT_ARGUMENT_NAME, DESCRIPTOR_ARGUMENT_NAME);
@@ -180,10 +205,10 @@ public class Load
 
             LoadTableHandle tableHandle;
             if (formatArgument.getNullableValue().isNull()) {
-                tableHandle = withSchemaDiscovery(fileSystem, location, skipHeader);
+                tableHandle = withSchemaDiscovery(fileSystem, location, skipHeader, fieldSeparator, quote, escape);
             }
             else {
-                tableHandle = withDescriptor(location, isDirectory, ((Slice) formatArgument.getValue()).toStringUtf8(), descriptorArgument.getDescriptor().orElseThrow().getFields(), skipHeader);
+                tableHandle = withDescriptor(location, isDirectory, ((Slice) formatArgument.getValue()).toStringUtf8(), descriptorArgument.getDescriptor().orElseThrow().getFields(), skipHeader, fieldSeparator, quote, escape);
             }
 
             Descriptor returnedType = new Descriptor(tableHandle.columns.stream()
@@ -198,10 +223,20 @@ public class Load
                     .build();
         }
 
-        private LoadTableHandle withSchemaDiscovery(TrinoFileSystem fileSystem, String location, OptionalInt skipHeader)
+        private LoadTableHandle withSchemaDiscovery(
+                TrinoFileSystem fileSystem,
+                String location,
+                OptionalInt skipHeader,
+                Optional<Character> fieldSeparator,
+                Optional<Character> quote,
+                Optional<Character> escape)
         {
             SchemaDiscoveryController controller = createSchemaDiscoveryController(fileSystem);
-            ListenableFuture<DiscoveredSchema> guess = controller.guess(new GuessRequest(URI.create(location), ImmutableMap.of()));
+            ImmutableMap.Builder<String, String> options = ImmutableMap.builder();
+            fieldSeparator.ifPresent(value -> options.put(CsvOptions.DELIMITER, String.valueOf(value)));
+            quote.ifPresent(value -> options.put(CsvOptions.QUOTE, String.valueOf(value)));
+            escape.ifPresent(value -> options.put(CsvOptions.ESCAPE, String.valueOf(value)));
+            ListenableFuture<DiscoveredSchema> guess = controller.guess(new GuessRequest(URI.create(location), options.buildOrThrow()));
 
             DiscoveredSchema discoveredSchema;
             try {
@@ -225,7 +260,7 @@ public class Load
                     .collect(toImmutableList());
 
             HiveStorageFormat format = HiveStorageFormat.valueOf(SchemaDiscoveryMappings.tableFormat(discoveredTable));
-            return new LoadTableHandle(location, true, format, columns, skipHeader);
+            return new LoadTableHandle(location, true, format, columns, skipHeader, fieldSeparator, quote, escape);
         }
 
         private HiveColumnHandle toHiveColumn(TableFormat format, Column column, int index)
@@ -240,12 +275,20 @@ public class Load
                     Optional.empty());
         }
 
-        private static LoadTableHandle withDescriptor(String location, boolean isDirectory, String formatValue, List<Descriptor.Field> fields, OptionalInt skipHeader)
+        private static LoadTableHandle withDescriptor(
+                String location,
+                boolean isDirectory,
+                String formatValue,
+                List<Descriptor.Field> fields,
+                OptionalInt skipHeader,
+                Optional<Character> fieldSeparator,
+                Optional<Character> quote,
+                Optional<Character> escape)
         {
             HiveStorageFormat format = Enums.getIfPresent(HiveStorageFormat.class, formatValue.toUpperCase(ENGLISH)).toJavaUtil()
                     .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, formatValue + " format isn't supported"));
             List<HiveColumnHandle> columnHandles = IntStream.range(0, fields.size()).mapToObj(i -> toHiveColumn(fields.get(i), i)).collect(toImmutableList());
-            return new LoadTableHandle(location, isDirectory, format, columnHandles, skipHeader);
+            return new LoadTableHandle(location, isDirectory, format, columnHandles, skipHeader, fieldSeparator, quote, escape);
         }
 
         private static HiveColumnHandle toHiveColumn(Descriptor.Field field, int index)
@@ -279,6 +322,17 @@ public class Load
 
             return result;
         }
+
+        private static Optional<Character> getSingleCharacter(String key, ScalarArgument argument)
+        {
+            if (argument.getNullableValue().isNull()) {
+                return Optional.empty();
+            }
+            Slice slice = (Slice) argument.getNullableValue().getValue();
+            String value = slice.toStringUtf8();
+            checkFunctionArgument(value.length() == 1, "%s must be a single character string, but was: '%s'", key, value);
+            return Optional.of(value.charAt(0));
+        }
     }
 
     public record LoadFunctionHandle(LoadTableHandle tableHandle)
@@ -290,7 +344,15 @@ public class Load
         }
     }
 
-    public record LoadTableHandle(String location, boolean isDirectory, HiveStorageFormat format, List<HiveColumnHandle> columns, OptionalInt skipHeader)
+    public record LoadTableHandle(
+            String location,
+            boolean isDirectory,
+            HiveStorageFormat format,
+            List<HiveColumnHandle> columns,
+            OptionalInt skipHeader,
+            Optional<Character> fieldSeparator,
+            Optional<Character> quote,
+            Optional<Character> escape)
             implements ConnectorTableHandle
     {
         public LoadTableHandle
@@ -299,10 +361,22 @@ public class Load
             requireNonNull(format, "format is null");
             columns = ImmutableList.copyOf(columns);
             requireNonNull(skipHeader, "skipHeader is null");
+            requireNonNull(fieldSeparator, "fieldSeparator is null");
+            requireNonNull(quote, "quote is null");
+            requireNonNull(escape, "escape is null");
 
             if (skipHeader.isPresent()) {
                 checkFunctionArgument(skipHeader.getAsInt() >= 0, "%s must be >= 0", SKIP_HEADER_ARGUMENT_NAME);
                 checkFunctionArgument(Set.of(TEXTFILE, CSV).contains(format), "Cannot specify header for storage format: %s", format);
+            }
+            if (fieldSeparator.isPresent()) {
+                checkFunctionArgument(format == CSV, "Cannot specify field separator for storage format: %s", format);
+            }
+            if (quote.isPresent()) {
+                checkFunctionArgument(format == CSV, "Cannot specify quote for storage format: %s", format);
+            }
+            if (escape.isPresent()) {
+                checkFunctionArgument(format == CSV, "Cannot specify escape for storage format: %s", format);
             }
         }
     }

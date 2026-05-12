@@ -44,6 +44,9 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 import static io.trino.metastore.HivePartition.UNPARTITIONED_ID;
+import static io.trino.plugin.hive.HiveMetadata.CSV_ESCAPE_KEY;
+import static io.trino.plugin.hive.HiveMetadata.CSV_QUOTE_KEY;
+import static io.trino.plugin.hive.HiveMetadata.CSV_SEPARATOR_KEY;
 import static io.trino.plugin.hive.HiveMetadata.SKIP_HEADER_COUNT_KEY;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMNS;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMN_TYPES;
@@ -91,6 +94,9 @@ public class StorageSplitManager
                     .put(LIST_COLUMNS, columns)
                     .put(LIST_COLUMN_TYPES, listColumnTypes);
             loadTableHandle.skipHeader().ifPresent(number -> schemaBuilder.put(SKIP_HEADER_COUNT_KEY, Integer.toString(number)));
+            loadTableHandle.fieldSeparator().ifPresent(separator -> schemaBuilder.put(CSV_SEPARATOR_KEY, String.valueOf(separator)));
+            loadTableHandle.quote().ifPresent(quote -> schemaBuilder.put(CSV_QUOTE_KEY, String.valueOf(quote)));
+            loadTableHandle.escape().ifPresent(escape -> schemaBuilder.put(CSV_ESCAPE_KEY, String.valueOf(escape)));
             InternalHiveSplitFactory internalSplitFactory = new InternalHiveSplitFactory(
                     UNPARTITIONED_ID,
                     format,

@@ -392,8 +392,8 @@ public class HiveMetadata
     public static final String AVRO_SCHEMA_LITERAL_KEY = "avro.schema.literal";
 
     public static final String CSV_SEPARATOR_KEY = "separatorChar";
-    private static final String CSV_QUOTE_KEY = "quoteChar";
-    private static final String CSV_ESCAPE_KEY = "escapeChar";
+    public static final String CSV_QUOTE_KEY = "quoteChar";
+    public static final String CSV_ESCAPE_KEY = "escapeChar";
 
     public static final String PARQUET_BLOOM_FILTER_COLUMNS_KEY = "parquet.bloom.filter.columns";
 
