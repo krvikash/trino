@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.Session;
+import io.trino.annotation.NotThreadSafe;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.DriverContext;
@@ -31,6 +32,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
@@ -47,12 +49,14 @@ import io.trino.split.PageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
@@ -61,9 +65,9 @@ import static java.util.Objects.requireNonNull;
  * Operator that executes a pipeline of GPU operations.
  * <p>
  * The operator maintains a chain of GpuOperations and uses a pull-based
- * execution model. When getOutput() is called, it pulls from the top
- * operation, which recursively pulls from its source, eventually reaching
- * the source operation that batches input Pages.
+ * execution model, however the operations are separated with a {@link PullCircuitBreaker}.
+ * The driver runs each operation directly from {@link #getOutput()},
+ * so call stacks stay flat (one operation per frame, not nested).
  */
 public abstract class GpuOperator
         implements Operator
@@ -200,13 +204,15 @@ public abstract class GpuOperator
             GpuOperatorSource operatorSource = sourceFactory.get();
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
+            RefillSignal refillSignal = new RefillSignal();
             for (GpuOperation.Factory factory : this.operations) {
+                head = new PullCircuitBreaker(head, refillSignal);
                 head = factory.create(head);
             }
             head = new CopyToBlocks(head, outputTypes);
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
             operatorContext.setLatestMetrics(initialMetrics());
-            return new GpuSourceOperator(planNodeId, operatorContext, head, source);
+            return new GpuSourceOperator(planNodeId, operatorContext, head, source, refillSignal);
         }
     }
 
@@ -284,13 +290,15 @@ public abstract class GpuOperator
             GpuOperatorSource operatorSource = sourceFactory.get();
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
+            RefillSignal refillSignal = new RefillSignal();
             for (GpuOperation.Factory factory : this.operations) {
+                head = new PullCircuitBreaker(head, refillSignal);
                 head = factory.create(head);
             }
             head = new CopyToBlocks(head, outputTypes);
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
             operatorContext.setLatestMetrics(initialMetrics());
-            return new GpuIntermediateOperator(operatorContext, head, source);
+            return new GpuIntermediateOperator(operatorContext, head, source, refillSignal);
         }
 
         @Override
@@ -319,6 +327,7 @@ public abstract class GpuOperator
 
     private final OperatorContext operatorContext;
     private final @Own GpuOperation topOperation;
+    private final RefillSignal refillSignal;
 
     private boolean finished;
     private ListenableFuture<Void> blocked = NOT_BLOCKED;
@@ -326,10 +335,12 @@ public abstract class GpuOperator
 
     private GpuOperator(
             OperatorContext operatorContext,
-            @Move GpuOperation topOperation)
+            @Move GpuOperation topOperation,
+            RefillSignal refillSignal)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.topOperation = requireNonNull(topOperation, "topOperation is null");
+        this.refillSignal = requireNonNull(refillSignal, "refillSignal is null");
     }
 
     @Override
@@ -370,7 +381,29 @@ public abstract class GpuOperator
             return ready.get();
         }
 
-        @Own GpuOperation.Result topGpuOperationResult = topOperation.execute();
+        refillSignal.clear();
+        List<@Borrow PullCircuitBreaker> pending = new ArrayList<>(); // stack
+        @Own GpuOperation.Result topGpuOperationResult;
+        while (true) {
+            topGpuOperationResult = topOperation.execute();
+            if (!(topGpuOperationResult instanceof Yielded()) || !refillSignal.isSet()) {
+                break;
+            }
+            verify(pending.isEmpty(), "pending not empty: %s", pending);
+            pending.addLast(refillSignal.clear());
+            while (!pending.isEmpty()) {
+                PullCircuitBreaker next = pending.removeLast();
+                // Intentionally calling next.source.execute() directly, so the call stack stays flat: every operation is pulled directly from getOutput
+                GpuOperation.Result refilled = next.source.execute();
+                next.set(refilled);
+                if (refillSignal.isSet()) {
+                    if (refilled instanceof Yielded()) {
+                        pending.addLast(next);
+                    }
+                    pending.addLast(refillSignal.clear());
+                }
+            }
+        }
         Page operatorResult = switch (topGpuOperationResult) {
             case Data(GpuPage gpuPage) -> {
                 try (gpuPage) {
@@ -414,7 +447,7 @@ public abstract class GpuOperator
         topOperation.close();
     }
 
-    private static class GpuSourceOperator
+    public static class GpuSourceOperator
             extends GpuOperator
             implements SourceOperator
     {
@@ -422,9 +455,9 @@ public abstract class GpuOperator
         private final GpuSourceOperation sourceOperation;
         private boolean splitSet;
 
-        private GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation)
+        private GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation, RefillSignal refillSignal)
         {
-            super(operatorContext, topOperation);
+            super(operatorContext, topOperation, refillSignal);
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
             this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
         }
@@ -455,9 +488,9 @@ public abstract class GpuOperator
     {
         private final GpuSourceOperation sourceOperation;
 
-        private GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation)
+        private GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation, RefillSignal refillSignal)
         {
-            super(operatorContext, topOperation);
+            super(operatorContext, topOperation, refillSignal);
             this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
         }
 
@@ -477,6 +510,93 @@ public abstract class GpuOperator
         public void finish()
         {
             sourceOperation.noMoreInput();
+        }
+    }
+
+    @NotThreadSafe
+    private static final class RefillSignal
+    {
+        private @Borrow @Nullable PullCircuitBreaker pending;
+
+        void request(@Borrow PullCircuitBreaker pullCircuitBreaker)
+        {
+            pending = requireNonNull(pullCircuitBreaker, "pullBreaker is null");
+        }
+
+        boolean isSet()
+        {
+            return pending != null;
+        }
+
+        @Borrow
+        @Nullable
+        PullCircuitBreaker clear()
+        {
+            @Borrow PullCircuitBreaker pending = this.pending;
+            this.pending = null;
+            return pending;
+        }
+    }
+
+    @NotThreadSafe
+    private static final class PullCircuitBreaker
+            implements GpuOperation
+    {
+        private final @Own GpuOperation source;
+        private final RefillSignal refillSignal;
+        private @Nullable Result bufferedResult;
+
+        PullCircuitBreaker(GpuOperation source, RefillSignal refillSignal)
+        {
+            this.source = requireNonNull(source, "source is null");
+            this.refillSignal = requireNonNull(refillSignal, "refillSignal is null");
+        }
+
+        @Override
+        public @Move Result execute()
+        {
+            return switch (bufferedResult) {
+                case null -> {
+                    refillSignal.request(this);
+                    yield new Yielded();
+                }
+                // Terminal
+                case Finished() -> bufferedResult;
+                default -> {
+                    Result result = bufferedResult;
+                    bufferedResult = null;
+                    yield result;
+                }
+            };
+        }
+
+        public void set(@Move Result result)
+        {
+            requireNonNull(result, "result is null");
+            checkState(
+                    bufferedResult == null || bufferedResult instanceof Yielded(),
+                    "bufferedResult already set to %s when setting to %s",
+                    bufferedResult,
+                    result);
+            bufferedResult = result;
+        }
+
+        @Override
+        public void close()
+        {
+            try (var closer = UncheckedCloser.create()) {
+                closer.register(source);
+                switch (bufferedResult) {
+                    case null -> {
+                        // nothing to close
+                    }
+                    case Blocked _, Yielded _, Finished _ -> {
+                        // nothing to close
+                    }
+                    case Data(GpuPage page) -> closer.register(page);
+                }
+                bufferedResult = null;
+            }
         }
     }
 }
