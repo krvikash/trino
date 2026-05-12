@@ -20,9 +20,23 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 public class AzureFileSystemModule
         extends AbstractConfigurationAwareModule
 {
+    private final Optional<String> configPrefix;
+
+    public AzureFileSystemModule()
+    {
+        this(Optional.empty());
+    }
+
+    public AzureFileSystemModule(Optional<String> configPrefix)
+    {
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+    }
+
     @Override
     protected void setup(Binder binder)
     {
@@ -30,10 +44,10 @@ public class AzureFileSystemModule
                 binder.addError(new IllegalStateException("%s is present on a classpath but shouldn't".formatted(clazz))));
 
         binder.bind(AzureFileSystemFactory.class).in(Scopes.SINGLETON);
-        Module module = switch (buildConfigObject(AzureFileSystemConfig.class).getAuthType()) {
-            case ACCESS_KEY -> new AzureAuthAccessKeyModule();
-            case OAUTH -> new AzureAuthOAuthModule();
-            case DEFAULT -> new AzureAuthDefaultModule();
+        Module module = switch (buildConfigObject(AzureFileSystemConfig.class, configPrefix.orElse(null)).getAuthType()) {
+            case ACCESS_KEY -> new AzureAuthAccessKeyModule(configPrefix);
+            case OAUTH -> new AzureAuthOAuthModule(configPrefix);
+            case DEFAULT -> new AzureAuthDefaultModule(configPrefix);
         };
         install(module);
     }

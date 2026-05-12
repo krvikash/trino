@@ -16,15 +16,30 @@ package io.trino.filesystem.azure;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 
+import java.util.Optional;
+
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static java.util.Objects.requireNonNull;
 
 public class AzureAuthDefaultModule
         implements Module
 {
+    private final Optional<String> configPrefix;
+
+    public AzureAuthDefaultModule()
+    {
+        this(Optional.empty());
+    }
+
+    public AzureAuthDefaultModule(Optional<String> configPrefix)
+    {
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+    }
+
     @Override
     public void configure(Binder binder)
     {
-        configBinder(binder).bindConfig(AzureAuthManagedIdentityConfig.class);
+        configBinder(binder).bindConfig(AzureAuthManagedIdentityConfig.class, configPrefix.orElse(null));
         binder.bind(AzureAuth.class).to(AzureAuthDefault.class);
     }
 }

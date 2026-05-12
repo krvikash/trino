@@ -17,15 +17,30 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 
+import java.util.Optional;
+
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static java.util.Objects.requireNonNull;
 
 public class AzureAuthAccessKeyModule
         implements Module
 {
+    private final Optional<String> configPrefix;
+
+    public AzureAuthAccessKeyModule()
+    {
+        this(Optional.empty());
+    }
+
+    public AzureAuthAccessKeyModule(Optional<String> configPrefix)
+    {
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+    }
+
     @Override
     public void configure(Binder binder)
     {
-        configBinder(binder).bindConfig(AzureAuthAccessKeyConfig.class);
+        configBinder(binder).bindConfig(AzureAuthAccessKeyConfig.class, configPrefix.orElse(null));
         binder.bind(AzureAuth.class).to(AzureAuthAccessKey.class).in(Scopes.SINGLETON);
     }
 }
