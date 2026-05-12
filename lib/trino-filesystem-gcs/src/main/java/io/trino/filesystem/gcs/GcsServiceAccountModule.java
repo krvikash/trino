@@ -17,15 +17,30 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 
+import java.util.Optional;
+
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static java.util.Objects.requireNonNull;
 
 public class GcsServiceAccountModule
         extends AbstractConfigurationAwareModule
 {
+    private final Optional<String> configPrefix;
+
+    public GcsServiceAccountModule()
+    {
+        this(Optional.empty());
+    }
+
+    public GcsServiceAccountModule(Optional<String> configPrefix)
+    {
+        this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+    }
+
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(GcsServiceAccountAuthConfig.class);
+        configBinder(binder).bindConfig(GcsServiceAccountAuthConfig.class, configPrefix.orElse(null));
         binder.bind(GcsAuth.class).to(GcsServiceAccountAuth.class).in(Scopes.SINGLETON);
     }
 }
