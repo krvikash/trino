@@ -67,7 +67,9 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.ir.Comparison.Operator.EQUAL;
 import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN;
+import static io.trino.sql.ir.IrExpressions.equalityClause;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
@@ -789,37 +791,78 @@ class TestToOldIrScalarRewriter
         Match matchExpression = new Match(
                 new Reference(BOOLEAN, "c"),
                 ImmutableList.of(
-                        new WhenClause(new Constant(BOOLEAN, true), new Reference(BIGINT, "a")),
-                        new WhenClause(new Constant(BOOLEAN, false), new Reference(BIGINT, "b"))),
+                        equalityClause(new Symbol(BOOLEAN, "lambda_parameter"), new Constant(BOOLEAN, true), new Reference(BIGINT, "a")),
+                        equalityClause(new Symbol(BOOLEAN, "lambda_parameter_0"), new Constant(BOOLEAN, false), new Reference(BIGINT, "b"))),
                 new Constant(BIGINT, 0L));
 
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Constant constantOperation1 = new io.trino.sql.dialect.trino.operation.Constant("%1", BOOLEAN, true);
-        io.trino.sql.dialect.trino.operation.Constant constantOperation2 = new io.trino.sql.dialect.trino.operation.Constant("%2", BOOLEAN, false);
-        FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation3 = new FieldReference("%4", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Constant constantOperation3 = new io.trino.sql.dialect.trino.operation.Constant("%5", BIGINT, 0L);
+
+        Block.Parameter lambdaArgument1 = new Block.Parameter("%2", irType(anonymousRow(BOOLEAN)));
+        FieldReference lamdaFieldReference1 = new FieldReference("%3", lambdaArgument1, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Constant constantOperation1 = new io.trino.sql.dialect.trino.operation.Constant("%4", BOOLEAN, true);
+        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation1 = new io.trino.sql.dialect.trino.operation.Comparison(
+                "%5",
+                lamdaFieldReference1.result(),
+                constantOperation1.result(),
+                ComparisonOperator.EQUAL,
+                ImmutableList.of(lamdaFieldReference1.attributes(), constantOperation1.attributes()));
+
+        Return returnOperation1 = new Return("%6", comparisonOperation1.result(), comparisonOperation1.attributes());
+        io.trino.sql.dialect.trino.operation.Lambda lambdaOperation1 = new io.trino.sql.dialect.trino.operation.Lambda(
+                "%1",
+                new Block(
+                        Optional.of("^lambda"),
+                        ImmutableList.of(lambdaArgument1),
+                        ImmutableList.of(
+                                lamdaFieldReference1,
+                                constantOperation1,
+                                comparisonOperation1,
+                                returnOperation1)));
+
+        Block.Parameter lambdaArgument2 = new Block.Parameter("%8", irType(anonymousRow(BOOLEAN)));
+        FieldReference lamdaFieldReference2 = new FieldReference("%9", lambdaArgument2, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Constant constantOperation2 = new io.trino.sql.dialect.trino.operation.Constant("%10", BOOLEAN, false);
+        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation2 = new io.trino.sql.dialect.trino.operation.Comparison(
+                "%11",
+                lamdaFieldReference2.result(),
+                constantOperation2.result(),
+                ComparisonOperator.EQUAL,
+                ImmutableList.of(lamdaFieldReference2.attributes(), constantOperation2.attributes()));
+        Return returnOperation2 = new Return("%12", comparisonOperation2.result(), comparisonOperation2.attributes());
+        io.trino.sql.dialect.trino.operation.Lambda lambdaOperation2 = new io.trino.sql.dialect.trino.operation.Lambda(
+                "%7",
+                new Block(
+                        Optional.of("^lambda"),
+                        ImmutableList.of(lambdaArgument2),
+                        ImmutableList.of(
+                                lamdaFieldReference2,
+                                constantOperation2,
+                                comparisonOperation2,
+                                returnOperation2)));
+        FieldReference fieldReferenceOperation2 = new FieldReference("%13", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation3 = new FieldReference("%14", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Constant constantOperation3 = new io.trino.sql.dialect.trino.operation.Constant("%15", BIGINT, 0L);
         io.trino.sql.dialect.trino.operation.Match matchOperation = new io.trino.sql.dialect.trino.operation.Match(
-                "%6",
+                "%16",
                 fieldReferenceOperation1.result(),
-                ImmutableList.of(constantOperation1.result(), constantOperation2.result()),
+                ImmutableList.of(lambdaOperation1.result(), lambdaOperation2.result()),
                 ImmutableList.of(fieldReferenceOperation2.result(), fieldReferenceOperation3.result()),
                 constantOperation3.result(),
                 ImmutableList.of(
                         fieldReferenceOperation1.attributes(),
-                        constantOperation1.attributes(),
-                        constantOperation2.attributes(),
+                        lambdaOperation1.attributes(),
+                        lambdaOperation2.attributes(),
                         fieldReferenceOperation2.attributes(),
                         fieldReferenceOperation3.attributes(),
                         constantOperation3.attributes()));
-        Return returnOperation = new Return("%7", matchOperation.result(), matchOperation.attributes());
+        Return returnOperation = new Return("%17", matchOperation.result(), matchOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(
                         fieldReferenceOperation1,
-                        constantOperation1,
-                        constantOperation2,
+                        lambdaOperation1,
+                        lambdaOperation2,
                         fieldReferenceOperation2,
                         fieldReferenceOperation3,
                         constantOperation3,

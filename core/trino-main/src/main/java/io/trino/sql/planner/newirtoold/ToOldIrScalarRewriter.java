@@ -42,6 +42,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Match;
+import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
@@ -410,13 +411,13 @@ public class ToOldIrScalarRewriter
             Expression operand = arguments.getFirst();
             List<Expression> when = arguments.subList(1, whenSize + 1);
             List<Expression> then = arguments.subList(whenSize + 1, whenSize * 2 + 1);
-            ImmutableList.Builder<WhenClause> whenClauses = ImmutableList.builder();
+            ImmutableList.Builder<MatchClause> matchClauses = ImmutableList.builder();
             for (int i = 0; i < whenSize; i++) {
-                whenClauses.add(new WhenClause(when.get(i), then.get(i)));
+                matchClauses.add(new MatchClause(when.get(i), then.get(i)));
             }
             Expression defaultValue = arguments.getLast();
 
-            return new Match(operand, whenClauses.build(), defaultValue);
+            return new Match(operand, matchClauses.build(), defaultValue);
         }
     }
 

@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
@@ -74,8 +76,8 @@ public final class Match
         if (!when.stream()
                 .map(Value::type)
                 .map(TrinoDialect::trinoType)
-                .allMatch(type -> type.equals(operandType))) {
-            throw new TrinoException(IR_ERROR, "all when values must match the operand type");
+                .allMatch(type -> type.equals(new FunctionType(ImmutableList.of(operandType), BOOLEAN)))) {
+            throw new TrinoException(IR_ERROR, "all when values must be a lambda(operand type) -> boolean");
         }
 
         Type resultType = trinoType(then.getFirst().type());

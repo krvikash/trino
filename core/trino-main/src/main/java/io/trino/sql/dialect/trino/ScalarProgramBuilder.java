@@ -41,6 +41,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrVisitor;
+import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.newir.Block;
@@ -400,12 +401,12 @@ public class ScalarProgramBuilder
     protected Operation visitMatch(io.trino.sql.ir.Match node, Context context)
     {
         Operation operand = node.operand().accept(this, context);
-        List<Operation> when = node.whenClauses().stream()
-                .map(WhenClause::getOperand)
+        List<Operation> when = node.clauses().stream()
+                .map(MatchClause::predicate)
                 .map(expression -> expression.accept(this, context))
                 .collect(toImmutableList());
-        List<Operation> then = node.whenClauses().stream()
-                .map(WhenClause::getResult)
+        List<Operation> then = node.clauses().stream()
+                .map(MatchClause::result)
                 .map(expression -> expression.accept(this, context))
                 .collect(toImmutableList());
         Operation defaultValue = node.defaultValue().accept(this, context);

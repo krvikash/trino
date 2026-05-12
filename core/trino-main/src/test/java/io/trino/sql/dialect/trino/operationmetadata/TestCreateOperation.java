@@ -117,6 +117,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep.SINGLE;
+import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.EQUAL;
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
@@ -3208,33 +3209,72 @@ class TestCreateOperation
     public void testMatch()
     {
         Constant constantOperationOperand = new Constant("%0", BIGINT, 0L);
-        Constant constantOperationWhen1 = new Constant("%1", BIGINT, 1L);
-        Constant constantOperationWhen2 = new Constant("%2", BIGINT, 2L);
-        Constant constantOperationThen1 = new Constant("%3", BOOLEAN, true);
-        Constant constantOperationThen2 = new Constant("%4", BOOLEAN, false);
-        Constant constantOperationDefault = new Constant("%5", BOOLEAN, null);
+        Block.Parameter lambdaArgument1 = new Block.Parameter("%2", irType(anonymousRow(BIGINT)));
+        FieldReference fieldReferenceOperation1 = new FieldReference("%3", lambdaArgument1, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Constant constantOperation1 = new Constant("%4", BIGINT, 1L);
+        Comparison comparisonOperation1 = new Comparison(
+                "%5",
+                fieldReferenceOperation1.result(),
+                constantOperation1.result(),
+                EQUAL,
+                ImmutableList.of(fieldReferenceOperation1.attributes(), constantOperation1.attributes()));
+        Return returnOperation1 = new Return("%6", comparisonOperation1.result(), comparisonOperation1.attributes());
+        Lambda lambdaOperation1 = new Lambda(
+                "%1",
+                new Block(
+                        Optional.of("^lambda"),
+                        ImmutableList.of(lambdaArgument1),
+                        ImmutableList.of(
+                                fieldReferenceOperation1,
+                                constantOperation1,
+                                comparisonOperation1,
+                                returnOperation1)));
+
+        Block.Parameter lambdaArgument2 = new Block.Parameter("%8", irType(anonymousRow(BIGINT)));
+        FieldReference fieldReferenceOperation2 = new FieldReference("%9", lambdaArgument2, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Constant constantOperation2 = new Constant("%10", BIGINT, 2L);
+        Comparison comparisonOperation2 = new Comparison(
+                "%11",
+                fieldReferenceOperation2.result(),
+                constantOperation2.result(),
+                EQUAL,
+                ImmutableList.of(fieldReferenceOperation2.attributes(), constantOperation2.attributes()));
+        Return returnOperation2 = new Return("%12", comparisonOperation2.result(), comparisonOperation2.attributes());
+        Lambda lambdaOperation2 = new Lambda(
+                "%7",
+                new Block(
+                        Optional.of("^lambda"),
+                        ImmutableList.of(lambdaArgument2),
+                        ImmutableList.of(
+                                fieldReferenceOperation2,
+                                constantOperation2,
+                                comparisonOperation2,
+                                returnOperation2)));
+        Constant constantOperationThen1 = new Constant("%13", BOOLEAN, true);
+        Constant constantOperationThen2 = new Constant("%14", BOOLEAN, false);
+        Constant constantOperationDefault = new Constant("%15", BOOLEAN, null);
 
         Match matchOperation = new Match(
-                "%6",
+                "%16",
                 constantOperationOperand.result(),
-                ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result()),
+                ImmutableList.of(lambdaOperation1.result(), lambdaOperation2.result()),
                 ImmutableList.of(constantOperationThen1.result(), constantOperationThen2.result()),
                 constantOperationDefault.result(),
                 ImmutableList.of(
                         constantOperationOperand.attributes(),
-                        constantOperationWhen1.attributes(),
-                        constantOperationWhen2.attributes(),
+                        lambdaOperation1.attributes(),
+                        lambdaOperation2.attributes(),
                         constantOperationThen1.attributes(),
                         constantOperationThen2.attributes(),
                         constantOperationDefault.attributes()));
 
         Operation actualSwitchOperation = TESTING_TRINO_DIALECT.createOperation(
                 MatchOperationMetadata.NAME,
-                "%6",
+                "%16",
                 ImmutableList.of(
                         constantOperationOperand.result(),
-                        constantOperationWhen1.result(),
-                        constantOperationWhen2.result(),
+                        lambdaOperation1.result(),
+                        lambdaOperation2.result(),
                         constantOperationThen1.result(),
                         constantOperationThen2.result(),
                         constantOperationDefault.result()),
@@ -3251,7 +3291,7 @@ class TestCreateOperation
         // wrong argument count
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
                 MatchOperationMetadata.NAME,
-                "%6",
+                "%16",
                 ImmutableList.of(
                         constantOperationOperand.result(),
                         constantOperationDefault.result()),
@@ -3265,11 +3305,11 @@ class TestCreateOperation
 
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
                 MatchOperationMetadata.NAME,
-                "%6",
+                "%16",
                 ImmutableList.of(
                         constantOperationOperand.result(),
-                        constantOperationWhen1.result(),
-                        constantOperationWhen2.result(),
+                        lambdaOperation1.result(),
+                        lambdaOperation2.result(),
                         constantOperationThen1.result(),
                         constantOperationDefault.result()),
                 ImmutableList.of(),
@@ -3283,11 +3323,11 @@ class TestCreateOperation
         // wrong region count
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
                 MatchOperationMetadata.NAME,
-                "%6",
+                "%16",
                 ImmutableList.of(
                         constantOperationOperand.result(),
-                        constantOperationWhen1.result(),
-                        constantOperationWhen2.result(),
+                        lambdaOperation1.result(),
+                        lambdaOperation2.result(),
                         constantOperationThen1.result(),
                         constantOperationThen2.result(),
                         constantOperationDefault.result()),
