@@ -352,6 +352,10 @@ public class GpuExpressionCompiler
                 return compileRegexpReplace(call, context);
             }
 
+            if (name.equals("date_trunc") && call.arguments().size() == 2) {
+                return compileDateTrunc(call, context);
+            }
+
             return Optional.empty();
         }
 
@@ -563,6 +567,32 @@ public class GpuExpressionCompiler
                                         compiled.score())));
             }
             return Optional.empty();
+        }
+
+        private Optional<CompilationResult> compileDateTrunc(Call call, Void context)
+        {
+            // date_trunc(unit, date_time)
+            if (!(call.arguments().get(0) instanceof Constant(Type unitType, Object unitValue)) ||
+                    !(unitType instanceof VarcharType) ||
+                    unitValue == null) {
+                return Optional.empty();
+            }
+            String unit = ((Slice) unitValue).toStringUtf8();
+
+            Optional<GpuDateTrunc.Field> field = GpuDateTrunc.Field.forTrinoDateTruncUnit(unit);
+            if (field.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Expression timestampArgument = call.arguments().get(1);
+            if (!(timestampArgument.type() instanceof TimestampType)) {
+                return Optional.empty();
+            }
+
+            return timestampArgument.accept(this, context)
+                    .map(compiled -> new CompilationResult(
+                            new GpuDateTrunc(compiled.expression(), field.get()),
+                            compiled.score()));
         }
 
         private Optional<CompilationResult> compileSubstring(Call call, Void context)

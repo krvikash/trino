@@ -28,6 +28,7 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GpuDateTrunc.Field;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.ErrorCodeSupplier;
@@ -1174,6 +1175,33 @@ public class TestGpuExpressions
         Expression expression = new Call(
                 functionResolution.resolveFunction(functionName, fromTypes(timestampType)),
                 ImmutableList.of(field(channelA, timestampType)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testDateTrunc(NullsProvider nullsProvider)
+    {
+        for (String unit : Arrays.stream(Field.values()).map(Field::trinoDateTruncUnit).toList()) {
+            for (Type type : List.of(TIMESTAMP_SECONDS, TIMESTAMP_MILLIS, TIMESTAMP_MICROS)) {
+                testDateTrunc(unit, type, nullsProvider);
+            }
+        }
+    }
+
+    private void testDateTrunc(String unit, Type timestampType, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(timestampType);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBlock(timestampType, positionsCount, nullsProvider)));
+
+        Type unitType = createVarcharType(unit.length());
+        Expression expression = new Call(
+                functionResolution.resolveFunction("date_trunc", fromTypes(unitType, timestampType)),
+                ImmutableList.of(new Constant(unitType, Slices.utf8Slice(unit)), field(channelA, timestampType)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
