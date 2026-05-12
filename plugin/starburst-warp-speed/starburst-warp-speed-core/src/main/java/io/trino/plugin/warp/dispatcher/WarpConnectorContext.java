@@ -24,6 +24,7 @@ import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -157,5 +158,11 @@ public class WarpConnectorContext
     public BlocksHashFactory getBlocksHashFactory()
     {
         return connectorContext.getBlocksHashFactory();
+    }
+
+    @Override
+    public ConnectorExpressionEvaluator getExpressionEvaluator()
+    {
+        return connectorContext.getExpressionEvaluator();
     }
 }

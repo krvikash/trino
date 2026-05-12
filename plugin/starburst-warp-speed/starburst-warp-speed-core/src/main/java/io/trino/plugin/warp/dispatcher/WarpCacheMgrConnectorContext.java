@@ -17,6 +17,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 
 public class WarpCacheMgrConnectorContext
         implements ConnectorContext, WarpContext
@@ -54,5 +55,11 @@ public class WarpCacheMgrConnectorContext
     public Node getCurrentNode()
     {
         return currentNode;
+    }
+
+    @Override
+    public ConnectorExpressionEvaluator getExpressionEvaluator()
+    {
+        return ConnectorExpressionEvaluator.NO_OP;
     }
 }
