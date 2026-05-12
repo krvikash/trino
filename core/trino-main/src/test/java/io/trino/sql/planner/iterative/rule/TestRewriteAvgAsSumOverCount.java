@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
-import io.trino.spi.type.DecimalType;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Reference;
@@ -240,52 +239,19 @@ final class TestRewriteAvgAsSumOverCount
     }
 
     @Test
-    void testRewriteAvgShortDecimal()
+    void testDoesNotFireForDecimalAvg()
     {
-        DecimalType decimalType = createDecimalType(12, 2);
         tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
                 .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
                 .on(p -> {
-                    Symbol input = p.symbol("col", decimalType);
-                    Symbol output = p.symbol("out", decimalType);
+                    Symbol input = p.symbol("col", createDecimalType(10, 2));
+                    Symbol output = p.symbol("out", createDecimalType(10, 2));
                     return p.aggregation(a -> a
                             .globalGrouping()
                             .addAggregation(
                                     output,
-                                    PlanBuilder.aggregation("avg", ImmutableList.of(new Reference(decimalType, "col"))),
-                                    ImmutableList.of(decimalType))
-                            .source(p.values(input)));
-                })
-                .matches(project(
-                        ImmutableMap.of("out", expression(new Cast(
-                                new Call(DIVIDE_DOUBLE, ImmutableList.of(
-                                        new Reference(DOUBLE, "sum"),
-                                        new Cast(new Reference(BIGINT, "count"), DOUBLE))),
-                                decimalType))),
-                        aggregation(
-                                ImmutableMap.of(
-                                        "sum", aggregationFunction("sum", ImmutableList.of("avg_input")),
-                                        "count", aggregationFunction("count", ImmutableList.of("avg_input"))),
-                                project(
-                                        ImmutableMap.of("avg_input", expression(new Cast(new Reference(decimalType, "col"), DOUBLE))),
-                                        values("col")))));
-    }
-
-    @Test
-    void testDoesNotFireForLongDecimalAvg()
-    {
-        DecimalType decimalType = createDecimalType(20, 2);
-        tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
-                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
-                .on(p -> {
-                    Symbol input = p.symbol("col", decimalType);
-                    Symbol output = p.symbol("out", decimalType);
-                    return p.aggregation(a -> a
-                            .globalGrouping()
-                            .addAggregation(
-                                    output,
-                                    PlanBuilder.aggregation("avg", ImmutableList.of(new Reference(decimalType, "col"))),
-                                    ImmutableList.of(decimalType))
+                                    PlanBuilder.aggregation("avg", ImmutableList.of(new Reference(createDecimalType(10, 2), "col"))),
+                                    ImmutableList.of(createDecimalType(10, 2)))
                             .source(p.values(input)));
                 })
                 .doesNotFire();

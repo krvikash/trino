@@ -20,7 +20,6 @@ import io.trino.matching.Pattern;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
-import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.analyzer.TypeSignatureProvider;
@@ -39,6 +38,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.trino.SystemSessionProperties.isGpuExecutionEnabled;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
@@ -58,10 +58,8 @@ import static java.util.Objects.requireNonNull;
  * The input is cast to double before summing to match the semantics of the built-in avg,
  * which accumulates the sum as a double to avoid integer overflow.
  * <p>
- * Only rewrites avg over {@code BIGINT}, {@code DOUBLE}, {@code REAL}, and short
- * {@code DECIMAL} (precision &lt;= 18) inputs — the types where casting to double preserves
- * enough precision to be a reasonable approximation of the CPU-based avg. Long decimals are
- * excluded because their precision exceeds the 53-bit mantissa of double.
+ * Only rewrites avg over {@code BIGINT}, {@code DOUBLE}, and {@code REAL} inputs — the types
+ * where casting to double is semantically equivalent to what the CPU-based avg does.
  * <p>
  * The rule matches SINGLE-step aggregations because all aggregations initially enter the
  * optimizer as SINGLE. After this rule replaces avg with sum and count, the subsequent
@@ -73,6 +71,7 @@ public class RewriteAvgAsSumOverCount
         implements Rule<AggregationNode>
 {
     private static final CatalogSchemaFunctionName AVG_NAME = builtinFunctionName("avg");
+    private static final Set<Type> SUPPORTED_INPUT_TYPES = Set.of(BIGINT, DOUBLE, REAL);
 
     private static final Pattern<AggregationNode> PATTERN = aggregation()
             .with(step().equalTo(SINGLE));
@@ -109,7 +108,7 @@ public class RewriteAvgAsSumOverCount
             Symbol outputSymbol = entry.getKey();
             Aggregation aggregation = entry.getValue();
 
-            if (!isRewritableAvg(aggregation) || !isSupportedInputType(aggregation.getArguments().getFirst().type())) {
+            if (!isRewritableAvg(aggregation) || !SUPPORTED_INPUT_TYPES.contains(aggregation.getArguments().getFirst().type())) {
                 outerProjections.putIdentity(outputSymbol);
                 continue;
             }
@@ -178,16 +177,6 @@ public class RewriteAvgAsSumOverCount
                 context.getIdAllocator().getNextId(),
                 newAggregation,
                 outerProjections.build()));
-    }
-
-    private static boolean isSupportedInputType(Type type)
-    {
-        // Long decimals (precision > 18) are excluded because the cast to double would lose
-        // more precision than the user is likely to tolerate.
-        return type.equals(BIGINT)
-                || type.equals(DOUBLE)
-                || type.equals(REAL)
-                || (type instanceof DecimalType decimalType && decimalType.isShort());
     }
 
     private static boolean isRewritableAvg(Aggregation aggregation)
