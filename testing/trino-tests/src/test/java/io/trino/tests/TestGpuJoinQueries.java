@@ -108,7 +108,7 @@ public class TestGpuJoinQueries
     @Test
     public void testInnerJoin()
     {
-        assertThat(query("SELECT l.orderkey, o.orderstatus FROM lineitem l JOIN orders o ON l.orderkey = o.orderkey"))
+        assertThat(query("SELECT c.custkey, o.orderstatus FROM customer c JOIN orders o ON c.custkey = o.custkey"))
                 .executesWithGpu(JoinNode.class);
     }
 
