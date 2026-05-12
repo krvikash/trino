@@ -131,6 +131,8 @@ public class SnowflakeJdbcClientModule
                     .in(SINGLETON);
         }
 
+        newOptionalBinder(binder, QueryBuilder.class).setBinding().to(CollationAwareQueryBuilder.class).in(SINGLETON);
+
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(SINGLETON);
     }
 

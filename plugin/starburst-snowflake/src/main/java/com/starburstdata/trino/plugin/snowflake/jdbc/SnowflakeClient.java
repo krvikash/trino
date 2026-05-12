@@ -252,6 +252,14 @@ public class SnowflakeClient
         this.databasePrefixForSchemaEnabled = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getDatabasePrefixForSchemaEnabled();
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 .addStandardRules(this::quoted)
+                .withTypeClass("collatable_type", ImmutableSet.of("varchar"))
+                .map("$equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' = right")
+                .map("$not_equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' <> right")
+                .map("$identical(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' IS NOT DISTINCT FROM right")
+                .map("$less_than(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' < right")
+                .map("$less_than_or_equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' <= right")
+                .map("$greater_than(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' > right")
+                .map("$greater_than_or_equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' >= right")
                 .map("$equal(left, right)").to("left = right")
                 .map("$not_equal(left, right)").to("left <> right")
                 .map("$identical(left, right)").to("left IS NOT DISTINCT FROM right")
@@ -518,7 +526,34 @@ public class SnowflakeClient
     @Override
     protected Optional<TopNFunction> topNFunction()
     {
-        return Optional.of(TopNFunction.sqlStandard(this::quoted));
+        return Optional.of(this::applyTopNFunction);
+    }
+
+    private String applyTopNFunction(String query, List<JdbcSortItem> sortItems, long limit)
+    {
+        String orderBy = sortItems.stream()
+                .map(sortItem -> {
+                    String ordering = sortItem.sortOrder().isAscending() ? "ASC" : "DESC";
+                    String nullsHandling = sortItem.sortOrder().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST";
+                    String collation = "";
+                    if (isCollatable(sortItem.column())) {
+                        collation = "COLLATE 'utf8'";
+                    }
+                    return format("%s %s %s %s", quoted(sortItem.column().getColumnName()), collation, ordering, nullsHandling);
+                })
+                .collect(joining(", "));
+
+        return format("%s ORDER BY %s LIMIT %d", query, orderBy, limit);
+    }
+
+    protected static boolean isCollatable(JdbcColumnHandle column)
+    {
+        if (!(column.getColumnType() instanceof VarcharType)) {
+            return false;
+        }
+        String jdbcTypeName = column.getJdbcTypeHandle().jdbcTypeName()
+                .orElseThrow(() -> new TrinoException(JDBC_ERROR, "Type name is missing: " + column.getJdbcTypeHandle()));
+        return "varchar".equalsIgnoreCase(jdbcTypeName);
     }
 
     @Override

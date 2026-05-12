@@ -1118,74 +1118,25 @@ public abstract class BaseSnowflakeConnectorTest
             String leftTableName = leftTable.getName();
             String rightTableName = rightTable.getName();
 
-            String innerJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l INNER JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+            assertThat(query("SELECT l.lowercase_a, r.uppercase_a FROM %s l INNER JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
                     leftTableName,
-                    rightTableName);
-            assertThat(query(joinPushdownSession, innerJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .isFullyPushedDown()
-                    .skippingTypesCheck()
-                    .result().rowCount().isEqualTo(1); // TODO, INCORRECT
-            assertThat(query(innerJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .joinIsNotFullyPushedDown()
-                    .returnsEmptyResult();
+                    rightTableName)))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            String leftJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l LEFT JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+            assertThat(query("SELECT l.lowercase_a, r.uppercase_a FROM %s l LEFT JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
                     leftTableName,
-                    rightTableName);
-            assertThat(query(joinPushdownSession, leftJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .isFullyPushedDown()
-                    .result()
-                    .rows()
-                    .singleElement()
-                    .extracting(materializedRow -> materializedRow.getField(1))
-                    .isNotNull();
-            assertThat(query(leftJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .joinIsNotFullyPushedDown()
-                    .result()
-                    .rows()
-                    .singleElement()
-                    .extracting(materializedRow -> materializedRow.getField(1))
-                    .isNull();
+                    rightTableName)))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            String rightJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l RIGHT JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+            assertThat(query(joinPushdownSession, "SELECT l.lowercase_a, r.uppercase_a FROM %s l RIGHT JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
                     leftTableName,
-                    rightTableName);
-            assertThat(query(joinPushdownSession, rightJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .isFullyPushedDown()
-                    .result()
-                    .rows()
-                    .singleElement()
-                    .extracting(materializedRow -> materializedRow.getField(0))
-                    .isNotNull();
-            assertThat(query(rightJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .joinIsNotFullyPushedDown()
-                    .result()
-                    .rows()
-                    .singleElement()
-                    .extracting(materializedRow -> materializedRow.getField(0))
-                    .isNull();
+                    rightTableName)))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            String fullJoin = "SELECT l.lowercase_a, r.uppercase_a FROM %s l FULL JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
+            assertThat(query("SELECT l.lowercase_a, r.uppercase_a FROM %s l FULL JOIN %s r ON l.lowercase_a = r.uppercase_a".formatted(
                     leftTableName,
-                    rightTableName);
-            assertThat(query(joinPushdownSession, fullJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .isFullyPushedDown()
-                    .result()
-                    .rowCount()
-                    .isEqualTo(1); // TODO, INCORRECT
-            assertThat(query(fullJoin))
-                    .skipResultsCorrectnessCheckForPushdown()
-                    .joinIsNotFullyPushedDown()
-                    .result()
-                    .rowCount()
-                    .isEqualTo(2);
+                    rightTableName)))
+                    .hasCorrectResultsRegardlessOfPushdown();
         }
     }
 
@@ -1204,7 +1155,7 @@ public abstract class BaseSnowflakeConnectorTest
                         "(' z ')"))) {
             assertThat(query("SELECT * FROM " + testTable.getName() +
                     " WHERE a_with_space = 't' OR a_with_space = 'm' OR a_with_space = 'z'"))
-                    .result().rowCount().isEqualTo(3); // TODO, INCORRECT
+                    .hasCorrectResultsRegardlessOfPushdown();
         }
     }
 
@@ -1217,15 +1168,8 @@ public abstract class BaseSnowflakeConnectorTest
                 schema + ".case_insensitive_equals",
                 "(a VARCHAR COLLATE 'en-ci')",
                 ImmutableList.of("('a')", "('A')"))) {
-            @Language("SQL")
-            String select = "SELECT * FROM " + testTable.getName() + " WHERE a = 'a'";
-            Session withoutPushdown = Session.builder(getSession())
-                    .setSystemProperty("allow_pushdown_into_connectors", "false")
-                    .build();
-            assertThat(query(select))
-                    .result().rowCount().isEqualTo(2); // TODO, INCORRECT
-            assertThat(query(withoutPushdown, select))
-                    .result().rowCount().isEqualTo(1);
+            assertThat(query("SELECT * FROM " + testTable.getName() + " WHERE a = 'a'"))
+                    .hasCorrectResultsRegardlessOfPushdown();
         }
     }
 
@@ -1240,15 +1184,8 @@ public abstract class BaseSnowflakeConnectorTest
                 ImmutableList.of("('a')", "('A')", "('b')", "('B')"))) {
             @Language("SQL")
             String top2 = "SELECT a FROM " + testTable.getName() + " ORDER BY a ASC LIMIT 2";
-            Session topNPushdownDisabled = Session.builder(getSession())
-                    .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "topn_pushdown_enabled", "false")
-                    .build();
             assertThat(query(top2))
-                    .skippingTypesCheck()
-                    .matches("VALUES ('a'), ('A')");
-            assertThat(query(topNPushdownDisabled, top2))
-                    .skippingTypesCheck()
-                    .matches("VALUES ('A'), ('B')");
+                    .hasCorrectResultsRegardlessOfPushdown();
         }
     }
 
@@ -1263,7 +1200,7 @@ public abstract class BaseSnowflakeConnectorTest
                 ImmutableList.of("('updateme'), ('a')", "('dont update me'), ('A')"))) {
             @Language("SQL")
             String update = "UPDATE " + testTable.getName() + " SET updateable = 'updated' WHERE mykey = 'a'";
-            assertUpdate(update, 2); // TODO, INCORRECT
+            assertUpdate(update, 1);
         }
     }
 
@@ -1278,7 +1215,7 @@ public abstract class BaseSnowflakeConnectorTest
                 ImmutableList.of("('a')", "('A')"))) {
             @Language("SQL")
             String delete = "DELETE FROM " + testTable.getName() + " WHERE my_key = 'a'";
-            assertUpdate(delete, 2); // TODO, INCORRECT
+            assertUpdate(delete, 1);
         }
     }
 
@@ -1288,49 +1225,29 @@ public abstract class BaseSnowflakeConnectorTest
         String schema = getSession().getSchema().orElseThrow();
         try (TestTable testTable = new TestTable(
                 onRemoteDatabase(),
-                schema + ".delete_upper",
+                schema + ".collated_expression",
                 "(en VARCHAR COLLATE 'en', tr VARCHAR COLLATE 'tr')",
                 ImmutableList.of("('a'), ('A')"))) {
-            String collationRegex = ".*\\QIncompatible collations: 'tr' and 'en'\\E";
-            Session withoutPushdown = Session.builder(getSession())
-                    .setSystemProperty("allow_pushdown_into_connectors", "false")
-                    .build();
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en = tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en <> tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            @Language("SQL")
-            String equalToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en = tr";
-            assertQueryFails(equalToQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, equalToQuery);
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en IS NOT DISTINCT FROM tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            @Language("SQL")
-            String notEqualToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en <> tr";
-            assertQueryFails(notEqualToQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, notEqualToQuery);
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en > tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            @Language("SQL")
-            String identicalQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en IS NOT DISTINCT FROM tr";
-            assertQueryFails(identicalQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, identicalQuery);
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en >= tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            @Language("SQL")
-            String greaterThanQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en > tr";
-            assertQueryFails(greaterThanQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, greaterThanQuery);
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en < tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
 
-            @Language("SQL")
-            String greaterThanEqualToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en >= tr";
-            assertQueryFails(greaterThanEqualToQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, greaterThanEqualToQuery);
-
-            @Language("SQL")
-            String lessThanQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en < tr";
-            assertQueryFails(lessThanQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, lessThanQuery);
-
-            @Language("SQL")
-            String lessThanEqualToQuery = "SELECT en, tr FROM " + testTable.getName() + " WHERE en <= tr";
-            assertQueryFails(lessThanEqualToQuery, collationRegex);
-            assertQuerySucceeds(withoutPushdown, lessThanEqualToQuery);
+            assertThat(query("SELECT en, tr FROM " + testTable.getName() + " WHERE en <= tr"))
+                    .hasCorrectResultsRegardlessOfPushdown();
         }
     }
 
