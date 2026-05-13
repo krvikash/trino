@@ -459,10 +459,11 @@ public class PlanOptimizers
                                         new RewriteAvgAsSumOverCount(plannerContext),
                                         new RemoveRedundantDistinctAggregation()))
                                 .build()),
-                // MergeUnion and related projection pruning rules must run before limit pushdown rules, otherwise
-                // an intermediate limit node will prevent unions from being merged later on
+                // Union flattening must already be at fixpoint from InitialPlanCleanup before any
+                // limit-pushdown rules fire here, otherwise PushLimitThroughUnion would insert
+                // limits between nested unions and block MergeUnion.
                 new IterativeOptimizer(
-                        "MergeUnionsBeforeLimitPushdown",
+                        "Phase1",
                         plannerContext,
                         ruleStats,
                         statsCalculator,
@@ -471,11 +472,11 @@ public class PlanOptimizers
                                 .addAll(projectionPushdownRules)
                                 .addAll(columnPruningRules)
                                 .addAll(limitPushdownRules)
+                                .addAll(simplifyOptimizerRules)
+                                .add(new ImplementOffset(metadata))
                                 .addAll(ImmutableSet.of(
-                                        new MergeUnion(),
                                         new RemoveEmptyUnionBranches(),
                                         new MergeFilters(),
-                                        new RemoveTrivialFilters(),
                                         new MergeLimits(),
                                         new MergeLimitWithSort(),
                                         new MergeLimitOverProjectWithSort(),
@@ -483,15 +484,6 @@ public class PlanOptimizers
                                         new InlineProjections(),
                                         new RemoveRedundantIdentityProjections()))
                                 .build()),
-                new IterativeOptimizer(
-                        "ImplementOffsets",
-                        plannerContext,
-                        ruleStats,
-                        statsCalculator,
-                        costCalculator,
-                        ImmutableSet.of(new ImplementOffset(metadata))),
-                simplifyOptimizer
-                        .withName("SimplifyExpressionsBeforeUnalias"),
                 new UnaliasSymbolReferences(),
                 new IterativeOptimizer(
                         "MergeSetOperations",
