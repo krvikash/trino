@@ -1169,7 +1169,9 @@ public final class BenchmarkRunner
     public static void applyExecutionMode(HiveQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
         switch (mode) {
-            case CPU -> builder.addExtraProperty("gpu-execution", "false");
+            case CPU -> builder
+                    .addExtraProperty("gpu-execution", "false")
+                    .addExtraProperty("experimental.force-single-node-query", "true");
             case GPU -> builder
                     .addExtraProperty("gpu-execution", "true")
                     .addExtraProperty("task.gpu-execution.enabled", "true")
