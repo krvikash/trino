@@ -329,7 +329,7 @@ public class GpuExpressionCompiler
 
             if (call.arguments().size() == 1 && isDateTimeType(getOnlyElement(call.arguments()).type())) {
                 switch (name) {
-                    case "day", "hour", "minute", "second" -> {
+                    case "year", "day", "hour", "minute", "second" -> {
                         // This is a date/time extract function
                         return compileDateTimeExtract(name, getOnlyElement(call.arguments()), call.type(), context);
                     }
@@ -540,6 +540,14 @@ public class GpuExpressionCompiler
                 // For DATE and TIMESTAMP, cudf semantics match Trino's
                 GpuDateTimeExtract.Field dateTimeField;
                 switch (trinoFunctionName) {
+                    case "year" -> {
+                        // YEAR handled separately as it may overflow INT16 result type
+                        return toDType(resultType).flatMap(resultDType ->
+                                argument.accept(this, context).map(compiled ->
+                                        new CompilationResult(
+                                                new GpuCast(new GpuYearExtract(compiled.expression()), resultDType),
+                                                compiled.score())));
+                    }
                     case "day" -> dateTimeField = GpuDateTimeExtract.Field.DAY;
                     case "hour" -> dateTimeField = GpuDateTimeExtract.Field.HOUR;
                     case "minute" -> dateTimeField = GpuDateTimeExtract.Field.MINUTE;

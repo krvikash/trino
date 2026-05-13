@@ -44,11 +44,12 @@ public class GpuDateTimeExtract
 
     public enum Field
     {
+        // YEAR handled separately as it may overflow INT16 result type
         DAY(ColumnVector::day),
         HOUR(ColumnVector::hour),
         MINUTE(ColumnVector::minute),
         SECOND(ColumnVector::second);
-        // TODO millisecond, week, month, quarter, year, day_of_week, day_of_year
+        // TODO millisecond, week, month, quarter, day_of_week, day_of_year
 
         private final Function<ColumnVector, ColumnVector> extractor;
 

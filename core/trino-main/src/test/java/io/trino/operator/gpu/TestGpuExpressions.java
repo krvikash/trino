@@ -33,12 +33,14 @@ import io.trino.operator.project.PageProcessor;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -69,6 +71,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1078,6 +1081,86 @@ public class TestGpuExpressions
         }
         // Trino only defines day() (aka day_of_month) for DATE — hour/minute/second are timestamp-only.
         testDateTimeExtract("day", DATE, nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testYearExtract(NullsProvider nullsProvider)
+    {
+        // cuDF's year() returns INT16, so it can only represent years in the range [-32768, 32767].
+        // Random test data spans the full long/int range and would overflow, so generate inputs in a
+        // realistic range. The GPU compiler does not statically constrain the input range — callers
+        // are responsible for ensuring values fit, which is the case for all production data sets.
+        for (Type type : List.of(DATE, TIMESTAMP_SECONDS, TIMESTAMP_MILLIS, TIMESTAMP_MICROS)) {
+            testYearExtract(type, nullsProvider);
+        }
+    }
+
+    private void testYearExtract(Type type, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int positionsCount = 64;
+        List<Type> inputTypes = List.of(type);
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createInRangeDateTimeBlock(type, positionsCount, nullsProvider)));
+
+        Expression expression = new Call(
+                functionResolution.resolveFunction("year", fromTypes(type)),
+                ImmutableList.of(field(channelA, type)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+    }
+
+    @Test
+    public void testYearExtractOutOfRangeThrows()
+    {
+        // Year 100000 is outside cuDF's INT16 year range, so GPU must throw. CPU would happily return 100000.
+        int channelA = 0;
+        Type type = DATE;
+        long outOfRangeDays = LocalDate.of(100_000, 6, 15).toEpochDay();
+        List<Page> inputPages = List.of(new Page(nativeValueToBlock(type, outOfRangeDays)));
+
+        Expression expression = new Call(
+                functionResolution.resolveFunction("year", fromTypes(type)),
+                ImmutableList.of(field(channelA, type)));
+
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(expression, layoutFor(List.of(type)))
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+        assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
+                .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                .hasMessage("Year out of range supported by GPU: must be in [-32768, 32767]");
+    }
+
+    private static Block createInRangeDateTimeBlock(Type type, int positionsCount, NullsProvider nullsProvider)
+    {
+        // Constrain to roughly years [-10000, +10000] so cuDF's INT16 year extraction does not overflow.
+        Random random = new Random(42);
+        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            if (isNull.isPresent() && isNull.get()[i]) {
+                builder.appendNull();
+            }
+            else if (type == DATE) {
+                // Days since epoch in ±10000 years (~3.65M days).
+                type.writeLong(builder, random.nextInt(7_300_001) - 3_650_000);
+            }
+            else if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
+                // Trino short TimestampType stores epochMicros; pick microsecond values in ±10000 years.
+                long maxMicros = 10_000L * 365L * 24L * 60L * 60L * 1_000_000L;
+                long micros = (random.nextLong() % maxMicros);
+                // Precision p < 6 requires the last (6-p) decimal digits to be zero.
+                long scale = 1L;
+                for (int p = ((TimestampType) type).getPrecision(); p < TimestampType.MAX_SHORT_PRECISION; p++) {
+                    scale *= 10;
+                }
+                type.writeLong(builder, (micros / scale) * scale);
+            }
+            else {
+                throw new IllegalArgumentException("Unsupported type: " + type);
+            }
+        }
+        return builder.build();
     }
 
     private void testDateTimeExtract(String functionName, Type timestampType, NullsProvider nullsProvider)
