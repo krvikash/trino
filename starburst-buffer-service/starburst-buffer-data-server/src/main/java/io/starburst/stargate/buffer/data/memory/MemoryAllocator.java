@@ -67,8 +67,8 @@ public class MemoryAllocator
         checkArgument(baseMemory <= heapSize, "Total memory %s should be less than or equalt to heap size %s", baseMemory, heapSize);
         checkArgument(chunksMemory <= baseMemory, "Chunks memory %s should be less or equal to total memory %s", chunksMemory, baseMemory);
 
-        double lowWatermarkRatio = memoryAllocatorConfig.getAllocationRatioLowWatermark();
-        double highWatermarkRatio = memoryAllocatorConfig.getAllocationRatioHighWatermark();
+        double lowWatermarkRatio = memoryAllocatorConfig.getSpoolingRatioLowWatermark();
+        double highWatermarkRatio = memoryAllocatorConfig.getSpoolingRatioHighWatermark();
         checkArgument(0.0 <= lowWatermarkRatio && lowWatermarkRatio <= 1.0, "lowWatermarkRatio expected to be in range [0.0, 1.0], but is %s", lowWatermarkRatio);
         checkArgument(0.0 <= highWatermarkRatio && highWatermarkRatio <= 1.0, "highWatermarkRatio expected to be in range [0.0, 1.0], but is %s", highWatermarkRatio);
         checkArgument(lowWatermarkRatio <= highWatermarkRatio, "lowWatermarkRatio %s should be no larger than highWatermarkRatio %s", lowWatermarkRatio, highWatermarkRatio);

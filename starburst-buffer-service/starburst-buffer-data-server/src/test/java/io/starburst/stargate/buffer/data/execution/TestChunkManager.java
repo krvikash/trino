@@ -448,8 +448,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(0.8)
-                        .setAllocationRatioLowWatermark(0.5),
+                        .setSpoolingRatioHighWatermark(0.8)
+                        .setSpoolingRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
@@ -535,8 +535,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(0.8)
-                        .setAllocationRatioLowWatermark(0.5),
+                        .setSpoolingRatioHighWatermark(0.8)
+                        .setSpoolingRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
@@ -604,8 +604,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(0.9)
-                        .setAllocationRatioLowWatermark(0.6),
+                        .setSpoolingRatioHighWatermark(0.9)
+                        .setSpoolingRatioLowWatermark(0.6),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         SpoolingStorage failureInjectingSpoolingStorage = new FailureInjectingS3SpoolingStorage(
@@ -679,8 +679,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(0.9)
-                        .setAllocationRatioLowWatermark(0.6),
+                        .setSpoolingRatioHighWatermark(0.9)
+                        .setSpoolingRatioLowWatermark(0.6),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         SpoolingStorage failureInjectingSpoolingStorage = new FailureInjectingS3SpoolingStorage(
@@ -755,8 +755,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(0.8)
-                        .setAllocationRatioLowWatermark(0.5),
+                        .setSpoolingRatioHighWatermark(0.8)
+                        .setSpoolingRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
@@ -871,8 +871,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(1.0)
-                        .setAllocationRatioLowWatermark(1.0),
+                        .setSpoolingRatioHighWatermark(1.0)
+                        .setSpoolingRatioLowWatermark(1.0),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(
@@ -925,8 +925,8 @@ public class TestChunkManager
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setAllocationRatioHighWatermark(1.0)
-                        .setAllocationRatioLowWatermark(1.0),
+                        .setSpoolingRatioHighWatermark(1.0)
+                        .setSpoolingRatioLowWatermark(1.0),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManager chunkManager = createChunkManager(

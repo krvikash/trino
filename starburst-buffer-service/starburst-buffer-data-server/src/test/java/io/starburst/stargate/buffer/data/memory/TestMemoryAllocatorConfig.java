@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.airlift.configuration.testing.ConfigAssertions.assertDeprecatedEquivalence;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
@@ -24,8 +25,8 @@ public class TestMemoryAllocatorConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(MemoryAllocatorConfig.class)
-                .setAllocationRatioLowWatermark(0.75)
-                .setAllocationRatioHighWatermark(0.9)
+                .setSpoolingRatioLowWatermark(0.75)
+                .setSpoolingRatioHighWatermark(0.9)
                 .setChunkSlicePoolingFraction(0.8));
     }
 
@@ -33,16 +34,31 @@ public class TestMemoryAllocatorConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("memory.allocation-low-watermark", "0.5")
-                .put("memory.allocation-high-watermark", "0.99")
+                .put("memory.spooling-low-watermark", "0.5")
+                .put("memory.spooling-high-watermark", "0.99")
                 .put("memory.chunk-slice-pool-fraction", "0.66")
                 .buildOrThrow();
 
         MemoryAllocatorConfig expected = new MemoryAllocatorConfig()
-                .setAllocationRatioLowWatermark(0.5)
-                .setAllocationRatioHighWatermark(0.99)
+                .setSpoolingRatioLowWatermark(0.5)
+                .setSpoolingRatioHighWatermark(0.99)
                 .setChunkSlicePoolingFraction(0.66);
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testLegacyPropertyMappings()
+    {
+        Map<String, String> currentProperties = ImmutableMap.<String, String>builder()
+                .put("memory.spooling-low-watermark", "0.5")
+                .put("memory.spooling-high-watermark", "0.99")
+                .buildOrThrow();
+        Map<String, String> legacyProperties = ImmutableMap.<String, String>builder()
+                .put("memory.allocation-low-watermark", "0.5")
+                .put("memory.allocation-high-watermark", "0.99")
+                .buildOrThrow();
+
+        assertDeprecatedEquivalence(MemoryAllocatorConfig.class, currentProperties, legacyProperties);
     }
 }

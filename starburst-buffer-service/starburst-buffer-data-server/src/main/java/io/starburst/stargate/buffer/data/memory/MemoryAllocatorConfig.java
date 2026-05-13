@@ -11,36 +11,39 @@ package io.starburst.stargate.buffer.data.memory;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.LegacyConfig;
 
 public class MemoryAllocatorConfig
 {
-    private double allocationRatioLowWatermark = 0.75;
-    private double allocationRatioHighWatermark = 0.9;
+    private double spoolingRatioLowWatermark = 0.75;
+    private double spoolingRatioHighWatermark = 0.9;
     private double chunkSlicePoolingFraction = 0.8;
 
-    public double getAllocationRatioLowWatermark()
+    public double getSpoolingRatioLowWatermark()
     {
-        return allocationRatioLowWatermark;
+        return spoolingRatioLowWatermark;
     }
 
-    @Config("memory.allocation-low-watermark")
-    @ConfigDescription("Memory blocked low allocation watermark")
-    public MemoryAllocatorConfig setAllocationRatioLowWatermark(double allocationRatioLowWatermark)
+    @Config("memory.spooling-low-watermark")
+    @LegacyConfig("memory.allocation-low-watermark")
+    @ConfigDescription("Memory utilization ratio at which spooling stops")
+    public MemoryAllocatorConfig setSpoolingRatioLowWatermark(double spoolingRatioLowWatermark)
     {
-        this.allocationRatioLowWatermark = allocationRatioLowWatermark;
+        this.spoolingRatioLowWatermark = spoolingRatioLowWatermark;
         return this;
     }
 
-    public double getAllocationRatioHighWatermark()
+    public double getSpoolingRatioHighWatermark()
     {
-        return allocationRatioHighWatermark;
+        return spoolingRatioHighWatermark;
     }
 
-    @Config("memory.allocation-high-watermark")
-    @ConfigDescription("Memory blocked high allocation watermark")
-    public MemoryAllocatorConfig setAllocationRatioHighWatermark(double allocationRatioHighWatermark)
+    @Config("memory.spooling-high-watermark")
+    @LegacyConfig("memory.allocation-high-watermark")
+    @ConfigDescription("Memory utilization ratio above which spooling is triggered")
+    public MemoryAllocatorConfig setSpoolingRatioHighWatermark(double spoolingRatioHighWatermark)
     {
-        this.allocationRatioHighWatermark = allocationRatioHighWatermark;
+        this.spoolingRatioHighWatermark = spoolingRatioHighWatermark;
         return this;
     }
 
