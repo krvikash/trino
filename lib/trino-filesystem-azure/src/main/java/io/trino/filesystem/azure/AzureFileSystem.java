@@ -94,6 +94,7 @@ public class AzureFileSystem
     private final int maxWriteConcurrency;
     private final long maxSingleUploadSizeBytes;
     private final boolean multipartWriteEnabled;
+    private final Optional<String> testingEndpointOverride;
 
     public AzureFileSystem(
             HttpClient httpClient,
@@ -106,7 +107,8 @@ public class AzureFileSystem
             DataSize writeBlockSize,
             int maxWriteConcurrency,
             DataSize maxSingleUploadSize,
-            boolean multipartWriteEnabled)
+            boolean multipartWriteEnabled,
+            Optional<String> testingEndpointOverride)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.concurrencyPolicy = requireNonNull(concurrencyPolicy, "concurrencyPolicy is null");
@@ -120,6 +122,7 @@ public class AzureFileSystem
         this.maxWriteConcurrency = maxWriteConcurrency;
         this.maxSingleUploadSizeBytes = maxSingleUploadSize.toBytes();
         this.multipartWriteEnabled = multipartWriteEnabled;
+        this.testingEndpointOverride = requireNonNull(testingEndpointOverride, "testingEndpointOverride is null");
     }
 
     @Override
@@ -672,6 +675,18 @@ public class AzureFileSystem
         return location.endpoint();
     }
 
+    private String blobEndpoint(AzureLocation location)
+    {
+        return testingEndpointOverride
+                .orElseGet(() -> "https://%s.blob.%s".formatted(location.account(), validatedEndpoint(location)));
+    }
+
+    private String dfsEndpoint(AzureLocation location)
+    {
+        return testingEndpointOverride
+                .orElseGet(() -> "https://%s.dfs.%s".formatted(location.account(), validatedEndpoint(location)));
+    }
+
     private BlobClient createBlobClient(AzureLocation location, Optional<EncryptionKey> key)
     {
         return createBlobContainerClient(location, key).getBlobClient(location.path());
@@ -685,7 +700,7 @@ public class AzureFileSystem
                 .httpClient(httpClient)
                 .addPolicy(concurrencyPolicy)
                 .clientOptions(new ClientOptions().setTracingOptions(tracingOptions))
-                .endpoint("https://%s.blob.%s".formatted(location.account(), validatedEndpoint(location)));
+                .endpoint(blobEndpoint(location));
 
         key.ifPresent(encryption -> builder.customerProvidedKey(blobCustomerProvidedKey(encryption)));
 
@@ -702,7 +717,7 @@ public class AzureFileSystem
                 .httpClient(httpClient)
                 .addPolicy(concurrencyPolicy)
                 .clientOptions(new ClientOptions().setTracingOptions(tracingOptions))
-                .endpoint("https://%s.dfs.%s".formatted(location.account(), validatedEndpoint(location)));
+                .endpoint(dfsEndpoint(location));
         key.ifPresent(encryption -> builder.customerProvidedKey(lakeCustomerProvidedKey(encryption)));
         azureAuth.setAuth(location.account(), builder);
         DataLakeServiceClient client = builder.buildClient();

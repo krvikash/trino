@@ -15,6 +15,7 @@ package io.trino.filesystem.azure;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
 import io.airlift.units.DataSize.Unit;
 import io.airlift.units.Duration;
@@ -52,6 +53,7 @@ public class AzureFileSystemConfig
     private Duration httpRequestTimeout = new Duration(10, TimeUnit.MINUTES);
     private String applicationId = "Trino";
     private boolean multipartWriteEnabled;
+    private String testingEndpointOverride;
 
     @NotNull
     public AuthType getAuthType()
@@ -212,6 +214,20 @@ public class AzureFileSystemConfig
     public AzureFileSystemConfig setMultipartWriteEnabled(boolean multipartWriteEnabled)
     {
         this.multipartWriteEnabled = multipartWriteEnabled;
+        return this;
+    }
+
+    public String getTestingEndpointOverride()
+    {
+        return testingEndpointOverride;
+    }
+
+    @Config("azure.testing.endpoint-override")
+    @ConfigDescription("Test-only: full blob/dfs endpoint URL to use instead of templating one from azure.endpoint. Allows routing through emulators such as Azurite.")
+    @ConfigHidden
+    public AzureFileSystemConfig setTestingEndpointOverride(String testingEndpointOverride)
+    {
+        this.testingEndpointOverride = testingEndpointOverride;
         return this;
     }
 }
