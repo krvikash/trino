@@ -13,7 +13,9 @@
  */
 package io.trino.operator.gpu.aggregation;
 
+import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
+import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.operator.gpu.GpuOperation;
@@ -45,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
@@ -220,41 +223,68 @@ public final class GpuAggregationCompiler
         }
         String name = signature.getName().functionName();
 
-        if (aggregation.isDistinct() || aggregation.getFilter().isPresent() || aggregation.getOrderingScheme().isPresent() || aggregation.getMask().isPresent()) {
-            // No DISTINCT, FILTER, ORDER BY, or MASK support yet
+        if (aggregation.isDistinct() || aggregation.getFilter().isPresent() || aggregation.getOrderingScheme().isPresent()) {
+            // No DISTINCT, FILTER, or ORDER BY support yet
             return Optional.empty();
         }
+
+        OptionalInt maskChannel = aggregation.getMask()
+                .map(mask -> OptionalInt.of(verifyNotNull(sourceLayout.get(mask), "channel for mask symbol %s is not in source layout", mask)))
+                .orElse(OptionalInt.empty());
 
         List<Expression> arguments = aggregation.getArguments();
         Type outputType = outputSymbol.type();
 
         return switch (name) {
             // For count, all steps produce the same type
-            case "count" -> compileCount(arguments, sourceLayout, outputType);
+            case "count" -> compileCount(arguments, sourceLayout, outputType, maskChannel);
             // For currently supported sum, all steps produce the same type
-            case "sum" -> compileSum(arguments, sourceLayout, step, outputType, signature.getReturnType());
+            case "sum" -> compileSum(arguments, sourceLayout, step, outputType, signature.getReturnType(), maskChannel);
             // For min and max, all steps produce the same type
-            case "min", "bool_and" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
-            case "max", "bool_or" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
-            case "avg" -> compileAvg(arguments, sourceLayout, step, outputType);
+            case "min", "bool_and" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new, maskChannel);
+            case "max", "bool_or" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new, maskChannel);
+            case "avg" -> compileAvg(arguments, sourceLayout, step, outputType, maskChannel);
             default -> Optional.empty();
         };
     }
 
-    private static Optional<AggregateCompilation> compileCount(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type outputType)
+    private static Optional<AggregateCompilation> compileCount(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type outputType, OptionalInt maskChannel)
     {
         return toDType(outputType)
                 .flatMap(dType -> {
                     if (arguments.isEmpty()) {
+                        if (maskChannel.isPresent()) {
+                            int mask = maskChannel.getAsInt();
+                            return Optional.of(new AggregateCompilation(
+                                    outputType,
+                                    ImmutableList.of(maskExpression(mask, mask)),
+                                    ImmutableList.of(channel -> new GpuCountNonNull(channel, outputType, dType)),
+                                    Optional.empty()));
+                        }
                         return Optional.of(AggregateCompilation.simple(outputType, new GpuCountAll(outputType, dType)));
                     }
                     return getSingleColumnReference(arguments, sourceLayout)
                             .filter(column -> isConvertible(column.type()))
-                            .map(column -> AggregateCompilation.simple(outputType, new GpuCountNonNull(column.channel(), outputType, dType)));
+                            .map(column -> {
+                                if (maskChannel.isPresent()) {
+                                    return new AggregateCompilation(
+                                            outputType,
+                                            ImmutableList.of(maskExpression(maskChannel.getAsInt(), column.channel())),
+                                            ImmutableList.of(channel -> new GpuCountNonNull(channel, outputType, dType)),
+                                            Optional.empty());
+                                }
+                                return AggregateCompilation.simple(outputType, new GpuCountNonNull(column.channel(), outputType, dType));
+                            });
                 });
     }
 
-    private static Optional<AggregateCompilation> compileSum(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Step step, Type outputType, Type finalStepOutputType)
+    private static Optional<AggregateCompilation> compileSum(
+            List<Expression> arguments,
+            Map<Symbol, Integer> sourceLayout,
+            Step step,
+            Type outputType,
+            Type finalStepOutputType,
+            OptionalInt maskChannel)
     {
         Optional<ColumnReference> column = getSingleColumnReference(arguments, sourceLayout);
         if (column.isEmpty()) {
@@ -265,27 +295,45 @@ public final class GpuAggregationCompiler
         return switch (argumentType) {
             // For bigint, double and real, argument type == intermediate type == return type, so all 4 Steps share the same shape
             // cuDF SUM yields the correct total whether the rows are raw values (PARTIAL/SINGLE) or already-summed partials (INTERMEDIATE/FINAL).
-            case BigintType _, DoubleType _, RealType _ ->
-                    toDType(argumentType).map(dType -> AggregateCompilation.simple(outputType, new GpuSum(column.get().channel(), outputType, dType)));
-            case DecimalType _ ->
+            case BigintType _, DoubleType _, RealType _ -> toDType(argumentType).map(dType -> {
+                if (maskChannel.isPresent()) {
+                    return new AggregateCompilation(
+                            outputType,
+                            ImmutableList.of(maskExpression(maskChannel.getAsInt(), column.get().channel())),
+                            ImmutableList.of(channel -> new GpuSum(channel, outputType, dType)),
+                            Optional.empty());
+                }
+                return AggregateCompilation.simple(outputType, new GpuSum(column.get().channel(), outputType, dType));
+            });
+            case DecimalType _ -> {
+                // Decimal sum uses pre-projections for chunk extraction; composing with mask would require two-stage pre-projections which is not supported yet.
+                if (maskChannel.isPresent()) {
+                    yield Optional.empty();
+                }
                 // sum(decimal(p,s)) → decimal(38,s) with a VARBINARY-serialized intermediate.
                 // Decimal-typed argument means PARTIAL (decimal → VARBINARY) or SINGLE (decimal → decimal).
-                    switch (step) {
-                        case PARTIAL -> compileSumDecimalPartial(column.get(), outputType, (DecimalType) finalStepOutputType);
-                        case SINGLE -> Optional.empty(); // TODO: chunked sum + final reduce
-                        case FINAL, INTERMEDIATE -> throw new IllegalStateException(
-                                "decimal argument unexpected at sum(decimal) step " + step);
-                    };
-            default ->
+                yield switch (step) {
+                    case PARTIAL -> compileSumDecimalPartial(column.get(), outputType, (DecimalType) finalStepOutputType);
+                    case SINGLE -> Optional.empty(); // TODO: chunked sum + final reduce
+                    case FINAL, INTERMEDIATE -> throw new IllegalStateException(
+                            "decimal argument unexpected at sum(decimal) step " + step);
+                };
+            }
+            default -> {
+                // Decimal FINAL/INTERMEDIATE uses chunk extraction pre-projections; composing with mask would require two-stage pre-projections which is not supported yet.
+                if (maskChannel.isPresent()) {
+                    yield Optional.empty();
+                }
                 // FINAL / INTERMEDIATE of sum(decimal) read the VARBINARY intermediate state, not
                 // the original decimal argument. Recognize by the function return type.
-                    (column.get().type().equals(VARBINARY) && finalStepOutputType instanceof DecimalType decimalReturn)
-                            ? switch (step) {
-                                case FINAL -> compileSumDecimalFinal(column.get(), outputType, decimalReturn);
-                                case INTERMEDIATE -> Optional.empty(); // TODO: deserialize, sum, re-serialize
-                                case PARTIAL, SINGLE -> Optional.empty();
-                            }
-                            : Optional.empty();
+                yield (column.get().type().equals(VARBINARY) && finalStepOutputType instanceof DecimalType decimalReturn)
+                        ? switch (step) {
+                    case FINAL -> compileSumDecimalFinal(column.get(), outputType, decimalReturn);
+                    case INTERMEDIATE -> Optional.empty(); // TODO: deserialize, sum, re-serialize
+                    case PARTIAL, SINGLE -> Optional.empty();
+                }
+                        : Optional.empty();
+            }
         };
     }
 
@@ -311,9 +359,14 @@ public final class GpuAggregationCompiler
         return Optional.of(AggregateCompilation.decimalSumFinal(column.channel(), decimal128Type, finalStepOutputType));
     }
 
-    private static Optional<AggregateCompilation> compileAvg(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Step step, Type outputType)
+    private static Optional<AggregateCompilation> compileAvg(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Step step, Type outputType, OptionalInt maskChannel)
     {
         if (step != Step.PARTIAL) {
+            return Optional.empty();
+        }
+
+        // avg(decimal) PARTIAL uses pre-projections; composing with mask would require two-stage pre-projections which is not supported yet.
+        if (maskChannel.isPresent()) {
             return Optional.empty();
         }
 
@@ -358,12 +411,26 @@ public final class GpuAggregationCompiler
                         GpuScore.POTENTIAL)))));
     }
 
-    private static Optional<AggregateCompilation> compileMinMax(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type returnType, MinMaxFactory factory)
+    private static Optional<AggregateCompilation> compileMinMax(
+            List<Expression> arguments,
+            Map<Symbol, Integer> sourceLayout,
+            Type returnType,
+            MinMaxFactory factory,
+            OptionalInt maskChannel)
     {
         return getSingleColumnReference(arguments, sourceLayout)
                 .flatMap(column -> toDType(returnType)
                         .filter(dType -> !dType.isNestedType())
-                        .map(dType -> AggregateCompilation.simple(returnType, factory.create(column.channel(), returnType, dType))));
+                        .map(dType -> {
+                            if (maskChannel.isPresent()) {
+                                return new AggregateCompilation(
+                                        returnType,
+                                        ImmutableList.of(maskExpression(maskChannel.getAsInt(), column.channel())),
+                                        ImmutableList.of(channel -> factory.create(channel, returnType, dType)),
+                                        Optional.empty());
+                            }
+                            return AggregateCompilation.simple(returnType, factory.create(column.channel(), returnType, dType));
+                        }));
     }
 
     private static Optional<ColumnReference> getSingleColumnReference(List<Expression> arguments, Map<Symbol, Integer> sourceLayout)
@@ -379,6 +446,20 @@ public final class GpuAggregationCompiler
         int channel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
 
         return Optional.of(new ColumnReference(channel, symbol.type()));
+    }
+
+    private static CompiledExpression maskExpression(int maskChannel, int valueChannel)
+    {
+        return new CompiledExpression(
+                (_, inputColumns) -> {
+                    ColumnVector mask = inputColumns.get(0);
+                    ColumnVector value = inputColumns.get(1);
+                    try (Scalar nullScalar = Scalar.fromNull(value.getType())) {
+                        return mask.ifElse(value, nullScalar);
+                    }
+                },
+                new InputChannels(ImmutableList.of(maskChannel, valueChannel)),
+                GpuScore.POTENTIAL);
     }
 
     private record ColumnReference(int channel, Type type)

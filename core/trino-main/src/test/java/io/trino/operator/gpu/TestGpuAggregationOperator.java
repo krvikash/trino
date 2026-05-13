@@ -16,9 +16,11 @@ package io.trino.operator.gpu;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.AggregationMetrics;
+import io.trino.operator.aggregation.AggregationMask;
 import io.trino.operator.aggregation.AggregationTestUtils;
 import io.trino.operator.aggregation.Aggregator;
 import io.trino.operator.aggregation.AggregatorFactory;
@@ -47,12 +49,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static ai.rapids.cudf.DType.INT64;
@@ -84,7 +88,6 @@ final class TestGpuAggregationOperator
 {
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
     private static final int GROUP_KEY_CHANNEL = 0;
-    private static final int GROUP_VALUE_CHANNEL = 1;
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -372,6 +375,72 @@ final class TestGpuAggregationOperator
         assertGroupByMatchesCpu(input, "avg", List.of(type), PARTIAL);
     }
 
+    @Test
+    void testMaskedCountAllGlobal()
+    {
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 0, 100);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "count", List.of());
+    }
+
+    @Test
+    void testMaskedCountNonNullGlobal()
+    {
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 0, 100);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "count", List.of(BIGINT));
+    }
+
+    @Test
+    void testMaskedSumBigintGlobal()
+    {
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 1, 10);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "sum", List.of(BIGINT));
+    }
+
+    @Test
+    void testMaskedSumDoubleGlobal()
+    {
+        Block valueBlock = createBlock(DOUBLE, 100, RANDOM_NULLS);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "sum", List.of(DOUBLE));
+    }
+
+    @Test
+    void testMaskedMinGlobal()
+    {
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, -1000, 1000);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "min", List.of(BIGINT));
+    }
+
+    @Test
+    void testMaskedMaxGlobal()
+    {
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, -1000, 1000);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "max", List.of(BIGINT));
+    }
+
+    @Test
+    void testGroupByMaskedSum()
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 1, 10);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGroupByMatchesCpu(new Page(groupByBlock, valueBlock, maskBlock), "sum", List.of(BIGINT));
+    }
+
+    @Test
+    void testGroupByMaskedCountAll()
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 0, 100);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGroupByMatchesCpu(new Page(groupByBlock, valueBlock, maskBlock), "count", List.of());
+    }
+
     static Stream<Type> allConvertibleTypes()
     {
         return Stream.of(BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE, VARCHAR);
@@ -482,7 +551,90 @@ final class TestGpuAggregationOperator
         }
     }
 
+    private void assertMaskedGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
+    {
+        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, SINGLE, true);
+        ImmutableList.Builder<Type> inputTypesBuilder = ImmutableList.builder();
+        if (argumentTypes.isEmpty()) {
+            inputTypesBuilder.add(BIGINT);
+        }
+        else {
+            inputTypesBuilder.addAll(argumentTypes);
+        }
+        inputTypesBuilder.add(BOOLEAN);
+        List<Type> inputTypes = inputTypesBuilder.build();
+
+        List<Page> results = runGpuPipeline(inputPage, inputTypes, compiled);
+        checkState(results.size() == 1, "Expected single result page");
+        Page resultPage = results.getFirst();
+        checkState(resultPage.getPositionCount() == 1, "Expected single row");
+
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
+        Object gpuResult = getOnlyValue(resolvedFunction.signature().getReturnType(), resultPage.getBlock(0));
+
+        Page filteredPage = filterByMask(inputPage);
+        assertAggregation(FUNCTION_RESOLUTION, functionName, fromTypes(argumentTypes), gpuResult, filteredPage);
+    }
+
+    private void assertMaskedGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
+    {
+        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, SINGLE, true);
+        ImmutableList.Builder<Type> inputTypesBuilder = ImmutableList.<Type>builder()
+                .add(BIGINT);
+        if (argumentTypes.isEmpty()) {
+            inputTypesBuilder.add(BIGINT);
+        }
+        else {
+            inputTypesBuilder.addAll(argumentTypes);
+        }
+        inputTypesBuilder.add(BOOLEAN);
+        List<Type> inputTypes = inputTypesBuilder.build();
+
+        List<Page> results = runGpuPipeline(inputPage, inputTypes, compiled);
+
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
+        Type outputType = resolvedFunction.signature().getReturnType();
+
+        Map<Object, Object> gpuResult = new HashMap<>();
+        for (Page page : results) {
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                Object groupKey = BIGINT.getObjectValue(page.getBlock(0), position);
+                Object groupValue = outputType.getObjectValue(page.getBlock(1), position);
+                Object previous = gpuResult.put(groupKey, groupValue);
+                assertThat(previous).as("Duplicate group key in GPU result: %s", groupKey).isNull();
+            }
+        }
+
+        int perGroupMaskChannel = inputPage.getChannelCount() - 2;
+        Map<Object, Object> cpuResult = executeCpuGroupByAggregation(inputPage, BIGINT,
+                page -> {
+                    TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes));
+                    int[] valueChannels = argumentTypes.isEmpty() ? new int[] {0} : IntStream.range(0, argumentTypes.size()).toArray();
+                    Aggregator aggregator = function.createAggregatorFactory(SINGLE, Ints.asList(valueChannels), OptionalInt.of(perGroupMaskChannel))
+                            .createAggregator(new AggregationMetrics());
+                    if (page.getPositionCount() > 0) {
+                        aggregator.processPage(page);
+                    }
+                    Block block = AggregationTestUtils.getFinalBlock(function.getFinalType(), aggregator);
+                    return getOnlyValue(function.getFinalType(), block);
+                });
+
+        assertThat(gpuResult.keySet()).isEqualTo(cpuResult.keySet());
+        for (Object groupKey : gpuResult.keySet()) {
+            Object gpuValue = gpuResult.get(groupKey);
+            Object cpuValue = cpuResult.get(groupKey);
+            assertThat(AggregationTestUtils.makeValidityAssertion(cpuValue).apply(gpuValue, cpuValue))
+                    .as("Group %s: expected %s but was %s", groupKey, cpuValue, gpuValue)
+                    .isTrue();
+        }
+    }
+
     private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step)
+    {
+        return compileAggregation(functionName, argumentTypes, grouped, step, false);
+    }
+
+    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step, boolean masked)
     {
         ImmutableList.Builder<Symbol> sourceSymbols = ImmutableList.builder();
         List<Symbol> groupingKeys = List.of();
@@ -503,6 +655,13 @@ final class TestGpuAggregationOperator
             sourceSymbols.add(new Symbol(BIGINT, "unused"));
         }
 
+        Optional<Symbol> maskSymbol = Optional.empty();
+        if (masked) {
+            Symbol mask = new Symbol(BOOLEAN, "mask");
+            sourceSymbols.add(mask);
+            maskSymbol = Optional.of(mask);
+        }
+
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
         Type outputType;
         if (step.isOutputPartial()) {
@@ -520,7 +679,7 @@ final class TestGpuAggregationOperator
                 false,
                 Optional.empty(),
                 Optional.empty(),
-                Optional.empty());
+                maskSymbol);
 
         ValuesNode source = new ValuesNode(new PlanNodeId("source"), sourceSymbols.build());
 
@@ -566,7 +725,7 @@ final class TestGpuAggregationOperator
             String cpuFunctionName,
             List<Type> cpuParamTypes)
     {
-        return executeCpuGroupByAggregation(inputPage, groupByType, cpuParamTypes,
+        return executeCpuGroupByAggregation(inputPage, groupByType,
                 page -> {
                     TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(cpuFunctionName, fromTypes(cpuParamTypes));
                     return AggregationTestUtils.aggregation(function, page);
@@ -576,56 +735,34 @@ final class TestGpuAggregationOperator
     private Map<Object, Object> executeCpuGroupByAggregation(
             Page inputPage,
             Type groupByType,
-            List<Type> cpuParamTypes,
             Function<Page, Object> perGroupAggregation)
     {
         Block groupBlock = inputPage.getBlock(GROUP_KEY_CHANNEL);
+        int dataChannelCount = inputPage.getChannelCount() - 1;
 
-        if (cpuParamTypes.isEmpty()) {
-            // COUNT(*) case - just count rows per group
-            Map<Object, Integer> groupCounts = new HashMap<>();
-            for (int i = 0; i < inputPage.getPositionCount(); i++) {
-                Object groupKey = groupByType.getObjectValue(groupBlock, i);
-                groupCounts.merge(groupKey, 1, Integer::sum);
-            }
-            Map<Object, Object> result = new HashMap<>();
-            for (Map.Entry<Object, Integer> entry : groupCounts.entrySet()) {
-                Page groupPage = createBigintNullsPage(entry.getValue());
-                result.put(entry.getKey(), perGroupAggregation.apply(groupPage));
-            }
-            return result;
-        }
-
-        Block valueBlock = inputPage.getBlock(GROUP_VALUE_CHANNEL);
-        Type valueType = cpuParamTypes.getFirst();
-        Map<Object, BlockBuilder> groupBuilders = new HashMap<>();
-
+        Map<Object, List<Integer>> groupPositions = new HashMap<>();
         for (int i = 0; i < inputPage.getPositionCount(); i++) {
             Object groupKey = groupByType.getObjectValue(groupBlock, i);
-            BlockBuilder builder = groupBuilders.computeIfAbsent(groupKey, _ -> valueType.createBlockBuilder(null, 16));
-            if (valueBlock.isNull(i)) {
-                builder.appendNull();
-            }
-            else {
-                builder.append(valueBlock.getUnderlyingValueBlock(), valueBlock.getUnderlyingValuePosition(i));
-            }
+            groupPositions.computeIfAbsent(groupKey, _ -> new ArrayList<>()).add(i);
         }
 
         Map<Object, Object> result = new HashMap<>();
-        for (Map.Entry<Object, BlockBuilder> entry : groupBuilders.entrySet()) {
-            Page groupPage = new Page(entry.getValue().build());
+        for (Map.Entry<Object, List<Integer>> entry : groupPositions.entrySet()) {
+            int[] positions = entry.getValue().stream().mapToInt(Integer::intValue).toArray();
+            Page groupPage = inputPage.getColumns(IntStream.rangeClosed(1, dataChannelCount).toArray())
+                    .getPositions(positions, 0, positions.length);
             result.put(entry.getKey(), perGroupAggregation.apply(groupPage));
         }
         return result;
     }
 
-    private static Page createBigintNullsPage(int positionCount)
+    private static Page filterByMask(Page inputPage)
     {
-        BlockBuilder builder = BIGINT.createBlockBuilder(null, positionCount);
-        for (int i = 0; i < positionCount; i++) {
-            builder.appendNull();
-        }
-        return new Page(builder.build());
+        int maskChannel = inputPage.getChannelCount() - 1;
+        Block maskBlock = inputPage.getBlock(maskChannel);
+        AggregationMask mask = AggregationMask.createSelectAll(inputPage.getPositionCount());
+        mask.applyMaskBlock(maskBlock);
+        return mask.filterPage(inputPage.getColumns(IntStream.range(0, maskChannel).toArray()));
     }
 
     private Object executeGpuGlobalMergeAggregation(
@@ -700,5 +837,19 @@ final class TestGpuAggregationOperator
     private static Object runCpuFinal(String functionName, Type paramType, Block intermediate, int position)
     {
         return runCpuFinal(functionName, paramType, intermediate.getRegion(position, 1));
+    }
+
+    private static Block createMaskBlock(int positionCount)
+    {
+        BlockBuilder builder = BOOLEAN.createBlockBuilder(null, positionCount);
+        for (int i = 0; i < positionCount; i++) {
+            if (i % 7 == 0) {
+                builder.appendNull();
+            }
+            else {
+                BOOLEAN.writeBoolean(builder, i % 3 != 0);
+            }
+        }
+        return builder.build();
     }
 }
