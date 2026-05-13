@@ -67,6 +67,7 @@ import io.trino.plugin.jdbc.expression.RewriteAnd;
 import io.trino.plugin.jdbc.expression.RewriteExactNumericConstant;
 import io.trino.plugin.jdbc.expression.RewriteOr;
 import io.trino.plugin.jdbc.expression.RewriteVarcharConstant;
+import io.trino.plugin.jdbc.expression.RewriteVariable;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.AggregateFunction;
@@ -237,6 +238,7 @@ public class SnowflakeClient
     private final boolean statisticsEnabled;
     private final SnowflakeConnectorFlavour connectorFlavour;
     private final boolean databasePrefixForSchemaEnabled;
+    private final boolean collationCorrectionEnabled;
 
     public SnowflakeClient(
             BaseJdbcConfig config,
@@ -254,9 +256,12 @@ public class SnowflakeClient
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
         this.connectorFlavour = connectorFlavour;
         this.databasePrefixForSchemaEnabled = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getDatabasePrefixForSchemaEnabled();
+        this.collationCorrectionEnabled = snowflakeConfig.isCollationCorrectionEnabled();
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 // Same as addStandardRules but rewrites variables in a custom way.
-                .add(new RewriteSnowflakeVariable(this::quoted))
+                .add(collationCorrectionEnabled ?
+                        new RewriteSnowflakeVariable(this::quoted) :
+                        new RewriteVariable(this::quoted))
                 .add(new RewriteVarcharConstant())
                 .add(new RewriteExactNumericConstant())
                 .add(new RewriteAnd())
@@ -538,7 +543,7 @@ public class SnowflakeClient
                     String ordering = sortItem.sortOrder().isAscending() ? "ASC" : "DESC";
                     String nullsHandling = sortItem.sortOrder().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST";
                     String collation = "";
-                    if (isCollatable(sortItem.column())) {
+                    if (collationCorrectionEnabled && isCollatable(sortItem.column())) {
                         collation = "COLLATE 'utf8'";
                     }
                     return format("%s %s %s %s", quoted(sortItem.column().getColumnName()), collation, ordering, nullsHandling);

@@ -30,6 +30,7 @@ public class TestSnowflakeConfig
                 .setRole(null)
                 .setDatabasePrefixForSchemaEnabled(false)
                 .setExperimentalPushdownEnabled(false)
+                .setCollationCorrectionEnabled(true)
                 .setProxyEnabled(false));
     }
 
@@ -42,6 +43,7 @@ public class TestSnowflakeConfig
                 .put("snowflake.role", "role")
                 .put("snowflake.database-prefix-for-schema.enabled", "true")
                 .put("snowflake.experimental-pushdown.enabled", "true")
+                .put("snowflake.collation-correction.enabled", "false")
                 .put("snowflake.proxy.enabled", "true")
                 .buildOrThrow();
 
@@ -51,6 +53,7 @@ public class TestSnowflakeConfig
                 .setRole("role")
                 .setDatabasePrefixForSchemaEnabled(true)
                 .setExperimentalPushdownEnabled(true)
+                .setCollationCorrectionEnabled(false)
                 .setProxyEnabled(true);
 
         assertFullMapping(properties, expected);

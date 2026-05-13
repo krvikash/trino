@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import jakarta.annotation.PostConstruct;
 
 import java.util.Optional;
@@ -26,6 +27,8 @@ public class SnowflakeConfig
     // disabled by default for some time
     private boolean experimentalPushdownEnabled;
     private boolean proxyEnabled;
+    // ENG-15247 if no issues upon release, remove this hidden option.
+    private boolean collationCorrectionEnabled = true;
 
     public Optional<String> getWarehouse()
     {
@@ -89,6 +92,20 @@ public class SnowflakeConfig
     public SnowflakeConfig setExperimentalPushdownEnabled(boolean experimentalPushdownEnabled)
     {
         this.experimentalPushdownEnabled = experimentalPushdownEnabled;
+        return this;
+    }
+
+    public boolean isCollationCorrectionEnabled()
+    {
+        return collationCorrectionEnabled;
+    }
+
+    @Config("snowflake.collation-correction.enabled")
+    @ConfigDescription("Enable pushing down utf8 collation on all varchar columns")
+    @ConfigHidden
+    public SnowflakeConfig setCollationCorrectionEnabled(boolean collationCorrectionEnabled)
+    {
+        this.collationCorrectionEnabled = collationCorrectionEnabled;
         return this;
     }
 
