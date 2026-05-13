@@ -40,6 +40,7 @@ public class KdbConnectorFactory
         requireNonNull(requiredConfig, "requiredConfig is null");
 
         Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
                 new JsonModule(),
                 new ConnectorContextModule(catalogName, context),
                 new KdbModule());
