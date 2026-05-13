@@ -26,6 +26,7 @@ import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
 import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
 import io.trino.operator.gpu.expression.GpuExtractDecimalStateChunk;
 import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
+import io.trino.operator.gpu.expression.GpuPackAvgDecimalState;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.type.BigintType;
@@ -235,6 +236,7 @@ public final class GpuAggregationCompiler
             // For min and max, all steps produce the same type
             case "min", "bool_and" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new);
             case "max", "bool_or" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new);
+            case "avg" -> compileAvg(arguments, sourceLayout, step, outputType);
             default -> Optional.empty();
         };
     }
@@ -307,6 +309,53 @@ public final class GpuAggregationCompiler
                 "sum(decimal) FINAL output type must equal function return type, got %s vs %s", outputType, finalStepOutputType);
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -finalStepOutputType.getScale());
         return Optional.of(AggregateCompilation.decimalSumFinal(column.channel(), decimal128Type, finalStepOutputType));
+    }
+
+    private static Optional<AggregateCompilation> compileAvg(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Step step, Type outputType)
+    {
+        if (step != Step.PARTIAL) {
+            return Optional.empty();
+        }
+
+        Optional<ColumnReference> column = getSingleColumnReference(arguments, sourceLayout);
+        if (column.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Type argumentType = column.get().type();
+        if (!(argumentType instanceof DecimalType decimalType) || !decimalType.isShort()) {
+            return Optional.empty();
+        }
+
+        verify(outputType.equals(VARBINARY), "avg(decimal) PARTIAL output symbol must be VARBINARY, got %s", outputType);
+        return compileAvgShortDecimalPartial(column.get(), decimalType);
+    }
+
+    private static Optional<AggregateCompilation> compileAvgShortDecimalPartial(ColumnReference column, DecimalType inputDecimalType)
+    {
+        int negatedScale = -inputDecimalType.getScale();
+        DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, negatedScale);
+        CompiledExpression cast = new CompiledExpression(
+                (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
+                new InputChannels(ImmutableList.of(column.channel())),
+                GpuScore.POTENTIAL);
+        CompiledExpression passthrough = new CompiledExpression(
+                (_, inputColumns) -> getOnlyElement(inputColumns).incRefCount(),
+                new InputChannels(ImmutableList.of(column.channel())),
+                GpuScore.POTENTIAL);
+
+        Type sumOutputType = decimalSumOutputType(inputDecimalType);
+
+        return Optional.of(new AggregateCompilation(
+                VARBINARY,
+                ImmutableList.of(cast, passthrough),
+                ImmutableList.of(
+                        channel -> new GpuSum(channel, sumOutputType, decimal128Type),
+                        channel -> new GpuCountNonNull(channel, BigintType.BIGINT, DType.INT64)),
+                Optional.of(new PostProjection(channels -> new CompiledExpression(
+                        new GpuPackAvgDecimalState(),
+                        new InputChannels(ImmutableList.of(channels[0], channels[1])),
+                        GpuScore.POTENTIAL)))));
     }
 
     private static Optional<AggregateCompilation> compileMinMax(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Type returnType, MinMaxFactory factory)

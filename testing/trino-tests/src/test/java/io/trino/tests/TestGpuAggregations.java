@@ -159,6 +159,25 @@ public class TestGpuAggregations
     }
 
     @Test
+    public void testGpuAvgShortDecimal()
+    {
+        assertThat(query(
+                """
+                SELECT avg(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(12, 2))) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, avg(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS decimal(12, 2))) AS a, i % 10 AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
     public void testAvgDecompositionRemovesRedundantCast()
     {
         // RewriteAvgAsSumOverCount always introduces CAST(input AS double) before sum/count.

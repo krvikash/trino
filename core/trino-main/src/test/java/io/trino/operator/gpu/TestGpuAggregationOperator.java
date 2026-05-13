@@ -14,12 +14,19 @@
 package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.operator.AggregationMetrics;
 import io.trino.operator.aggregation.AggregationTestUtils;
+import io.trino.operator.aggregation.Aggregator;
+import io.trino.operator.aggregation.AggregatorFactory;
 import io.trino.operator.aggregation.TestingAggregationFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregateFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregation;
+import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
+import io.trino.operator.gpu.aggregation.GpuAggregationCompiler.CompileResult;
 import io.trino.operator.gpu.aggregation.GpuCountAll;
 import io.trino.operator.gpu.aggregation.GpuCountNonNull;
 import io.trino.operator.gpu.aggregation.GpuMax;
@@ -28,8 +35,14 @@ import io.trino.operator.gpu.aggregation.GpuSum;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import io.trino.sql.planner.Symbol;
+import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.AggregationNode.Aggregation;
+import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,6 +53,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static ai.rapids.cudf.DType.BOOL8;
@@ -54,14 +69,19 @@ import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
+import static io.trino.sql.planner.plan.AggregationNode.Step.FINAL;
+import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
+import static io.trino.sql.planner.plan.AggregationNode.singleGroupingSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestGpuAggregationOperator
@@ -495,6 +515,29 @@ final class TestGpuAggregationOperator
                 List.of(BOOLEAN));
     }
 
+    @ParameterizedTest
+    @MethodSource("shortDecimalTypes")
+    void testAvgDecimalPartialGlobal(DecimalType type)
+    {
+        Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
+        Page input = new Page(valueBlock);
+
+        Object gpuResult = computeGpuAvgGlobal(input, type);
+        assertAggregation(FUNCTION_RESOLUTION, "avg", fromTypes(type), gpuResult, input);
+    }
+
+    @ParameterizedTest
+    @MethodSource("shortDecimalTypes")
+    void testAvgDecimalPartialGroupBy(DecimalType type)
+    {
+        Block groupKeys = createGroupByBlock(100, 5);
+        Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
+        Page input = new Page(groupKeys, valueBlock);
+
+        Map<Object, Object> gpuResult = computeGpuAvgGroupBy(input, type);
+        assertGroupByMatchesCpu(input, BIGINT, gpuResult, "avg", List.of(type));
+    }
+
     static Stream<Type> allConvertibleTypes()
     {
         return Stream.of(BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE, VARCHAR);
@@ -503,6 +546,14 @@ final class TestGpuAggregationOperator
     static Stream<Type> sumSupportedTypes()
     {
         return Stream.of(BIGINT, DOUBLE);
+    }
+
+    static Stream<DecimalType> shortDecimalTypes()
+    {
+        return Stream.of(
+                createDecimalType(12, 2),
+                createDecimalType(6, 0),
+                createDecimalType(18, 6));
     }
 
     private static Type sumOutputType(Type inputType)
@@ -556,6 +607,16 @@ final class TestGpuAggregationOperator
             List<Type> cpuParamTypes)
     {
         Map<Object, Object> gpuResult = executeGpuGroupByAggregation(inputPage, groupByKeyType, groupByValueType, gpuAggregate);
+        assertGroupByMatchesCpu(inputPage, groupByKeyType, gpuResult, cpuFunctionName, cpuParamTypes);
+    }
+
+    private void assertGroupByMatchesCpu(
+            Page inputPage,
+            Type groupByKeyType,
+            Map<Object, Object> gpuResult,
+            String cpuFunctionName,
+            List<Type> cpuParamTypes)
+    {
         Map<Object, Object> cpuResult = executeCpuGroupByAggregation(inputPage, groupByKeyType, cpuFunctionName, cpuParamTypes);
 
         assertThat(gpuResult.keySet()).isEqualTo(cpuResult.keySet());
@@ -574,6 +635,19 @@ final class TestGpuAggregationOperator
             String cpuFunctionName,
             List<Type> cpuParamTypes)
     {
+        return executeCpuGroupByAggregation(inputPage, groupByType, cpuParamTypes,
+                page -> {
+                    TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(cpuFunctionName, fromTypes(cpuParamTypes));
+                    return AggregationTestUtils.aggregation(function, page);
+                });
+    }
+
+    private Map<Object, Object> executeCpuGroupByAggregation(
+            Page inputPage,
+            Type groupByType,
+            List<Type> cpuParamTypes,
+            Function<Page, Object> perGroupAggregation)
+    {
         Block groupBlock = inputPage.getBlock(GROUP_KEY_CHANNEL);
 
         if (cpuParamTypes.isEmpty()) {
@@ -586,7 +660,7 @@ final class TestGpuAggregationOperator
             Map<Object, Object> result = new HashMap<>();
             for (Map.Entry<Object, Integer> entry : groupCounts.entrySet()) {
                 Page groupPage = createBigintNullsPage(entry.getValue());
-                result.put(entry.getKey(), computeCpuAggregation(cpuFunctionName, cpuParamTypes, groupPage));
+                result.put(entry.getKey(), perGroupAggregation.apply(groupPage));
             }
             return result;
         }
@@ -609,15 +683,9 @@ final class TestGpuAggregationOperator
         Map<Object, Object> result = new HashMap<>();
         for (Map.Entry<Object, BlockBuilder> entry : groupBuilders.entrySet()) {
             Page groupPage = new Page(entry.getValue().build());
-            result.put(entry.getKey(), computeCpuAggregation(cpuFunctionName, cpuParamTypes, groupPage));
+            result.put(entry.getKey(), perGroupAggregation.apply(groupPage));
         }
         return result;
-    }
-
-    private static Object computeCpuAggregation(String functionName, List<Type> paramTypes, Page inputPage)
-    {
-        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(paramTypes));
-        return AggregationTestUtils.aggregation(function, inputPage);
     }
 
     private static Page createBigintNullsPage(int positionCount)
@@ -726,5 +794,96 @@ final class TestGpuAggregationOperator
                     GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw);
                     return factory.create(copyToDevice);
                 });
+    }
+
+    private Object computeGpuAvgGlobal(Page input, DecimalType type)
+    {
+        CompileResult compiled = compileAvgPartial(type, false);
+        List<Page> output = executeGpuOperation(
+                List.of(input),
+                List.of(type),
+                compiled.finalOutputTypes(),
+                copyToDevice -> chainStages(compiled.stages(), copyToDevice));
+        checkState(output.size() == 1, "Expected single result page");
+        checkState(output.getFirst().getPositionCount() == 1, "Expected single row");
+        Block intermediate = output.getFirst().getBlock(0);
+        return runCpuFinal("avg", type, intermediate);
+    }
+
+    private Map<Object, Object> computeGpuAvgGroupBy(Page input, DecimalType type)
+    {
+        CompileResult compiled = compileAvgPartial(type, true);
+        List<Page> output = executeGpuOperation(
+                List.of(input),
+                List.of(BIGINT, type),
+                compiled.finalOutputTypes(),
+                copyToDevice -> chainStages(compiled.stages(), copyToDevice));
+        checkState(output.size() == 1, "Expected single result page");
+        Page intermediate = output.getFirst();
+
+        return executeCpuGroupByAggregation(intermediate, BIGINT, List.of(VARBINARY),
+                page -> runCpuFinal("avg", type, page.getBlock(0)));
+    }
+
+    private static CompileResult compileAvgPartial(DecimalType type, boolean groupBy)
+    {
+        Symbol valueSymbol = new Symbol(type, "value");
+        ImmutableList.Builder<Symbol> sourceSymbols = ImmutableList.builder();
+        ImmutableMap.Builder<Symbol, Integer> sourceLayout = ImmutableMap.builder();
+        List<Symbol> groupingKeys;
+
+        if (groupBy) {
+            Symbol keySymbol = new Symbol(BIGINT, "key");
+            sourceSymbols.add(keySymbol);
+            sourceLayout.put(keySymbol, 0);
+            sourceLayout.put(valueSymbol, 1);
+            groupingKeys = List.of(keySymbol);
+        }
+        else {
+            sourceLayout.put(valueSymbol, 0);
+            groupingKeys = List.of();
+        }
+        sourceSymbols.add(valueSymbol);
+
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction("avg", fromTypes(type));
+        Symbol outputSymbol = new Symbol(VARBINARY, "avg_partial");
+
+        Aggregation aggregation = new Aggregation(
+                resolvedFunction,
+                List.of(valueSymbol.toSymbolReference()),
+                false,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+
+        AggregationNode node = new AggregationNode(
+                new PlanNodeId("test"),
+                new ValuesNode(new PlanNodeId("source"), sourceSymbols.build()),
+                Map.of(outputSymbol, aggregation),
+                singleGroupingSet(groupingKeys),
+                List.of(),
+                PARTIAL,
+                Optional.empty());
+
+        return GpuAggregationCompiler.compile(node, sourceLayout.buildOrThrow()).orElseThrow();
+    }
+
+    private static GpuOperation chainStages(List<GpuOperation.Factory> stages, GpuOperation source)
+    {
+        GpuOperation current = source;
+        for (GpuOperation.Factory stage : stages) {
+            current = stage.create(current);
+        }
+        return current;
+    }
+
+    private static Object runCpuFinal(String functionName, Type paramType, Block intermediate)
+    {
+        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(paramType));
+        AggregatorFactory finalFactory = function.createAggregatorFactory(FINAL, List.of(0), OptionalInt.empty());
+        Aggregator aggregator = finalFactory.createAggregator(new AggregationMetrics());
+        aggregator.processPage(new Page(intermediate));
+        Block finalBlock = AggregationTestUtils.getFinalBlock(function.getFinalType(), aggregator);
+        return getOnlyValue(function.getFinalType(), finalBlock);
     }
 }
