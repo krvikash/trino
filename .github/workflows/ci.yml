@@ -946,105 +946,157 @@ jobs:
         with:
           github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # -----------------------------------------------------------
-  # Before synapse tests, start new SQL pool
+  # Synapse tests - start a SQL pool if needed
+  # nightly tests run on any scheduled run or labeled PR, while
+  # weekly and PT only run on labeled PRs or the specific weekly schedule
   # -----------------------------------------------------------
-  synapse-start-pool:
-    name: synapse-start-pool
+  synapse-prepare:
+    name: synapse-prepare
     permissions:
       id-token: write
       contents: read
-    runs-on: [ self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest ]
-    if: "github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))"
+    runs-on: [ self-hosted, gha-fleet-ec2-2cpu-1gb-arm64, latest ]
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))
     outputs:
-      sql-pool-name: ${{ steps.start-pool.outputs.SYNAPSE_SQL_POOL }}
+      matrix: ${{ steps.build-synapse-matrix.outputs.MATRIX }}
+      matrix-with-pt: ${{ steps.build-synapse-matrix.outputs.PT_MATRIX }}
+      sql-pool-name: ${{ steps.generate-pool-name.outputs.SYNAPSE_SQL_POOL }}
     steps:
       - uses: actions/checkout@v6
+      - name: Build matrix
+        id: build-synapse-matrix
+        run: |
+          matrix=$(jq -nc '{"include": [{"synapse-test": "nightly"}]}')
+          pt_matrix="$matrix"
+          if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6' }}" == "true" ]] ||
+             [[ "${{ github.event_name }}" == 'pull_request' ]]; then
+            matrix=$(echo "$matrix" | jq -c '.include += [
+              { "synapse-test": "weekly", "profile": "fte-tests" },
+              { "synapse-test": "weekly", "profile": "long-running-tests" },
+              { "synapse-test": "weekly", "profile": "type-mapping-tests" }
+            ]')
+            pt_matrix=$(echo "$matrix" | jq -c '.include += [{"synapse-test": "pt"}]')
+          fi
+          echo "MATRIX=$matrix" >> $GITHUB_OUTPUT
+          echo "PT_MATRIX=$pt_matrix" >> $GITHUB_OUTPUT
       - name: Azure Login
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
         with:
           client-id: ${{ secrets.SYNAPSE_CLIENT_ID }}
           tenant-id: ${{ secrets.SYNAPSE_TENANT_ID }}
           subscription-id: ${{ secrets.SYNAPSE_SUBSCRIPTION_ID }}
+      # Output pool name before starting the pool so the pool can be stopped even if this job is canceled before the pool is fully started
+      - name: Generate Pool Name
+        id: generate-pool-name
+        run: |
+          echo "SYNAPSE_SQL_POOL=POOL_$(openssl rand -hex 4)" | tee -a "$GITHUB_OUTPUT"
       - name: Start Pool
         id: start-pool
         uses: azure/cli@9eb25b8360668fb0ecbafa808d40e2197b2f5f52 # v3.0.0
         env:
           SYNAPSE_RESOURCE_GROUP: ${{ vars.SYNAPSE_RESOURCE_GROUP }}
           SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE }}
+          SYNAPSE_SQL_POOL: ${{ steps.generate-pool-name.outputs.SYNAPSE_SQL_POOL }}
         with:
           inlineScript: |
-            SYNAPSE_SQL_POOL=$("$GITHUB_WORKSPACE"/.github/bin/synapse/start-sql-pool.sh)
-            echo "SYNAPSE_SQL_POOL=$SYNAPSE_SQL_POOL" >> "$GITHUB_OUTPUT"
-
-  # -----------------------------------------------------------
-  # Weekly run all synapse tests, labeled PRs to limit CI costs
-  # -----------------------------------------------------------
-  synapse-weekly-tests:
-    name: synapse-weekly-tests
-    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ]
+            "$GITHUB_WORKSPACE"/.github/bin/synapse/start-sql-pool.sh
+  synapse-tests:
+    name: synapse-tests (${{ matrix.synapse-test }}${{ matrix.profile != '' && format(', {0}', matrix.profile) || '' }})
+    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-arm64, latest ]
     strategy:
       fail-fast: false
-      matrix:
-        profile: [ fte-tests, long-running-tests, type-mapping-tests ]
-        modules: [ plugin/starburst-synapse ]
+      matrix: ${{ fromJson(needs.build-pt.result == 'success' && needs.synapse-prepare.outputs.matrix-with-pt || needs.synapse-prepare.outputs.matrix) }}
     timeout-minutes: 90
-    needs: [ synapse-start-pool ]
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))"
+    needs: [ build-pt, synapse-prepare ]
+    # Skip build-pt success check so nightly and weekly can run regardless
+    # Matrix excludes PT cell if build-pt was skipped
+    if: always() && needs.synapse-prepare.result == 'success'
+    env:
+      REPORT_TEST_SESSION_NAME: ${{ matrix.synapse-test == 'pt' && 'pt' || 'modules' }}
+      REPORT_SERVICE_NAME: ${{ matrix.synapse-test == 'pt' && 'suite-synapse-default' || 'starburst-synapse' }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
+      - uses: ./.github/actions/setup
+      - name: Set up AWS code-artifacts and ECR logins
         uses: ./.github/actions/starburst-setup
         with:
           aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
+          login-docker: ${{ matrix.synapse-test == 'pt' }}
+      ### PRODUCT TEST STEPS
+      - name: Product tests artifact
+        uses: actions/download-artifact@v8
+        if: matrix.synapse-test == 'pt'
+        with:
+          name: product tests and server tarball
+      - name: Fix product tests artifact permissions
+        if: matrix.synapse-test == 'pt'
+        run: |
+          find . -type f -name \*-executable.jar -exec chmod 0777 {} \;
+      - name: Enable PT impact analysis
+        if: |
+          matrix.synapse-test == 'pt' &&
+          needs.build-pt.outputs.product-tests-changed == 'false' &&
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'tests:all') &&
+          !contains(github.event.pull_request.labels.*.name, 'tests:all-product')
+        run: echo "PTL_OPTS=--impacted-features impacted-features.log" >> $GITHUB_ENV
+      ### PLUGIN TEST STEPS
       - name: Maven install
+        if: matrix.synapse-test != 'pt'
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
-      - name: Run Synapse weekly tests
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl 'plugin/starburst-synapse'
+      ### ANY TEST STEPS
+      - name: Run Synapse tests
         id: tests
-        if: matrix.modules == 'plugin/starburst-synapse'  && (env.SYNAPSE_ENDPOINT != '' || env.SYNAPSE_USER != '' || env.SYNAPSE_PASSWORD != '')
         env:
           SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
           SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
           SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
-          SYNAPSE_SQL_POOL: ${{ needs.synapse-start-pool.outputs.sql-pool-name }}
+          SYNAPSE_DATABASE: ${{ needs.synapse-prepare.outputs.sql-pool-name }}
+        if: |
+          env.SYNAPSE_ENDPOINT != '' && env.SYNAPSE_USER != '' && env.SYNAPSE_PASSWORD != ''
         run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-            -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
-            -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
-            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
-            -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_SQL_POOL}"
+          if [[ "${{ matrix.synapse-test }}" == "pt" ]]; then
+            exec testing/trino-product-tests-launcher/target/trino-product-tests-launcher-*-executable.jar suite run \
+              --suite suite-synapse \
+              --config config-default \
+              ${PTL_OPTS:-} \
+              --bind=off --logs-dir logs/ --timeout 80m
+          else
+            export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+            $MAVEN test ${MAVEN_TEST} -pl 'plugin/starburst-synapse' ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
+              -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
+              -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
+              -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
+              -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_DATABASE}"
+          fi
       - name: Sanitize artifact name
         if: always()
         run: |
           # Generate a valid artifact name and make it available to next steps as
           # an environment variable ARTIFACT_NAME
           # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
+          name=$(echo -n "synapse-tests_${{ matrix.synapse-test }}${{ matrix.profile != '' && format('_{0}', matrix.profile) || '' }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
           echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
       - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
+        uses: ./.github/actions/process-test-results
+        if: always()
         with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
+          artifact-name: ${{ env.ARTIFACT_NAME }}
+          has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
+          upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
         with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Should notify on failure
         if: always() && steps.tests.outcome == 'failure'
         run: |
@@ -1064,103 +1116,7 @@ jobs:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
-            :boom: Synapse weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-  # --------------------------------------------------------------------------------
-  # Only run default profile synapse tests nightly, labeled PRs, to limit CI costs.
-  # The release-* branches are excluded
-  # --------------------------------------------------------------------------------
-  synapse-nightly-tests:
-    name: synapse-nightly-tests
-    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ]
-    strategy:
-      fail-fast: false
-      matrix:
-        modules:
-          - plugin/starburst-synapse
-    timeout-minutes: 30
-    needs: [ synapse-start-pool ]
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' && !startsWith(github.ref, 'refs/heads/release-')) || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
-      - name: Run Synapse nightly tests
-        id: tests
-        if: contains(matrix.modules, 'starburst-synapse')  && (env.SYNAPSE_ENDPOINT != '' || env.SYNAPSE_USER != '' || env.SYNAPSE_PASSWORD != '')
-        env:
-          SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
-          SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
-          SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
-          SYNAPSE_SQL_POOL: ${{ needs.synapse-start-pool.outputs.sql-pool-name }}
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} \
-            -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
-            -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
-            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
-            -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_SQL_POOL}"
-      - name: Sanitize artifact name
-        if: always()
-        run: |
-          # Generate a valid artifact name and make it available to next steps as
-          # an environment variable ARTIFACT_NAME
-          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
-          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && steps.tests.outcome == 'failure'
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
-          slack-text: |
-            :boom: Synapse nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
+            :boom: Synapse ${{ matrix.synapse-test }} tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you will take care of this)
       - name: Launch Flake Tracker
         if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
         continue-on-error: true
@@ -1175,11 +1131,11 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    runs-on: [ self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest ]
-    # Run *after* the pool is started and the tests are done
-    needs: [ synapse-start-pool, synapse-weekly-tests, synapse-nightly-tests ]
-    # Ignore status of tests, but only stop the pool if it was started
-    if: "${{ always() && needs.synapse-start-pool.outputs.sql-pool-name != '' }}"
+    runs-on: [ self-hosted, gha-fleet-ec2-2cpu-1gb-arm64, latest ]
+    needs: [ synapse-prepare, synapse-tests ]
+    # Ignore status of tests, but only stop the pool if there's (potentially) one to stop.
+    # We don't check if synapse-prepare succeeded in case it was canceled while starting the pool
+    if: always() && needs.synapse-prepare.outputs.sql-pool-name != ''
     steps:
       - uses: actions/checkout@v6
       - name: Azure Login
@@ -1191,7 +1147,7 @@ jobs:
       - name: Stop Pool
         uses: azure/cli@9eb25b8360668fb0ecbafa808d40e2197b2f5f52 # v3.0.0
         env:
-          SYNAPSE_SQL_POOL: ${{ needs.synapse-start-pool.outputs.sql-pool-name }}
+          SYNAPSE_SQL_POOL: ${{ needs.synapse-prepare.outputs.sql-pool-name }}
           SYNAPSE_RESOURCE_GROUP: ${{ vars.SYNAPSE_RESOURCE_GROUP }}
           SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE }}
         with:
@@ -2578,9 +2534,6 @@ jobs:
           DATABRICKS_UNITY_GCP_GCS_JSON_KEY: ""
           GCP_CREDENTIALS_KEY: ""
           GCP_STORAGE_BUCKET: ""
-          SYNAPSE_ENDPOINT: ""
-          SYNAPSE_USER: ""
-          SYNAPSE_PASSWORD: ""
           SNOWFLAKE_ACCOUNT_NAME: ""
           SNOWFLAKE_URL: ""
           SNOWFLAKE_USER: ""
@@ -2680,9 +2633,6 @@ jobs:
           GCS_DATABRICKS_HOST: ${{ vars.GCS_DATABRICKS_HOST }}
           GCS_DATABRICKS_LOGIN: token
           GCS_DATABRICKS_TOKEN: ${{ secrets.GCS_DATABRICKS_TOKEN }}
-          SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
-          SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
-          SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
           SNOWFLAKE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
           GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
@@ -2775,10 +2725,9 @@ jobs:
       - snowflake-nightly-tests
       - snowflake-weekly-tests
       - starburst-functions-ai-tests
-      - synapse-nightly-tests
-      - synapse-start-pool
+      - synapse-prepare
       - synapse-stop-pool
-      - synapse-weekly-tests
+      - synapse-tests
       - test
       - test-jdbc-compatibility
       - test-other-modules
@@ -2805,10 +2754,9 @@ jobs:
           echo '${{ needs.snowflake-nightly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-nightly-tests" failed' >&2; exit 1; }
           echo '${{ needs.snowflake-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-weekly-tests" failed' >&2; exit 1; }
           echo '${{ needs.starburst-functions-ai-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "starburst-functions-ai-tests" failed' >&2; exit 1; }
-          echo '${{ needs.synapse-nightly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-nightly-tests" failed' >&2; exit 1; }
-          echo '${{ needs.synapse-start-pool.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-start-pool" failed' >&2; exit 1; }
+          echo '${{ needs.synapse-prepare.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-prepare" failed' >&2; exit 1; }
           echo '${{ needs.synapse-stop-pool.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-stop-pool" failed' >&2; exit 1; }
-          echo '${{ needs.synapse-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-weekly-tests" failed' >&2; exit 1; }
+          echo '${{ needs.synapse-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-tests" failed' >&2; exit 1; }
           echo '${{ needs.test.result }}' | grep -xE 'success|skipped' || { echo 'Job "test" failed' >&2; exit 1; }
           echo '${{ needs.test-jdbc-compatibility.result }}' | grep -xE 'success|skipped' || { echo 'Job "test-jdbc-compatibility" failed' >&2; exit 1; }
           echo '${{ needs.test-other-modules.result }}' | grep -xE 'success|skipped' || { echo 'Job "test-other-modules" failed' >&2; exit 1; }
