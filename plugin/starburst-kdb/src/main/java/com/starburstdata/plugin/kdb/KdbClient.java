@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.starburstdata.plugin.kdb.KdbErrorCode.KDB_CONNECTION_ERROR;
 import static com.starburstdata.plugin.kdb.KdbErrorCode.KDB_QUERY_ERROR;
 import static com.starburstdata.plugin.kdb.KdbTypeMapping.toColumnMapping;
 import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
@@ -54,12 +55,22 @@ public class KdbClient
     public Object execute(String query)
     {
         log.debug("Executing KDB query: %s", query);
-        synchronized (this) {
+        c connection = connectionFactory.openConnection();
+        try {
+            return connection.k(query);
+        }
+        catch (c.KException e) {
+            throw new TrinoException(KDB_QUERY_ERROR, "KDB+ error executing query: %s".formatted(query), e);
+        }
+        catch (IOException e) {
+            throw new TrinoException(KDB_CONNECTION_ERROR, "Network error executing KDB+ query: %s".formatted(query), e);
+        }
+        finally {
             try {
-                return connectionFactory.openConnection().k(query);
+                connection.close();
             }
-            catch (c.KException | IOException e) {
-                throw new TrinoException(KDB_QUERY_ERROR, "KDB+ error executing query: %s".formatted(query), e);
+            catch (IOException e) {
+                log.debug(e, "Failed to close KDB+ connection after query");
             }
         }
     }
