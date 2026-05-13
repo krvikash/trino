@@ -17,15 +17,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Logger;
-import io.trino.Session;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.testing.TestingSession;
 import io.trino.tpch.TpchTable;
 
 import java.util.List;
 
 import static com.starburstdata.plugin.kdb.KdbTpchLoader.loadTpchTables;
+import static io.trino.testing.TestingSession.testSessionBuilder;
 
 public final class KdbQueryRunner
 {
@@ -41,26 +40,24 @@ public final class KdbQueryRunner
     }
 
     public static final class Builder
+            extends DistributedQueryRunner.Builder<Builder>
     {
         private final KdbContainer server;
         private final ImmutableMap.Builder<String, String> connectorProperties = ImmutableMap.builder();
-        private final ImmutableMap.Builder<String, String> coordinatorProperties = ImmutableMap.builder();
         private List<TpchTable<?>> initialTables = ImmutableList.of();
 
         private Builder(KdbContainer server)
         {
+            super(testSessionBuilder()
+                    .setCatalog("kdb")
+                    .setSchema("default")
+                    .build());
             this.server = server;
         }
 
         public Builder addConnectorProperty(String key, String value)
         {
             connectorProperties.put(key, value);
-            return this;
-        }
-
-        public Builder addCoordinatorProperty(String key, String value)
-        {
-            coordinatorProperties.put(key, value);
             return this;
         }
 
@@ -71,19 +68,11 @@ public final class KdbQueryRunner
             return this;
         }
 
+        @Override
         public DistributedQueryRunner build()
                 throws Exception
         {
-            Session session = TestingSession.testSessionBuilder()
-                    .setCatalog("kdb")
-                    .setSchema("default")
-                    .build();
-
-            DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(session)
-                    .setWorkerCount(3)
-                    .setCoordinatorProperties(coordinatorProperties.buildOrThrow())
-                    .build();
-
+            DistributedQueryRunner queryRunner = super.build();
             try {
                 queryRunner.installPlugin(new TpchPlugin());
                 queryRunner.createCatalog("tpch", "tpch", ImmutableMap.of());
