@@ -126,7 +126,8 @@ public class TestTrinoGlueCatalog
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
                 new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 new IcebergIncrementalMvRefreshConfig().isMaterializedViewIncrementalColumnRefreshEnabled(),
-                directExecutor());
+                directExecutor(),
+                newDirectExecutorService());
     }
 
     private static GlueClient createGlueClient()
@@ -294,7 +295,8 @@ public class TestTrinoGlueCatalog
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
                 new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 new IcebergIncrementalMvRefreshConfig().isMaterializedViewIncrementalColumnRefreshEnabled(),
-                directExecutor());
+                directExecutor(),
+                newDirectExecutorService());
 
         String namespace = "test_default_location_" + randomNameSuffix();
         String table = "tableName";

@@ -52,6 +52,7 @@ import java.util.Optional;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.trino.metastore.cache.CachingHiveMetastore.createPerTransactionCache;
 import static io.trino.plugin.hive.metastore.file.TestingFileHiveMetastore.createTestingFileHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
@@ -126,7 +127,8 @@ public class TestTrinoHiveCatalogWithFileMetastore
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
                 new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 new IcebergIncrementalMvRefreshConfig().isMaterializedViewIncrementalColumnRefreshEnabled(),
-                directExecutor());
+                directExecutor(),
+                newDirectExecutorService());
     }
 
     @Test
@@ -198,7 +200,8 @@ public class TestTrinoHiveCatalogWithFileMetastore
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
                 new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
                 true, // incrementalColumnMvRefreshEnabled
-                directExecutor());
+                directExecutor(),
+                newDirectExecutorService());
 
         String namespace = "test_incremental_col_roundtrip_" + randomNameSuffix();
         SchemaTableName mvWithProperty = new SchemaTableName(namespace, "mv_with_incremental");

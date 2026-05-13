@@ -135,6 +135,7 @@ public class TestIcebergCacheIds
                         new NoopWorkScheduler(),
                         new NodeVersion("test_version"),
                         true,
+                        newDirectExecutorService(),
                         newDirectExecutorService()),
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 TABLE_STATISTICS_READER,

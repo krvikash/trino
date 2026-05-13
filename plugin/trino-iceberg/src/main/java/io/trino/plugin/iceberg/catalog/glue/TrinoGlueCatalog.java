@@ -94,6 +94,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -138,6 +139,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.getIncre
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.isSubstitutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
+import static io.trino.plugin.iceberg.IcebergTableName.isMaterializedViewStorage;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameFrom;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_DEFAULT_VALUE_PROPERTY;
@@ -184,6 +186,7 @@ public class TrinoGlueCatalog
     private final boolean isIncrementalColumnMvRefreshEnabled;
     private final boolean isUsingSystemSecurity;
     private final Executor metadataFetchingExecutor;
+    private final ExecutorService icebergScanExecutor;
 
     private final Cache<SchemaTableName, Table> glueTableCache = EvictableCacheBuilder.newBuilder()
             // Even though this is query-scoped, this still needs to be bounded. information_schema queries can access large number of tables.
@@ -216,7 +219,8 @@ public class TrinoGlueCatalog
             boolean hideMaterializedViewStorageTable,
             boolean scheduledMaterializedViewRefreshEnabled,
             boolean isIncrementalColumnMvRefreshEnabled,
-            Executor metadataFetchingExecutor)
+            Executor metadataFetchingExecutor,
+            ExecutorService icebergScanExecutor)
     {
         super(catalogName, useUniqueTableLocation, typeManager, tableOperationsProvider, workScheduler, fileSystemFactory, fileIoFactory);
         this.trinoVersion = requireNonNull(trinoVersion, "trinoVersion is null");
@@ -228,6 +232,7 @@ public class TrinoGlueCatalog
         this.scheduledMaterializedViewRefreshEnabled = scheduledMaterializedViewRefreshEnabled;
         this.isIncrementalColumnMvRefreshEnabled = isIncrementalColumnMvRefreshEnabled;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
+        this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
     }
 
     @Override
@@ -1230,6 +1235,9 @@ public class TrinoGlueCatalog
                 }
                 throw new TrinoException(ALREADY_EXISTS, "Materialized view already exists: " + viewName);
             }
+
+            replaceMaterializedView(session, viewName, definition, materializedViewProperties, existing.get());
+            return;
         }
 
         if (hideMaterializedViewStorageTable) {
@@ -1243,12 +1251,7 @@ public class TrinoGlueCatalog
                     isUsingSystemSecurity ? null : session.getUser(),
                     createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId, isSubstitutionEnabled(materializedViewProperties), incrementalColumn));
             try {
-                if (existing.isPresent()) {
-                    updateTable(viewName.getSchemaName(), materializedViewTableInput);
-                }
-                else {
-                    createTable(viewName.getSchemaName(), materializedViewTableInput);
-                }
+                createTable(viewName.getSchemaName(), materializedViewTableInput);
             }
             catch (RuntimeException e) {
                 try {
@@ -1262,11 +1265,36 @@ public class TrinoGlueCatalog
                 }
                 throw e;
             }
-
-            existing.ifPresent(existingView -> dropMaterializedViewStorage(session, existingView));
         }
         else {
-            createMaterializedViewWithStorageTable(session, viewName, definition, materializedViewProperties, existing);
+            createMaterializedViewWithStorageTable(session, viewName, definition, materializedViewProperties);
+        }
+    }
+
+    private void replaceMaterializedView(
+            ConnectorSession session,
+            SchemaTableName viewName,
+            ConnectorMaterializedViewDefinition definition,
+            Map<String, Object> materializedViewProperties,
+            Table existingTable)
+    {
+        ConnectorMaterializedViewDefinition existingDefinition = getMaterializedView(session, viewName)
+                .orElseThrow(() -> new TrinoException(ICEBERG_BAD_DATA, "Materialized view definition missing: " + viewName));
+        SchemaTableName storageTableName = existingDefinition.getStorageTable()
+                .map(CatalogSchemaTableName::getSchemaTableName)
+                .orElseThrow(() -> new IllegalStateException("Storage table missing in definition of materialized view " + viewName));
+
+        Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, Optional.of(existingTable.parameters()));
+        replaceMaterializedViewStorageTable(session, storageTableName, definition, materializedViewProperties, refreshJobId, icebergScanExecutor);
+
+        if (!isMaterializedViewStorage(storageTableName.getTableName())) {
+            // Replace the existing view definition
+            TableInput materializedViewTableInput = getMaterializedViewTableInput(
+                    viewName.getTableName(),
+                    encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
+                    isUsingSystemSecurity ? null : session.getUser(),
+                    createMaterializedViewProperties(session, storageTableName, refreshJobId, isSubstitutionEnabled(materializedViewProperties), getIncrementalColumn(materializedViewProperties)));
+            updateTable(viewName.getSchemaName(), materializedViewTableInput);
         }
     }
 
@@ -1274,12 +1302,11 @@ public class TrinoGlueCatalog
             ConnectorSession session,
             SchemaTableName viewName,
             ConnectorMaterializedViewDefinition definition,
-            Map<String, Object> materializedViewProperties,
-            Optional<Table> existing)
+            Map<String, Object> materializedViewProperties)
     {
         // Create the storage table
         SchemaTableName storageTable = createMaterializedViewStorageTable(session, viewName, definition, materializedViewProperties);
-        Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(Table::parameters));
+        Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, Optional.empty());
         Optional<String> incrementalColumn = getIncrementalColumn(materializedViewProperties);
 
         // Create a view indicating the storage table
@@ -1289,27 +1316,7 @@ public class TrinoGlueCatalog
                 isUsingSystemSecurity ? null : session.getUser(),
                 createMaterializedViewProperties(session, storageTable, refreshJobId, isSubstitutionEnabled(materializedViewProperties), incrementalColumn));
 
-        if (existing.isPresent()) {
-            try {
-                updateTable(viewName.getSchemaName(), materializedViewTableInput);
-            }
-            catch (RuntimeException e) {
-                try {
-                    // Update failed, clean up new storage table
-                    dropTable(session, storageTable);
-                }
-                catch (RuntimeException suppressed) {
-                    LOG.warn(suppressed, "Failed to drop new storage table '%s' for materialized view '%s'", storageTable, viewName);
-                    if (e != suppressed) {
-                        e.addSuppressed(suppressed);
-                    }
-                }
-            }
-            dropMaterializedViewStorage(session, existing.get());
-        }
-        else {
-            createTable(viewName.getSchemaName(), materializedViewTableInput);
-        }
+        createTable(viewName.getSchemaName(), materializedViewTableInput);
     }
 
     @Override

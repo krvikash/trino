@@ -21,6 +21,7 @@ import io.trino.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.hive.security.UsingSystemSecurity;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
+import io.trino.plugin.iceberg.ForIcebergSplitManager;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergIncrementalMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
@@ -61,6 +62,7 @@ public class TrinoHiveCatalogFactory
     private final boolean scheduledMaterializedViewRefreshEnabled;
     private final boolean isIncrementalColumnMvRefreshEnabled;
     private final Executor metadataFetchingExecutor;
+    private final ExecutorService icebergScanExecutor;
 
     @Inject
     public TrinoHiveCatalogFactory(
@@ -76,7 +78,8 @@ public class TrinoHiveCatalogFactory
             WorkScheduler workScheduler,
             NodeVersion nodeVersion,
             @UsingSystemSecurity boolean isUsingSystemSecurity,
-            @ForIcebergMetadata ExecutorService metadataExecutorService)
+            @ForIcebergMetadata ExecutorService metadataExecutorService,
+            @ForIcebergSplitManager ExecutorService icebergScanExecutor)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
@@ -98,6 +101,7 @@ public class TrinoHiveCatalogFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, config.getMetadataParallelism());
         }
+        this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
     }
 
     @Override
@@ -119,6 +123,7 @@ public class TrinoHiveCatalogFactory
                 hideMaterializedViewStorageTable,
                 scheduledMaterializedViewRefreshEnabled,
                 isIncrementalColumnMvRefreshEnabled,
-                metadataFetchingExecutor);
+                metadataFetchingExecutor,
+                icebergScanExecutor);
     }
 }
