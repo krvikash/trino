@@ -26,8 +26,11 @@ import io.trino.sql.planner.iterative.rule.test.BaseRuleTest;
 import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
@@ -38,6 +41,7 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.project;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.singleGroupingSet;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
 import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
+import static io.trino.sql.planner.plan.AggregationNode.Step.SINGLE;
 
 final class TestRewriteAvgAsSumOverCount
         extends BaseRuleTest
@@ -197,6 +201,42 @@ final class TestRewriteAvgAsSumOverCount
                                 project(
                                         ImmutableMap.of("avg_input", expression(new Cast(new Reference(BIGINT, "col"), DOUBLE))),
                                         values("col")))));
+    }
+
+    @Test
+    void testRewriteAvgWithMask()
+    {
+        tester().assertThat(new RewriteAvgAsSumOverCount(tester().getPlannerContext()))
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "true")
+                .on(p -> {
+                    Symbol input = p.symbol("col", BIGINT);
+                    Symbol mask = p.symbol("mask", BOOLEAN);
+                    Symbol output = p.symbol("out", DOUBLE);
+                    return p.aggregation(a -> a
+                            .globalGrouping()
+                            .addAggregation(
+                                    output,
+                                    PlanBuilder.aggregation("avg", ImmutableList.of(new Reference(BIGINT, "col"))),
+                                    ImmutableList.of(BIGINT),
+                                    mask)
+                            .source(p.values(input, mask)));
+                })
+                .matches(project(
+                        ImmutableMap.of("out", expression(new Call(DIVIDE_DOUBLE, ImmutableList.of(
+                                new Reference(DOUBLE, "sum"),
+                                new Cast(new Reference(BIGINT, "count"), DOUBLE))))),
+                        aggregation(
+                                singleGroupingSet(),
+                                ImmutableMap.of(
+                                        Optional.of("sum"), aggregationFunction("sum", ImmutableList.of("avg_input")),
+                                        Optional.of("count"), aggregationFunction("count", ImmutableList.of("avg_input"))),
+                                ImmutableList.of(),
+                                ImmutableList.of("mask"),
+                                Optional.empty(),
+                                SINGLE,
+                                project(
+                                        ImmutableMap.of("avg_input", expression(new Cast(new Reference(BIGINT, "col"), DOUBLE))),
+                                        values("col", "mask")))));
     }
 
     @Test

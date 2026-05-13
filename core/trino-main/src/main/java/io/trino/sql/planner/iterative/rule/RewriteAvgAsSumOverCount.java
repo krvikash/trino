@@ -122,6 +122,8 @@ public class RewriteAvgAsSumOverCount
             childProjections.put(castSymbol, new Cast(argument, DOUBLE));
             Reference sumCountInput = castSymbol.toSymbolReference();
 
+            Optional<Symbol> mask = aggregation.getMask();
+
             ResolvedFunction sumFunction = plannerContext.getMetadata()
                     .resolveBuiltinFunction("sum", TypeSignatureProvider.fromTypes(DOUBLE));
             Symbol sumSymbol = context.getSymbolAllocator().newSymbol("sum", sumFunction.signature().getReturnType());
@@ -131,7 +133,7 @@ public class RewriteAvgAsSumOverCount
                     false,
                     Optional.empty(),
                     Optional.empty(),
-                    Optional.empty()));
+                    mask));
 
             ResolvedFunction countFunction = plannerContext.getMetadata()
                     .resolveBuiltinFunction("count", TypeSignatureProvider.fromTypes(DOUBLE));
@@ -142,7 +144,7 @@ public class RewriteAvgAsSumOverCount
                     false,
                     Optional.empty(),
                     Optional.empty(),
-                    Optional.empty()));
+                    mask));
 
             newAggregations.remove(outputSymbol);
 
@@ -181,7 +183,7 @@ public class RewriteAvgAsSumOverCount
 
     private static boolean isRewritableAvg(Aggregation aggregation)
     {
-        // Skip DISTINCT, FILTER, ORDER BY, and MASK — the GPU aggregation path does not support
+        // Skip DISTINCT, FILTER, and ORDER BY — the GPU aggregation path does not support
         // them (see GpuAggregationCompiler#compileAggregation). Additionally, rewriting
         // avg(DISTINCT x) is unsafe: the BIGINT-to-DOUBLE cast is lossy for values beyond 2^53,
         // so DISTINCT would operate on fewer unique values after casting.
@@ -189,7 +191,6 @@ public class RewriteAvgAsSumOverCount
                 && !aggregation.isDistinct()
                 && aggregation.getFilter().isEmpty()
                 && aggregation.getOrderingScheme().isEmpty()
-                && aggregation.getMask().isEmpty()
                 && aggregation.getArguments().size() == 1;
     }
 
