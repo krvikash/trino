@@ -26,11 +26,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestKdbConnectorTest
         extends BaseConnectorTest
 {
+    private KdbClient client;
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
         KdbContainer server = closeAfterClass(new KdbContainer());
+        client = server.client();
         return KdbQueryRunner.builder(server)
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
@@ -162,5 +165,18 @@ class TestKdbConnectorTest
                            comment varchar
                         )\
                         """);
+    }
+
+    @Test
+    void testUnsupportedColumnType()
+    {
+        client.execute("test_unsupported_type: flip `col1`col2`col3 ! (`long$(); ([] x:`long$()); `long$())");
+        client.execute("`test_unsupported_type insert (1; ([] x: enlist 999); 10)");
+
+        assertThat(query("DESC test_unsupported_type")).skippingTypesCheck()
+                .matches("VALUES ('col1', 'bigint', '', ''), ('col3', 'bigint', '', '')");
+
+        assertThat(query("TABLE test_unsupported_type"))
+                .matches("VALUES (BIGINT '1', BIGINT '10')");
     }
 }
