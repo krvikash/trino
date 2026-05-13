@@ -66,7 +66,7 @@ public final class GpuAggregationCompiler
         Step step = node.getStep();
 
         if (node.getGroupingSetCount() > 1) {
-            log.debug("Could not compile aggregation with %s grouping sets", node.getGroupingSetCount());
+            log.debug("Could not compile aggregation with %s grouping sets for GPU execution", node.getGroupingSetCount());
             // GROUPING SETS are not supported yet
             return Optional.empty();
         }

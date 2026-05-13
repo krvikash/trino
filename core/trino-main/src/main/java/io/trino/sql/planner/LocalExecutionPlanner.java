@@ -2043,7 +2043,7 @@ public class LocalExecutionPlanner
                 sortOrders.add(node.getOrderingScheme().ordering(symbol));
             }
 
-            GpuTopN.Factory gpuTopN = new GpuTopN.Factory((int) node.getCount(), sortChannels, sortOrders.build());
+            GpuTopN.Factory gpuTopN = new GpuTopN.Factory(toIntExact(node.getCount()), sortChannels, sortOrders.build());
 
             return Optional.of(addGpuOperation(
                     gpuTopN,
@@ -4443,15 +4443,23 @@ public class LocalExecutionPlanner
                 return Optional.empty();
             }
 
-            if (node.getType() != INNER && node.getType() != LEFT) {
-                return Optional.empty();
+            GpuLookupJoin.JoinType joinType;
+            switch (node.getType()) {
+                case INNER -> {
+                    joinType = GpuLookupJoin.JoinType.INNER;
+                }
+                case LEFT -> {
+                    joinType = GpuLookupJoin.JoinType.LEFT;
+                }
+                default -> {
+                    log.debug("Could not convert %s join for GPU execution", node.getType());
+                    return Optional.empty();
+                }
             }
-            GpuLookupJoin.JoinType joinType = (node.getType() == INNER)
-                    ? GpuLookupJoin.JoinType.INNER
-                    : GpuLookupJoin.JoinType.LEFT;
 
             // Must have at least one equi-clause
             if (node.getCriteria().isEmpty()) {
+                log.debug("Could not convert join without equi-criteria for GPU execution");
                 return Optional.empty();
             }
 
@@ -4464,12 +4472,17 @@ public class LocalExecutionPlanner
             }
 
             // Join filter
-            Optional<CudfAstExpression> compiledFilter = Optional.empty();
+            Optional<CudfAstExpression> compiledFilter;
             if (node.getFilter().isPresent()) {
-                compiledFilter = GpuJoinFilterCompiler.compile(node.getFilter().get());
+                Expression filter = node.getFilter().get();
+                compiledFilter = GpuJoinFilterCompiler.compile(filter);
                 if (compiledFilter.isEmpty()) {
+                    log.debug("Could not compile join filter for GPU execution: %s", filter);
                     return Optional.empty();
                 }
+            }
+            else {
+                compiledFilter = Optional.empty();
             }
 
             // Force single build driver: GPU handles build-side parallelism internally.
