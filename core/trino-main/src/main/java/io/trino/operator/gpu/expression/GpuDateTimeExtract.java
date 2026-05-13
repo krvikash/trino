@@ -15,14 +15,11 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
-import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -52,29 +49,17 @@ public class GpuDateTimeExtract
     public enum Field
     {
         // cuDF extraction returns INT16; Trino returns BIGINT (INT64) for all of these.
-        DAY("day", ColumnVector::day, DType.INT64),
-        HOUR("hour", ColumnVector::hour, DType.INT64),
-        MINUTE("minute", ColumnVector::minute, DType.INT64),
-        SECOND("second", ColumnVector::second, DType.INT64);
+        DAY(ColumnVector::day, DType.INT64),
+        HOUR(ColumnVector::hour, DType.INT64),
+        MINUTE(ColumnVector::minute, DType.INT64),
+        SECOND(ColumnVector::second, DType.INT64);
         // TODO millisecond, week, month, quarter, year, day_of_week, day_of_year
 
-        private static final Map<String, Field> BY_TRINO_FUNCTION_NAME;
-
-        static {
-            ImmutableMap.Builder<String, Field> builder = ImmutableMap.builder();
-            for (Field field : values()) {
-                builder.put(field.trinoFunctionName, field);
-            }
-            BY_TRINO_FUNCTION_NAME = builder.buildOrThrow();
-        }
-
-        private final String trinoFunctionName;
         private final Function<ColumnVector, ColumnVector> extractor;
         private final DType resultDType;
 
-        Field(String trinoFunctionName, Function<ColumnVector, ColumnVector> extractor, DType resultDType)
+        Field(Function<ColumnVector, ColumnVector> extractor, DType resultDType)
         {
-            this.trinoFunctionName = requireNonNull(trinoFunctionName, "trinoFunctionName is null");
             this.extractor = requireNonNull(extractor, "extractor is null");
             this.resultDType = requireNonNull(resultDType, "resultDType is null");
         }
@@ -87,11 +72,6 @@ public class GpuDateTimeExtract
         public DType resultDType()
         {
             return resultDType;
-        }
-
-        public static Optional<Field> forTrinoFunctionName(String trinoFunctionName)
-        {
-            return Optional.ofNullable(BY_TRINO_FUNCTION_NAME.get(trinoFunctionName));
         }
     }
 }

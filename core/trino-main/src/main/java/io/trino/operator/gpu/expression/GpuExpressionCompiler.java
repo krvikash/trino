@@ -61,8 +61,6 @@ import io.trino.sql.ir.Row;
 import io.trino.sql.ir.Switch;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
-import io.trino.type.IntervalDayTimeType;
-import io.trino.type.IntervalYearMonthType;
 import io.trino.type.JoniRegexp;
 import io.trino.type.LikePattern;
 
@@ -93,6 +91,8 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
+import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
@@ -327,17 +327,12 @@ public class GpuExpressionCompiler
                 }
             }
 
-            Optional<GpuDateTimeExtract.Field> dateTimeField = GpuDateTimeExtract.Field.forTrinoFunctionName(name);
-            if (dateTimeField.isPresent() && call.arguments().size() == 1) {
-                Type argumentType = getOnlyElement(call.arguments()).type();
-                if (argumentType == DATE ||
-                        argumentType instanceof TimeType ||
-                        argumentType instanceof TimeWithTimeZoneType ||
-                        argumentType instanceof TimestampType ||
-                        argumentType instanceof TimestampWithTimeZoneType ||
-                        argumentType instanceof IntervalYearMonthType ||
-                        argumentType instanceof IntervalDayTimeType) {
-                    return compileDateTimeExtract(call.arguments().getFirst(), dateTimeField.get(), context);
+            if (call.arguments().size() == 1 && isDateTimeType(getOnlyElement(call.arguments()).type())) {
+                switch (name) {
+                    case "day", "hour", "minute", "second" -> {
+                        // This is a date/time extract function
+                        return compileDateTimeExtract(name, getOnlyElement(call.arguments()), context);
+                    }
                 }
             }
 
@@ -538,14 +533,24 @@ public class GpuExpressionCompiler
             return integral + scale + 1 <= 38;
         }
 
-        private Optional<CompilationResult> compileDateTimeExtract(Expression argument, GpuDateTimeExtract.Field field, Void context)
+        private Optional<CompilationResult> compileDateTimeExtract(String trinoFunctionName, Expression argument, Void context)
         {
             Type argumentType = argument.type();
             if (argumentType == DATE || argumentType instanceof TimestampType) {
                 // For DATE and TIMESTAMP, cudf semantics match Trino's
-                return argument.accept(this, context)
-                        .map(compiled -> new CompilationResult(
-                                new GpuDateTimeExtract(compiled.expression(), field),
+                GpuDateTimeExtract.Field dateTimeField;
+                switch (trinoFunctionName) {
+                    case "day" -> dateTimeField = GpuDateTimeExtract.Field.DAY;
+                    case "hour" -> dateTimeField = GpuDateTimeExtract.Field.HOUR;
+                    case "minute" -> dateTimeField = GpuDateTimeExtract.Field.MINUTE;
+                    case "second" -> dateTimeField = GpuDateTimeExtract.Field.SECOND;
+                    default -> {
+                        return Optional.empty();
+                    }
+                }
+                return argument.accept(this, context).map(compiled ->
+                        new CompilationResult(
+                                new GpuDateTimeExtract(compiled.expression(), dateTimeField),
                                 compiled.score()));
             }
             return Optional.empty();
@@ -824,5 +829,16 @@ public class GpuExpressionCompiler
             requireNonNull(expression, "expression is null");
             requireNonNull(score, "score is null");
         }
+    }
+
+    private static boolean isDateTimeType(Type type)
+    {
+        return type.equals(DATE) ||
+                type instanceof TimeType ||
+                type instanceof TimeWithTimeZoneType ||
+                type instanceof TimestampType ||
+                type instanceof TimestampWithTimeZoneType ||
+                type.equals(INTERVAL_DAY_TIME) ||
+                type.equals(INTERVAL_YEAR_MONTH);
     }
 }
