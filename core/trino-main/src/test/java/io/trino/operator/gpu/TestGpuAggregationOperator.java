@@ -441,6 +441,37 @@ final class TestGpuAggregationOperator
         assertMaskedGroupByMatchesCpu(new Page(groupByBlock, valueBlock, maskBlock), "count", List.of());
     }
 
+    @Test
+    void testAnyValueGlobalEmpty()
+    {
+        assertGlobalMatchesCpu(createEmptyPage(List.of(BIGINT)), "any_value", List.of(BIGINT));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testAnyValueGlobal(NullsProvider nullsProvider)
+    {
+        Block block = createBigintBlock(100, nullsProvider, -1000, 1000);
+        assertGlobalMatchesCpu(new Page(block), "any_value", List.of(BIGINT));
+    }
+
+    @ParameterizedTest
+    @MethodSource("allConvertibleTypes")
+    void testAnyValueForAllTypes(Type type)
+    {
+        Block block = createBlock(type, 100, RANDOM_NULLS);
+        assertGlobalMatchesCpu(new Page(block), "any_value", List.of(type));
+    }
+
+    @ParameterizedTest
+    @MethodSource("allConvertibleTypes")
+    void testGroupByAnyValueForAllTypes(Type type)
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
+        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "any_value", List.of(type));
+    }
+
     static Stream<Type> allConvertibleTypes()
     {
         return Stream.of(BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE, VARCHAR);

@@ -244,6 +244,7 @@ public final class GpuAggregationCompiler
             case "min", "bool_and" -> compileMinMax(arguments, sourceLayout, outputType, GpuMin::new, maskChannel);
             case "max", "bool_or" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new, maskChannel);
             case "avg" -> compileAvg(arguments, sourceLayout, step, outputType, maskChannel);
+            case "any_value" -> compileAnyValue(arguments, sourceLayout, outputType, maskChannel);
             default -> Optional.empty();
         };
     }
@@ -430,6 +431,27 @@ public final class GpuAggregationCompiler
                                         Optional.empty());
                             }
                             return AggregateCompilation.simple(returnType, factory.create(column.channel(), returnType, dType));
+                        }));
+    }
+
+    private static Optional<AggregateCompilation> compileAnyValue(
+            List<Expression> arguments,
+            Map<Symbol, Integer> sourceLayout,
+            Type returnType,
+            OptionalInt maskChannel)
+    {
+        return getSingleColumnReference(arguments, sourceLayout)
+                .flatMap(column -> toDType(returnType)
+                        .filter(dType -> !dType.isNestedType())
+                        .map(dType -> {
+                            if (maskChannel.isPresent()) {
+                                return new AggregateCompilation(
+                                        returnType,
+                                        ImmutableList.of(maskExpression(maskChannel.getAsInt(), column.channel())),
+                                        ImmutableList.of(channel -> new GpuAnyValue(channel, returnType, dType)),
+                                        Optional.empty());
+                            }
+                            return AggregateCompilation.simple(returnType, new GpuAnyValue(column.channel(), returnType, dType));
                         }));
     }
 

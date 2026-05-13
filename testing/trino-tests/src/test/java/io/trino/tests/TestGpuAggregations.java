@@ -178,6 +178,40 @@ public class TestGpuAggregations
     }
 
     @Test
+    public void testGpuAnyValue()
+    {
+        assertThat(query(
+                """
+                SELECT any_value(a)
+                FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT any_value(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS varchar)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, any_value(a)
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, any_value(a)
+                FROM (SELECT IF(rand()<42, CAST(i AS double)) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
     public void testAvgDecompositionRemovesRedundantCast()
     {
         // RewriteAvgAsSumOverCount always introduces CAST(input AS double) before sum/count.
