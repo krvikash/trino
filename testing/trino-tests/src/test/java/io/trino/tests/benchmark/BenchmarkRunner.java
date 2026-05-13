@@ -1186,6 +1186,7 @@ public final class BenchmarkRunner
         Logging logging = Logging.initialize();
         logging.setLevel("io.trino.spi.gpu", Level.DEBUG);
         logging.setLevel("io.trino.operator.gpu", Level.DEBUG);
+        logging.setLevel("io.trino.sql.planner", Level.DEBUG);
         logging.setLevel("io.trino.tests.benchmark", Level.DEBUG);
     }
 
