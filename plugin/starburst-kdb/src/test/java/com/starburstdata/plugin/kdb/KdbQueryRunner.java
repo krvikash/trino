@@ -35,7 +35,9 @@ public final class KdbQueryRunner
     {
         return new Builder(server)
                 .addConnectorProperty("kdb.host", server.host())
-                .addConnectorProperty("kdb.port", String.valueOf(server.port()));
+                .addConnectorProperty("kdb.port", String.valueOf(server.port()))
+                .addConnectorProperty("kdb.user", KdbContainer.USER)
+                .addConnectorProperty("kdb.password", KdbContainer.PASSWORD);
     }
 
     public static final class Builder

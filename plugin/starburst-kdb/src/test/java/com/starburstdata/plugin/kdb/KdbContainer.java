@@ -14,6 +14,7 @@
 package com.starburstdata.plugin.kdb;
 
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.images.builder.Transferable;
 
 import java.io.Closeable;
 
@@ -21,6 +22,9 @@ public final class KdbContainer
         implements Closeable
 {
     private static final int KDB_PORT = 5000;
+    static final String USER = "admin";
+    static final String PASSWORD = "password";
+    private static final String PASSWORD_FILE = "/opt/kdb/users";
 
     private final GenericContainer<?> container;
 
@@ -29,7 +33,9 @@ public final class KdbContainer
         // Note: The expiry date for the license is: 2027-04-28
         //noinspection resource
         container = new GenericContainer<>("843985043183.dkr.ecr.us-east-1.amazonaws.com/testing/kdb:135")
-                .withExposedPorts(KDB_PORT);
+                .withExposedPorts(KDB_PORT)
+                .withCopyToContainer(Transferable.of("%s:%s".formatted(USER, PASSWORD)), PASSWORD_FILE)
+                .withCommand("/opt/kdb/q", "-p", "5000", "-u", PASSWORD_FILE);
         container.start();
     }
 
@@ -45,7 +51,13 @@ public final class KdbContainer
 
     public KdbClient client()
     {
-        return new KdbClient(new KdbConnectionFactory(new KdbConfig().setHost(host()).setPort(port()), new KdbCredentialConfig()));
+        return new KdbClient(new KdbConnectionFactory(
+                new KdbConfig()
+                        .setHost(host())
+                        .setPort(port()),
+                new KdbCredentialConfig()
+                        .setUser(USER)
+                        .setPassword(PASSWORD)));
     }
 
     @Override
