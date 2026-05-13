@@ -18,11 +18,8 @@ import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.type.Type;
 
 import java.util.List;
-import java.util.OptionalDouble;
 
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static java.lang.String.format;
 
 /**
@@ -41,12 +38,10 @@ public class PreSizedPageBuilder
     // This could be any other small number.
     static final int DEFAULT_INITIAL_CAPACITY = 8;
     static final int MAX_ENTRIES = 64 * 1024;
-    private static final int BATCH_GROWTH_FACTOR = 2;
 
     private final PreSizedBlockBuilder[] blockBuilders;
-    private int capacity = DEFAULT_INITIAL_CAPACITY;
+    private final PageCapacityEstimator capacityEstimator;
     private int declaredPositions;
-    private OptionalDouble maxAverageBytesPerPosition = OptionalDouble.empty();
 
     /**
      * Create a PreSizedPageBuilder with given types.
@@ -60,10 +55,11 @@ public class PreSizedPageBuilder
      */
     public PreSizedPageBuilder(List<? extends Type> types)
     {
+        this.capacityEstimator = new PageCapacityEstimator(DEFAULT_INITIAL_CAPACITY, MAX_ENTRIES, DEFAULT_MAX_PAGE_SIZE_IN_BYTES);
         // Stream API should not be used since constructor can be called in performance sensitive sections
         this.blockBuilders = new PreSizedBlockBuilder[types.size()];
         for (int i = 0; i < blockBuilders.length; i++) {
-            this.blockBuilders[i] = types.get(i).createPreSizedBlockBuilder(capacity);
+            this.blockBuilders[i] = types.get(i).createPreSizedBlockBuilder(capacityEstimator.currentCapacity());
         }
     }
 
@@ -73,9 +69,8 @@ public class PreSizedPageBuilder
             return;
         }
 
-        int newCapacity = calculateNewCapacity();
+        int newCapacity = capacityEstimator.currentCapacity();
         declaredPositions = 0;
-        capacity = newCapacity;
 
         for (int i = 0; i < blockBuilders.length; i++) {
             blockBuilders[i] = blockBuilders[i].newBlockBuilderLike(newCapacity);
@@ -97,7 +92,7 @@ public class PreSizedPageBuilder
 
     public boolean isFull()
     {
-        return declaredPositions >= capacity;
+        return capacityEstimator.isFull(declaredPositions);
     }
 
     public boolean isEmpty()
@@ -125,30 +120,7 @@ public class PreSizedPageBuilder
         }
 
         Page result = Page.wrapBlocksWithoutCopy(declaredPositions, blocks);
-        double averageBytesPerPosition = (double) result.getSizeInBytes() / declaredPositions;
-        if (averageBytesPerPosition > 0) {
-            if (maxAverageBytesPerPosition.isEmpty()) {
-                maxAverageBytesPerPosition = OptionalDouble.of(averageBytesPerPosition);
-            }
-            else {
-                maxAverageBytesPerPosition = OptionalDouble.of(max(maxAverageBytesPerPosition.getAsDouble(), averageBytesPerPosition));
-            }
-        }
+        capacityEstimator.recordPage(result.getSizeInBytes(), declaredPositions);
         return result;
-    }
-
-    private int calculateNewCapacity()
-    {
-        if (maxAverageBytesPerPosition.isEmpty()) {
-            return capacity;
-        }
-
-        if (maxAverageBytesPerPosition.getAsDouble() == 0) {
-            return MAX_ENTRIES;
-        }
-
-        return (int) min(
-                MAX_ENTRIES,
-                min(BATCH_GROWTH_FACTOR * declaredPositions, DEFAULT_MAX_PAGE_SIZE_IN_BYTES / maxAverageBytesPerPosition.getAsDouble()));
     }
 }
