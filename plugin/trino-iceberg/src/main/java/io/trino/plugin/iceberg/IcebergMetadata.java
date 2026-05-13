@@ -4687,7 +4687,7 @@ public class IcebergMetadata
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> enforcedResult = applyFilter(
                 session,
                 unified,
-                new Constraint(unionedEnforcedConstraint, unionedEnforcedConstraint.asPredicate(), unionedEnforcedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+                new Constraint(unionedEnforcedConstraint));
         if (enforcedResult.isPresent()) {
             unified = (IcebergTableHandle) enforcedResult.get().getHandle();
         }
@@ -4704,7 +4704,7 @@ public class IcebergMetadata
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> unenforcedResult = applyFilter(
                 session,
                 unified,
-                new Constraint(unionedUnenforcedConstraint, unionedUnenforcedConstraint.asPredicate(), unionedUnenforcedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+                new Constraint(unionedUnenforcedConstraint));
         if (unenforcedResult.isPresent()) {
             unified = (IcebergTableHandle) unenforcedResult.get().getHandle();
         }

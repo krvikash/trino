@@ -362,9 +362,7 @@ public class DefaultJdbcMetadata
                 new Constraint(
                         unionedConstraint,
                         unionExpression.expression(),
-                        unionExpression.assignments(),
-                        unionedConstraint.asPredicate(),
-                        unionedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+                        unionExpression.assignments()));
         if (constraintResult.isPresent()) {
             unified = (JdbcTableHandle) constraintResult.get().getHandle();
         }

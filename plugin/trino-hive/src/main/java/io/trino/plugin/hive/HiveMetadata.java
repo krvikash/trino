@@ -3221,7 +3221,7 @@ public class HiveMetadata
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> enforcedResult = applyFilter(
                 session,
                 unified,
-                new Constraint(unionedEnforcedConstraint, unionedEnforcedConstraint.asPredicate(), unionedEnforcedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+                new Constraint(unionedEnforcedConstraint));
         if (enforcedResult.isPresent()) {
             unified = (HiveTableHandle) enforcedResult.get().getHandle();
         }
@@ -3238,7 +3238,7 @@ public class HiveMetadata
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> compactedEffectiveResult = applyFilter(
                 session,
                 unified,
-                new Constraint(unionedCompactEffectivePredicate, unionedCompactEffectivePredicate.asPredicate(), unionedCompactEffectivePredicate.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+                new Constraint(unionedCompactEffectivePredicate));
         if (compactedEffectiveResult.isPresent()) {
             unified = (HiveTableHandle) compactedEffectiveResult.get().getHandle();
         }
