@@ -13,16 +13,16 @@
  */
 package io.trino.plugin.bigquery.dynamic;
 
+import com.google.common.hash.HashFunction;
 import com.google.inject.Inject;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.spi.connector.ConnectorSession;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.hash.Hashing.sha256;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -31,7 +31,7 @@ public final class BigQueryDynamicConnectionBasedIdentityCacheMapping
 {
     private static final byte[] EMPTY_BYTES = new byte[0];
 
-    private final MessageDigest sha256;
+    private static final HashFunction SHA256 = sha256();
     private final String projectIdCredentialName;
     private final String parentProjectIdCredentialName;
     private final String credentialsKeyCredentialName;
@@ -41,12 +41,6 @@ public final class BigQueryDynamicConnectionBasedIdentityCacheMapping
     @Inject
     public BigQueryDynamicConnectionBasedIdentityCacheMapping(BigQueryDynamicConnectionPassthroughConfig dynamicConnectionConfig)
     {
-        try {
-            sha256 = MessageDigest.getInstance("SHA-256");
-        }
-        catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
         projectIdCredentialName = dynamicConnectionConfig.getProjectIdCredentialName();
         parentProjectIdCredentialName = dynamicConnectionConfig.getParentProjectIdCredentialName();
         credentialsKeyCredentialName = dynamicConnectionConfig.getCredentialsKeyCredentialName();
@@ -78,7 +72,7 @@ public final class BigQueryDynamicConnectionBasedIdentityCacheMapping
 
     private byte[] hash(String value)
     {
-        return sha256.digest(value.getBytes(UTF_8));
+        return SHA256.hashString(value, UTF_8).asBytes();
     }
 
     private static final class ExtraCredentialsBasedIdentityCacheKey
