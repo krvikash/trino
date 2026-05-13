@@ -14,8 +14,6 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.DType;
-import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
@@ -39,39 +37,29 @@ public class GpuDateTimeExtract
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (ClosingOnce<ColumnVector> timestamp = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
-                ColumnVector extracted = field.extract(timestamp.borrow())) {
-            timestamp.close();
-            return extracted.castTo(field.resultDType());
+        try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns)) {
+            return field.extract(timestamp);
         }
     }
 
     public enum Field
     {
-        // cuDF extraction returns INT16; Trino returns BIGINT (INT64) for all of these.
-        DAY(ColumnVector::day, DType.INT64),
-        HOUR(ColumnVector::hour, DType.INT64),
-        MINUTE(ColumnVector::minute, DType.INT64),
-        SECOND(ColumnVector::second, DType.INT64);
+        DAY(ColumnVector::day),
+        HOUR(ColumnVector::hour),
+        MINUTE(ColumnVector::minute),
+        SECOND(ColumnVector::second);
         // TODO millisecond, week, month, quarter, year, day_of_week, day_of_year
 
         private final Function<ColumnVector, ColumnVector> extractor;
-        private final DType resultDType;
 
-        Field(Function<ColumnVector, ColumnVector> extractor, DType resultDType)
+        Field(Function<ColumnVector, ColumnVector> extractor)
         {
             this.extractor = requireNonNull(extractor, "extractor is null");
-            this.resultDType = requireNonNull(resultDType, "resultDType is null");
         }
 
         public @Move ColumnVector extract(ColumnVector dateTime)
         {
             return extractor.apply(dateTime);
-        }
-
-        public DType resultDType()
-        {
-            return resultDType;
         }
     }
 }

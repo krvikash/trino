@@ -331,7 +331,7 @@ public class GpuExpressionCompiler
                 switch (name) {
                     case "day", "hour", "minute", "second" -> {
                         // This is a date/time extract function
-                        return compileDateTimeExtract(name, getOnlyElement(call.arguments()), context);
+                        return compileDateTimeExtract(name, getOnlyElement(call.arguments()), call.type(), context);
                     }
                 }
             }
@@ -533,7 +533,7 @@ public class GpuExpressionCompiler
             return integral + scale + 1 <= 38;
         }
 
-        private Optional<CompilationResult> compileDateTimeExtract(String trinoFunctionName, Expression argument, Void context)
+        private Optional<CompilationResult> compileDateTimeExtract(String trinoFunctionName, Expression argument, Type resultType, Void context)
         {
             Type argumentType = argument.type();
             if (argumentType == DATE || argumentType instanceof TimestampType) {
@@ -548,10 +548,11 @@ public class GpuExpressionCompiler
                         return Optional.empty();
                     }
                 }
-                return argument.accept(this, context).map(compiled ->
-                        new CompilationResult(
-                                new GpuDateTimeExtract(compiled.expression(), dateTimeField),
-                                compiled.score()));
+                return toDType(resultType).flatMap(resultDType ->
+                        argument.accept(this, context).map(compiled ->
+                                new CompilationResult(
+                                        new GpuCast(new GpuDateTimeExtract(compiled.expression(), dateTimeField), resultDType),
+                                        compiled.score())));
             }
             return Optional.empty();
         }
