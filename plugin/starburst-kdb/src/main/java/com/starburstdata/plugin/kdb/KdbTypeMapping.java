@@ -577,31 +577,4 @@ public final class KdbTypeMapping
             }
         });
     }
-
-    private static ColumnMapping defaultMapping()
-    {
-        return new ColumnMapping(VarcharType.VARCHAR, Long.BYTES, new ReadFunction()
-        {
-            @Override
-            public boolean isNull(Object value)
-            {
-                return value == null;
-            }
-
-            @Override
-            public Object toTrinoValue(Object value)
-            {
-                if (value == null) {
-                    return null;
-                }
-                if (value instanceof String string) {
-                    return utf8Slice(string);
-                }
-                if (value instanceof char[] array) {
-                    return utf8Slice(String.valueOf(array));
-                }
-                return utf8Slice(value.toString());
-            }
-        });
-    }
 }
