@@ -19,6 +19,7 @@ import ai.rapids.cudf.ast.UnaryOperator;
 import com.google.common.primitives.Shorts;
 import com.google.common.primitives.SignedBytes;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
@@ -28,6 +29,7 @@ import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
@@ -159,6 +161,7 @@ public final class GpuJoinFilterCompiler
             case RealType _ -> Optional.of(new CudfAstExpression.Constant(Literal.ofFloat(value == null ? null : intBitsToFloat(toIntExact((long) value)))));
             case DoubleType _ -> Optional.of(new CudfAstExpression.Constant(Literal.ofDouble((Double) value)));
             case DateType _ -> Optional.of(new CudfAstExpression.Constant(Literal.ofTimestampDaysFromInt(value == null ? null : toIntExact((long) value))));
+            case VarcharType _ -> Optional.of(new CudfAstExpression.Constant(Literal.ofUTF8String(value == null ? null : ((Slice) value).getBytes())));
             default -> Optional.empty();
         };
     }
