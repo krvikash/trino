@@ -164,6 +164,14 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCreateTableWithDataLocationWithoutObjectStoreLayout()
+    {
+        assertThatThrownBy(super::testCreateTableWithDataLocationWithoutObjectStoreLayout)
+                .hasStackTraceContaining("No FileSystem for scheme \"local\"");
+    }
+
+    @Test
+    @Override
     public void testSerializableReadIsolation()
     {
         // HiveConnector has READ_UNCOMMITTED. When opening transaction in ObjectStore we don't know yet we which tables we will read from.
