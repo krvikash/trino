@@ -18,6 +18,7 @@ import com.google.common.collect.Sets;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.JoinNode;
+import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.testing.AbstractTestJoinQueries;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
@@ -271,5 +272,24 @@ public class TestGpuJoinQueries
                   100
                 """))
                 .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuSemiJoin()
+    {
+        assertThat(query("""
+                SELECT o.custkey
+                FROM orders o
+                WHERE o.custkey NOT IN (
+                    SELECT c.custkey FROM customer c WHERE c.nationkey > 10
+                )
+                """))
+                .executesWithGpu(SemiJoinNode.class);
+
+        assertThat(query("""
+                SELECT o.custkey, o.custkey IN (SELECT c.custkey FROM customer c WHERE c.nationkey > 10)
+                FROM orders o
+                """))
+                .executesWithGpu(SemiJoinNode.class);
     }
 }

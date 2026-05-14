@@ -144,6 +144,9 @@ import io.trino.operator.gpu.join.GpuJoinBridgeManager;
 import io.trino.operator.gpu.join.GpuJoinBuild;
 import io.trino.operator.gpu.join.GpuJoinFilterCompiler;
 import io.trino.operator.gpu.join.GpuLookupJoin;
+import io.trino.operator.gpu.join.GpuSemiJoin;
+import io.trino.operator.gpu.join.GpuSemiJoinBuild;
+import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier;
 import io.trino.operator.index.DynamicTupleFilterFactory;
 import io.trino.operator.index.FieldSetFilteringRecordSet;
 import io.trino.operator.index.IndexBuildDriverFactoryProvider;
@@ -408,6 +411,7 @@ import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
 import static io.trino.spi.StandardErrorCode.SERIALIZATION_ERROR;
 import static io.trino.spi.gpu.GpuTypeConversion.toDTypes;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -3618,8 +3622,17 @@ public class LocalExecutionPlanner
             // Plan probe
             PhysicalOperation probeSource = node.getSource().accept(this, context);
 
-            // Plan build
             LocalExecutionPlanContext buildContext = context.createSubContext();
+
+            // GPU path (dynamic filters not yet supported in GPU semi-join)
+            if (!isLocalDynamicFilter && !isCoordinatorDynamicFilter) {
+                Optional<PhysicalOperation> gpuOp = tryPlanGpuSemiJoin(node, probeSource, context, buildContext);
+                if (gpuOp.isPresent()) {
+                    return gpuOp.get();
+                }
+            }
+
+            // Plan build
             PhysicalOperation buildSource = node.getFilteringSource().accept(this, buildContext);
             int partitionCount = buildContext.getDriverInstanceCount().orElse(1);
             checkArgument(partitionCount == 1, "Expected local execution to not be parallel");
@@ -3700,6 +3713,63 @@ public class LocalExecutionPlanner
                     domains.entrySet().stream()
                             .filter(entry -> coordinatorDynamicFilters.contains(entry.getKey()))
                             .collect(toImmutableMap(Entry::getKey, Entry::getValue)));
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuSemiJoin(
+                SemiJoinNode node,
+                PhysicalOperation probeSource,
+                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext buildContext)
+        {
+            if (!isGpuExecutionEnabled(session)) {
+                return Optional.empty();
+            }
+
+            if (!probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible) ||
+                    !GpuTypeConversion.isConvertible(node.getFilteringSourceJoinSymbol().type())) {
+                return Optional.empty();
+            }
+
+            buildContext.setDriverInstanceCount(1);
+            PhysicalOperation buildSource = node.getFilteringSource().accept(this, buildContext);
+
+            int probeChannel = probeSource.getLayout().get(node.getSourceJoinSymbol());
+            int buildChannel = buildSource.getLayout().get(node.getFilteringSourceJoinSymbol());
+
+            GpuSemiJoinSetSupplier setSupplier = new GpuSemiJoinSetSupplier();
+
+            PhysicalOperation joinBuild = addGpuOperation(
+                    new GpuSemiJoinBuild.Factory(setSupplier, buildChannel),
+                    ImmutableList.of(),
+                    buildSource,
+                    ImmutableMap.of(),
+                    buildContext,
+                    node.getId());
+
+            joinBuild = new PhysicalOperation(
+                    new SentinelSinkOperator.Factory(buildContext.getNextOperatorId(), node.getId()),
+                    ImmutableMap.of(),
+                    joinBuild);
+
+            context.addDriverFactory(false, joinBuild, buildContext);
+
+            Map<Symbol, Integer> outputMappings = ImmutableMap.<Symbol, Integer>builder()
+                    .putAll(probeSource.getLayout())
+                    .put(node.getSemiJoinOutput(), probeSource.getLayout().size())
+                    .buildOrThrow();
+
+            List<Type> outputTypes = ImmutableList.<Type>builder()
+                    .addAll(probeSource.getTypes())
+                    .add(BOOLEAN)
+                    .build();
+
+            return Optional.of(addGpuOperation(
+                    new GpuSemiJoin.Factory(setSupplier, probeChannel),
+                    outputTypes,
+                    probeSource,
+                    outputMappings,
+                    context,
+                    node.getId()));
         }
 
         @Override

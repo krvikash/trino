@@ -18,6 +18,7 @@ import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.testing.AbstractDistributedEngineOnlyQueries;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
@@ -477,6 +478,44 @@ public class TestDistributedGpuEngineOnlyQueries
                 .executesWithoutGpu();
         assertThat(query("SELECT v FROM " + source + " WHERE v IN (X'3432', X'3433')"))
                 .executesWithoutGpu();
+    }
+
+    @Test
+    public void testGpuSemiJoin()
+    {
+        // non-empty build side without nulls
+        // probe values matching not-null, not matching not-null, null
+        assertThat(query(
+                """
+                SELECT x, x IN (SELECT y FROM (VALUES 1, 2, 3) b(y)) AS r
+                FROM (VALUES 1, 4, NULL) p(x)
+                """))
+                .executesWithGpu(SemiJoinNode.class);
+
+        // non-empty build side with nulls
+        // probe values matching not-null, not matching not-null, null
+        assertThat(query(
+                """
+                SELECT x, x IN (SELECT y FROM (VALUES 1, 2, NULL) b(y)) AS r
+                FROM (VALUES 1, 4, NULL) p(x)
+                """))
+                .executesWithGpu(SemiJoinNode.class);
+
+        // empty build side
+        assertThat(query(
+                """
+                SELECT x, x IN (SELECT y FROM (VALUES 1) b(y) WHERE rand() > 2) AS r
+                FROM (VALUES 1, 4, NULL) p(x)
+                """))
+                .executesWithGpu(SemiJoinNode.class);
+
+        // empty probe side
+        assertThat(query(
+                """
+                SELECT x, x IN (SELECT y FROM (VALUES 1, 2) b(y)) AS r
+                FROM (SELECT * FROM (VALUES 1, 2) p(x) WHERE rand() > 2) p
+                """))
+                .executesWithGpu(SemiJoinNode.class);
     }
 
     @Test
