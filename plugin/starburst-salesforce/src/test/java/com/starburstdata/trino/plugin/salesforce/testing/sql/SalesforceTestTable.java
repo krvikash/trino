@@ -44,13 +44,11 @@ public class SalesforceTestTable
         // Instead we will create the table if it doesn't exist and truncate it to ensure it is empty
         // We can't use CREATE TABLE IF NOT EXISTS, an error is thrown because the table exists with a __c suffix and the
         // driver will try to create it anyway
+        // Use DatabaseMetaData.getTables() for existence check — sys_tables can return 0 for existing tables,
+        // causing the JDBC driver to silently delete and recreate the object.
         try (Connection connection = DriverManager.getConnection(jdbcUrl);
-                Statement statement = connection.createStatement();
-                ResultSet results = statement.executeQuery(format("SELECT COUNT(*) FROM sys_tables WHERE TableName = '%s__c'", tableName))) {
-            boolean exists = false;
-            while (results.next()) {
-                exists = results.getInt(1) == 1;
-            }
+                ResultSet results = connection.getMetaData().getTables(null, null, tableName + "__c", null)) {
+            boolean exists = results.next();
 
             if (!exists) {
                 sqlExecutor.execute(format("CREATE TABLE %s %s", tableName, tableDefinition));
@@ -61,7 +59,7 @@ public class SalesforceTestTable
             }
         }
         catch (SQLException e) {
-            throw new RuntimeException("Error checking if table exists table", e);
+            throw new RuntimeException("Error checking if table exists: " + tableName, e);
         }
     }
 
