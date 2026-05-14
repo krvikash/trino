@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -19,6 +20,7 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.json.JsonModule;
 import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
@@ -26,8 +28,6 @@ import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
-import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
-import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.server.InternalCommunicationConfig;
@@ -43,15 +43,29 @@ import org.weakref.jmx.guice.MBeanModule;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.starburst.stargate.buffer.trino.exchange.BufferExchangeConfig.USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY;
+import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX;
 import static java.util.Objects.requireNonNull;
 
 public class BufferExchangeManagerFactory
         implements ExchangeManagerFactory
 {
+    private static final String EMBEDDED_SPOOLING_CONFIG_PREFIX = EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX + ".spooling.";
+    private static final String EXCHANGE_SPOOLING_CONFIG_PREFIX = "exchange.buffer-data.spooling.";
+
+    // Keys (relative to EMBEDDED_SPOOLING_CONFIG_PREFIX) that are consumed only by the embedded
+    // data server and must not be forwarded to the exchange-side bootstrap (which fails on
+    // unused configuration properties).
+    private static final Set<String> EMBEDDED_ONLY_SPOOLING_PROPERTIES = ImmutableSet.of(
+            "directory",
+            "azure.upload-block-size",
+            "azure.upload-max-concurrency");
+
     private final String name;
     private final Optional<ApiFactory> apiFactory;
     private final Optional<InternalCommunicationDependencies> internalCommunicationDependencies;
@@ -68,8 +82,6 @@ public class BufferExchangeManagerFactory
 
             newOptionalBinder(binder, SpoolingDirectoryConfig.class);
             newOptionalBinder(binder, ChunkManagerConfig.class);
-            newOptionalBinder(binder, S3ClientConfig.class);
-            newOptionalBinder(binder, AzureBlobClientConfig.class);
         }
 
         @Provides
@@ -86,12 +98,17 @@ public class BufferExchangeManagerFactory
         public Optional<EmbeddedBufferServiceConfigs> getEmbeddedBufferServiceConfigs(
                 EmbeddedBufferServiceConfig embeddedBufferServiceConfig,
                 Optional<SpoolingDirectoryConfig> spoolingDirectoryConfig,
-                Optional<S3ClientConfig> s3ClientConfig,
-                Optional<AzureBlobClientConfig> azureBlobClientConfig)
+                ConfigurationFactory configurationFactory)
         {
             if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
                 verify(spoolingDirectoryConfig.isPresent(), "SpoolingDirectoryConfig must be bound on worker node if embeddedBufferServiceConfig is enabled");
-                return Optional.of(new EmbeddedBufferServiceConfigs(spoolingDirectoryConfig.orElseThrow(), s3ClientConfig, azureBlobClientConfig));
+                Map<String, String> spoolingProperties = configurationFactory.getProperties().entrySet().stream()
+                        .filter(entry -> entry.getKey().startsWith(EMBEDDED_SPOOLING_CONFIG_PREFIX))
+                        .filter(entry -> !EMBEDDED_ONLY_SPOOLING_PROPERTIES.contains(entry.getKey().substring(EMBEDDED_SPOOLING_CONFIG_PREFIX.length())))
+                        .collect(toImmutableMap(
+                                entry -> entry.getKey().substring(EMBEDDED_SPOOLING_CONFIG_PREFIX.length()),
+                                Map.Entry::getValue));
+                return Optional.of(new EmbeddedBufferServiceConfigs(spoolingDirectoryConfig.orElseThrow(), spoolingProperties));
             }
             return Optional.empty();
         }
@@ -195,45 +212,8 @@ public class BufferExchangeManagerFactory
 
             extendedConfig.put("exchange.buffer-data.spooling-storage-type", spoolingStorageType.name());
 
-            if (spoolingStorageType == SpoolingStorageType.S3 || spoolingStorageType == SpoolingStorageType.GCS) {
-                S3ClientConfig s3ClientConfig = configs.s3ClientConfig()
-                        .orElseThrow(() -> new IllegalArgumentException("S3ClientConfig not set for embedded buffer service with storage type: " + spoolingStorageType));
-                if (s3ClientConfig.getS3AwsAccessKey() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.s3.aws-access-key", s3ClientConfig.getS3AwsAccessKey());
-                }
-                if (s3ClientConfig.getS3AwsSecretKey() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.s3.aws-secret-key", s3ClientConfig.getS3AwsSecretKey());
-                }
-                if (s3ClientConfig.getRegion().isPresent()) {
-                    extendedConfig.put("exchange.buffer-data.spooling.s3.region", s3ClientConfig.getRegion().orElseThrow().id());
-                }
-                if (s3ClientConfig.getS3Endpoint().isPresent()) {
-                    extendedConfig.put("exchange.buffer-data.spooling.s3.endpoint", s3ClientConfig.getS3Endpoint().orElseThrow());
-                }
-                extendedConfig.put("exchange.buffer-data.spooling.s3.retry-mode", s3ClientConfig.getRetryMode().name());
-                extendedConfig.put("exchange.buffer-data.spooling.s3.max-error-retries", String.valueOf(s3ClientConfig.getMaxErrorRetries()));
-            }
-
-            if (spoolingStorageType == SpoolingStorageType.AZURE) {
-                AzureBlobClientConfig azureBlobClientConfig = configs.azureBlobClientConfig()
-                        .orElseThrow(() -> new IllegalArgumentException("AzureBlobClientConfig not set for embedded buffer service with storage type: " + spoolingStorageType));
-
-                extendedConfig.put("exchange.buffer-data.spooling.azure.connection-string", azureBlobClientConfig.getConnectionString());
-
-                if (azureBlobClientConfig.getRetryPolicyType() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.azure.retry-policy", azureBlobClientConfig.getRetryPolicyType().name());
-                }
-                if (azureBlobClientConfig.getMaxTries() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.azure.max-tries", String.valueOf(azureBlobClientConfig.getMaxTries()));
-                }
-                extendedConfig.put("exchange.buffer-data.spooling.azure.try-timeout", azureBlobClientConfig.getTryTimeout().toString());
-                if (azureBlobClientConfig.getRetryDelay() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.azure.retry-delay", azureBlobClientConfig.getRetryDelay().toString());
-                }
-                if (azureBlobClientConfig.getMaxRetryDelay() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.azure.max-retry-delay", azureBlobClientConfig.getMaxRetryDelay().toString());
-                }
-            }
+            configs.spoolingProperties().forEach((relativeKey, value) ->
+                    extendedConfig.put(EXCHANGE_SPOOLING_CONFIG_PREFIX + relativeKey, value));
         });
 
         // explicit properties take precedence
@@ -279,14 +259,12 @@ public class BufferExchangeManagerFactory
     }
 
     public record EmbeddedBufferServiceConfigs(SpoolingDirectoryConfig spoolingDirectoryConfig,
-                                               Optional<S3ClientConfig> s3ClientConfig,
-                                               Optional<AzureBlobClientConfig> azureBlobClientConfig)
+                                               Map<String, String> spoolingProperties)
     {
         public EmbeddedBufferServiceConfigs
         {
             requireNonNull(spoolingDirectoryConfig, "spoolingDirectoryConfig is null");
-            requireNonNull(s3ClientConfig, "s3ClientConfig is null");
-            requireNonNull(azureBlobClientConfig, "azureBlobClientConfig is null");
+            spoolingProperties = ImmutableMap.copyOf(requireNonNull(spoolingProperties, "spoolingProperties is null"));
         }
     }
 }
