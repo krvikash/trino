@@ -49,6 +49,7 @@ import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +57,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.lang.Math.toIntExact;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuTypeConversion
@@ -69,6 +71,19 @@ public final class GpuTypeConversion
     public static boolean isConvertible(Type type)
     {
         return toDType(type).isPresent();
+    }
+
+    public static Optional<List<DType>> toDTypes(List<Type> type)
+    {
+        List<DType> converted = new ArrayList<>(type.size());
+        for (Type t : type) {
+            Optional<DType> dType = toDType(t);
+            if (dType.isEmpty()) {
+                return Optional.empty();
+            }
+            converted.add(dType.get());
+        }
+        return Optional.of(unmodifiableList(converted));
     }
 
     public static Optional<DType> toDType(Type type)

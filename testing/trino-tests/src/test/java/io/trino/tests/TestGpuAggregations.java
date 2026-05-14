@@ -15,6 +15,7 @@ package io.trino.tests;
 
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.tree.ExplainType;
 import io.trino.testing.AbstractTestAggregations;
 import io.trino.testing.QueryRunner;
@@ -232,5 +233,18 @@ public class TestGpuAggregations
                 """,
                 ExplainType.Type.DISTRIBUTED))
                 .doesNotContain("avg_input := CAST(");
+    }
+
+    @Test
+    public void testGroupIdOnGpu()
+    {
+        // ROLLUP introduces a GroupIdNode
+        assertThat(query(
+                """
+                SELECT orderkey, sum(totalprice)
+                FROM orders
+                GROUP BY ROLLUP (orderkey)
+                """))
+                .executesWithGpu(GroupIdNode.class);
     }
 }

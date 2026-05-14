@@ -13,6 +13,7 @@
  */
 package io.trino.sql.planner;
 
+import ai.rapids.cudf.DType;
 import ai.rapids.cudf.ast.AstExpression;
 import com.google.common.base.Throwables;
 import com.google.common.base.VerifyException;
@@ -127,6 +128,7 @@ import io.trino.operator.exchange.PageChannelSelector;
 import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColumnSpecification;
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
 import io.trino.operator.gpu.GpuFilter;
+import io.trino.operator.gpu.GpuGroupId;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperator;
 import io.trino.operator.gpu.GpuProject;
@@ -403,6 +405,7 @@ import static io.trino.operator.window.pattern.PhysicalValuePointer.MATCH_NUMBER
 import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
 import static io.trino.spi.StandardErrorCode.SERIALIZATION_ERROR;
+import static io.trino.spi.gpu.GpuTypeConversion.toDTypes;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
@@ -2161,6 +2164,19 @@ public class LocalExecutionPlanner
 
             newLayout.put(node.getGroupIdSymbol(), outputChannel);
             outputTypes.add(BIGINT);
+
+            if (isGpuExecutionEnabled(session)) {
+                Optional<List<DType>> outputDTypes = toDTypes(outputTypes.build());
+                if (outputDTypes.isPresent()) {
+                    return addGpuOperation(
+                            new GpuGroupId.Factory(mappings.build(), outputDTypes.get()),
+                            outputTypes.build(),
+                            source,
+                            newLayout,
+                            context,
+                            node.getId());
+                }
+            }
 
             OperatorFactory groupIdOperatorFactory = new GroupIdOperator.GroupIdOperatorFactory(context.getNextOperatorId(),
                     node.getId(),
