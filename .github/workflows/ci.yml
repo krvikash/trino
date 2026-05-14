@@ -1756,6 +1756,7 @@ jobs:
             - { modules: plugin/trino-elasticsearch }
             - { modules: starburst-buffer-service/starburst-buffer-exchange-tests, profile: test-buffer-exchange-failure-recovery }
             - { modules: starburst-buffer-service/starburst-buffer-exchange-tests }
+            - { modules: starburst-buffer-service/starburst-buffer-data-server, profile: cloud-tests }
             - { modules: plugin/trino-exchange-filesystem, profile: cloud-tests }
             - { modules: plugin/trino-exasol }
             # - { modules: plugin/trino-google-sheets }
@@ -1856,6 +1857,7 @@ jobs:
           && ! (contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-gcs') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-s3') && contains(matrix.profile, 'cloud-tests'))
+          && ! (contains(matrix.modules, 'starburst-buffer-data-server') && contains(matrix.profile, 'cloud-tests'))
         run: $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }}
       # Additional tests for selected modules
       - name: Run Starburst Functions tests
@@ -1974,6 +1976,27 @@ jobs:
         if: >-
           contains(matrix.modules, 'trino-filesystem-gcs') && contains(matrix.profile, 'cloud-tests') &&
           (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.GCP_CREDENTIALS_KEY != '')
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ format('-P {0}', matrix.profile) }}
+      - name: Buffer Service TrinoFs Spooling Cloud Tests
+        id: tests-buffer-trino-fs-cloud
+        env:
+          AWS_ACCESS_KEY_ID: ${{ vars.TRINO_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.TRINO_AWS_REGION }}
+          S3_BUCKET: ${{ vars.TRINO_S3_BUCKET }}
+          ABFS_FLAT_ACCOUNT: ${{ vars.AZURE_ABFS_FLAT_ACCOUNT }}
+          ABFS_FLAT_ACCESS_KEY: ${{ secrets.AZURE_ABFS_FLAT_ACCESS_KEY }}
+          ABFS_HIERARCHICAL_ACCOUNT: ${{ vars.AZURE_ABFS_HIERARCHICAL_ACCOUNT }}
+          ABFS_HIERARCHICAL_ACCESS_KEY: ${{ secrets.AZURE_ABFS_HIERARCHICAL_ACCESS_KEY }}
+          ABFS_OAUTH_TENANT_ID: ${{ vars.AZURE_ABFS_OAUTH_TENANT_ID }}
+          ABFS_OAUTH_CLIENT_ID: ${{ vars.AZURE_ABFS_OAUTH_CLIENT_ID }}
+          ABFS_OAUTH_CLIENT_SECRET: ${{ secrets.AZURE_ABFS_OAUTH_CLIENT_SECRET }}
+          GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
+          GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+        if: >-
+          contains(matrix.modules, 'starburst-buffer-data-server') && contains(matrix.profile, 'cloud-tests') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.AWS_ACCESS_KEY_ID != '' || env.ABFS_FLAT_ACCESS_KEY != '' || env.ABFS_HIERARCHICAL_ACCESS_KEY != '' || env.ABFS_OAUTH_CLIENT_SECRET != '' || env.GCP_CREDENTIALS_KEY != '')
         run: |
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ format('-P {0}', matrix.profile) }}
       - name: Cloud Delta Lake Tests
@@ -2210,6 +2233,7 @@ jobs:
               || steps.tests-hdfs-isolated.outcome == 'failure'
               || steps.tests-s3.outcome == 'failure'
               || steps.tests-azure.outcome == 'failure'
+              || steps.tests-buffer-trino-fs-cloud.outcome == 'failure'
               || steps.tests-filesystem-exchange.outcome == 'failure'
               || steps.tests-gcs.outcome == 'failure'
               || steps.tests-delta.outcome == 'failure'
