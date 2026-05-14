@@ -63,6 +63,10 @@ import io.trino.plugin.jdbc.aggregation.ImplementVariancePop;
 import io.trino.plugin.jdbc.aggregation.ImplementVarianceSamp;
 import io.trino.plugin.jdbc.expression.JdbcConnectorExpressionRewriterBuilder;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
+import io.trino.plugin.jdbc.expression.RewriteAnd;
+import io.trino.plugin.jdbc.expression.RewriteExactNumericConstant;
+import io.trino.plugin.jdbc.expression.RewriteOr;
+import io.trino.plugin.jdbc.expression.RewriteVarcharConstant;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.AggregateFunction;
@@ -251,15 +255,13 @@ public class SnowflakeClient
         this.connectorFlavour = connectorFlavour;
         this.databasePrefixForSchemaEnabled = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getDatabasePrefixForSchemaEnabled();
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
-                .addStandardRules(this::quoted)
-                .withTypeClass("collatable_type", ImmutableSet.of("varchar"))
-                .map("$equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' = right")
-                .map("$not_equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' <> right")
-                .map("$identical(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' IS NOT DISTINCT FROM right")
-                .map("$less_than(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' < right")
-                .map("$less_than_or_equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' <= right")
-                .map("$greater_than(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' > right")
-                .map("$greater_than_or_equal(left: collatable_type, right: collatable_type)").to("left COLLATE 'utf8' >= right")
+                // Same as addStandardRules but rewrites variables in a custom way.
+                .add(new RewriteSnowflakeVariable(this::quoted))
+                .add(new RewriteVarcharConstant())
+                .add(new RewriteExactNumericConstant())
+                .add(new RewriteAnd())
+                .add(new RewriteOr())
+                // End of addStandardRules copy.
                 .map("$equal(left, right)").to("left = right")
                 .map("$not_equal(left, right)").to("left <> right")
                 .map("$identical(left, right)").to("left IS NOT DISTINCT FROM right")
