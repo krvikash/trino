@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
+import ai.rapids.cudf.Scalar;
 import com.google.common.collect.Streams;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -49,6 +50,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
+import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -413,6 +415,56 @@ public class TestGpuDataConversion
                                 .as("type %s position %d", type, expectedIndex)
                                 .isEqualTo(expected);
                     });
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testFromHostValueRoundTrip(NullsProvider nullsProvider)
+    {
+        for (Type type : TESTED_GPU_TYPES) {
+            GpuTypeConversion.GpuTypeMapping mapping = GpuTypeConversion.toGpuMapping(type).orElseThrow();
+            if (mapping.fromHostValue().isEmpty()) {
+                continue;
+            }
+            GpuTypeConversion.FromHostValue fromHostValue = mapping.fromHostValue().get();
+            Block block = createBlock(type, 100, nullsProvider);
+
+            try (Blocks blocks = new Blocks(List.of(block));
+                    ColumnVector deviceColumn = mapping.toColumn().copyToDevice(blocks);
+                    HostColumnVector hostColumn = deviceColumn.copyToHost()) {
+                for (int i = 0; i < block.getPositionCount(); i++) {
+                    Object expected = readNativeValue(type, block, i);
+                    Object actual = fromHostValue.trinoValue(hostColumn, i);
+                    assertThat(actual)
+                            .as("%s position %d", type, i)
+                            .isEqualTo(expected);
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testFromScalarRoundTrip(NullsProvider nullsProvider)
+    {
+        for (Type type : TESTED_GPU_TYPES) {
+            GpuTypeConversion.GpuTypeMapping mapping = GpuTypeConversion.toGpuMapping(type).orElseThrow();
+            if (mapping.fromScalar().isEmpty()) {
+                continue;
+            }
+            GpuTypeConversion.FromScalar fromScalar = mapping.fromScalar().get();
+            Block block = createBlock(type, 20, nullsProvider);
+
+            for (int i = 0; i < block.getPositionCount(); i++) {
+                Object expected = readNativeValue(type, block, i);
+                try (Scalar scalar = mapping.toScalar().copyToScalar(Optional.ofNullable(expected))) {
+                    Object actual = fromScalar.trinoValue(scalar);
+                    assertThat(actual)
+                            .as("%s position %d", type, i)
+                            .isEqualTo(expected);
+                }
+            }
         }
     }
 

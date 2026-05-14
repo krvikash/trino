@@ -51,24 +51,27 @@ public final class GpuJoinBuild
         private final int[] buildKeyChannels;
         private final int[] buildOutputChannels;
         private final Optional<AstExpression> filter;
+        private final Optional<GpuDynamicFilterCollector> dynamicFilter;
 
         public Factory(
                 GpuJoinBridgeManager bridgeManager,
                 int[] buildKeyChannels,
                 int[] buildOutputChannels,
-                Optional<AstExpression> filter)
+                Optional<AstExpression> filter,
+                Optional<GpuDynamicFilterCollector> dynamicFilter)
         {
             this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
             this.buildKeyChannels = requireNonNull(buildKeyChannels, "buildKeyChannels is null").clone();
             checkArgument(this.buildKeyChannels.length > 0, "buildKeyChannels must not be empty");
             this.buildOutputChannels = requireNonNull(buildOutputChannels, "buildOutputChannels is null").clone();
             this.filter = requireNonNull(filter, "filter is null");
+            this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
         }
 
         @Override
         public GpuOperation create(GpuOperation source)
         {
-            return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels, filter);
+            return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels, filter, dynamicFilter);
         }
     }
 
@@ -77,6 +80,7 @@ public final class GpuJoinBuild
     private final int[] buildKeyChannels;
     private final int[] buildOutputChannels;
     private final Optional<AstExpression> filter;
+    private final Optional<GpuDynamicFilterCollector> dynamicFilter;
 
     private final List<@Own Table> bufferedTables = new ArrayList<>();
     private final ClosingRef<Table> buildSourceTable = ClosingRef.empty();
@@ -92,13 +96,15 @@ public final class GpuJoinBuild
             GpuJoinBridgeManager bridgeManager,
             int[] buildKeyChannels,
             int[] buildOutputChannels,
-            Optional<AstExpression> filter)
+            Optional<AstExpression> filter,
+            Optional<GpuDynamicFilterCollector> dynamicFilter)
     {
         this.source = requireNonNull(source, "source is null");
         this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
         this.buildKeyChannels = buildKeyChannels;
         this.buildOutputChannels = buildOutputChannels;
         this.filter = requireNonNull(filter, "filter is null");
+        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
     }
 
     @Override
@@ -149,12 +155,15 @@ public final class GpuJoinBuild
 
         if (bufferedTables.isEmpty()) {
             // build side empty
+            dynamicFilter.ifPresent(GpuDynamicFilterCollector::collectEmpty);
             bridgeManager.publishBridge(new EmptyBuildSide(), this::allProbesFinished);
             return;
         }
 
         buildSourceTable.set(concatenateAndClose(bufferedTables));
         bufferedTables.clear();
+
+        dynamicFilter.ifPresent(filter -> filter.collect(buildSourceTable.borrow()));
 
         buildKeyTable.set(selectColumns(buildSourceTable.borrow(), buildKeyChannels));
 

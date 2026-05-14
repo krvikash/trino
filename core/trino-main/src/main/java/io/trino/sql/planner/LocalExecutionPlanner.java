@@ -139,6 +139,7 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.gpu.join.CudfAstExpression;
+import io.trino.operator.gpu.join.GpuDynamicFilterCollector;
 import io.trino.operator.gpu.join.GpuJoinBridgeManager;
 import io.trino.operator.gpu.join.GpuJoinBuild;
 import io.trino.operator.gpu.join.GpuJoinFilterCompiler;
@@ -4508,18 +4509,11 @@ public class LocalExecutionPlanner
             List<Integer> buildOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getRightOutputSymbols(), buildSource.getLayout()));
             List<Integer> buildChannels = ImmutableList.copyOf(getChannelsForSymbols(buildSymbols, buildSource.getLayout()));
 
-            int operatorId = buildContext.getNextOperatorId();
             boolean partitioned = !isBuildSideReplicated(node);
             Optional<LocalDynamicFilterConsumer> localDynamicFilter = createDynamicFilter(buildSource, node, context, localDynamicFilters, partitioned);
-            if (localDynamicFilter.isPresent()) {
-                buildSource = createDynamicFilterSourceOperatorFactory(
-                        operatorId,
-                        localDynamicFilter.get(),
-                        node,
-                        partitioned,
-                        buildContext.getDriverInstanceCount().orElse(1) == 1,
-                        buildSource);
-            }
+            Optional<GpuDynamicFilterCollector> gpuDynamicFilter = localDynamicFilter
+                    .map(filter -> buildGpuDynamicFilterCollector(filter, buildSource, partitioned));
+            localDynamicFilter.ifPresent(filter -> filter.setPartitionCount(1));
 
             Map<Symbol, Integer> buildLayout = buildSource.getLayout();
             Optional<AstExpression> filter = compiledFilter.map(ast -> ast.toCudfAst(probeSource.getLayout(), buildLayout));
@@ -4531,7 +4525,8 @@ public class LocalExecutionPlanner
                             bridgeManager,
                             Ints.toArray(buildChannels),
                             Ints.toArray(buildOutputChannels),
-                            filter),
+                            filter,
+                            gpuDynamicFilter),
                     ImmutableList.of(),
                     buildSource,
                     ImmutableMap.of(),
@@ -4569,6 +4564,27 @@ public class LocalExecutionPlanner
                     makeLayout(node),
                     context,
                     node.getId()));
+        }
+
+        private GpuDynamicFilterCollector buildGpuDynamicFilterCollector(
+                LocalDynamicFilterConsumer consumer,
+                PhysicalOperation buildSource,
+                boolean partitioned)
+        {
+            List<GpuDynamicFilterCollector.Channel> channels = consumer.getBuildChannels().entrySet().stream()
+                    .map(entry -> {
+                        Type type = buildSource.getTypes().get(entry.getValue());
+                        Optional<GpuTypeConversion.GpuTypeMapping> mapping = GpuTypeConversion.toGpuMapping(type);
+                        return new GpuDynamicFilterCollector.Channel(
+                                entry.getKey(),
+                                entry.getValue(),
+                                type,
+                                mapping.flatMap(GpuTypeConversion.GpuTypeMapping::fromHostValue),
+                                mapping.flatMap(GpuTypeConversion.GpuTypeMapping::fromScalar));
+                    })
+                    .collect(toImmutableList());
+            int maxDistinctValues = multipleIf(getDynamicFilteringMaxDistinctValuesPerDriver(partitioned), getTaskConcurrency(session), true);
+            return new GpuDynamicFilterCollector(consumer, channels, maxDistinctValues);
         }
 
         private OperatorFactory createHashAggregationOperatorFactory(
