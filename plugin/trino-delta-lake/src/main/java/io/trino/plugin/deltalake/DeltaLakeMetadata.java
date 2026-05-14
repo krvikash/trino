@@ -926,7 +926,9 @@ public class DeltaLakeMetadata
     {
         Optional<Long> endTableVersion = endVersion.map(version -> getVersion(session, fileSystem, tableLocation, version, metadataFetchingExecutor));
 
-        if (isLoadMetadataFromChecksumFile(session)) {
+        // catalog managed table may have staged commits, and don't put checksum files inside the staged directory
+        // so we should always read transaction log for the catalog managed tables.
+        if (isLoadMetadataFromChecksumFile(session) && !table.catalogManaged()) {
             Optional<DeltaLakeTableDescriptor> descriptor = loadDescriptorFromChecksum(table.schemaTableName(), fileSystem, tableLocation, endTableVersion);
             if (descriptor.isPresent()) {
                 latestTableVersions.put(table.schemaTableName(), descriptor.get().version());
