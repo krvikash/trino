@@ -170,13 +170,15 @@ class TestKdbConnectorTest
     @Test
     void testUnsupportedColumnType()
     {
-        client.execute("test_unsupported_type: flip `col1`col2`col3 ! (`long$(); ([] x:`long$()); `long$())");
-        client.execute("`test_unsupported_type insert (1; ([] x: enlist 999); 10)");
+        try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_unsupported_column_type")) {
+            client.execute("%s: flip `col1`col2`col3 ! (`long$(); ([] x:`long$()); `long$())".formatted(table.getName()));
+            client.execute("`%s insert (1; ([] x: enlist 999); 10)".formatted(table.getName()));
 
-        assertThat(query("DESC test_unsupported_type")).skippingTypesCheck()
-                .matches("VALUES ('col1', 'bigint', '', ''), ('col3', 'bigint', '', '')");
+            assertThat(query("DESC " + table.getName())).skippingTypesCheck()
+                    .matches("VALUES ('col1', 'bigint', '', ''), ('col3', 'bigint', '', '')");
 
-        assertThat(query("TABLE test_unsupported_type"))
-                .matches("VALUES (BIGINT '1', BIGINT '10')");
+            assertThat(query("TABLE " + table.getName()))
+                    .matches("VALUES (BIGINT '1', BIGINT '10')");
+        }
     }
 }

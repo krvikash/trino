@@ -57,34 +57,4 @@ final class KdbCreateAndInsertDataSetup
 
         return new KdbTemporaryTable(kdbClient, tableName);
     }
-
-    private static final class KdbTemporaryTable
-            implements TemporaryRelation
-    {
-        private final KdbClient kdbClient;
-        private final String name;
-
-        KdbTemporaryTable(KdbClient kdbClient, String name)
-        {
-            this.kdbClient = kdbClient;
-            this.name = name;
-        }
-
-        @Override
-        public String getName()
-        {
-            return name;
-        }
-
-        @Override
-        public void close()
-        {
-            try {
-                kdbClient.execute("delete " + name + " from `.");
-            }
-            catch (Exception ignored) {
-                // cleanup failed
-            }
-        }
-    }
 }
