@@ -606,24 +606,35 @@ public class DataResource
             return;
         }
 
-        final MemoryChunkDataLease chunkDataLease;
         switch (chunkDataResult) {
-            case SpooledChunkResult(SpooledChunk spooledChunk) -> {
-                asyncResponse.resume(Response.status(Status.NOT_FOUND)
-                        .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
-                        .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
-                        .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
-                        .build());
-                return;
-            }
-            case ChunkContentResult(MemoryChunkDataLease lease) -> chunkDataLease = lease;
-            case ChunkContentResult(DiskChunkDataLease lease) -> {
-                // TODO zero-copy file streaming via async ByteBuffer loop (see BaseDataResource async pattern)
-                lease.release();
-                asyncResponse.resume(errorResponse(new UnsupportedOperationException("disk chunk streaming not implemented")));
-                return;
-            }
+            case SpooledChunkResult result -> resumeSpooledChunk(asyncResponse, result);
+            case ChunkContentResult(MemoryChunkDataLease lease) ->
+                    streamMemoryChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
+            case ChunkContentResult(DiskChunkDataLease lease) ->
+                    streamDiskChunk(lease, asyncResponse, bufferNodeId, exchangeId, partitionId, chunkId);
         }
+    }
+
+    private static void resumeSpooledChunk(AsyncResponse asyncResponse, SpooledChunkResult result)
+    {
+        SpooledChunk spooledChunk = result.spooledChunk();
+        asyncResponse.resume(Response.status(Status.NOT_FOUND)
+                .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
+                .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
+                .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
+                .build());
+    }
+
+    private void streamMemoryChunk(
+            MemoryChunkDataLease chunkDataLease,
+            ServletOutputStream outputStream,
+            HttpServletRequest request,
+            HttpServletResponse response,
+            long bufferNodeId,
+            String exchangeId,
+            int partitionId,
+            long chunkId)
+    {
         ArrayDeque<Slice> sliceQueue;
         AsyncContext context;
         try {
@@ -700,6 +711,20 @@ public class DataResource
                 }
             }
         });
+    }
+
+    private void streamDiskChunk(
+            DiskChunkDataLease lease,
+            AsyncResponse asyncResponse,
+            long bufferNodeId,
+            String exchangeId,
+            int partitionId,
+            long chunkId)
+    {
+        // TODO zero-copy file streaming via async ByteBuffer loop (see BaseDataResource async pattern)
+        lease.release();
+        asyncResponse.resume(errorResponse(new UnsupportedOperationException(
+                "disk chunk streaming not implemented for GET /%s/%s/pages/%s/%s".formatted(bufferNodeId, exchangeId, partitionId, chunkId))));
     }
 
     @GET

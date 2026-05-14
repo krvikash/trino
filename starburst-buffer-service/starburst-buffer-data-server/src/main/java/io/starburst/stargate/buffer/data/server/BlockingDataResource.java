@@ -423,22 +423,32 @@ public class BlockingDataResource
             return errorResponse(e);
         }
 
-        final MemoryChunkDataLease chunkDataLease;
-        switch (chunkDataResult) {
-            case SpooledChunkResult(SpooledChunk spooledChunk) -> {
-                return Response.status(Response.Status.NOT_FOUND)
-                        .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
-                        .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
-                        .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
-                        .build();
-            }
-            case ChunkContentResult(MemoryChunkDataLease lease) -> chunkDataLease = lease;
-            case ChunkContentResult(DiskChunkDataLease lease) -> {
-                // TODO zero-copy streaming via FileChannel.transferTo to the response's WritableByteChannel
-                lease.release();
-                return errorResponse(new UnsupportedOperationException("disk chunk streaming not implemented"));
-            }
-        }
+        return switch (chunkDataResult) {
+            case SpooledChunkResult result -> spooledChunkResponse(result);
+            case ChunkContentResult(MemoryChunkDataLease lease) ->
+                    streamMemoryChunk(lease, bufferNodeId, exchangeId, partitionId, chunkId);
+            case ChunkContentResult(DiskChunkDataLease lease) ->
+                    streamDiskChunk(lease, bufferNodeId, exchangeId, partitionId, chunkId);
+        };
+    }
+
+    private static Response spooledChunkResponse(SpooledChunkResult result)
+    {
+        SpooledChunk spooledChunk = result.spooledChunk();
+        return Response.status(Response.Status.NOT_FOUND)
+                .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
+                .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
+                .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
+                .build();
+    }
+
+    private Response streamMemoryChunk(
+            MemoryChunkDataLease chunkDataLease,
+            long bufferNodeId,
+            String exchangeId,
+            int partitionId,
+            long chunkId)
+    {
         ArrayDeque<Slice> sliceQueue;
         try {
             int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
@@ -492,6 +502,19 @@ public class BlockingDataResource
                         }
                     }
                 }).build();
+    }
+
+    private Response streamDiskChunk(
+            DiskChunkDataLease lease,
+            long bufferNodeId,
+            String exchangeId,
+            int partitionId,
+            long chunkId)
+    {
+        // TODO zero-copy streaming via FileChannel.transferTo to the response's WritableByteChannel
+        lease.release();
+        return errorResponse(new UnsupportedOperationException(
+                "disk chunk streaming not implemented for GET /%s/%s/pages/%s/%s".formatted(bufferNodeId, exchangeId, partitionId, chunkId)));
     }
 
     @GET
