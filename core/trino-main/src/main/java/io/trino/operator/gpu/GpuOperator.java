@@ -13,7 +13,6 @@
  */
 package io.trino.operator.gpu;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -49,6 +48,7 @@ import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -230,6 +230,20 @@ public abstract class GpuOperator
                         return new GpuOperatorSource(sourceOperation, copyToDevice);
                     },
                     operations,
+                    outputTypes);
+        }
+
+        public Factory(int operatorId, PlanNodeId planNodeId, GpuSourceOperation.Factory sourceFactory, List<Type> outputTypes)
+        {
+            this(
+                    operatorId,
+                    planNodeId,
+                    ImmutableList.of(),
+                    () -> {
+                        GpuSourceOperation source = sourceFactory.create();
+                        return new GpuOperatorSource(source, source);
+                    },
+                    ImmutableList.of(),
                     outputTypes);
         }
 

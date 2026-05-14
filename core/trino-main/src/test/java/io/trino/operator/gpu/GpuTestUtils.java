@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
@@ -21,6 +22,8 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.DecimalType;
@@ -92,6 +95,17 @@ public final class GpuTestUtils
         // First call to Rmm.initialize wins.
         new GpuConfigurer(new GpuConfig()
                 .setPoolSize(DataSize.of(1, DataSize.Unit.GIGABYTE)));
+    }
+
+    /**
+     * Builds a single-column {@link GpuPage} backed by an INTEGER {@link DeviceMemory} column
+     * containing the given values.
+     */
+    public static @Own GpuPage deviceIntColumn(int[] values)
+    {
+        try (DeviceMemory column = new DeviceMemory(ColumnVector.fromInts(values))) {
+            return new GpuPage(values.length, new Column[] {column});
+        }
     }
 
     public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)

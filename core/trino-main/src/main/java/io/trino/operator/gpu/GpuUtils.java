@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import ai.rapids.cudf.Table;
 import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
@@ -46,5 +47,16 @@ public final class GpuUtils
                 column.close();
             }
         }
+    }
+
+    public static long retainedDeviceBytes(GpuPage page)
+    {
+        long total = 0;
+        for (Column column : page.columns()) {
+            if (column instanceof Column.DeviceMemory deviceMemory) {
+                total += deviceMemory.columnVector().getDeviceMemorySize();
+            }
+        }
+        return total;
     }
 }

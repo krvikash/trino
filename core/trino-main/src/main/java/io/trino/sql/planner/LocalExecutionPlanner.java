@@ -15,6 +15,7 @@ package io.trino.sql.planner;
 
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.ast.AstExpression;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.base.VerifyException;
 import com.google.common.cache.CacheBuilder;
@@ -135,6 +136,8 @@ import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuTopN;
 import io.trino.operator.gpu.SentinelSinkOperator;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
+import io.trino.operator.gpu.exchange.GpuLocalExchange;
+import io.trino.operator.gpu.exchange.GpuLocalExchangeWriter;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
@@ -428,6 +431,7 @@ import static io.trino.sql.planner.SortExpressionExtractor.extractSortExpression
 import static io.trino.sql.planner.SystemPartitioningHandle.COORDINATOR_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_BROADCAST_DISTRIBUTION;
+import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
@@ -489,6 +493,7 @@ public class LocalExecutionPlanner
     private final DataSize maxPartialAggregationMemorySize;
     private final DataSize maxPagePartitioningBufferSize;
     private final DataSize maxLocalExchangeBufferSize;
+    private final DataSize gpuLocalExchangeBufferSize;
     private final SpillerFactory spillerFactory;
     private final QueryDataEncoders encoders;
     private final Optional<SpoolingManager> spoolingManager;
@@ -588,6 +593,7 @@ public class LocalExecutionPlanner
         this.maxPartialAggregationMemorySize = taskManagerConfig.getMaxPartialAggregationMemoryUsage();
         this.maxPagePartitioningBufferSize = taskManagerConfig.getMaxPagePartitioningBufferSize();
         this.maxLocalExchangeBufferSize = taskManagerConfig.getMaxLocalExchangeBufferSize();
+        this.gpuLocalExchangeBufferSize = taskManagerConfig.getGpuLocalExchangeBufferSize();
         this.pagesIndexFactory = requireNonNull(pagesIndexFactory, "pagesIndexFactory is null");
         this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
         this.hashStrategyCompiler = requireNonNull(hashStrategyCompiler, "hashStrategyCompiler is null");
@@ -772,6 +778,9 @@ public class LocalExecutionPlanner
         private boolean inputDriver = true;
         private Optional<CacheContext> cacheContext = Optional.empty();
         private OptionalInt driverInstanceCount = OptionalInt.empty();
+        // Routing constraint that the enclosing planner imposes on HASH local exchanges in this
+        // sub-pipeline. Not inherited via createSubContext — each sub-pipeline starts UNCONSTRAINED.
+        private HashExchangeConstraint hashExchangeConstraint = HashExchangeConstraint.UNCONSTRAINED;
 
         public LocalExecutionPlanContext(TaskContext taskContext, Metadata metadata, AlternativeChooser alternativeChooser)
         {
@@ -976,6 +985,30 @@ public class LocalExecutionPlanner
             }
             this.driverInstanceCount = OptionalInt.of(driverInstanceCount);
         }
+
+        public void setHashExchangeConstraint(HashExchangeConstraint constraint)
+        {
+            this.hashExchangeConstraint = requireNonNull(constraint, "constraint is null");
+        }
+
+        public HashExchangeConstraint getHashExchangeConstraint()
+        {
+            return hashExchangeConstraint;
+        }
+    }
+
+    /**
+     * Routing constraint applied to a HASH local exchange. Paired HASH pipelines of a partitioned
+     * lookup join must agree on hash function: GpuLocalExchange uses cuDF MURMUR3 while the host
+     * LE uses Trino's InterpretedHashGenerator, so the probe and build pipelines must both run
+     * on the same backend (both GPU or both CPU) or rows get dropped silently. The join planner
+     * declares which backend a sub-pipeline belongs to via this constraint; the local-exchange
+     * planner falls back to host LE whenever the constraint is {@link #HOST_ONLY}.
+     */
+    public enum HashExchangeConstraint
+    {
+        UNCONSTRAINED,
+        HOST_ONLY,
     }
 
     private static class CacheContext
@@ -3261,7 +3294,15 @@ public class LocalExecutionPlanner
                 LocalExecutionPlanContext context)
         {
             // Plan probe
-            PhysicalOperation probeSource = probeNode.accept(this, context);
+            PhysicalOperation probeSource;
+            HashExchangeConstraint priorConstraint = context.getHashExchangeConstraint();
+            context.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
+            try {
+                probeSource = probeNode.accept(this, context);
+            }
+            finally {
+                context.setHashExchangeConstraint(priorConstraint);
+            }
 
             // Plan build
             boolean buildOuter = node.getType() == RIGHT || node.getType() == FULL;
@@ -3303,6 +3344,7 @@ public class LocalExecutionPlanner
             if (gpuOperation.isPresent()) {
                 return gpuOperation.get();
             }
+            buildContext.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
             PhysicalOperation buildSource = buildNode.accept(this, buildContext);
 
             List<Integer> buildOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getRightOutputSymbols(), buildSource.getLayout()));
@@ -3754,6 +3796,9 @@ public class LocalExecutionPlanner
                     buildContext,
                     node.getId());
 
+            // For the last operator, Driver does not call getOutput(), only addInput() (guarded by needsInput()) and finish() (when input exhausted).
+            // This means that the sink operator can never declare "I temporarily do not want more input", which is incompatible with GPU's operations
+            // contract such as BufferPages. We're a dummy operator so that Driver calls getOutput() allowing the build side to do its work.
             joinBuild = new PhysicalOperation(
                     new SentinelSinkOperator.Factory(buildContext.getNextOperatorId(), node.getId()),
                     ImmutableMap.of(),
@@ -4241,6 +4286,11 @@ public class LocalExecutionPlanner
                 driverFactoryParametersList.add(new DriverFactoryParameters(subContext, source));
             }
 
+            Optional<PhysicalOperation> gpuOperation = tryPlanGpuLocalExchange(node, context, driverInstanceCount, driverFactoryParametersList);
+            if (gpuOperation.isPresent()) {
+                return gpuOperation.get();
+            }
+
             LocalExchange localExchange = new LocalExchange(
                     partitionFunctionProvider,
                     session,
@@ -4284,6 +4334,93 @@ public class LocalExecutionPlanner
                     "driver instance count must match the number of exchange partitions");
 
             return new PhysicalOperation(new LocalExchangeSourceOperatorFactory(context.getNextOperatorId(), node.getId(), localExchange), makeLayout(node));
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuLocalExchange(
+                ExchangeNode node,
+                LocalExecutionPlanContext context,
+                int driverInstanceCount,
+                List<DriverFactoryParameters> driverFactoryParameters)
+        {
+            if (!isGpuExecutionEnabled(session) || !isGpuLocalExchangeEligible(node)) {
+                return Optional.empty();
+            }
+            PartitioningHandle partitioning = node.getPartitioningScheme().getPartitioning().getHandle();
+            if (partitioning.equals(FIXED_HASH_DISTRIBUTION) && context.getHashExchangeConstraint() == HashExchangeConstraint.HOST_ONLY) {
+                log.debug("Could not plan local exchange for GPU execution: paired HASH LE with non-GPU lookup join consumer");
+                return Optional.empty();
+            }
+            for (DriverFactoryParameters parameters : driverFactoryParameters) {
+                List<OperatorFactory> tail = parameters.getSource().getPipelineTail();
+                // ChooseAlternativeNode is pushed to the top of a source-stage pipeline, leaving
+                // an empty shared tail; conservatively reject rather than inspect each alternative.
+                if (tail.isEmpty()) {
+                    log.debug("Could not plan local exchange for GPU execution: upstream pipeline is a plan alternative");
+                    return Optional.empty();
+                }
+                OperatorFactory tailOperatorFactory = tail.getLast();
+                if (!(tailOperatorFactory instanceof GpuOperator.BaseFactory)) {
+                    log.debug("Could not plan local exchange for GPU execution: upstream pipeline ends in %s, not GpuOperator", tailOperatorFactory);
+                    return Optional.empty();
+                }
+            }
+
+            List<Type> outputTypes = getSourceOperatorTypes(node);
+            int[] partitionChannels = node.getPartitioningScheme().getPartitioning().getArguments().stream()
+                    .mapToInt(argument -> node.getOutputSymbols().indexOf(argument.getColumn()))
+                    .toArray();
+
+            GpuLocalExchange exchange = new GpuLocalExchange(
+                    node.getPartitioningScheme().getPartitioning().getHandle(),
+                    driverInstanceCount,
+                    partitionChannels,
+                    gpuLocalExchangeBufferSize.toBytes());
+
+            for (int sourceIndex = 0; sourceIndex < driverFactoryParameters.size(); sourceIndex++) {
+                DriverFactoryParameters parameters = driverFactoryParameters.get(sourceIndex);
+                PhysicalOperation source = parameters.getSource();
+                LocalExecutionPlanContext subContext = parameters.getSubContext();
+                // LOCAL ExchangeNode inputs match the source output channels for the partitioning
+                // handles we accept; fail loudly if a future plan shape breaks this.
+                List<Symbol> expectedInputs = node.getInputs().get(sourceIndex);
+                Map<Symbol, Integer> sourceLayout = source.getLayout();
+                for (int channel = 0; channel < expectedInputs.size(); channel++) {
+                    Symbol symbol = expectedInputs.get(channel);
+                    Integer actualChannel = sourceLayout.get(symbol);
+                    verify(actualChannel != null && actualChannel == channel,
+                            "GPU local exchange requires identity input layout (source %s, channel %s, symbol %s, sourceLayout %s)",
+                            sourceIndex, channel, symbol, sourceLayout);
+                }
+
+                GpuLocalExchange.GpuLocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+                PhysicalOperation pipelineWithSink = addGpuOperation(
+                        new GpuLocalExchangeWriter.Factory(sinkFactory),
+                        outputTypes,
+                        source,
+                        source.getLayout(),
+                        subContext,
+                        node.getId());
+                // For the last operator, Driver does not call getOutput(), only addInput() (guarded by needsInput()) and finish() (when input exhausted).
+                // This means that the sink operator can never declare "I temporarily do not want more input", which is incompatible with GPU's operations
+                // contract such as BufferPages. We're a dummy operator so that Driver calls getOutput() allowing the build side to do its work.
+                PhysicalOperation sinkDriver = new PhysicalOperation(
+                        new SentinelSinkOperator.Factory(subContext.getNextOperatorId(), node.getId()),
+                        pipelineWithSink.getLayout(),
+                        pipelineWithSink);
+                context.addDriverFactory(false, sinkDriver, subContext);
+            }
+
+            context.setInputDriver(false);
+            verify(context.getDriverInstanceCount().getAsInt() == exchange.getBufferCount(),
+                    "driver instance count must match the number of exchange partitions");
+
+            GpuOperator.Factory sourceFactory = new GpuOperator.Factory(
+                    context.getNextOperatorId(),
+                    node.getId(),
+                    exchange.readerSourceFactory(),
+                    outputTypes);
+
+            return Optional.of(new PhysicalOperation(sourceFactory, makeLayout(node)));
         }
 
         @Override
@@ -5190,6 +5327,46 @@ public class LocalExecutionPlanner
                     .add("boundSignature", boundSignature)
                     .toString();
         }
+    }
+
+    @VisibleForTesting
+    static boolean isGpuLocalExchangeEligible(ExchangeNode node)
+    {
+        if (node.getOrderingScheme().isPresent()) {
+            log.debug("Could not plan local exchange for GPU execution: sort-merge ordering");
+            return false;
+        }
+        PartitioningHandle partitioning = node.getPartitioningScheme().getPartitioning().getHandle();
+        if (!partitioning.equals(SINGLE_DISTRIBUTION)
+                && !partitioning.equals(FIXED_HASH_DISTRIBUTION)
+                && !partitioning.equals(FIXED_ARBITRARY_DISTRIBUTION)) {
+            log.debug("Could not plan local exchange for GPU execution: unsupported partitioning %s", partitioning);
+            return false;
+        }
+        if (partitioning.getCatalogHandle().isPresent()) {
+            log.debug("Could not plan local exchange for GPU execution: connector partitioning %s", partitioning);
+            return false;
+        }
+        if (partitioning.getConnectorHandle() instanceof MergePartitioningHandle) {
+            log.debug("Could not plan local exchange for GPU execution: MERGE INTO partitioning");
+            return false;
+        }
+        List<Type> outputTypes = node.getOutputSymbols().stream()
+                .map(Symbol::type)
+                .collect(toImmutableList());
+        if (!outputTypes.stream().allMatch(GpuTypeConversion::isConvertible)) {
+            log.debug("Could not plan local exchange for GPU execution: output types not GPU-convertible: %s", outputTypes);
+            return false;
+        }
+        List<Integer> partitionChannels = node.getPartitioningScheme().getPartitioning().getArguments().stream()
+                .map(argument -> node.getOutputSymbols().indexOf(argument.getColumn()))
+                .collect(toImmutableList());
+        List<Type> partitionKeyTypes = partitionChannels.stream().map(outputTypes::get).collect(toImmutableList());
+        if (!partitionKeyTypes.stream().allMatch(GpuTypeConversion::isConvertible)) {
+            log.debug("Could not plan local exchange for GPU execution: partition-key types not GPU-convertible: %s", partitionKeyTypes);
+            return false;
+        }
+        return true;
     }
 
     private boolean isGpuExecutionEnabled(Session session)

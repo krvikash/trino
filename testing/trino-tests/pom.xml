@@ -691,6 +691,8 @@
                                 <exclude>**/TestDistributedGpuEngineOnlyQueries.java</exclude>
                                 <exclude>**/TestGpuAggregations.java</exclude>
                                 <exclude>**/TestGpuJoinQueries.java</exclude>
+                                <exclude>**/TestGpuLocalExchange.java</exclude>
+                                <exclude>**/TestGpuLocalExchangeSingleNode.java</exclude>
                                 <exclude>**/TestGpuOrderByQueries.java</exclude>
                             </excludes>
                         </configuration>
@@ -711,6 +713,8 @@
                                 <include>**/TestDistributedGpuEngineOnlyQueries.java</include>
                                 <include>**/TestGpuAggregations.java</include>
                                 <include>**/TestGpuJoinQueries.java</include>
+                                <include>**/TestGpuLocalExchange.java</include>
+                                <include>**/TestGpuLocalExchangeSingleNode.java</include>
                                 <include>**/TestGpuOrderByQueries.java</include>
                             </includes>
                         </configuration>

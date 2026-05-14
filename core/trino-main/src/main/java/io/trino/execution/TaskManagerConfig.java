@@ -22,6 +22,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.DataSize.Unit;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDuration;
+import io.airlift.units.MinDataSize;
 import io.airlift.units.MinDuration;
 import io.trino.plugin.base.configuration.ThreadCountParser;
 import io.trino.util.PowerOfTwo;
@@ -60,6 +61,7 @@ public class TaskManagerConfig
     //  https://starburst-engineering.slack.com/archives/C03A6KCS256/p1707783286307469?thread_ts=1706549021.918299&cid=C03A6KCS256
     private boolean threadPerDriverSchedulerEnabled;
     private boolean gpuExecutionEnabled;
+    private DataSize gpuLocalExchangeBufferSize = DataSize.of(48, Unit.MEGABYTE);
     private boolean perOperatorCpuTimerEnabled = true;
     private boolean taskCpuTimerEnabled = true;
     private DataSize maxPartialAggregationMemoryUsage = DataSize.of(16, Unit.MEGABYTE);
@@ -141,6 +143,22 @@ public class TaskManagerConfig
     public TaskManagerConfig setGpuExecutionEnabled(boolean gpuExecutionEnabled)
     {
         this.gpuExecutionEnabled = gpuExecutionEnabled;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("1MB")
+    public DataSize getGpuLocalExchangeBufferSize()
+    {
+        return gpuLocalExchangeBufferSize;
+    }
+
+    @Config("task.gpu-local-exchange-buffer-size")
+    @ConfigDescription("Per-exchange device-memory budget for in-flight GpuPages buffered between sink and source drivers of a GPU local exchange")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public TaskManagerConfig setGpuLocalExchangeBufferSize(DataSize gpuLocalExchangeBufferSize)
+    {
+        this.gpuLocalExchangeBufferSize = gpuLocalExchangeBufferSize;
         return this;
     }
 
