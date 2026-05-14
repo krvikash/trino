@@ -4788,7 +4788,7 @@ public class LocalExecutionPlanner
         if (!sourcePipeline.isEmpty() && sourcePipeline.getLast() instanceof GpuOperator.BaseFactory gpuSource) {
             List<OperatorFactory> newPipeline = ImmutableList.<OperatorFactory>builder()
                     .addAll(sourcePipeline.subList(0, sourcePipeline.size() - 1))
-                    .add(gpuSource.withAdditionalOperations(gpuOperations, finalOutputTypes))
+                    .add(gpuSource.withAdditionalOperations(ImmutableList.of(nodeId), gpuOperations, finalOutputTypes))
                     .build();
             return new PhysicalOperation(newPipeline, source.pipelineHeadAlternatives, source.chooseAlternativePlanNodeId, outputLayout);
         }

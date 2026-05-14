@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.Session;
 import io.trino.metadata.Split;
@@ -39,6 +40,7 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.type.Type;
 import io.trino.split.PageSourceProvider;
@@ -64,11 +66,18 @@ import static java.util.Objects.requireNonNull;
 public abstract class GpuOperator
         implements Operator
 {
+    public static final String GPU_OPERATOR_METRIC = "GPU Operator";
+    // Plan-node IDs of operations fused into this GpuOperator are published as metric keys
+    // under this prefix, so they show up in EXPLAIN ANALYZE alongside the primary plan node.
+    public static final String FUSED_PLAN_NODE_METRIC_PREFIX = "GPU fused plan node: ";
+
     public abstract static class BaseFactory
             implements OperatorFactory
     {
         protected final int operatorId;
         protected final PlanNodeId planNodeId;
+        // Plan nodes whose operations have been fused into this operator above the primary.
+        protected final List<PlanNodeId> fusedPlanNodeIds;
         protected final Supplier<GpuOperatorSource> sourceFactory;
         protected final List<GpuOperation.Factory> operations;
         protected final List<Type> outputTypes;
@@ -78,18 +87,20 @@ public abstract class GpuOperator
         private BaseFactory(
                 int operatorId,
                 PlanNodeId planNodeId,
+                List<PlanNodeId> fusedPlanNodeIds,
                 Supplier<GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
                 List<Type> outputTypes)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
+            this.fusedPlanNodeIds = ImmutableList.copyOf(requireNonNull(fusedPlanNodeIds, "fusedPlanNodeIds is null"));
             this.sourceFactory = requireNonNull(sourceFactory, "sourceFactory is null");
             this.operations = ImmutableList.copyOf(requireNonNull(operations, "operations is null"));
             this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
         }
 
-        public abstract BaseFactory withAdditionalOperations(List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes);
+        public abstract BaseFactory withAdditionalOperations(List<PlanNodeId> additionalFusedPlanNodeIds, List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes);
 
         @Override
         public void noMoreOperators()
@@ -98,6 +109,17 @@ public abstract class GpuOperator
             for (GpuOperation.Factory factory : operations) {
                 factory.noMoreOperators();
             }
+        }
+
+        protected Metrics initialMetrics()
+        {
+            ImmutableMap.Builder<String, Metric<?>> metrics = ImmutableMap.builder();
+            metrics.put(GPU_OPERATOR_METRIC, new LongCount(1));
+            // Deduplicate defensively
+            for (PlanNodeId fused : ImmutableSet.copyOf(fusedPlanNodeIds)) {
+                metrics.put(FUSED_PLAN_NODE_METRIC_PREFIX + fused, new LongCount(1));
+            }
+            return new Metrics(metrics.buildOrThrow());
         }
     }
 
@@ -119,6 +141,7 @@ public abstract class GpuOperator
             this(
                     operatorId,
                     planNodeId,
+                    ImmutableList.of(),
                     () -> {
                         GpuTableScan tableScan = new GpuTableScan(
                                 pageSourceProvider,
@@ -136,15 +159,16 @@ public abstract class GpuOperator
         private SourceFactory(
                 int operatorId,
                 PlanNodeId planNodeId,
+                List<PlanNodeId> fusedPlanNodeIds,
                 Supplier<GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
                 List<Type> outputTypes)
         {
-            super(operatorId, planNodeId, sourceFactory, operations, outputTypes);
+            super(operatorId, planNodeId, fusedPlanNodeIds, sourceFactory, operations, outputTypes);
         }
 
         @Override
-        public BaseFactory withAdditionalOperations(List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes)
+        public BaseFactory withAdditionalOperations(List<PlanNodeId> additionalFusedPlanNodeIds, List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes)
         {
             // TODO: The new operations may require additional columns on GPU that were not needed by existing operations.
             //  When we add support for selective column copying (copying only columns needed by GPU operations),
@@ -154,7 +178,11 @@ public abstract class GpuOperator
                     .addAll(operations)
                     .addAll(additionalOperations)
                     .build();
-            return new SourceFactory(operatorId, planNodeId, sourceFactory, newOperations, newOutputTypes);
+            List<PlanNodeId> newFusedPlanNodeIds = ImmutableList.<PlanNodeId>builder()
+                    .addAll(fusedPlanNodeIds)
+                    .addAll(additionalFusedPlanNodeIds)
+                    .build();
+            return new SourceFactory(operatorId, planNodeId, newFusedPlanNodeIds, sourceFactory, newOperations, newOutputTypes);
         }
 
         @Override
@@ -174,8 +202,9 @@ public abstract class GpuOperator
                 head = factory.create(head);
             }
             head = new CopyToBlocks(head, outputTypes);
-            OperatorContext operatorContext1 = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
-            return new GpuSourceOperator(planNodeId, operatorContext1, head, source);
+            OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
+            operatorContext.setLatestMetrics(initialMetrics());
+            return new GpuSourceOperator(planNodeId, operatorContext, head, source);
         }
     }
 
@@ -187,6 +216,7 @@ public abstract class GpuOperator
             this(
                     operatorId,
                     planNodeId,
+                    ImmutableList.of(),
                     () -> {
                         BufferPages sourceOperation = new BufferPages();
                         if (inputTypes.isEmpty()) {
@@ -207,15 +237,16 @@ public abstract class GpuOperator
         private Factory(
                 int operatorId,
                 PlanNodeId planNodeId,
+                List<PlanNodeId> fusedPlanNodeIds,
                 Supplier<GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
                 List<Type> outputTypes)
         {
-            super(operatorId, planNodeId, sourceFactory, operations, outputTypes);
+            super(operatorId, planNodeId, fusedPlanNodeIds, sourceFactory, operations, outputTypes);
         }
 
         @Override
-        public BaseFactory withAdditionalOperations(List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes)
+        public BaseFactory withAdditionalOperations(List<PlanNodeId> additionalFusedPlanNodeIds, List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes)
         {
             // TODO: The new operations may require additional columns on GPU that were not needed by existing operations.
             //  When we add support for selective column copying (copying only columns needed by GPU operations),
@@ -225,7 +256,11 @@ public abstract class GpuOperator
                     .addAll(operations)
                     .addAll(additionalOperations)
                     .build();
-            return new Factory(operatorId, planNodeId, sourceFactory, newOperations, newOutputTypes);
+            List<PlanNodeId> newFusedPlanNodeIds = ImmutableList.<PlanNodeId>builder()
+                    .addAll(fusedPlanNodeIds)
+                    .addAll(additionalFusedPlanNodeIds)
+                    .build();
+            return new Factory(operatorId, planNodeId, newFusedPlanNodeIds, sourceFactory, newOperations, newOutputTypes);
         }
 
         @Override
@@ -239,8 +274,9 @@ public abstract class GpuOperator
                 head = factory.create(head);
             }
             head = new CopyToBlocks(head, outputTypes);
-            OperatorContext operatorContext1 = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
-            return new GpuIntermediateOperator(operatorContext1, head, source);
+            OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
+            operatorContext.setLatestMetrics(initialMetrics());
+            return new GpuIntermediateOperator(operatorContext, head, source);
         }
 
         @Override
@@ -249,6 +285,7 @@ public abstract class GpuOperator
             return new Factory(
                     operatorId,
                     planNodeId,
+                    fusedPlanNodeIds,
                     sourceFactory, // TODO duplicate?
                     operations, // TODO duplicate?
                     outputTypes);
@@ -277,7 +314,6 @@ public abstract class GpuOperator
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.topOperation = requireNonNull(topOperation, "topOperation is null");
-        operatorContext.setLatestMetrics(new Metrics(ImmutableMap.of("GPU Operator", new LongCount(1))));
     }
 
     @Override
@@ -356,7 +392,7 @@ public abstract class GpuOperator
         topOperation.close();
     }
 
-    static class GpuSourceOperator
+    public static class GpuSourceOperator
             extends GpuOperator
             implements SourceOperator
     {
@@ -392,7 +428,7 @@ public abstract class GpuOperator
         }
     }
 
-    static class GpuIntermediateOperator
+    public static class GpuIntermediateOperator
             extends GpuOperator
     {
         private final GpuSourceOperation sourceOperation;

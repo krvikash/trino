@@ -16,8 +16,8 @@ package io.trino.sql.query;
 import com.google.common.base.Joiner;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.errorprone.annotations.CheckReturnValue;
 import io.trino.Session;
@@ -25,6 +25,7 @@ import io.trino.cost.StatsAndCosts;
 import io.trino.execution.QueryStats;
 import io.trino.metadata.Metadata;
 import io.trino.operator.OperatorStats;
+import io.trino.operator.gpu.GpuOperator;
 import io.trino.spi.Plugin;
 import io.trino.spi.function.FunctionBundle;
 import io.trino.spi.function.OperatorType;
@@ -86,7 +87,6 @@ import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Suppliers.memoize;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.google.common.collect.ImmutableSetMultimap.toImmutableSetMultimap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Sets.intersection;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
@@ -634,10 +634,7 @@ public class QueryAssertions
                     .collect(toImmutableSet());
             checkState(!matchingPlanNodeIds.isEmpty(), "Plan node %s not found in the query plan", planNodeType);
 
-            Set<PlanNodeId> gpuPlanNodes = result.queryStats().getOperatorSummaries().stream()
-                    .filter(operatorStats -> operatorStats.getOperatorType().equals("GpuOperator"))
-                    .map(OperatorStats::getPlanNodeId)
-                    .collect(toImmutableSet());
+            Set<PlanNodeId> gpuPlanNodes = collectGpuPlanNodes(result.queryStats());
             if (intersection(matchingPlanNodeIds, gpuPlanNodes).isEmpty()) {
                 List<String> gpuPlanNodeClasses = PlanNodeSearcher.searchFrom(queryPlan)
                         .findAll()
@@ -662,15 +659,13 @@ public class QueryAssertions
 
             // Validate no GPU usage
             PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
-            Multimap<PlanNodeId, String> gpuPlanNodes = result.queryStats().getOperatorSummaries().stream()
-                    .filter(operatorStats -> operatorStats.getOperatorType().equals("GpuOperator"))
-                    .collect(toImmutableSetMultimap(OperatorStats::getPlanNodeId, OperatorStats::getOperatorType));
+            Set<PlanNodeId> gpuPlanNodes = collectGpuPlanNodes(result.queryStats());
             if (!gpuPlanNodes.isEmpty()) {
                 List<String> withGpu = PlanNodeSearcher.searchFrom(queryPlan)
                         .findAll()
                         .stream()
-                        .filter(planNode -> gpuPlanNodes.containsKey(planNode.getId()))
-                        .map(planNode -> "%s: %s %s".formatted(planNode.getId(), planNode.getClass().getSimpleName(), gpuPlanNodes.get(planNode.getId())))
+                        .filter(planNode -> gpuPlanNodes.contains(planNode.getId()))
+                        .map(planNode -> "%s: %s".formatted(planNode.getId(), planNode.getClass().getSimpleName()))
                         .sorted()
                         .collect(toImmutableList());
                 throw new AssertionError("Query executed with GPU: " + withGpu);
@@ -690,6 +685,23 @@ public class QueryAssertions
                     .getFullQueryInfo(result.queryId())
                     .getQueryStats();
             return new QueryResultAndExecutionStats(result, queryStats);
+        }
+
+        public static Set<PlanNodeId> collectGpuPlanNodes(QueryStats stats)
+        {
+            ImmutableSet.Builder<PlanNodeId> ids = ImmutableSet.builder();
+            for (OperatorStats operatorStats : stats.getOperatorSummaries()) {
+                if (!operatorStats.getOperatorType().equals("GpuOperator")) {
+                    continue;
+                }
+                ids.add(operatorStats.getPlanNodeId());
+                for (String metricKey : operatorStats.getMetrics().getMetrics().keySet()) {
+                    if (metricKey.startsWith(GpuOperator.FUSED_PLAN_NODE_METRIC_PREFIX)) {
+                        ids.add(new PlanNodeId(metricKey.substring(GpuOperator.FUSED_PLAN_NODE_METRIC_PREFIX.length())));
+                    }
+                }
+            }
+            return ids.build();
         }
 
         private void validateResultsWithGpuDisabled(MaterializedResult result)
