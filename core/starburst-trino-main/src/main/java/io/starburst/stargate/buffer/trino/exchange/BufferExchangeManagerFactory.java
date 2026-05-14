@@ -63,8 +63,11 @@ public class BufferExchangeManagerFactory
     // unused configuration properties).
     private static final Set<String> EMBEDDED_ONLY_SPOOLING_PROPERTIES = ImmutableSet.of(
             "directory",
+            "storage-driver",
             "azure.upload-block-size",
-            "azure.upload-max-concurrency");
+            "azure.upload-max-concurrency",
+            "trino-fs.executor-threads",
+            "trino-fs.delete-executor-threads");
 
     private final String name;
     private final Optional<ApiFactory> apiFactory;
