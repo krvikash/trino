@@ -4468,14 +4468,14 @@ public class LocalExecutionPlanner
                     joinType = GpuLookupJoin.JoinType.LEFT;
                 }
                 default -> {
-                    log.debug("Could not convert %s join for GPU execution", node.getType());
+                    log.debug("Could not convert join type for GPU execution: %s", node.getType());
                     return Optional.empty();
                 }
             }
 
             // Must have at least one equi-clause
             if (node.getCriteria().isEmpty()) {
-                log.debug("Could not convert join without equi-criteria for GPU execution");
+                log.debug("Could not convert join without equi-criteria for GPU execution, join type: %s", node.getType());
                 return Optional.empty();
             }
 
@@ -4493,7 +4493,7 @@ public class LocalExecutionPlanner
                 Expression filter = node.getFilter().get();
                 compiledFilter = GpuJoinFilterCompiler.compile(filter);
                 if (compiledFilter.isEmpty()) {
-                    log.debug("Could not compile join filter for GPU execution: %s", filter);
+                    log.debug("Could not compile join filter for GPU execution for join type %s: %s", node.getType(), filter);
                     return Optional.empty();
                 }
             }

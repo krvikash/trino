@@ -18,6 +18,7 @@ import ai.rapids.cudf.ast.Literal;
 import ai.rapids.cudf.ast.UnaryOperator;
 import com.google.common.primitives.Shorts;
 import com.google.common.primitives.SignedBytes;
+import io.airlift.log.Logger;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
@@ -40,6 +41,7 @@ import jakarta.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
@@ -54,29 +56,39 @@ public final class GpuJoinFilterCompiler
 {
     private GpuJoinFilterCompiler() {}
 
+    private static final Logger log = Logger.get(GpuJoinFilterCompiler.class);
+
     public static Optional<CudfAstExpression> compile(Expression filter)
     {
-        return translate(filter);
+        Optional<CudfAstExpression> translated = translate(filter, new Context());
+        if (translated.isEmpty()) {
+            log.debug("Could not compile expression for GPU join filter: %s", filter);
+        }
+        return translated;
     }
 
-    private static Optional<CudfAstExpression> translate(Expression expression)
+    private static Optional<CudfAstExpression> translate(Expression expression, Context context)
     {
-        return switch (expression) {
-            case Comparison comparison -> translateComparison(comparison);
-            case Logical logical -> translateLogical(logical);
-            case IsNull isNull -> translateIsNull(isNull);
+        Optional<CudfAstExpression> translated = switch (expression) {
+            case Comparison comparison -> translateComparison(comparison, context);
+            case Logical logical -> translateLogical(logical, context);
+            case IsNull isNull -> translateIsNull(isNull, context);
             case Constant constant -> translateConstant(constant);
-            case Call call -> translateCall(call);
+            case Call call -> translateCall(call, context);
             case Reference reference -> Optional.of(new CudfAstExpression.Reference(Symbol.from(reference)));
             default -> Optional.empty();
         };
+        if (translated.isEmpty() && context.loggedUnsupportedLeaf.compareAndSet(false, true)) {
+            log.debug("Expression unsupported in GPU AST expression: %s", expression);
+        }
+        return translated;
     }
 
-    private static Optional<CudfAstExpression> translateComparison(Comparison comparison)
+    private static Optional<CudfAstExpression> translateComparison(Comparison comparison, Context context)
     {
         return mapComparisonOperator(comparison.operator()).flatMap(operator ->
-                translate(comparison.left()).flatMap(left ->
-                        translate(comparison.right()).map(right ->
+                translate(comparison.left(), context).flatMap(left ->
+                        translate(comparison.right(), context).map(right ->
                                 new CudfAstExpression.BinaryOperation(operator, left, right))));
     }
 
@@ -93,7 +105,7 @@ public final class GpuJoinFilterCompiler
         };
     }
 
-    private static Optional<CudfAstExpression> translateLogical(Logical logical)
+    private static Optional<CudfAstExpression> translateLogical(Logical logical, Context context)
     {
         List<Expression> terms = logical.terms();
         return switch (terms.size()) {
@@ -104,20 +116,20 @@ public final class GpuJoinFilterCompiler
                 };
                 yield translateConstant(new Constant(BOOLEAN, constant));
             }
-            case 1 -> translate(getOnlyElement(terms));
+            case 1 -> translate(getOnlyElement(terms), context);
             default -> {
                 BinaryOperator op = switch (logical.operator()) {
                     case AND -> BinaryOperator.LOGICAL_AND;
                     case OR -> BinaryOperator.LOGICAL_OR;
                 };
                 ArrayDeque<Expression> queue = new ArrayDeque<>(terms);
-                Optional<CudfAstExpression> first = translate(queue.removeFirst());
+                Optional<CudfAstExpression> first = translate(queue.removeFirst(), context);
                 if (first.isEmpty()) {
                     yield Optional.empty();
                 }
                 CudfAstExpression translated = first.get();
                 while (!queue.isEmpty()) {
-                    Optional<CudfAstExpression> next = translate(queue.removeFirst());
+                    Optional<CudfAstExpression> next = translate(queue.removeFirst(), context);
                     if (next.isEmpty()) {
                         yield Optional.empty();
                     }
@@ -129,9 +141,9 @@ public final class GpuJoinFilterCompiler
         };
     }
 
-    private static Optional<CudfAstExpression> translateIsNull(IsNull isNull)
+    private static Optional<CudfAstExpression> translateIsNull(IsNull isNull, Context context)
     {
-        return translate(isNull.value()).map(value ->
+        return translate(isNull.value(), context).map(value ->
                 new CudfAstExpression.UnaryOperation(UnaryOperator.IS_NULL, value));
     }
 
@@ -156,7 +168,7 @@ public final class GpuJoinFilterCompiler
      * natively (mapped to AST {@code NOT}); all other calls return empty so the planner
      * falls back to the CPU lookup-join.
      */
-    private static Optional<CudfAstExpression> translateCall(Call call)
+    private static Optional<CudfAstExpression> translateCall(Call call, Context context)
     {
         CatalogSchemaFunctionName functionName = call.function().signature().getName();
         if (!isBuiltinFunctionName(functionName)) {
@@ -165,9 +177,17 @@ public final class GpuJoinFilterCompiler
         String name = functionName.functionName();
 
         if (name.equals("$not") && call.arguments().size() == 1) {
-            return translate(getOnlyElement(call.arguments())).map(value ->
+            return translate(getOnlyElement(call.arguments()), context).map(value ->
                     new CudfAstExpression.UnaryOperation(UnaryOperator.NOT, value));
         }
         return Optional.empty();
+    }
+
+    private record Context(AtomicBoolean loggedUnsupportedLeaf)
+    {
+        private Context()
+        {
+            this(new AtomicBoolean());
+        }
     }
 }
