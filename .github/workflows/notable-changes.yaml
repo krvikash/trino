@@ -36,7 +36,7 @@ jobs:
        (contains(github.event.comment.body, '/generate-metadata') ||
         contains(github.event.comment.body, '/regenerate') ||
         contains(github.event.comment.body, '/accept')))
-    runs-on: ["self-hosted", "gha-fleet-ec2-2cpu-8gb-amd64", "latest"]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-1gb-arm64, latest]
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       pr_number: ${{ steps.check.outputs.pr_number }}
@@ -68,7 +68,7 @@ jobs:
       always() &&
       needs.check-trigger.outputs.should_run == 'true' &&
       needs.analyze.result == 'failure'
-    runs-on: [ "self-hosted", "gha-fleet-ec2-2cpu-8gb-amd64", "latest" ]
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-1gb-arm64, latest]
     steps:
       - uses: starburstdata/notable-changes-workflow/.github/actions/notify-failure@main
         with:
