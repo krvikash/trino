@@ -85,16 +85,12 @@ public class CopyToDevice
                                     .toColumn();
                             yield new DeviceMemory(toColumn.copyToDevice(blocks));
                         }
-                        case DeviceMemory deviceMemory ->
-                            // already on the device
-                                new DeviceMemory(deviceMemory.columnVector().incRefCount());
+                        // already on the device
+                        case DeviceMemory deviceMemory -> deviceMemory.incRefCount();
                     };
                 }
                 else {
-                    newColumns[columnIndex] = switch (page.column(columnIndex)) {
-                        case Blocks blocks -> blocks;
-                        case DeviceMemory deviceMemory -> new DeviceMemory(deviceMemory.columnVector().incRefCount());
-                    };
+                    newColumns[columnIndex] = page.column(columnIndex).incRefCount();
                 }
             }
 

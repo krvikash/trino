@@ -17,7 +17,6 @@ import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.spi.gpu.Column;
-import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -87,10 +86,7 @@ public class GpuProject
             for (int i = 0; i < projections.size(); i++) {
                 Projection projection = projections.get(i);
                 newColumns[i] = switch (projection) {
-                    case Projection.PassThrough passThrough -> switch (input.column(passThrough.sourceChannel())) {
-                        case Blocks blocks -> blocks;
-                        case DeviceMemory deviceMemory -> new DeviceMemory(deviceMemory.columnVector().incRefCount());
-                    };
+                    case Projection.PassThrough passThrough -> input.column(passThrough.sourceChannel()).incRefCount();
                     case Projection.Gpu(CompiledExpression expression) -> {
                         List<Integer> inputChannels = expression.inputChannels().getInputChannels();
                         List<@Borrow ColumnVector> inputs = inputChannels.stream()

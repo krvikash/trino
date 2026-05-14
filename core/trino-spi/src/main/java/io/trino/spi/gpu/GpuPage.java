@@ -13,8 +13,6 @@
  */
 package io.trino.spi.gpu;
 
-import io.trino.spi.gpu.Column.Blocks;
-import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Own;
 
@@ -47,10 +45,7 @@ public final class GpuPage
         @Own Column[] ownedColumns = new Column[columns.length];
         try {
             for (int i = 0; i < columns.length; i++) {
-                ownedColumns[i] = switch (columns[i]) {
-                    case Blocks blocks -> blocks;
-                    case DeviceMemory deviceMemory -> new DeviceMemory(deviceMemory.columnVector().incRefCount());
-                };
+                ownedColumns[i] = columns[i].incRefCount();
             }
             this.columns = ownedColumns;
         }

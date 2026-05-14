@@ -14,8 +14,10 @@
 package io.trino.spi.gpu;
 
 import ai.rapids.cudf.ColumnVector;
+import io.trino.spi.Unstable;
 import io.trino.spi.block.Block;
 import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
@@ -30,6 +32,11 @@ public sealed interface Column
         extends RuntimeCloseable
 {
     int positionCount();
+
+    // TODO is this API right name?
+    @Unstable
+    @Move
+    Column incRefCount();
 
     final class Blocks
             implements Column
@@ -52,6 +59,13 @@ public sealed interface Column
         public List<Block> blocks()
         {
             return blocks;
+        }
+
+        @Override
+        public Column incRefCount()
+        {
+            // Nothing to do, no ref-counting
+            return this;
         }
 
         @Override
@@ -81,6 +95,12 @@ public sealed interface Column
         {
             checkState(!closed, "Already closed");
             return (int) columnVector.getRowCount();
+        }
+
+        @Override
+        public @Move Column incRefCount()
+        {
+            return new DeviceMemory(columnVector().incRefCount());
         }
 
         @Override

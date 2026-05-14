@@ -235,8 +235,7 @@ public final class GpuLookupJoin
         @Own Column[] outputColumns = new Column[probeOutputChannels.length + buildOutputTypes.size()];
         try {
             for (int i = 0; i < probeOutputChannels.length; i++) {
-                ColumnVector cv = ((DeviceMemory) probePage.column(probeOutputChannels[i])).columnVector();
-                outputColumns[i] = new DeviceMemory(cv.incRefCount());
+                outputColumns[i] = probePage.column(probeOutputChannels[i]).incRefCount();
             }
             for (int i = 0; i < buildOutputTypes.size(); i++) {
                 Type type = buildOutputTypes.get(i);
