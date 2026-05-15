@@ -126,6 +126,7 @@ import io.trino.spi.connector.DiscretePredicates;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.LocalProperty;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.RelationCommentMetadata;
@@ -164,6 +165,7 @@ import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.statistics.TableStatisticsMetadata;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.LongTimestampWithTimeZone;
@@ -440,6 +442,7 @@ import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static io.trino.spi.StandardErrorCode.INVALID_ANALYZE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.StandardErrorCode.INVALID_BRANCH_PROPERTY;
+import static io.trino.spi.StandardErrorCode.INVALID_MATERIALIZED_VIEW_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_PROCEDURE_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -578,6 +581,7 @@ public class IcebergMetadata
     private final ExecutorService icebergFileDeleteExecutor;
     private final int materializedViewRefreshMaxSnapshotsToExpire;
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
+    private final boolean materializedViewIncrementalColumnRefreshEnabled;
     private final Map<IcebergTableHandle, AtomicReference<TableStatistics>> tableStatisticsCache = new ConcurrentHashMap<>();
     private final Map<String, org.apache.iceberg.Metrics> fileMetrics = new HashMap<>();
     private final IcebergTableCredentialsProvider tableCredentialsProvider;
@@ -587,6 +591,7 @@ public class IcebergMetadata
 
     private Transaction transaction;
     private OptionalLong fromSnapshotForRefresh = OptionalLong.empty();
+    private boolean incrementalColumnRefresh;
 
     public IcebergMetadata(
             LocationAccessControl locationAccessControl,
@@ -612,7 +617,8 @@ public class IcebergMetadata
             ExecutorService icebergFileDeleteExecutor,
             int materializedViewRefreshMaxSnapshotsToExpire,
             Duration materializedViewRefreshSnapshotRetentionPeriod,
-            ConnectorExpressionEvaluator evaluator)
+            ConnectorExpressionEvaluator evaluator,
+            boolean materializedViewIncrementalColumnRefreshEnabled)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -635,6 +641,7 @@ public class IcebergMetadata
         this.icebergFileDeleteExecutor = requireNonNull(icebergFileDeleteExecutor, "icebergFileDeleteExecutor is null");
         this.materializedViewRefreshMaxSnapshotsToExpire = materializedViewRefreshMaxSnapshotsToExpire;
         this.materializedViewRefreshSnapshotRetentionPeriod = materializedViewRefreshSnapshotRetentionPeriod;
+        this.materializedViewIncrementalColumnRefreshEnabled = materializedViewIncrementalColumnRefreshEnabled;
         this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
         this.removeDanglingDeleteFiles = requireNonNull(removeDanglingDeleteFiles, "removeDanglingDeleteFiles is null");
         this.tableCredentialsProvider = new IcebergTableCredentialsProvider(catalog);
@@ -4868,6 +4875,8 @@ public class IcebergMetadata
             boolean ignoreExisting)
     {
         validateRefreshInterval((String) properties.get(REFRESH_SCHEDULE));
+        validateIncrementalColumnExistsInMaterializedView(definition, properties);
+        validateIncrementalColumnType(definition, properties);
         catalog.createMaterializedView(session, viewName, definition, properties, replace, ignoreExisting);
     }
 
@@ -4893,9 +4902,20 @@ public class IcebergMetadata
             RefreshType refreshType)
     {
         checkState(fromSnapshotForRefresh.isEmpty(), "From Snapshot must be empty at the start of MV refresh operation.");
+        checkState(!incrementalColumnRefresh, "incrementalColumnRefresh must be false at the start of MV refresh operation.");
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
         beginTransaction(icebergTable);
+
+        if (refreshType == RefreshType.INCREMENTAL_COLUMN) {
+            // The analyzer-injected WHERE predicate handles row-level filtering; no
+            // source-snapshot bookkeeping is needed and no delete-before-insert should
+            // be performed in finishRefreshMaterializedView. Source-table shape (number
+            // of sources, foreign sources, etc.) is intentionally ignored — incremental_column
+            // is the user's explicit override.
+            incrementalColumnRefresh = true;
+            return newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), Optional.empty(), ImmutableList.of());
+        }
 
         Optional<String> dependencies = Optional.ofNullable(icebergTable.currentSnapshot())
                 .map(Snapshot::summary)
@@ -4940,7 +4960,7 @@ public class IcebergMetadata
         IcebergWritableTableHandle table = (IcebergWritableTableHandle) insertHandle;
 
         Table icebergTable = transaction.table();
-        boolean isFullRefresh = fromSnapshotForRefresh.isEmpty();
+        boolean isFullRefresh = fromSnapshotForRefresh.isEmpty() && !incrementalColumnRefresh;
         if (isFullRefresh) {
             // delete before insert .. simulating overwrite
             log.info("Performing full MV refresh for storage table: %s", table.name());
@@ -4948,6 +4968,9 @@ public class IcebergMetadata
                     .deleteFromRowFilter(Expressions.alwaysTrue())
                     .scanManifestsWith(icebergScanExecutor)
                     .commit();
+        }
+        else if (incrementalColumnRefresh) {
+            log.info("Performing incremental_column MV refresh for storage table: %s", table.name());
         }
         else {
             log.info("Performing incremental MV refresh for storage table: %s", table.name());
@@ -4985,6 +5008,11 @@ public class IcebergMetadata
 
         List<String> tableDependencies = new ArrayList<>();
         sourceTableHandles.stream()
+                // Exclude the MV's own storage table: the incremental_column predicate injects a
+                // self-scan (SELECT max(col) FROM mv) that must not be recorded as a base dependency,
+                // otherwise every refresh would make the MV appear perpetually stale.
+                .filter(handle -> !(handle instanceof IcebergTableHandle icebergHandle
+                        && icebergHandle.getSchemaTableName().equals(table.name())))
                 .map(handle -> {
                     if (!(handle instanceof IcebergTableHandle icebergHandle)) {
                         return UNKNOWN_SNAPSHOT_TOKEN;
@@ -5035,6 +5063,7 @@ public class IcebergMetadata
 
         transaction = null;
         fromSnapshotForRefresh = OptionalLong.empty();
+        incrementalColumnRefresh = false;
         Map<String, String> summary = icebergTable.currentSnapshot().summary();
         Optional<ConnectorOutputMetadata> icebergCommitMetadata = summary == null ? Optional.empty() : Optional.of(new IcebergCommitMetadata(summary));
 
@@ -5095,6 +5124,21 @@ public class IcebergMetadata
     public Map<String, Object> getMaterializedViewProperties(ConnectorSession session, SchemaTableName viewName, ConnectorMaterializedViewDefinition definition)
     {
         return catalog.getMaterializedViewProperties(session, viewName, definition);
+    }
+
+    @Override
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    {
+        if (!materializedViewIncrementalColumnRefreshEnabled) {
+            return Optional.empty();
+        }
+        Optional<ConnectorMaterializedViewDefinition> definition = catalog.getMaterializedView(session, materializedViewName);
+        if (definition.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<String, Object> materializedViewProperties = catalog.getMaterializedViewProperties(session, materializedViewName, definition.get());
+        return IcebergMaterializedViewProperties.getIncrementalColumn(materializedViewProperties)
+                .map(MaterializedViewIncrementalRefresh::new);
     }
 
     @Override
@@ -5409,6 +5453,7 @@ public class IcebergMetadata
     public void disableIncrementalRefresh()
     {
         fromSnapshotForRefresh = OptionalLong.empty();
+        incrementalColumnRefresh = false;
     }
 
     protected boolean isUnityCatalog()
@@ -5537,6 +5582,67 @@ public class IcebergMetadata
                 throw new TrinoException(CONFIGURATION_INVALID, "Refresh interval is not cron string", e);
             }
         }
+    }
+
+    private static void validateIncrementalColumnExistsInMaterializedView(ConnectorMaterializedViewDefinition definition, Map<String, Object> properties)
+    {
+        Optional<String> incrementalColumn = IcebergMaterializedViewProperties.getIncrementalColumn(properties);
+        if (incrementalColumn.isEmpty()) {
+            return;
+        }
+        String columnName = incrementalColumn.get();
+        boolean columnPresent = definition.getColumns().stream()
+                .anyMatch(column -> column.getName().equals(columnName));
+        if (!columnPresent) {
+            throw new TrinoException(
+                    INVALID_MATERIALIZED_VIEW_PROPERTY,
+                    format("incremental_column '%s' is not part of the materialized view output columns", columnName));
+        }
+    }
+
+    private void validateIncrementalColumnType(ConnectorMaterializedViewDefinition definition, Map<String, Object> properties)
+    {
+        Optional<String> incrementalColumn = IcebergMaterializedViewProperties.getIncrementalColumn(properties);
+        if (incrementalColumn.isEmpty()) {
+            return;
+        }
+        String columnName = incrementalColumn.get();
+        definition.getColumns().stream()
+                .filter(column -> column.getName().equals(columnName))
+                .findFirst()
+                .ifPresent(column -> checkIncrementalColumnTrinoTypeIsSupported(typeManager.getType(column.getType())));
+    }
+
+    /**
+     * Restricts {@code incremental_column} to types that the MV storage table preserves
+     * natively. Types that the storage layer downgrades to VARCHAR (TIMESTAMP precision &gt; 6,
+     * TIME precision &gt; 6, TIMESTAMP/TIME WITH TIME ZONE, etc.) cannot work end-to-end: the
+     * {@code SELECT MAX(col)} subquery would read from a VARCHAR storage column but be compared
+     * against the source column's original type at refresh time.
+
+     * See {@link io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog#typeForMaterializedViewStorageTable}
+     */
+    private static void checkIncrementalColumnTrinoTypeIsSupported(io.trino.spi.type.Type sourceType)
+    {
+        requireNonNull(sourceType, "sourceType is null");
+        if (sourceType.equals(INTEGER)
+                || sourceType.equals(BIGINT)
+                || sourceType.equals(DATE)
+                || sourceType instanceof VarcharType
+                || sourceType instanceof DecimalType) {
+            return;
+        }
+        if (sourceType instanceof TimeType timeType
+                && timeType.getPrecision() <= TIME_MICROS.getPrecision()) {
+            return;
+        }
+        if (sourceType instanceof TimestampType timestampType
+                && timestampType.getPrecision() <= TIMESTAMP_MICROS.getPrecision()) {
+            return;
+        }
+        throw new TrinoException(
+                NOT_SUPPORTED,
+                format("incremental_column type is not supported: %s", sourceType.getDisplayName()));
     }
 
     private static RowLevelOperationMode rowLevelOperationMode(Table table)

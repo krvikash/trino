@@ -64,6 +64,7 @@ public class IcebergMetadataFactory
     private final ExecutorService icebergFileDeleteExecutor;
     private final int materializedViewRefreshMaxSnapshotsToExpire;
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
+    private final boolean materializedViewIncrementalColumnRefreshEnabled;
     private final DeletionVectorWriter deletionVectorWriter;
     private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
     private final ConnectorExpressionEvaluator evaluator;
@@ -88,7 +89,8 @@ public class IcebergMetadataFactory
             @ForIcebergPlanning ExecutorService icebergPlanningExecutor,
             @ForIcebergFileDelete ExecutorService icebergFileDeleteExecutor,
             IcebergConfig config,
-            ConnectorExpressionEvaluator evaluator)
+            ConnectorExpressionEvaluator evaluator,
+            IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -125,6 +127,7 @@ public class IcebergMetadataFactory
         this.materializedViewRefreshMaxSnapshotsToExpire = config.getMaterializedViewRefreshMaxSnapshotsToExpire();
         this.materializedViewRefreshSnapshotRetentionPeriod = config.getMaterializedViewRefreshSnapshotRetentionPeriod();
         this.evaluator = requireNonNull(evaluator, "evaluator is null");
+        this.materializedViewIncrementalColumnRefreshEnabled = icebergIncrementalMvRefreshConfig.isMaterializedViewIncrementalColumnRefreshEnabled();
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -153,6 +156,7 @@ public class IcebergMetadataFactory
                 icebergFileDeleteExecutor,
                 materializedViewRefreshMaxSnapshotsToExpire,
                 materializedViewRefreshSnapshotRetentionPeriod,
-                evaluator);
+                evaluator,
+                materializedViewIncrementalColumnRefreshEnabled);
     }
 }

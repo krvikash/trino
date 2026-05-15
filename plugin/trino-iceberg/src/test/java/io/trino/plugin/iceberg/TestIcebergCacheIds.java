@@ -115,6 +115,7 @@ public class TestIcebergCacheIds
                         .setCatalogDirectory(tempDir.toURI().toString())
                         .setMetastoreUser("user"),
                 Tracing.noopTracer());
+        IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig = new IcebergIncrementalMvRefreshConfig();
         IcebergMetadataFactory icebergMetadataFactory = new IcebergMetadataFactory(
                 LocationAccessControl.ALLOW_ALL,
                 AiModelAccessControl.ALLOW_ALL,
@@ -129,7 +130,7 @@ public class TestIcebergCacheIds
                         TESTING_TYPE_MANAGER,
                         tableOperationsProvider,
                         new IcebergScheduledMvRefreshConfig(),
-                        new IcebergIncrementalMvRefreshConfig(),
+                        icebergIncrementalMvRefreshConfig,
                         new NoopWorkScheduler(),
                         new NodeVersion("test_version"),
                         true,
@@ -147,7 +148,8 @@ public class TestIcebergCacheIds
                 newDirectExecutorService(),
                 newDirectExecutorService(),
                 icebergConfig,
-                ConnectorExpressionEvaluator.NO_OP);
+                ConnectorExpressionEvaluator.NO_OP,
+                icebergIncrementalMvRefreshConfig);
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),
                 createJsonCodec(IcebergColumnHandle.class));

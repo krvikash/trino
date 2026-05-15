@@ -260,7 +260,8 @@ public class TestTrinoSnowflakeCatalog
                 newDirectExecutorService(),
                 0,
                 ZERO,
-                ConnectorExpressionEvaluator.NO_OP);
+                ConnectorExpressionEvaluator.NO_OP,
+                false);
         assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                 .isTrue();
         assertThat(icebergMetadata.schemaExists(SESSION, schema)).as("icebergMetadata.schemaExists(schema)")
