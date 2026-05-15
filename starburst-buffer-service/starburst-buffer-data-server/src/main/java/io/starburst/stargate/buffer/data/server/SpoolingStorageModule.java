@@ -9,30 +9,13 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
-import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
-import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
-import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.azure.BlobServiceAsyncClientProvider;
-import io.starburst.stargate.buffer.data.spooling.gcs.GcsClientConfig;
-import io.starburst.stargate.buffer.data.spooling.local.LocalSpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
-import io.starburst.stargate.buffer.data.spooling.s3.S3ClientProvider;
-import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
-import software.amazon.awssdk.services.s3.S3AsyncClient;
 
-import java.net.URI;
 import java.util.Optional;
 
-import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.AWS;
-import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class SpoolingStorageModule
@@ -51,39 +34,6 @@ public class SpoolingStorageModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
-        SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
-        URI spoolingBaseDirectory = spoolingDirectoryConfig.getSpoolingDirectory();
-        String scheme = spoolingBaseDirectory.getScheme();
-        if (scheme == null || scheme.equals("file")) {
-            if (!spoolingDirectoryConfig.isAllowLocalSpooling()) {
-                String prefix = configPrefix.map(p -> p + ".").orElse("");
-                binder.addError(format(
-                        "Local filesystem spooling is not supported. Use s3://, gs://, or abfs:// scheme for '%sspooling.directory'",
-                        prefix));
-            }
-            else if (!bindConfigsOnly) {
-                binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
-            }
-        }
-        else if (scheme.equals("s3") || scheme.equals("gs")) {
-            configBinder(binder).bindConfig(S3ClientConfig.class, configPrefix.orElse(null));
-            configBinder(binder).bindConfig(GcsClientConfig.class, configPrefix.orElse(null));
-            if (!bindConfigsOnly) {
-                binder.bind(S3AsyncClient.class).toProvider(S3ClientProvider.class).in(SINGLETON);
-                binder.bind(S3SpoolingStorage.CompatibilityMode.class).toInstance(scheme.equals("s3") ? AWS : GCP);
-                binder.bind(SpoolingStorage.class).to(S3SpoolingStorage.class).in(SINGLETON);
-            }
-        }
-        else if (scheme.equals("abfs")) {
-            configBinder(binder).bindConfig(AzureBlobClientConfig.class, configPrefix.orElse(null));
-            configBinder(binder).bindConfig(AzureBlobSpoolingConfig.class, configPrefix.orElse(null));
-            if (!bindConfigsOnly) {
-                binder.bind(BlobServiceAsyncClient.class).toProvider(BlobServiceAsyncClientProvider.class).in(SINGLETON);
-                binder.bind(SpoolingStorage.class).to(AzureBlobSpoolingStorage.class).in(SINGLETON);
-            }
-        }
-        else {
-            binder.addError("Scheme %s is not supported as buffer spooling storage".formatted(scheme));
-        }
+        install(new NativeSpoolingStorageModule(configPrefix, bindConfigsOnly));
     }
 }
