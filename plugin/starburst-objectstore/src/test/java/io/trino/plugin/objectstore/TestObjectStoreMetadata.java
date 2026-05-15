@@ -13,23 +13,42 @@
  */
 package io.trino.plugin.objectstore;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
+import io.airlift.slice.Slices;
 import io.trino.plugin.deltalake.DeltaLakeMetadata;
 import io.trino.plugin.hive.HiveMetadata;
 import io.trino.plugin.hudi.HudiMetadata;
+import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergMetadata;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.ConnectorTableMetadata;
+import io.trino.spi.connector.ConnectorTableVersion;
+import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.PointerType;
 import io.trino.spi.connector.RetryMode;
+import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.function.SchemaFunctionName;
+import io.trino.spi.security.PrincipalType;
 import io.trino.spi.security.TrinoPrincipal;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.VarcharType;
+import io.trino.testing.TestingConnectorContext;
+import io.trino.testing.TestingConnectorSession;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.lang.reflect.Method;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -37,8 +56,19 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterators.getOnlyElement;
+import static io.trino.plugin.hive.HiveTableProperties.BUCKETED_BY_PROPERTY;
+import static io.trino.plugin.hive.HiveTableProperties.BUCKET_COUNT_PROPERTY;
+import static io.trino.plugin.hive.HiveTableProperties.SORTED_BY_PROPERTY;
+import static io.trino.plugin.hive.HiveTableProperties.STORAGE_FORMAT_PROPERTY;
+import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
+import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
+import static io.trino.spi.transaction.IsolationLevel.READ_UNCOMMITTED;
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
+import static io.trino.testing.connector.TestingConnectorSession.SESSION;
 import static java.util.function.Predicate.not;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 public class TestObjectStoreMetadata
 {
@@ -111,5 +141,76 @@ public class TestObjectStoreMetadata
         catch (NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test // regression test for https://starburstdata.atlassian.net/browse/ENG-15282
+    public void testGetIcebergTableHandle(@TempDir Path tempDir)
+    {
+        String schemaName = "default";
+        ObjectStoreConnector firstConnector = createConnector(tempDir);
+
+        ConnectorTransactionHandle firstTransaction = firstConnector.beginTransaction(READ_UNCOMMITTED, false, true);
+        ConnectorMetadata metadata = firstConnector.getMetadata(SESSION, firstTransaction);
+        metadata.createSchema(SESSION, schemaName, Map.of(), new TrinoPrincipal(PrincipalType.USER, SESSION.getUser()));
+        firstConnector.commit(firstTransaction);
+
+        ConnectorSession session = TestingConnectorSession.builder()
+                .setPropertyMetadata(new ObjectStoreSessionProperties(
+                        firstConnector.getDelegates(),
+                        new FeatureExposures(Optional.empty(), Optional.empty(), Optional.empty()))
+                        .getSessionProperties())
+                .build();
+
+        // Create a new Iceberg table
+        createIcebergTable(session, firstConnector, schemaName, "test_iceberg");
+
+        // Create two Hive tables to make 'HIVE' rank higher in RelationTypeCache
+        ObjectStoreConnector secondConnector = createConnector(tempDir);
+        ConnectorTransactionHandle secondTransaction = secondConnector.beginTransaction(READ_UNCOMMITTED, false, true);
+        ConnectorMetadata secondMetadata = secondConnector.getMetadata(session, secondTransaction);
+
+        createHiveTable(session, secondConnector, schemaName, "test_hive");
+        createHiveTable(session, secondConnector, schemaName, "test_hive2");
+
+        assertThatNoException().isThrownBy(() -> secondMetadata.getTableHandle(
+                session,
+                new SchemaTableName(schemaName, "test_iceberg"),
+                Optional.empty(),
+                Optional.of(new ConnectorTableVersion(PointerType.TARGET_ID, VarcharType.VARCHAR, Slices.utf8Slice("main")))));
+    }
+
+    private static ObjectStoreConnector createConnector(Path tempDir)
+    {
+        ConnectorFactory connectorFactory = getOnlyElement(Iterators.filter(new ObjectStorePlugin().getConnectorFactories().iterator(), factory -> factory.getName().equals(STARBURST_OBJECTSTORE)));
+        return (ObjectStoreConnector) connectorFactory.create(
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.metastore", "file")
+                        .put("hive.metastore.catalog.dir", tempDir.toString())
+                        .put("fs.hadoop.enabled", "true")
+                        .buildOrThrow(),
+                new TestingConnectorContext());
+    }
+
+    private static void createIcebergTable(ConnectorSession session, ObjectStoreConnector connector, String schemaName, String tableName)
+    {
+        ConnectorTransactionHandle transaction = connector.beginTransaction(READ_UNCOMMITTED, false, true);
+        ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(
+                new SchemaTableName(schemaName, tableName),
+                List.of(new ColumnMetadata("x", IntegerType.INTEGER)),
+                Map.of("type", TableType.ICEBERG, FORMAT_VERSION_PROPERTY, 2, FILE_FORMAT_PROPERTY, IcebergFileFormat.PARQUET.name()));
+        ConnectorMetadata metadata = connector.getMetadata(session, transaction);
+        metadata.createTable(session, tableMetadata, SaveMode.FAIL);
+    }
+
+    private static void createHiveTable(ConnectorSession session, ObjectStoreConnector connector, String schemaName, String tableName)
+    {
+        ConnectorTransactionHandle transaction = connector.beginTransaction(READ_UNCOMMITTED, false, true);
+        ConnectorTableMetadata tableMetadata = new ConnectorTableMetadata(
+                new SchemaTableName(schemaName, tableName),
+                List.of(new ColumnMetadata("x", IntegerType.INTEGER)),
+                Map.of("type", TableType.HIVE, BUCKET_COUNT_PROPERTY, 0, BUCKETED_BY_PROPERTY, List.of(), SORTED_BY_PROPERTY, List.of(), STORAGE_FORMAT_PROPERTY, "TEXTFILE"));
+        ConnectorMetadata metadata = connector.getMetadata(session, transaction);
+        metadata.createTable(session, tableMetadata, SaveMode.FAIL);
     }
 }

@@ -253,7 +253,7 @@ public class ObjectStoreMetadata
                 return delegate(candidateType).getTableHandle(unwrap(candidateType, session), tableName, startVersion, endVersion);
             }
             catch (TrinoException e) {
-                if (!isError(e, UNSUPPORTED_TABLE_TYPE)) {
+                if (!isError(e, UNSUPPORTED_TABLE_TYPE) && !isVersionedTableUnsupported(e)) {
                     throw e;
                 }
                 deferredException = e;
@@ -289,7 +289,7 @@ public class ObjectStoreMetadata
             return getTableHandleInOrder(session, tableName, startVersion, endVersion, relationTypeCache.getTableTypeAffinity(tableName));
         }
         catch (TrinoException e) {
-            if (!isError(e, UNSUPPORTED_TABLE_TYPE)) {
+            if (!isError(e, UNSUPPORTED_TABLE_TYPE) && !isVersionedTableUnsupported(e)) {
                 throw e;
             }
         }
@@ -1957,6 +1957,11 @@ public class ObjectStoreMetadata
         return Stream.of(errorCodes)
                 .map(ErrorCodeSupplier::toErrorCode)
                 .anyMatch(e.getErrorCode()::equals);
+    }
+
+    private static boolean isVersionedTableUnsupported(TrinoException e)
+    {
+        return e.getErrorCode() == NOT_SUPPORTED.toErrorCode() && "This connector does not support versioned tables".equals(e.getMessage());
     }
 
     private static ConnectorTableMetadata withProperties(ConnectorTableMetadata metadata, Map<String, Object> properties)
