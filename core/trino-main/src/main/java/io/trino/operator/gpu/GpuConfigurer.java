@@ -39,10 +39,7 @@ public class GpuConfigurer
         requireNonNull(config, "config is null");
 
         var _ = Rmm.isInitialized(); // trigger static initializer before taking the lock
-        // CopyToBlocks uses Cuda.DEFAULT_STREAM for async device→host transfers, relying on
-        // per-thread stream semantics: each operator thread has its own stream, enabling independent
-        // pipelining. Without PTDS, DEFAULT_STREAM is the global legacy stream, causing cross-thread
-        // contention and incorrect Cuda.DEFAULT_STREAM.sync() behavior.
+        // PTDS (per thread default stream) affects multi-threading. Fail loud if new cudf dependency is built differently.
         checkState(Cuda.isPtdsEnabled(), "PTDS must be enabled in the cuDF native library; current build uses legacy default stream");
         synchronized (initializationLock) {
             if (Rmm.isInitialized()) {

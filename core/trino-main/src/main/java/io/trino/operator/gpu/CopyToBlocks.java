@@ -129,9 +129,8 @@ public class CopyToBlocks
                 checkState(desiredBlockPositions.isEmpty(), "Pre-existing blocks");
 
                 int positionCount = inputPage.positionCount();
-                // Cuda.DEFAULT_STREAM is the per-thread default stream (PTDS, enforced at startup
-                // by GpuConfigurer). Launch all device→host transfers on it so host-side allocation
-                // and bookkeeping overlap with in-flight DMA, then synchronize once.
+                // Issue all device→host transfers, then synchronize once so host-side allocation
+                // and bookkeeping overlap with in-flight DMA.
                 try {
                     for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                         if (inputPage.column(columnIndex) instanceof DeviceMemory deviceMemory) {
@@ -212,10 +211,11 @@ public class CopyToBlocks
                             closer.register(column);
                         }
                     }
+                    // When the stream sync failed, host buffers may still be targets of in-flight
+                    // DMAs and must be leaked rather than freed.
                     if (!syncFailed) {
                         hostColumnVectors.forEach(closer::register);
                     }
-                    // else: stream sync failed; buffers may have in-flight DMAs and must be leaked
                 }
             }
         }
