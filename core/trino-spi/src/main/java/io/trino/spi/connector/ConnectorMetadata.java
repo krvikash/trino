@@ -847,6 +847,19 @@ public interface ConnectorMetadata
     }
 
     /**
+     * Returns the materialized view's predicate-based incremental refresh
+     * properties, or empty if the view does not opt into incremental-column
+     * refresh. The engine consumes the returned value at analyzer time to
+     * inject a {@code col > (SELECT max(col) FROM mv)} predicate into the
+     * source query and to mark the refresh as
+     * {@link io.trino.spi.RefreshType#INCREMENTAL_COLUMN}.
+     */
+    default Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    {
+        return Optional.empty();
+    }
+
+    /**
      * Begin materialized view query.
      * <p>
      * If connector does not support execution with retries, the method should throw:

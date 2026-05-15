@@ -46,6 +46,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationCommentMetadata;
 import io.trino.spi.connector.RelationType;
@@ -430,6 +431,14 @@ public interface Metadata
      * Refresh materialized view
      */
     ListenableFuture<Void> refreshMaterializedView(Session session, QualifiedObjectName viewName);
+
+    /**
+     * Returns the materialized view's predicate-based incremental refresh
+     * properties, or empty if the view does not opt into incremental-column
+     * refresh. Read at analyzer time to drive the source-query rewrite and
+     * the {@link io.trino.spi.RefreshType#INCREMENTAL_COLUMN} classification.
+     */
+    Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName);
 
     /**
      * Begin refresh materialized view query

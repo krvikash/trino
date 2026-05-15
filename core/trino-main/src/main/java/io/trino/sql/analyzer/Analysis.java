@@ -40,6 +40,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnSchema;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.eventlistener.BaseViewReferenceInfo;
 import io.trino.spi.eventlistener.ColumnDetail;
 import io.trino.spi.eventlistener.ColumnInfo;
@@ -249,6 +250,8 @@ public class Analysis
     private Optional<Insert> insert = Optional.empty();
     private Optional<RefreshMaterializedViewAnalysis> refreshMaterializedView = Optional.empty();
     private Optional<QualifiedObjectName> delegatedRefreshMaterializedView = Optional.empty();
+    private Optional<QualifiedObjectName> refreshingMaterializedView = Optional.empty();
+    private Optional<MaterializedViewIncrementalRefresh> materializedViewIncrementalRefresh = Optional.empty();
     private Optional<AnalyzeMetadata> analyzeMetadata = Optional.empty();
     private Optional<List<ColumnSchema>> updatedColumns = Optional.empty();
     private Optional<MergeAnalysis> mergeAnalysis = Optional.empty();
@@ -870,6 +873,26 @@ public class Analysis
     public Optional<RefreshMaterializedViewAnalysis> getRefreshMaterializedView()
     {
         return refreshMaterializedView;
+    }
+
+    public void setRefreshingMaterializedView(QualifiedObjectName viewName)
+    {
+        this.refreshingMaterializedView = Optional.of(viewName);
+    }
+
+    public Optional<QualifiedObjectName> getRefreshingMaterializedView()
+    {
+        return refreshingMaterializedView;
+    }
+
+    public void setMaterializedViewIncrementalRefresh(MaterializedViewIncrementalRefresh refresh)
+    {
+        this.materializedViewIncrementalRefresh = Optional.of(refresh);
+    }
+
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh()
+    {
+        return materializedViewIncrementalRefresh;
     }
 
     public void setDelegatedRefreshMaterializedView(QualifiedObjectName viewName)

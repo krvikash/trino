@@ -77,6 +77,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.RelationCommentMetadata;
@@ -1289,6 +1290,20 @@ public final class MetadataManager
         CatalogHandle catalogHandle = catalogMetadata.getCatalogHandle();
         ConnectorMetadata metadata = catalogMetadata.getMetadata(session);
         return asVoid(toListenableFuture(metadata.refreshMaterializedView(session.toConnectorSession(catalogHandle), viewName.asSchemaTableName())));
+    }
+
+    @Override
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName)
+    {
+        Optional<CatalogMetadata> catalog = getOptionalCatalogMetadata(session, materializedViewName.catalogName());
+        if (catalog.isEmpty()) {
+            return Optional.empty();
+        }
+        CatalogMetadata catalogMetadata = catalog.get();
+        CatalogHandle catalogHandle = catalogMetadata.getCatalogHandle(session, materializedViewName, Optional.empty(), Optional.empty());
+        ConnectorMetadata metadata = catalogMetadata.getMetadataFor(session, catalogHandle);
+        ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
+        return metadata.getMaterializedViewIncrementalRefresh(connectorSession, materializedViewName.asSchemaTableName());
     }
 
     private static <T> ListenableFuture<Void> asVoid(ListenableFuture<T> future)

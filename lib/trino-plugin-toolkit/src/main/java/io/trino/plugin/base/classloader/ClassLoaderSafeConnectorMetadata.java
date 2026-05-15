@@ -53,6 +53,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.RelationCommentMetadata;
@@ -660,6 +661,14 @@ public class ClassLoaderSafeConnectorMetadata
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             return delegate.refreshMaterializedView(session, viewName);
+        }
+    }
+
+    @Override
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.getMaterializedViewIncrementalRefresh(session, materializedViewName);
         }
     }
 

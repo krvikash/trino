@@ -24,6 +24,7 @@ import java.util.Set;
 
 import static io.trino.spi.RefreshType.FULL;
 import static io.trino.spi.RefreshType.INCREMENTAL;
+import static io.trino.spi.RefreshType.INCREMENTAL_COLUMN;
 
 public class IncrementalRefreshVisitor
         extends PlanVisitor<Boolean, Void>
@@ -34,6 +35,21 @@ public class IncrementalRefreshVisitor
     {
         Boolean canIncrementallyRefresh = new IncrementalRefreshVisitor().visitPlan(root, null);
         return canIncrementallyRefresh ? INCREMENTAL : FULL;
+    }
+
+    /**
+     * Variant that prioritizes the user-set {@code incremental_column} MV property
+     * over the plan-shape heuristic. When that property is present, the engine has
+     * already wrapped the source query with a {@code col > (SELECT max(col) FROM mv)}
+     * predicate; we trust the predicate and force {@link RefreshType#INCREMENTAL_COLUMN}
+     * regardless of plan shape (joins, aggregations, multiple sources are all fine).
+     */
+    public static RefreshType canIncrementallyRefresh(PlanNode root, boolean hasIncrementalColumn)
+    {
+        if (hasIncrementalColumn) {
+            return INCREMENTAL_COLUMN;
+        }
+        return canIncrementallyRefresh(root);
     }
 
     @Override

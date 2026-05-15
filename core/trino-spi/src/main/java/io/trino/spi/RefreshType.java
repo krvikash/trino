@@ -23,4 +23,5 @@ public enum RefreshType
 {
     INCREMENTAL,
     FULL,
+    INCREMENTAL_COLUMN,
 }

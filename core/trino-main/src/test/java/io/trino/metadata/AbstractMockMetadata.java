@@ -50,6 +50,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationCommentMetadata;
 import io.trino.spi.connector.RelationType;
@@ -523,6 +524,12 @@ public abstract class AbstractMockMetadata
 
     @Override
     public ListenableFuture<Void> refreshMaterializedView(Session session, QualifiedObjectName viewName)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName)
     {
         throw new UnsupportedOperationException();
     }

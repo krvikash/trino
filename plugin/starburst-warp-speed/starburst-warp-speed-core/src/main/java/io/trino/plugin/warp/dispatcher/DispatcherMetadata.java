@@ -61,6 +61,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.RelationCommentMetadata;
@@ -598,6 +599,12 @@ public class DispatcherMetadata
     public boolean delegateMaterializedViewRefreshToConnector(ConnectorSession session, SchemaTableName viewName)
     {
         return proxiedConnectorMetadata.delegateMaterializedViewRefreshToConnector(session, viewName);
+    }
+
+    @Override
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    {
+        return proxiedConnectorMetadata.getMaterializedViewIncrementalRefresh(session, materializedViewName);
     }
 
     @Override

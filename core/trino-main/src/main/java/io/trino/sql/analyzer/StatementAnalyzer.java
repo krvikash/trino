@@ -70,6 +70,7 @@ import io.trino.spi.connector.ConnectorMaterializedViewDefinition.WhenStaleBehav
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.PointerType;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableProcedureMetadata;
@@ -398,6 +399,8 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.sql.NodeUtils.getSortItemsFromOrderBy;
+import static io.trino.sql.QueryUtil.simpleQuery;
+import static io.trino.sql.QueryUtil.subquery;
 import static io.trino.sql.analyzer.AggregationAnalyzer.containsAggregation;
 import static io.trino.sql.analyzer.AggregationAnalyzer.verifyOrderByAggregations;
 import static io.trino.sql.analyzer.AggregationAnalyzer.verifySourceAggregations;
@@ -749,6 +752,11 @@ class StatementAnalyzer
 
             // analyze the query that creates the data
             Query query = parseView(view.getOriginalSql(), name, refreshMaterializedView);
+            // Mark the MV being refreshed BEFORE analyzing so that any self-references inside
+            // the injected incremental_column predicate (built below) resolve to storage rather
+            // than re-inlining the source query and looping.
+            analysis.setRefreshingMaterializedView(name);
+            query = applyIncrementalColumnFilter(query, name);
             Scope queryScope = process(query, scope);
 
             // verify the insert destination columns match the query
@@ -1511,6 +1519,17 @@ class StatementAnalyzer
             Scope queryScope = analyzer.analyze(node.getQuery());
 
             validateColumns(node, queryScope.getRelationType());
+
+            boolean hasIncrementalColumn = node.getProperties().stream()
+                    .anyMatch(property -> property.getName().getValue().equalsIgnoreCase("incremental_column"));
+            if (hasIncrementalColumn) {
+                boolean hasNonDeterministicFunctions = analysis.getResolvedFunctions().stream()
+                        .anyMatch(function -> !function.deterministic())
+                        || containsCurrentTimeFunctions(node.getQuery());
+                if (hasNonDeterministicFunctions) {
+                    throw semanticException(NOT_SUPPORTED, node, "CREATE MATERIALIZED VIEW with incremental_column is not supported when non-deterministic functions used in MV definition");
+                }
+            }
 
             CatalogHandle catalogHandle = getRequiredCatalogHandle(metadata, session, node, viewName.catalogName());
             analysis.setUpdateType("CREATE MATERIALIZED VIEW");
@@ -2381,6 +2400,19 @@ class StatementAnalyzer
             if (optionalMaterializedView.isPresent()) {
                 MaterializedViewDefinition materializedViewDefinition = optionalMaterializedView.get();
                 analysis.addEmptyColumnReferencesForTable(accessControl, session.getIdentity(), name, getBranchName(table));
+                if (analysis.getRefreshingMaterializedView().filter(name::equals).isPresent()) {
+                    // We are mid-REFRESH of this MV, and the injected incremental_column predicate
+                    // references the MV itself (SELECT max(col) FROM mv). Resolve straight to the
+                    // storage table, skipping the freshness fork below: the watermark must be read
+                    // from the rows currently stored, regardless of whether the MV is fresh or stale.
+                    QualifiedName storageName = getMaterializedViewStorageTableName(materializedViewDefinition)
+                            .orElseThrow(() -> semanticException(INVALID_VIEW, table, "Materialized view '%s' does not have a storage table", name));
+                    QualifiedObjectName storageTableName = createQualifiedObjectName(session, table, storageName);
+                    checkStorageTableNotRedirected(storageTableName);
+                    TableHandle tableHandle = metadata.getTableHandle(session, storageTableName)
+                            .orElseThrow(() -> semanticException(INVALID_VIEW, table, "Storage table '%s' does not exist", storageTableName));
+                    return createScopeForMaterializedView(table, name, scope, materializedViewDefinition, Optional.of(tableHandle));
+                }
                 if (isMaterializedViewSufficientlyFresh(session, name, materializedViewDefinition)) {
                     // If materialized view is sufficiently fresh with respect to its grace period, answer the query using the storage table
                     QualifiedName storageName = getMaterializedViewStorageTableName(materializedViewDefinition)
@@ -5389,6 +5421,33 @@ class StatementAnalyzer
             catch (ParsingException e) {
                 throw semanticException(INVALID_VIEW, node, e, "Failed parsing stored view '%s': %s", name, e.getMessage());
             }
+        }
+
+        private Query applyIncrementalColumnFilter(Query query, QualifiedObjectName name)
+        {
+            Optional<MaterializedViewIncrementalRefresh> incrementalRefresh = metadata.getMaterializedViewIncrementalRefresh(session, name);
+            if (incrementalRefresh.isEmpty()) {
+                return query;
+            }
+            analysis.setMaterializedViewIncrementalRefresh(incrementalRefresh.get());
+            String quotedColumn = "\"" + incrementalRefresh.get().incrementalColumn().replace("\"", "\"\"") + "\"";
+            // Reference the materialized view by its public name. The visitTable
+            // self-reference guard (StatementAnalyzer#visitTable) ensures this resolves to
+            // storage, not to a recursive inline expansion of the MV's source query.
+            String quotedMv = "\"%s\".\"%s\".\"%s\"".formatted(
+                    name.catalogName().replace("\"", "\"\""),
+                    name.schemaName().replace("\"", "\"\""),
+                    name.objectName().replace("\"", "\"\""));
+            // The subquery returns NULL on the first refresh (storage empty) — keep every source
+            // row in that case. Otherwise keep only rows strictly greater than the current max.
+            String filterSql = "(SELECT max(%s) FROM %s) IS NULL OR %s > (SELECT max(%s) FROM %s)"
+                    .formatted(quotedColumn, quotedMv, quotedColumn, quotedColumn, quotedMv);
+            Expression filter = sqlParser.createExpression(filterSql);
+            NodeLocation location = query.getLocation().orElseThrow();
+            return simpleQuery(
+                    new Select(location, false, ImmutableList.of(new AllColumns(location))),
+                    subquery(query),
+                    filter);
         }
 
         private Optional<String> checkViewStaleness(List<ViewColumn> columns, Collection<Field> fields, QualifiedObjectName name, Node node)

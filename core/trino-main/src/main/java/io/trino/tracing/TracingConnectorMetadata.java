@@ -53,6 +53,7 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.MaterializedViewFreshness;
+import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.RelationCommentMetadata;
@@ -738,6 +739,15 @@ public class TracingConnectorMetadata
         Span span = startSpan("refreshMaterializedView", viewName);
         try (var _ = scopedSpan(span)) {
             return delegate.refreshMaterializedView(session, viewName);
+        }
+    }
+
+    @Override
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    {
+        Span span = startSpan("getMaterializedViewIncrementalRefresh", materializedViewName);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getMaterializedViewIncrementalRefresh(session, materializedViewName);
         }
     }
 

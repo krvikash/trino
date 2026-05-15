@@ -48,6 +48,7 @@ import io.trino.metadata.TableMetadata;
 import io.trino.operator.RetryPolicy;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.RefreshType;
+import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -674,7 +675,9 @@ public class LogicalPlanner
         if (materializedViewRefreshWriterTarget.isPresent()) {
             RefreshType refreshType = materializedViewRefreshWriterTarget.get().hasNonDeterministicFunctions()
                     ? RefreshType.FULL
-                    : IncrementalRefreshVisitor.canIncrementallyRefresh(plan.getRoot());
+                    : IncrementalRefreshVisitor.canIncrementallyRefresh(
+                    plan.getRoot(),
+                    analysis.getMaterializedViewIncrementalRefresh().isPresent());
             WriterTarget writerTarget = materializedViewRefreshWriterTarget.get().withRefreshType(refreshType);
             return createTableWriterPlan(
                     analysis,
@@ -761,6 +764,10 @@ public class LogicalPlanner
         // could avoid treating the MV as stale when the time hasn't meaningfully changed. See https://github.com/trinodb/trino/issues/28731
         boolean hasNonDeterministicFunctions = analysis.getResolvedFunctions().stream().anyMatch(function -> !function.deterministic())
                 || containsCurrentTimeFunctions(query);
+        if (hasNonDeterministicFunctions && analysis.getMaterializedViewIncrementalRefresh().isPresent()) {
+            // improve validation to list invalid set of functions used
+            throw new TrinoException(StandardErrorCode.INVALID_MATERIALIZED_VIEW_PROPERTY, "REFRESH MATERIALIZED VIEW with incremental_column is not supported when non-deterministic functions used in MV definition");
+        }
         RefreshMaterializedViewReference writerTarget = new RefreshMaterializedViewReference(
                 viewAnalysis.getTable().toString(),
                 viewAnalysis.getMvName().asCatalogSchemaTableName(),
