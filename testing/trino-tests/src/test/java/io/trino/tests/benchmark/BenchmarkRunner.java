@@ -13,6 +13,7 @@
  */
 package io.trino.tests.benchmark;
 
+import ai.rapids.cudf.Rmm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -66,6 +67,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.airlift.units.DataSize.succinctBytes;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
@@ -385,6 +387,7 @@ public final class BenchmarkRunner
 
             List<Measurement> measurements = new ArrayList<>();
             List<IterationResult> measuredIterations = new ArrayList<>();
+            List<Long> peakGpuBytesPerIter = new ArrayList<>();
             try (BufferedWriter explainWriter = Files.newBufferedWriter(explainFile, UTF_8)) {
                 for (int i = 0; i < warmup; i++) {
                     log.debug("Starting warmup run of %s", displayName);
@@ -394,10 +397,16 @@ public final class BenchmarkRunner
                 session.start();
                 for (int i = 0; i < runs; i++) {
                     log.debug("Starting measured run of %s", displayName);
+                    if (Rmm.isInitialized()) {
+                        Rmm.resetScopedMaximumBytesAllocated();
+                    }
                     IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
                     log.debug("Measured run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
                     measurements.add(iteration.measurement());
                     measuredIterations.add(iteration);
+                    if (Rmm.isInitialized()) {
+                        peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
+                    }
                 }
                 // Halt sampling before rendering plans so PlanPrinter frames don't pollute the
                 // flamegraph; the buffer is preserved for the dump that runs after the try block.
@@ -427,7 +436,10 @@ public final class BenchmarkRunner
 
             long averageElapsed = averageMillis(measurements, Measurement::elapsedMillis);
             long averageExecution = averageMillis(measurements, Measurement::executionMillis);
-            log.info("Average for %s: %s ms (execution %s ms)", displayName, averageElapsed, averageExecution);
+            String peakSuffix = peakGpuBytesPerIter.isEmpty()
+                    ? ""
+                    : format(" [peak GPU memory: %s]", succinctBytes((long) peakGpuBytesPerIter.stream().mapToLong(Long::longValue).average().orElse(0)));
+            log.info("Average for %s: %s ms (execution %s ms)%s", displayName, averageElapsed, averageExecution, peakSuffix);
             return List.copyOf(measurements);
         }
     }
