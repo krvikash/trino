@@ -206,7 +206,7 @@ public final class SortedRangeSet
         return fromUnorderedValuesBlock(type, block);
     }
 
-    private static SortedRangeSet fromUnorderedValuesBlock(Type type, Block block)
+    public static SortedRangeSet fromUnorderedValuesBlock(Type type, Block block)
     {
         // choice of placing unordered values first or last does not matter for this code
         MethodHandle comparisonOperator = TUPLE_DOMAIN_TYPE_OPERATORS.getComparisonUnorderedLastOperator(type, simpleConvention(FAIL_ON_NULL, BLOCK_POSITION, BLOCK_POSITION));

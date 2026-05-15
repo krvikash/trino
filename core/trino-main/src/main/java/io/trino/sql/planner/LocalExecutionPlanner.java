@@ -4650,7 +4650,6 @@ public class LocalExecutionPlanner
                                 entry.getKey(),
                                 entry.getValue(),
                                 type,
-                                mapping.flatMap(GpuTypeConversion.GpuTypeMapping::fromHostValue),
                                 mapping.flatMap(GpuTypeConversion.GpuTypeMapping::fromScalar));
                     })
                     .collect(toImmutableList());

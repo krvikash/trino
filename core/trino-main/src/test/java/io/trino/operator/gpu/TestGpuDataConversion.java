@@ -420,32 +420,6 @@ public class TestGpuDataConversion
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testFromHostValueRoundTrip(NullsProvider nullsProvider)
-    {
-        for (Type type : TESTED_GPU_TYPES) {
-            GpuTypeConversion.GpuTypeMapping mapping = GpuTypeConversion.toGpuMapping(type).orElseThrow();
-            if (mapping.fromHostValue().isEmpty()) {
-                continue;
-            }
-            GpuTypeConversion.FromHostValue fromHostValue = mapping.fromHostValue().get();
-            Block block = createBlock(type, 100, nullsProvider);
-
-            try (Blocks blocks = new Blocks(List.of(block));
-                    ColumnVector deviceColumn = mapping.toColumn().copyToDevice(blocks);
-                    HostColumnVector hostColumn = deviceColumn.copyToHost()) {
-                for (int i = 0; i < block.getPositionCount(); i++) {
-                    Object expected = readNativeValue(type, block, i);
-                    Object actual = fromHostValue.trinoValue(hostColumn, i);
-                    assertThat(actual)
-                            .as("%s position %d", type, i)
-                            .isEqualTo(expected);
-                }
-            }
-        }
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
     public void testFromScalarRoundTrip(NullsProvider nullsProvider)
     {
         for (Type type : TESTED_GPU_TYPES) {

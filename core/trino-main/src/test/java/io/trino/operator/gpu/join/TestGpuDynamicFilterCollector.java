@@ -63,7 +63,7 @@ final class TestGpuDynamicFilterCollector
     static {
         ALL_TESTED_TYPES = TESTED_GPU_TYPES.stream()
                 .filter(type -> GpuTypeConversion.toGpuMapping(type).map(mapping ->
-                        mapping.fromHostValue().isPresent() && mapping.fromScalar().isPresent()).orElse(false))
+                        mapping.fromScalar().isPresent()).orElse(false))
                 .collect(toImmutableList());
         ORDERABLE_TESTED_TYPES = ALL_TESTED_TYPES.stream()
                 .filter(Type::isOrderable)
@@ -210,7 +210,7 @@ final class TestGpuDynamicFilterCollector
         GpuTypeMapping mapping = GpuTypeConversion.toGpuMapping(type).orElseThrow();
 
         GpuDynamicFilterCollector.Channel channel = new GpuDynamicFilterCollector.Channel(
-                FILTER_ID, 0, type, mapping.fromHostValue(), mapping.fromScalar());
+                FILTER_ID, 0, type, mapping.fromScalar());
 
         AtomicReference<DynamicFilterTupleDomain<DynamicFilterId>> result = new AtomicReference<>();
         DynamicFilterSourceConsumer consumer = captureConsumer(result);

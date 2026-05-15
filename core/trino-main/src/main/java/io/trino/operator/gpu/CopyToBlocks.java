@@ -64,6 +64,7 @@ import static java.lang.Double.longBitsToDouble;
 import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 public class CopyToBlocks
@@ -226,7 +227,13 @@ public class CopyToBlocks
         }
     }
 
-    private ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
+    public static Block copyToBlock(@Borrow HostColumnVector hostColumnVector, Type type)
+    {
+        return createColumnCopier(hostColumnVector, type)
+                .buildBlock(0, toIntExact(hostColumnVector.getRowCount()));
+    }
+
+    private static ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
     {
         if (type == BOOLEAN || type == TINYINT) {
             return new ByteColumnCopier(hostColumnVector);
