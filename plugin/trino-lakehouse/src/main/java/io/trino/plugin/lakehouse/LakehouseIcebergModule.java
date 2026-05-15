@@ -27,6 +27,7 @@ import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergExecutorModule;
 import io.trino.plugin.iceberg.IcebergFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergFileWriterFactory;
+import io.trino.plugin.iceberg.IcebergIncrementalMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergMaterializedViewProperties;
 import io.trino.plugin.iceberg.IcebergMetadataFactory;
 import io.trino.plugin.iceberg.IcebergNodePartitioningProvider;
@@ -99,6 +100,7 @@ public class LakehouseIcebergModule
 
         binder.install(new IcebergExecutorModule());
 
+        configBinder(binder).bindConfig(IcebergIncrementalMvRefreshConfig.class);
         configBinder(binder).bindConfig(IcebergScheduledMvRefreshConfig.class);
         jsonCodecBinder(binder).bindJsonCodec(IcebergCacheSplitId.class);
         newOptionalBinder(binder, WorkScheduler.class).setDefault().toInstance(new NoopWorkScheduler());
