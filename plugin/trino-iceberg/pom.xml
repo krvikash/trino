@@ -1005,7 +1005,9 @@
                                 <include>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestTrinoSnowflakeCatalog.java</include>
                                 <include>**/TestDatabricksUnityRestCatalog.java</include>
-                                <include>**/TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest.java</include>
+                                <!-- Table creation fails with ServiceFailureException [ErrorCode: 2012] on Databricks Unity Catalog during commit. -->
+                                <!-- Root cause under investigation. See https://starburstdata.atlassian.net/browse/ENG-15280 -->
+                                <!--<include>**/TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest.java</include> -->
                                 <include>**/TestIcebergGlueCatalogExternalWriteTest.java</include>
                                 <include>**/TestIcebergCachingGlueCatalogAccessOperationsTest.java</include>
                                 <include>**/TestIcebergCachingGlueCatalogConnectorSmokeTest.java</include>
