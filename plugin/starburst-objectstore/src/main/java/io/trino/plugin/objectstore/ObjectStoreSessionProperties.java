@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Table;
 import com.google.inject.Inject;
+import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.session.PropertyMetadata;
@@ -46,6 +47,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 
 public class ObjectStoreSessionProperties
+        implements SessionPropertiesProvider
 {
     private final List<PropertyMetadata<?>> sessionProperties;
     private final Multimap<String, TableType> maskedProperties;
@@ -141,6 +143,7 @@ public class ObjectStoreSessionProperties
         return new DelegateSession(forType, session);
     }
 
+    @Override
     public List<PropertyMetadata<?>> getSessionProperties()
     {
         return sessionProperties;
