@@ -22,6 +22,7 @@ import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.hive.security.UsingSystemSecurity;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.IcebergIncrementalMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -58,6 +59,7 @@ public class TrinoHiveCatalogFactory
     private final boolean deleteSchemaLocationsFallback;
     private final boolean hideMaterializedViewStorageTable;
     private final boolean scheduledMaterializedViewRefreshEnabled;
+    private final boolean isIncrementalColumnMvRefreshEnabled;
     private final Executor metadataFetchingExecutor;
 
     @Inject
@@ -70,6 +72,7 @@ public class TrinoHiveCatalogFactory
             TypeManager typeManager,
             IcebergTableOperationsProvider tableOperationsProvider,
             IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig,
+            IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig,
             WorkScheduler workScheduler,
             NodeVersion nodeVersion,
             @UsingSystemSecurity boolean isUsingSystemSecurity,
@@ -88,6 +91,7 @@ public class TrinoHiveCatalogFactory
         this.deleteSchemaLocationsFallback = config.isDeleteSchemaLocationsFallback();
         this.hideMaterializedViewStorageTable = config.isHideMaterializedViewStorageTable();
         this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
+        this.isIncrementalColumnMvRefreshEnabled = icebergIncrementalMvRefreshConfig.isMaterializedViewIncrementalColumnRefreshEnabled();
         if (config.getMetadataParallelism() == 1) {
             this.metadataFetchingExecutor = directExecutor();
         }
@@ -114,6 +118,7 @@ public class TrinoHiveCatalogFactory
                 deleteSchemaLocationsFallback,
                 hideMaterializedViewStorageTable,
                 scheduledMaterializedViewRefreshEnabled,
+                isIncrementalColumnMvRefreshEnabled,
                 metadataFetchingExecutor);
     }
 }

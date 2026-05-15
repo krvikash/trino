@@ -121,6 +121,7 @@ public abstract class AbstractTrinoCatalog
 {
     public static final String TRINO_CREATED_BY_VALUE = "Trino Iceberg connector";
     public static final String REFRESH_JOB_ID_PROPERTY = "refresh_job_id";
+    public static final String INCREMENTAL_COLUMN_PROPERTY = "incremental_column";
     public static final String ICEBERG_VIEW_RUN_AS_OWNER = "trino.run-as-owner";
 
     protected static final String TRINO_CREATED_BY = HiveMetadata.TRINO_CREATED_BY;
@@ -554,12 +555,14 @@ public abstract class AbstractTrinoCatalog
             ConnectorSession session,
             SchemaTableName storageTableName,
             Optional<String> refreshJobId,
-            Optional<Boolean> substitutionEnabled)
+            Optional<Boolean> substitutionEnabled,
+            Optional<String> incrementalColumn)
     {
         ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
                 .putAll(createMaterializedViewProperties(session, storageTableName));
         refreshJobId.ifPresent(id -> properties.put(REFRESH_JOB_ID_PROPERTY, id));
         substitutionEnabled.ifPresent(enabled -> properties.put(SUBSTITUTION_ENABLED, String.valueOf(enabled)));
+        incrementalColumn.ifPresent(column -> properties.put(INCREMENTAL_COLUMN_PROPERTY, column));
         return properties.buildOrThrow();
     }
 
@@ -567,12 +570,14 @@ public abstract class AbstractTrinoCatalog
             ConnectorSession session,
             Location storageMetadataLocation,
             Optional<String> refreshJobId,
-            Optional<Boolean> substitutionEnabled)
+            Optional<Boolean> substitutionEnabled,
+            Optional<String> incrementalColumn)
     {
         ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
                 .putAll(createMaterializedViewProperties(session, storageMetadataLocation));
         refreshJobId.ifPresent(id -> properties.put(REFRESH_JOB_ID_PROPERTY, id));
         substitutionEnabled.ifPresent(enabled -> properties.put(SUBSTITUTION_ENABLED, String.valueOf(enabled)));
+        incrementalColumn.ifPresent(column -> properties.put(INCREMENTAL_COLUMN_PROPERTY, column));
         return properties.buildOrThrow();
     }
 }

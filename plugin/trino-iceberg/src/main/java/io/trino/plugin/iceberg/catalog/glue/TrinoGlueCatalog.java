@@ -130,9 +130,11 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.decodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.encodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConnectorMaterializedViewDefinition;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.INCREMENTAL_COLUMN;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.SUBSTITUTION_ENABLED;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.getIncrementalColumn;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.isSubstitutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
@@ -179,6 +181,7 @@ public class TrinoGlueCatalog
     private final TrinoGlueClient glueClient;
     private final boolean hideMaterializedViewStorageTable;
     private final boolean scheduledMaterializedViewRefreshEnabled;
+    private final boolean isIncrementalColumnMvRefreshEnabled;
     private final boolean isUsingSystemSecurity;
     private final Executor metadataFetchingExecutor;
 
@@ -212,6 +215,7 @@ public class TrinoGlueCatalog
             boolean useUniqueTableLocation,
             boolean hideMaterializedViewStorageTable,
             boolean scheduledMaterializedViewRefreshEnabled,
+            boolean isIncrementalColumnMvRefreshEnabled,
             Executor metadataFetchingExecutor)
     {
         super(catalogName, useUniqueTableLocation, typeManager, tableOperationsProvider, workScheduler, fileSystemFactory, fileIoFactory);
@@ -222,6 +226,7 @@ public class TrinoGlueCatalog
         this.defaultSchemaLocation = requireNonNull(defaultSchemaLocation, "defaultSchemaLocation is null");
         this.hideMaterializedViewStorageTable = hideMaterializedViewStorageTable;
         this.scheduledMaterializedViewRefreshEnabled = scheduledMaterializedViewRefreshEnabled;
+        this.isIncrementalColumnMvRefreshEnabled = isIncrementalColumnMvRefreshEnabled;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
     }
 
@@ -1230,12 +1235,13 @@ public class TrinoGlueCatalog
         if (hideMaterializedViewStorageTable) {
             Location storageMetadataLocation = createMaterializedViewStorage(session, viewName, definition, materializedViewProperties);
             Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(Table::parameters));
+            Optional<String> incrementalColumn = getIncrementalColumn(materializedViewProperties);
 
             TableInput materializedViewTableInput = getMaterializedViewTableInput(
                     viewName.getTableName(),
                     encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
                     isUsingSystemSecurity ? null : session.getUser(),
-                    createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId, isSubstitutionEnabled(materializedViewProperties)));
+                    createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId, isSubstitutionEnabled(materializedViewProperties), incrementalColumn));
             try {
                 if (existing.isPresent()) {
                     updateTable(viewName.getSchemaName(), materializedViewTableInput);
@@ -1274,13 +1280,14 @@ public class TrinoGlueCatalog
         // Create the storage table
         SchemaTableName storageTable = createMaterializedViewStorageTable(session, viewName, definition, materializedViewProperties);
         Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(Table::parameters));
+        Optional<String> incrementalColumn = getIncrementalColumn(materializedViewProperties);
 
         // Create a view indicating the storage table
         TableInput materializedViewTableInput = getMaterializedViewTableInput(
                 viewName.getTableName(),
                 encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
                 isUsingSystemSecurity ? null : session.getUser(),
-                createMaterializedViewProperties(session, storageTable, refreshJobId, isSubstitutionEnabled(materializedViewProperties)));
+                createMaterializedViewProperties(session, storageTable, refreshJobId, isSubstitutionEnabled(materializedViewProperties), incrementalColumn));
 
         if (existing.isPresent()) {
             try {
@@ -1512,6 +1519,10 @@ public class TrinoGlueCatalog
         }
         if (mvProperties.containsKey(SUBSTITUTION_ENABLED)) {
             properties.put(SUBSTITUTION_ENABLED, parseBoolean(mvProperties.get(SUBSTITUTION_ENABLED)));
+        }
+        if (isIncrementalColumnMvRefreshEnabled) {
+            Optional.ofNullable(mvProperties.get(INCREMENTAL_COLUMN_PROPERTY))
+                    .ifPresent(incrementalColumn -> properties.put(INCREMENTAL_COLUMN, incrementalColumn));
         }
         return properties.buildOrThrow();
     }

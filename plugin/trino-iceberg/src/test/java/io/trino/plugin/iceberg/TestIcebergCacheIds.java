@@ -129,6 +129,7 @@ public class TestIcebergCacheIds
                         TESTING_TYPE_MANAGER,
                         tableOperationsProvider,
                         new IcebergScheduledMvRefreshConfig(),
+                        new IcebergIncrementalMvRefreshConfig(),
                         new NoopWorkScheduler(),
                         new NodeVersion("test_version"),
                         true,

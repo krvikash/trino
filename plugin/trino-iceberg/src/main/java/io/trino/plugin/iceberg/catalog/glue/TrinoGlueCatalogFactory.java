@@ -21,6 +21,7 @@ import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.hive.security.UsingSystemSecurity;
 import io.trino.plugin.iceberg.ForIcebergMetadata;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.IcebergIncrementalMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -57,6 +58,7 @@ public class TrinoGlueCatalogFactory
     private final boolean isUniqueTableLocation;
     private final boolean hideMaterializedViewStorageTable;
     private final boolean scheduledMaterializedViewRefreshEnabled;
+    private final boolean isIncrementalColumnMvRefreshEnabled;
     private final GlueMetastoreStats stats;
     private final boolean isUsingSystemSecurity;
     private final Executor metadataFetchingExecutor;
@@ -73,6 +75,7 @@ public class TrinoGlueCatalogFactory
             GlueHiveMetastoreConfig glueConfig,
             IcebergConfig icebergConfig,
             IcebergScheduledMvRefreshConfig icebergScheduledMvRefreshConfig,
+            IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig,
             IcebergGlueCatalogConfig catalogConfig,
             @UsingSystemSecurity boolean usingSystemSecurity,
             GlueMetastoreStats stats,
@@ -92,6 +95,7 @@ public class TrinoGlueCatalogFactory
         this.isUniqueTableLocation = icebergConfig.isUniqueTableLocation();
         this.hideMaterializedViewStorageTable = icebergConfig.isHideMaterializedViewStorageTable();
         this.scheduledMaterializedViewRefreshEnabled = icebergScheduledMvRefreshConfig.isScheduledMaterializedViewRefreshEnabled();
+        this.isIncrementalColumnMvRefreshEnabled = icebergIncrementalMvRefreshConfig.isMaterializedViewIncrementalColumnRefreshEnabled();
         this.stats = requireNonNull(stats, "stats is null");
         this.isUsingSystemSecurity = usingSystemSecurity;
         if (icebergConfig.getMetadataParallelism() == 1) {
@@ -127,6 +131,7 @@ public class TrinoGlueCatalogFactory
                 isUniqueTableLocation,
                 hideMaterializedViewStorageTable,
                 scheduledMaterializedViewRefreshEnabled,
+                isIncrementalColumnMvRefreshEnabled,
                 metadataFetchingExecutor);
     }
 }

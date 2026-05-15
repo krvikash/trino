@@ -24,6 +24,7 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.iceberg.IcebergConfig;
+import io.trino.plugin.iceberg.IcebergIncrementalMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
 import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
@@ -54,12 +55,14 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.trino.metastore.cache.CachingHiveMetastore.createPerTransactionCache;
 import static io.trino.plugin.hive.metastore.file.TestingFileHiveMetastore.createTestingFileHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.INCREMENTAL_COLUMN;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -122,6 +125,7 @@ public class TestTrinoHiveCatalogWithFileMetastore
                 false,
                 new IcebergConfig().isHideMaterializedViewStorageTable(),
                 new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
+                new IcebergIncrementalMvRefreshConfig().isMaterializedViewIncrementalColumnRefreshEnabled(),
                 directExecutor());
     }
 
@@ -166,6 +170,83 @@ public class TestTrinoHiveCatalogWithFileMetastore
             catalog.dropMaterializedView(SESSION, new SchemaTableName(namespace, materializedViewName));
         }
         finally {
+            try {
+                catalog.dropNamespace(SESSION, namespace);
+            }
+            catch (Exception e) {
+                log.warn("Failed to clean up namespace: %s", namespace);
+            }
+        }
+    }
+
+    @Test
+    public void testIncrementalColumnPropertyRoundTrip()
+    {
+        CachingHiveMetastore cachingHiveMetastore = createPerTransactionCache(metastore, 1000);
+        TrinoCatalog catalog = new TrinoHiveCatalog(
+                new CatalogName("catalog"),
+                new NoopWorkScheduler(),
+                cachingHiveMetastore,
+                new TrinoViewHiveMetastore(cachingHiveMetastore, false, "trino-version", "test"),
+                fileSystemFactory,
+                FILE_IO_FACTORY,
+                TESTING_TYPE_MANAGER,
+                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY),
+                false,
+                false,
+                false,
+                new IcebergConfig().isHideMaterializedViewStorageTable(),
+                new IcebergScheduledMvRefreshConfig().isScheduledMaterializedViewRefreshEnabled(),
+                true, // incrementalColumnMvRefreshEnabled
+                directExecutor());
+
+        String namespace = "test_incremental_col_roundtrip_" + randomNameSuffix();
+        SchemaTableName mvWithProperty = new SchemaTableName(namespace, "mv_with_incremental");
+        SchemaTableName mvWithoutProperty = new SchemaTableName(namespace, "mv_without_incremental");
+        ConnectorMaterializedViewDefinition definition = new ConnectorMaterializedViewDefinition(
+                "SELECT id, ts FROM source",
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                ImmutableList.of(
+                        new ConnectorMaterializedViewDefinition.Column("id", INTEGER.getTypeId(), Optional.empty()),
+                        new ConnectorMaterializedViewDefinition.Column("ts", INTEGER.getTypeId(), Optional.empty())),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of("owner"),
+                ImmutableList.of());
+
+        try {
+            catalog.createNamespace(SESSION, namespace, defaultNamespaceProperties(namespace), new TrinoPrincipal(PrincipalType.USER, SESSION.getUser()));
+
+            // MV with incremental_column: parameter must round-trip through the metastore.
+            catalog.createMaterializedView(SESSION, mvWithProperty, definition, ImmutableMap.of(FILE_FORMAT_PROPERTY, PARQUET, FORMAT_VERSION_PROPERTY, 1, INCREMENTAL_COLUMN, "ts"), false, false);
+            Optional<ConnectorMaterializedViewDefinition> readBack = catalog.getMaterializedView(SESSION, mvWithProperty);
+            assertThat(readBack).isPresent();
+            Map<String, Object> propertiesWithColumn = catalog.getMaterializedViewProperties(SESSION, mvWithProperty, readBack.get());
+            assertThat(propertiesWithColumn).containsEntry(INCREMENTAL_COLUMN, "ts");
+
+            // MV without incremental_column: property must be absent.
+            catalog.createMaterializedView(SESSION, mvWithoutProperty, definition, ImmutableMap.of(FILE_FORMAT_PROPERTY, PARQUET, FORMAT_VERSION_PROPERTY, 1), false, false);
+            Optional<ConnectorMaterializedViewDefinition> readBack2 = catalog.getMaterializedView(SESSION, mvWithoutProperty);
+            assertThat(readBack2).isPresent();
+            Map<String, Object> propertiesWithoutColumn = catalog.getMaterializedViewProperties(SESSION, mvWithoutProperty, readBack2.get());
+            assertThat(propertiesWithoutColumn).doesNotContainKey(INCREMENTAL_COLUMN);
+        }
+        finally {
+            try {
+                catalog.dropMaterializedView(SESSION, mvWithProperty);
+            }
+            catch (Exception e) {
+                log.warn("Failed to clean up materialized view: %s", mvWithProperty);
+            }
+            try {
+                catalog.dropMaterializedView(SESSION, mvWithoutProperty);
+            }
+            catch (Exception e) {
+                log.warn("Failed to clean up materialized view: %s", mvWithoutProperty);
+            }
             try {
                 catalog.dropNamespace(SESSION, namespace);
             }
