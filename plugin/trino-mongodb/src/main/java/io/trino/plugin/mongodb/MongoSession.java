@@ -43,10 +43,12 @@ import com.mongodb.client.result.DeleteResult;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.cache.EvictableCacheBuilder;
+import io.trino.plugin.mongodb.MongoClientConfig.SamplingOrder;
 import io.trino.spi.HostAddress;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -78,6 +80,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -94,9 +97,12 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.plugin.mongodb.MongoErrorCode.MONGODB_CLUSTER_ERROR;
+import static io.trino.plugin.mongodb.MongoSessionProperties.getSamplingCount;
+import static io.trino.plugin.mongodb.MongoSessionProperties.getSamplingOrder;
 import static io.trino.plugin.mongodb.ObjectIdType.OBJECT_ID;
 import static io.trino.plugin.mongodb.ptf.Query.parseFilter;
 import static io.trino.spi.HostAddress.fromParts;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_EMPTY;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -278,11 +284,11 @@ public class MongoSession
                 .collect(toImmutableSet());
     }
 
-    public MongoTable getTable(SchemaTableName tableName)
+    public MongoTable getTable(ConnectorSession session, SchemaTableName tableName)
             throws TableNotFoundException
     {
         try {
-            return tableCache.get(tableName, () -> loadTableSchema(tableName));
+            return tableCache.get(tableName, () -> loadTableSchema(session, tableName));
         }
         catch (ExecutionException | UncheckedExecutionException e) {
             Throwable cause = e.getCause();
@@ -313,12 +319,12 @@ public class MongoSession
         tableCache.invalidate(new SchemaTableName(remoteTableName.databaseName(), remoteTableName.collectionName()));
     }
 
-    public void setTableComment(MongoTableHandle table, Optional<String> comment)
+    public void setTableComment(ConnectorSession session, MongoTableHandle table, Optional<String> comment)
     {
         String remoteSchemaName = table.remoteTableName().databaseName();
         String remoteTableName = table.remoteTableName().collectionName();
 
-        Document metadata = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document metadata = getTableMetadata(session, remoteSchemaName, remoteTableName);
         metadata.append(COMMENT_KEY, comment.orElse(null));
 
         getSchemaCollection(remoteSchemaName)
@@ -327,12 +333,12 @@ public class MongoSession
         tableCache.invalidate(table.schemaTableName());
     }
 
-    public void setColumnComment(MongoTableHandle table, String columnName, Optional<String> comment)
+    public void setColumnComment(ConnectorSession session, MongoTableHandle table, String columnName, Optional<String> comment)
     {
         String remoteSchemaName = table.remoteTableName().databaseName();
         String remoteTableName = table.remoteTableName().collectionName();
 
-        Document metadata = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document metadata = getTableMetadata(session, remoteSchemaName, remoteTableName);
 
         ImmutableList.Builder<Document> columns = ImmutableList.builder();
         for (Document column : getColumnMetadata(metadata)) {
@@ -373,12 +379,12 @@ public class MongoSession
         tableCache.invalidate(table.schemaTableName());
     }
 
-    public void addColumn(MongoTableHandle table, ColumnMetadata columnMetadata)
+    public void addColumn(ConnectorSession session, MongoTableHandle table, ColumnMetadata columnMetadata)
     {
         String remoteSchemaName = table.remoteTableName().databaseName();
         String remoteTableName = table.remoteTableName().collectionName();
 
-        Document metadata = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document metadata = getTableMetadata(session, remoteSchemaName, remoteTableName);
 
         List<Document> columns = new ArrayList<>(getColumnMetadata(metadata));
 
@@ -398,12 +404,12 @@ public class MongoSession
         tableCache.invalidate(table.schemaTableName());
     }
 
-    public void renameColumn(MongoTableHandle table, String source, String target)
+    public void renameColumn(ConnectorSession session, MongoTableHandle table, String source, String target)
     {
         String remoteSchemaName = table.remoteTableName().databaseName();
         String remoteTableName = table.remoteTableName().collectionName();
 
-        Document metadata = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document metadata = getTableMetadata(session, remoteSchemaName, remoteTableName);
 
         List<Document> columns = getColumnMetadata(metadata).stream()
                 .map(document -> {
@@ -426,12 +432,12 @@ public class MongoSession
         tableCache.invalidate(table.schemaTableName());
     }
 
-    public void dropColumn(MongoTableHandle table, String columnName)
+    public void dropColumn(ConnectorSession session, MongoTableHandle table, String columnName)
     {
         String remoteSchemaName = table.remoteTableName().databaseName();
         String remoteTableName = table.remoteTableName().collectionName();
 
-        Document metadata = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document metadata = getTableMetadata(session, remoteSchemaName, remoteTableName);
 
         List<Document> columns = getColumnMetadata(metadata).stream()
                 .filter(document -> !document.getString(FIELDS_NAME_KEY).equals(columnName))
@@ -449,12 +455,12 @@ public class MongoSession
         tableCache.invalidate(table.schemaTableName());
     }
 
-    public void setColumnType(MongoTableHandle table, String columnName, Type type)
+    public void setColumnType(ConnectorSession session, MongoTableHandle table, String columnName, Type type)
     {
         String remoteSchemaName = table.remoteTableName().databaseName();
         String remoteTableName = table.remoteTableName().collectionName();
 
-        Document metadata = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document metadata = getTableMetadata(session, remoteSchemaName, remoteTableName);
 
         List<Document> columns = getColumnMetadata(metadata).stream()
                 .map(document -> {
@@ -474,14 +480,14 @@ public class MongoSession
         tableCache.invalidate(table.schemaTableName());
     }
 
-    private MongoTable loadTableSchema(SchemaTableName schemaTableName)
+    private MongoTable loadTableSchema(ConnectorSession session, SchemaTableName schemaTableName)
             throws TableNotFoundException
     {
         RemoteTableName remoteSchemaTableName = toRemoteSchemaTableName(schemaTableName);
         String remoteSchemaName = remoteSchemaTableName.databaseName();
         String remoteTableName = remoteSchemaTableName.collectionName();
 
-        Document tableMeta = getTableMetadata(remoteSchemaName, remoteTableName);
+        Document tableMeta = getTableMetadata(session, remoteSchemaName, remoteTableName);
 
         ImmutableList.Builder<MongoColumnHandle> columnHandles = ImmutableList.builder();
 
@@ -818,8 +824,13 @@ public class MongoSession
         return documentOf(NOT_EQ_OP, null);
     }
 
+    private Document getTableMetadata(ConnectorSession session, String schemaName, String tableName)
+    {
+        return getTableMetadata(schemaName, tableName, getSamplingCount(session), getSamplingOrder(session));
+    }
+
     // Internal Schema management
-    private Document getTableMetadata(String schemaName, String tableName)
+    private Document getTableMetadata(String schemaName, String tableName, int samplingCount, Optional<SamplingOrder> samplingOrder)
             throws TableNotFoundException
     {
         MongoDatabase db = getClient().getDatabase(schemaName);
@@ -833,7 +844,7 @@ public class MongoSession
                 throw new TableNotFoundException(new SchemaTableName(schemaName, tableName), format("Table '%s.%s' not found", schemaName, tableName), null);
             }
             Document metadata = new Document(TABLE_NAME_KEY, tableName);
-            metadata.append(FIELDS_KEY, guessTableFields(schemaName, tableName));
+            metadata.append(FIELDS_KEY, guessTableFields(schemaName, tableName, samplingCount, samplingOrder));
 
             // Federated database instance can also be configured to use external non-federated database instance for storing indices, which needs additional connection parameters. Do not support it for now.
             if (!isFederatedDatabase()) {
@@ -919,35 +930,46 @@ public class MongoSession
         return result.getDeletedCount() == 1;
     }
 
-    private List<Document> guessTableFields(String schemaName, String tableName)
+    private List<Document> guessTableFields(String schemaName, String tableName, int samplingCount, Optional<SamplingOrder> samplingOrder)
     {
         MongoDatabase db = getClient().getDatabase(schemaName);
-        Document doc = db.getCollection(tableName).find().first();
-        if (doc == null || doc.isEmpty()) {
-            // no records at the collection
-            return ImmutableList.of();
-        }
+        FindIterable<Document> documents = db.getCollection(tableName).find().limit(samplingCount);
+        samplingOrder.ifPresent(order -> documents.sort(order.sortOrder()));
 
-        ImmutableList.Builder<Document> builder = ImmutableList.builder();
-
-        for (String key : doc.keySet()) {
-            Object value = doc.get(key);
-            Optional<Type> fieldType = guessFieldType(value);
-            if (fieldType.isPresent()) {
-                Document metadata = new Document();
-                metadata.append(FIELDS_NAME_KEY, key);
-                metadata.append(FIELDS_TYPE_KEY, fieldType.get().getDisplayName());
-                metadata.append(FIELDS_HIDDEN_KEY,
-                        key.equals("_id") && fieldType.get().equals(OBJECT_ID));
-
-                builder.add(metadata);
+        try (MongoCursor<Document> cursor = documents.cursor()) {
+            if (!cursor.hasNext()) {
+                // no records at the collection
+                return ImmutableList.of();
             }
-            else {
-                log.debug("Unable to guess field type from %s : %s", value == null ? "null" : value.getClass().getName(), value);
-            }
-        }
 
-        return builder.build();
+            Map<String, Document> fields = new LinkedHashMap<>();
+            while (cursor.hasNext()) {
+                Document doc = cursor.next();
+                for (String key : doc.keySet()) {
+                    Object value = doc.get(key);
+                    Optional<Type> fieldType = guessFieldType(value);
+                    if (fieldType.isPresent()) {
+                        Type type = fieldType.get();
+                        if (fields.containsKey(key) && !type.getDisplayName().equals(fields.get(key).getString(FIELDS_TYPE_KEY))) {
+                            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Conflicting types for column '%s': %s and %s".formatted(key, type.getDisplayName(), fields.get(key).getString(FIELDS_TYPE_KEY)));
+                        }
+
+                        Document metadata = new Document();
+                        metadata.append(FIELDS_NAME_KEY, key);
+                        metadata.append(FIELDS_TYPE_KEY, type.getDisplayName());
+                        metadata.append(FIELDS_HIDDEN_KEY,
+                                key.equals("_id") && type.equals(OBJECT_ID));
+
+                        fields.put(key, metadata);
+                    }
+                    else {
+                        log.debug("Unable to guess field type from %s : %s", value == null ? "null" : value.getClass().getName(), value);
+                    }
+                }
+            }
+
+            return ImmutableList.copyOf(fields.values());
+        }
     }
 
     private Optional<Type> guessFieldType(Object value)

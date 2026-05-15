@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.mongodb;
 
+import com.mongodb.client.model.Sorts;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
@@ -25,14 +26,34 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import org.bson.conversions.Bson;
 
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @DefunctConfig({"mongodb.connection-per-host", "mongodb.socket-keep-alive", "mongodb.seeds", "mongodb.credentials"})
 public class MongoClientConfig
 {
+    public enum SamplingOrder
+    {
+        FIRST(Sorts.ascending("$natural")),
+        LAST(Sorts.descending("$natural"));
+
+        private final Bson sortOrder;
+
+        SamplingOrder(Bson sortOrder)
+        {
+            this.sortOrder = requireNonNull(sortOrder, "sortOrder is null");
+        }
+
+        public Bson sortOrder()
+        {
+            return sortOrder;
+        }
+    }
+
     private Optional<String> schemaDatabase = Optional.empty();
     private String schemaCollection = "_schema";
     private boolean caseInsensitiveNameMatching;
@@ -56,6 +77,8 @@ public class MongoClientConfig
     private boolean projectionPushDownEnabled = true;
     private boolean allowLocalScheduling;
     private Duration dynamicFilteringWaitTimeout = new Duration(5, SECONDS);
+    private int samplingCount = 1;
+    private SamplingOrder samplingOrder;
 
     @NotNull
     public Optional<String> getSchemaDatabase()
@@ -303,6 +326,33 @@ public class MongoClientConfig
     public MongoClientConfig setDynamicFilteringWaitTimeout(Duration dynamicFilteringWaitTimeout)
     {
         this.dynamicFilteringWaitTimeout = dynamicFilteringWaitTimeout;
+        return this;
+    }
+
+    @Min(1)
+    public int getSamplingCount()
+    {
+        return samplingCount;
+    }
+
+    @Config("mongodb.sampling-count")
+    @ConfigDescription("How many documents are used for field type inference")
+    public MongoClientConfig setSamplingCount(int samplingCount)
+    {
+        this.samplingCount = samplingCount;
+        return this;
+    }
+
+    public Optional<SamplingOrder> getSamplingOrder()
+    {
+        return Optional.ofNullable(samplingOrder);
+    }
+
+    @Config("mongodb.sampling-order")
+    @ConfigDescription("Which records should be read for sampling")
+    public MongoClientConfig setSamplingOrder(SamplingOrder samplingOrder)
+    {
+        this.samplingOrder = samplingOrder;
         return this;
     }
 

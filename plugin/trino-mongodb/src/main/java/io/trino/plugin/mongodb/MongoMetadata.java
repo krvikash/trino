@@ -181,7 +181,7 @@ public class MongoMetadata
 
         requireNonNull(tableName, "tableName is null");
         try {
-            return mongoSession.getTable(tableName).tableHandle();
+            return mongoSession.getTable(session, tableName).tableHandle();
         }
         catch (TableNotFoundException e) {
             log.debug(e, "Table(%s) not found", tableName);
@@ -194,7 +194,7 @@ public class MongoMetadata
     {
         requireNonNull(tableHandle, "tableHandle is null");
         SchemaTableName tableName = getTableName(tableHandle);
-        return getTableMetadata(tableName);
+        return getTableMetadata(session, tableName);
     }
 
     @Override
@@ -215,7 +215,7 @@ public class MongoMetadata
     public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         MongoTableHandle table = (MongoTableHandle) tableHandle;
-        List<MongoColumnHandle> columns = mongoSession.getTable(table.schemaTableName()).columns();
+        List<MongoColumnHandle> columns = mongoSession.getTable(session, table.schemaTableName()).columns();
 
         ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
         for (MongoColumnHandle columnHandle : columns) {
@@ -233,7 +233,7 @@ public class MongoMetadata
                 .orElseGet(SchemaTablePrefix::new);
         for (SchemaTableName tableName : listTables(session, prefix)) {
             try {
-                relationColumns.put(tableName, forTable(tableName, getTableMetadata(tableName).getColumns()));
+                relationColumns.put(tableName, forTable(tableName, getTableMetadata(session, tableName).getColumns()));
             }
             catch (NotFoundException e) {
                 // table disappeared during listing operation
@@ -290,7 +290,7 @@ public class MongoMetadata
             throw new TrinoException(NOT_SUPPORTED, "Setting table comments is not supported on Atlas data federation");
         }
         MongoTableHandle table = (MongoTableHandle) tableHandle;
-        mongoSession.setTableComment(table, comment);
+        mongoSession.setTableComment(session, table, comment);
     }
 
     @Override
@@ -301,7 +301,7 @@ public class MongoMetadata
         }
         MongoTableHandle table = (MongoTableHandle) tableHandle;
         MongoColumnHandle column = (MongoColumnHandle) columnHandle;
-        mongoSession.setColumnComment(table, column.baseName(), comment);
+        mongoSession.setColumnComment(session, table, column.baseName(), comment);
     }
 
     @Override
@@ -326,7 +326,7 @@ public class MongoMetadata
         switch (position) {
             case ColumnPosition.First _ -> throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns with FIRST clause");
             case ColumnPosition.After _ -> throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns with AFTER clause");
-            case ColumnPosition.Last _ -> mongoSession.addColumn(((MongoTableHandle) tableHandle), column);
+            case ColumnPosition.Last _ -> mongoSession.addColumn(session, ((MongoTableHandle) tableHandle), column);
         }
     }
 
@@ -336,7 +336,7 @@ public class MongoMetadata
         if (mongoSession.isFederatedDatabase()) {
             throw new TrinoException(NOT_SUPPORTED, "Renaming columns is not supported on Atlas data federation");
         }
-        mongoSession.renameColumn(((MongoTableHandle) tableHandle), ((MongoColumnHandle) source).baseName(), target);
+        mongoSession.renameColumn(session, ((MongoTableHandle) tableHandle), ((MongoColumnHandle) source).baseName(), target);
     }
 
     @Override
@@ -345,7 +345,7 @@ public class MongoMetadata
         if (mongoSession.isFederatedDatabase()) {
             throw new TrinoException(NOT_SUPPORTED, "Dropping columns is not supported on Atlas data federation");
         }
-        mongoSession.dropColumn(((MongoTableHandle) tableHandle), ((MongoColumnHandle) column).baseName());
+        mongoSession.dropColumn(session, ((MongoTableHandle) tableHandle), ((MongoColumnHandle) column).baseName());
     }
 
     @Override
@@ -359,7 +359,7 @@ public class MongoMetadata
         if (!canChangeColumnType(column.type(), type)) {
             throw new TrinoException(NOT_SUPPORTED, "Cannot change type from %s to %s".formatted(column.type(), type));
         }
-        mongoSession.setColumnType(table, column.baseName(), type);
+        mongoSession.setColumnType(session, table, column.baseName(), type);
     }
 
     private static boolean canChangeColumnType(Type sourceType, Type newType)
@@ -502,7 +502,7 @@ public class MongoMetadata
         if (mongoSession.isFederatedDatabase()) {
             throw new TrinoException(NOT_SUPPORTED, "Insert is not supported on Atlas data federation");
         }
-        MongoTable table = mongoSession.getTable(((MongoTableHandle) tableHandle).schemaTableName());
+        MongoTable table = mongoSession.getTable(session, ((MongoTableHandle) tableHandle).schemaTableName());
         MongoTableHandle handle = table.tableHandle();
         List<MongoColumnHandle> columns = table.columns();
         List<MongoColumnHandle> handleColumns = columns.stream()
@@ -622,7 +622,7 @@ public class MongoMetadata
 
         ImmutableList.Builder<LocalProperty<ColumnHandle>> localProperties = ImmutableList.builder();
 
-        MongoTable tableInfo = mongoSession.getTable(tableHandle.schemaTableName());
+        MongoTable tableInfo = mongoSession.getTable(session, tableHandle.schemaTableName());
         Map<String, ColumnHandle> columns = getColumnHandles(session, tableHandle);
 
         for (MongoIndex index : tableInfo.indexes()) {
@@ -906,9 +906,9 @@ public class MongoMetadata
         return ((MongoTableHandle) tableHandle).schemaTableName();
     }
 
-    private ConnectorTableMetadata getTableMetadata(SchemaTableName tableName)
+    private ConnectorTableMetadata getTableMetadata(ConnectorSession session, SchemaTableName tableName)
     {
-        MongoTable mongoTable = mongoSession.getTable(tableName);
+        MongoTable mongoTable = mongoSession.getTable(session, tableName);
 
         List<ColumnMetadata> columns = mongoTable.columns().stream()
                 .map(MongoColumnHandle::toColumnMetadata)

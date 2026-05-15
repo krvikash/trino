@@ -15,6 +15,7 @@ package io.trino.plugin.mongodb;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
+import io.trino.plugin.mongodb.MongoClientConfig.SamplingOrder;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -50,7 +51,9 @@ public class TestMongoClientConfig
                 .setImplicitRowFieldPrefix("_pos")
                 .setProjectionPushdownEnabled(true)
                 .setAllowLocalScheduling(false)
-                .setDynamicFilteringWaitTimeout(new Duration(5, SECONDS)));
+                .setDynamicFilteringWaitTimeout(new Duration(5, SECONDS))
+                .setSamplingCount(1)
+                .setSamplingOrder(null));
     }
 
     @Test
@@ -76,6 +79,8 @@ public class TestMongoClientConfig
                 .put("mongodb.projection-pushdown-enabled", "false")
                 .put("mongodb.allow-local-scheduling", "true")
                 .put("mongodb.dynamic-filtering.wait-timeout", "2ms")
+                .put("mongodb.sampling-count", "1000")
+                .put("mongodb.sampling-order", "LAST")
                 .buildOrThrow();
 
         MongoClientConfig expected = new MongoClientConfig()
@@ -96,7 +101,9 @@ public class TestMongoClientConfig
                 .setImplicitRowFieldPrefix("_prefix")
                 .setProjectionPushdownEnabled(false)
                 .setAllowLocalScheduling(true)
-                .setDynamicFilteringWaitTimeout(new Duration(2, MILLISECONDS));
+                .setDynamicFilteringWaitTimeout(new Duration(2, MILLISECONDS))
+                .setSamplingCount(1000)
+                .setSamplingOrder(SamplingOrder.LAST);
 
         assertFullMapping(properties, expected, Set.of("mongodb.schema-database"));
     }
