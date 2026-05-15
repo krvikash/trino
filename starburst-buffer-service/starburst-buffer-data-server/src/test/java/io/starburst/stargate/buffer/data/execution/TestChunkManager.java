@@ -902,8 +902,10 @@ public class TestChunkManager
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 1);
 
-        ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, OptionalLong.empty()));
-        assertThat(chunkList.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
+        // closedChunkConsumer schedules a separate task to move chunks from recentlyClosedChunks to pendingChunkList,
+        // so a single listClosedChunks call may race with that task and miss just-closed chunks. Page through.
+        List<ChunkHandle> chunks = listClosedChunkUntilNoMore(chunkManager, EXCHANGE_0, OptionalLong.empty());
+        assertThat(chunks).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
 
         BufferNodeExchangeMetrics exchangeMetrics = chunkManager.pingExchange(EXCHANGE_0);
         assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(1, 2, 2, 1, 1, 3, 3));
