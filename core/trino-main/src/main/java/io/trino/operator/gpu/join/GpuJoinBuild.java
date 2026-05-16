@@ -82,12 +82,20 @@ public final class GpuJoinBuild
     private final Optional<AstExpression> filter;
     private final Optional<GpuDynamicFilterCollector> dynamicFilter;
 
+    // Never observed by the probe side
     private final List<@Own Table> bufferedTables = new ArrayList<>();
+
+    // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildSourceTable = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildKeyTable = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
     private final ClosingRef<HashJoin> hashJoin = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
     private final ClosingRef<CompiledExpression> compiledFilter = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
+
     private boolean published;
     private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
@@ -151,73 +159,97 @@ public final class GpuJoinBuild
     private void publishBuild()
     {
         checkState(!published, "already published");
-        published = true;
 
+        GpuJoinBridge bridge;
         if (bufferedTables.isEmpty()) {
             // build side empty
             dynamicFilter.ifPresent(GpuDynamicFilterCollector::collectEmpty);
-            bridgeManager.publishBridge(new EmptyBuildSide(), this::allProbesFinished);
-            return;
-        }
-
-        buildSourceTable.set(concatenateAndClose(bufferedTables));
-        bufferedTables.clear();
-
-        dynamicFilter.ifPresent(filter -> filter.collect(buildSourceTable.borrow()));
-
-        buildKeyTable.set(selectColumns(buildSourceTable.borrow(), buildKeyChannels));
-
-        // Join output data from the build side
-        @Nullable @Borrow Table buildOutputTable;
-        if (buildOutputChannels.length > 0) {
-            this.buildOutputTable.set(selectColumns(buildSourceTable.borrow(), buildOutputChannels));
-            buildOutputTable = this.buildOutputTable.borrow();
+            bridge = new EmptyBuildSide();
         }
         else {
-            buildOutputTable = null;
+            buildSourceTable.set(concatenateAndClose(bufferedTables));
+            bufferedTables.clear();
+            dynamicFilter.ifPresent(filter -> filter.collect(buildSourceTable.borrow()));
+
+            buildKeyTable.set(selectColumns(buildSourceTable.borrow(), buildKeyChannels));
+
+            // Join output data from the build side
+            @Nullable @Borrow Table buildOutputTable;
+            if (buildOutputChannels.length > 0) {
+                this.buildOutputTable.set(selectColumns(buildSourceTable.borrow(), buildOutputChannels));
+                buildOutputTable = this.buildOutputTable.borrow();
+            }
+            else {
+                buildOutputTable = null;
+            }
+
+            if (filter.isEmpty()) {
+                buildSourceTable.close();
+                hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/false));
+                buildKeyTable.close();
+                bridge = new GpuJoinBridge.HashJoinBridge(
+                        hashJoin.borrow(),
+                        buildOutputTable);
+            }
+            else {
+                compiledFilter.set(filter.get().compile());
+                bridge = new FilteredHashJoinBridge(
+                        buildSourceTable.borrow(),
+                        buildKeyTable.borrow(),
+                        compiledFilter.borrow(),
+                        buildOutputTable);
+            }
         }
 
-        if (filter.isEmpty()) {
-            buildSourceTable.close();
-            hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/false));
-            buildKeyTable.close();
-            bridgeManager.publishBridge(
-                    new GpuJoinBridge.HashJoinBridge(
-                            hashJoin.borrow(),
-                            buildOutputTable),
-                    this::allProbesFinished);
-        }
-        else {
-            compiledFilter.set(filter.get().compile());
-            bridgeManager.publishBridge(
-                    new FilteredHashJoinBridge(
-                            buildSourceTable.borrow(),
-                            buildKeyTable.borrow(),
-                            compiledFilter.borrow(),
-                            buildOutputTable),
-                    this::allProbesFinished);
-        }
+        checkState(!probesAllFinishedFuture.isDone(), "probesAllFinishedFuture is already marked as done");
+        published = true;
+        // Note: if publish throws, it's unclear who owns the memory and it may leak.
+        bridgeManager.publishBridge(bridge, this::allProbesFinished);
     }
 
-    void allProbesFinished()
+    private void allProbesFinished()
     {
-        probesAllFinishedFuture.set(null);
-        close();
+        checkState(published, "probes could not finish without publishing");
+        try {
+            // From the moment of publishing, these resources are owned by the probe side.
+            releaseSharedResources();
+        }
+        finally {
+            // Let the operator complete after the memory is released.
+            probesAllFinishedFuture.set(null);
+        }
     }
 
     @Override
-    public synchronized void close()
+    public void close()
     {
         try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
             closer.register(source);
+
+            // if there is anything in bufferedTables, it hasn't been exposed to probe side yet
             bufferedTables.forEach(closer::register);
             bufferedTables.clear();
+
+            // If publish wasn't reached, we still own the resources and need to close them.
+            if (!published) {
+                probesAllFinishedFuture.setException(new Exception("Closed before publishing"));
+                releaseSharedResources();
+            }
+        }
+        catch (Exception e) {
+            throwIfUnchecked(e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void releaseSharedResources()
+    {
+        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
             closer.register(buildSourceTable);
             closer.register(buildKeyTable);
             closer.register(hashJoin);
             closer.register(compiledFilter);
             closer.register(buildOutputTable);
-            probesAllFinishedFuture.setException(new Exception("Closed"));
         }
         catch (Exception e) {
             throwIfUnchecked(e);
