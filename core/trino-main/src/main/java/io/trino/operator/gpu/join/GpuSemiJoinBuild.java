@@ -61,8 +61,12 @@ public final class GpuSemiJoinBuild
     private final GpuSemiJoinSetSupplier setSupplier;
     private final int buildKeyChannel;
 
+    // Never observed by the probe side
     private final List<@Own Table> bufferedTables = new ArrayList<>();
+
+    // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildKeyTable = ClosingRef.empty();
+
     private boolean published;
     private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
@@ -112,41 +116,62 @@ public final class GpuSemiJoinBuild
     private void publishBuild()
     {
         checkState(!published, "already published");
-        published = true;
 
+        GpuSemiJoinSet set;
         if (bufferedTables.isEmpty()) {
-            setSupplier.publishSet(new GpuSemiJoinSet(Optional.empty(), false), this::allProbesFinished);
-            return;
+            set = new GpuSemiJoinSet(Optional.empty(), false);
+        }
+        else {
+            buildKeyTable.set(concatenateAndClose(bufferedTables));
+            bufferedTables.clear();
+
+            boolean buildHasNull = buildKeyTable.borrow().getColumn(0).hasNulls();
+            set = new GpuSemiJoinSet(Optional.of(buildKeyTable.borrow()), buildHasNull);
         }
 
-        buildKeyTable.set(concatenateAndClose(bufferedTables));
-        bufferedTables.clear();
-
-        boolean buildHasNull = buildKeyTable.borrow().getColumn(0).hasNulls();
-        setSupplier.publishSet(
-                new GpuSemiJoinSet(Optional.of(buildKeyTable.borrow()), buildHasNull),
-                this::allProbesFinished);
+        checkState(!probesAllFinishedFuture.isDone(), "probesAllFinishedFuture is already marked as done");
+        published = true;
+        // Note: if publish throws, it's unclear who owns the memory and it may leak.
+        setSupplier.publishSet(set, this::allProbesFinished);
     }
 
-    void allProbesFinished()
+    private void allProbesFinished()
     {
-        probesAllFinishedFuture.set(null);
-        close();
+        checkState(published, "probes could not finish without publishing");
+        try {
+            // From the moment of publishing, these resources are owned by the probe side.
+            releaseSharedResources();
+        }
+        finally {
+            // Let the operator complete after the memory is released.
+            probesAllFinishedFuture.set(null);
+        }
     }
 
     @Override
-    public synchronized void close()
+    public void close()
     {
         try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
             closer.register(source);
+
+            // if there is anything in bufferedTables, it hasn't been exposed to probe side yet
             bufferedTables.forEach(closer::register);
             bufferedTables.clear();
-            closer.register(buildKeyTable);
-            probesAllFinishedFuture.setException(new Exception("Closed"));
+
+            // If publish wasn't reached, we still own the resources and need to close them.
+            if (!published) {
+                probesAllFinishedFuture.setException(new Exception("Closed before publishing"));
+                releaseSharedResources();
+            }
         }
         catch (Exception e) {
             throwIfUnchecked(e);
             throw new RuntimeException(e);
         }
+    }
+
+    private void releaseSharedResources()
+    {
+        buildKeyTable.close();
     }
 }
