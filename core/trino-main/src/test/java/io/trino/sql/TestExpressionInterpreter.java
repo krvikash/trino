@@ -30,6 +30,7 @@ import io.trino.spi.function.FunctionId;
 import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.function.Signature;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.TypeSignature;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
@@ -920,6 +921,9 @@ public class TestExpressionInterpreter
         assertOptimizedEquals(
                 new FieldReference(new Row(ImmutableList.of(new Constant(INTEGER, 1L), new Constant(UNKNOWN, null))), 1),
                 new Constant(UNKNOWN, null));
+        assertEvaluatedEquals(
+                new FieldReference(new Constant(RowType.anonymousRow(INTEGER, VARCHAR), null), 1),
+                new Constant(VARCHAR, null));
         assertOptimizedEquals(
                 new FieldReference(new Row(ImmutableList.of(new Call(DIVIDE_INTEGER, ImmutableList.of(new Constant(INTEGER, 0L), new Constant(INTEGER, 0L))), new Constant(INTEGER, 1L))), 0),
                 new FieldReference(new Row(ImmutableList.of(new Call(DIVIDE_INTEGER, ImmutableList.of(new Constant(INTEGER, 0L), new Constant(INTEGER, 0L))), new Constant(INTEGER, 1L))), 0));
