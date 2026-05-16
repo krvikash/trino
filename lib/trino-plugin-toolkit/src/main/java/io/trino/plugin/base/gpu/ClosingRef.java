@@ -22,6 +22,7 @@ import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.base.gpu.ClosingOnce.closeUnchecked;
+import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -46,6 +47,7 @@ public final class ClosingRef<T extends AutoCloseable>
     @Own
     @Nullable
     private T value;
+    private boolean closed;
 
     private ClosingRef(@Move @Nullable T value)
     {
@@ -55,12 +57,14 @@ public final class ClosingRef<T extends AutoCloseable>
     public @Borrow T borrow()
     {
         checkState(value != null, "No value");
+        checkState(!closed, "Already closed");
         return value;
     }
 
     public @Move T take()
     {
         checkState(value != null, "No value");
+        checkState(!closed, "Already closed");
         @Own T transferred = value;
         value = null;
         return transferred;
@@ -69,6 +73,11 @@ public final class ClosingRef<T extends AutoCloseable>
     public void set(@Move T newValue)
     {
         requireNonNull(newValue, "newValue is null");
+        if (closed) {
+            IllegalStateException error = new IllegalStateException("Already closed");
+            closeAllSuppress(error, newValue);
+            throw error;
+        }
         if (value != null) {
             closeUnchecked(newValue);
             throw new IllegalStateException("Value already set");
@@ -87,5 +96,6 @@ public final class ClosingRef<T extends AutoCloseable>
                 value = null;
             }
         }
+        closed = true;
     }
 }
