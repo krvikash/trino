@@ -63,6 +63,12 @@ public class IcebergTypeManager
     }
 
     @Override
+    public boolean isTypeRegistered(String name)
+    {
+        return typeManager.isTypeRegistered(name);
+    }
+
+    @Override
     public TypeOperators getTypeOperators()
     {
         return typeManager.getTypeOperators();
