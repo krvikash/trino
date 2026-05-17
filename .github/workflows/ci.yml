@@ -2415,39 +2415,66 @@ jobs:
 
             - suite: suite-delta-lake-databricks133
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks143
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks154
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks164
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks173
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks-unity
               config: hdp3
             - suite: suite-delta-lake-databricks-unity
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks-unity-s3-credentials-vending
               config: hdp3
             - suite: suite-delta-lake-databricks-unity-s3-credentials-vending
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks-unity-gcs-credentials-vending
               config: hdp3
             - suite: suite-delta-lake-databricks-unity-gcs-credentials-vending
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-hive-databricks-unity
               config: hdp3
             - suite: suite-hive-databricks-unity
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.DATABRICKS_TOKEN != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-snowflake
               ignore exclusion if: >-
                 ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.SNOWFLAKE_PASSWORD != '' || env.SNOWFLAKE_PRIVATE_KEY != '' }}
@@ -2674,6 +2701,26 @@ jobs:
           check_name: ${{ github.job }} with secrets
           conclusion: ${{ job.status }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Should notify on failure
+        id: should_notify
+        if: always() && steps.tests.outcome == 'failure' && contains(matrix.suite, 'databricks')
+        run: |
+          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
+          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
+          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
+            echo "result=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "result=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Slack notify failed tests to Connectors team
+        if: always() && steps.tests.outcome == 'failure' && contains(matrix.suite, 'databricks') && steps.should_notify.outputs.result == 'true'
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
+          slack-channel: C09HT9ETS73 # team-connectors-notify channel ID
+          slack-text: |
+            :boom: Databricks PT failed: ${{ matrix.suite }} on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
       - name: Launch Flake Tracker
         if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
         continue-on-error: true
