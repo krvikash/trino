@@ -71,7 +71,7 @@ UPDATE_DATE=$(date +%Y%m%d)
 FROM=$(cat trino-base.txt)
 FROM_VERSION=$(git show "${FROM}":pom.xml | xq -x /project/version | cut -d '-' -f 1)
 TO_VERSION=$[FROM_VERSION + 1]
-TO=$(git rev-parse --verify $TO_VERSION 2>/dev/null)
+TO=$(git rev-parse --verify ${TO_VERSION}^{} 2>/dev/null)
 TO_SHORT=$(git rev-parse --short "$TO")
 TARGET_BRANCH="update/cork/trino-${TO_VERSION}-${TO_SHORT}"
 
