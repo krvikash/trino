@@ -749,7 +749,8 @@ public final class CommonSubqueriesExtractor
                 session,
                 idAllocator,
                 plannerContext,
-                _ -> PlanNodeStatsEstimate.unknown())
+                _ -> PlanNodeStatsEstimate.unknown(),
+                symbolAllocator)
                 .mainAlternative();
 
         // If ValuesNode was returned as a result of pushing down predicates we fall back

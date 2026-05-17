@@ -666,14 +666,14 @@ public class AddExchanges
         {
             if (node.getSource() instanceof TableScanNode) {
                 Optional<PlanNode> plan = PushPredicateIntoTableScan.pushFilterIntoTableScan(
-                                node,
-                                (TableScanNode) node.getSource(),
-                                true,
-                                session,
-                                idAllocator,
-                                plannerContext,
-                                statsProvider)
-                        .mainAlternative();
+                        node,
+                        (TableScanNode) node.getSource(),
+                        true,
+                        session,
+                        idAllocator,
+                        plannerContext,
+                        statsProvider,
+                        symbolAllocator).mainAlternative();
                 if (plan.isPresent()) {
                     return new PlanWithProperties(plan.get(), derivePropertiesRecursively(plan.get()));
                 }
