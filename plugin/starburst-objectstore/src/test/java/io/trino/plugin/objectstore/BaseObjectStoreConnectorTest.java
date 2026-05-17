@@ -458,19 +458,6 @@ public abstract class BaseObjectStoreConnectorTest
     }
 
     @Test
-    @Override
-    public void testShowCreateInformationSchema()
-    {
-        if (!isGalaxyMetastore) {
-            super.testShowCreateInformationSchema();
-            return;
-        }
-
-        assertThat(computeScalar("SHOW CREATE SCHEMA information_schema"))
-                .isEqualTo(format("CREATE SCHEMA %s.information_schema\nAUTHORIZATION ROLE accountadmin", getSession().getCatalog().orElseThrow()));
-    }
-
-    @Test
     public void testTableTypesAndFormats()
     {
         assertHiveTableFormat("PARQUET");

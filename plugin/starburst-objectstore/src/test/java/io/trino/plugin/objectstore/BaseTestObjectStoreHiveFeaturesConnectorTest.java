@@ -1168,13 +1168,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testDropTableIfExists()
-    {
-        skipDuplicateTestCoverage("testDropTableIfExists");
-    }
-
-    @Test
-    @Override
     public void testExactPredicate()
     {
         skipDuplicateTestCoverage("testExactPredicate");
@@ -2008,30 +2001,9 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testShowCreateInformationSchema()
-    {
-        skipDuplicateTestCoverage("testShowCreateInformationSchema");
-    }
-
-    @Test
-    @Override
-    public void testShowCreateInformationSchemaTable()
-    {
-        skipDuplicateTestCoverage("testShowCreateInformationSchemaTable");
-    }
-
-    @Test
-    @Override
     public void testShowCreateView()
     {
         skipDuplicateTestCoverage("testShowCreateView");
-    }
-
-    @Test
-    @Override
-    public void testShowInformationSchemaTables()
-    {
-        skipDuplicateTestCoverage("testShowInformationSchemaTables");
     }
 
     @Test
@@ -2043,23 +2015,9 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testShowSchemasFrom()
-    {
-        skipDuplicateTestCoverage("testShowSchemasFrom");
-    }
-
-    @Test
-    @Override
     public void testShowSchemasFromOther()
     {
         skipDuplicateTestCoverage("testShowSchemasFromOther");
-    }
-
-    @Test
-    @Override
-    public void testShowSchemasLike()
-    {
-        skipDuplicateTestCoverage("testShowSchemasLike");
     }
 
     @Test
@@ -2071,23 +2029,9 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testShowTablesLike()
-    {
-        skipDuplicateTestCoverage("testShowTablesLike");
-    }
-
-    @Test
-    @Override
     public void testSortItemsReflectedInExplain()
     {
         skipDuplicateTestCoverage("testSortItemsReflectedInExplain");
-    }
-
-    @Test
-    @Override
-    public void testSymbolAliasing()
-    {
-        skipDuplicateTestCoverage("testSymbolAliasing");
     }
 
     @Test
@@ -2165,13 +2109,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     public void testTrySelectTableVersion()
     {
         skipDuplicateTestCoverage("testTrySelectTableVersion");
-    }
-
-    @Test
-    @Override
-    public void testUnionAllAboveBroadcastJoin()
-    {
-        skipDuplicateTestCoverage("testUnionAllAboveBroadcastJoin");
     }
 
     @Test
