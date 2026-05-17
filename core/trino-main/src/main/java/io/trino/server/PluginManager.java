@@ -91,6 +91,7 @@ public class PluginManager
             .add("io.starburst.ai.model.")
             .add("io.opentelemetry.api.")
             .add("io.opentelemetry.context.")
+            .add("org.locationtech.jts.")
             .add("ai.rapids.")
             .build();
 
