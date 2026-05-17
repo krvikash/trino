@@ -22,7 +22,10 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.FieldDereference;
+import io.trino.spi.expression.Lambda;
 import io.trino.spi.expression.Variable;
+import io.trino.spi.type.FunctionType;
+import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -33,10 +36,12 @@ import java.util.Objects;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
 import static io.trino.plugin.base.expression.ConnectorExpressions.extractDisjuncts;
+import static io.trino.plugin.base.expression.ConnectorExpressions.extractVariables;
 import static io.trino.plugin.base.expression.ConnectorExpressions.or;
 import static io.trino.plugin.base.util.ConnectorExpressionUtil.extractVariableNames;
 import static io.trino.spi.expression.Constant.FALSE;
 import static io.trino.spi.expression.Constant.TRUE;
+import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
@@ -51,6 +56,7 @@ final class TestConnectorExpressionUtil
     private static final ConnectorExpression A = new Variable("a", BOOLEAN);
     private static final ConnectorExpression B = new Variable("b", BOOLEAN);
     private static final ConnectorExpression C = new Variable("c", BOOLEAN);
+    private static final Type BOOLEAN_TO_BOOLEAN = new FunctionType(List.of(BOOLEAN), BOOLEAN);
 
     @Test
     void testExtractVariableNames()
@@ -730,5 +736,18 @@ final class TestConnectorExpressionUtil
         Call call = (Call) result;
         assertThat(call.getFunctionName()).isEqualTo(OR_FUNCTION_NAME);
         assertThat(call.getArguments()).containsExactly(A, B, C);
+    }
+
+    @Test
+    public void testExtractVariablesIgnoresLambdaArguments()
+    {
+        Variable outer = new Variable("outer", BOOLEAN);
+        Variable lambdaArgument = new Variable("x", BOOLEAN);
+        ConnectorExpression expression = new Lambda(
+                BOOLEAN_TO_BOOLEAN,
+                ImmutableList.of(lambdaArgument),
+                new Call(BOOLEAN, AND_FUNCTION_NAME, ImmutableList.of(lambdaArgument, outer)));
+
+        assertThat(extractVariables(expression)).containsExactly(outer);
     }
 }
