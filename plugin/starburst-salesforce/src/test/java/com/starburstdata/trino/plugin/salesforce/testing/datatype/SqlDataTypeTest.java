@@ -67,7 +67,7 @@ public final class SqlDataTypeTest
             verifyPredicate(queryRunner, session, dataSetup.tableName());
         }
         catch (AssertJMultipleFailuresError | RuntimeException e) {
-            log.warn(e, "Retrying SqlDataTypeTest.execute in Salesforce connector");
+            log.warn(e, "Retrying SqlDataTypeTest.execute for table %s in Salesforce connector", dataSetup.tableName());
             try (TemporaryRelation _ = dataSetup.setupTemporaryRelation(unmodifiableList(testCases))) {
                 verifySelect(queryRunner, session, dataSetup.tableName());
                 verifyPredicate(queryRunner, session, dataSetup.tableName());

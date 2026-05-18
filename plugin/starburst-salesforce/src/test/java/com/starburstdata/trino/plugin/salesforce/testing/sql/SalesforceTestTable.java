@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.salesforce.testing.sql;
 
+import io.airlift.log.Logger;
 import io.trino.testing.sql.JdbcSqlExecutor;
 import io.trino.testing.sql.TestTable;
 
@@ -26,6 +27,8 @@ import static java.util.Objects.requireNonNull;
 public class SalesforceTestTable
         extends TestTable
 {
+    private static final Logger log = Logger.get(SalesforceTestTable.class);
+
     private final String jdbcUrl;
     private final String tableName;
 
@@ -51,10 +54,12 @@ public class SalesforceTestTable
             boolean exists = results.next();
 
             if (!exists) {
+                log.info("Table %s does not exist, creating via JDBC with definition '%s'", tableName, tableDefinition);
                 sqlExecutor.execute(format("CREATE TABLE %s %s", tableName, tableDefinition));
                 sqlExecutor.execute("RESET SCHEMA CACHE");
             }
             else {
+                log.info("Table %s exists, truncating the table", tableName);
                 truncate();
             }
         }
@@ -96,6 +101,10 @@ public class SalesforceTestTable
 
             if (hasData) {
                 statement.execute(format("DELETE FROM %s__c WHERE EXISTS SELECT Id FROM %s__c#TEMP", tableName, tableName));
+                log.info("Truncated rows from table %s", tableName);
+            }
+            else {
+                log.info("Table %s was already empty", tableName);
             }
 
             try (ResultSet countResults = statement.executeQuery(format("SELECT COUNT(*) FROM %s__c", tableName))) {
