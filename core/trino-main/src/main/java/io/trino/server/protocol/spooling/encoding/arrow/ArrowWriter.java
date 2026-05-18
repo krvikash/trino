@@ -22,25 +22,40 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Sealed interface for writing Trino values into Arrow vectors.
+ *
+ * <p>Time with time zone writers by precision:
+ * <ul>
+ *   <li>{@link TimeSecWithTimeZoneWriter} — time(0) with time zone
+ *   <li>{@link TimeMilliWithTimeZoneWriter} — time(3) with time zone
+ *   <li>{@link TimeMicroWithTimeZoneWriter} — time(6) with time zone
+ *   <li>{@link TimeNanoWithTimeZoneWriter} — time(9) with time zone
+ * </ul>
+ * time(12) is not supported by Arrow.
+ *
+ * <p>Timestamp with time zone writers by precision:
+ * <ul>
+ *   <li>{@link TimestampSecWithTimeZoneWriter} — timestamp(0) with time zone
+ *   <li>{@link TimestampMilliWithTimeZoneWriter} — timestamp(3) with time zone
+ *   <li>{@link TimestampMicroWithTimeZoneWriter} — timestamp(6) with time zone
+ *   <li>{@link TimestampNanoWithTimeZoneWriter} — timestamp(9) with time zone
+ * </ul>
+ * timestamp(12) is not supported by Arrow.
+ */
 public sealed interface ArrowWriter
         permits ArrayWriter,
         MapWriter,
         PrimitiveWriter,
         RowWriter,
-
-        TimeSecWithTimeZoneWriter, // time(0) with time zone
-        TimeMilliWithTimeZoneWriter, // time(3) with time zone
-        TimeMicroWithTimeZoneWriter, // time(6) with time zone
-        TimeNanoWithTimeZoneWriter, // time(9) with time zone
-        // time(12) is not supported by Arrow
-
-        TimestampSecWithTimeZoneWriter, // timestamp(0) with time zone
-        TimestampMilliWithTimeZoneWriter, // timestamp(3) with time zone
-        TimestampMicroWithTimeZoneWriter, // timestamp(6) with time zone
-        TimestampNanoWithTimeZoneWriter // timestamp(9) with time zone
-        // timestamp(12) is not supported by Arrow
-
-        // No extension types yet
+        TimeSecWithTimeZoneWriter,
+        TimeMilliWithTimeZoneWriter,
+        TimeMicroWithTimeZoneWriter,
+        TimeNanoWithTimeZoneWriter,
+        TimestampSecWithTimeZoneWriter,
+        TimestampMilliWithTimeZoneWriter,
+        TimestampMicroWithTimeZoneWriter,
+        TimestampNanoWithTimeZoneWriter
 {
     /**
      * Usually we want to call ValueVector.setInitialCapacity() to hint Arrow how many positions
