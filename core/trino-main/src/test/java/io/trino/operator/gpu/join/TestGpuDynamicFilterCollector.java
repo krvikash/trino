@@ -86,7 +86,7 @@ final class TestGpuDynamicFilterCollector
         for (Type type : ALL_TESTED_TYPES) {
             Block block = createBlock(type, 100, nullsProvider);
 
-            DynamicFilterDomain cpuDomain = buildCpuDomain(type, block, 100, 0);
+            DynamicFilterDomain cpuDomain = collectCpuDomain(type, block, 100, 0);
             DynamicFilterDomain gpuDomain = collectGpuDomain(type, block, 100);
 
             assertThat(gpuDomain)
@@ -102,7 +102,7 @@ final class TestGpuDynamicFilterCollector
         for (Type type : ORDERABLE_TESTED_TYPES) {
             Block block = createBlock(type, 100, nullsProvider);
 
-            DynamicFilterDomain cpuDomain = buildCpuDomain(type, block, 5, 1000);
+            DynamicFilterDomain cpuDomain = collectCpuDomain(type, block, 5, 1000);
             DynamicFilterDomain gpuDomain = collectGpuDomain(type, block, 5);
 
             // Compare via toDomain() because the CPU wraps the range in a bloom filter while the GPU produces a plain range
@@ -121,7 +121,7 @@ final class TestGpuDynamicFilterCollector
                 .as("empty build should produce none")
                 .isTrue();
 
-        DynamicFilterDomain cpuDomain = buildCpuDomain(BIGINT, null, 100, 0);
+        DynamicFilterDomain cpuDomain = collectCpuDomain(BIGINT, null, 100, 0);
         assertThat(cpuDomain.isNone()).isTrue();
     }
 
@@ -137,7 +137,7 @@ final class TestGpuDynamicFilterCollector
         REAL.writeFloat(realBuilder, 2.0f);
         Block realBlock = realBuilder.build();
 
-        DynamicFilterDomain cpuDomain = buildCpuDomain(REAL, realBlock, 100, 0);
+        DynamicFilterDomain cpuDomain = collectCpuDomain(REAL, realBlock, 100, 0);
         DynamicFilterDomain gpuDomain = collectGpuDomain(REAL, realBlock, 100);
         assertThat(gpuDomain)
                 .as("REAL discrete with NaN")
@@ -149,7 +149,7 @@ final class TestGpuDynamicFilterCollector
         DOUBLE.writeDouble(doubleBuilder, 2.0);
         Block doubleBlock = doubleBuilder.build();
 
-        cpuDomain = buildCpuDomain(DOUBLE, doubleBlock, 100, 0);
+        cpuDomain = collectCpuDomain(DOUBLE, doubleBlock, 100, 0);
         gpuDomain = collectGpuDomain(DOUBLE, doubleBlock, 100);
         assertThat(gpuDomain)
                 .as("DOUBLE discrete with NaN")
@@ -162,7 +162,7 @@ final class TestGpuDynamicFilterCollector
         for (Type type : List.of(REAL, DOUBLE)) {
             Block block = createBlock(type, 100, NO_NULLS);
 
-            DynamicFilterDomain cpuDomain = buildCpuDomain(type, block, 5, 0);
+            DynamicFilterDomain cpuDomain = collectCpuDomain(type, block, 5, 0);
             assertThat(cpuDomain.isAll())
                     .as("CPU high cardinality %s", type)
                     .isTrue();
@@ -184,7 +184,7 @@ final class TestGpuDynamicFilterCollector
         assertThat(gpuResult.isAll()).isTrue();
     }
 
-    private static DynamicFilterDomain buildCpuDomain(Type type, @Nullable Block block, int maxDistinctValues, int bloomFilterMaxDistinctValues)
+    private static DynamicFilterDomain collectCpuDomain(Type type, @Nullable Block block, int maxDistinctValues, int bloomFilterMaxDistinctValues)
     {
         JoinDomainBuilder builder = new JoinDomainBuilder(
                 type,
