@@ -229,7 +229,11 @@ public class TestSalesforceTypeMapping
     {
         // We use the test table here to ensure the test_decimal table is empty before and after the test case runs
         try (SalesforceTestTable ignored = new SalesforceTestTable(jdbcUrl, "test_decimal", "")) {
-            assertUpdate("INSERT INTO test_decimal__c (col_7__c) VALUES (CAST('2.7' AS decimal(4, 2)))", 1);
+            // TODO Salesforce license is not allowing INSERT statements from Starburst. So we are using Salesforce executor to execute the
+            //  insert statement directly. Once the issue is resolved, we can switch back to using assertUpdate for the insert statement.
+            //  https://starburstdata.atlassian.net/browse/ENG-15689
+            new JdbcSqlExecutor(jdbcUrl)
+                    .execute("INSERT INTO test_decimal__c (col_7__c) VALUES (CAST('2.7' AS decimal(4, 2)))");
 
             assertQueryFails(sessionWithDecimalMappingAllowOverflow(UNNECESSARY, 0),
                     "SELECT col_7__c FROM test_decimal__c",
