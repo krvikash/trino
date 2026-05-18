@@ -159,16 +159,12 @@ public class AwsBedrockLanguageModelClient
                         ImmutableList.of())),
                 context);
 
-        List<ContentBlock> contentBlocks = response.output().message().content();
         if (response.stopReason() != null && (ERROR_STOP_REASONS.contains(response.stopReason()) || response.stopReason() == StopReason.TOOL_USE)) {
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
-        if (contentBlocks == null || contentBlocks.isEmpty() || response.output().message().content().getFirst().text() == null) {
-            return "";
-        }
 
         log.debug("Bedrock token usage: %s", response.usage());
-        return response.output().message().content().getFirst().text();
+        return parseBedrockToolResponse(response).textResponse();
     }
 
     @Override

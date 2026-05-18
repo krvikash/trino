@@ -77,7 +77,7 @@ public final class TestingUtils
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
                             "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                            "region": "us-east-2"
+                            "region": "us-east-1"
                         }
                     },
                     {
@@ -90,7 +90,7 @@ public final class TestingUtils
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
                             "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                            "region": "us-east-2"
+                            "region": "us-east-1"
                         }
                     },
                     {
@@ -102,7 +102,7 @@ public final class TestingUtils
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
                             "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                            "region": "us-east-2"
+                            "region": "us-east-1"
                         },
                         "traits": {
                             "PROMPT_CACHING_SUPPORT": "PROMPT_CACHING_SUPPORTED"
@@ -173,7 +173,18 @@ public final class TestingUtils
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
                             "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                            "region": "us-east-2"
+                            "region": "us-east-1"
+                        }
+                    },
+                    {
+                        "id": "gpt_oss_120b",
+                        "modelName": "openai.gpt-oss-120b-1:0",
+                        "kind": "GENERATE",
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-1"
                         }
                     }
                 ]
