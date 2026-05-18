@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestReloadingModelClientProvider
         extends AbstractTestQueryFramework
 {
-    String MODEL_SPECS_V1 = """
+    private static final String MODEL_SPECS_V1 = """
             {
                 "models": [
                     {
