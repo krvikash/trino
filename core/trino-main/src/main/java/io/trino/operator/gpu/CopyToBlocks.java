@@ -30,7 +30,6 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -109,7 +108,7 @@ public class CopyToBlocks
         try {
             checkArgument(inputPage.columnCount() == types.size(), "Page has wrong column count");
             int[] columnIndexToCopierIndex = new int[inputPage.columnCount()];
-            @Own List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
+            List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
             @Own Column[] newColumns = new Column[inputPage.columnCount()];
             @Own List<HostColumnVector> hostColumnVectors = new ArrayList<>();
             boolean syncFailed = false;
@@ -212,7 +211,6 @@ public class CopyToBlocks
                             closer.register(column);
                         }
                     }
-                    copiers.forEach(closer::register);
                     if (!syncFailed) {
                         hostColumnVectors.forEach(closer::register);
                     }
@@ -228,7 +226,7 @@ public class CopyToBlocks
         }
     }
 
-    private @Move ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
+    private ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
     {
         if (type == BOOLEAN || type == TINYINT) {
             return new ByteColumnCopier(hostColumnVector);
@@ -318,9 +316,6 @@ public class CopyToBlocks
             hostColumnVector.getData().getBytes(values, 0, position, count);
             return new ByteArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class ShortColumnCopier
@@ -341,9 +336,6 @@ public class CopyToBlocks
             byteBuffer.asShortBuffer().get(values);
             return new ShortArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class IntColumnCopier
@@ -363,9 +355,6 @@ public class CopyToBlocks
             hostColumnVector.getData().getInts(values, 0, (long) position * Integer.BYTES, count);
             return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class LongColumnCopier
@@ -385,9 +374,6 @@ public class CopyToBlocks
             hostColumnVector.getData().getLongs(values, 0, (long) position * Long.BYTES, count);
             return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class RescaledLongColumnCopier
@@ -412,9 +398,6 @@ public class CopyToBlocks
             }
             return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class RealColumnCopier
@@ -440,9 +423,6 @@ public class CopyToBlocks
             }
             return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class DoubleColumnCopier
@@ -468,9 +448,6 @@ public class CopyToBlocks
             }
             return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
-
-        @Override
-        public void close() {}
     }
 
     /**
@@ -500,9 +477,6 @@ public class CopyToBlocks
             }
             return new Int128ArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), trinoHighLowPairs);
         }
-
-        @Override
-        public void close() {}
     }
 
     private static class VarcharColumnCopier
@@ -538,9 +512,6 @@ public class CopyToBlocks
                     offsets,
                     validityToNulls(hostColumnVector.getValidity(), position, count));
         }
-
-        @Override
-        public void close() {}
     }
 
     /**
@@ -584,13 +555,9 @@ public class CopyToBlocks
                     offsets,
                     validityToNulls(hostColumnVector.getValidity(), position, count));
         }
-
-        @Override
-        public void close() {}
     }
 
     private interface ColumnCopier
-            extends RuntimeCloseable
     {
         Block buildBlock(int position, int count);
     }
