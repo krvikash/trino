@@ -379,26 +379,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.kjetland</groupId>
-            <artifactId>mbknor-jackson-jsonschema_2.13</artifactId>
-            <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.github.classgraph</groupId>
-                    <artifactId>classgraph</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>jcl-over-slf4j</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
             <scope>runtime</scope>
@@ -439,6 +419,12 @@
         <dependency>
             <groupId>io.trino.hive</groupId>
             <artifactId>hive-apache-jdbc</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.yokota</groupId>
+            <artifactId>mbknor-jackson-jsonschema-java8</artifactId>
             <scope>runtime</scope>
         </dependency>
 

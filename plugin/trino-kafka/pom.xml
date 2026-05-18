@@ -231,25 +231,14 @@
         </dependency>
 
         <dependency>
-            <groupId>com.kjetland</groupId>
-            <artifactId>mbknor-jackson-jsonschema_2.13</artifactId>
+            <groupId>io.airlift</groupId>
+            <artifactId>log-manager</artifactId>
             <scope>runtime</scope>
-            <!-- Found duplicate and different classes in [commons-logging:commons-logging:1.2, org.slf4j:jcl-over-slf4j:2.0.17]-->
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>jcl-over-slf4j</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>log-manager</artifactId>
+            <groupId>io.yokota</groupId>
+            <artifactId>mbknor-jackson-jsonschema-java8</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -445,11 +434,9 @@
                 <extensions>true</extensions>
                 <configuration>
                     <allowedProvidedDependencies>
-                        <id>com.kjetland:mbknor-jackson-jsonschema_2.13</id>
                         <id>io.confluent:kafka-json-schema-provider</id>
                         <id>io.confluent:kafka-protobuf-provider</id>
                         <id>io.confluent:kafka-protobuf-types</id>
-                        <id>io.yokota:mbknor-jackson-jsonschema-java8</id>
                     </allowedProvidedDependencies>
                 </configuration>
             </plugin>
@@ -461,10 +448,6 @@
                         <!-- com.google.protobuf:protobuf-java and com.squareup.wire:wire-schema proto file duplicate -->
                         <ignoredResourcePattern>google/protobuf/.*\.proto$</ignoredResourcePattern>
                     </ignoredResourcePatterns>
-                    <ignoredClassPatterns>
-                        <!-- com.kjetland:mbknor-jackson-jsonschema_2.13 and io.yokota:mbknor-jackson-jsonschema-java8 -->
-                        <ignoredClassPattern>com.kjetland.jackson.jsonSchema.*</ignoredClassPattern>
-                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
             <!-- TODO: Instead of using this plugin to generate classes we should invoke the parser directly (https://github.com/trinodb/trino/issues/16039) -->
