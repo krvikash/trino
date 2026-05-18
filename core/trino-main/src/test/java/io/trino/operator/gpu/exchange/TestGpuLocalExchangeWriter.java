@@ -98,10 +98,6 @@ public class TestGpuLocalExchangeWriter
         assertThat(writer.execute()).isInstanceOf(GpuOperation.Finished.class);
     }
 
-    // -------------------------------------------------------------------------
-    // Fakes
-    // -------------------------------------------------------------------------
-
     private static class FakeSource
             implements GpuOperation
     {

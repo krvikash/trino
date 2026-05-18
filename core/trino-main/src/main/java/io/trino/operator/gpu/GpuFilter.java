@@ -13,11 +13,15 @@
  */
 package io.trino.operator.gpu;
 
+import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
+import io.trino.operator.gpu.GpuDynamicFilterProvider.CompiledDynamicFilter;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.plugin.base.gpu.ClosingOnce;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -29,7 +33,9 @@ import io.trino.spi.gpu.borrow.Own;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
@@ -40,42 +46,62 @@ public class GpuFilter
     public static class Factory
             implements GpuOperation.Factory
     {
-        private final CompiledExpression filter;
+        private final Optional<CompiledExpression> staticFilter;
+        private final Optional<GpuDynamicFilterProvider> dynamicFilter;
+        private final OptionalDouble passThroughThreshold;
 
-        public Factory(CompiledExpression filter)
+        public Factory(
+                Optional<CompiledExpression> staticFilter,
+                Optional<GpuDynamicFilterProvider> dynamicFilter,
+                OptionalDouble passThroughThreshold)
         {
-            this.filter = requireNonNull(filter, "filter is null");
+            checkArgument(staticFilter.isPresent() || dynamicFilter.isPresent(), "Either staticFilter or dynamicFilter must be present");
+            checkArgument(staticFilter.isEmpty() || passThroughThreshold.isEmpty(), "staticFilter and passThroughThreshold cannot be both present: %s, %s", staticFilter, passThroughThreshold);
+            this.staticFilter = requireNonNull(staticFilter, "staticFilter is null");
+            this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+            this.passThroughThreshold = requireNonNull(passThroughThreshold, "passThroughThreshold is null");
         }
 
         @Override
         public Factory duplicate()
         {
-            return new Factory(filter);
+            dynamicFilter.ifPresent(GpuDynamicFilterProvider::operatorFactoryDuplicated);
+            return new Factory(staticFilter, dynamicFilter, passThroughThreshold);
         }
 
         @Override
         public GpuOperation create(GpuOperation source)
         {
-            return new GpuFilter(source, filter);
+            dynamicFilter.ifPresent(GpuDynamicFilterProvider::operatorCreated);
+            return new GpuFilter(source, staticFilter, dynamicFilter, passThroughThreshold);
         }
 
         @Override
-        public void noMoreOperators() {}
+        public void noMoreOperators()
+        {
+            dynamicFilter.ifPresent(GpuDynamicFilterProvider::noMoreOperators);
+        }
     }
 
     private final GpuOperation source;
-    private final CompiledExpression filter;
+    private final Optional<CompiledExpression> staticFilter;
+    private final Optional<GpuDynamicFilterProvider> dynamicFilter;
+    private final OptionalDouble passThroughThreshold;
 
-    public GpuFilter(
+    private GpuFilter(
             GpuOperation source,
-            CompiledExpression filter)
+            Optional<CompiledExpression> staticFilter,
+            Optional<GpuDynamicFilterProvider> dynamicFilter,
+            OptionalDouble passThroughThreshold)
     {
         this.source = requireNonNull(source, "source is null");
-        this.filter = requireNonNull(filter, "filter is null");
+        this.staticFilter = requireNonNull(staticFilter, "staticFilter is null");
+        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+        this.passThroughThreshold = requireNonNull(passThroughThreshold, "passThroughThreshold is null");
     }
 
     @Override
-    public @Move Result execute()
+    public Result execute()
     {
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
@@ -84,25 +110,62 @@ public class GpuFilter
             case Yielded yielded -> yielded;
             case Data(GpuPage page) -> {
                 try (page) {
-                    yield processPage(page)
-                            .<Result>map(Data::new)
-                            .orElseGet(Yielded::new);
+                    yield processPage(page);
                 }
             }
         };
     }
 
-    private @Move Optional<@Own GpuPage> processPage(@Borrow GpuPage input)
+    private Result processPage(@Borrow GpuPage page)
     {
-        try (ColumnVector mask = computeMask(input, filter)) {
-            return applyMask(input, mask);
+        if (dynamicFilter.isPresent()) {
+            return dynamicFilter.get().useCurrentFilter(currentDynamicFilter -> applyFilters(currentDynamicFilter, page));
         }
+        return applyFilters(new CompiledDynamicFilter.All(), page);
+    }
+
+    private Result applyFilters(CompiledDynamicFilter currentDynamicFilter, @Borrow GpuPage page)
+    {
+        return switch (currentDynamicFilter) {
+            case CompiledDynamicFilter.All() -> {
+                if (staticFilter.isEmpty()) {
+                    yield new Data(page.shallowCopy());
+                }
+                try (ColumnVector mask = computeMask(page, staticFilter.get())) {
+                    yield applyMask(page, mask, OptionalDouble.empty())
+                            .<Result>map(Data::new)
+                            .orElseGet(Yielded::new);
+                }
+            }
+            case CompiledDynamicFilter.None() -> new Finished();
+            case CompiledDynamicFilter.Expression(CompiledExpression expression) -> {
+                try (ClosingOnce<ColumnVector> dynamicFilterMask = ClosingOnce.own(computeMask(page, expression))) {
+                    if (staticFilter.isEmpty()) {
+                        yield applyMask(page, dynamicFilterMask.borrow(), passThroughThreshold)
+                                .<Result>map(Data::new)
+                                .orElseGet(Yielded::new);
+                    }
+                    try (ClosingOnce<ColumnVector> staticFilterMask = ClosingOnce.own(computeMask(page, staticFilter.get()))) {
+                        try (ColumnVector mask = dynamicFilterMask.borrow().binaryOp(BinaryOp.NULL_LOGICAL_AND, staticFilterMask.borrow(), DType.BOOL8)) {
+                            dynamicFilterMask.close();
+                            staticFilterMask.close();
+                            yield applyMask(page, mask, OptionalDouble.empty())
+                                    .<Result>map(Data::new)
+                                    .orElseGet(Yielded::new);
+                        }
+                    }
+                }
+            }
+        };
     }
 
     @Override
     public void close()
     {
-        source.close();
+        try (var closer = UncheckedCloser.create()) {
+            closer.register(source);
+            dynamicFilter.ifPresent(dynamicFilter -> closer.register(dynamicFilter::operatorClosed));
+        }
     }
 
     private static @Move ColumnVector computeMask(@Borrow GpuPage input, CompiledExpression filter)
@@ -117,14 +180,14 @@ public class GpuFilter
         return filter.expression().evaluate(input.positionCount(), inputs);
     }
 
-    private static @Move Optional<@Own GpuPage> applyMask(@Borrow GpuPage input, @Borrow ColumnVector mask)
+    private static @Move Optional<@Own GpuPage> applyMask(@Borrow GpuPage input, @Borrow ColumnVector mask, OptionalDouble passThroughThresholdRatio)
     {
         try (Scalar sum = mask.sum(DType.INT32)) {
             int retained = sum.isValid() ? sum.getInt() : 0;
             if (retained == 0) {
                 return Optional.empty();
             }
-            if (retained == input.positionCount()) {
+            if (retained == input.positionCount() || (passThroughThresholdRatio.isPresent() && retained >= input.positionCount() * passThroughThresholdRatio.getAsDouble())) {
                 return Optional.of(input.shallowCopy());
             }
 

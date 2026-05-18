@@ -128,6 +128,7 @@ import io.trino.operator.exchange.LocalMergeSourceOperator.LocalMergeSourceOpera
 import io.trino.operator.exchange.PageChannelSelector;
 import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColumnSpecification;
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
+import io.trino.operator.gpu.GpuDynamicFilterProvider;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuGroupId;
 import io.trino.operator.gpu.GpuOperation;
@@ -2306,6 +2307,7 @@ public class LocalExecutionPlanner
             // if source is a table scan we fold it directly into the filter and project
             // otherwise we plan it as a normal operator
             Map<Symbol, Integer> sourceLayout;
+            Map<ColumnHandle, Symbol> columnHandleToSymbol = new HashMap<>();
             TableHandle table = null;
             Optional<ConnectorTableCredentials> tableCredentials = Optional.empty();
             List<ColumnHandle> columns = null;
@@ -2318,7 +2320,9 @@ public class LocalExecutionPlanner
                 columns = new ArrayList<>();
                 int channel = 0;
                 for (Symbol symbol : tableScanNode.getOutputSymbols()) {
-                    columns.add(tableScanNode.getAssignments().get(symbol));
+                    ColumnHandle columnHandle = tableScanNode.getAssignments().get(symbol);
+                    columns.add(columnHandle);
+                    columnHandleToSymbol.put(columnHandle, symbol);
                     Integer input = channel;
                     sourceLayout.put(symbol, input);
 
@@ -2399,14 +2403,33 @@ public class LocalExecutionPlanner
 
                 // Filters and projections are only added when there is a preceding GPU operation
                 if (sourceGpuOperation.isPresent() &&
+                        // source has types supported on the GPU
+                        sourceOutputTypes.stream().allMatch(GpuTypeConversion::isConvertible) &&
                         // projections have types supported on the GPU
                         projections.stream().map(Expression::type).allMatch(GpuTypeConversion::isConvertible)) {
                     Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> gpuExpressionCompiler.compileExpression(filter, sourceLayout));
                     if (staticFilters.isPresent() == gpuFilter.isPresent()) {
                         PhysicalOperation gpuOperation = sourceGpuOperation.get();
-                        if (gpuFilter.isPresent()) {
+                        Optional<GpuDynamicFilterProvider> gpuDynamicFilter;
+                        if (dynamicFilter != InternalDynamicFilter.EMPTY && isEnableDynamicRowFiltering(session)) {
+                            gpuDynamicFilter = Optional.of(new GpuDynamicFilterProvider(
+                                    new DomainTranslator(metadata),
+                                    gpuExpressionCompiler,
+                                    dynamicFilter,
+                                    ImmutableMap.copyOf(Maps.transformValues(columnHandleToSymbol, sourceLayout::get)),
+                                    sourceOutputTypes));
+                        }
+                        else {
+                            gpuDynamicFilter = Optional.empty();
+                        }
+                        if (gpuFilter.isPresent() || gpuDynamicFilter.isPresent()) {
                             gpuOperation = addGpuOperation(
-                                    new GpuFilter.Factory(gpuFilter.get()),
+                                    new GpuFilter.Factory(
+                                            gpuFilter,
+                                            gpuDynamicFilter,
+                                            gpuFilter.isPresent()
+                                                    ? OptionalDouble.empty()
+                                                    : OptionalDouble.of(getDynamicRowFilterSelectivityThreshold(session))),
                                     sourceOutputTypes,
                                     gpuOperation,
                                     gpuOperation.getLayout(),
