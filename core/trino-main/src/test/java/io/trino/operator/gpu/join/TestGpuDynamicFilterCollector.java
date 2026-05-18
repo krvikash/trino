@@ -24,6 +24,7 @@ import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import io.trino.spi.type.TypeUtils;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.DynamicFilterSourceConsumer;
 import io.trino.sql.planner.DynamicFilterTupleDomain;
@@ -127,6 +128,9 @@ final class TestGpuDynamicFilterCollector
     @Test
     void testDiscreteFloatWithNaN()
     {
+        assertThat(TESTED_GPU_TYPES.stream().filter(TypeUtils::typeHasNaN))
+                .containsExactlyInAnyOrder(REAL, DOUBLE);
+
         BlockBuilder realBuilder = REAL.createBlockBuilder(null, 3);
         REAL.writeFloat(realBuilder, 1.0f);
         REAL.writeFloat(realBuilder, Float.NaN);
