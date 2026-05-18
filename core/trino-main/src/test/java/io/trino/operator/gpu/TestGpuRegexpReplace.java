@@ -103,9 +103,10 @@ final class TestGpuRegexpReplace
     }
 
     @Test
-    void testDoesNotCompileAlternation()
+    void testAlternation()
     {
-        assertThat(regexpReplace("foo|bar", "X")).doesNotCompile();
+        assertThat(regexpReplace("foo|bar", "X"))
+                .executesCorrectly("", "foo", "bar", "foobar", "barfoo", "fobar", "hello world");
         assertThat(regexpReplace("|", "X")).doesNotCompile();
         assertThat(regexpReplace("a|", "X")).doesNotCompile();
         assertThat(regexpReplace("|a", "X")).doesNotCompile();
@@ -341,23 +342,35 @@ final class TestGpuRegexpReplace
     }
 
     @Test
-    void testCaretAsLiteralInCharClass()
+    void testCaretInCharClass()
     {
-        assertThat(regexpReplace("[a^b]", "X")).doesNotCompile();
-        assertThat(regexpReplace("[^^]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[a^b]", "X"))
+                .executesCorrectly("", "a", "^", "b", "[a^b]", "e^(i*pi) = alpha ^ beta");
+        assertThat(regexpReplace("[^^]", "X"))
+                .executesCorrectly("", "^", "^^", "abc", "a^b^c");
     }
 
     @Test
-    void testInvalidPatterns()
+    void testHyphenInCharClass()
     {
-        // According to https://docs.rapids.ai/api/cudf/stable/libcudf_docs/md_regex/
-        // cuDF behavior for the following cases is undefined, so we either fall back to CPU
-        // or verify that they are rejected before they reach the transpiler.
+        assertThat(regexpReplace("[a-]", "X"))
+                .executesCorrectly("", "a", "-", "a-", "[a-]", "abcdef-ghijk-uvwxyz-lambda");
+        assertThat(regexpReplace("[-z]", "X"))
+                .executesCorrectly("", "z", "-", "-z", "[-z]", "zoo-keeper-mango");
+        assertThat(regexpReplace("[-]", "X"))
+                .executesCorrectly("", "-", "--", "abc", "a-b-c");
+        assertThat(regexpReplace("[a-z-]", "X"))
+                .executesCorrectly("", "a", "z", "-", "abc-xyz", "ABC-XYZ", "name-with-dash");
+        assertThat(regexpReplace("[a-zA-Z0-9_-]", "X"))
+                .executesCorrectly("", "a", "Z", "0", "_", "-", "Hello_World-123", "!@# $%^");
+        assertInvalidPattern("[a-\\.]");
+        assertInvalidPattern("[a-^]");
+        assertInvalidPattern("[a-$]");
+    }
 
-        assertThat(regexpReplace("[a-]", "X")).doesNotCompile();
-        assertThat(regexpReplace("[-z]", "X")).doesNotCompile();
-        assertThat(regexpReplace("[-]", "X")).doesNotCompile();
-
+    @Test
+    void testInvalidOrUnsupported()
+    {
         assertThat(regexpReplace("{", "x")).doesNotCompile();
         assertThat(regexpReplace("a{b", "x")).doesNotCompile();
         assertThat(regexpReplace("|", "x")).doesNotCompile();
@@ -397,6 +410,7 @@ final class TestGpuRegexpReplace
     @Test
     void testNonCapturingGroup()
     {
+        // Blocked from translation to cudf to avoid wrong results
         assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
 
         assertThat(regexpReplace("(?:abc)", "X"))
@@ -408,6 +422,7 @@ final class TestGpuRegexpReplace
     @Test
     void testCapturingGroup()
     {
+        // Blocked from translation to cudf to avoid wrong results
         assertThat(regexpReplace("()", "x")).doesNotCompile();
 
         assertThat(regexpReplace("(abc)", "X"))
@@ -629,15 +644,37 @@ final class TestGpuRegexpReplace
     }
 
     @Test
-    void testDoesNotCompileEmptyPattern()
+    void testEmptyMatch()
     {
         assertThat(regexpReplace("", "x")).doesNotCompile();
+        assertThat(regexpReplace("a?", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("a*", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("[a-z]?", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("[a-z]*", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("abc|", "x")).doesNotCompile();
+        assertThat(regexpReplace("(abc|)", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:abc|)", "x")).doesNotCompile();
+        assertThat(regexpReplace("()", "x")).doesNotCompile();
+        assertThat(regexpReplace("()*", "x")).doesNotCompile();
+        assertThat(regexpReplace("()+", "x")).doesNotCompile();
+        assertThat(regexpReplace("()?", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)?", "x")).doesNotCompile();
     }
 
     @Test
-    void testDoesNotCompileClosingBracketAsFirstCharInClass()
+    void testClosingBracketAsFirstCharInClass()
     {
-        assertThat(regexpReplace("[]]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[]]", "X"))
+                .executesCorrectly("]", "a]b", "abc");
+        assertThat(regexpReplace("[]abcd]", "X"))
+                .executesCorrectly("]", "a", "e", "abcd", "]ab]cd", "no match");
     }
 
     @Test
@@ -748,6 +785,7 @@ final class TestGpuRegexpReplace
 
     private void assertInvalidPattern(String pattern)
     {
+        // Trino Expression fails to build so there is no expression to translate to GPU
         assertThatThrownBy(() -> regexpReplaceExpression(pattern))
                 .isInstanceOf(TrinoException.class);
         assertThatThrownBy(() -> regexpReplaceExpression(pattern, "x"))

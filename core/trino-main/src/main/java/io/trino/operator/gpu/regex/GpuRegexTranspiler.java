@@ -14,22 +14,28 @@
 package io.trino.operator.gpu.regex;
 
 import io.airlift.log.Logger;
-import io.trino.operator.gpu.regex.RegexParser.RegexContext;
-import io.trino.sql.parser.ParsingException;
-import io.trino.sql.tree.NodeLocation;
-import org.antlr.v4.runtime.BailErrorStrategy;
-import org.antlr.v4.runtime.BaseErrorListener;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.DefaultErrorStrategy;
-import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.Recognizer;
-import org.antlr.v4.runtime.atn.PredictionMode;
-import org.antlr.v4.runtime.misc.ParseCancellationException;
+import io.trino.operator.gpu.regex.Pattern.Alternation;
+import io.trino.operator.gpu.regex.Pattern.AnyCharacter;
+import io.trino.operator.gpu.regex.Pattern.CapturingGroup;
+import io.trino.operator.gpu.regex.Pattern.CharacterClass;
+import io.trino.operator.gpu.regex.Pattern.CharacterClass.CodePointRange;
+import io.trino.operator.gpu.regex.Pattern.IndexedGroupReference;
+import io.trino.operator.gpu.regex.Pattern.InputEnd;
+import io.trino.operator.gpu.regex.Pattern.InputStart;
+import io.trino.operator.gpu.regex.Pattern.LineCharacter;
+import io.trino.operator.gpu.regex.Pattern.LineEnd;
+import io.trino.operator.gpu.regex.Pattern.LineStart;
+import io.trino.operator.gpu.regex.Pattern.Literal;
+import io.trino.operator.gpu.regex.Pattern.NamedGroupReference;
+import io.trino.operator.gpu.regex.Pattern.Repeat;
+import io.trino.operator.gpu.regex.Pattern.Sequence;
+import io.trino.operator.gpu.regex.RegexParser.ParsingException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
+import static io.trino.operator.gpu.regex.Pattern.Repeat.Greediness.GREEDY;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -46,141 +52,155 @@ public final class GpuRegexTranspiler
 
     private GpuRegexTranspiler() {}
 
-    private static final BaseErrorListener ERROR_LISTENER = new BaseErrorListener()
-    {
-        @Override
-        public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String message, RecognitionException e)
-        {
-            throw new ParsingException(message, e, line, charPositionInLine + 1);
-        }
-    };
-
     public static Optional<TranspileResult> transpile(String pattern, String replacement)
     {
-        RegexPattern parsed;
+        Pattern parsed;
         try {
-            parsed = parse(pattern);
+            parsed = RegexParser.parse(pattern);
         }
         catch (ParsingException e) {
             log.debug("Regex pattern not supported on GPU, falling back to CPU: %s", e.getMessage());
             return Optional.empty();
         }
 
-        PatternTranspiler patternTranspiler = new PatternTranspiler();
-        return patternTranspiler.transpile(parsed).flatMap(transpiledPattern ->
-                transpileReplacement(replacement, transpiledPattern.groupCount).map(result ->
-                        new TranspileResult(transpiledPattern.pattern, result.replacement(), result.hasBackreferences())));
+        PatternTranspiler transpiler = new PatternTranspiler();
+        return transpiler.transpile(parsed).flatMap(transpiled ->
+                transpileReplacement(replacement, transpiled.groupCount()).map(result ->
+                        new TranspileResult(transpiled.pattern(), result.replacement(), result.hasBackreferences())));
     }
 
-    private static RegexPattern parse(String pattern)
-    {
-        try {
-            RegexLexer lexer = new RegexLexer(CharStreams.fromString(pattern));
-            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-            RegexParser parser = new RegexParser(tokenStream);
-
-            lexer.removeErrorListeners();
-            lexer.addErrorListener(ERROR_LISTENER);
-
-            parser.removeErrorListeners();
-
-            RegexContext tree;
-            try {
-                // first, try parsing with potentially faster SLL mode
-                parser.getInterpreter().setPredictionMode(PredictionMode.SLL);
-                parser.setErrorHandler(new BailErrorStrategy());
-                tree = parser.regex();
-            }
-            catch (ParseCancellationException _) {
-                // if we fail, parse with LL mode
-                parser.reset();
-                parser.getInterpreter().setPredictionMode(PredictionMode.LL);
-                parser.setErrorHandler(new DefaultErrorStrategy());
-                parser.addErrorListener(ERROR_LISTENER);
-                tree = parser.regex();
-            }
-
-            return new RegexTreeBuilder().visitRegex(tree);
-        }
-        catch (StackOverflowError _) {
-            throw new ParsingException("stack overflow while parsing regex", new NodeLocation(1, 1));
-        }
-    }
-
-    private static class PatternTranspiler
+    private static final class PatternTranspiler
     {
         private int groupCount;
 
-        public Optional<TranspiledPattern> transpile(RegexPattern pattern)
+        Optional<TranspiledPattern> transpile(Pattern pattern)
         {
-            return transpileSequence(pattern.items()).map(transpiledPattern ->
-                    new TranspiledPattern(transpiledPattern, groupCount));
+            return render(pattern).map(rendered -> new TranspiledPattern(rendered, groupCount));
         }
 
-        private Optional<String> transpileSequence(List<Quantified> items)
+        private Optional<String> render(Pattern pattern)
+        {
+            return switch (pattern) {
+                case Sequence(List<Pattern> items) -> {
+                    if (items.isEmpty()) {
+                        // TODO empty sequences currently blocked from conversion because cudf behaves differently, at least for regexp_replace
+                        yield Optional.empty();
+                    }
+                    yield renderItems(items).map(s -> "(?:" + s + ")");
+                }
+                case Alternation(List<Pattern> alternatives) -> renderAlternation(alternatives).map(s -> "(?:" + s + ")");
+                case Repeat repeat -> renderRepeat(repeat);
+                case CapturingGroup group -> renderCapturingGroup(group.body());
+                case CharacterClass charClass -> renderCharacterClass(charClass);
+                case Literal(int codePoint) -> renderLiteral(codePoint);
+                case LineCharacter _ -> Optional.of(".");
+                case InputStart _ -> Optional.of("^");
+                case InputEnd _ -> Optional.of("$");
+                case AnyCharacter _, LineStart _, LineEnd _, IndexedGroupReference _, NamedGroupReference _ -> Optional.empty();
+            };
+        }
+
+        private Optional<String> renderItems(List<Pattern> items)
         {
             StringBuilder builder = new StringBuilder();
-            for (Quantified item : items) {
-                Optional<String> result = transpileAtom(item.atom());
-                if (result.isEmpty()) {
+            for (Pattern item : items) {
+                Optional<String> rendered = render(item);
+                if (rendered.isEmpty()) {
                     return Optional.empty();
                 }
-                builder.append(result.get());
-                item.quantifier().ifPresent(q -> builder.append(q.symbol()));
+                builder.append(rendered.get());
             }
             return Optional.of(builder.toString());
         }
 
-        private Optional<String> transpileAtom(Atom atom)
+        private Optional<String> renderAlternation(List<Pattern> alternatives)
         {
-            return switch (atom) {
-                case Literal literal -> isUnsupportedCodePoint(literal.codePoint())
-                        ? Optional.empty()
-                        : Optional.of(Character.toString(literal.codePoint()));
-                case Dot _ -> Optional.of(".");
-                case Anchor anchor -> Optional.of(Character.toString(anchor.value()));
-                case Escape escape -> Optional.of("\\" + escape.escapedChar());
-                case CapturingGroup group -> {
-                    Optional<String> inner = transpileSequence(group.items());
-                    if (inner.isEmpty()) {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < alternatives.size(); i++) {
+                if (i > 0) {
+                    builder.append('|');
+                }
+                Optional<String> rendered = render(alternatives.get(i));
+                if (rendered.isEmpty()) {
+                    return Optional.empty();
+                }
+                builder.append(rendered.get());
+            }
+            return Optional.of(builder.toString());
+        }
+
+        private Optional<String> renderRepeat(Repeat repeat)
+        {
+            if (repeat.greediness() != GREEDY) {
+                // TODO support other greediness modes
+                return Optional.empty();
+            }
+            return renderQuantifier(repeat.minOccurrences(), repeat.maxOccurrences()).flatMap(quantifier ->
+                    render(repeat.pattern()).map(inner -> inner + quantifier));
+        }
+
+        private static Optional<String> renderQuantifier(int min, OptionalInt max)
+        {
+            if (min == 0 && max.equals(OptionalInt.of(1))) {
+                return Optional.of("?");
+            }
+            if (min == 0 && max.isEmpty()) {
+                return Optional.of("*");
+            }
+            if (min == 1 && max.isEmpty()) {
+                return Optional.of("+");
+            }
+            return Optional.empty();
+        }
+
+        private Optional<String> renderCapturingGroup(Pattern body)
+        {
+            Optional<String> rendered = render(body);
+            if (rendered.isEmpty()) {
+                return Optional.empty();
+            }
+            groupCount++;
+            return Optional.of("(" + rendered.get() + ")");
+        }
+
+        private static Optional<String> renderLiteral(int codePoint)
+        {
+            return switch (codePoint) {
+                case '\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '{', '}', '[', ']' -> Optional.of("\\" + Character.toString(codePoint));
+                default -> {
+                    if (isUnsupportedCodePoint(codePoint)) {
                         yield Optional.empty();
                     }
-                    groupCount++;
-                    yield Optional.of("(" + inner.get() + ")");
+                    yield Optional.of(Character.toString(codePoint));
                 }
-                case NonCapturingGroup group -> transpileSequence(group.items()).map(inner -> "(?:" + inner + ")");
-                case CharClass charClass -> transpileCharClass(charClass);
             };
         }
 
-        private Optional<String> transpileCharClass(CharClass charClass)
+        private static Optional<String> renderCharacterClass(CharacterClass charClass)
         {
-            StringBuilder content = new StringBuilder();
-            for (CharClassAtom item : charClass.items()) {
-                Optional<String> transpiled = transpileCharClassAtom(item);
-                if (transpiled.isEmpty()) {
+            StringBuilder content = new StringBuilder(charClass.negated() ? "[^" : "[");
+            for (CodePointRange range : charClass.ranges()) {
+                if (isUnsupportedCodePoint(range.startCodePoint()) || isUnsupportedCodePoint(range.endCodePoint())) {
                     return Optional.empty();
                 }
-                content.append(transpiled.get());
+                if (range.startCodePoint() == range.endCodePoint()) {
+                    content.append(escapeInsideCharClass(range.startCodePoint()));
+                }
+                else {
+                    content.append(escapeInsideCharClass(range.startCodePoint()))
+                            .append('-')
+                            .append(escapeInsideCharClass(range.endCodePoint()));
+                }
             }
-
-            if (charClass.negated()) {
-                return Optional.of("[^" + content + "]");
-            }
-            return Optional.of("[" + content + "]");
+            content.append("]");
+            return Optional.of(content.toString());
         }
 
-        private static Optional<String> transpileCharClassAtom(CharClassAtom atom)
+        private static String escapeInsideCharClass(int codePoint)
         {
-            return switch (atom) {
-                // In cuDF, unescaped hyphens in character classes may lead to undefined behavior.
-                case CharLiteral literal -> isUnsupportedCodePoint(literal.codePoint()) || literal.codePoint() == '-'
-                        ? Optional.empty()
-                        : Optional.of(Character.toString(literal.codePoint()));
-                case CharEscape escape -> Optional.of("\\" + escape.escapedChar());
-                case CharRange range -> isUnsupportedCodePoint(range.startCodePoint()) || isUnsupportedCodePoint(range.endCodePoint())
-                        ? Optional.empty()
-                        : Optional.of(Character.toString(range.startCodePoint()) + "-" + Character.toString(range.endCodePoint()));
+            return switch (codePoint) {
+                case '\\', '^', '-', ']' -> "\\" + Character.toString(codePoint);
+                default -> Character.toString(codePoint);
             };
         }
 
