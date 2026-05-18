@@ -102,6 +102,11 @@ public class DeltaLakePropertiesTable
     {
         PageListBuilder pagesBuilder = PageListBuilder.forTable(tableMetadata);
 
+        pagesBuilder.beginRow();
+        pagesBuilder.appendVarchar("location");
+        pagesBuilder.appendVarchar(table.location());
+        pagesBuilder.endRow();
+
         metadataEntry.getConfiguration().forEach((key, value) -> {
             pagesBuilder.beginRow();
             pagesBuilder.appendVarchar(key);

@@ -1881,7 +1881,8 @@ public class TestDeltaLakeBasic
                         "('delta.minReaderVersion', '3')," +
                         "('delta.minWriterVersion', '7')," +
                         "('delta.feature.deletionVectors', 'supported')," +
-                        "('delta.feature.variantType-preview', 'supported')");
+                        "('delta.feature.variantType-preview', 'supported')," +
+                        "('location', '" + tableLocation.toUri() + "')");
 
         // generate a checkpoint
         for (int i = 0; i < 5; i++) {
