@@ -254,8 +254,8 @@ public class LongArrayAdaptiveBlockEncoding
 
         // Assume all run lengths and run values use the maximum bit width.
         int rleSizeInBytes = BitPackingUtils.estimateEncodedIntsSizeInBytes(runCount, maxRunLengthWidth)
-                             + BitPackingUtils.estimateEncodedLongsSizeInBytes(runCount, maxValueWidth)
-                             + Integer.BYTES; // To store the run count
+                + BitPackingUtils.estimateEncodedLongsSizeInBytes(runCount, maxValueWidth)
+                + Integer.BYTES; // To store the run count
         // Assume all values use the maximum bit width.
         int maxBitPackingSizeInBytes = BitPackingUtils.estimateEncodedLongsSizeInBytes(length, maxValueWidth);
         // Assume all deltas use the maximum delta bit width.

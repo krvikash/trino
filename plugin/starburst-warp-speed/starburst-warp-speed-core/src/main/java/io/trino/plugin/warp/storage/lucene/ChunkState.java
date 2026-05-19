@@ -16,9 +16,10 @@ package io.trino.plugin.warp.storage.lucene;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public record ChunkState(int startOffset,   // start offset (in pages) of Lucene files of this chunk
-                         int readSize,      // size (in pages) of all 4 Lucene files of this chunk
-                         int[] filesLength) // length (in bytes) of each Lucene file of this chunk
+public record ChunkState(
+        int startOffset, // start offset (in pages) of Lucene files of this chunk
+        int readSize, // size (in pages) of all 4 Lucene files of this chunk
+        int[] filesLength) // length (in bytes) of each Lucene file of this chunk
 {
     // startOffset + readSize + filesLength[LuceneFileType.numFiles()]
     private static final int NUM_FIELDS = 6;

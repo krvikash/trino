@@ -62,7 +62,8 @@ public class WarmExecutionTaskFactory
     private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
-    public WarmExecutionTaskFactory(DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
+    public WarmExecutionTaskFactory(
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             EventBus eventBus,
             WarmingManager warmingManager,
             MetricsManager metricsManager,
@@ -91,7 +92,8 @@ public class WarmExecutionTaskFactory
         this.shapingLoggerFactory = requireNonNull(shapingLoggerFactory);
     }
 
-    public WorkerSubmittableTask createExecutionTask(ConnectorPageSourceProvider connectorPageSourceProvider,
+    public WorkerSubmittableTask createExecutionTask(
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
@@ -106,7 +108,8 @@ public class WarmExecutionTaskFactory
             WorkerTaskExecutorService.TaskExecutionType taskExecutionType)
     {
         return switch (taskExecutionType) {
-            case CLASSIFY -> new PrioritizeTask(this,
+            case CLASSIFY -> new PrioritizeTask(
+                    this,
                     workerWarmingService,
                     connectorPageSourceProvider,
                     transactionHandle,
@@ -128,7 +131,8 @@ public class WarmExecutionTaskFactory
                     globalConfig,
                     cloudVendorConfig,
                     shapingLoggerFactory);
-            case PROXY -> new ProxyExecutionTask(this,
+            case PROXY -> new ProxyExecutionTask(
+                    this,
                     eventBus,
                     dispatcherProxiedConnectorTransformer,
                     warmingManager,
@@ -153,7 +157,8 @@ public class WarmExecutionTaskFactory
                     workerTaskExecutorService,
                     storageWarmerService,
                     shapingLoggerFactory);
-            case IMPORT -> new ImportExecutionTask(this,
+            case IMPORT -> new ImportExecutionTask(
+                    this,
                     statsWarmingService,
                     workerWarmingService,
                     shapingLoggerFactory,

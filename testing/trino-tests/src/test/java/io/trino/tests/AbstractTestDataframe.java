@@ -61,10 +61,10 @@ public abstract class AbstractTestDataframe
                 new UnresolvedRelation(TypeCoercionMode.DEFAULT, Optional.empty(), "tpch.tiny.customer"),
                 ImmutableList.of(
                         """
-                                SELECT *
-                                FROM
-                                  tpch.tiny.customer
-                                  """));
+                        SELECT *
+                        FROM
+                          tpch.tiny.customer
+                        """));
     }
 
     protected void assertQuery(LogicalPlan logicalPlan, List<String> expectedQueries)

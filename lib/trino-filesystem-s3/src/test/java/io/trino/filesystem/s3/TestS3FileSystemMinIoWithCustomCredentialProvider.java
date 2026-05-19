@@ -138,11 +138,13 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
     @Test
     public void testWithMissingCustomCredentialProvider()
     {
-        assertThatThrownBy(() -> new S3FileSystemFactory(OpenTelemetry.noop(), new S3FileSystemConfig()
-                .setEndpoint(minio.getMinioAddress())
-                .setRegion(MINIO_REGION)
-                .setPathStyleAccess(true)
-                .setCustomCredentialProviderClass("MissingCustomCredentialProvider"),
+        assertThatThrownBy(() -> new S3FileSystemFactory(
+                OpenTelemetry.noop(),
+                new S3FileSystemConfig()
+                        .setEndpoint(minio.getMinioAddress())
+                        .setRegion(MINIO_REGION)
+                        .setPathStyleAccess(true)
+                        .setCustomCredentialProviderClass("MissingCustomCredentialProvider"),
                 new S3FileSystemStats()))
                 .hasMessageContaining("AwsCredentialsProvider MissingCustomCredentialProvider not found");
     }
@@ -150,11 +152,13 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
     @Test
     public void testWithInvalidCustomCredentialProviderConstructor()
     {
-        assertThatThrownBy(() -> new S3FileSystemFactory(OpenTelemetry.noop(), new S3FileSystemConfig()
-                .setEndpoint(minio.getMinioAddress())
-                .setRegion(MINIO_REGION)
-                .setPathStyleAccess(true)
-                .setCustomCredentialProviderClass(CustomCredentialProviders.AwsCredentialsProviderWithMissingConstructor.class.getName()),
+        assertThatThrownBy(() -> new S3FileSystemFactory(
+                OpenTelemetry.noop(),
+                new S3FileSystemConfig()
+                        .setEndpoint(minio.getMinioAddress())
+                        .setRegion(MINIO_REGION)
+                        .setPathStyleAccess(true)
+                        .setCustomCredentialProviderClass(CustomCredentialProviders.AwsCredentialsProviderWithMissingConstructor.class.getName()),
                 new S3FileSystemStats()))
                 .hasMessageContaining("Unable to initialize AwsCredentialsProvider %s".formatted(CustomCredentialProviders.AwsCredentialsProviderWithMissingConstructor.class.getName()));
     }

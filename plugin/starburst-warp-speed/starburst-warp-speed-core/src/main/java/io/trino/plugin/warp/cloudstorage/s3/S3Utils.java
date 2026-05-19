@@ -21,9 +21,7 @@ import java.io.IOException;
 
 final class S3Utils
 {
-    private S3Utils()
-    {
-    }
+    private S3Utils() {}
 
     public static AwsServiceException getAwsServiceException(Throwable throwable)
     {

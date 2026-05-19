@@ -61,9 +61,14 @@ public record MockPlanAlternativeTableHandle(ConnectorTableHandle delegate, Colu
             @JsonSubTypes.Type(value = VarcharIn.class, name = "varcharIn"),
             @JsonSubTypes.Type(value = BigintIn.class, name = "bigintIn"),
             @JsonSubTypes.Type(value = IntegerIn.class, name = "integerIn"),
-            @JsonSubTypes.Type(value = Ranges.class, name = "ranges")})
+            @JsonSubTypes.Type(value = Ranges.class, name = "ranges"),
+    })
     public sealed interface FilterDefinition
-            permits IsNull, VarcharIn, BigintIn, IntegerIn, Ranges
+            permits BigintIn,
+                    IntegerIn,
+                    IsNull,
+                    Ranges,
+                    VarcharIn
     {
         BiPredicate<Block, Integer> asPredicate(ConnectorSession session);
     }

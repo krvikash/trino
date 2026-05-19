@@ -108,7 +108,8 @@ public class NodePartitioningManager
         requireNonNull(partitioningHandle, "partitioningHandle is null");
 
         if (partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
-            return new NodePartitionMap(systemBucketToNode(session, partitioningHandle, systemPartitioningCache, partitionCount),
+            return new NodePartitionMap(
+                    systemBucketToNode(session, partitioningHandle, systemPartitioningCache, partitionCount),
                     split -> getSplitPartition(split).orElseThrow(() -> new UnsupportedOperationException("System distribution does not support source splits " + partitioningHandle)));
         }
 

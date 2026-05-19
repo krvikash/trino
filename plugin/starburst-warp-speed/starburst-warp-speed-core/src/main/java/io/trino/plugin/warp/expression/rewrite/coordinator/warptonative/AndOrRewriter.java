@@ -52,7 +52,8 @@ class AndOrRewriter
         boolean isValid = true;
         NativeExpression.Builder parentNativeBuilder = parentContext.nativeExpressionBuilder();
         for (WarpExpression child : warpExpression.getChildren()) {
-            RewriteContext childContext = new RewriteContext(NativeExpression.builder(),
+            RewriteContext childContext = new RewriteContext(
+                    NativeExpression.builder(),
                     parentContext.columnType(),
                     parentContext.unsupportedNativeFunctions(),
                     parentContext.customStats());
@@ -75,7 +76,8 @@ class AndOrRewriter
                 break;
             }
             else {
-                Domain newDomain = Domain.union(List.of(parentNativeBuilder.getDomain(),
+                Domain newDomain = Domain.union(List.of(
+                        parentNativeBuilder.getDomain(),
                         childNativeBuilder.getDomain()));
                 buildNativeBuilder(parentNativeBuilder, childNativeBuilder, newDomain);
             }
@@ -88,7 +90,8 @@ class AndOrRewriter
         boolean isValid = false;
         NativeExpression.Builder parentNativeBuilder = parentContext.nativeExpressionBuilder();
         for (WarpExpression child : warpExpression.getChildren()) {
-            RewriteContext childContext = new RewriteContext(NativeExpression.builder(),
+            RewriteContext childContext = new RewriteContext(
+                    NativeExpression.builder(),
                     parentContext.columnType(),
                     parentContext.unsupportedNativeFunctions(),
                     parentContext.customStats());

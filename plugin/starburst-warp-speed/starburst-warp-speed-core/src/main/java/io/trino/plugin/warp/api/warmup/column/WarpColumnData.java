@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = RegularColumnData.class, name = "RegularColumn"),
         @JsonSubTypes.Type(value = WildcardColumnData.class, name = "WildcardColumn"),
-        @JsonSubTypes.Type(value = TransformedColumnData.class, name = "TransformedColumn")
+        @JsonSubTypes.Type(value = TransformedColumnData.class, name = "TransformedColumn"),
 })
 public interface WarpColumnData
 {

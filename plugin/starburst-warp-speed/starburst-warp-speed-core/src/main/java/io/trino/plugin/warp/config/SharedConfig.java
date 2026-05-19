@@ -166,8 +166,14 @@ public class SharedConfig
     @Override
     public int hashCode()
     {
-        return Objects.hash(isSingle, enableMatchCollect, enableMappedMatchCollect, enableVarcharMappedMatchCollect,
-                shapingLoggerThreshold, shapingLoggerDuration, shapingLoggerNumberOfSamples);
+        return Objects.hash(
+                isSingle,
+                enableMatchCollect,
+                enableMappedMatchCollect,
+                enableVarcharMappedMatchCollect,
+                shapingLoggerThreshold,
+                shapingLoggerDuration,
+                shapingLoggerNumberOfSamples);
     }
 
     @Override

@@ -21,6 +21,4 @@ import static java.lang.annotation.ElementType.METHOD;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(METHOD)
-public @interface Audit
-{
-}
+public @interface Audit {}

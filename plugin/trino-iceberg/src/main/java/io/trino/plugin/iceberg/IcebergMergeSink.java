@@ -69,8 +69,7 @@ public class IcebergMergeSink
             Map<String, Long> firstRowIds,
             Optional<String> nameMapping)
     {
-        super(
-                locationProvider,
+        super(locationProvider,
                 fileWriterFactory,
                 fileSystem,
                 previousDeleteFiles,

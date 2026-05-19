@@ -37,7 +37,7 @@ public @interface StarburstJdbcUrl
     {
         PRESENT,
         ABSENT,
-        OPTIONAL
+        OPTIONAL,
     }
 
     String message() default "Invalid Starburst JDBC URL";

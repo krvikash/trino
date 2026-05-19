@@ -61,8 +61,7 @@ class OpenApiRequestTableFunction
             Map<String, OpenApiParameterHandle> identifierToParameterHandle,
             List<OpenApiColumnHandle> columns)
     {
-        super(
-                SCHEMA_NAME,
+        super(SCHEMA_NAME,
                 identifier,
                 identifierToParameterHandle.entrySet().stream()
                         .map(entry -> {

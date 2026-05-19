@@ -65,7 +65,9 @@ public class TestSynapseInstanceCleaner
     {
         return format(
                 "SELECT %s FROM %s AS obj INNER JOIN sys.schemas AS s ON obj.schema_id = s.schema_id WHERE s.name = '%s'",
-                query, table, TEST_SCHEMA);
+                query,
+                table,
+                TEST_SCHEMA);
     }
 
     private int getObjectCount()
@@ -87,17 +89,17 @@ public class TestSynapseInstanceCleaner
 
         return synapseServer.executeQuery(selectFromTestSchema("obj.name AS name", format("sys.%ss", objectType)),
                 resultSet -> {
-                try {
-                    while (resultSet.next()) {
-                        String name = resultSet.getString("name");
-                        results.add(name);
+                    try {
+                        while (resultSet.next()) {
+                            String name = resultSet.getString("name");
+                            results.add(name);
+                        }
+                        return results;
                     }
-                    return results;
-                }
-                catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+                    catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     /**

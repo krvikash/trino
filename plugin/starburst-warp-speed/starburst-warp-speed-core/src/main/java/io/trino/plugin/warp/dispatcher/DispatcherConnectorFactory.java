@@ -52,7 +52,8 @@ public class DispatcherConnectorFactory
             Supplier<Module> optionalModule;
             try {
                 Class<?> initModuleClass = classLoader.loadClass(optionalModules.getName());
-                optionalModule = InitializationModule.invokeCreateModule(initModuleClass,
+                optionalModule = InitializationModule.invokeCreateModule(
+                        initModuleClass,
                         config,
                         context,
                         catalogName);
@@ -62,7 +63,8 @@ public class DispatcherConnectorFactory
             }
 
             return (Connector) classLoader.loadClass(InternalDispatcherConnectorFactory.class.getName())
-                    .getMethod("createConnector",
+                    .getMethod(
+                            "createConnector",
                             String.class,
                             Map.class,
                             supplierClass,

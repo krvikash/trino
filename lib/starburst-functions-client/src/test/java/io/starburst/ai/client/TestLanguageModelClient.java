@@ -66,7 +66,10 @@ public class TestLanguageModelClient
     {
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
-        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor,
+        modelClientProvider = staticModelClientProvider(
+                LANGUAGE_MODEL_PROVIDERS,
+                reloadingExecutor,
+                llmExecutor,
                 (_, usage) -> capturedUsage.set(usage));
     }
 
@@ -101,7 +104,8 @@ public class TestLanguageModelClient
     @MethodSource("modelIds")
     public void testPromptSystem(String modelId)
     {
-        String prompt = """
+        String prompt =
+                """
                 You are an expert cartographer and know the capital of each country.
                 The user will supply a country name, reply only with the name of the capital city.
                 Do not reply with extraneous text.
@@ -144,7 +148,8 @@ public class TestLanguageModelClient
     @MethodSource("modelIds")
     public void testExtractPrompt(String modelId)
     {
-        String systemPrompt = """
+        String systemPrompt =
+                """
                 Extract the a list of values for each of the JSON encoded labels from the text below. For each label, extract all the values into a list
                 Labels: %s
                 Output the extracted values as a JSON object. Output only the JSON. Do not output a code block for the JSON.
@@ -152,12 +157,14 @@ public class TestLanguageModelClient
                 %s
                 """;
 
-        String text = """
+        String text =
+                """
                 France has several major cities including Paris, Lyon, Marseille, and Nice.
                 The official languages in France are French and several regional languages.
                 Popular French foods include croissants, baguettes, and escargot.
                 """;
-        String labels = """
+        String labels =
+                """
                 ["cities", "languages", "foods"]
                 """;
 
@@ -210,8 +217,7 @@ public class TestLanguageModelClient
                 new Pair("Not worth the money", "negative"),
                 new Pair("The food was great, but service was terrible", "mixed"),
                 new Pair("The battery lasts forever, I'm impressed", "positive"),
-                new Pair("Packaging was damaged.", "negative")
-        );
+                new Pair("Packaging was damaged.", "negative"));
         List<Pair> expandedData = IntStream.range(0, 30)
                 .boxed()
                 .flatMap(_ -> data.stream())
@@ -268,11 +274,12 @@ public class TestLanguageModelClient
     @MethodSource("modelIds")
     public void testSummarize(String modelId)
     {
-        String prompt = """
-               The Amazon rainforest, often referred to as the “lungs of the Earth,” produces around 20% of the world’s oxygen and is home to an estimated 10% of all known species. Despite its crucial ecological role, it faces severe threats from deforestation driven by logging, agriculture, and mining. The loss of forest cover not only endangers biodiversity but also contributes to climate change by releasing massive amounts of carbon dioxide into the atmosphere.
-               In addition to its environmental importance, the Amazon plays a critical role in regulating global and regional weather patterns. The vast canopy of trees helps recycle moisture through a process known as transpiration, which in turn influences rainfall across South America and even affects weather as far away as North America and Africa. Disruption of this cycle due to forest loss can lead to more droughts, unpredictable weather, and changes in agricultural productivity across the continent.
-               Local and Indigenous communities who have lived in the Amazon for centuries also suffer the consequences of deforestation. Their traditional ways of life are intimately connected to the health of the forest, and many depend on it for food, medicine, and cultural practices. As land is cleared and industrial operations expand, these communities are often displaced or face conflict over land rights and access to natural resources.
-               Efforts to protect the Amazon include government regulations, international agreements, and conservation programs run by NGOs and local groups. However, enforcement remains inconsistent, and economic pressures often outweigh environmental considerations. Without stronger global cooperation and sustainable economic alternatives, the Amazon may soon reach a tipping point beyond which it cannot recover—threatening not just regional stability, but the global climate system.""";
+        String prompt =
+                """
+                The Amazon rainforest, often referred to as the “lungs of the Earth,” produces around 20% of the world’s oxygen and is home to an estimated 10% of all known species. Despite its crucial ecological role, it faces severe threats from deforestation driven by logging, agriculture, and mining. The loss of forest cover not only endangers biodiversity but also contributes to climate change by releasing massive amounts of carbon dioxide into the atmosphere.
+                In addition to its environmental importance, the Amazon plays a critical role in regulating global and regional weather patterns. The vast canopy of trees helps recycle moisture through a process known as transpiration, which in turn influences rainfall across South America and even affects weather as far away as North America and Africa. Disruption of this cycle due to forest loss can lead to more droughts, unpredictable weather, and changes in agricultural productivity across the continent.
+                Local and Indigenous communities who have lived in the Amazon for centuries also suffer the consequences of deforestation. Their traditional ways of life are intimately connected to the health of the forest, and many depend on it for food, medicine, and cultural practices. As land is cleared and industrial operations expand, these communities are often displaced or face conflict over land rights and access to natural resources.
+                Efforts to protect the Amazon include government regulations, international agreements, and conservation programs run by NGOs and local groups. However, enforcement remains inconsistent, and economic pressures often outweigh environmental considerations. Without stronger global cooperation and sustainable economic alternatives, the Amazon may soon reach a tipping point beyond which it cannot recover—threatening not just regional stability, but the global climate system.""";
 
         assertSuccessRateForScalar(() -> {
             String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).summarize(prompt);
@@ -302,7 +309,8 @@ public class TestLanguageModelClient
     @MethodSource("modelIds")
     public void testMultiMessageCompletionWithSystemPrompt(String modelId)
     {
-        String systemPrompt = """
+        String systemPrompt =
+                """
                 You always use the local language name in the modern Latin alphabet for place names. For example, if
                 asked what countries are on the Iberian Peninsula, you would reply with "España" and "Portugal". If
                 asked where the autobahn is, you would reply with "Deutschland". If asked what country has the world's
@@ -371,7 +379,7 @@ public class TestLanguageModelClient
                 {"meta_llama"},
                 // gpt4o_mini_auth_header tests header secret resolution end-to-end. It relies on the OpenAI client overwriting the
                 // Authorization header set via the credential. It could fail if the client behavior changes
-                {"gpt4o_mini_auth_header"}
+                {"gpt4o_mini_auth_header"},
         };
     }
 
@@ -379,7 +387,7 @@ public class TestLanguageModelClient
     {
         return new Object[][] {
                 {"openai_error"},
-                {"bedrock_error"}
+                {"bedrock_error"},
         };
     }
 

@@ -38,7 +38,8 @@ public final class TestingUtils
     public record TestOperationId(String value)
             implements OperationId {}
 
-    public static final String LANGUAGE_MODEL_PROVIDERS = """
+    public static final String LANGUAGE_MODEL_PROVIDERS =
+            """
             {
                 "models": [
                     {
@@ -190,53 +191,54 @@ public final class TestingUtils
                 ]
             }""";
 
-    public static final String EMBEDDING_MODEL_PROVIDERS = """
+    public static final String EMBEDDING_MODEL_PROVIDERS =
+            """
+            {
+              "models": [
                 {
-                  "models": [
-                    {
-                      "id": "openai_embed_3_small",
-                      "modelName": "text-embedding-3-small",
-                      "kind": "EMBED",
-                      "connectionInfo": {
-                        "provider": "OPENAI",
-                        "endpoint": "https://api.openai.com/v1",
-                        "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                      }
-                    },
-                    {
-                      "id": "openai_embed_3_large",
-                      "modelName": "text-embedding-3-large",
-                      "kind": "EMBED",
-                      "connectionInfo": {
-                        "provider": "OPENAI",
-                        "endpoint": "https://api.openai.com/v1",
-                        "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                      }
-                    },
-                    {
-                      "id": "titan_v2",
-                      "modelName": "amazon.titan-embed-text-v2:0",
-                      "kind": "EMBED",
-                      "connectionInfo": {
-                        "provider": "AWS_BEDROCK",
-                        "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
-                        "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                        "region": "us-east-2"
-                      }
-                    },
-                    {
-                      "id": "cohere_3_multi",
-                      "modelName": "cohere.embed-multilingual-v3",
-                      "kind": "EMBED",
-                      "connectionInfo": {
-                        "provider": "AWS_BEDROCK",
-                        "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
-                        "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                        "region": "us-east-1"
-                      }
-                    }
-                  ]
-                }""";
+                  "id": "openai_embed_3_small",
+                  "modelName": "text-embedding-3-small",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "OPENAI",
+                    "endpoint": "https://api.openai.com/v1",
+                    "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                  }
+                },
+                {
+                  "id": "openai_embed_3_large",
+                  "modelName": "text-embedding-3-large",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "OPENAI",
+                    "endpoint": "https://api.openai.com/v1",
+                    "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                  }
+                },
+                {
+                  "id": "titan_v2",
+                  "modelName": "amazon.titan-embed-text-v2:0",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "AWS_BEDROCK",
+                    "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                    "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                    "region": "us-east-2"
+                  }
+                },
+                {
+                  "id": "cohere_3_multi",
+                  "modelName": "cohere.embed-multilingual-v3",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "AWS_BEDROCK",
+                    "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                    "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                    "region": "us-east-1"
+                  }
+                }
+              ]
+            }""";
 
     public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {

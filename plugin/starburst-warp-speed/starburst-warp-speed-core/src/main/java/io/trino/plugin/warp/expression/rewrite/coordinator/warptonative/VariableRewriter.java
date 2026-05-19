@@ -230,7 +230,7 @@ class VariableRewriter
     static boolean isCastValidForPushdown(VarcharType castToType, Type columnType)
     {
         int length;
-        if (castToType.getLength().isEmpty()) { //unbounded
+        if (castToType.getLength().isEmpty()) { // unbounded
             return true;
         }
         boolean isValid = true;
@@ -353,7 +353,7 @@ class VariableRewriter
                 supported = true;
             }
             else if (nativeExpressionBuilder.getDomain().isSingleValue()) {
-                //remove the 'cast' operator, and cast the value from Slice to column type
+                // remove the 'cast' operator, and cast the value from Slice to column type
                 Slice slice = ((Slice) nativeExpressionBuilder.getDomain().getSingleValue());
                 Domain singleValueDomain = convertSingleValueToDomain(slice, columnType, ((VarcharType) castToType).getLength());
                 PredicateType predicateType;
@@ -392,7 +392,7 @@ class VariableRewriter
     {
         NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
         nativeExpressionBuilder.functionType(FunctionType.FUNCTION_TYPE_IS_NAN);
-        if (rewriteContext.nativeExpressionBuilder().getDomain() == null) { //etc: where is_nan(c1)
+        if (rewriteContext.nativeExpressionBuilder().getDomain() == null) { // etc: where is_nan(c1)
             Range range = Range.equal(BooleanType.BOOLEAN, true);
             Domain domain = Domain.create(ValueSet.ofRanges(range), false);
             nativeExpressionBuilder.domain(domain)

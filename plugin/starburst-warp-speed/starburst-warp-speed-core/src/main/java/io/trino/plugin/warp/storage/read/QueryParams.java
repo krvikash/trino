@@ -52,7 +52,8 @@ public class QueryParams
     private final long fileModTime;
     private final long rowGroupUniqueId; // TBD - will be used for logs, currently zero
 
-    public QueryParams(Optional<MatchNode> rootMatchNode,
+    public QueryParams(
+            Optional<MatchNode> rootMatchNode,
             Optional<MemorySegment> warmUpElementMatchParams,
             MemorySegment matchNodeAtts,
             Optional<MemorySegment> warmUpElementCollectParams,
@@ -89,7 +90,7 @@ public class QueryParams
         this.predicateCacheData = predicateCacheData;
         this.rangesRequired = rangesRequired;
         this.queryId = queryId;
-        //TODO hash of file path
+        // TODO hash of file path
         this.rowGroupUniqueId = Calendar.getInstance().getTimeInMillis();
         this.filePath = filePath;
         this.fileModTime = fileModTime;
@@ -232,8 +233,13 @@ public class QueryParams
     @Override
     public String toString()
     {
-        return String.format(Locale.US, "rootMatchNode %s collectParamsList %s numLoadDataValues %d numLucene %d",
-                rootMatchNode, collectParams, numLoadDataValues, numLucene);
+        return String.format(
+                Locale.US,
+                "rootMatchNode %s collectParamsList %s numLoadDataValues %d numLucene %d",
+                rootMatchNode,
+                collectParams,
+                numLoadDataValues,
+                numLucene);
     }
 
     public Optional<MatchNode> getRootMatchNode()

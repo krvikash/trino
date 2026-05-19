@@ -36,8 +36,7 @@ import static io.trino.sql.dialect.ir.IrDialect.SAFE;
 
 public class IrAttributeDerivationUtils
 {
-    private IrAttributeDerivationUtils()
-    {}
+    private IrAttributeDerivationUtils() {}
 
     public static Map<AttributeKey, Object> defaultDeriveIrLevelAttributes(List<Map<AttributeKey, Object>> childAttributes)
     {

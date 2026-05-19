@@ -46,9 +46,9 @@ public class AwsRolePropertiesProvider
     public Map<String, Object> getAwsRoleArnProperties()
     {
         return awsRoleArn.map(role ->
-                ImmutableMap.<String, Object>of(
-                        AWS_ROLE_ARN, role,
-                        CREDENTIALS_LOCATION, awsRoleCredentialsLocation))
+                        ImmutableMap.<String, Object>of(
+                                AWS_ROLE_ARN, role,
+                                CREDENTIALS_LOCATION, awsRoleCredentialsLocation))
                 .orElse(ImmutableMap.of());
     }
 }

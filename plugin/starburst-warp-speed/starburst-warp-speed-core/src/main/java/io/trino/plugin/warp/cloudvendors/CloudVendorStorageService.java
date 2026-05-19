@@ -145,8 +145,12 @@ public class CloudVendorStorageService
         Location location = getLocation(cloudPath);
         TrinoInputFile inputFile = cloudStorage.newInputFile(location);
 
-        String message = String.format(Locale.US, "downloadRangeFromCloud location [%s] startOffset %d length %d",
-                location, startOffset, length);
+        String message = String.format(
+                Locale.US,
+                "downloadRangeFromCloud location [%s] startOffset %d length %d",
+                location,
+                startOffset,
+                length);
         logger.debug(message);
 
         try (TrinoInput input = inputFile.newInput()) {
@@ -175,14 +179,24 @@ public class CloudVendorStorageService
     }
 
     @Override
-    public CloudVendorResult appendOnCloud(String cloudPath, File localFile, StorageObjectMetadata metadata,
-                                           long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnCloud(
+            String cloudPath,
+            File localFile,
+            StorageObjectMetadata metadata,
+            long startOffset,
+            boolean isSparseFile,
+            Callable<Boolean> validateBeforeDo)
     {
         Location source = getLocation(cloudPath);
         Location destination = getLocation(cloudPath + getTempFileSuffix());
 
-        String message = String.format(Locale.US, "appendOnCloud source [%s] => destination [%s] metadata %s startOffset %d",
-                source, destination, metadata, startOffset);
+        String message = String.format(
+                Locale.US,
+                "appendOnCloud source [%s] => destination [%s] metadata %s startOffset %d",
+                source,
+                destination,
+                metadata,
+                startOffset);
         logger.debug(message);
 
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(localFile, "rw")) {
@@ -210,8 +224,11 @@ public class CloudVendorStorageService
         }
     }
 
-    private CloudVendorResult validateAndRename(Callable<Boolean> validateBeforeDo,
-                                                Location destination, Location source, long contentLength)
+    private CloudVendorResult validateAndRename(
+            Callable<Boolean> validateBeforeDo,
+            Location destination,
+            Location source,
+            long contentLength)
             throws Exception
     {
         boolean isUploadDone = false;

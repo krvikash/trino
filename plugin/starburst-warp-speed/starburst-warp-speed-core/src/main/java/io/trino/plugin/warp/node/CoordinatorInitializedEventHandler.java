@@ -32,7 +32,8 @@ public class CoordinatorInitializedEventHandler
     private final GlobalConfig globalConfig;
 
     @Inject
-    public CoordinatorInitializedEventHandler(EventBus eventBus,
+    public CoordinatorInitializedEventHandler(
+            EventBus eventBus,
             GlobalConfig globalConfig)
     {
         requireNonNull(eventBus);
@@ -44,12 +45,14 @@ public class CoordinatorInitializedEventHandler
     public void handleEvent(CoordinatorInitializedEvent event)
     {
         if (globalConfig.getClusterUpTime() > 0) {
-            logger.debug("skipping CoordinatorInitializedEvent.ClusterUpTime since ClusterUpTime=%d",
+            logger.debug(
+                    "skipping CoordinatorInitializedEvent.ClusterUpTime since ClusterUpTime=%d",
                     globalConfig.getClusterUpTime());
             return; // ignore
         }
-        logger.debug("setting CoordinatorInitializedEvent.ClusterUpTime new ClusterUpTime=%d",
-                     Instant.now().toEpochMilli());
+        logger.debug(
+                "setting CoordinatorInitializedEvent.ClusterUpTime new ClusterUpTime=%d",
+                Instant.now().toEpochMilli());
         globalConfig.setClusterUpTime(Instant.now().toEpochMilli());
     }
 }

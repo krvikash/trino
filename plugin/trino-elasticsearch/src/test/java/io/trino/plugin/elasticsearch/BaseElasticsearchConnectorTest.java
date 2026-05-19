@@ -176,17 +176,18 @@ public abstract class BaseElasticsearchConnectorTest
     {
         String indexName = "keyword_with_bool_value";
         @Language("JSON")
-        String properties = """
-                            {
-                              "properties": {
-                                "uuid": { "type": "keyword"},
-                                "custkey": { "type": "keyword" }
-                              }
-                            }
-                            """;
+        String properties =
+                """
+                {
+                  "properties": {
+                    "uuid": { "type": "keyword"},
+                    "custkey": { "type": "keyword" }
+                  }
+                }
+                """;
         createIndex(indexName, properties);
         index(indexName, ImmutableMap.<String, Object>builder()
-                .put("uuid",  true)
+                .put("uuid", true)
                 .put("custkey", 1301)
                 .buildOrThrow());
 
@@ -1396,7 +1397,8 @@ public abstract class BaseElasticsearchConnectorTest
     {
         String indexName = "custom_date_format";
         @Language("JSON")
-        String mapping = """
+        String mapping =
+                """
                 {
                   "properties": {
                     "ts1":{"type": "date", "format": "epoch_millis"},
@@ -2828,7 +2830,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "properties": {
                     "id": {
@@ -2842,7 +2845,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """.formatted(elasticType);
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "properties": {
                     "id": {
@@ -2892,7 +2896,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "properties": {
                     "id": {
@@ -2906,7 +2911,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "properties": {
                     "id": {
@@ -2953,7 +2959,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings = """
+        String mappings =
+                """
                 {
                   "properties": {
                     "col_long_%s":     { "type": "long" },
@@ -2979,7 +2986,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "properties": {
                     "col_long_1":     { "type": "long" },
@@ -2989,7 +2997,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "properties": {
                     "col_long_1":     { "type": "long" }
@@ -3015,7 +3024,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "_meta": {
                     "description": "This is index one",
@@ -3034,7 +3044,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "_meta": {
                     "description": "This is index two"
@@ -3048,7 +3059,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings_3 = """
+        String mappings_3 =
+                """
                 {
                   "_meta": {
                     "description": "This is index three"
@@ -3095,7 +3107,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "_meta": {
                     "description": "This is index one",
@@ -3114,7 +3127,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "_meta": {
                     "description": "This is index two",
@@ -3164,7 +3178,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings = """
+        String mappings =
+                """
                 {
                   "properties": {
                     "id": {
@@ -3184,7 +3199,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "properties": {
                     "id": {
@@ -3267,7 +3283,8 @@ public abstract class BaseElasticsearchConnectorTest
         String wildcardTable = format("test_wildcard_%s_*", suffix);
 
         @Language("JSON")
-        String mappings = """
+        String mappings =
+                """
                 {
                   "properties": {
                     "date1": {
@@ -3284,7 +3301,8 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "properties": {
                     "date1": {
@@ -3322,7 +3340,6 @@ public abstract class BaseElasticsearchConnectorTest
                 .buildOrThrow());
 
         try {
-
             assertThat(query("SELECT name FROM \"" + wildcardTable + "\" where date2 > TIMESTAMP '2015-01-01'"))
                     .skippingTypesCheck()
                     .matches("VALUES ('a'), ('b')")
@@ -3341,7 +3358,8 @@ public abstract class BaseElasticsearchConnectorTest
     {
         String index = format("test_multi_%s", randomNameSuffix());
         @Language("JSON")
-        String mappings = """
+        String mappings =
+                """
                 {
                   "properties": {
                     "product" : {
@@ -3457,7 +3475,8 @@ public abstract class BaseElasticsearchConnectorTest
     {
         String index = format("test_multi_object_%s", randomNameSuffix());
         @Language("JSON")
-        String mappings = """
+        String mappings =
+                """
                 {
                   "properties": {
                     "product" : {

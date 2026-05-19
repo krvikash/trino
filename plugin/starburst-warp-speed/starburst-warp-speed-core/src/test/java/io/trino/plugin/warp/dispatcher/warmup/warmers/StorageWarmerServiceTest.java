@@ -38,7 +38,8 @@ class StorageWarmerServiceTest
     {
         WarmupDemoterService warmupDemoterService = mock(WarmupDemoterService.class);
         when(warmupDemoterService.tryAllocateNativeResourceForWarmup()).thenReturn(true, false, false);
-        StorageWarmerService storageWarmerService = new StorageWarmerService(mock(RowGroupDataService.class),
+        StorageWarmerService storageWarmerService = new StorageWarmerService(
+                mock(RowGroupDataService.class),
                 new StubsStorageEngine(),
                 new GlobalConfig(),
                 warmupDemoterService,

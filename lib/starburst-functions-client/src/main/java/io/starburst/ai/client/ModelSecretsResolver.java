@@ -58,7 +58,8 @@ public final class ModelSecretsResolver
     public static OpenAiConnectionInfo resolveOpenAiSecrets(OpenAiConnectionInfo connectionInfo, SecretsResolver secretsResolver)
     {
         return connectionInfo.apiKey().map(key ->
-                        new OpenAiConnectionInfo(connectionInfo.endpoint(),
+                        new OpenAiConnectionInfo(
+                                connectionInfo.endpoint(),
                                 Optional.of(secretsResolver.getResolvedConfiguration(ImmutableMap.of("apiKey", key)).get("apiKey")),
                                 resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver)))
                 // Pass DUMMY_API_KEY as OpenAI sdk mandatorily requires an API key https://github.com/openai/openai-java/blob/71cf8abd87f4e7ea4ab658d813499f3e30aee632/openai-java-core/src/main/kotlin/com/openai/core/ClientOptions.kt#L297

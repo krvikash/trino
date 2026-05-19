@@ -529,9 +529,7 @@ public class UnityHiveMetastore
     }
 
     @Override
-    public void flushTableCache(String databaseName, String tableName)
-    {
-    }
+    public void flushTableCache(String databaseName, String tableName) {}
 
     @Override
     public void commentColumn(String databaseName, String tableName, String columnName, Optional<String> comment)

@@ -52,9 +52,12 @@ public class MitmProxy
                 .withClasspathResourceMapping("docker/trino-product-tests/common/mitmproxy/mitmproxy-dhparam.pem", "/home/mitmproxy/.mitmproxy/mitmproxy-dhparam.pem", BindMode.READ_ONLY)
                 .withCommand(
                         "mitmdump",
-                        "--set", "proxy_debug=true",
-                        "--proxyauth", format("%s:%s", MITMPROXY_USERNAME, MITMPROXY_PASSWORD),
-                        "--set", "stream_large_bodies=0");
+                        "--set",
+                        "proxy_debug=true",
+                        "--proxyauth",
+                        format("%s:%s", MITMPROXY_USERNAME, MITMPROXY_PASSWORD),
+                        "--set",
+                        "stream_large_bodies=0");
         builder.addContainer(proxy);
     }
 

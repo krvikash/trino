@@ -132,25 +132,25 @@ class LuceneIndexWriterReaderTest
         Assertions.assertEquals(0, smallFile.position());
         Assertions.assertEquals(1000, smallFile.limit());
         Assertions.assertEquals(1000, smallFile.capacity());
-        //for (int i = 0; i < 1000; i++) {
+        // for (int i = 0; i < 1000; i++) {
         //    Assertions.assertEquals(99, smallFile.get(i));
-        //}
+        // }
 
         smallFile = luceneIndexReader.loadSmallFile(LuceneFileType.CFE);
         Assertions.assertEquals(0, smallFile.position());
         Assertions.assertEquals(1000, smallFile.limit());
         Assertions.assertEquals(1000, smallFile.capacity());
-        //for (int i = 0; i < 1000; i++) {
+        // for (int i = 0; i < 1000; i++) {
         //    Assertions.assertEquals(88, smallFile.get(i));
-        //}
+        // }
 
         smallFile = luceneIndexReader.loadSmallFile(LuceneFileType.SEGMENTS);
         Assertions.assertEquals(0, smallFile.position());
         Assertions.assertEquals(1000, smallFile.limit());
         Assertions.assertEquals(1000, smallFile.capacity());
-        //for (int i = 0; i < 1000; i++) {
+        // for (int i = 0; i < 1000; i++) {
         //    Assertions.assertEquals(77, smallFile.get(i));
-        //}
+        // }
 
         ByteBuffer bigFile = luceneIndexReader.loadBigFilePage(0);
         Assertions.assertEquals(0, bigFile.position());

@@ -577,7 +577,12 @@ public class StarburstFunctions
     }
 
     private static <T, U> Iterable<ModelGroupInputs<U>> batchByModelId(
-            ValueBlock textBlock, boolean treatEmptyAsNull, int[] textPositions, ArgumentBlockHandler<T, U> argumentBlockHandler, ValueBlock modelIdBlock, int[] modelIdPositions)
+            ValueBlock textBlock,
+            boolean treatEmptyAsNull,
+            int[] textPositions,
+            ArgumentBlockHandler<T, U> argumentBlockHandler,
+            ValueBlock modelIdBlock,
+            int[] modelIdPositions)
     {
         return () -> new ModelGroupIterator<>(textBlock, treatEmptyAsNull, textPositions, argumentBlockHandler, modelIdBlock, modelIdPositions);
     }
@@ -791,5 +796,10 @@ public class StarburstFunctions
      * and the start/end indices in the original arrays.
      */
     private record ModelGroupInputs<U>(
-            Slice modelId, List<String> texts, U additionalArgument, boolean[] nullOrEmpty, int startIndex, int endIndex) {}
+            Slice modelId,
+            List<String> texts,
+            U additionalArgument,
+            boolean[] nullOrEmpty,
+            int startIndex,
+            int endIndex) {}
 }

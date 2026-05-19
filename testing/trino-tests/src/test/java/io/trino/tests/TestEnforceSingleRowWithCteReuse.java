@@ -43,10 +43,11 @@ public class TestEnforceSingleRowWithCteReuse
     @Test
     public void testEnforceSingleRowWithCteReuseWithNoResidualFilter()
     {
-        String query = """
-                 SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
-                 UNION ALL
-                 SELECT name FROM region WHERE regionkey = (SELECT max(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
+        String query =
+                """
+                SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
+                UNION ALL
+                SELECT name FROM region WHERE regionkey = (SELECT max(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
                 """;
 
         assertThat(newProgramAssert(getProgramForDisabledCteReuse(query)))
@@ -61,12 +62,13 @@ public class TestEnforceSingleRowWithCteReuse
     @Test
     public void testEnforceSingleRowWithCteReuseWithResidualFilterForSpecificBranch()
     {
-        String query = """
-                 SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
-                 UNION ALL
-                 SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
-                 UNION ALL
-                 SELECT name FROM region WHERE regionkey = (SELECT max(regionkey) FROM nation where nationkey = 2 GROUP BY nationkey)
+        String query =
+                """
+                SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
+                UNION ALL
+                SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
+                UNION ALL
+                SELECT name FROM region WHERE regionkey = (SELECT max(regionkey) FROM nation where nationkey = 2 GROUP BY nationkey)
                 """;
 
         assertThat(newProgramAssert(getProgramForDisabledCteReuse(query)))
@@ -81,10 +83,11 @@ public class TestEnforceSingleRowWithCteReuse
     @Test
     public void testEnforceSingleRowWithCteReuseWithResidualFilterForEachBranch()
     {
-        String query = """
-                 SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
-                 UNION ALL
-                 SELECT name FROM region WHERE regionkey = (SELECT max(regionkey) FROM nation where nationkey = 2 GROUP BY nationkey)
+        String query =
+                """
+                SELECT name FROM region WHERE regionkey = (SELECT min(regionkey) FROM nation where nationkey = 8 GROUP BY nationkey)
+                UNION ALL
+                SELECT name FROM region WHERE regionkey = (SELECT max(regionkey) FROM nation where nationkey = 2 GROUP BY nationkey)
                 """;
 
         assertThat(newProgramAssert(getProgramForDisabledCteReuse(query)))
@@ -99,10 +102,11 @@ public class TestEnforceSingleRowWithCteReuse
     @Test
     public void testEnforceSingleRowWithCteReuseWithEmptySource()
     {
-        String query = """
-                 SELECT name, (SELECT min(regionkey) FROM nation WHERE nationkey = -8 GROUP BY nationkey) FROM region WHERE regionkey = 2
-                 UNION ALL
-                 SELECT name, (SELECT min(regionkey) FROM nation WHERE nationkey = -8 GROUP BY nationkey) FROM region WHERE regionkey = 2
+        String query =
+                """
+                SELECT name, (SELECT min(regionkey) FROM nation WHERE nationkey = -8 GROUP BY nationkey) FROM region WHERE regionkey = 2
+                UNION ALL
+                SELECT name, (SELECT min(regionkey) FROM nation WHERE nationkey = -8 GROUP BY nationkey) FROM region WHERE regionkey = 2
                 """;
 
         assertThat(newProgramAssert(getProgramForDisabledCteReuse(query)))
@@ -117,10 +121,11 @@ public class TestEnforceSingleRowWithCteReuse
     @Test
     public void testEnforceSingleRowWithCteReuseWithMultipleRows()
     {
-        String query = """
-                 SELECT name, (SELECT min(regionkey) FROM nation GROUP BY nationkey) FROM region WHERE regionkey = 2
-                 UNION ALL
-                 SELECT name, (SELECT min(regionkey) FROM nation GROUP BY nationkey) FROM region WHERE regionkey = 2
+        String query =
+                """
+                SELECT name, (SELECT min(regionkey) FROM nation GROUP BY nationkey) FROM region WHERE regionkey = 2
+                UNION ALL
+                SELECT name, (SELECT min(regionkey) FROM nation GROUP BY nationkey) FROM region WHERE regionkey = 2
                 """;
 
         assertQueryFails(query, "Scalar sub-query has returned multiple rows");

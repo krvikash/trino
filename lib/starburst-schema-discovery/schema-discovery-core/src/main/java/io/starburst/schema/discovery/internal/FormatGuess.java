@@ -18,7 +18,7 @@ public interface FormatGuess
     enum Confidence
     {
         LOW,
-        HIGH
+        HIGH,
     }
 
     Confidence confidence();

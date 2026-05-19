@@ -15,6 +15,4 @@ package io.trino.plugin.warp.juffer;
 
 import java.lang.foreign.MemorySegment;
 
-public record PredicateBufferInfo(MemorySegment buff, PredicateBufferPoolType predicateBufferPoolType)
-{
-}
+public record PredicateBufferInfo(MemorySegment buff, PredicateBufferPoolType predicateBufferPoolType) {}

@@ -43,6 +43,7 @@ public enum RecTypeCode
     REC_TYPE_ARRAY_DATE(false, false),
     REC_TYPE_VARBINARY(false, false),
     REC_TYPE_NUM_OF(false, false);
+
     final boolean isSupportedDictionary;
     final boolean isSupportedFiltering;
 

@@ -52,7 +52,8 @@ public class ClusterMetricsTaskTest
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers);
 
         List<ClusterMetricsResult> clusterMetricsResults = workers.stream()
-                .map(_ -> new ClusterMetricsResult(workerCpuUsage,
+                .map(_ -> new ClusterMetricsResult(
+                        workerCpuUsage,
                         workerMemoryAllocated,
                         workerMemoryCapacity,
                         workerStorageAllocated,
@@ -62,7 +63,8 @@ public class ClusterMetricsTaskTest
                 .thenReturn(clusterMetricsResults.get(0), clusterMetricsResults.get(1), clusterMetricsResults.get(2), clusterMetricsResults.get(3));
 
         int workersCount = workers.size();
-        ClusterMetricsResult expected = new ClusterMetricsResult(workerCpuUsage * workersCount,
+        ClusterMetricsResult expected = new ClusterMetricsResult(
+                workerCpuUsage * workersCount,
                 workerMemoryAllocated * workersCount,
                 workerMemoryCapacity * workersCount,
                 workerStorageAllocated * workersCount,

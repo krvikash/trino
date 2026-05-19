@@ -19,8 +19,8 @@ import static java.util.Objects.requireNonNull;
 /**
  * @param chunks List of chunk handles for closed chunks which can be retrieved from the buffer node.
  * @param nextPagingId Paging id to be used for next request to DataApi.listChunks.
- *                     If nextPagingId is empty it means all chunks have been returned and caller should not expect any more chunks
- *                     for this exchange from this buffer node. {@link #chunks will be empty then}.
+ *         If nextPagingId is empty it means all chunks have been returned and caller should not expect any more chunks
+ *         for this exchange from this buffer node. {@link #chunks will be empty then}.
  */
 public record ChunkList(
         List<ChunkHandle> chunks,

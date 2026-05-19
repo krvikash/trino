@@ -9,6 +9,4 @@
  */
 package io.starburst.stargate.buffer.status;
 
-public record Status(boolean isStarted, boolean isReady, boolean isAlive)
-{
-}
+public record Status(boolean isStarted, boolean isReady, boolean isAlive) {}

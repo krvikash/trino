@@ -31,5 +31,5 @@ public enum WarmUpType
 {
     WARM_UP_TYPE_BASIC,
     WARM_UP_TYPE_LUCENE,
-    WARM_UP_TYPE_DATA
+    WARM_UP_TYPE_DATA,
 }

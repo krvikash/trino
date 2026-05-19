@@ -69,7 +69,7 @@ public class ShapingLoggerTest
         ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(this.getClass(), logger, 5, Duration.ZERO, 3, ShapingLogger.MODE.FORMAT);
 
         when(logger.isInfoEnabled()).thenReturn(true);
-        IntStream.range(0, 12).forEach((_) -> shapingLogger.info("%s", "test"));
+        IntStream.range(0, 12).forEach(_ -> shapingLogger.info("%s", "test"));
 
         verify(logger, times(8))
                 .info(eq("catalog[%s]: %s".formatted(catalogName, "test")));

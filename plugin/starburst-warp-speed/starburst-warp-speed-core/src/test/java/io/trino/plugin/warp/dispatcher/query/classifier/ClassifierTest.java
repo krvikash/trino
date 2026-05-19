@@ -87,7 +87,8 @@ public abstract class ClassifierTest
 
     protected WarmUpElement createWarmUpElementFromColumnHandle(ColumnHandle columnHandle, WarmUpType warmUpType)
     {
-        return createWarmUpElement(new RegularColumn(((TestingConnectorColumnHandle) columnHandle).name()),
+        return createWarmUpElement(
+                new RegularColumn(((TestingConnectorColumnHandle) columnHandle).name()),
                 ((TestingConnectorColumnHandle) columnHandle).type(),
                 warmUpType);
     }

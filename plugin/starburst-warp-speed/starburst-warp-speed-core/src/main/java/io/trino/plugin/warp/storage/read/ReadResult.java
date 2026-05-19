@@ -15,9 +15,8 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.spi.connector.SourcePage;
 
-public record ReadResult(SourcePage sourcePage,
-                         int numCollectedRows,
-                         WarpStoragePageSource.RowRanges ranges,
-                         long numReadPages)
-{
-}
+public record ReadResult(
+        SourcePage sourcePage,
+        int numCollectedRows,
+        WarpStoragePageSource.RowRanges ranges,
+        long numReadPages) {}

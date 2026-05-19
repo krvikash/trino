@@ -270,8 +270,9 @@ public class BufferExchangeManagerFactory
         }
     }
 
-    public record EmbeddedBufferServiceConfigs(SpoolingDirectoryConfig spoolingDirectoryConfig,
-                                               Map<String, String> spoolingProperties)
+    public record EmbeddedBufferServiceConfigs(
+            SpoolingDirectoryConfig spoolingDirectoryConfig,
+            Map<String, String> spoolingProperties)
     {
         public EmbeddedBufferServiceConfigs
         {

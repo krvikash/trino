@@ -67,6 +67,6 @@ public class MatchDataSorter
         BASIC_WITHOUT_COLLECT, // basic is preferred over lucene
         LUCENE,
         BASIC_WITH_COLLECT, // basic with collect is lowest since it requires collect operation which is costly
-        OR
+        OR,
     }
 }

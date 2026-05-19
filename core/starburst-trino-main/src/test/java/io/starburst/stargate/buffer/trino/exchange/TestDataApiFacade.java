@@ -681,7 +681,11 @@ public class TestDataApiFacade
         dataApiFacade.init();
 
         // request 0 fails immediately with INTERNAL_ERROR, entering retry backoff
-        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0,
+        dataApiDelegate.recordAddDataPages(
+                EXCHANGE_0,
+                0,
+                0,
+                0,
                 immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "boom")));
         // request 1 gets dispatched after request 0 fails and frees the slot
         SettableFuture<Optional<RateLimitInfo>> inFlight = SettableFuture.create();
@@ -1002,10 +1006,18 @@ public class TestDataApiFacade
                 executor);
 
         // first attempt fails with INTERNAL_ERROR (eligible for retry)
-        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0,
+        dataApiDelegate.recordAddDataPages(
+                EXCHANGE_0,
+                0,
+                0,
+                0,
                 immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "boom")));
         // leave a second response recorded in case retry somehow resurrects
-        dataApiDelegate.recordAddDataPages(EXCHANGE_0, 0, 0, 0,
+        dataApiDelegate.recordAddDataPages(
+                EXCHANGE_0,
+                0,
+                0,
+                0,
                 immediateFuture(Optional.empty()));
 
         ListenableFuture<DataApiFacade.AddDataPagesResponse> addDataPagesFuture = dataApiFacade.addDataPages(

@@ -47,7 +47,8 @@ public class NativeStorageStateResource
     private final NativeStorageStateHandler handler;
 
     @Inject
-    public NativeStorageStateResource(WorkerCapacityManager workerCapacityManager,
+    public NativeStorageStateResource(
+            WorkerCapacityManager workerCapacityManager,
             NativeStorageStateHandler handler)
     {
         this.workerCapacityManager = requireNonNull(workerCapacityManager);

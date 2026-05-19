@@ -2341,8 +2341,7 @@ public class IcebergMetadata
         return switch (executeHandle.procedureId()) {
             case OPTIMIZE -> getColumnHandlesForOptimize(icebergTableHandle);
             case GENERATE_EMBEDDINGS -> getColumnHandlesForGenerateEmbeddings(icebergTableHandle);
-            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE, REMOVE_DANGLING_DELETE_FILES ->
-                    throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE, REMOVE_DANGLING_DELETE_FILES -> throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
         };
     }
 
@@ -2637,8 +2636,8 @@ public class IcebergMetadata
         StatisticsFile newStatsFile = tableStatisticsWriter.rewriteStatisticsFile(session, icebergTable, newSnapshotId);
 
         transaction.updateStatistics()
-                    .setStatistics(newStatsFile)
-                    .commit();
+                .setStatistics(newStatsFile)
+                .commit();
 
         partitionStatisticsWriter.writePartitionStats(session, icebergTable, newSnapshotId).ifPresent(partitionStatisticsFile -> {
             transaction.updatePartitionStatistics()

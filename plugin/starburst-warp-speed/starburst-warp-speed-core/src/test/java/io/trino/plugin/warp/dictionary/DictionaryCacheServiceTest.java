@@ -95,7 +95,8 @@ public class DictionaryCacheServiceTest
         dictionaryConfig.setEnableDictionary(true);
         metricsManager = TestingTxService.createMetricsManager();
         attachDictionaryService = mock(AttachDictionaryService.class);
-        this.dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
+        this.dictionaryCacheService = new DictionaryCacheService(
+                dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
     }
@@ -103,7 +104,8 @@ public class DictionaryCacheServiceTest
     @Test
     public void testIsDictionaryValidForColumnValidColumns()
     {
-        List<WarmUpElement> warmupElements = getWarmupElements(RecTypeCode.REC_TYPE_BIGINT,
+        List<WarmUpElement> warmupElements = getWarmupElements(
+                RecTypeCode.REC_TYPE_BIGINT,
                 RecTypeCode.REC_TYPE_INTEGER,
                 RecTypeCode.REC_TYPE_DECIMAL_SHORT,
                 RecTypeCode.REC_TYPE_VARCHAR);
@@ -117,9 +119,11 @@ public class DictionaryCacheServiceTest
     @Test
     public void testIsDictionaryValidForColumn_testWarmUpType()
     {
-        List<WarmUpElement> warmupElements = getWarmupElements(WarmUpType.WARM_UP_TYPE_BASIC,
+        List<WarmUpElement> warmupElements = getWarmupElements(
+                WarmUpType.WARM_UP_TYPE_BASIC,
                 WarmUpType.WARM_UP_TYPE_LUCENE);
-        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
+        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(
+                dictionaryConfig,
                 metricsManager,
                 attachDictionaryService);
         for (WarmUpElement warmUpElement : warmupElements) {
@@ -131,7 +135,8 @@ public class DictionaryCacheServiceTest
     @Test
     public void testIsDictionaryValidForColumnNotSuitableColumn()
     {
-        List<WarmUpElement> warmupElements = getWarmupElements(RecTypeCode.REC_TYPE_BOOLEAN,
+        List<WarmUpElement> warmupElements = getWarmupElements(
+                RecTypeCode.REC_TYPE_BOOLEAN,
                 RecTypeCode.REC_TYPE_TIME,
                 RecTypeCode.REC_TYPE_TIMESTAMP_WITH_TZ,
                 RecTypeCode.REC_TYPE_TIMESTAMP,
@@ -173,7 +178,8 @@ public class DictionaryCacheServiceTest
             WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode);
             for (int i = 0; i <= totalValuesWithOverflow; i++) {
                 writeDictionary.get("number=" + i);
-            }})
+            }
+        })
                 .isInstanceOf(DictionaryException.class)
                 .satisfies(e -> assertThat(((DictionaryException) e).getDictionaryState()).isEqualTo(DictionaryState.DICTIONARY_MAX_EXCEPTION));
     }

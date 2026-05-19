@@ -129,7 +129,8 @@ public class WeGroupWarmerTest
         warmupImportServiceStats = WarmupImportServiceStats.create();
         when(metricsManager.registerMetric(any())).thenReturn(warmupImportServiceStats);
 
-        weGroupWarmer = new WeGroupWarmer(globalConfig,
+        weGroupWarmer = new WeGroupWarmer(
+                globalConfig,
                 cloudVendorConfig,
                 storageEngineConstants,
                 rowGroupDataService,
@@ -372,12 +373,11 @@ public class WeGroupWarmerTest
         localTmpFile.delete();
     }
 
-    record TestInitResults(File localFile,
-                           int fillerLength,
-                           List<WarmUpElement> warmWarmUpElements,
-                           RowGroupData rowGroupData)
-    {
-    }
+    record TestInitResults(
+            File localFile,
+            int fillerLength,
+            List<WarmUpElement> warmWarmUpElements,
+            RowGroupData rowGroupData) {}
 
     TestInitResults testInit(RowGroupKey rowGroupKey)
             throws IOException

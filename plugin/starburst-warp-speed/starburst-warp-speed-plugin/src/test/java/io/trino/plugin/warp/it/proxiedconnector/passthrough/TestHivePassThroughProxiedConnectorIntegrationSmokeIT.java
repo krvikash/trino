@@ -55,11 +55,13 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(storageEngineModule,
+        return DispatcherQueryRunner.createQueryRunner(
+                storageEngineModule,
                 Optional.empty(),
                 numNodes,
                 Collections.emptyMap(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
@@ -75,7 +77,8 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
     public void testSinglePartitionMultipleSplits()
     {
         String table = "pt";
-        createTable(DEFAULT_SCHEMA,
+        createTable(
+                DEFAULT_SCHEMA,
                 table,
                 "(id integer, a varchar, date_date date) WITH (format='PARQUET', partitioned_by = ARRAY['date_date'])");
         IntStream.range(1, 9)
@@ -109,7 +112,11 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
         MaterializedResultWithPlan materializedResultResultWithQueryId = getQueryRunner()
                 .executeWithPlan(getSession(),
                         format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s='a-1'",
-                                aCol, dateIntCol, table, dateIntCol, aCol));
+                                aCol,
+                                dateIntCol,
+                                table,
+                                dateIntCol,
+                                aCol));
 
         assertThat(materializedResultResultWithQueryId.result()
                 .getStatementStats()
@@ -123,7 +130,12 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
         materializedResultResultWithQueryId = getQueryRunner()
                 .executeWithPlan(getSession(),
                         format("SELECT %s, %s FROM %s WHERE %s=20190311 AND %s=CAST('2020-04-12' AS date) AND %s='a-1'",
-                                aCol, dateIntCol, table, dateIntCol, dateDateCol, aCol));
+                                aCol,
+                                dateIntCol,
+                                table,
+                                dateIntCol,
+                                dateDateCol,
+                                aCol));
 
         assertThat(materializedResultResultWithQueryId.result()
                 .getStatementStats()
@@ -218,14 +230,15 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
 
     private void validateWarmupIsIgnored(String sql)
     {
-        //here we check a few times that warmup was ignored for pass-through connector
+        // here we check a few times that warmup was ignored for pass-through connector
         AtomicInteger counter = new AtomicInteger(4);
         Failsafe.with(RetryPolicy.builder()
                         .withMaxRetries(10)
                         .withDelay(Duration.ofSeconds(1))
                         .build())
                 .run(() -> {
-                    warmAndValidate(sql,
+                    warmAndValidate(
+                            sql,
                             false,
                             0,
                             0);

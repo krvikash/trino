@@ -201,7 +201,7 @@ public class IrDialect
 
         // The operation shall produce different outputs for the same input on each invocation.
         // NON_DETERMINISTIC operations should not be inlined, re-used or constant folded.
-        NON_DETERMINISTIC
+        NON_DETERMINISTIC,
     }
 
     public record FunctionType(List<Type> argumentTypes, Type returnType)

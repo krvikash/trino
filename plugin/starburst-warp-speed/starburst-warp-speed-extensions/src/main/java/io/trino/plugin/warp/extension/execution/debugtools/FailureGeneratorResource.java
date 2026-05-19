@@ -61,7 +61,7 @@ public class FailureGeneratorResource
 
     @POST
     @Audit
-    //@ApiOperation(value = "generate-failure", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "generate-failure", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public void generateFailure(List<FailureGeneratorData> failureGeneratorDataList)
     {
         Map<String, FailureAction> newResults = new HashMap<>();
@@ -102,7 +102,8 @@ public class FailureGeneratorResource
         private final FailureRepetitionMode failureRepetitionMode;
 
         @JsonCreator
-        public FailureGeneratorData(@JsonProperty("className") String className,
+        public FailureGeneratorData(
+                @JsonProperty("className") String className,
                 @JsonProperty("methodName") String methodName,
                 @JsonProperty("repetitionMode") FailureRepetitionMode failureRepetitionMode,
                 @JsonProperty("failureType") FailureType failureType,

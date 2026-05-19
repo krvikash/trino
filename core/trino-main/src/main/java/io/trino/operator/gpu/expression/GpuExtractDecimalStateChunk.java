@@ -64,7 +64,9 @@ public final class GpuExtractDecimalStateChunk
     public GpuExtractDecimalStateChunk(int componentIdx)
     {
         checkArgument(componentIdx >= 0 && componentIdx < COMPONENT_COUNT,
-                "componentIdx must be in [0, %s), got %s", COMPONENT_COUNT, componentIdx);
+                "componentIdx must be in [0, %s), got %s",
+                COMPONENT_COUNT,
+                componentIdx);
         this.componentIdx = componentIdx;
     }
 
@@ -74,7 +76,8 @@ public final class GpuExtractDecimalStateChunk
         checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
         @Borrow ColumnVector input = inputColumns.getFirst();
         checkState(input.getType().getTypeId() == DType.DTypeEnum.LIST,
-                "Expected LIST input, got %s", input.getType());
+                "Expected LIST input, got %s",
+                input.getType());
 
         // Fast path: the entire input is uniform 16-byte rows (the GPU PARTIAL output format —
         // overflow never written, high always written). Skip the byte-by-byte unpacking and
@@ -206,7 +209,8 @@ public final class GpuExtractDecimalStateChunk
                 Scalar trueScalar = Scalar.fromBool(true);
                 ColumnVector validIncludingNulls = valid.replaceNulls(trueScalar)) {
             if (!allTrue(validIncludingNulls)) {
-                throw new TrinoException(GENERIC_INTERNAL_ERROR,
+                throw new TrinoException(
+                        GENERIC_INTERNAL_ERROR,
                         "sum(decimal) FINAL on GPU expects 8, 16, or 24 byte intermediate states");
             }
         }

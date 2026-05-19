@@ -67,7 +67,8 @@ public abstract class WorkerWarmerBaseTask
     protected final UUID id;
     protected Optional<WorkerSubmittableTask> nextTask = Optional.empty();
 
-    public WorkerWarmerBaseTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
+    public WorkerWarmerBaseTask(
+            WarmExecutionTaskFactory warmExecutionTaskFactory,
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmingServiceStats statsWarmingService,
             WarmingManager warmingManager,
@@ -174,7 +175,8 @@ public abstract class WorkerWarmerBaseTask
             queryContext = baseQueryContext;
         }
 
-        return workerWarmingService.getWarmData(columns,
+        return workerWarmingService.getWarmData(
+                columns,
                 rowGroupKey,
                 dispatcherSplit,
                 session,
@@ -184,7 +186,8 @@ public abstract class WorkerWarmerBaseTask
 
     protected WorkerSubmittableTask createProxyExecutionTask(int priority)
     {
-        return warmExecutionTaskFactory.createExecutionTask(connectorPageSourceProvider,
+        return warmExecutionTaskFactory.createExecutionTask(
+                connectorPageSourceProvider,
                 transactionHandle,
                 session,
                 dispatcherSplit,

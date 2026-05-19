@@ -76,8 +76,7 @@ public class GenerateEmbeddingsTableFunction
     @Inject
     public GenerateEmbeddingsTableFunction(AiModelAccessControl aiModelAccessControl)
     {
-        super(
-                FunctionsMetadata.AI_SCHEMA_NAME,
+        super(FunctionsMetadata.AI_SCHEMA_NAME,
                 "generate_embeddings",
                 ImmutableList.of(
                         TableArgumentSpecification.builder()

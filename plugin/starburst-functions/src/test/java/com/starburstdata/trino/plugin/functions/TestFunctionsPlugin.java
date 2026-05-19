@@ -27,7 +27,7 @@ final class TestFunctionsPlugin
     {
         ConnectorFactory factory = getConnectorFactory();
         factory.create(
-                "test",
+                        "test",
                         Map.of(),
                         new TestingConnectorContext())
                 .shutdown();
@@ -43,7 +43,7 @@ final class TestFunctionsPlugin
 
         ConnectorFactory factory = getConnectorFactory();
         factory.create(
-                "test",
+                        "test",
                         Map.of("io.credentials-file", config.toAbsolutePath().toString()),
                         new TestingConnectorContext())
                 .shutdown();
@@ -79,7 +79,8 @@ final class TestFunctionsPlugin
 
         ConnectorFactory factory = getConnectorFactory();
         assertThatThrownBy(() ->
-                factory.create("test",
+                factory.create(
+                                "test",
                                 Map.of("io.credentials-file", config.toAbsolutePath().toString()),
                                 new TestingConnectorContext())
                         .shutdown())
@@ -107,7 +108,8 @@ final class TestFunctionsPlugin
 
         ConnectorFactory factory = getConnectorFactory();
         assertThatThrownBy(() ->
-                factory.create("test",
+                factory.create(
+                                "test",
                                 Map.of("io.credentials-file", config.toAbsolutePath().toString()),
                                 new TestingConnectorContext())
                         .shutdown())

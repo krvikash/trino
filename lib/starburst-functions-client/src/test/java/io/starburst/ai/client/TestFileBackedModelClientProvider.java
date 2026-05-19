@@ -35,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestFileBackedModelClientProvider
 {
-    private static final String TEST_MODELS_CONFIG = """
+    private static final String TEST_MODELS_CONFIG =
+            """
             {
                 "models": [
                     {
@@ -64,7 +65,8 @@ public class TestFileBackedModelClientProvider
             }
             """;
 
-    private static final String TEST_MODELS_CONFIG_V2 = """
+    private static final String TEST_MODELS_CONFIG_V2 =
+            """
             {
                 "models": [
                     {

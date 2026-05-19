@@ -49,7 +49,8 @@ public class WarpCacheFilesMerger
     private final int pageSizeShift;
 
     @Inject
-    public WarpCacheFilesMerger(RowGroupDataService rowGroupDataService,
+    public WarpCacheFilesMerger(
+            RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
             GlobalConfig globalConfig,
             StorageEngineConstants storageEngineConstants,
@@ -91,7 +92,8 @@ public class WarpCacheFilesMerger
                                 .build();
                         copyFileContent(tmpRowGroupData.getRowGroupKey(), permanentRowGroupPath, mergedFile, ((long) tmpRowGroupData.getNextOffset()) << pageSizeShift);
                         maxOffset += tmpRowGroupData.getNextOffset();
-                        permanentRowGroupData = rowGroupDataService.updateRowGroupData(permanentRowGroupData,
+                        permanentRowGroupData = rowGroupDataService.updateRowGroupData(
+                                permanentRowGroupData,
                                 newWarmupElement,
                                 maxOffset,
                                 newWarmupElement.getTotalRecords());
@@ -120,7 +122,7 @@ public class WarpCacheFilesMerger
 
     private void setAllWeToFailedState(List<RowGroupData> tmpRowGroupDataList, RowGroupKey permanentRowGroupKey)
     {
-        //in case of failure, add all WE as failed to permanent RG
+        // in case of failure, add all WE as failed to permanent RG
         for (RowGroupData tmpRowGroupData : tmpRowGroupDataList) {
             rowGroupDataService.markAsFailed(permanentRowGroupKey, tmpRowGroupData.getWarmUpElements(), Collections.emptyMap());
         }

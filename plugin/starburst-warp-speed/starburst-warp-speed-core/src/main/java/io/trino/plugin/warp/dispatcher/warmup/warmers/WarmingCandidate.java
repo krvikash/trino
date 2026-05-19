@@ -31,7 +31,8 @@ public final class WarmingCandidate
     private final RowGroupKey tmpRowGroupKey;
     private boolean isFailedCandidate;
 
-    public WarmingCandidate(long[] fileCookie,
+    public WarmingCandidate(
+            long[] fileCookie,
             PageSink pageSink,
             int fileOffset,
             WarmupElementWriteMetadata warmupElementWriteMetadata,

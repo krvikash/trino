@@ -35,9 +35,7 @@ public class LucenePredicateFiller
     }
 
     @Override
-    public void convertValues(Domain domain, ByteBuffer predicateBuffer)
-    {
-    }
+    public void convertValues(Domain domain, ByteBuffer predicateBuffer) {}
 
     @Override
     public PredicateType getPredicateType()

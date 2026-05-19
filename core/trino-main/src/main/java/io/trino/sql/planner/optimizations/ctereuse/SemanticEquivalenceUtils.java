@@ -30,8 +30,7 @@ import static io.trino.sql.planner.optimizations.ctereuse.StructuralEquivalenceU
  */
 public class SemanticEquivalenceUtils
 {
-    private SemanticEquivalenceUtils()
-    {}
+    private SemanticEquivalenceUtils() {}
 
     public static boolean blocksSemanticallyEquivalent(List<Block> leftBlocks, List<Block> rightBlocks)
     {

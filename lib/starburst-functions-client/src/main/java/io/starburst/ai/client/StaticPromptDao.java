@@ -17,14 +17,16 @@ import java.util.Optional;
 public class StaticPromptDao
         implements PromptDao
 {
-    private static final String ANALYZE_SENTIMENT = """
+    private static final String ANALYZE_SENTIMENT =
+            """
             Classify the text below into one of the following labels: [positive, negative, neutral, mixed]
             Output only the label.
             =====
             %s
             """;
 
-    private static final String ANALYZE_SENTIMENT_BATCH = """
+    private static final String ANALYZE_SENTIMENT_BATCH =
+            """
             You are a sentiment analysis assistant.
             You will be provided multiple inputs formatted as a numbered list.
             Classify each of them as one of the following: positive, negative, neutral, mixed.
@@ -49,7 +51,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String CLASSIFY = """
+    private static final String CLASSIFY =
+            """
             Classify the text below into one of the following JSON encoded labels: %s
             Output the label as a JSON string (not a JSON object).
             Output only the label.
@@ -57,7 +60,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String CLASSIFY_BATCH = """
+    private static final String CLASSIFY_BATCH =
+            """
             You are a useful assistant specializing in text classification.
             You will be provided multiple text inputs formatted as a numbered list.
             Classify each of them into one of the categories identified by the following labels, encoded as a JSON array: %s.
@@ -82,14 +86,16 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String FIX_GRAMMAR = """
+    private static final String FIX_GRAMMAR =
+            """
             Fix the grammar in the text below.
             Output only the text.
             =====
             %s
             """;
 
-    private static final String FIX_GRAMMAR_BATCH = """
+    private static final String FIX_GRAMMAR_BATCH =
+            """
             You will be provided a text consisting of multiple paragraphs enclosed by <p_XXX> XML tags, where XXX represents the paragraph number.
             Correct the grammar, spelling, and punctuation for each of these paragraphs. Do not change the meaning or tone.
             Only return the corrected version without explanations. Do not change anything else, including formatting or spacing.
@@ -125,7 +131,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String MASK = """
+    private static final String MASK =
+            """
             Mask the values for each of the JSON encoded labels in the text below.
             Labels: %s
             Replace the values with the text "[MASKED]".
@@ -138,7 +145,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String MASK_BATCH = """
+    private static final String MASK_BATCH =
+            """
             You are a useful assistant specializing in masking sensitive fields in text.
             You are provided a text consisting of multiple fragments enclosed by <p_XXX> XML tags, where XXX represents the fragment number.
             You are also provided a list of labels identifying the types of sensitive information that needs to be masked.
@@ -180,7 +188,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String TRANSLATE = """
+    private static final String TRANSLATE =
+            """
             Translate the text below to the language specified.
             The language is encoded as a JSON string.
             Output only the translated text.
@@ -190,7 +199,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String TRANSLATE_BATCH = """
+    private static final String TRANSLATE_BATCH =
+            """
             You are a useful assistant specializing in translating text into various languages.
             You are provided a text consisting of multiple fragments enclosed by <p_XXX> XML tags, where XXX represents the fragment number.
             You are also provided the language to which the text should be translated.
@@ -225,7 +235,8 @@ public class StaticPromptDao
             %s
             """;
 
-    private static final String SUMMARIZE_SYSTEM_PROMPT = """
+    private static final String SUMMARIZE_SYSTEM_PROMPT =
+            """
             You are a summarization AI assistant.
             The user will only prompt with text that they want summarized.
             Do not respond with anything outside of the text: no opinions or insights.
@@ -237,7 +248,8 @@ public class StaticPromptDao
             For input longer than a few paragraphs, output at most a single 5 sentence paragraph.
             """;
 
-    private static final String SUMMARIZE_BATCH = """
+    private static final String SUMMARIZE_BATCH =
+            """
             The text to be summarized consists of multiple fragments enclosed by <p_XXX> XML tags, where XXX represents the fragment number.
             Replace each fragment by its summary and return it. Preserve the corresponding <p_XXX> XML tags.
 

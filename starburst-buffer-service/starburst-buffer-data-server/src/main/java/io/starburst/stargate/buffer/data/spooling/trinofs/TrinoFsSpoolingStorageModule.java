@@ -190,7 +190,8 @@ public class TrinoFsSpoolingStorageModule
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 threads,
                 threads,
-                60L, TimeUnit.SECONDS,
+                60L,
+                TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
                 threadsNamed(nameFormat));
         executor.allowCoreThreadTimeOut(true);

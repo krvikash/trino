@@ -99,7 +99,8 @@ public class WarmupTask
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
 
     @Inject
-    public WarmupTask(WarmupRuleService warmupRuleService,
+    public WarmupTask(
+            WarmupRuleService warmupRuleService,
             WarmupRuleFetcher<WarmupRule> warmupRuleFetcher,
             CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient,
@@ -128,7 +129,7 @@ public class WarmupTask
                     .collect(Collectors.toList());
         }
 
-        //in case we're working with cloud rule list flow
+        // in case we're working with cloud rule list flow
         Map<String, List<WarmupColRuleData>> workersRulesMap = coordinatorNodeManager.getWorkerNodes()
                 .stream()
                 .parallel()
@@ -144,7 +145,7 @@ public class WarmupTask
                     return Pair.of(node.getNodeIdentifier(), warmupRules);
                 }).collect(Collectors.toMap(Pair::getKey, Pair::getValue));
 
-        //validate all workers have the same rules size
+        // validate all workers have the same rules size
         if (workersRulesMap.values().stream().map(List::size).distinct().count() > 1) {
             throw new RuntimeException("not all workers have the same rules [%s]".formatted(workersRulesMap));
         }
@@ -271,17 +272,19 @@ public class WarmupTask
                             if (Objects.isNull(oldValue)) {
                                 return warmupDefaultRuleUsageData;
                             }
-                            return new WarmupDefaultRuleUsageData(oldValue.usedStorageKB() + warmupDefaultRuleUsageData.usedStorageKB(),
+                            return new WarmupDefaultRuleUsageData(
+                                    oldValue.usedStorageKB() + warmupDefaultRuleUsageData.usedStorageKB(),
                                     warmupDefaultRuleUsageData.warmUpType());
                         }));
     }
 
     @Path(TASK_NAME_VALIDATE)
     @POST
-    //@ApiOperation(value = "validate", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "validate", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public List<WarmupColRuleRejectionData> validate(@JsonProperty("warmupColRuleDataList") List<WarmupColRuleData> warmupColRuleDataList)
     {
-        WarmupRuleResult warmupRuleResult = warmupRuleService.validate(Collections.emptyList(),
+        WarmupRuleResult warmupRuleResult = warmupRuleService.validate(
+                Collections.emptyList(),
                 warmupColRuleDataList.stream().map(WarmupRuleApiMapper::toModel).collect(Collectors.toList()));
         return warmupRuleResult.rejectedRules()
                 .entrySet()

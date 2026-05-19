@@ -50,7 +50,7 @@ public class CallHomeResource
 
     @POST
     @Audit
-    //@ApiOperation(value = "call-home", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "call-home", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, Object> triggerCallHome(CallHomeData callHomeData)
     {
         Optional<Integer> optionalResult = Optional.empty();

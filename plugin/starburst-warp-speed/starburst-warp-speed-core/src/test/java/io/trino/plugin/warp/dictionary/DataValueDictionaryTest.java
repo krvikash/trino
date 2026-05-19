@@ -88,7 +88,8 @@ public class DataValueDictionaryTest
     public void beforeEach()
     {
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
-        dictionaryCacheService = spy(new DictionaryCacheService(dictionaryConfig,
+        dictionaryCacheService = spy(new DictionaryCacheService(
+                dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class)));
         dictionaryStats = (DictionaryStats) metricsManager.get(DictionaryStats.createKey());
@@ -99,7 +100,8 @@ public class DataValueDictionaryTest
             throws InterruptedException, ExecutionException
     {
         String nodeIdentifier = nodeManager.getCurrentNode().getNodeIdentifier();
-        Slice[] values = {Slices.utf8Slice("Finland"),
+        Slice[] values = {
+                Slices.utf8Slice("Finland"),
                 Slices.utf8Slice("Russia"),
                 Slices.utf8Slice("Latvia"),
                 Slices.utf8Slice("Lithuania"),

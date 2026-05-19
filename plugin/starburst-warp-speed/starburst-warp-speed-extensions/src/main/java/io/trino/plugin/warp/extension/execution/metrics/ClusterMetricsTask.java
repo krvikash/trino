@@ -66,12 +66,14 @@ public class ClusterMetricsTask
     private ClusterMetricsResult currentClusterMetricsResult;
 
     @Inject
-    public ClusterMetricsTask(CoordinatorNodeManager coordinatorNodeManager,
+    public ClusterMetricsTask(
+            CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
         this.warpClient = requireNonNull(warpClient);
-        executorService = new ThreadPoolExecutor(0,
+        executorService = new ThreadPoolExecutor(
+                0,
                 10,
                 10L,
                 TimeUnit.SECONDS,
@@ -80,7 +82,7 @@ public class ClusterMetricsTask
     }
 
     @GET
-    //@ApiOperation(value = "get", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "get", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public ClusterMetricsResult get()
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();

@@ -22,11 +22,12 @@ import java.util.Objects;
 /**
  * the record type code and length and offset for loading the data values from storage if needed
  */
-record WarmupElementDictionaryParams(DictionaryKey dictionaryKey,
-                                     int usedDictionarySize,
-                                     RecTypeCode dataValuesRecTypeCode,
-                                     int dataValuesRecTypeLength,
-                                     int dictionaryOffset)
+record WarmupElementDictionaryParams(
+        DictionaryKey dictionaryKey,
+        int usedDictionarySize,
+        RecTypeCode dataValuesRecTypeCode,
+        int dataValuesRecTypeLength,
+        int dictionaryOffset)
 {
     @Override
     public int hashCode()
@@ -54,7 +55,13 @@ record WarmupElementDictionaryParams(DictionaryKey dictionaryKey,
     @Override
     public String toString()
     {
-        return String.format(Locale.US, "dictionaryKey %s usedDictionarySize %d dataValuesRecTypeCode %s dataValuesRecTypeLength %d dictionaryOffset %d",
-                dictionaryKey, usedDictionarySize, dataValuesRecTypeCode, dataValuesRecTypeLength, dictionaryOffset);
+        return String.format(
+                Locale.US,
+                "dictionaryKey %s usedDictionarySize %d dataValuesRecTypeCode %s dataValuesRecTypeLength %d dictionaryOffset %d",
+                dictionaryKey,
+                usedDictionarySize,
+                dataValuesRecTypeCode,
+                dataValuesRecTypeLength,
+                dictionaryOffset);
     }
 }

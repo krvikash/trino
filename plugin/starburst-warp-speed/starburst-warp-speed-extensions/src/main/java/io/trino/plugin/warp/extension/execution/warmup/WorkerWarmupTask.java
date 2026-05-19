@@ -82,7 +82,7 @@ public class WorkerWarmupTask
 
     @Path(TASK_NAME_GET)
     @GET
-    //@ApiOperation(value = "get", nickname = "workerWarmupGet", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "get", nickname = "workerWarmupGet", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WarmupRulesUsageData get()
     {
         Collection<WarmupRule> warmupRules = warmupRuleProvider.getAll();
@@ -94,7 +94,8 @@ public class WorkerWarmupTask
         ImmutableCollection<WarmupColRuleUsageData> colRuleUsageDataList = warmupRules.stream()
                 .map(warmupRule -> {
                     WarmupColRuleData data = WarmupRuleApiMapper.fromModel(warmupRule);
-                    return new WarmupColRuleUsageData(warmupRule.getId(),
+                    return new WarmupColRuleUsageData(
+                            warmupRule.getId(),
                             data.getSchema(),
                             data.getTable(),
                             data.getColumn(),
@@ -134,8 +135,10 @@ public class WorkerWarmupTask
                 SchemaTableColumn schemaTableColumn = new SchemaTableColumn(
                         new SchemaTableName(rowGroupData.getRowGroupKey().schema(), rowGroupData.getRowGroupKey().table()), warmUpElement.getWarpColumn());
 
-                Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(rowGroupData,
-                        warmUpElement, schemaTableColumnToRulesMap.get(schemaTableColumn));
+                Optional<WarmupRule> optionalWarmupRule = WarmUtils.findMostRelevantRuleForWarmupElement(
+                        rowGroupData,
+                        warmUpElement,
+                        schemaTableColumnToRulesMap.get(schemaTableColumn));
                 long sizeInBytes = 0;
                 optionalWarmupRule.ifPresentOrElse(warmupRule -> {
                     AtomicLong currentUsage = warmupIdUsageMap.computeIfAbsent(warmupRule.getId(), _ -> new AtomicLong(0));

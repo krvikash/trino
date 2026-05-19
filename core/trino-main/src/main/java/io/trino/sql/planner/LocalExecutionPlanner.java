@@ -815,7 +815,10 @@ public class LocalExecutionPlanner
                         .collect(toImmutableList());
                 int pipelineId = getNextPipelineId();
                 Map<TableHandle, DriverFactory> alternatives = Maps.transformValues(physicalOperation.pipelineHeadAlternatives,
-                        alternative -> new DriverFactory(pipelineId, inputDriver, outputDriver,
+                        alternative -> new DriverFactory(
+                                pipelineId,
+                                inputDriver,
+                                outputDriver,
                                 ImmutableList.<OperatorFactory>builder()
                                         .addAll(alternative)
                                         .addAll(commonOperators)
@@ -2183,7 +2186,8 @@ public class LocalExecutionPlanner
                 }
             }
 
-            OperatorFactory groupIdOperatorFactory = new GroupIdOperator.GroupIdOperatorFactory(context.getNextOperatorId(),
+            OperatorFactory groupIdOperatorFactory = new GroupIdOperator.GroupIdOperatorFactory(
+                    context.getNextOperatorId(),
                     node.getId(),
                     outputTypes.build(),
                     mappings.build());
@@ -4976,8 +4980,7 @@ public class LocalExecutionPlanner
                 PlanNodeId chooseAlternativePlanNodeId,
                 Map<Symbol, Integer> layout)
         {
-            this(
-                    ImmutableList.of(),
+            this(ImmutableList.of(),
                     Maps.transformValues(pipelineHeadAlternatives, PhysicalOperation::getPipelineTail),
                     Optional.of(chooseAlternativePlanNodeId),
                     layout);

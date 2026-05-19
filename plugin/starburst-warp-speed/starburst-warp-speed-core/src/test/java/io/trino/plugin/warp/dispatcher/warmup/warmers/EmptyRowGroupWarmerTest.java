@@ -93,7 +93,8 @@ public class EmptyRowGroupWarmerTest
         when(rowGroupKey.table()).thenReturn(schemaTableName.getTableName());
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
         List<ColumnHandle> columns = mockColumns(List.of(Pair.of(columnName, IntegerType.INTEGER)));
-        SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypes = createRequiredWarmUpTypes(columns,
+        SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypes = createRequiredWarmUpTypes(
+                columns,
                 List.of(requiredWarmupType));
         WarmData warmData = new WarmData(columns, newRequiredWarmUpTypes, WarmExecutionState.EMPTY_ROW_GROUP, true, mock(QueryContext.class), null);
         List<WarmUpElement> warmupElements = warmupElementsCreator.createWarmupElements(rowGroupKey, warmData.requiredWarmUpTypeMap(), schemaTableName, warmData.columnHandleList());

@@ -20,7 +20,8 @@ import com.google.common.collect.ImmutableCollection;
 public record WarmupRulesUsageData(ImmutableCollection<WarmupColRuleUsageData> warmupColRuleUsageDataList, ImmutableCollection<WarmupDefaultRuleUsageData> warmupDefaultRuleUsageDataList)
 {
     @JsonCreator
-    public WarmupRulesUsageData(@JsonProperty("warmupColRuleUsageDataList") ImmutableCollection<WarmupColRuleUsageData> warmupColRuleUsageDataList,
+    public WarmupRulesUsageData(
+            @JsonProperty("warmupColRuleUsageDataList") ImmutableCollection<WarmupColRuleUsageData> warmupColRuleUsageDataList,
             @JsonProperty("warmupDefaultRuleUsageDataList") ImmutableCollection<WarmupDefaultRuleUsageData> warmupDefaultRuleUsageDataList)
     {
         this.warmupColRuleUsageDataList = warmupColRuleUsageDataList;

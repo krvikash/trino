@@ -56,8 +56,7 @@ public class DiscoveryBroadcast
             BufferNodeInfoService bufferNodeInfoService,
             DataServerConfig config)
     {
-        this(
-                bufferNodeId,
+        this(bufferNodeId,
                 discoveryApi,
                 stateManager,
                 requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null")::getNodeInfo,

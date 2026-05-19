@@ -194,7 +194,7 @@ public final class GpuJoinBuild
 
             if (filter.isEmpty()) {
                 buildSourceTable.close();
-                hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/false));
+                hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
                 buildKeyTable.close();
                 bridge = new GpuJoinBridge.HashJoinBridge(
                         hashJoin.borrow(),

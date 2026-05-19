@@ -39,56 +39,56 @@ public class TestDataframeTableFunctionSmokeTest
         assertThat(trinoPlan.getQueries()).isEqualTo(
                 ImmutableList.of(
                         """
-                                SELECT *
-                                FROM
-                                  (
-                                   SELECT *
-                                   FROM
-                                     (
-                                      SELECT *
-                                      FROM
-                                        (
-                                         SELECT *
-                                         FROM
-                                           (
-                                            SELECT *
-                                            FROM
-                                              (
-                                               SELECT
-                                                 "_1" "a"
-                                               , "_2" "b"
-                                               FROM
-                                                 (
-                                                  SELECT
-                                                    "_1"
-                                                  , "_2"
-                                                  FROM
-                                                    (
-                                                     SELECT
-                                                       CAST("_1" AS BIGINT) "_1"
-                                                     , CAST("_2" AS BIGINT) "_2"
-                                                     FROM
-                                                       (
-                                 VALUES\s
-                                                          ROW(CAST(1 AS BIGINT), CAST(2 AS BIGINT))
-                                                        , ROW(CAST(3 AS BIGINT), CAST(4 AS BIGINT))
-                                                        , ROW(CAST(5 AS BIGINT), CAST(6 AS BIGINT))
-                                                        , ROW(CAST(7 AS BIGINT), CAST(8 AS BIGINT))
-                                                        , ROW(CAST(9 AS BIGINT), CAST(10 AS BIGINT))
-                                                     )  t ("_1", "_2")
-                                                  )\s
-                                               )\s
-                                            )\s
-                                            WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
-                                         )\s
-                                         WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
-                                      )\s
-                                      WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
-                                   )\s
-                                   WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
-                                )\s
-                                WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
-                                """));
+                        SELECT *
+                        FROM
+                          (
+                           SELECT *
+                           FROM
+                             (
+                              SELECT *
+                              FROM
+                                (
+                                 SELECT *
+                                 FROM
+                                   (
+                                    SELECT *
+                                    FROM
+                                      (
+                                       SELECT
+                                         "_1" "a"
+                                       , "_2" "b"
+                                       FROM
+                                         (
+                                          SELECT
+                                            "_1"
+                                          , "_2"
+                                          FROM
+                                            (
+                                             SELECT
+                                               CAST("_1" AS BIGINT) "_1"
+                                             , CAST("_2" AS BIGINT) "_2"
+                                             FROM
+                                               (
+                         VALUES\s
+                                                  ROW(CAST(1 AS BIGINT), CAST(2 AS BIGINT))
+                                                , ROW(CAST(3 AS BIGINT), CAST(4 AS BIGINT))
+                                                , ROW(CAST(5 AS BIGINT), CAST(6 AS BIGINT))
+                                                , ROW(CAST(7 AS BIGINT), CAST(8 AS BIGINT))
+                                                , ROW(CAST(9 AS BIGINT), CAST(10 AS BIGINT))
+                                             )  t ("_1", "_2")
+                                          )\s
+                                       )\s
+                                    )\s
+                                    WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
+                                 )\s
+                                 WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
+                              )\s
+                              WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
+                           )\s
+                           WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
+                        )\s
+                        WHERE (("a" >= CAST(2 AS BIGINT)) AND ("a" <= CAST(6 AS BIGINT)))
+                        """));
     }
 
     @Override

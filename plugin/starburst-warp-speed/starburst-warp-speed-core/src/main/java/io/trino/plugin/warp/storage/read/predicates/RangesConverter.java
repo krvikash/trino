@@ -51,9 +51,7 @@ class RangesConverter
     static final long LONG_DECIMAL_UPPER_UNBOUNDED_MSB = Long.MAX_VALUE;
     static final long LONG_DECIMAL_UPPER_UNBOUNDED_LSB = 0xFFFFFFFFFFFFFFFFL;
 
-    RangesConverter()
-    {
-    }
+    RangesConverter() {}
 
     void setBooleanRanges(Ranges ranges, ByteBuffer lowBuf, ByteBuffer highBuf)
     {
@@ -303,7 +301,11 @@ class RangesConverter
         }
     }
 
-    void setStringRanges(SortedRangeSet sortedRangeSet, ByteBuffer lowBuf, ByteBuffer highBuf, int recLength,
+    void setStringRanges(
+            SortedRangeSet sortedRangeSet,
+            ByteBuffer lowBuf,
+            ByteBuffer highBuf,
+            int recLength,
             Function<Slice, Slice> sliceConverter)
     {
         Type type = sortedRangeSet.getType();

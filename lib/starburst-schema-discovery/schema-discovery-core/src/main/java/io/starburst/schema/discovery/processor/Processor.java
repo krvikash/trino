@@ -322,12 +322,13 @@ public class Processor
         try {
             IcebergLocationReadResult metadataLocation = readIcebergTableMetadataLocation(fileSystem, table.path());
             if (!metadataLocation.isEqualTo(table.path())) {
-                errors.addTableError(table.path(), """
+                errors.addTableError(table.path(),
+                        """
                         Table metadata file [%s] declares table location as [%s] which is differs from location where table was discovered at [%s]. \
                         Iceberg table can only be discovered in the same location it was created with.""".formatted(
-                        metadataLocation.latestMetadataLocation(),
-                        metadataLocation.tablePath().path(),
-                        table.path()));
+                                metadataLocation.latestMetadataLocation(),
+                                metadataLocation.tablePath().path(),
+                                table.path()));
                 return table.withErrors(errors.buildForPathAndChildren(table.path().path()));
             }
             return table;
@@ -491,8 +492,8 @@ public class Processor
     private boolean isValid(TableFormat format, List<Column> columns)
     {
         return (format != TableFormat.ERROR)
-               // skip as shallow discovery does not detect columns within table
-               && (isShallow.get() || (!format.requiresColumnDefinitions() || !columns.isEmpty()));
+                // skip as shallow discovery does not detect columns within table
+                && (isShallow.get() || (!format.requiresColumnDefinitions() || !columns.isEmpty()));
     }
 
     private DiscoveredTable mergeTables(String tablePath, DiscoveredTable table1, DiscoveredTable table2)
@@ -576,8 +577,12 @@ public class Processor
             Column d1Column = smaller.columns().get(i);
             Column d2Column = larger.columns().get(i);
             if (!d1Column.name().equals(d2Column.name())) {
-                errors.addTableError(errorContext, "Discovered columns in [%s] do not match with each other. Found: [%s], and also: [%s]",
-                        errorContext, smaller.columns().stream().map(Column::name).collect(toImmutableList()), larger.columns().stream().map(Column::name).collect(toImmutableList()));
+                errors.addTableError(
+                        errorContext,
+                        "Discovered columns in [%s] do not match with each other. Found: [%s], and also: [%s]",
+                        errorContext,
+                        smaller.columns().stream().map(Column::name).collect(toImmutableList()),
+                        larger.columns().stream().map(Column::name).collect(toImmutableList()));
                 errors.addTableError(errorContext, "Column name mismatch in [%s] at index [%d]. [%s] does not match [%s]", errorContext, i, d1Column.name(), d2Column.name());
                 return EMPTY_DISCOVERED_COLUMNS;
             }

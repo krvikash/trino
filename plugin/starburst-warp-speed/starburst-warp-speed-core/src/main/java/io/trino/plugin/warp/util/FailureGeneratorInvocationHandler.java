@@ -47,7 +47,9 @@ public class FailureGeneratorInvocationHandler
             if (failureAction != null && failureAction.shouldExecute()) {
                 logger.debug("invoking proxy of %s - %s", key, failureAction);
                 switch (failureAction.getFailureType()) {
-                    case RETURN_NULL -> { /* do nothing */ }
+                    case RETURN_NULL -> {
+                        /* do nothing */
+                    }
                     case JAVA_EXCEPTION -> throw new TrinoException(WarpErrorCode.WARP_GENERIC, "this is a fake java error");
                     case NATIVE_EXCEPTION -> throw new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR, "this is a fake native error");
                     case NATIVE_UNRECOVERABLE_EXCEPTION -> throw new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "this is a fake unrecoverable native error");
@@ -130,6 +132,6 @@ public class FailureGeneratorInvocationHandler
         NATIVE_EXCEPTION,
         NATIVE_UNRECOVERABLE_EXCEPTION,
         NATIVE_PANIC,
-        RETURN_NULL
+        RETURN_NULL,
     }
 }

@@ -79,7 +79,8 @@ public class TestDispatcherInternalBearerAuthIT
                 Optional.empty(),
                 2,
                 Map.of(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",
                         PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME,

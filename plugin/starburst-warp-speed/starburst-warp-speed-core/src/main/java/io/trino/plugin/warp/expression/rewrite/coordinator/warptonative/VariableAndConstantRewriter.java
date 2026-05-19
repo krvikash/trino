@@ -106,7 +106,8 @@ class VariableAndConstantRewriter
         rewriteContext
                 .nativeExpressionBuilder()
                 .functionType(FunctionType.FUNCTION_TYPE_TRANSFORMED)
-                .transformedColumn(new TransformFunction(TransformFunction.TransformType.JSON_EXTRACT_SCALAR,
+                .transformedColumn(new TransformFunction(
+                        TransformFunction.TransformType.JSON_EXTRACT_SCALAR,
                         List.of(new WarpPrimitiveConstant(warpSliceConstant.getValue().toStringUtf8(), VarcharType.VARCHAR))));
         return true;
     }

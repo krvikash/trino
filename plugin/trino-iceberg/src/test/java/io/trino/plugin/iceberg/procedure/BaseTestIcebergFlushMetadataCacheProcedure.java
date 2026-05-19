@@ -115,9 +115,11 @@ abstract class BaseTestIcebergFlushMetadataCacheProcedure
     {
         assertQueryFails("CALL system.flush_metadata_cache(schema_name => '', table_name => 'test_not_existing_table')", "schemaName is empty");
         assertQueryFails("CALL system.flush_metadata_cache(schema_name => 'test_not_existing_schema', table_name => '')", "tableName is empty");
-        assertQueryFails("CALL system.flush_metadata_cache(schema_name => 'test_not_existing_schema')",
+        assertQueryFails(
+                "CALL system.flush_metadata_cache(schema_name => 'test_not_existing_schema')",
                 "Illegal parameter set passed\\. Both schema_name and table_name must be provided, or neither\\.");
-        assertQueryFails("CALL system.flush_metadata_cache(table_name => 'test_not_existing_table')",
+        assertQueryFails(
+                "CALL system.flush_metadata_cache(table_name => 'test_not_existing_table')",
                 "Illegal parameter set passed\\. Both schema_name and table_name must be provided, or neither\\.");
     }
 

@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         use = JsonTypeInfo.Id.NAME,
         property = WarpExpressionData.CLASS_TYPE)
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = WarpPrimitiveConstantData.class, name = "VaradaPrimitiveConstant")
+        @JsonSubTypes.Type(value = WarpPrimitiveConstantData.class, name = "VaradaPrimitiveConstant"),
 })
 public interface WarpExpressionData
 {
@@ -31,12 +31,13 @@ public interface WarpExpressionData
     @JsonProperty(TYPE)
     Type getType();
 
-    enum Type {
+    enum Type
+    {
         VARCHAR,
         INTEGER,
         BIGINT,
         SMALLINT,
         DOUBLE,
-        REAL
+        REAL,
     }
 }

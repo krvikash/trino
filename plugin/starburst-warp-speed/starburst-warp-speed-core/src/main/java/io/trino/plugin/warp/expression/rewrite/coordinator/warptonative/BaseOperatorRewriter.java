@@ -34,7 +34,8 @@ abstract class BaseOperatorRewriter
     final NativeExpressionRulesHandler nativeExpressionRulesHandler;
     final PushdownPredicatesStats pushdownPredicatesStats;
 
-    BaseOperatorRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler,
+    BaseOperatorRewriter(
+            NativeExpressionRulesHandler nativeExpressionRulesHandler,
             PushdownPredicatesStats pushdownPredicatesStats)
     {
         this.nativeExpressionRulesHandler = nativeExpressionRulesHandler;
@@ -43,14 +44,16 @@ abstract class BaseOperatorRewriter
 
     boolean greaterThan(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(warpExpression,
+        return convert(
+                warpExpression,
                 rewriteContext,
                 GREATER_THAN_FUNCTION);
     }
 
     boolean greaterThanOrEqual(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(warpExpression,
+        return convert(
+                warpExpression,
                 rewriteContext,
                 GREATER_THAN_OR_EQUAL_FUNCTION);
     }
@@ -64,26 +67,30 @@ abstract class BaseOperatorRewriter
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;
         }
-        return convert(warpExpression,
+        return convert(
+                warpExpression,
                 rewriteContext,
                 EQUAL_FUNCTION);
     }
 
     boolean lessThanOrEqual(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(warpExpression,
+        return convert(
+                warpExpression,
                 rewriteContext,
                 LESS_THAN_OR_EQUAL_FUNCTION);
     }
 
     boolean lessThan(WarpExpression warpExpression, RewriteContext rewriteContext)
     {
-        return convert(warpExpression,
+        return convert(
+                warpExpression,
                 rewriteContext,
                 LESS_THAN_FUNCTION);
     }
 
-    abstract boolean convert(WarpExpression warpExpression,
+    abstract boolean convert(
+            WarpExpression warpExpression,
             RewriteContext rewriteContext,
             BiFunction<Type, Object, Range> rangeBiFunction);
 }

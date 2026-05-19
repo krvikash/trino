@@ -57,16 +57,16 @@ public class SupportedFunctions
     public static final FunctionName SUBSTR = new FunctionName("substr");
     public static final FunctionName STRPOS = new FunctionName("strpos");
     public static final FunctionName DAY = new FunctionName("day");
-    public static final FunctionName DAY_OF_MONTH = new FunctionName("day_of_month"); //This is an alias for day().
+    public static final FunctionName DAY_OF_MONTH = new FunctionName("day_of_month"); // This is an alias for day().
     public static final FunctionName DAY_OF_WEEK = new FunctionName("day_of_week");
-    public static final FunctionName DOW = new FunctionName("dow"); //This is an alias for day_of_week().
+    public static final FunctionName DOW = new FunctionName("dow"); // This is an alias for day_of_week().
     public static final FunctionName DAY_OF_YEAR = new FunctionName("day_of_year");
-    public static final FunctionName DOY = new FunctionName("doy"); //This is an alias for day_of_year().
-    public static final FunctionName WEEK = new FunctionName("week"); //This is an alias for day_of_year().
-    public static final FunctionName WEEK_OF_YEAR = new FunctionName("week_of_year"); //This is an alias for week()
-    public static final FunctionName YEAR = new FunctionName("year"); //This is an alias for day_of_year().
-    public static final FunctionName YEAR_OF_WEEK = new FunctionName("year_of_week"); //Returns the year of the ISO week from x.
-    public static final FunctionName YOW = new FunctionName("yow"); //This is an alias for year_of_week().
+    public static final FunctionName DOY = new FunctionName("doy"); // This is an alias for day_of_year().
+    public static final FunctionName WEEK = new FunctionName("week"); // This is an alias for day_of_year().
+    public static final FunctionName WEEK_OF_YEAR = new FunctionName("week_of_year"); // This is an alias for week()
+    public static final FunctionName YEAR = new FunctionName("year"); // This is an alias for day_of_year().
+    public static final FunctionName YEAR_OF_WEEK = new FunctionName("year_of_week"); // Returns the year of the ISO week from x.
+    public static final FunctionName YOW = new FunctionName("yow"); // This is an alias for year_of_week().
     public static final FunctionName CONTAINS = new FunctionName("contains");
 
     public static final FunctionName ELEMENT_AT = new FunctionName("element_at");
@@ -85,7 +85,8 @@ public class SupportedFunctions
     private final SetMultimap<FunctionName, ConnectorExpressionRule<Call, WarpExpression>> supportedFunctionsRules = HashMultimap.create();
     private final PushdownPredicatesStats pushdownPredicatesStats;
 
-    public static final Set<FunctionName> DATE_FUNCTIONS = Set.of(SupportedFunctions.DOW,
+    public static final Set<FunctionName> DATE_FUNCTIONS = Set.of(
+            SupportedFunctions.DOW,
             SupportedFunctions.DAY_OF_MONTH,
             SupportedFunctions.DAY,
             SupportedFunctions.DAY_OF_WEEK,
@@ -95,7 +96,8 @@ public class SupportedFunctions
             SupportedFunctions.WEEK_OF_YEAR,
             SupportedFunctions.YOW,
             SupportedFunctions.YEAR_OF_WEEK);
-    private final Set<String> comparableStandardFunctions = Set.of(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+    private final Set<String> comparableStandardFunctions = Set.of(
+            EQUAL_OPERATOR_FUNCTION_NAME.getName(),
             GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
             GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
             LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
@@ -122,7 +124,9 @@ public class SupportedFunctions
         supportedFunctionsRules.put(CONTAINS, new ContainsArrayRewriter());
         supportedFunctionsRules.put(OR_FUNCTION_NAME, new OrRewriter());
         supportedFunctionsRules.put(AND_FUNCTION_NAME, new AndRewriter());
-        supportedFunctionsRules.put(ELEMENT_AT, createGenericRewriter("element_at(map : valid_types, key)", false,
+        supportedFunctionsRules.put(ELEMENT_AT, createGenericRewriter(
+                "element_at(map : valid_types, key)",
+                false,
                 Map.of("valid_types", Set.of(StandardTypes.MAP))));
         supportedFunctionsRules.put(TRIM, createGenericRewriter("trim(string)", false));
         supportedFunctionsRules.put(RTRIM, createGenericRewriter("rtrim(string)", false));

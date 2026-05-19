@@ -56,7 +56,7 @@ public class TestStatistics
         NULLSFRACTION,
         ROWCOUNT,
         LOWVALUE,
-        HIGHVALUE
+        HIGHVALUE,
     }
 
     private record ColumnStatistics(
@@ -159,12 +159,14 @@ public class TestStatistics
     {
         onTrino().executeQuery(format("ANALYZE %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
 
-        List<ColumnStatistics> allColumnsAfterAnalyze = getStatistics(); //after running Analyze
+        List<ColumnStatistics> allColumnsAfterAnalyze = getStatistics(); // after running Analyze
         Optional<Double> rowCounts = getRowCountFromStatistics(allColumnsAfterAnalyze);
         Double expectedRowCount = queryUtils.getTableRowCount(CATALOG_NAME, SCHEMA_NAME, TABLE_NAME);
 
-        rowCounts.ifPresent(aDouble -> assertThat(aDouble).as(format("Expected %s rows but received %f",
-                expectedRowCount, aDouble)).isEqualTo(expectedRowCount));
+        rowCounts.ifPresent(aDouble -> assertThat(aDouble).as(format(
+                "Expected %s rows but received %f",
+                expectedRowCount,
+                aDouble)).isEqualTo(expectedRowCount));
 
         this.validateStatsPerColumn(TABLE_COLUMN_INT, allColumnsAfterAnalyze);
         this.validateStatsPerColumn(TABLE_COLUMN_BOOL, allColumnsAfterAnalyze);
@@ -235,7 +237,7 @@ public class TestStatistics
         Optional<Double> rowCount = Optional.empty();
 
         for (ColumnStatistics cs : allColumns) {
-            if (cs.columnName.isEmpty()) { //Expect only one row where columnName is null
+            if (cs.columnName.isEmpty()) { // Expect only one row where columnName is null
                 rowCount = cs.rowCount;
                 break;
             }

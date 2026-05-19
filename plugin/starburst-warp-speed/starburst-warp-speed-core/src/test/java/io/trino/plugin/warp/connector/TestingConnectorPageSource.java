@@ -50,7 +50,5 @@ public class TestingConnectorPageSource
     }
 
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 }

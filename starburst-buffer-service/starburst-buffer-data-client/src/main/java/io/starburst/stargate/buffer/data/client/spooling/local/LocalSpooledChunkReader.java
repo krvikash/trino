@@ -72,6 +72,5 @@ public class LocalSpooledChunkReader
     @Override
     public void close()
             throws Exception
-    {
-    }
+    {}
 }

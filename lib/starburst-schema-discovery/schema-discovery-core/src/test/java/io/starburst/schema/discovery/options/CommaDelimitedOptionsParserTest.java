@@ -20,58 +20,76 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class CommaDelimitedOptionsParserTest
 {
-    static final String OPTIONS_WITHOUT_DELIMITER = """
+    static final String OPTIONS_WITHOUT_DELIMITER =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\"""";
 
-    static final String OPTIONS_WITH_COMMA_DELIMITER_START = """
+    static final String OPTIONS_WITH_COMMA_DELIMITER_START =
+            """
             delimiter=,,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_COMMA_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_COMMA_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,delimiter=,,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\"""";
 
-    static final String OPTIONS_WITH_COMMA_DELIMITER_LAST = """
+    static final String OPTIONS_WITH_COMMA_DELIMITER_LAST =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=",delimiter=,""";
 
-    static final String OPTIONS_WITH_SPACE_DELIMITER_START = """
+    static final String OPTIONS_WITH_SPACE_DELIMITER_START =
+            """
             delimiter= ,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_SPACE_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_SPACE_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",delimiter= ,headers=true""";
 
     static final String OPTIONS_WITH_SPACE_DELIMITER_LAST = "dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\",delimiter= ";
 
-    static final String OPTIONS_WITH_TAB_DELIMITER_START = """
+    static final String OPTIONS_WITH_TAB_DELIMITER_START =
+            """
             delimiter=\t,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_TAB_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_TAB_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",delimiter=\t,headers=true""";
 
     static final String OPTIONS_WITH_TAB_DELIMITER_LAST = "dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\",delimiter=\t";
 
-    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_START = """
+    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_START =
+            """
             delimiter=|,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",delimiter=|,headers=true""";
 
     static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_LAST = "dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\",delimiter=|";
 
-    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_START = """
+    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_START =
+            """
             s1.t1.delimiter=,,dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",headers=true""";
 
-    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_LAST = """
+    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_LAST =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=",s1.t1.delimiter=,""";
-    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true""";
-    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_MIDDLE = """
+    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true""";
-    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_START = """
+    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_START =
+            """
             excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*,dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true""";
-    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_LAST = """
+    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_LAST =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true,excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*""";
-    static final String OPTIONS_COMPLEX = """
+    static final String OPTIONS_COMPLEX =
+            """
             dateFormat=yyyy-MM-dd,excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true,s2.table_2.dateFormat=dd-MM-yyyy,schema_3.table-3.excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*|**/orc/{coalesce,coalesce-mismatch}/*,schema_3.tablejson.forceTableFormat=JSON""";
-    static final String OPTIONS_WITH_MULTIPLE_OVERWRITES = """
+    static final String OPTIONS_WITH_MULTIPLE_OVERWRITES =
+            """
             s1.t1.delimiter=,,delimiter=,,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],dateFormat=yyyy-MM-dd,s1.t2.quote=",headers=false,s1.t1.dateFormat=dd-MM-yyyy,quote=',s1.t1.headers=true,s1.t2.delimiter=,,s1.t1.quote=`,s1.t2.headers=true""";
 
     static final String OPTIONS_WITH_SCHEMA_NAME_AS_OPTION_NAME = "timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],delimiter.cars_vertical.delimiter=|,dateFormat=yyyy-MM-dd,dateFormat.dateFormat.dateFormat=dd-MM-yyyy,headers=true,quote=\"";

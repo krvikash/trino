@@ -45,17 +45,17 @@ import static java.util.Objects.requireNonNull;
  */
 public sealed interface ArrowWriter
         permits ArrayWriter,
-        MapWriter,
-        PrimitiveWriter,
-        RowWriter,
-        TimeSecWithTimeZoneWriter,
-        TimeMilliWithTimeZoneWriter,
-        TimeMicroWithTimeZoneWriter,
-        TimeNanoWithTimeZoneWriter,
-        TimestampSecWithTimeZoneWriter,
-        TimestampMilliWithTimeZoneWriter,
-        TimestampMicroWithTimeZoneWriter,
-        TimestampNanoWithTimeZoneWriter
+                MapWriter,
+                PrimitiveWriter,
+                RowWriter,
+                TimeMicroWithTimeZoneWriter,
+                TimeMilliWithTimeZoneWriter,
+                TimeNanoWithTimeZoneWriter,
+                TimeSecWithTimeZoneWriter,
+                TimestampMicroWithTimeZoneWriter,
+                TimestampMilliWithTimeZoneWriter,
+                TimestampNanoWithTimeZoneWriter,
+                TimestampSecWithTimeZoneWriter
 {
     /**
      * Usually we want to call ValueVector.setInitialCapacity() to hint Arrow how many positions

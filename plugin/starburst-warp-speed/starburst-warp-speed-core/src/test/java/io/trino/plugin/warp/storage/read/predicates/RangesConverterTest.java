@@ -206,7 +206,8 @@ class RangesConverterTest
         Range middleRange3 = Range.range(BIGINT, 20L, true, 25L, false);
         Range middleRange4 = Range.range(BIGINT, 30L, false, 35L, true);
         Range greater = Range.greaterThanOrEqual(BIGINT, 90L);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(BIGINT, List.of(lessRange,
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(BIGINT, List.of(
+                lessRange,
                 middleRange1,
                 middleRange2,
                 middleRange3,
@@ -214,14 +215,16 @@ class RangesConverterTest
                 greater));
         rangesConverter.setLongRanges(low, high, sortedRangeSet);
 
-        List<Pair<Long, Byte>> expectedLowResults = List.of(Pair.of(LONG_LOWER_UNBOUNDED, INCLUSIVE),
+        List<Pair<Long, Byte>> expectedLowResults = List.of(
+                Pair.of(LONG_LOWER_UNBOUNDED, INCLUSIVE),
                 Pair.of(3L, INCLUSIVE),
                 Pair.of(7L, EXCLUSIVE),
                 Pair.of(20L, INCLUSIVE),
                 Pair.of(30L, EXCLUSIVE),
                 Pair.of(90L, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<Pair<Long, Byte>> expectedHighResults = List.of(Pair.of(-9L, INCLUSIVE),
+        List<Pair<Long, Byte>> expectedHighResults = List.of(
+                Pair.of(-9L, INCLUSIVE),
                 Pair.of(5L, INCLUSIVE),
                 Pair.of(10L, EXCLUSIVE),
                 Pair.of(25L, EXCLUSIVE),
@@ -239,7 +242,8 @@ class RangesConverterTest
         Range middleRange3 = Range.range(TINYINT, 20L, true, 25L, false);
         Range middleRange4 = Range.range(TINYINT, 30L, false, 35L, true);
         Range greater = Range.greaterThanOrEqual(TINYINT, 90L);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(TINYINT, List.of(lessRange,
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(TINYINT, List.of(
+                lessRange,
                 middleRange1,
                 middleRange2,
                 middleRange3,
@@ -255,7 +259,8 @@ class RangesConverterTest
                         Pair.of((byte) 30, EXCLUSIVE),
                         Pair.of((byte) 90, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of((byte) -9, INCLUSIVE),
+        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(
+                Pair.of((byte) -9, INCLUSIVE),
                 Pair.of((byte) 5, INCLUSIVE),
                 Pair.of((byte) 10, EXCLUSIVE),
                 Pair.of((byte) 25, EXCLUSIVE),
@@ -273,7 +278,8 @@ class RangesConverterTest
         Range middleRange3 = Range.range(SMALLINT, 20L, true, 25L, false);
         Range middleRange4 = Range.range(SMALLINT, 30L, false, 35L, true);
         Range greater = Range.greaterThanOrEqual(SMALLINT, 90L);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(SMALLINT, List.of(lessRange,
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(SMALLINT, List.of(
+                lessRange,
                 middleRange1,
                 middleRange2,
                 middleRange3,
@@ -289,7 +295,8 @@ class RangesConverterTest
                         Pair.of((short) 30, EXCLUSIVE),
                         Pair.of((short) 90, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of((short) -9, INCLUSIVE),
+        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(
+                Pair.of((short) -9, INCLUSIVE),
                 Pair.of((short) 5, INCLUSIVE),
                 Pair.of((short) 10, EXCLUSIVE),
                 Pair.of((short) 25, EXCLUSIVE),
@@ -307,7 +314,8 @@ class RangesConverterTest
         Range middleRange3 = Range.range(DoubleType.DOUBLE, 20d, true, 25d, false);
         Range middleRange4 = Range.range(DoubleType.DOUBLE, 30d, false, 35d, true);
         Range greater = Range.greaterThanOrEqual(DoubleType.DOUBLE, 90d);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(DoubleType.DOUBLE, List.of(lessRange,
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(DoubleType.DOUBLE, List.of(
+                lessRange,
                 middleRange1,
                 middleRange2,
                 middleRange3,
@@ -323,7 +331,8 @@ class RangesConverterTest
                         Pair.of(30.0, EXCLUSIVE),
                         Pair.of(90.0d, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of(-9.0d, INCLUSIVE),
+        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(
+                Pair.of(-9.0d, INCLUSIVE),
                 Pair.of(5.0d, INCLUSIVE),
                 Pair.of(10.0, EXCLUSIVE),
                 Pair.of(25.0, EXCLUSIVE),
@@ -341,7 +350,8 @@ class RangesConverterTest
         Range middleRange3 = Range.range(IntegerType.INTEGER, 20L, true, 25L, false);
         Range middleRange4 = Range.range(IntegerType.INTEGER, 30L, false, 35L, true);
         Range greater = Range.greaterThanOrEqual(IntegerType.INTEGER, 90L);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(IntegerType.INTEGER, List.of(lessRange,
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(IntegerType.INTEGER, List.of(
+                lessRange,
                 middleRange1,
                 middleRange2,
                 middleRange3,
@@ -357,7 +367,8 @@ class RangesConverterTest
                         Pair.of(30, EXCLUSIVE),
                         Pair.of(90, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
-        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(Pair.of(-9, INCLUSIVE),
+        List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(
+                Pair.of(-9, INCLUSIVE),
                 Pair.of(5, INCLUSIVE),
                 Pair.of(10, EXCLUSIVE),
                 Pair.of(25, EXCLUSIVE),
@@ -420,11 +431,12 @@ class RangesConverterTest
         Range middleRange3 = Range.range(RealType.REAL, 20L, true, 25L, false);
         Range middleRange4 = Range.range(RealType.REAL, 30L, false, 35L, true); */
         Range greater = Range.greaterThanOrEqual(RealType.REAL, 90L);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(RealType.REAL, List.of(lessRange,
-                                                                        /*                          middleRange1,
-                                                                                                  middleRange2,
-                                                                                                  middleRange3,
-                                                                                                  middleRange4,*/
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(RealType.REAL, List.of(
+                lessRange,
+                /*                          middleRange1,
+                                          middleRange2,
+                                          middleRange3,
+                                          middleRange4,*/
                 greater));
         rangesConverter.setRealRanges(sortedRangeSet.getRanges(), low, high);
 
@@ -470,12 +482,14 @@ class RangesConverterTest
         sortedRangeSet = SortedRangeSet.copyOf(VarcharType.createVarcharType(10), List.of(middleIncExc, middleIncInc, middleExcExc, middleExcInc, longSlice));
         sliceConverter = SliceUtils.getSliceConverter(sortedRangeSet.getType(), 10, false, false);
         rangesConverter.setStringRanges(sortedRangeSet, low, high, 10, sliceConverter);
-        expectedLowResults = List.of(Pair.of(SliceUtils.str2int(Slices.utf8Slice("12345678"), true), INCLUSIVE),
+        expectedLowResults = List.of(
+                Pair.of(SliceUtils.str2int(Slices.utf8Slice("12345678"), true), INCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("AAA"), true), INCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("CCC"), true), EXCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("GGG"), true), INCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("III"), true), EXCLUSIVE));
-        expectedHighResults = List.of(Pair.of(SliceUtils.str2int(Slices.utf8Slice("12345678"), true), INCLUSIVE),
+        expectedHighResults = List.of(
+                Pair.of(SliceUtils.str2int(Slices.utf8Slice("12345678"), true), INCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("BBB"), true), INCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("DDD"), true), INCLUSIVE),
                 Pair.of(SliceUtils.str2int(Slices.utf8Slice("HHH"), true), EXCLUSIVE),

@@ -22,8 +22,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata
 
 public class DeterminismUtils
 {
-    private DeterminismUtils()
-    {}
+    private DeterminismUtils() {}
 
     public static boolean isDeterministic(Block block)
     {

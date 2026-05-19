@@ -117,7 +117,9 @@ public final class DiskChunkData
         int requiredStorageSize = DATA_PAGE_HEADER_SIZE + dataSize;
         int writableBytes = chunkSizeInBytes - writtenBytes;
         checkArgument(requiredStorageSize <= writableBytes,
-                "requiredStorageSize %s larger than writableBytes %s", requiredStorageSize, writableBytes);
+                "requiredStorageSize %s larger than writableBytes %s",
+                requiredStorageSize,
+                writableBytes);
 
         SliceOutput headerOutput = headerSlice.getOutput();
         headerOutput.writeShort(taskId);

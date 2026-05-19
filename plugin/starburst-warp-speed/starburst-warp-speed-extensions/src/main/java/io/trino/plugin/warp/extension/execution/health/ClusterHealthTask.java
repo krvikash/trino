@@ -62,7 +62,8 @@ public class ClusterHealthTask
     private final WarpClient warpClient;
 
     @Inject
-    public ClusterHealthTask(CoordinatorNodeManager coordinatorNodeManager,
+    public ClusterHealthTask(
+            CoordinatorNodeManager coordinatorNodeManager,
             GlobalConfig globalConfig,
             WarpClient warpClient)
     {
@@ -74,7 +75,7 @@ public class ClusterHealthTask
     @SuppressWarnings("unused")
     @Path(TASK_NAME)
     @GET
-    //@ApiOperation(value = "cluster-health", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
+    // @ApiOperation(value = "cluster-health", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public HealthResult getClusterHealthResult()
     {
         List<Node> workers = coordinatorNodeManager.getWorkerNodes();
@@ -104,7 +105,8 @@ public class ClusterHealthTask
                 .mapToLong(Long::longValue)
                 .sum();
         Optional<HealthNode> downNode = healthNodes.stream().filter(healthNode -> healthNode.state().equals("DOWN")).findAny();
-        return new HealthResult(coordinatorNodeManager.isClusterReady() && downNode.isEmpty(),
+        return new HealthResult(
+                coordinatorNodeManager.isClusterReady() && downNode.isEmpty(),
                 Objects.nonNull(coordinatorNodeManager.getCoordinatorNode()) ? UriUtils.getHttpUri(coordinatorNodeManager.getCoordinatorNode()) : null,
                 globalConfig.getClusterUpTime(),
                 ImmutableList.copyOf(healthNodes),

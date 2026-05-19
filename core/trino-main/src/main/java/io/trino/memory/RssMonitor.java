@@ -56,7 +56,8 @@ public class RssMonitor
         // Only monitor RSS memory if the interval is at least 5 seconds.
         if (rssMemorySampleInterval.isPresent() && rssMemorySampleInterval.get().toMillis() >= 5000) {
             scheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("run-in-native-process-%s"));
-            scheduler.scheduleAtFixedRate(() -> executeAsExternalProcess(),
+            scheduler.scheduleAtFixedRate(
+                    () -> executeAsExternalProcess(),
                     rssMemorySampleInterval.get().toMillis(),
                     rssMemorySampleInterval.get().toMillis(),
                     MILLISECONDS);

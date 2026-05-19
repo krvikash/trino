@@ -12,5 +12,5 @@ package io.starburst.stargate.buffer.data.client;
 public enum ChunkDeliveryMode
 {
     STANDARD,
-    EAGER
+    EAGER,
 }

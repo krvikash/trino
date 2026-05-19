@@ -23,8 +23,7 @@ import static java.lang.String.join;
 
 public final class ReferenceUtil
 {
-    private ReferenceUtil()
-    {}
+    private ReferenceUtil() {}
 
     public static String extractRefKey(List<String> prefix, String ref)
     {

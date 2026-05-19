@@ -133,7 +133,7 @@ public class TestConsistentHashingAddressProvider
         Map<String, Set<Integer>> distribution = new HashMap<>();
         for (int i = 0; i < totalSplits; i++) {
             String host = getPreferredAddress(addressProvider, planSignature, new CacheSplitId("split" + i)).getHostText();
-            distribution.computeIfAbsent(host, (_) -> new HashSet<>()).add(i);
+            distribution.computeIfAbsent(host, _ -> new HashSet<>()).add(i);
         }
         return distribution;
     }

@@ -85,7 +85,8 @@ class MatchClassifierTest
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
         List<String> columnNames = List.of("a", "b", "c", "d");
         columns = columnNames.stream().map(columnName -> mockColumnHandle(columnName, IntegerType.INTEGER, dispatcherProxiedConnectorTransformer)).collect(Collectors.toMap(TestingConnectorColumnHandle::name, columnHandle -> columnHandle));
-        predicateContextFactory = new PredicateContextFactory(new GlobalConfig(),
+        predicateContextFactory = new PredicateContextFactory(
+                new GlobalConfig(),
                 dispatcherProxiedConnectorTransformer);
         session = mock(ConnectorSession.class);
     }
@@ -156,13 +157,17 @@ class MatchClassifierTest
                 "c", createLeafExpression("c", 7L, columnNameToWarpVariable),
                 "d", createLeafExpression("d", 8L, columnNameToWarpVariable));
 
-        WarpCall rootExpression = new WarpCall(AND_FUNCTION_NAME.getName(),
+        WarpCall rootExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
                 List.of(leaves.get("a"),
-                        new WarpCall(AND_FUNCTION_NAME.getName(),
+                        new WarpCall(
+                                AND_FUNCTION_NAME.getName(),
                                 List.of(leaves.get("b"), leaves.get("c")),
                                 BOOLEAN),
-                        new WarpCall(OR_FUNCTION_NAME.getName(),
-                                List.of(leaves.get("a"), leaves.get("b"), new WarpCall(OR_FUNCTION_NAME.getName(),
+                        new WarpCall(
+                                OR_FUNCTION_NAME.getName(),
+                                List.of(leaves.get("a"), leaves.get("b"), new WarpCall(
+                                        OR_FUNCTION_NAME.getName(),
                                         List.of(leaves.get("c"), leaves.get("d")),
                                         BOOLEAN)),
                                 BOOLEAN)),
@@ -174,7 +179,8 @@ class MatchClassifierTest
                 .functionType(FunctionType.FUNCTION_TYPE_NONE)
                 .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
                 .build();
-        List<WarpExpressionData> warpExpressionDataLeaves = columns.keySet().stream().map(columnName -> new WarpExpressionData(leaves.get(columnName),
+        List<WarpExpressionData> warpExpressionDataLeaves = columns.keySet().stream().map(columnName -> new WarpExpressionData(
+                        leaves.get(columnName),
                         IntegerType.INTEGER,
                         false,
                         Optional.of(nativeExpression),
@@ -185,7 +191,8 @@ class MatchClassifierTest
 
     private WarpCall createLeafExpression(String columnName, long value, Map<String, WarpVariable> columnNameToWarpVariable)
     {
-        return new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+        return new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(columnNameToWarpVariable.get(columnName), new WarpPrimitiveConstant(value, IntegerType.INTEGER)),
                 BOOLEAN);
     }

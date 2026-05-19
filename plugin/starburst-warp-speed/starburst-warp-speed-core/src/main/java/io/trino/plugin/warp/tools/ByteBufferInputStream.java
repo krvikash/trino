@@ -37,7 +37,7 @@ public class ByteBufferInputStream
         if ((jufferPosition < jufferReadBytes)) {
             return nativeBuffer.get(jufferPosition++) & 0xFF;
         }
-        return -1; //finish
+        return -1; // finish
     }
 
     @Override
@@ -49,7 +49,7 @@ public class ByteBufferInputStream
             jufferPosition += actualLen;
             return actualLen;
         }
-        return -1; //finish
+        return -1; // finish
     }
 
     @Override

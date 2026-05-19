@@ -192,17 +192,18 @@ public abstract class BaseOpenSearchConnectorTest
     {
         String indexName = "keyword_with_bool_value";
         @Language("JSON")
-        String properties = """
-                            {
-                              "properties": {
-                                "uuid": { "type": "keyword"},
-                                "custkey": { "type": "keyword" }
-                              }
-                            }
-                            """;
+        String properties =
+                """
+                {
+                  "properties": {
+                    "uuid": { "type": "keyword"},
+                    "custkey": { "type": "keyword" }
+                  }
+                }
+                """;
         createIndex(indexName, properties);
         index(indexName, ImmutableMap.<String, Object>builder()
-                .put("uuid",  true)
+                .put("uuid", true)
                 .put("custkey", 1301)
                 .buildOrThrow());
 
@@ -2106,11 +2107,11 @@ public abstract class BaseOpenSearchConnectorTest
 
         // no matches
         assertThat(query("SELECT min(json_query(result, 'lax $[0][0].hits.hits')) " +
-                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
-                        "schema => 'tpch', " +
-                        "index => 'nation', " +
-                        "query => '{\"query\": {\"match\": {\"name\": \"UTOPIA\"}}}')) t(result) " +
-                        "WHERE json_query(result, 'lax $[0][0].hits.hits') IS NOT NULL"))
+                format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                "schema => 'tpch', " +
+                "index => 'nation', " +
+                "query => '{\"query\": {\"match\": {\"name\": \"UTOPIA\"}}}')) t(result) " +
+                "WHERE json_query(result, 'lax $[0][0].hits.hits') IS NOT NULL"))
                 .matches("VALUES VARCHAR '[]'");
 
         // syntax error

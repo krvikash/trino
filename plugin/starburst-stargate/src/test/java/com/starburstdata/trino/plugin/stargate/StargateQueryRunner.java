@@ -251,7 +251,7 @@ public final class StargateQueryRunner
                         .setSchema("unspecified_schema")
                         .build())
                 .setCoordinatorProperties(Map.of("http-server.http.port", "8081"))
-                .setWorkerCount(0)// Coordinator only is perfectly enough until we do parallel Stargate connector
+                .setWorkerCount(0) // Coordinator only is perfectly enough until we do parallel Stargate connector
                 .build();
 
         stargateQueryRunner.installPlugin(new TpchPlugin());

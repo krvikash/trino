@@ -35,7 +35,8 @@ public class WarpExpressionData
     private final Optional<NativeExpression> nativeExpressionOptional;
 
     @JsonCreator
-    public WarpExpressionData(@JsonProperty("expression") WarpExpression expression,
+    public WarpExpressionData(
+            @JsonProperty("expression") WarpExpression expression,
             @JsonProperty("columnType") Type columnType,
             @JsonProperty("collectNulls") boolean collectNulls,
             @JsonProperty("nativeExpressionOptional") Optional<NativeExpression> nativeExpressionOptional,

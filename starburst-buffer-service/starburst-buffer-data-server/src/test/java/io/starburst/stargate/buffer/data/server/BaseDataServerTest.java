@@ -131,7 +131,7 @@ abstract class BaseDataServerTest
         if (useBlockingResource) {
             builder
                     .setConfigProperty("virtual-threads.enabled", "true")
-                    .setConfigProperty("virtual-threads.http-server.http.port", "0") //random port
+                    .setConfigProperty("virtual-threads.http-server.http.port", "0") // random port
                     .withBlockingResource();
         }
         extraProperties.forEach(builder::setConfigProperty);
@@ -429,7 +429,8 @@ abstract class BaseDataServerTest
                         .setUri(uriBuilderFrom(requireNonNull(dataServerUri, "baseUri is null"))
                                 .replacePath("/api/v1/buffer/data/state")
                                 .build())
-                        .build(), createStringResponseHandler()).getBody().trim());
+                        .build(),
+                createStringResponseHandler()).getBody().trim());
     }
 
     @Test
@@ -462,7 +463,8 @@ abstract class BaseDataServerTest
         HttpDataClient invalidDataClient = new HttpDataClient(
                 dataServerUri,
                 BUFFER_NODE_ID + 1,
-                httpClient, succinctDuration(60, SECONDS),
+                httpClient,
+                succinctDuration(60, SECONDS),
                 new BlackholeSpooledChunkReader(),
                 true,
                 Optional.empty(),

@@ -425,7 +425,8 @@ public class HttpDataClient
                 Optional<String> length = response.getHeader(SPOOLED_CHUNK_LENGTH_HEADER);
 
                 if (length.isEmpty()) {
-                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request,
+                    throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(
+                            request,
                             "Expected %s, %s and %s to be all present in response")
                             .formatted(SPOOLING_FILE_LOCATION_HEADER, SPOOLED_CHUNK_OFFSET_HEADER, SPOOLED_CHUNK_LENGTH_HEADER));
                 }

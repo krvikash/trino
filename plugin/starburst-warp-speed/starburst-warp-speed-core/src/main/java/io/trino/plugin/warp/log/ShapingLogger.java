@@ -42,17 +42,17 @@ public class ShapingLogger
     private final String catalog;
     private final Logger logger;
 
-    //threshold for log flushing. if threshold<=0 then threshold is ignored
+    // threshold for log flushing. if threshold<=0 then threshold is ignored
     private final int threshold;
 
-    //interval in millis for log flushing. if duration = Duration.ZERO then it is ignored
+    // interval in millis for log flushing. if duration = Duration.ZERO then it is ignored
     long durationMillis;
 
-    //if shapeMode=FORMAT then we accumulate by format string
-    //if shapeMode=FULL then we accumulate by formatted string
+    // if shapeMode=FORMAT then we accumulate by format string
+    // if shapeMode=FULL then we accumulate by formatted string
     private final MODE mode;
 
-    //if true first log message will be logged regardless of interval/duration
+    // if true first log message will be logged regardless of interval/duration
     private final int numberOfSamples;
 
     public ShapingLogger(

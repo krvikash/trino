@@ -45,7 +45,7 @@ public class WarpSessionPropertiesTest
                 WarpSessionProperties.ENABLE_DICTIONARY);
         WarpSessionProperties warpSessionProperties = new WarpSessionProperties(new SharedConfig(), new GlobalConfig());
         List<PropertyMetadata<?>> sessionProperties = warpSessionProperties.getSessionProperties();
-        sessionProperties.stream().filter(sessionProperty -> !allowedNullProps.contains(sessionProperty.getName())).forEach((property) -> assertThat(property.getDefaultValue()).isNotNull());
+        sessionProperties.stream().filter(sessionProperty -> !allowedNullProps.contains(sessionProperty.getName())).forEach(property -> assertThat(property.getDefaultValue()).isNotNull());
     }
 
     @Test

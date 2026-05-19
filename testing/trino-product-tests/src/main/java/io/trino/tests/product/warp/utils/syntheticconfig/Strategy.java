@@ -16,5 +16,5 @@ package io.trino.tests.product.warp.utils.syntheticconfig;
 public enum Strategy
 {
     INCLUDE,
-    EXCLUDE
+    EXCLUDE,
 }

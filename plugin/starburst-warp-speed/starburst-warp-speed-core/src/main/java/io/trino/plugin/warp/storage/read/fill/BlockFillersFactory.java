@@ -35,8 +35,7 @@ public class BlockFillersFactory
         for (RecTypeCode recTypeCode : RecTypeCode.values()) {
             recTypeCodeToBlockFiller[recTypeCode.ordinal()] = switch (recTypeCode) {
                 case REC_TYPE_BOOLEAN -> new BooleanBlockFiller();
-                case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT, REC_TYPE_DOUBLE ->
-                        new LongBlockFiller(dictionaryCacheService);
+                case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT, REC_TYPE_DOUBLE -> new LongBlockFiller(dictionaryCacheService);
                 case REC_TYPE_INTEGER, REC_TYPE_REAL, REC_TYPE_DATE -> new IntBlockFiller(dictionaryCacheService);
                 case REC_TYPE_SMALLINT -> new ShortBlockFiller();
                 case REC_TYPE_TINYINT -> new TinyIntBlockFiller();

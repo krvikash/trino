@@ -32,9 +32,7 @@ import static java.util.Objects.requireNonNull;
 
 public final class SpecUtil
 {
-    private SpecUtil()
-    {
-    }
+    private SpecUtil() {}
 
     public static Optional<SuccessfulResponse> getSuccessfulResponse(Operation operation)
     {
@@ -81,9 +79,7 @@ public final class SpecUtil
      * a name and location.</blockquote>
      * <a href="https://spec.openapis.org/oas/v3.0.4.html#fixed-fields-6">- OAS 3.0.4</a>
      */
-    record ParameterIdentifier(String name, String in)
-    {
-    }
+    record ParameterIdentifier(String name, String in) {}
 
     public static Schema<?> getParameterSchema(Parameter parameter)
             throws SpecException
@@ -103,7 +99,8 @@ public final class SpecUtil
             throws SpecException
     {
         Optional<Resolved<ApiResponse>> resolvedResponse = followReferencesUntil(
-                responseOrRef -> responseOrRef.getContent() != null, "response",
+                responseOrRef -> responseOrRef.getContent() != null,
+                "response",
                 response,
                 ApiResponse::get$ref,
                 ImmutableList.of("components", "responses"),
@@ -126,7 +123,8 @@ public final class SpecUtil
         // > "In case a Path Item Object field appears both in the defined object and the referenced object, the behavior is undefined"
         // Parser behavior is however to delete all other properties except "$ref".
         return followReferencesUntil(
-                pathOrRef -> pathOrRef.getGet() != null, "path",
+                pathOrRef -> pathOrRef.getGet() != null,
+                "path",
                 pathItem,
                 PathItem::get$ref,
                 ImmutableList.of("paths"),

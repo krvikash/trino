@@ -34,7 +34,8 @@ public class HealthResult
     }
 
     @JsonCreator
-    public HealthResult(@JsonProperty("ready") boolean ready,
+    public HealthResult(
+            @JsonProperty("ready") boolean ready,
             @JsonProperty("httpUri") URI httpUri,
             @JsonProperty("createEpochTime") long createEpochTime,
             @JsonProperty("healthNodes") ImmutableList<HealthNode> healthNodes,

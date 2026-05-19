@@ -67,7 +67,8 @@ public class TaskExecutor
     private final JsonMapper jsonMapper;
 
     @Inject
-    public TaskExecutor(Set<TaskResource> set,
+    public TaskExecutor(
+            Set<TaskResource> set,
             @Named(NAMED_TASK_EXEC_ENABLE_SUPPLIER) Set<BooleanSupplier> isEnabledSuppliers)
     {
         this.isEnabledSuppliers = isEnabledSuppliers;
@@ -127,7 +128,8 @@ public class TaskExecutor
                     taskInvocationParameterBuilder.add(new TaskInvocationParameter(parameterName, parameterClass, parameterTypeClass));
                 }
 
-                TaskInvocationMethod taskInvocationMethod = new TaskInvocationMethod(method,
+                TaskInvocationMethod taskInvocationMethod = new TaskInvocationMethod(
+                        method,
                         taskResource,
                         taskInvocationParameterBuilder.build(),
                         shouldLog,
@@ -213,14 +215,16 @@ public class TaskExecutor
             if (taskInvocationMethod == null) {
                 taskInvocationMethod = executionMap.get(httpMethod + "_" + taskName);
                 if (taskInvocationMethod == null) {
-                    throw new RuntimeException(format("Task '%s' doesn't have definitions",
+                    throw new RuntimeException(format(
+                            "Task '%s' doesn't have definitions",
                             taskName));
                 }
             }
 
             if (isEnabledSuppliers.stream().noneMatch(BooleanSupplier::getAsBoolean) &&
                     taskInvocationMethod.shouldCheckExecutionAllowed) {
-                throw new RuntimeException(format("Execution of task '%s' is disabled for now",
+                throw new RuntimeException(format(
+                        "Execution of task '%s' is disabled for now",
                         taskName));
             }
 
@@ -329,8 +333,11 @@ public class TaskExecutor
                             return jsonMapper.readValue(jsonMapper.writeValueAsString(entry.getValue()), optionalTaskInvocationParameter.orElseThrow().clazz);
                         }
                         catch (JsonProcessingException e) {
-                            logger.error("failed with taskInvocationMethod=%s on entry=%s class=%s",
-                                    taskInvocationMethod, entry, optionalTaskInvocationParameter.orElseThrow().clazz);
+                            logger.error(
+                                    "failed with taskInvocationMethod=%s on entry=%s class=%s",
+                                    taskInvocationMethod,
+                                    entry,
+                                    optionalTaskInvocationParameter.orElseThrow().clazz);
                             throw new RuntimeException(e);
                         }
                     }

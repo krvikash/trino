@@ -1533,14 +1533,14 @@ public abstract class BaseTestOracleTypeMapping
     private static String buildRawDateInsertQuery(String hexByte, String tableName)
     {
         return """
-                DECLARE
-                  raw_date RAW(7) := HEXTORAW('%s');
-                  c_date DATE;
-                BEGIN
-                  -- Unsafe conversion of RAW to DATE using low-level cast
-                  DBMS_STATS.CONVERT_RAW_VALUE(raw_date, c_date);
-                  INSERT INTO %s VALUES (c_date);
-                END;""".formatted(hexByte, tableName);
+               DECLARE
+                 raw_date RAW(7) := HEXTORAW('%s');
+                 c_date DATE;
+               BEGIN
+                 -- Unsafe conversion of RAW to DATE using low-level cast
+                 DBMS_STATS.CONVERT_RAW_VALUE(raw_date, c_date);
+                 INSERT INTO %s VALUES (c_date);
+               END;""".formatted(hexByte, tableName);
     }
 
     @Test
@@ -1636,18 +1636,18 @@ public abstract class BaseTestOracleTypeMapping
     private static String buildRawTimestampInsertQuery(String hexByte, String tableName)
     {
         return """
-                DECLARE
-                    raw_timestamp RAW(11) := HEXTORAW('%s');
-                    base_date DATE;
-                    fractional_part NUMBER;
-                BEGIN
-                    DBMS_STATS.CONVERT_RAW_VALUE(SUBSTR(raw_timestamp, 1, 14), base_date); -- First 7 bytes as DATE
-                    fractional_part := UTL_RAW.CAST_TO_BINARY_INTEGER(HEXTORAW(SUBSTR(raw_timestamp, 15, 8))) / 1e9; -- last 4 bytes as fractional seconds
+               DECLARE
+                   raw_timestamp RAW(11) := HEXTORAW('%s');
+                   base_date DATE;
+                   fractional_part NUMBER;
+               BEGIN
+                   DBMS_STATS.CONVERT_RAW_VALUE(SUBSTR(raw_timestamp, 1, 14), base_date); -- First 7 bytes as DATE
+                   fractional_part := UTL_RAW.CAST_TO_BINARY_INTEGER(HEXTORAW(SUBSTR(raw_timestamp, 15, 8))) / 1e9; -- last 4 bytes as fractional seconds
 
-                    INSERT INTO %s
-                    SELECT CAST(base_date AS TIMESTAMP(9)) + NUMTODSINTERVAL(fractional_part, 'SECOND')
-                    FROM dual;
-                END;""".formatted(hexByte, tableName);
+                   INSERT INTO %s
+                   SELECT CAST(base_date AS TIMESTAMP(9)) + NUMTODSINTERVAL(fractional_part, 'SECOND')
+                   FROM dual;
+               END;""".formatted(hexByte, tableName);
     }
 
     @Test

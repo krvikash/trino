@@ -32,7 +32,8 @@ public class WarpPageSinkFactory
     private final ShapingLoggerFactory shapingLoggerFactory;
 
     @Inject
-    public WarpPageSinkFactory(FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
+    public WarpPageSinkFactory(
+            FailureGeneratorInvocationHandler failureGeneratorInvocationHandler,
             StorageWriterService storageWriterService,
             GlobalConfig globalConfig,
             ShapingLoggerFactory shapingLoggerFactory)
@@ -48,7 +49,8 @@ public class WarpPageSinkFactory
         PageSink pageSink = new WarpPageSink(storageWriterService, storageWriterSplitConfig, shapingLoggerFactory);
 
         if (globalConfig.isFailureGeneratorEnabled()) {
-            pageSink = (PageSink) Proxy.newProxyInstance(pageSink.getClass().getClassLoader(),
+            pageSink = (PageSink) Proxy.newProxyInstance(
+                    pageSink.getClass().getClassLoader(),
                     new Class<?>[] {PageSink.class},
                     failureGeneratorInvocationHandler.getMethodInvocationHandler(pageSink));
         }

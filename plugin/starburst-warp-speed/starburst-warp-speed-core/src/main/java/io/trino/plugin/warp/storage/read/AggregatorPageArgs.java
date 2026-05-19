@@ -26,6 +26,4 @@ public record AggregatorPageArgs(
         Optional<MemorySegment> recordBufferStates,
         Optional<MemorySegment> queryResultTypes,
         Optional<MemorySegment> matchCollectMetadata,
-        ReadStats readStats)
-{
-}
+        ReadStats readStats) {}

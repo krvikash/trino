@@ -126,7 +126,7 @@ public class ProxyExecutionTaskTest
         rowGroupData = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
                 .warmUpElements(List.of())
-                //.totalRecords(10)
+                // .totalRecords(10)
                 .build();
         rowGroupDataService = mock(RowGroupDataService.class);
         when(rowGroupDataService.get(any())).thenReturn(rowGroupData);
@@ -160,13 +160,13 @@ public class ProxyExecutionTaskTest
     {
         WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
 
-        when(workerWarmingService.getWarmData(eq(columnHandleList),
+        when(workerWarmingService.getWarmData(
+                eq(columnHandleList),
                 eq(rowGroupKey),
                 eq(dispatcherSplit),
                 eq(connectorSession),
                 any(QueryContext.class),
-                anyBoolean()
-        )).thenReturn(new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.EMPTY_ROW_GROUP, true, queryContext, null));
+                anyBoolean())).thenReturn(new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.EMPTY_ROW_GROUP, true, queryContext, null));
 
         EventBus eventBus = mock(EventBus.class);
         ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
@@ -184,14 +184,16 @@ public class ProxyExecutionTaskTest
     public void testFailedTypeShouldReleaseAllocation()
     {
         WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
-        when(workerWarmingService.getWarmData(eq(columnHandleList),
+        when(workerWarmingService.getWarmData(
+                eq(columnHandleList),
                 eq(rowGroupKey),
                 eq(dispatcherSplit),
                 eq(connectorSession),
                 any(QueryContext.class),
-                anyBoolean()
-        )).thenReturn(new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null),
-                new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.NOTHING_TO_WARM, true, queryContext, null));
+                anyBoolean()))
+                .thenReturn(
+                        new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null),
+                        new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.NOTHING_TO_WARM, true, queryContext, null));
         when(flowsSequencer.tryRunningFlow(eq(FlowType.WARMUP), any()))
                 .thenReturn(CompletableFuture.completedFuture(1L));
 
@@ -214,13 +216,13 @@ public class ProxyExecutionTaskTest
 
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
         WarmData nothingToWarm = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.NOTHING_TO_WARM, false, queryContext, null);
-        when(workerWarmingService.getWarmData(any(),
+        when(workerWarmingService.getWarmData(
                 any(),
                 any(),
                 any(),
                 any(),
-                anyBoolean()
-        )).thenReturn(warmData).thenReturn(nothingToWarm);
+                any(),
+                anyBoolean())).thenReturn(warmData).thenReturn(nothingToWarm);
 
         testAndAssert2Iterations(warmingServiceStats);
     }
@@ -234,13 +236,13 @@ public class ProxyExecutionTaskTest
         WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
 
         WarmData emptyRowGroup = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.EMPTY_ROW_GROUP, false, queryContext, null);
-        when(workerWarmingService.getWarmData(any(),
+        when(workerWarmingService.getWarmData(
                 any(),
                 any(),
                 any(),
                 any(),
-                anyBoolean()
-        )).thenReturn(emptyRowGroup);
+                any(),
+                anyBoolean())).thenReturn(emptyRowGroup);
         testAndAssertNoIterations(warmingServiceStats);
     }
 
@@ -250,13 +252,13 @@ public class ProxyExecutionTaskTest
         WarmingServiceStats warmingServiceStats = WarmingServiceStats.create();
         globalConfig.setMaxWarmupIterationsPerQuery(1);
         WarmData warmData = new WarmData(columnHandleList, requiredWarmUpTypeMap, WarmExecutionState.WARM, true, queryContext, null);
-        when(workerWarmingService.getWarmData(any(),
+        when(workerWarmingService.getWarmData(
                 any(),
                 any(),
                 any(),
                 any(),
-                anyBoolean()
-        )).thenReturn(warmData);
+                any(),
+                anyBoolean())).thenReturn(warmData);
         testAndAssert2Iterations(warmingServiceStats);
         verify(workerWarmingService, times(1))
                 .getWarmData(any(),
@@ -317,7 +319,8 @@ public class ProxyExecutionTaskTest
                 mock(NativeStorageStateHandler.class),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
-        return new ProxyExecutionTask(mock(WarmExecutionTaskFactory.class),
+        return new ProxyExecutionTask(
+                mock(WarmExecutionTaskFactory.class),
                 eventBus,
                 dispatcherProxiedConnectorTransformer,
                 warmingManager,

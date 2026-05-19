@@ -376,8 +376,7 @@ public class StargateClient
                     .orElseThrow(() -> new VerifyException(format("Cannot convert type %s [%s] back to JdbcTypeHandle", type, typeHandle)));
             ColumnMapping mappingForSyntheticHandle = toColumnMapping(session, syntheticTypeHandle)
                     .orElseThrow(() -> new VerifyException(format("JdbcTypeHandle %s constructed for %s [%s] cannot be converted to type", syntheticTypeHandle, type, typeHandle)));
-            verify(
-                    mappingForSyntheticHandle.getType().equals(type),
+            verify(mappingForSyntheticHandle.getType().equals(type),
                     "Type mismatch, original type is %s [%s], converted type is %s [%s]",
                     type,
                     typeHandle,

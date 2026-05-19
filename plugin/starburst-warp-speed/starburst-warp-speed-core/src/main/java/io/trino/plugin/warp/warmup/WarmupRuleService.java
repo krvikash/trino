@@ -87,7 +87,8 @@ public class WarmupRuleService
     protected final ReadWriteLock readWriteLock;
 
     @Inject
-    public WarmupRuleService(@ForWarp Connector proxiedConnector,
+    public WarmupRuleService(
+            @ForWarp Connector proxiedConnector,
             StorageEngineConstants storageEngineConstants,
             WarmupDemoterConfig warmupDemoterConfig,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
@@ -125,7 +126,7 @@ public class WarmupRuleService
         try {
             ImmutableMap.Builder<Integer, WarmupRule> builder = ImmutableMap.builder();
 
-            //add the rest
+            // add the rest
             Map<Integer, WarmupRule> tmpMap = new HashMap<>(cache);
             ids.forEach(tmpMap::remove);
             builder.putAll(tmpMap);
@@ -133,7 +134,8 @@ public class WarmupRuleService
         }
         catch (Exception e) {
             logger.error("failed to delete new rules ids=%s.", ids);
-            throw new TrinoException(WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
+            throw new TrinoException(
+                    WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
                     "failed to save new rules config",
                     e);
         }
@@ -156,7 +158,8 @@ public class WarmupRuleService
         }
         catch (Exception e) {
             logger.error(e, "failed to save new warmupRules=%s", newWarmupRules);
-            throw new TrinoException(WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
+            throw new TrinoException(
+                    WarpErrorCode.WARP_RULE_CONFIGURATION_ERROR,
                     "failed to save new warmupRules",
                     e);
         }
@@ -216,7 +219,9 @@ public class WarmupRuleService
         for (WarmupRule warmupRule : newWarmupRules) {
             long uniqueRuleId = getUniqueRuleId(warmupRule);
             if (uniqueIds.contains(uniqueRuleId) || (isNew(warmupRule) && existingUniqueRuleIds.contains(uniqueRuleId))) {
-                String error = String.format(Locale.US, "%d: can't add 2 rules with the same key. rules=%s",
+                String error = String.format(
+                        Locale.US,
+                        "%d: can't add 2 rules with the same key. rules=%s",
                         WarpErrorCode.WARP_DUPLICATE_RECORD.getCode(),
                         warmupRule);
                 rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
@@ -226,14 +231,18 @@ public class WarmupRuleService
                 uniqueIds.add(uniqueRuleId);
             }
             if ((!existingRuleIds.isEmpty() && (warmupRule.getId() != 0)) && !existingRuleIds.contains(warmupRule.getId())) {
-                String error = String.format(Locale.US, "%d: New Rule id must be 0, or override an existing rule id",
+                String error = String.format(
+                        Locale.US,
+                        "%d: New Rule id must be 0, or override an existing rule id",
                         WarpErrorCode.WARP_WARMUP_RULE_ID_NOT_VALID.getCode());
                 rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
                 continue;
             }
             Map<String, ColumnMetadata> tableColumnsMetadata = getTableColumnsMetadata(tablesColumnsMetadata, warmupRule);
             if (tableColumnsMetadata == null) {
-                String error = String.format(Locale.US, "%d: Rule refer to a non-exist table (%s)",
+                String error = String.format(
+                        Locale.US,
+                        "%d: Rule refer to a non-exist table (%s)",
                         WarpErrorCode.WARP_WARMUP_RULE_UNKNOWN_TABLE.getCode(),
                         getSchemaTableName(warmupRule));
                 rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
@@ -241,7 +250,9 @@ public class WarmupRuleService
             else {
                 Optional<Type> columnType = getColumnType(tableColumnsMetadata, warmupRule);
                 if (columnType.isEmpty() && !(warmupRule.getWarpColumn() instanceof WildcardColumn)) {
-                    String error = String.format(Locale.US, "%d: Rule refer to a non-exist column (%s)",
+                    String error = String.format(
+                            Locale.US,
+                            "%d: Rule refer to a non-exist column (%s)",
                             WarpErrorCode.WARP_WARMUP_RULE_UNKNOWN_COLUMN.getCode(),
                             warmupRule.getWarpColumn().getName());
                     rejectedRules.computeIfAbsent(warmupRule, _ -> new HashSet<>()).add(error);
@@ -260,7 +271,8 @@ public class WarmupRuleService
         return new WarmupRuleResult(appliedRules, rejectedRules);
     }
 
-    private boolean validateRule(Map<WarmupRule, Set<String>> rejectedRules,
+    private boolean validateRule(
+            Map<WarmupRule, Set<String>> rejectedRules,
             WarmupRule warmupRule,
             Optional<Type> optionalType)
     {
@@ -301,7 +313,9 @@ public class WarmupRuleService
         }
 
         if (fail) {
-            String error = String.format(Locale.US, "%d: Warmup type %s doesn't support column type %s",
+            String error = String.format(
+                    Locale.US,
+                    "%d: Warmup type %s doesn't support column type %s",
                     WarpErrorCode.WARP_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode(),
                     warmupRule.getWarmUpType(),
                     type);
@@ -313,7 +327,9 @@ public class WarmupRuleService
     {
         if (warmupRule.getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA &&
                 TypeUtils.isCharType(type) && ((CharType) type).getLength() > storageEngineConstants.getMaxRecLen()) {
-            String error = String.format(Locale.US, "%d: Can't warm long Char columns. maximum of %d is allowed",
+            String error = String.format(
+                    Locale.US,
+                    "%d: Can't warm long Char columns. maximum of %d is allowed",
                     WarpErrorCode.WARP_WARMUP_RULE_ILLEGAL_CHAR_LENGTH.getCode(),
                     storageEngineConstants.getMaxRecLen());
             errors.add(error);
@@ -323,7 +339,9 @@ public class WarmupRuleService
     private void validateDataOnly(Set<String> errors, WarmupRule warmupRule)
     {
         if (globalConfig.isDataOnlyWarming() && !warmupRule.getWarmUpType().equals(WarmUpType.WARM_UP_TYPE_DATA)) {
-            errors.add(String.format(Locale.US, "%d: creation of %s warmUpType is not supported with Local Data Storage connector",
+            errors.add(String.format(
+                    Locale.US,
+                    "%d: creation of %s warmUpType is not supported with Local Data Storage connector",
                     WarpErrorCode.WARP_INDEX_WARMUP_RULE_IS_NOT_ALLOWED.getCode(),
                     warmupRule.getWarmUpType()));
         }
@@ -425,7 +443,7 @@ public class WarmupRuleService
             builder.put(warmupRule.getId(), warmupRule);
             actualAppliedRules.add(warmupRule);
         });
-        //add the rest
+        // add the rest
         if (!replace) {
             Map<Integer, WarmupRule> tmpMap = new HashMap<>(cache);
             appliedRules

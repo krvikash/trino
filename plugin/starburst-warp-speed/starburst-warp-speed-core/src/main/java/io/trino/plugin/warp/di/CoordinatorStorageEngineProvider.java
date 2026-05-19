@@ -46,7 +46,8 @@ public class CoordinatorStorageEngineProvider
         if (storageEngine == null) {
             this.storageEngine = new DelegateStorageEngine();
             if (sharedConfig.isFailureGeneratorEnabled()) {
-                this.storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
+                this.storageEngine = (StorageEngine) Proxy.newProxyInstance(
+                        storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},
                         failureGeneratorInvocationHandler.getMethodInvocationHandler(storageEngine));
             }

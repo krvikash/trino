@@ -24,8 +24,7 @@ import java.util.zip.GZIPOutputStream;
 
 public class CompressionUtil
 {
-    private CompressionUtil()
-    {}
+    private CompressionUtil() {}
 
     public static byte[] compressGzip(String str)
             throws IOException

@@ -113,7 +113,8 @@ public class CoordinatorNodeManager
 
     public boolean isClusterReady()
     {
-        logger.debug("isClusterReady::isCoordinatorReady=%b workerNodes=%s",
+        logger.debug(
+                "isClusterReady::isCoordinatorReady=%b workerNodes=%s",
                 isReady(),
                 nodeManager.getWorkerNodes());
         return isReady() &&

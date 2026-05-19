@@ -37,8 +37,9 @@ public class DateRangeSlidingWindowWarmupPredicateRuleTest
     @Test
     public void testInRangeToday()
     {
-        Instant instant = Instant.ofEpochMilli(1624245288000L); //Monday, June 21, 2021 6:14:48 AM GMT+03:00
-        DateRangeSlidingWindowWarmupPredicateRule rule = new DateRangeSlidingWindowWarmupPredicateRule("c1",
+        Instant instant = Instant.ofEpochMilli(1624245288000L); // Monday, June 21, 2021 6:14:48 AM GMT+03:00
+        DateRangeSlidingWindowWarmupPredicateRule rule = new DateRangeSlidingWindowWarmupPredicateRule(
+                "c1",
                 0,
                 0,
                 YYYY_MM_DD);
@@ -61,9 +62,10 @@ public class DateRangeSlidingWindowWarmupPredicateRuleTest
     @Test
     public void testInRange24Hours()
     {
-        Instant instant = Instant.ofEpochMilli(1624245288000L); //Monday, June 21, 2021 6:14:48 AM GMT+03:00
+        Instant instant = Instant.ofEpochMilli(1624245288000L); // Monday, June 21, 2021 6:14:48 AM GMT+03:00
 
-        DateRangeSlidingWindowWarmupPredicateRule rule = new DateRangeSlidingWindowWarmupPredicateRule("c1",
+        DateRangeSlidingWindowWarmupPredicateRule rule = new DateRangeSlidingWindowWarmupPredicateRule(
+                "c1",
                 1,
                 0,
                 YYYY_MM_DD);

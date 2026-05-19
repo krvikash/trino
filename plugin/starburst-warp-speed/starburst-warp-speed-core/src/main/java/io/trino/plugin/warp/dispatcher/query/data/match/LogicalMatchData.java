@@ -99,6 +99,6 @@ public class LogicalMatchData
     public enum Operator
     {
         AND,
-        OR
+        OR,
     }
 }

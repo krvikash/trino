@@ -65,9 +65,7 @@ public class WarmUtils
             DICTIONARY_MAX_EXCEPTION_COUNT,
             DICTIONARY_REJECTED_ELEMENTS_COUNT);
 
-    public WarmUtils()
-    {
-    }
+    public WarmUtils() {}
 
     public String createWarmupQuery(String tableName, List<TestFormat.Column> tableStructure)
     {

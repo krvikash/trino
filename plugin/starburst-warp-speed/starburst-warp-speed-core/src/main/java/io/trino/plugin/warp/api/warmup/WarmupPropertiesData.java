@@ -22,7 +22,8 @@ import java.time.Duration;
 public record WarmupPropertiesData(WarmUpType warmUpType, double priority, Duration ttl, TransformFunctionData transformFunction)
 {
     @JsonCreator
-    public WarmupPropertiesData(@JsonProperty("warmUpType") WarmUpType warmUpType,
+    public WarmupPropertiesData(
+            @JsonProperty("warmUpType") WarmUpType warmUpType,
             @JsonProperty("priority") double priority,
             @JsonProperty("ttl") Duration ttl,
             @JsonProperty("transformFunction") TransformFunctionData transformFunction)

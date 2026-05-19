@@ -30,7 +30,8 @@ public class CrcSmallIntBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos,
+    public AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
@@ -62,7 +63,8 @@ public class CrcSmallIntBlockAppender
     }
 
     @Override
-    protected AppendResult appendFromMapBlock(BlockPosHolder blockPos,
+    protected AppendResult appendFromMapBlock(
+            BlockPosHolder blockPos,
             int jufferPos,
             Object key)
     {

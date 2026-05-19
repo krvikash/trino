@@ -17,5 +17,5 @@ public enum ClassificationType
 {
     WARMING,
     CHOOSING_ALTERNATIVE,
-    QUERY
+    QUERY,
 }

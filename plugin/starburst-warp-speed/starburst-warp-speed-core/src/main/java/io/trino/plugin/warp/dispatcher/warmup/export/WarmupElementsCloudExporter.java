@@ -46,7 +46,8 @@ public class WarmupElementsCloudExporter
     private final WarmupExportServiceStats statsWarmupExportService;
 
     @Inject
-    public WarmupElementsCloudExporter(GlobalConfig globalConfig,
+    public WarmupElementsCloudExporter(
+            GlobalConfig globalConfig,
             StorageEngineConstants storageEngineConstants,
             RowGroupDataService rowGroupDataService,
             @ForWarp CloudVendorService cloudVendorService,
@@ -79,15 +80,23 @@ public class WarmupElementsCloudExporter
             // local file is not sparse
             if (!rowGroupData.isSparseFile()) {
                 // first time
-                logger.debug("exportFile new rowGroupKey %s cloudPath '%s' localFileName '%s' nextOffset %d nextExportOffset %d",
-                        rowGroupKey, cloudPath, localFileName, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
+                logger.debug(
+                        "exportFile new rowGroupKey %s cloudPath '%s' localFileName '%s' nextOffset %d nextExportOffset %d",
+                        rowGroupKey,
+                        cloudPath,
+                        localFileName,
+                        rowGroupData.getNextOffset(),
+                        rowGroupData.getNextExportOffset());
                 results = cloudVendorService.uploadFileToCloud(cloudPath, localFile, () -> true);
             }
             // local file is sparse
             else {
                 // ToDo: export_row_group_file_not_exist
-                logger.error("exportFile fail (no export file on cloud, local file is sparse) rowGroupKey %s cloudPath '%s' localFileName '%s'",
-                        rowGroupKey, cloudPath, localFileName);
+                logger.error(
+                        "exportFile fail (no export file on cloud, local file is sparse) rowGroupKey %s cloudPath '%s' localFileName '%s'",
+                        rowGroupKey,
+                        cloudPath,
+                        localFileName);
             }
         }
         // valid export file on cloud
@@ -97,52 +106,84 @@ public class WarmupElementsCloudExporter
                 long contentLength = dataValidation.fileContentLength();
                 long startOffset = (long) rowGroupData.getNextExportOffset() * storageEngineConstants.getPageSize();
 
-                logger.debug("exportFile append rowGroupKey %s cloudPath '%s' localFileName '%s' contentLength %d nextOffset %d nextExportOffset %d isSparseFile %b",
-                        rowGroupKey, cloudPath, localFileName, contentLength, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset(), rowGroupData.isSparseFile());
+                logger.debug(
+                        "exportFile append rowGroupKey %s cloudPath '%s' localFileName '%s' contentLength %d nextOffset %d nextExportOffset %d isSparseFile %b",
+                        rowGroupKey,
+                        cloudPath,
+                        localFileName,
+                        contentLength,
+                        rowGroupData.getNextOffset(),
+                        rowGroupData.getNextExportOffset(),
+                        rowGroupData.isSparseFile());
                 if ((contentLength < 5 * MB) || !globalConfig.getEnableExportAppendOnCloud()) {
                     if (rowGroupData.isSparseFile()) {
                         // local file is sparse, so append locally
-                        results = cloudVendorService.appendOnLocal(cloudPath, localFile, startOffset,
+                        results = cloudVendorService.appendOnLocal(
+                                cloudPath,
+                                localFile,
+                                startOffset,
                                 // 2nd footer validation
                                 () -> rowGroupData.getDataValidation().equals(getRowGroupDataValidation(cloudPath)));
                     }
                     else {
                         // local file is not sparse, so upload it
-                        results = cloudVendorService.uploadFileToCloud(cloudPath, localFile,
+                        results = cloudVendorService.uploadFileToCloud(
+                                cloudPath,
+                                localFile,
                                 // 2nd footer validation
                                 () -> rowGroupData.getDataValidation().equals(getRowGroupDataValidation(cloudPath)));
                     }
                 }
                 else {
-                    results = cloudVendorService.appendOnCloud(cloudPath, localFile, dataValidation.getStorageObjectMetadata(),
-                            startOffset, rowGroupData.isSparseFile(),
+                    results = cloudVendorService.appendOnCloud(
+                            cloudPath,
+                            localFile,
+                            dataValidation.getStorageObjectMetadata(),
+                            startOffset,
+                            rowGroupData.isSparseFile(),
                             // 2nd footer validation
                             () -> rowGroupData.getDataValidation().equals(getRowGroupDataValidation(cloudPath)));
                 }
                 if (!results.isSuccess()) {
                     statsWarmupExportService.incexport_row_group_2nd_footer_validation();
-                    logger.debug("exportFile (2nd footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
-                            rowGroupKey, cloudPath, rowGroupData.getDataValidation(), dataValidation);
+                    logger.debug(
+                            "exportFile (2nd footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
+                            rowGroupKey,
+                            cloudPath,
+                            rowGroupData.getDataValidation(),
+                            dataValidation);
                 }
             }
             // local footer is not equal to cloud footer
             else {
                 statsWarmupExportService.incexport_row_group_1st_footer_validation();
-                logger.debug("exportFile (1st footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
-                        rowGroupKey, cloudPath, rowGroupData.getDataValidation(), dataValidation);
+                logger.debug(
+                        "exportFile (1st footer validation) rowGroupKey %s cloudPath '%s' local %s cloud %s",
+                        rowGroupKey,
+                        cloudPath,
+                        rowGroupData.getDataValidation(),
+                        dataValidation);
                 // local file is not sparse
                 if (!rowGroupData.isSparseFile()) {
                     // overwrite file on cloud
                     // ToDo: export_row_group_overwrite_file
-                    logger.debug("exportFile overwrite rowGroupKey %s cloudPath '%s' localFileName '%s' nextOffset %d nextExportOffset %d",
-                            rowGroupKey, cloudPath, localFileName, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
+                    logger.debug(
+                            "exportFile overwrite rowGroupKey %s cloudPath '%s' localFileName '%s' nextOffset %d nextExportOffset %d",
+                            rowGroupKey,
+                            cloudPath,
+                            localFileName,
+                            rowGroupData.getNextOffset(),
+                            rowGroupData.getNextExportOffset());
                     results = cloudVendorService.uploadFileToCloud(cloudPath, localFile, () -> true);
                 }
                 // local file is sparse
                 else {
                     statsWarmupExportService.incexport_row_group_failed_due_local_sparse();
-                    logger.debug("exportFile fail (export file exist on cloud, local file is sparse) rowGroupKey %s cloudPath '%s' localFileName '%s'",
-                            rowGroupKey, cloudPath, localFileName);
+                    logger.debug(
+                            "exportFile fail (export file exist on cloud, local file is sparse) rowGroupKey %s cloudPath '%s' localFileName '%s'",
+                            rowGroupKey,
+                            cloudPath,
+                            localFileName);
                 }
             }
         }
@@ -155,7 +196,5 @@ public class WarmupElementsCloudExporter
         }
     }
 
-    record ExportFileResults(boolean isExportDone, RowGroupDataValidation dataValidation)
-    {
-    }
+    record ExportFileResults(boolean isExportDone, RowGroupDataValidation dataValidation) {}
 }

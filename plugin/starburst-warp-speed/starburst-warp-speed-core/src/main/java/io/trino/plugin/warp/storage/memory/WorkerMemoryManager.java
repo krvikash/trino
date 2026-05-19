@@ -65,8 +65,12 @@ public class WorkerMemoryManager
     {
         long logGcLimit = GcArena.MAX_ALLOCATED_BYTES * 2;
         if ((numOffHeapBytes.get() > ThreadArena.MAX_ALLOCATED_BYTES) || (numOffHeapGcBytes.get() + numOffHeapPinnedGcBytes.get() > logGcLimit)) {
-            shapingLogger.warn("catalog %s reached off heap limit: numOffHeapBytes %d numOffHeapGcBytes %d numOffHeapPinnedGcBytes %d",
-                    catalogName, numOffHeapBytes.get(), numOffHeapGcBytes.get(), numOffHeapPinnedGcBytes.get());
+            shapingLogger.warn(
+                    "catalog %s reached off heap limit: numOffHeapBytes %d numOffHeapGcBytes %d numOffHeapPinnedGcBytes %d",
+                    catalogName,
+                    numOffHeapBytes.get(),
+                    numOffHeapGcBytes.get(),
+                    numOffHeapPinnedGcBytes.get());
         }
     }
 
@@ -78,8 +82,11 @@ public class WorkerMemoryManager
                 System.gc();
                 long numOffHeapGcBytesAfterGc = numOffHeapGcBytes.addAndGet(-1 * bytesToFreeInGc);
                 if (numOffHeapGcBytesAfterGc > GcArena.MAX_ALLOCATED_BYTES) {
-                    shapingLogger.warn("catalog %s still on limit: bytesToFreeInGc %d numOffHeapGcBytesAfterGc %d",
-                            catalogName, bytesToFreeInGc, numOffHeapGcBytesAfterGc);
+                    shapingLogger.warn(
+                            "catalog %s still on limit: bytesToFreeInGc %d numOffHeapGcBytesAfterGc %d",
+                            catalogName,
+                            bytesToFreeInGc,
+                            numOffHeapGcBytesAfterGc);
                 }
             }
         });

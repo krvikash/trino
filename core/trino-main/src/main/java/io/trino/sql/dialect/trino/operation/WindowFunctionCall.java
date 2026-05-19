@@ -83,8 +83,7 @@ public class WindowFunctionCall
             boolean ignoreNulls,
             boolean distinct)
     {
-        this(
-                resultName,
+        this(resultName,
                 window,
                 arguments,
                 orderingSelector,
@@ -119,7 +118,7 @@ public class WindowFunctionCall
             boolean ignoreNulls,
             boolean distinct,
             Map<AttributeKey, Object> enforcedAttributes)
-    // we don't pass input attributes because the argument is always a Block Parameter
+// we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");

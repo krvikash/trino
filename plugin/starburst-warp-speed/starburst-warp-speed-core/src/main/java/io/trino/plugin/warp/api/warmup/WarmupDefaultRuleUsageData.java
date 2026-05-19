@@ -19,7 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record WarmupDefaultRuleUsageData(long usedStorageKB, WarmUpType warmUpType)
 {
     @JsonCreator
-    public WarmupDefaultRuleUsageData(@JsonProperty("usedStorageKB") long usedStorageKB,
+    public WarmupDefaultRuleUsageData(
+            @JsonProperty("usedStorageKB") long usedStorageKB,
             @JsonProperty("warmUpType") WarmUpType warmUpType)
     {
         this.usedStorageKB = usedStorageKB;

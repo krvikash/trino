@@ -45,12 +45,11 @@ public class InternalDispatcherCacheManagerFactory
 {
     private static final Logger logger = Logger.get(InternalDispatcherCacheManagerFactory.class);
 
-    private InternalDispatcherCacheManagerFactory()
-    {
-    }
+    private InternalDispatcherCacheManagerFactory() {}
 
     @SuppressWarnings("unused")
-    public static CacheManager createCacheManager(String cacheManagerName,
+    public static CacheManager createCacheManager(
+            String cacheManagerName,
             Map<String, String> config,
             Supplier<Module> optionalModule,
             CacheManagerContext context,

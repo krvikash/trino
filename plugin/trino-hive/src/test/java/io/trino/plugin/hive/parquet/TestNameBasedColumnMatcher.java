@@ -37,7 +37,8 @@ public class TestNameBasedColumnMatcher
     {
         NameBasedColumnMatcher matcher = new NameBasedColumnMatcher();
 
-        MessageType schema = new MessageType("test",
+        MessageType schema = new MessageType(
+                "test",
                 Types.primitive(BINARY, REQUIRED).named("name"),
                 Types.primitive(INT32, OPTIONAL).named("age"),
                 Types.primitive(BINARY, OPTIONAL).named("City"));
@@ -70,7 +71,8 @@ public class TestNameBasedColumnMatcher
     {
         NameBasedColumnMatcher matcher = new NameBasedColumnMatcher();
 
-        MessageType fullSchema = new MessageType("test",
+        MessageType fullSchema = new MessageType(
+                "test",
                 Types.primitive(BINARY, REQUIRED).named("col1"),
                 Types.primitive(INT32, OPTIONAL).named("col2"),
                 Types.primitive(BINARY, OPTIONAL).named("col3"),
@@ -92,7 +94,8 @@ public class TestNameBasedColumnMatcher
     {
         NameBasedColumnMatcher matcher = new NameBasedColumnMatcher();
 
-        MessageType fullSchema = new MessageType("test",
+        MessageType fullSchema = new MessageType(
+                "test",
                 Types.primitive(BINARY, REQUIRED).named("col1"),
                 Types.primitive(INT32, OPTIONAL).named("col2"));
 
@@ -111,7 +114,8 @@ public class TestNameBasedColumnMatcher
     {
         NameBasedColumnMatcher matcher = new NameBasedColumnMatcher();
 
-        MessageType fullSchema = new MessageType("test",
+        MessageType fullSchema = new MessageType(
+                "test",
                 Types.primitive(BINARY, REQUIRED).named("col1"),
                 Types.primitive(INT32, OPTIONAL).named("col2"));
 
@@ -125,7 +129,8 @@ public class TestNameBasedColumnMatcher
     {
         NameBasedColumnMatcher matcher = new NameBasedColumnMatcher();
 
-        MessageType fullSchema = new MessageType("test",
+        MessageType fullSchema = new MessageType(
+                "test",
                 Types.primitive(BINARY, REQUIRED).named("a"),
                 Types.primitive(INT32, OPTIONAL).named("b"),
                 Types.primitive(BINARY, OPTIONAL).named("c"),

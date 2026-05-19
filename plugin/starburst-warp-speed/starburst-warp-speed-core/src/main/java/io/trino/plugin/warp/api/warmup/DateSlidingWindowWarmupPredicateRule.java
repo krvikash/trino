@@ -32,7 +32,8 @@ public class DateSlidingWindowWarmupPredicateRule
     private final String baseDate;
 
     @JsonCreator
-    public DateSlidingWindowWarmupPredicateRule(@JsonProperty(COLUMN_ID) String columnId,
+    public DateSlidingWindowWarmupPredicateRule(
+            @JsonProperty(COLUMN_ID) String columnId,
             @JsonProperty(WINDOW_SIZE_DAYS) int windowSizeDays,
             @JsonProperty(WINDOW_DATE_FORMAT) String windowDateFormat,
             @JsonProperty(BASE_DATE) String baseDate)

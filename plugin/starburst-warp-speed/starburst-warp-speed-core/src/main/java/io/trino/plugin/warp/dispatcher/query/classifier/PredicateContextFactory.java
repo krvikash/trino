@@ -61,13 +61,14 @@ public class PredicateContextFactory
         this.dispatcherProxiedConnectorTransformer = dispatcherProxiedConnectorTransformer;
     }
 
-    PredicateContextData create(ConnectorSession session,
+    PredicateContextData create(
+            ConnectorSession session,
             DynamicFilter dynamicFilter,
             DispatcherTableHandle dispatcherTableHandle)
     {
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression = dispatcherTableHandle.getWarpExpression();
         if (!(dynamicFilter.getCurrentPredicate().isAll() || dynamicFilter.getCurrentPredicate().isNone())) {
-            //in case we have dynamicFilter we can't use warpExpression. we probably need to intersect the expression as well with DF.
+            // in case we have dynamicFilter we can't use warpExpression. we probably need to intersect the expression as well with DF.
             warpExpression = Optional.empty();
         }
         TupleDomain<ColumnHandle> intersectTupleDomain = dispatcherTableHandle.getFullPredicate()
@@ -78,19 +79,21 @@ public class PredicateContextFactory
         int predicateThreshold = WarpSessionProperties.getPredicateSimplifyThreshold(session, globalConfig);
 
         SimplifyResult<ColumnHandle> simplifyResult = DomainUtils.simplify(intersectTupleDomain, predicateThreshold);
-        Set<RegularColumn> simplifiedColumns = Stream.concat(dispatcherTableHandle.getSimplifiedColumns().simplifiedColumns().stream(),
+        Set<RegularColumn> simplifiedColumns = Stream.concat(
+                        dispatcherTableHandle.getSimplifiedColumns().simplifiedColumns().stream(),
                         simplifyResult.getSimplifiedColumns().stream().map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn))
                 .collect(Collectors.toSet());
         TupleDomain<ColumnHandle> tupleDomain = simplifyResult.getTupleDomain();
         return create(warpExpression, tupleDomain, simplifiedColumns);
     }
 
-    private PredicateContextData create(Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression,
+    private PredicateContextData create(
+            Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> warpExpression,
             TupleDomain<ColumnHandle> tupleDomain,
             Set<RegularColumn> simplifiedColumns)
     {
         ImmutableMap.Builder<WarpExpression, PredicateContext> predicateContextMap = ImmutableMap.builder();
-        warpExpression.ifPresent((expression) -> {
+        warpExpression.ifPresent(expression -> {
             for (WarpExpressionData leaf : expression.warpExpressionDataLeaves()) {
                 PredicateContext predicateContext = new PredicateContext(leaf);
                 predicateContextMap.put(leaf.getExpression(), predicateContext);
@@ -111,7 +114,8 @@ public class PredicateContextFactory
                         .domain(domain)
                         .collectNulls(domain.isNullAllowed())
                         .build();
-                WarpExpressionData warpExpressionData = new WarpExpressionData(newWarpExpression,
+                WarpExpressionData warpExpressionData = new WarpExpressionData(
+                        newWarpExpression,
                         columnType,
                         domain.isNullAllowed(),
                         Optional.of(nativeExpression),

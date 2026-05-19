@@ -24,7 +24,8 @@ public class ConfigFactoryWithPrefix
 {
     public ConfigFactoryWithPrefix(Map<String, String> properties, String prefix, WarningsMonitor warningsMonitor)
     {
-        super(properties.entrySet()
+        super(
+                properties.entrySet()
                         .stream()
                         .filter(entry -> prefix == null || entry.getKey().startsWith(prefix))
                         .collect(Collectors.toMap(entry -> entry.getKey().substring((prefix == null) ? 0 : prefix.length() + 1), Map.Entry::getValue)),

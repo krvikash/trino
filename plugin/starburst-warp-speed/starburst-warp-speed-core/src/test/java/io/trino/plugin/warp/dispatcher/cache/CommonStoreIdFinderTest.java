@@ -42,17 +42,23 @@ class CommonStoreIdFinderTest
     {
         return Stream.of(
                 arguments(List.of(List.of("c1")),
-                        List.of("c1"), true),
+                        List.of("c1"),
+                        true),
                 arguments(List.of(List.of("c1"), List.of("c1", "c2")),
-                        List.of("c1"), true),
+                        List.of("c1"),
+                        true),
                 arguments(List.of(List.of("c1"), List.of("c1", "c2")),
-                        List.of("c1", "c3"), false),
+                        List.of("c1", "c3"),
+                        false),
                 arguments(List.of(List.of("c1"), List.of("c4")),
-                        List.of("c1", "c4", "c5"), false),
+                        List.of("c1", "c4", "c5"),
+                        false),
                 arguments(List.of(List.of("c1"), List.of("c4"), List.of("c1", "c4", "c5")),
-                        List.of("c1", "c4", "c5"), true),
+                        List.of("c1", "c4", "c5"),
+                        true),
                 arguments(List.of(List.of("c1")),
-                        List.of("c2"), false));
+                        List.of("c2"),
+                        false));
     }
 
     @ParameterizedTest

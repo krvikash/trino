@@ -84,16 +84,14 @@ import static org.mockito.Mockito.when;
 
 public class WarmupTestDataUtil
 {
-    private WarmupTestDataUtil()
-    {
-    }
+    private WarmupTestDataUtil() {}
 
     public static List<ColumnHandle> mockColumns(
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             List<Pair<String, Type>> columnsMetadata)
     {
         List<ColumnHandle> ret = mockColumns(columnsMetadata);
-        ret.forEach((ch) -> {
+        ret.forEach(ch -> {
             TestingConnectorColumnHandle testingConnectorColumnHandle = (TestingConnectorColumnHandle) ch;
             Type columnType = testingConnectorColumnHandle.type();
             when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(ch))).thenReturn(new RegularColumn(testingConnectorColumnHandle.name()));
@@ -124,7 +122,8 @@ public class WarmupTestDataUtil
     public static Pair<DispatcherSplit, RowGroupKey> mockConnectorSplit(String schemaName, String tableName)
     {
         String filePath = "s3://a/part1-" + new Random().nextInt();
-        DispatcherSplit dispatcherSplit = new DispatcherSplit(schemaName,
+        DispatcherSplit dispatcherSplit = new DispatcherSplit(
+                schemaName,
                 tableName,
                 filePath,
                 0L,
@@ -134,7 +133,8 @@ public class WarmupTestDataUtil
                 List.of(),
                 "",
                 mock(ConnectorSplit.class));
-        RowGroupKey rowGroupKey = new RowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = new RowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -145,28 +145,33 @@ public class WarmupTestDataUtil
         return Pair.of(dispatcherSplit, rowGroupKey);
     }
 
-    public static RowGroupData generateRowGroupData(RowGroupKey rowGroupKey,
+    public static RowGroupData generateRowGroupData(
+            RowGroupKey rowGroupKey,
             List<ColumnHandle> columnHandles)
     {
         List<WarmUpType> warmUpTypeData = List.of(WarmUpType.WARM_UP_TYPE_DATA, WarmUpType.WARM_UP_TYPE_BASIC);
-        return generateRowGroupData(columnHandles,
+        return generateRowGroupData(
+                columnHandles,
                 warmUpTypeData,
                 rowGroupKey,
                 false);
     }
 
-    public static RowGroupData generateRowGroupData(List<ColumnHandle> columnHandles,
+    public static RowGroupData generateRowGroupData(
+            List<ColumnHandle> columnHandles,
             List<WarmUpType> warmUpTypes,
             RowGroupKey rowGroupKey,
             boolean isEmpty)
     {
-        return generateRowGroupData(columnHandles,
+        return generateRowGroupData(
+                columnHandles,
                 warmUpTypes.stream().collect(Collectors.toMap(Function.identity(), _ -> WarmUpElementState.VALID)),
                 rowGroupKey,
                 isEmpty);
     }
 
-    public static RowGroupData generateRowGroupData(List<ColumnHandle> columnHandles,
+    public static RowGroupData generateRowGroupData(
+            List<ColumnHandle> columnHandles,
             Map<WarmUpType, WarmUpElementState> warmUpTypeToState,
             RowGroupKey rowGroupKey,
             boolean isEmpty)
@@ -192,7 +197,8 @@ public class WarmupTestDataUtil
                 .build();
     }
 
-    public static DispatcherTableHandle mockDispatcherTableHandle(String schemaName,
+    public static DispatcherTableHandle mockDispatcherTableHandle(
+            String schemaName,
             String tableName,
             TupleDomain<ColumnHandle> fullPredicate)
     {
@@ -219,7 +225,8 @@ public class WarmupTestDataUtil
     public static SetMultimap<WarpColumn, WarmupProperties> createRequiredWarmUpTypes(List<ColumnHandle> columns, List<WarmUpType> warmUpTypeList)
     {
         SetMultimap<WarpColumn, WarmupProperties> warmUpTypeMap = HashMultimap.create();
-        columns.forEach(column -> warmUpTypeList.forEach(type -> warmUpTypeMap.put(new RegularColumn(((TestingConnectorColumnHandle) column).name()),
+        columns.forEach(column -> warmUpTypeList.forEach(type -> warmUpTypeMap.put(
+                new RegularColumn(((TestingConnectorColumnHandle) column).name()),
                 new WarmupProperties(type, 1, 0, TransformFunction.NONE))));
         return warmUpTypeMap;
     }
@@ -260,7 +267,8 @@ public class WarmupTestDataUtil
                 .build();
     }
 
-    public static List<WarmupRule> createWarmupRules(SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType,
+    public static List<WarmupRule> createWarmupRules(
+            SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType,
             SchemaTableName schemaTableName)
     {
         return columnNameToWarmUpType.entries()
@@ -277,7 +285,8 @@ public class WarmupTestDataUtil
                 .toList();
     }
 
-    public static LuceneQueryMatchData createLuceneQueryMatchData(WarmUpElement luceneWarmUpElement,
+    public static LuceneQueryMatchData createLuceneQueryMatchData(
+            WarmUpElement luceneWarmUpElement,
             boolean tightnessRequired,
             Set<Range> orderedRanges,
             Set<Slice> likeQueries,
@@ -294,7 +303,8 @@ public class WarmupTestDataUtil
         return createLuceneQueryMatchData(luceneWarmUpElement, tightnessRequired, orderedRanges, likeQueries, domain, predicateData);
     }
 
-    public static LuceneQueryMatchData createLuceneQueryMatchData(WarmUpElement luceneWarmUpElement,
+    public static LuceneQueryMatchData createLuceneQueryMatchData(
+            WarmUpElement luceneWarmUpElement,
             boolean tightnessRequired,
             Set<Range> orderedRanges,
             Set<Slice> likeQueries,

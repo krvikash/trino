@@ -26,7 +26,7 @@ import java.io.Serializable;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = RegularColumn.class, name = "RegularColumn"),
         @JsonSubTypes.Type(value = WildcardColumn.class, name = "WildcardColumn"),
-        @JsonSubTypes.Type(value = TransformedColumn.class, name = "TransformedColumn")
+        @JsonSubTypes.Type(value = TransformedColumn.class, name = "TransformedColumn"),
 })
 public interface WarpColumn
         extends Serializable

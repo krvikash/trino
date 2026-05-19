@@ -192,8 +192,7 @@ public class TestPushPartialAggregationThroughJoin
                                                                 Optional.empty(),
                                                                 PARTIAL,
                                                                 values("LEFT_GROUP_BY", "LEFT_AGGR")))
-                                                .right(
-                                                        values("RIGHT_COL"))))));
+                                                .right(values("RIGHT_COL"))))));
 
         // With a empty grouping set
         tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
@@ -232,8 +231,7 @@ public class TestPushPartialAggregationThroughJoin
                                                                 Optional.empty(),
                                                                 PARTIAL,
                                                                 values("LEFT_GROUP_BY", "LEFT_AGGR")))
-                                                .right(
-                                                        values("RIGHT_COL"))))));
+                                                .right(values("RIGHT_COL"))))));
     }
 
     @Test

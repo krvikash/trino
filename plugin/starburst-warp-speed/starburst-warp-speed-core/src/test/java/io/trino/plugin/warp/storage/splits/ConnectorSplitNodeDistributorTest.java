@@ -199,7 +199,7 @@ public class ConnectorSplitNodeDistributorTest
                 .stream()
                 .collect(groupingBy(keyToNodeMap1::get, Collectors.toSet()));
 
-        //remove one node (4 left)
+        // remove one node (4 left)
         Node removedNode = nodesMap.remove(Integer.toString(5));
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
@@ -215,7 +215,7 @@ public class ConnectorSplitNodeDistributorTest
 
         nodeToKeysMap2.forEach((nodeIdentifier, keySet) -> assertThat(keySet).containsAll(nodeToKeysMap1.get(nodeIdentifier)));
 
-        //add one node (5 left)
+        // add one node (5 left)
         nodesMap.put(removedNode.getNodeIdentifier(), removedNode);
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(new ArrayList<>(nodesMap.values()));
@@ -239,14 +239,14 @@ public class ConnectorSplitNodeDistributorTest
 
         connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
-        //add one node each time
+        // add one node each time
         Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, "a", Map.of());
         Map<String, Set<String>> nodeToKeysMap2 = assertAddNode(nodesMap, "b", nodeToKeysMap1);
         Map<String, Set<String>> nodeToKeysMap3 = assertAddNode(nodesMap, "c", nodeToKeysMap2);
         Map<String, Set<String>> nodeToKeysMap4 = assertAddNode(nodesMap, "d", nodeToKeysMap3);
         Map<String, Set<String>> nodeToKeysMap5 = assertAddNode(nodesMap, "e", nodeToKeysMap4);
 
-        //remove one node each time
+        // remove one node each time
         assertThat(assertRemoveNode(nodesMap, "e", nodeToKeysMap5)).isEqualTo(nodeToKeysMap4);
         assertThat(assertRemoveNode(nodesMap, "d", nodeToKeysMap4)).isEqualTo(nodeToKeysMap3);
         assertThat(assertRemoveNode(nodesMap, "c", nodeToKeysMap3)).isEqualTo(nodeToKeysMap2);
@@ -261,14 +261,14 @@ public class ConnectorSplitNodeDistributorTest
 
         connectorSplitNodeDistributor = createConnectorSplitConsistentHashNodeDistributor();
 
-        //add one node each time
+        // add one node each time
         Map<String, Set<String>> nodeToKeysMap1 = assertAddNode(nodesMap, nodeIds.removeFirst(), Map.of());
         Map<String, Set<String>> nodeToKeysMap2 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap1);
         Map<String, Set<String>> nodeToKeysMap3 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap2);
         Map<String, Set<String>> nodeToKeysMap4 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap3);
         Map<String, Set<String>> nodeToKeysMap5 = assertAddNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap4);
 
-        //remove one node each time
+        // remove one node each time
         nodeIds = new ArrayList<>(List.of("c", "e", "a", "b", "d"));
 
         Map<String, Set<String>> nodeToKeysMap6 = assertRemoveNode(nodesMap, nodeIds.removeFirst(), nodeToKeysMap5);
@@ -298,13 +298,13 @@ public class ConnectorSplitNodeDistributorTest
         when(nodeManager.getWorkerNodes()).thenReturn(new HashSet<>(nodesMap.values()));
 
         int expectedNodeNumber = 1;
-        //test choose worker by position in list
+        // test choose worker by position in list
         connectorSplitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, String.valueOf(expectedNodeNumber));
         String ignore = "someKey";
         Node node = connectorSplitNodeDistributor.getNode(ignore);
         assertThat(node).isNotNull();
 
-        //test random hashing with -1 RANDOM_HASHING flag
+        // test random hashing with -1 RANDOM_HASHING flag
         connectorSplitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, String.valueOf(RANDOM_HASHING));
         Node nodeResult = connectorSplitNodeDistributor.getNode(ignore);
         String prevValue = nodeResult.getNodeIdentifier();
@@ -317,13 +317,13 @@ public class ConnectorSplitNodeDistributorTest
         }
         assertThat(isRandomWorking).isTrue();
 
-        //testByNodeIdentifier
+        // testByNodeIdentifier
         String expectedNodeId = "2" + nodeIdGenericFlag;
         connectorSplitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, expectedNodeId);
         nodeResult = connectorSplitNodeDistributor.getNode(ignore);
         assertThat(nodeResult.getNodeIdentifier()).isEqualTo(expectedNodeId);
 
-        //test invalid number
+        // test invalid number
         int invalidNumber = 20;
         connectorSplitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, String.valueOf(invalidNumber));
         Assertions.assertThrows(IndexOutOfBoundsException.class, () -> connectorSplitNodeDistributor.getNode(ignore));
@@ -339,7 +339,8 @@ public class ConnectorSplitNodeDistributorTest
         return distributor;
     }
 
-    private Map<String, Set<String>> assertRemoveNode(Map<String, Node> nodesMap,
+    private Map<String, Set<String>> assertRemoveNode(
+            Map<String, Node> nodesMap,
             String nodeId,
             Map<String, Set<String>> previousNodeToKeysMap)
     {
@@ -374,7 +375,8 @@ public class ConnectorSplitNodeDistributorTest
         return currentNodeToKeysMap;
     }
 
-    private Map<String, Set<String>> assertAddNode(Map<String, Node> nodesMap,
+    private Map<String, Set<String>> assertAddNode(
+            Map<String, Node> nodesMap,
             String nodeId,
             Map<String, Set<String>> previousNodeToKeysMap)
     {

@@ -26,19 +26,13 @@ public interface TypeEncoder
     SerializedValue serialize(Object value);
 
     sealed interface SerializedValue
-            permits SerializedList, SerializedString
-    {
-    }
+            permits SerializedList, SerializedString {}
 
     record SerializedList(List<String> values)
-            implements SerializedValue
-    {
-    }
+            implements SerializedValue {}
 
     record SerializedString(String value)
-            implements SerializedValue
-    {
-    }
+            implements SerializedValue {}
 
     static TypeEncoder from(SchemaIr schemaIr)
     {

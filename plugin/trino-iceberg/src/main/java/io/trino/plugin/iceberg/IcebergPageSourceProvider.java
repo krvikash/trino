@@ -601,9 +601,7 @@ public class IcebergPageSourceProvider
         return new SplitSpec(tableSchema, partitionSpec, partitionKeys);
     }
 
-    private record SplitSpec(Schema tableSchema, PartitionSpec partitionSpec, Map<Integer, Optional<String>> partitionKeys)
-    {
-    }
+    private record SplitSpec(Schema tableSchema, PartitionSpec partitionSpec, Map<Integer, Optional<String>> partitionKeys) {}
 
     private TupleDomain<IcebergColumnHandle> prunePredicate(SplitSpec splitSpec, TupleDomain<ColumnHandle> predicate, TupleDomain<IcebergColumnHandle> fileStatisticsDomain)
     {

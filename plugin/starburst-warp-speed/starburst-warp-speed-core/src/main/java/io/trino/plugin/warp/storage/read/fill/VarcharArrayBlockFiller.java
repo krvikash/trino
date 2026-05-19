@@ -58,7 +58,7 @@ public class VarcharArrayBlockFiller
                 valueIsNull[i] = false;
                 valueLengths[i] = slice.getInt(nativeSlicePosition);
                 nativePositions[i] += Integer.BYTES;
-                nativeSlicePosition += Integer.BYTES + valueLengths[i]; //update the nativeSlicePosition to look in the slice
+                nativeSlicePosition += Integer.BYTES + valueLengths[i]; // update the nativeSlicePosition to look in the slice
             }
             outputPosition += valueLengths[i];
         }

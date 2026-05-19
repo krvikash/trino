@@ -68,7 +68,8 @@ public class TestConnectorSensitiveProperties
             checkState(
                     previous.compareTo(next) < 0,
                     "SENSITIVE_PROPERTIES_PER_CONNECTOR key set is not sorted at %s >= %s",
-                    previous, next);
+                    previous,
+                    next);
             previous = next;
         }
 
@@ -97,8 +98,10 @@ public class TestConnectorSensitiveProperties
         Set<String> connectorsOnlyInActualSet = Sets.difference(expectedConnectors, actualConnectors);
         Set<String> connectorsOnlyInExpectedSet = Sets.difference(actualConnectors, expectedConnectors);
         softly.assertThat(connectorsOnlyInActualSet)
-                .withFailMessage("Missing connectors in the current set: %s. Consider updating the set with:\n%s",
-                        connectorsOnlyInActualSet, buildPropertyDefinitions(connectorsOnlyInActualSet, expectedPropertiesPerConnector))
+                .withFailMessage(
+                        "Missing connectors in the current set: %s. Consider updating the set with:\n%s",
+                        connectorsOnlyInActualSet,
+                        buildPropertyDefinitions(connectorsOnlyInActualSet, expectedPropertiesPerConnector))
                 .isEmpty();
         softly.assertThat(connectorsOnlyInExpectedSet)
                 .withFailMessage("Unexpected connectors in the current set: %s", connectorsOnlyInExpectedSet)
@@ -108,8 +111,10 @@ public class TestConnectorSensitiveProperties
             Set<String> expectedProperties = connectorProperties.getValue();
             Set<String> actualProperties = sensitivePropertiesPerConnector.get(connectorName);
             softly.assertThat(actualProperties)
-                    .withFailMessage("Current sensitive property set for the %s connector is different than expected. Consider updating the set with:\n%s",
-                            connectorName, buildPropertyDefinitions(ImmutableSet.of(connectorName), expectedPropertiesPerConnector))
+                    .withFailMessage(
+                            "Current sensitive property set for the %s connector is different than expected. Consider updating the set with:\n%s",
+                            connectorName,
+                            buildPropertyDefinitions(ImmutableSet.of(connectorName), expectedPropertiesPerConnector))
                     .isEqualTo(expectedProperties);
         }
     }
@@ -304,7 +309,8 @@ public class TestConnectorSensitiveProperties
         String trinoVersion = properties.getProperty("project.version");
         Path rootDir = findRepositoryRoot();
         Path pluginDir = rootDir.resolve("core/trino-server/target/trino-server-" + trinoVersion + "-hardlinks/plugin");
-        checkState(Files.exists(pluginDir), "The \"plugin\" directory does not exist: %s. " +
+        checkState(Files.exists(pluginDir),
+                "The \"plugin\" directory does not exist: %s. " +
                         "Before running this test the project has to be built so that the final .tar.gz, produced by the \"provisio:provision\" Maven goal, is available.",
                 pluginDir.toAbsolutePath());
         return pluginDir;
@@ -321,9 +327,9 @@ public class TestConnectorSensitiveProperties
                             .map("                            \"%s\""::formatted)
                             .collect(joining(",\n"));
                     return """
-                                       .put("%s",
-                                               ImmutableSet.of(
-                                                       %s))
+                           .put("%s",
+                                   ImmutableSet.of(
+                                           %s))
                            """.formatted(connectorName, propertiesDefinition.trim());
                 })
                 .collect(joining());

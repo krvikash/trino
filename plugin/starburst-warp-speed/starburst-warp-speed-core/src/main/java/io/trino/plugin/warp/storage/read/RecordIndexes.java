@@ -161,7 +161,9 @@ public class RecordIndexes
             int byteValue = Byte.toUnsignedInt(bm.get(ValueLayout.JAVA_BYTE, byteIndex));
             for (int bitOffset : PRECOMPUTED_INDICES[byteValue]) {
                 long recIxOffset = RECORD_INDEXES_OFFSET_LIST + (curOffset + numRecords) * RECORD_INDEX_SIZE;
-                recordIndexes.set(ValueLayout.JAVA_SHORT, recIxOffset,
+                recordIndexes.set(
+                        ValueLayout.JAVA_SHORT,
+                        recIxOffset,
                         (short) (byteIndex * Byte.SIZE + bitOffset));
                 recordIndexesList[curOffset + numRecords] = (short) (byteIndex * Byte.SIZE + bitOffset);
                 numRecords++;
@@ -183,7 +185,8 @@ public class RecordIndexes
         setStart(chunk.startIx());
     }
 
-    public void storeRowList(ChunkProperties chunkToStore,
+    public void storeRowList(
+            ChunkProperties chunkToStore,
             short[] storeRowListBuff)
     {
         RecordIndexListType storeRowListType = chunkToStore.type();
@@ -193,7 +196,8 @@ public class RecordIndexes
         }
     }
 
-    public void restoreRowList(ChunkProperties chunkToRestore,
+    public void restoreRowList(
+            ChunkProperties chunkToRestore,
             short[] storeRowListBuff)
     {
         RecordIndexListType storeRowListType = chunkToRestore.type();

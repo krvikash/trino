@@ -37,7 +37,8 @@ public class FixedLengthStringBlockAppender
     private final int weRecTypeLength;
     private final Type filterType;
 
-    public FixedLengthStringBlockAppender(WriteJuffersWarmUpElement juffersWE,
+    public FixedLengthStringBlockAppender(
+            WriteJuffersWarmUpElement juffersWE,
             StorageEngineConstants storageEngineConstants,
             int weRecTypeLength,
             Type filterType)
@@ -53,7 +54,8 @@ public class FixedLengthStringBlockAppender
     {
         ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
         int stringLength = weRecTypeLength;
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(filterType,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                filterType,
                 stringLength,
                 true,
                 true);
@@ -92,7 +94,8 @@ public class FixedLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos,
+    public AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
@@ -101,7 +104,8 @@ public class FixedLengthStringBlockAppender
         int recBuffSize = juffersWE.getRecBuffSize();
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
         int stringLength = weRecTypeLength;
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(filterType,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                filterType,
                 stringLength,
                 true,
                 true);
@@ -144,8 +148,11 @@ public class FixedLengthStringBlockAppender
     private void writeValue(ByteBuffer buff, int stringLength, Slice value)
     {
         ByteBuffer byteBuffer = value.toByteBuffer();
-        juffersWE.updateRecordBufferProps(SliceUtils.calcStringValue(byteBuffer, value.length(), stringLength, false),
-                byteBuffer, value.length(), buff.position());
+        juffersWE.updateRecordBufferProps(
+                SliceUtils.calcStringValue(byteBuffer, value.length(), stringLength, false),
+                byteBuffer,
+                value.length(),
+                buff.position());
         buff.put(byteBuffer);
     }
 

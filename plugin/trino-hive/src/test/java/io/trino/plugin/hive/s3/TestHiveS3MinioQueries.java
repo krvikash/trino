@@ -142,27 +142,28 @@ public class TestHiveS3MinioQueries
         assertUpdate(
                 session,
                 """
-                        CREATE TABLE csv_table
-                        WITH (FORMAT='CSV')
-                        AS SELECT
-                               CAST(orderkey AS VARCHAR) orderkey,
-                               CAST(partkey AS VARCHAR) partkey,
-                               CAST(suppkey AS VARCHAR) suppkey,
-                               CAST(linenumber AS VARCHAR) linenumber,
-                               CAST(format('%.1f', quantity) AS VARCHAR) quantity,
-                               CAST(format('%.2f', extendedprice) AS VARCHAR) extendedprice,
-                               CAST(format('%.2f', discount) AS VARCHAR) discount,
-                               CAST(format('%.2f', tax) AS VARCHAR) tax,
-                               CAST(returnflag AS VARCHAR) returnflag,
-                               CAST(linestatus AS VARCHAR) linestatus,
-                               CAST(shipinstruct AS VARCHAR) shipinstruct,
-                               CAST(shipmode AS VARCHAR) shipmode,
-                               CAST(comment AS VARCHAR) comment
-                           FROM tpch.tiny.lineitem
-                        """,
+                CREATE TABLE csv_table
+                WITH (FORMAT='CSV')
+                AS SELECT
+                       CAST(orderkey AS VARCHAR) orderkey,
+                       CAST(partkey AS VARCHAR) partkey,
+                       CAST(suppkey AS VARCHAR) suppkey,
+                       CAST(linenumber AS VARCHAR) linenumber,
+                       CAST(format('%.1f', quantity) AS VARCHAR) quantity,
+                       CAST(format('%.2f', extendedprice) AS VARCHAR) extendedprice,
+                       CAST(format('%.2f', discount) AS VARCHAR) discount,
+                       CAST(format('%.2f', tax) AS VARCHAR) tax,
+                       CAST(returnflag AS VARCHAR) returnflag,
+                       CAST(linestatus AS VARCHAR) linestatus,
+                       CAST(shipinstruct AS VARCHAR) shipinstruct,
+                       CAST(shipmode AS VARCHAR) shipmode,
+                       CAST(comment AS VARCHAR) comment
+                   FROM tpch.tiny.lineitem
+                """,
                 60175);
 
-        assertQuery(session, "SELECT * FROM csv_table ORDER BY orderkey, linenumber", """
+        assertQuery(session, "SELECT * FROM csv_table ORDER BY orderkey, linenumber",
+                """
                 SELECT
                     CAST(orderkey AS VARCHAR) orderkey,
                                                CAST(partkey AS VARCHAR) partkey,

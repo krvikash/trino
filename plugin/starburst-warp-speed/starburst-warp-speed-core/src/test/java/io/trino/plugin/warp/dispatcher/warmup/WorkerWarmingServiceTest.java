@@ -149,7 +149,7 @@ public class WorkerWarmingServiceTest
         assertThat(workerWarmingService.getWarmupRules(new SchemaTableName("s", "t")))
                 .isEmpty();
         verify(eventBus, times(1)).post(eq(new WarmRulesChangedEvent()));
-        //make sure the event is posted only once
+        // make sure the event is posted only once
         IntStream.range(0, 4).forEach(_ -> {
             assertThat(workerWarmingService.getWarmupRules(new SchemaTableName("s", "t")))
                     .isEmpty();
@@ -172,12 +172,14 @@ public class WorkerWarmingServiceTest
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
         List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_DATA);
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 alreadyWarmupTypes,
                 rowGroupKey,
                 true);
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRules);
@@ -201,12 +203,14 @@ public class WorkerWarmingServiceTest
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
         List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_DATA);
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 alreadyWarmupTypes,
                 rowGroupKey,
                 false);
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRules);
@@ -242,12 +246,14 @@ public class WorkerWarmingServiceTest
                 .build());
 
         List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_DATA);
-        RowGroupData rowGroupData = generateRowGroupData(expectedToWarmColumns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                expectedToWarmColumns,
                 alreadyWarmupTypes,
                 rowGroupKey,
                 false);
 
-        WarmData warmData = act(allColumns,
+        WarmData warmData = act(
+                allColumns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRuleList);
@@ -274,14 +280,16 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
         List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_DATA);
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 alreadyWarmupTypes,
                 rowGroupKey,
                 false);
 
         QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.of(), true, "query-id");
         queryContext = queryContext.asBuilder().matchData(Optional.empty()).build();
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 List.of(),
@@ -298,12 +306,12 @@ public class WorkerWarmingServiceTest
         return Stream.of(
                 arguments(new MapType(VarcharType.VARCHAR, VarcharType.VARCHAR, new TypeOperators()), List.of()),
                 arguments(new ArrayType(VarcharType.VARCHAR), List.of(WARM_UP_TYPE_DATA)),
-                arguments(TimestampWithTimeZoneType.createTimestampWithTimeZoneType(3), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)), //short - TimestampWithTimeZoneType
-                arguments(TimestampWithTimeZoneType.createTimestampWithTimeZoneType(4), List.of()), //long - TimestampWithTimeZoneType
+                arguments(TimestampWithTimeZoneType.createTimestampWithTimeZoneType(3), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)), // short - TimestampWithTimeZoneType
+                arguments(TimestampWithTimeZoneType.createTimestampWithTimeZoneType(4), List.of()), // long - TimestampWithTimeZoneType
                 arguments(TimeType.createTimeType(4), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)),
                 arguments(TimeType.createTimeType(12), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)),
-                arguments(TimeWithTimeZoneType.createTimeWithTimeZoneType(9), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)), //Short -TimeWithTimeZoneType
-                arguments(TimeWithTimeZoneType.createTimeWithTimeZoneType(10), List.of()), //Long TimeWithTimeZoneType
+                arguments(TimeWithTimeZoneType.createTimeWithTimeZoneType(9), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)), // Short -TimeWithTimeZoneType
+                arguments(TimeWithTimeZoneType.createTimeWithTimeZoneType(10), List.of()), // Long TimeWithTimeZoneType
                 arguments(TimestampType.createTimestampType(6), List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC)), // short - TimestampType
                 arguments(TimestampType.createTimestampType(7), List.of()), // long TimestampType
                 arguments(RowType.rowType(RowType.field(VarcharType.VARCHAR), RowType.field(VarcharType.VARCHAR)), List.of()));
@@ -318,20 +326,24 @@ public class WorkerWarmingServiceTest
     public void testAllElementsAlreadyWarmed()
     {
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
         SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC,
+        columnNameToWarmUpType.putAll(COLUMN1, List.of(
+                WARM_UP_TYPE_BASIC,
                 WARM_UP_TYPE_DATA));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
         List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC);
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 alreadyWarmupTypes,
                 rowGroupKey,
                 false);
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRules);
@@ -360,16 +372,19 @@ public class WorkerWarmingServiceTest
         when(warmupDemoterService.canAllowWarmup(lowPriority)).thenReturn(false);
         when(warmupDemoterService.canAllowWarmup(validPriority)).thenReturn(true);
 
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
         WarmupProperties validProperties = new WarmupProperties(WARM_UP_TYPE_BASIC, validPriority, 0, TransformFunction.NONE);
         WarmupProperties lowPriorityProperty1 = new WarmupProperties(WARM_UP_TYPE_DATA, lowPriority, 0, TransformFunction.NONE);
         WarmupProperties lowPriorityProperty2 = new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE, lowPriority, 0, TransformFunction.NONE);
 
-        List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, validProperties),
+        List<WarmupRule> warmupRules = List.of(
+                createRule(COLUMN1, validProperties),
                 createRule(COLUMN1, lowPriorityProperty1),
                 createRule(COLUMN1, lowPriorityProperty2));
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
                 warmupRules);
@@ -389,15 +404,18 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
         int lowPriority = -5;
         when(warmupDemoterService.canAllowWarmup(lowPriority)).thenReturn(false);
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
         WarmupProperties lowPriorityProperty1 = new WarmupProperties(WARM_UP_TYPE_DATA, lowPriority, 0, TransformFunction.NONE);
         WarmupProperties lowPriorityProperty2 = new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE, lowPriority, 0, TransformFunction.NONE);
 
-        List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, lowPriorityProperty1),
+        List<WarmupRule> warmupRules = List.of(
+                createRule(COLUMN1, lowPriorityProperty1),
                 createRule(COLUMN1, lowPriorityProperty2));
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
                 warmupRules);
@@ -416,11 +434,13 @@ public class WorkerWarmingServiceTest
         when(warmupDemoterService.canAllowWarmup(lowPriority)).thenReturn(false);
         when(warmupDemoterService.canAllowWarmup(validPriority)).thenReturn(true);
 
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
         List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_BASIC);
 
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 alreadyWarmupTypes,
                 rowGroupKey,
                 false);
@@ -428,11 +448,13 @@ public class WorkerWarmingServiceTest
         WarmupProperties lowPriorityProperty1 = new WarmupProperties(WARM_UP_TYPE_DATA, lowPriority, 0, TransformFunction.NONE);
         WarmupProperties lowPriorityProperty2 = new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE, lowPriority, 0, TransformFunction.NONE);
 
-        List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, validProperties),
+        List<WarmupRule> warmupRules = List.of(
+                createRule(COLUMN1, validProperties),
                 createRule(COLUMN1, lowPriorityProperty1),
                 createRule(COLUMN1, lowPriorityProperty2));
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRules);
@@ -447,12 +469,14 @@ public class WorkerWarmingServiceTest
     {
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
 
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(WARM_UP_TYPE_BASIC,
-                new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 1, System.currentTimeMillis()));
+        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(
+                WARM_UP_TYPE_BASIC, new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 1, System.currentTimeMillis()));
 
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 warmUpTypeToState,
                 rowGroupKey,
                 false);
@@ -460,7 +484,8 @@ public class WorkerWarmingServiceTest
 
         List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, warmupProperties));
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRules);
@@ -478,12 +503,14 @@ public class WorkerWarmingServiceTest
     {
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
 
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(WARM_UP_TYPE_BASIC,
-                new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 2, 0));
+        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(
+                WARM_UP_TYPE_BASIC, new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 2, 0));
 
-        RowGroupData rowGroupData = generateRowGroupData(columns,
+        RowGroupData rowGroupData = generateRowGroupData(
+                columns,
                 warmUpTypeToState,
                 rowGroupKey,
                 false);
@@ -491,7 +518,8 @@ public class WorkerWarmingServiceTest
 
         List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, warmupProperties));
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 rowGroupData,
                 warmupDemoterService,
                 warmupRules);
@@ -511,13 +539,15 @@ public class WorkerWarmingServiceTest
         warmupDemoterConfig.setDefaultRulePriority(lowPriority);
         when(warmupDemoterService.canAllowWarmup(lowPriority)).thenReturn(false);
         when(warmupDemoterService.canAllowWarmup(validPriority)).thenReturn(true);
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
 
         WarmupProperties validProperties = new WarmupProperties(WARM_UP_TYPE_BASIC, validPriority, 0, TransformFunction.NONE);
         List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, validProperties));
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
                 warmupRules);
@@ -542,7 +572,8 @@ public class WorkerWarmingServiceTest
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
                 warmupRules,
@@ -556,17 +587,20 @@ public class WorkerWarmingServiceTest
     {
         int maxBundleColumns = 2;
         WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columns = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
 
         SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_DATA,
+        columnNameToWarmUpType.putAll(COLUMN1, List.of(
+                WARM_UP_TYPE_DATA,
                 WarmUpType.WARM_UP_TYPE_LUCENE,
                 WARM_UP_TYPE_BASIC));
 
         List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
 
-        WarmData warmData = act(columns,
+        WarmData warmData = act(
+                columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
                 warmupRules,
@@ -610,7 +644,8 @@ public class WorkerWarmingServiceTest
                 .toList()).isEqualTo(expectedOrder);
     }
 
-    private WarmData act(List<ColumnHandle> columns,
+    private WarmData act(
+            List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
             List<WarmupRule> warmupRules)
@@ -618,7 +653,8 @@ public class WorkerWarmingServiceTest
         return act(columns, rowGroupData, warmupDemoterService, warmupRules, 10);
     }
 
-    private WarmData act(List<ColumnHandle> columns,
+    private WarmData act(
+            List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
             List<WarmupRule> warmupRules,
@@ -628,7 +664,8 @@ public class WorkerWarmingServiceTest
         return act(columns, rowGroupData, warmupDemoterService, warmupRules, queryContext, batchSize);
     }
 
-    private WarmData act(List<ColumnHandle> columns,
+    private WarmData act(
+            List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
             Collection<WarmupRule> warmupRules,
@@ -642,7 +679,8 @@ public class WorkerWarmingServiceTest
         when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING_INDEX), any())).thenReturn(globalConfig.isCreateIndexInDefaultWarming());
         StorageWarmerService storageWarmerService = mock(StorageWarmerService.class);
         when(storageWarmerService.tryAllocateNativeResourceForWarmup()).thenReturn(true);
-        WorkerWarmingService workerWarmingService = new WorkerWarmingService(metricsManager,
+        WorkerWarmingService workerWarmingService = new WorkerWarmingService(
+                metricsManager,
                 dispatcherProxiedConnectorTransformer,
                 workerTaskExecutorService,
                 warmExecutionTaskFactory,
@@ -658,7 +696,8 @@ public class WorkerWarmingServiceTest
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         when(rowGroupDataService.get(dispatcherSplitRowGroupKeyPair.getRight())).thenReturn(rowGroupData);
 
-        return workerWarmingService.getWarmData(columns,
+        return workerWarmingService.getWarmData(
+                columns,
                 dispatcherSplitRowGroupKeyPair.getRight(),
                 dispatcherSplitRowGroupKeyPair.getLeft(),
                 connectorSession,
@@ -680,7 +719,8 @@ public class WorkerWarmingServiceTest
                 .build();
     }
 
-    private Set<WarmUpType> getActualColTypesToWarm(WarpColumn columnName,
+    private Set<WarmUpType> getActualColTypesToWarm(
+            WarpColumn columnName,
             SetMultimap<WarpColumn, WarmupProperties> result)
     {
         if (!result.containsKey(columnName)) {

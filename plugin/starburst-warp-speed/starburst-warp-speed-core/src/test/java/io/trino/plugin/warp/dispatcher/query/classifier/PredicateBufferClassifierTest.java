@@ -83,7 +83,8 @@ class PredicateBufferClassifierTest
         DomainToMapBlockConvertor domainToMapBlockConvertor = new DomainToMapBlockConvertor(storageEngineConstants);
         MetricsManager metricsManager = mock(MetricsManager.class);
         GlobalConfig globalConfig = new GlobalConfig();
-        predicatesCacheService = spy(new PredicatesCacheService(bufferAllocator,
+        predicatesCacheService = spy(new PredicatesCacheService(
+                bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
                 domainToMapBlockConvertor,
@@ -133,7 +134,8 @@ class PredicateBufferClassifierTest
                 .type(IntegerType.INTEGER)
                 .build();
 
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(0, columnHandle),
@@ -194,7 +196,8 @@ class PredicateBufferClassifierTest
                 .remainingCollectColumnByBlockIndex(Map.of())
                 .build();
 
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 predicateContextData,
                 collectColumnsByBlockIndex,
@@ -272,7 +275,8 @@ class PredicateBufferClassifierTest
         List<NativeQueryCollectData> collectsForMatchCollect = createCollectColumnsForMatchCollect(MAPPED, matchForMatchCollect1, matchForMatchCollect2);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(matchForMatchCollect1, matchForMatchCollect2));
 
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 collectColumnsByBlockIndex,

@@ -107,7 +107,7 @@ public final class BenchmarkRunner
     public enum ExecutionMode
     {
         CPU,
-        GPU
+        GPU,
     }
 
     /**
@@ -120,7 +120,8 @@ public final class BenchmarkRunner
      * Leaf or in-stack frames marking idle / parked / polling threads — excluded from the
      * self-time top table (raw flamegraph is unchanged).
      */
-    private static final Pattern IDLE_FRAME_PATTERN = Pattern.compile(String.join("|",
+    private static final Pattern IDLE_FRAME_PATTERN = Pattern.compile(String.join(
+            "|",
             "Parker::park",
             "Unsafe_Park",
             "Unsafe\\.park",
@@ -281,8 +282,7 @@ public final class BenchmarkRunner
         private final Launcher launcher;
         private final Workload workload;
 
-        @Option(
-                names = {"-W", "--suite-warmup"},
+        @Option(names = {"-W", "--suite-warmup"},
                 description = "Number of full passes over the workload's default queries (in order, no validation) before per-query benchmarking. Always runs the entire workload — independent of --query.")
         int suiteWarmup = 1;
 
@@ -321,8 +321,7 @@ public final class BenchmarkRunner
          *     <li>--log-file {@code <path>} / --xml — redirect or format output</li>
          * </ul>
          */
-        @Option(
-                names = "--gpu-sanitizer",
+        @Option(names = "--gpu-sanitizer",
                 arity = "0..1",
                 fallbackValue = "--tool memcheck",
                 description = "Run the benchmark JVM under NVIDIA compute-sanitizer with the given arguments (e.g. \"--tool memcheck --leak-check full\"). Defaults to \"--tool memcheck\" when passed with no value. Requires --mode=gpu.")
@@ -866,23 +865,32 @@ public final class BenchmarkRunner
 
         StringBuilder flat = new StringBuilder(4096);
         flat.append(format("# Flat self-time top-30 for %s (idle / parked stacks excluded)%n", displayName));
-        flat.append(format("# Raw samples: %d  Kept after filter: %d (%.1f%%)%n",
-                totalSamples, keptSamples, 100.0 * keptSamples / Math.max(1, totalSamples)));
+        flat.append(format(
+                "# Raw samples: %d  Kept after filter: %d (%.1f%%)%n",
+                totalSamples,
+                keptSamples,
+                100.0 * keptSamples / Math.max(1, totalSamples)));
         flat.append(format("# Event: %s  Interval: %s%n", profileEvent.name().toLowerCase(Locale.ROOT), workload.profileInterval()));
         flat.append(format("#%n"));
         flat.append(format("# By thread group (after filter):%n"));
         long keptForLambda = keptSamples;
         byThreadGroup.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .forEach(entry -> flat.append(format("#   %-16s %8d  %5.1f%%%n",
-                        entry.getKey(), entry.getValue(), 100.0 * entry.getValue() / Math.max(1, keptForLambda))));
+                .forEach(entry -> flat.append(format(
+                        "#   %-16s %8d  %5.1f%%%n",
+                        entry.getKey(),
+                        entry.getValue(),
+                        100.0 * entry.getValue() / Math.max(1, keptForLambda))));
         flat.append(format("#%n"));
         flat.append(format("%-10s %-8s %s%n", "samples", "pct", "leaf frame"));
         selfTime.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(30)
-                .forEach(entry -> flat.append(format("%-10d %-7.2f%% %s%n",
-                        entry.getValue(), 100.0 * entry.getValue() / Math.max(1, keptForLambda), entry.getKey())));
+                .forEach(entry -> flat.append(format(
+                        "%-10d %-7.2f%% %s%n",
+                        entry.getValue(),
+                        100.0 * entry.getValue() / Math.max(1, keptForLambda),
+                        entry.getKey())));
 
         Files.writeString(profileOutputDir.resolve(displayName + ".flat.txt"), flat.toString(), UTF_8);
         return keptSamples;
@@ -907,7 +915,8 @@ public final class BenchmarkRunner
             }
         }
         log.info("Merged collapsed stacks written to %s (%d per-query files merged)",
-                merged, mergedCount);
+                merged,
+                mergedCount);
     }
 
     /**
@@ -968,41 +977,42 @@ public final class BenchmarkRunner
     {
         List<String> jvmArguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
         Runtime runtime = Runtime.getRuntime();
-        String content = """
-                         # Benchmark run metadata (workload: %s)
-                         timestamp:               %s
-                         warmup runs:             %d
-                         measured runs:           %d
-                         queries:                 %s
-                         profile event:           %s
-                         profile interval:        %s
-                         profile idle filter:     %s
-                         java version:            %s
-                         java vendor:             %s
-                         os.name:                 %s
-                         os.arch:                 %s
-                         heap max (-Xmx):         %d MB
-                         available processors:    %d
-                         preserve frame pointer:  %s
-                         jvm input arguments:
-                         %s
-                         """.formatted(
-                workload.name(),
-                Instant.now(),
-                warmup,
-                runs,
-                queriesRun.toString(),
-                profileEvent,
-                workload.profileInterval(),
-                IDLE_FRAME_PATTERN.pattern(),
-                System.getProperty("java.version"),
-                System.getProperty("java.vendor"),
-                System.getProperty("os.name"),
-                System.getProperty("os.arch"),
-                runtime.maxMemory() / (1024 * 1024),
-                runtime.availableProcessors(),
-                jvmArguments.stream().anyMatch(argument -> argument.equals("-XX:+PreserveFramePointer")),
-                jvmArguments.stream().map(argument -> "  " + argument).collect(joining("\n")));
+        String content =
+                """
+                # Benchmark run metadata (workload: %s)
+                timestamp:               %s
+                warmup runs:             %d
+                measured runs:           %d
+                queries:                 %s
+                profile event:           %s
+                profile interval:        %s
+                profile idle filter:     %s
+                java version:            %s
+                java vendor:             %s
+                os.name:                 %s
+                os.arch:                 %s
+                heap max (-Xmx):         %d MB
+                available processors:    %d
+                preserve frame pointer:  %s
+                jvm input arguments:
+                %s
+                """.formatted(
+                        workload.name(),
+                        Instant.now(),
+                        warmup,
+                        runs,
+                        queriesRun.toString(),
+                        profileEvent,
+                        workload.profileInterval(),
+                        IDLE_FRAME_PATTERN.pattern(),
+                        System.getProperty("java.version"),
+                        System.getProperty("java.vendor"),
+                        System.getProperty("os.name"),
+                        System.getProperty("os.arch"),
+                        runtime.maxMemory() / (1024 * 1024),
+                        runtime.availableProcessors(),
+                        jvmArguments.stream().anyMatch(argument -> argument.equals("-XX:+PreserveFramePointer")),
+                        jvmArguments.stream().map(argument -> "  " + argument).collect(joining("\n")));
         Files.writeString(profileOutputDir.resolve("run.meta.txt"), content, UTF_8);
     }
 
@@ -1014,15 +1024,20 @@ public final class BenchmarkRunner
     private record ThreadGroupRule(String label, Pattern pattern) {}
 
     private static final List<ThreadGroupRule> THREAD_GROUP_RULES = List.of(
-            new ThreadGroupRule("task-runner",
+            new ThreadGroupRule(
+                    "task-runner",
                     Pattern.compile("TimeSharingTaskExecutor\\$TaskRunner|PrioritizedSplitRunner")),
-            new ThreadGroupRule("compiler",
+            new ThreadGroupRule(
+                    "compiler",
                     Pattern.compile("CompileBroker::compiler_thread_loop|C1Compiler|C2Compiler")),
-            new ThreadGroupRule("gc-vm",
+            new ThreadGroupRule(
+                    "gc-vm",
                     Pattern.compile("G1ConcurrentRefine|G1ParScanThreadState|GCTaskThread|VMThread::run")),
-            new ThreadGroupRule("jetty",
+            new ThreadGroupRule(
+                    "jetty",
                     Pattern.compile("ServerConnector|HttpChannelOverHttp|ReservedThread")),
-            new ThreadGroupRule("jvm-internal",
+            new ThreadGroupRule(
+                    "jvm-internal",
                     Pattern.compile("Reference\\$ReferenceHandler|Finalizer\\$FinalizerThread")));
 
     private static String threadGroup(String stack)

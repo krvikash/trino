@@ -68,11 +68,11 @@ public abstract class BaseObjectStoreDeltaConnectorTest
             // SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES: TODO currently not supported for Iceberg materialized views based on Delta tables
             // SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS: not supported by Iceberg
             case SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
-                    SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
-                    SUPPORTS_RENAME_MATERIALIZED_VIEW,
-                    SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
+                 SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
+                 SUPPORTS_RENAME_MATERIALIZED_VIEW,
+                 SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
                 yield true;
@@ -234,7 +234,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
     @Override
     public void testHiveSpecificColumnProperty()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 CREATE TABLE test_hive_specific_column_property(
                    xyz bigint,
                    abc bigint WITH (partition_projection_type = 'INTEGER', partition_projection_range = ARRAY['0', '10'])
@@ -517,7 +518,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Renaming row field is not supported, but a non-standard exception message is thrown.
         assertThatThrownBy(super::testRenameRowField)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Renaming fields in Delta Lake tables is not supported"
@@ -533,7 +535,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Setting row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldType)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Delta Lake tables is not supported"
@@ -549,7 +552,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Setting map key type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldMapKeyType)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Delta Lake tables is not supported"
@@ -565,7 +569,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Setting map value type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldMapValueType)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Delta Lake tables is not supported"
@@ -581,7 +586,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Adding row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testAddRowFieldInArray)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Adding fields to Delta Lake tables is not supported"
@@ -597,7 +603,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Dropping row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testDropRowFieldInArray)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Dropping fields from Delta Lake tables is not supported"
@@ -613,7 +620,8 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         // Setting row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldTypeInArray)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Delta Lake tables is not supported"

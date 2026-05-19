@@ -99,8 +99,13 @@ public abstract class CloudVendorService
 
     public abstract StorageObjectMetadata downloadFileFromCloud(String path, File file);
 
-    public abstract CloudVendorResult appendOnCloud(String path, File file, StorageObjectMetadata metadata,
-                                                    long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo);
+    public abstract CloudVendorResult appendOnCloud(
+            String path,
+            File file,
+            StorageObjectMetadata metadata,
+            long startOffset,
+            boolean isSparseFile,
+            Callable<Boolean> validateBeforeDo);
 
     public List<String> listPath(String path)
     {
@@ -132,8 +137,13 @@ public abstract class CloudVendorService
     {
         File destFile = new File(file.getPath() + getTempFileSuffix());
 
-        logger.debug("appendOnLocal file [%s] length %d startOffset %d => path [%s] destFile [%s]",
-                file, file.length(), startOffset, path, destFile);
+        logger.debug(
+                "appendOnLocal file [%s] length %d startOffset %d => path [%s] destFile [%s]",
+                file,
+                file.length(),
+                startOffset,
+                path,
+                destFile);
         downloadFileFromCloud(path, destFile);
         append(file, destFile, startOffset);
 

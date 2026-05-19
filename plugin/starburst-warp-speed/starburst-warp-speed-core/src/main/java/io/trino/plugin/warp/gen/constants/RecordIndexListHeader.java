@@ -21,7 +21,5 @@ public enum RecordIndexListHeader
     RECORD_INDEX_LIST_HEADER_TOTAL_SIZE,
     RECORD_INDEX_LIST_HEADER_NUM_OF;
 
-    RecordIndexListHeader()
-    {
-    }
+    RecordIndexListHeader() {}
 }

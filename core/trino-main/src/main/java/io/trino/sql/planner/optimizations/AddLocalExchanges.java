@@ -808,7 +808,12 @@ public class AddLocalExchanges
         public PlanWithProperties visitMergeWriter(MergeWriterNode node, StreamPreferredProperties parentPreferences)
         {
             WriterScalingOptions scalingOptions = node.getTarget().getWriterScalingOptions(plannerContext.getMetadata(), session);
-            return visitTableWriter(node, node.getPartitioningScheme(), node.getSource(), parentPreferences, node.getTarget(),
+            return visitTableWriter(
+                    node,
+                    node.getPartitioningScheme(),
+                    node.getSource(),
+                    parentPreferences,
+                    node.getTarget(),
                     isTaskScaleWritersEnabled(session) && scalingOptions.isPerTaskWriterScalingEnabled());
         }
 

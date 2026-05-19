@@ -110,7 +110,8 @@ public class DispatcherCacheManagerModule
     private final WarpCacheMgrConnectorContext warpCacheMgrConnectorContext;
     private Map<String, String> config;
 
-    public DispatcherCacheManagerModule(String cacheManagerName,
+    public DispatcherCacheManagerModule(
+            String cacheManagerName,
             Map<String, String> config,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
     {

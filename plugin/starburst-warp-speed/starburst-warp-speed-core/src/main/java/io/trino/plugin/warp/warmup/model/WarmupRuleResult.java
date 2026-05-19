@@ -23,7 +23,8 @@ import java.util.Set;
 public record WarmupRuleResult(List<WarmupRule> appliedRules, Map<WarmupRule, Set<String>> rejectedRules)
 {
     @JsonCreator
-    public WarmupRuleResult(@JsonProperty("appliedRules") List<WarmupRule> appliedRules,
+    public WarmupRuleResult(
+            @JsonProperty("appliedRules") List<WarmupRule> appliedRules,
             @JsonProperty("rejectedRules") Map<WarmupRule, Set<String>> rejectedRules)
     {
         this.appliedRules = appliedRules;

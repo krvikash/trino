@@ -77,7 +77,7 @@ public abstract class BaseObjectStoreHudiConnectorTest
             case SUPPORTS_DROP_SCHEMA_CASCADE -> true;
             // ObjectStore adds support for schemas using Hive
             case SUPPORTS_CREATE_SCHEMA,
-                    SUPPORTS_RENAME_SCHEMA -> {
+                 SUPPORTS_RENAME_SCHEMA -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
                 yield true;
@@ -85,21 +85,21 @@ public abstract class BaseObjectStoreHudiConnectorTest
             // ObjectStore adds support for materialized views using Iceberg
             // SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS: not supported by Iceberg
             case SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
-                    SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
-                    SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES,
-                    SUPPORTS_RENAME_MATERIALIZED_VIEW,
-                    SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
+                 SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
+                 SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES,
+                 SUPPORTS_RENAME_MATERIALIZED_VIEW,
+                 SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
                 yield true;
             }
             // ObjectStore adds support for views using Hive
             case SUPPORTS_CREATE_VIEW,
-                    SUPPORTS_COMMENT_ON_VIEW,
-                    SUPPORTS_COMMENT_ON_VIEW_COLUMN,
-                    SUPPORTS_REFRESH_VIEW -> {
+                 SUPPORTS_COMMENT_ON_VIEW,
+                 SUPPORTS_COMMENT_ON_VIEW_COLUMN,
+                 SUPPORTS_REFRESH_VIEW -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
                 yield true;
@@ -186,7 +186,8 @@ public abstract class BaseObjectStoreHudiConnectorTest
     public void testMaterializedView()
     {
         assertThatThrownBy(super::testMaterializedView)
-                .hasMessageMatching("""
+                .hasMessageMatching(
+                        """
                         ^
                         \\QMultiple Failures (1 failure)
                         -- failure 1 --

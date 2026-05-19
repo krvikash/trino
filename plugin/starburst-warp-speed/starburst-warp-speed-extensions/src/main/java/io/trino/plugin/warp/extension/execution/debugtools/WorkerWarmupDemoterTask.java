@@ -93,7 +93,8 @@ public class WorkerWarmupDemoterTask
     private final AtomicReference<CompletableFuture<WarmupDemoterFinishEvent>> demoteFuture = new AtomicReference<>();
 
     @Inject
-    public WorkerWarmupDemoterTask(WarmupDemoterService warmupDemoterService,
+    public WorkerWarmupDemoterTask(
+            WarmupDemoterService warmupDemoterService,
             WarpDeleteService warpDeleteService,
             WarmupDemoterConfig warmupDemoterConfig,
             WorkerCapacityManager workerCapacityManager,
@@ -117,7 +118,7 @@ public class WorkerWarmupDemoterTask
     @POST
     @Audit
     @Path(WARMUP_DEMOTER_START_TASK_NAME)
-    //@ApiOperation(value = "start", nickname = "startDemoter", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "start", nickname = "startDemoter", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, Object> start(WarmupDemoterData warmupDemoterData)
     {
         logger.debug("%s: start warmup demote task", catalogName);
@@ -128,7 +129,8 @@ public class WorkerWarmupDemoterTask
         }
 
         if (demoteFuture.get() != null) {
-            logger.info("catalog[%s]: SKIPPING start warmup demote task since another is running",
+            logger.info(
+                    "catalog[%s]: SKIPPING start warmup demote task since another is running",
                     catalogName);
             return Map.of();
         }

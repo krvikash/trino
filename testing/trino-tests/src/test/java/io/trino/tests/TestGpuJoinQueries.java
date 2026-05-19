@@ -277,7 +277,8 @@ public class TestGpuJoinQueries
     @Test
     public void testGpuSemiJoin()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT o.custkey
                 FROM orders o
                 WHERE o.custkey NOT IN (
@@ -286,7 +287,8 @@ public class TestGpuJoinQueries
                 """))
                 .executesWithGpu(SemiJoinNode.class);
 
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT o.custkey, o.custkey IN (SELECT c.custkey FROM customer c WHERE c.nationkey > 10)
                 FROM orders o
                 """))

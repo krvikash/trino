@@ -27,5 +27,5 @@ public enum DiscoveryMode
      * or hierarchy where each folder in table is a partition (key=value)
      * Any directory above table will be discovered as schema
      */
-    NORMAL
+    NORMAL,
 }

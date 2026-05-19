@@ -113,7 +113,8 @@ public class TrinoFsClientModule
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 config.getExecutorThreads(),
                 config.getExecutorThreads(),
-                60L, TimeUnit.SECONDS,
+                60L,
+                TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
                 threadsNamed("trino-fs-client-spooling-%s"));
         executor.allowCoreThreadTimeOut(true);

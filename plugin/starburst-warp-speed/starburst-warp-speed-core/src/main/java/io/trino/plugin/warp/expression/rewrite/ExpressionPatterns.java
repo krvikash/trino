@@ -35,7 +35,7 @@ public final class ExpressionPatterns
 
     public static Property<WarpCall, ?, Integer> argumentCount()
     {
-        return Property.property("argumentCount", (warpCall) -> warpCall.getArguments().size());
+        return Property.property("argumentCount", warpCall -> warpCall.getArguments().size());
     }
 
     public static Property<WarpCall, ?, String> functionName()

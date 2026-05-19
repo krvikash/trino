@@ -14,7 +14,8 @@ import static java.util.Objects.requireNonNull;
 public record ChunkContentResult(ChunkDataLease lease)
         implements ChunkDataResult
 {
-    public ChunkContentResult {
+    public ChunkContentResult
+    {
         requireNonNull(lease, "lease is null");
     }
 }

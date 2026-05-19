@@ -61,14 +61,14 @@ public class TestStargateWithHiveConnectorTest
             case SUPPORTS_COMMENT_ON_COLUMN -> true;
             // Writes are not enabled
             case SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_CREATE_VIEW,
-                    SUPPORTS_MERGE,
-                    SUPPORTS_UPDATE,
-                    SUPPORTS_CREATE_TABLE,
-                    SUPPORTS_RENAME_TABLE,
-                    SUPPORTS_INSERT,
-                    SUPPORTS_DELETE,
-                    SUPPORTS_ADD_COLUMN -> false;
+                 SUPPORTS_CREATE_VIEW,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_UPDATE,
+                 SUPPORTS_CREATE_TABLE,
+                 SUPPORTS_RENAME_TABLE,
+                 SUPPORTS_INSERT,
+                 SUPPORTS_DELETE,
+                 SUPPORTS_ADD_COLUMN -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }

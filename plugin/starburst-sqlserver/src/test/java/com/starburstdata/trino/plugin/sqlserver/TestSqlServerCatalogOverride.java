@@ -64,7 +64,9 @@ public class TestSqlServerCatalogOverride
     {
         sqlServer.execute("CREATE SCHEMA test_catalog_override");
 
-        assertQuery(STANDARD_SESSION, "SHOW SCHEMAS LIKE 'test_catalog_override'",
+        assertQuery(
+                STANDARD_SESSION,
+                "SHOW SCHEMAS LIKE 'test_catalog_override'",
                 "VALUES (CAST ('test_catalog_override' AS varchar))");
         assertQueryReturnsEmptyResult(OVERRIDDEN_SESSION, "SHOW SCHEMAS LIKE 'test_catalog_override'");
     }

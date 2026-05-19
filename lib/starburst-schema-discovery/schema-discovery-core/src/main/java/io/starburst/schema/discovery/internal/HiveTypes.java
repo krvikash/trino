@@ -35,7 +35,6 @@ import static io.trino.metastore.type.TypeInfoFactory.getVarcharTypeInfo;
 import static io.trino.metastore.type.TypeInfoUtils.getTypeInfoFromTypeString;
 
 //Here is all trino supported types with type='hive' create table
-
 //type_boolean boolean,
 //type_tinyint tinyint,
 //type_smallint smallint,
@@ -52,7 +51,6 @@ import static io.trino.metastore.type.TypeInfoUtils.getTypeInfoFromTypeString;
 //type_array array<varchar>,
 //type_map map<varchar, varchar>,
 //type_row row(row_nested varchar)
-
 //those are not supported in hive:
 //--type_json json,
 //--type_time time, (all time types)
@@ -214,7 +212,5 @@ public class HiveTypes
         return Optional.of(typeInfo);
     }
 
-    private HiveTypes()
-    {
-    }
+    private HiveTypes() {}
 }

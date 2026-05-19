@@ -96,8 +96,7 @@ public final class JdbcTableHandle
             @JsonProperty("authorization") Optional<String> authorization,
             @JsonProperty("updateAssignments") List<JdbcAssignmentItem> updateAssignments)
     {
-        this(
-                relationHandle,
+        this(relationHandle,
                 constraint,
                 constraintExpressions,
                 Optional.empty(), // constraintOriginalExpression is not serialized (not needed in workers)
@@ -123,8 +122,7 @@ public final class JdbcTableHandle
             Optional<String> authorization,
             List<JdbcAssignmentItem> updateAssignments)
     {
-        this(
-                relationHandle,
+        this(relationHandle,
                 constraint,
                 constraintExpressions,
                 Optional.of(constraintOriginalExpression),

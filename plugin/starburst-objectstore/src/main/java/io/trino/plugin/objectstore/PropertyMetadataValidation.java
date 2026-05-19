@@ -48,30 +48,45 @@ public final class PropertyMetadataValidation
     {
         verify(property.getName().equals(existing.getName()),
                 "Mismatched name '%s' <> '%s' for property",
-                property.getName(), existing.getName());
+                property.getName(),
+                existing.getName());
 
         // TODO verify hidden
 
         verify(property.getJavaType().equals(existing.getJavaType()),
                 "Mismatched Java type '%s' <> '%s' for property: %s",
-                property.getJavaType(), existing.getJavaType(), property.getName());
+                property.getJavaType(),
+                existing.getJavaType(),
+                property.getName());
 
         verify(property.getSqlType().equals(existing.getSqlType()),
                 "Mismatched SQL type '%s' <> '%s' for property: %s",
-                property.getSqlType(), existing.getSqlType(), property.getName());
+                property.getSqlType(),
+                existing.getSqlType(),
+                property.getName());
 
         switch (verifyDefaultValue) {
-            case VERIFY_DEFAULT_VALUE -> verify(Objects.equals(property.getDefaultValue(), existing.getDefaultValue()),
+            case VERIFY_DEFAULT_VALUE -> verify(
+                    Objects.equals(property.getDefaultValue(), existing.getDefaultValue()),
                     "Mismatched default value '%s' <> '%s' for property: %s",
-                    property.getDefaultValue(), existing.getDefaultValue(), property.getName());
-            case IGNORE_DEFAULT_VALUE -> { /* ignored */ }
+                    property.getDefaultValue(),
+                    existing.getDefaultValue(),
+                    property.getName());
+            case IGNORE_DEFAULT_VALUE -> {
+                /* ignored */
+            }
         }
 
         switch (verifyDescription) {
-            case VERIFY_DESCRIPTION -> verify(property.getDescription().equals(existing.getDescription()),
+            case VERIFY_DESCRIPTION -> verify(
+                    property.getDescription().equals(existing.getDescription()),
                     "Mismatched description '%s' <> '%s' for property: %s",
-                    property.getDescription(), existing.getDescription(), property.getName());
-            case IGNORE_DESCRIPTION -> { /* ignored */ }
+                    property.getDescription(),
+                    existing.getDescription(),
+                    property.getName());
+            case IGNORE_DESCRIPTION -> {
+                /* ignored */
+            }
         }
     }
 

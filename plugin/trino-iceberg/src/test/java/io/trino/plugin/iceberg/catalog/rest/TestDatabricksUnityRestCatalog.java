@@ -74,7 +74,7 @@ final class TestDatabricksUnityRestCatalog
             statement.execute("SET spark.databricks.delta.autoCompact.enabled = false");
 
             try (TestTable table = new TestTable(
-                    (sql) -> onDatabricks(statement, sql),
+                    sql -> onDatabricks(statement, sql),
                     DATABRICKS_UNITY_CATALOG_NAME + ".default.test_dv",
                     "(x INT) TBLPROPERTIES ('delta.universalFormat.enabledFormats'='iceberg', 'delta.enableIcebergCompatV3'='true')",
                     ImmutableList.of("1", "2", "3"))) {

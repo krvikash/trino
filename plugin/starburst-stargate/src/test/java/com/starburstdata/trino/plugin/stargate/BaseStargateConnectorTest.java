@@ -46,24 +46,24 @@ public abstract class BaseStargateConnectorTest
         return switch (connectorBehavior) {
             case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN -> true;
             case SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT -> true;
+                 SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
+                 SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
+                 SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
+                 SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
+                 SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT -> true;
             case SUPPORTS_JOIN_PUSHDOWN -> true;
             // not yet supported in Stargate connector
             case SUPPORTS_COMMENT_ON_TABLE,
-                    SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT,
-                    SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
-                    SUPPORTS_MERGE,
-                    SUPPORTS_UPDATE,
-                    SUPPORTS_ADD_COLUMN_WITH_POSITION,
-                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+                 SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT,
+                 SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_UPDATE,
+                 SUPPORTS_ADD_COLUMN_WITH_POSITION,
+                 SUPPORTS_ROW_LEVEL_UPDATE -> false;
             // TODO Add support in Stargate connector (https://starburstdata.atlassian.net/browse/SEP-4798)
             case SUPPORTS_MAP_TYPE,
-                    SUPPORTS_ROW_TYPE,
-                    SUPPORTS_ARRAY -> false;
+                 SUPPORTS_ROW_TYPE,
+                 SUPPORTS_ARRAY -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }

@@ -136,7 +136,8 @@ public class RuleUtils
         return metricsMultiMap;
     }
 
-    public Set<WarmupColRuleData> createRulesFromStructure(String schema,
+    public Set<WarmupColRuleData> createRulesFromStructure(
+            String schema,
             TestFormat testFormat,
             WarmTypeForStrings warmTypeForStrings)
     {
@@ -146,7 +147,8 @@ public class RuleUtils
         for (TestFormat.Column column : structure) {
             List<WarmUpType> columnWarmupTypes = calcWarmupTypesForColumn(column, warmTypeForStrings);
             for (WarmUpType warmUpType : columnWarmupTypes) {
-                WarmupColRuleData rule = new WarmupColRuleData(0,
+                WarmupColRuleData rule = new WarmupColRuleData(
+                        0,
                         schema,
                         tableName,
                         new RegularColumnData(column.name()),

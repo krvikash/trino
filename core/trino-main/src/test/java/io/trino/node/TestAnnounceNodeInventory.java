@@ -214,7 +214,8 @@ class TestAnnounceNodeInventory
     {
         ConcurrentLinkedDeque<HttpRequestInfo> requests = new ConcurrentLinkedDeque<>();
 
-        HttpServlet testServlet = new HttpServlet() {
+        HttpServlet testServlet = new HttpServlet()
+        {
             @Override
             protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             {

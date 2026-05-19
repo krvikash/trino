@@ -18,7 +18,8 @@ public record FailureInfo(
         String observingClient,
         String failureDetails)
 {
-    public FailureInfo {
+    public FailureInfo
+    {
         requireNonNull(exchangeId, "exchangeId is null");
         requireNonNull(observingClient, "observingClient is null");
         requireNonNull(failureDetails, "exceptionMessage is null");

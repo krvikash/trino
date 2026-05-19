@@ -109,7 +109,8 @@ public class TestParquetSchemaDiscovery
         assertThat(schemaColumns.columns()).containsExactly(
                 column("cdc", HiveTypes.HIVE_LONG),
                 column("payload", struct(
-                        "rejectreasonlist", arrayType(struct(
+                        "rejectreasonlist",
+                        arrayType(struct(
                                 ImmutableList.of(
                                         "betslipid",
                                         "rejectcode",
@@ -124,7 +125,8 @@ public class TestParquetSchemaDiscovery
                                         HiveTypes.HIVE_LONG,
                                         HiveTypes.HIVE_LONG,
                                         HiveTypes.HIVE_LONG))),
-                        "betslip", struct(
+                        "betslip",
+                        struct(
                                 ImmutableList.of(
                                         "createdat",
                                         "pricelineid",

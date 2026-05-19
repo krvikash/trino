@@ -70,7 +70,8 @@ public class WarmupElementCollectParams
         WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID = WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("warm_id"));
     }
 
-    public WarmupElementCollectParams(MemorySegment collectParamsMem,
+    public WarmupElementCollectParams(
+            MemorySegment collectParamsMem,
             int fileOffset,
             RecTypeCode recTypeCode,
             int recTypeLength,

@@ -93,7 +93,8 @@ public class MergedChunkDataAsyncRequestBody
         // As per 2.13, this method must return normally (i.e. not throw).
         try {
             s.onSubscribe(
-                    new Subscription() {
+                    new Subscription()
+                    {
                         private final AtomicLong fileOffset = new AtomicLong(0);
                         private final AtomicInteger chunkOffset = new AtomicInteger(0);
                         private final AtomicInteger sliceOffset = new AtomicInteger(0);

@@ -159,7 +159,7 @@ class DictionariesCacheTest
                 buildDictionaryKey("2"),
                 RecTypeCode.REC_TYPE_VARCHAR);
 
-        //increase number of transactions so this dictionary will not be evicted from active cache regardless of it's size
+        // increase number of transactions so this dictionary will not be evicted from active cache regardless of it's size
         assertThat(dictionariesCache.getWriteDictionary(writeDictionary2.getDictionaryKey(), RecTypeCode.REC_TYPE_VARCHAR))
                 .isEqualTo(writeDictionary2);
 
@@ -195,7 +195,7 @@ class DictionariesCacheTest
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("dictionaryKey was not found in cache");
 
-        //retry due to race condition of removal notification
+        // retry due to race condition of removal notification
         Failsafe.with(RetryPolicy.builder()
                         .handle(AssertionError.class)
                         .withMaxRetries(100)

@@ -25,10 +25,9 @@ public class TestStarburstOraclePlugin
         Plugin plugin = new StarburstOraclePlugin();
         ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
         factory.create("test", ImmutableMap.of(
-                "connection-url", "jdbc:oracle:thin:@test",
-                "connection-user", "test",
-                "connection-password", "password"
-        ), new TestingConnectorContext())
+                        "connection-url", "jdbc:oracle:thin:@test",
+                        "connection-user", "test",
+                        "connection-password", "password"), new TestingConnectorContext())
                 .shutdown();
     }
 
@@ -59,25 +58,25 @@ public class TestStarburstOraclePlugin
 
         // default configuration (no paralellism) works without license
         factory.create(
-                "test",
-                ImmutableMap.<String, String>builder()
-                        .put("connection-url", "jdbc:oracle:thin:@test")
-                        .put("connection-user", "test")
-                        .put("connection-password", "password")
-                        .buildOrThrow(),
-                new TestingConnectorContext())
+                        "test",
+                        ImmutableMap.<String, String>builder()
+                                .put("connection-url", "jdbc:oracle:thin:@test")
+                                .put("connection-user", "test")
+                                .put("connection-password", "password")
+                                .buildOrThrow(),
+                        new TestingConnectorContext())
                 .shutdown();
 
         // explicit no paralellism works without license
         factory.create(
-                "test",
-                ImmutableMap.<String, String>builder()
-                        .put("connection-url", "jdbc:oracle:thin:@test")
-                        .put("connection-user", "test")
-                        .put("connection-password", "password")
-                        .put("oracle.parallelism-type", "no_parallelism")
-                        .buildOrThrow(),
-                new TestingConnectorContext())
+                        "test",
+                        ImmutableMap.<String, String>builder()
+                                .put("connection-url", "jdbc:oracle:thin:@test")
+                                .put("connection-user", "test")
+                                .put("connection-password", "password")
+                                .put("oracle.parallelism-type", "no_parallelism")
+                                .buildOrThrow(),
+                        new TestingConnectorContext())
                 .shutdown();
 
         // partitions parallelism works without license

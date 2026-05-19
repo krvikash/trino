@@ -175,8 +175,10 @@ public class ReloadingModelClientProvider
     {
         try {
             new Loader().load();
-            LOG.debug("Loaded model clients: %s language models, %s embedding models",
-                    state.get().aiClientCache().size(), state.get().embeddingClientCache().size());
+            LOG.debug(
+                    "Loaded model clients: %s language models, %s embedding models",
+                    state.get().aiClientCache().size(),
+                    state.get().embeddingClientCache().size());
         }
         catch (Throwable e) {
             LOG.warn(e, "Error refreshing model clients");
@@ -300,10 +302,8 @@ public class ReloadingModelClientProvider
         {
             PromptDao promptDao = new PromptDaoWithOverrides(defaultPromptDao, modelConnectionSpec.prompts());
             return switch (modelConnectionSpec.connectionInfo()) {
-                case OpenAiConnectionInfo openAiConnectionInfo ->
-                        openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tokenUsageListener);
-                case AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
-                        awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tokenUsageListener);
+                case OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tokenUsageListener);
+                case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tokenUsageListener);
             };
         }
 
@@ -311,8 +311,7 @@ public class ReloadingModelClientProvider
         {
             return switch (modelConnectionSpec.connectionInfo()) {
                 case OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createEmbeddingClient(modelConnectionSpec, openAiConnectionInfo);
-                case AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
-                        awsBedrockClientFactory.createEmbeddingClient(modelConnectionSpec, awsBedrockConnectionInfo);
+                case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> awsBedrockClientFactory.createEmbeddingClient(modelConnectionSpec, awsBedrockConnectionInfo);
             };
         }
     }

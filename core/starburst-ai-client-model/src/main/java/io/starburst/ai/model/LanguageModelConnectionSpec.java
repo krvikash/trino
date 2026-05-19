@@ -57,12 +57,13 @@ public record LanguageModelConnectionSpec(
         requireNonNull(reasoningEffort, "reasoningEffort is null");
     }
 
-    public enum ReasoningEffort {
+    public enum ReasoningEffort
+    {
         none,
         minimal,
         low,
         medium,
         high,
-        xhigh
+        xhigh,
     }
 }

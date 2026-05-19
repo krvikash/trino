@@ -393,7 +393,8 @@ public class RowGroupData
 
         public RowGroupData build()
         {
-            return new RowGroupData(rowGroupKey,
+            return new RowGroupData(
+                    rowGroupKey,
                     warmUpElements,
                     partitionKeys,
                     isEmpty,

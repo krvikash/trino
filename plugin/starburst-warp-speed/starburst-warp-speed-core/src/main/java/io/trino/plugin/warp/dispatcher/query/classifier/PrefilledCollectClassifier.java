@@ -159,7 +159,7 @@ class PrefilledCollectClassifier
         }
         else if (matchData instanceof QueryMatchData queryMatchData &&
                 queryMatchData.getWarpColumn().equals(regularColumn)) {
-            //remove column from Match tree
+            // remove column from Match tree
             result = Optional.empty();
         }
         else {

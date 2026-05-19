@@ -197,19 +197,21 @@ public class TestMongoFederatedDatabaseConnectorSmokeTest
         String catalog = getSession().getCatalog().orElseThrow();
         String schema = getSession().getSchema().orElseThrow();
         assertThat(computeScalar("SHOW CREATE TABLE orders"))
-                .isEqualTo(format("""
-                                CREATE TABLE %s.%s.orders (
-                                   orderkey bigint,
-                                   custkey bigint,
-                                   orderstatus varchar,
-                                   totalprice double,
-                                   orderdate timestamp(3),
-                                   orderpriority varchar,
-                                   clerk varchar,
-                                   shippriority bigint,
-                                   comment varchar
-                                )""",
-                        catalog, schema));
+                .isEqualTo(format(
+                        """
+                        CREATE TABLE %s.%s.orders (
+                           orderkey bigint,
+                           custkey bigint,
+                           orderstatus varchar,
+                           totalprice double,
+                           orderdate timestamp(3),
+                           orderpriority varchar,
+                           clerk varchar,
+                           shippriority bigint,
+                           comment varchar
+                        )""",
+                        catalog,
+                        schema));
     }
 
     @Test
@@ -295,7 +297,7 @@ public class TestMongoFederatedDatabaseConnectorSmokeTest
                 {"test_predicate_pushdown_objectid", "objectid('6216f0c6c432d45190f25e7c')"},
                 {"test_predicate_pushdown_date", "date '1970-01-01'"},
                 {"test_predicate_pushdown_timestamp1", "timestamp '1970-01-01 00:00:00.000'"},
-                {"test_predicate_pushdown_timestamp2", "timestamp '1970-01-01 00:00:00.000 UTC'"}
+                {"test_predicate_pushdown_timestamp2", "timestamp '1970-01-01 00:00:00.000 UTC'"},
         };
     }
 

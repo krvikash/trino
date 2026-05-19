@@ -75,7 +75,8 @@ public class CacheWarmer
     private final AtomicInteger tmpUniqueKeyMarker;
 
     @Inject
-    public CacheWarmer(RowGroupDataService rowGroupDataService,
+    public CacheWarmer(
+            RowGroupDataService rowGroupDataService,
             WarmupElementsCreator warmupElementsCreator,
             WarpPageSinkFactory warpPageSinkFactory,
             StorageWarmerService storageWarmerService,
@@ -97,7 +98,8 @@ public class CacheWarmer
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
-    public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(List<CacheColumnId> columns,
+    public List<WarmupElementWriteMetadata> getWarmupElementWriteMetadatasToWarm(
+            List<CacheColumnId> columns,
             List<Type> columnsTypes,
             RowGroupKey rowGroupKey,
             boolean isOrderDeterministic,
@@ -153,8 +155,12 @@ public class CacheWarmer
                 RecTypeCode recTypeCode = warmUpElement.getRecTypeCode();
                 recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
                 if (recTypeLength < 0) {
-                    shapingLogger.error("recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, fixedLengthStringLimit=%d, writeMetadata=%s",
-                            recTypeLength, recTypeCode, storageEngineConstants.getFixedLengthStringLimit(), writeMetadata);
+                    shapingLogger.error(
+                            "recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, fixedLengthStringLimit=%d, writeMetadata=%s",
+                            recTypeLength,
+                            recTypeCode,
+                            storageEngineConstants.getFixedLengthStringLimit(),
+                            writeMetadata);
                     continue;
                 }
                 int warmUpContextSize = bufferAllocator.getWarmupIndexTxSize();
@@ -179,7 +185,8 @@ public class CacheWarmer
         return result.build();
     }
 
-    private Optional<WarmupElementWriteMetadata> createCacheWarmupElements(RowGroupKey rowGroupKey,
+    private Optional<WarmupElementWriteMetadata> createCacheWarmupElements(
+            RowGroupKey rowGroupKey,
             String cacheColumnId,
             Type type,
             int connectorBlockIndex,
@@ -212,7 +219,8 @@ public class CacheWarmer
     {
         String uniqueKey = permanentRowGroupKey.table();
         uniqueKey = uniqueKey + tmpUniqueKeyMarker.incrementAndGet();
-        return new RowGroupKey("TMP_CACHE_MANAGER_" + warmupElementWriteMetadata.warmUpElement().getWarmUpType(),
+        return new RowGroupKey(
+                "TMP_CACHE_MANAGER_" + warmupElementWriteMetadata.warmUpElement().getWarmUpType(),
                 uniqueKey,
                 "",
                 0,
@@ -231,7 +239,8 @@ public class CacheWarmer
         long[] fileCookieParams = storageWarmerService.fileOpen(tmpRowGroupKey);
         int startOffset = getFileOffset(tmpRowGroupKey);
         DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, startOffset, warmUpElementToWarm);
-        return new WarmingCandidate(fileCookieParams,
+        return new WarmingCandidate(
+                fileCookieParams,
                 pageSink,
                 startOffset,
                 warmUpElementToWarm,
@@ -246,7 +255,8 @@ public class CacheWarmer
             shapingLogger.error("Can't add non-empty WarmUpElements to an existing empty RowGroupData. rowGroupData=%s", rowGroupData);
             return Optional.empty();
         }
-        return Optional.of(storageWriterService.startWarming("WarpCacheManager",
+        return Optional.of(storageWriterService.startWarming(
+                "WarpCacheManager",
                 permanentRowGroupKey.filePath(),
                 dictionaryConfig.getEnableDictionary(),
                 false));

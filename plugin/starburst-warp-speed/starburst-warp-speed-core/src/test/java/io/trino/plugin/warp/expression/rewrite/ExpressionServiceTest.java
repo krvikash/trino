@@ -144,7 +144,8 @@ public class ExpressionServiceTest
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         NativeExpressionRulesHandler nativeExpressionRulesHandler = new NativeExpressionRulesHandler(storageEngineConstants, metricsManager);
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
-        expressionService = new ExpressionService(dispatcherProxiedConnectorTransformer,
+        expressionService = new ExpressionService(
+                dispatcherProxiedConnectorTransformer,
                 new ExperimentSupportedFunction(metricsManager),
                 globalConfig,
                 new NativeConfig(),
@@ -186,8 +187,10 @@ public class ExpressionServiceTest
     @Test
     public void testWarpFunctionsIs_Nan()
     {
-        WarpExpression expectedResult = new WarpCall(IS_NAN.getName(),
-                List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
+        WarpExpression expectedResult = new WarpCall(
+                IS_NAN.getName(),
+                List.of(createExpectedVariable(doubleVariable1)),
+                BOOLEAN);
 
         Call expression = new Call(
                 BooleanType.BOOLEAN,
@@ -224,12 +227,14 @@ public class ExpressionServiceTest
     @Test
     public void testInverseIsNan()
     {
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.FALSE);
         List<WarpExpressionData> expectedResult = List.of(
-                new WarpExpressionData(isNanExpression.getValue(),
+                new WarpExpressionData(
+                        isNanExpression.getValue(),
                         doubleVariable1.getType(),
                         false,
                         Optional.empty(),
@@ -247,18 +252,22 @@ public class ExpressionServiceTest
     @Test
     public void testValidIsNan()
     {
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        NativeExpression expectedNativeExpression = new NativeExpression(PredicateType.PREDICATE_TYPE_VALUES,
+        NativeExpression expectedNativeExpression = new NativeExpression(
+                PredicateType.PREDICATE_TYPE_VALUES,
                 FunctionType.FUNCTION_TYPE_IS_NAN,
                 Domain.singleValue(BOOLEAN, true),
                 false,
                 true,
-                Collections.emptyList(), TransformFunction.NONE);
+                Collections.emptyList(),
+                TransformFunction.NONE);
         List<WarpExpressionData> expectedResult = List.of(
-                new WarpExpressionData(isNanExpression.getValue(),
+                new WarpExpressionData(
+                        isNanExpression.getValue(),
                         doubleVariable1.getType(),
                         false,
                         Optional.of(expectedNativeExpression),
@@ -274,7 +283,8 @@ public class ExpressionServiceTest
     @Test
     public void testWarpFunctionsClientCeil()
     {
-        Pair<Call, WarpCall> ceilExpression = createCallExpression(CEIL,
+        Pair<Call, WarpCall> ceilExpression = createCallExpression(
+                CEIL,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, doubleVariable1.getType()));
@@ -304,16 +314,19 @@ public class ExpressionServiceTest
     @Test
     public void testExpressionWithNull2()
     {
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        Pair<Call, WarpCall> right = createCallExpression(CEIL,
+        Pair<Call, WarpCall> right = createCallExpression(
+                CEIL,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
 
-        Call isNull = new Call(doubleVariable1.getType(),
+        Call isNull = new Call(
+                doubleVariable1.getType(),
                 IS_NULL_FUNCTION_NAME,
                 List.of(new Variable(doubleVariable1.getName(), doubleVariable1.getType())));
 
@@ -356,7 +369,8 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithOrSameColumnOneFunctionNotSupported()
     {
-        Pair<Call, WarpCall> expression = createCallExpression(CEIL,
+        Pair<Call, WarpCall> expression = createCallExpression(
+                CEIL,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
@@ -386,7 +400,8 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWith_And_UnsupportedFunction()
     {
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -398,7 +413,8 @@ public class ExpressionServiceTest
                 .domain(Domain.create(ValueSet.ofRanges(Range.equal(BOOLEAN, true)), false))
                 .collectNulls(false)
                 .build());
-        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(isNanExpression.getValue(),
+        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(
+                isNanExpression.getValue(),
                 doubleVariable1.getType(),
                 false,
                 expectedNativeExpression,
@@ -429,11 +445,14 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithOrFunctionSameColumn()
     {
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
 
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -486,10 +505,13 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithAndFunctionSameColumn()
     {
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -538,25 +560,31 @@ public class ExpressionServiceTest
         ConnectorExpression connectorExpression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(left.getKey(), right.getKey()));
         WarpExpression warpExpression = new WarpCall(OR_FUNCTION_NAME.getName(), List.of(left.getValue(), right.getValue()), BOOLEAN);
 
-        WarpExpressionData leftWarpExpressionData = new WarpExpressionData(left.getValue(),
+        WarpExpressionData leftWarpExpressionData = new WarpExpressionData(
+                left.getValue(),
                 doubleVariable1.getType(),
                 false,
-                Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_RANGES,
+                Optional.of(new NativeExpression(
+                        PredicateType.PREDICATE_TYPE_RANGES,
                         FunctionType.FUNCTION_TYPE_NONE,
                         Domain.create(ValueSet.ofRanges(Range.greaterThan(doubleVariable1.getType(), leftValue)), false),
                         false,
                         false,
-                        Collections.emptyList(), TransformFunction.NONE)),
+                        Collections.emptyList(),
+                        TransformFunction.NONE)),
                 new RegularColumn(doubleVariable1.getName()));
-        WarpExpressionData rightWarpExpressionData = new WarpExpressionData(right.getValue(),
+        WarpExpressionData rightWarpExpressionData = new WarpExpressionData(
+                right.getValue(),
                 doubleVariable2.getType(),
                 false,
-                Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_RANGES,
+                Optional.of(new NativeExpression(
+                        PredicateType.PREDICATE_TYPE_RANGES,
                         FunctionType.FUNCTION_TYPE_NONE,
                         Domain.create(ValueSet.ofRanges(Range.lessThan(doubleVariable2.getType(), rightValue)), false),
                         false,
                         false,
-                        Collections.emptyList(), TransformFunction.NONE)),
+                        Collections.emptyList(),
+                        TransformFunction.NONE)),
                 new RegularColumn(doubleVariable2.getName()));
         io.trino.plugin.warp.expression.rewrite.WarpExpression expectedSiacExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(warpExpression, List.of(leftWarpExpressionData, rightWarpExpressionData));
         io.trino.plugin.warp.expression.rewrite.WarpExpression newWarpExpression = expressionService.convertToWarpExpression(orEnabled, connectorExpression, assignments, customStats).orElseThrow();
@@ -569,10 +597,14 @@ public class ExpressionServiceTest
     @Test
     public void testAggregateFunctionSameFunctionSameColumn()
     {
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> right = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(10d, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
@@ -589,10 +621,13 @@ public class ExpressionServiceTest
     @Test
     public void testFunction2DifferentColumns_Allowed()
     {
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 Constant.TRUE);
@@ -612,7 +647,8 @@ public class ExpressionServiceTest
                 .build());
         RegularColumn warpColumn1 = new RegularColumn(doubleVariable1.getName());
         RegularColumn warpColumn2 = new RegularColumn(doubleVariable2.getName());
-        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(left.getValue(), doubleVariable1.getType(), false, expectedNativeExpression1, warpColumn1),
+        List<WarpExpressionData> expectedResult = List.of(
+                new WarpExpressionData(left.getValue(), doubleVariable1.getType(), false, expectedNativeExpression1, warpColumn1),
                 new WarpExpressionData(isNanExpression.getValue(), doubleVariable2.getType(), false, expectedNativeExpression2, warpColumn2));
 
         ConnectorExpression expression = new Call(
@@ -630,14 +666,18 @@ public class ExpressionServiceTest
     @Test
     public void testComplex1()
     {
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(10d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> middle = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> middle = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(3d, DoubleType.DOUBLE),
                 new Constant(1d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> right = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(2d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
@@ -660,14 +700,18 @@ public class ExpressionServiceTest
     @Test
     public void testComplex2()
     {
-        Pair<Call, WarpCall> expectedLeft = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(10d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> left = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(3d, DoubleType.DOUBLE),
                 new Constant(1d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> right = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(2d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
@@ -690,18 +734,23 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithComplex()
     {
-        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(10d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        Pair<Call, WarpCall> right1 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right1 = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(2d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> right2 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right2 = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(3d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
@@ -728,18 +777,23 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithComplex2()
     {
-        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(
+                CEIL,
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
-        Pair<Call, WarpCall> right1 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right1 = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(2d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> right2 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right2 = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(3d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
@@ -798,7 +852,9 @@ public class ExpressionServiceTest
         assignments.put(columnHandle.name(), columnHandle);
         Constant constant = new Constant(5d, DoubleType.DOUBLE);
         ConnectorExpression invalidExpression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
@@ -821,7 +877,9 @@ public class ExpressionServiceTest
         assignments.put(columnHandle.name(), columnHandle);
         Constant constant = new Constant(5d, DoubleType.DOUBLE);
         ConnectorExpression invalidExpression = new Call(type, EQUAL_OPERATOR_FUNCTION_NAME, List.of(column, constant));
-        Pair<Call, WarpCall> left = createCallExpression(CEIL, GREATER_THAN_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> left = createCallExpression(
+                CEIL,
+                GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
         ConnectorExpression expression = new Call(
@@ -840,10 +898,13 @@ public class ExpressionServiceTest
     @Test
     public void testFunctionWithComplexRightSideIsNotSupported()
     {
-        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(CEIL, EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> expectedLeft1 = createCallExpression(
+                CEIL,
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(5d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> isNanExpression = createCallExpression(IS_NAN,
+        Pair<Call, WarpCall> isNanExpression = createCallExpression(
+                IS_NAN,
                 EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 Constant.TRUE);
@@ -851,11 +912,13 @@ public class ExpressionServiceTest
                 BOOLEAN,
                 OR_FUNCTION_NAME,
                 List.of(expectedLeft1.getKey(), isNanExpression.getKey()));
-        Pair<Call, WarpCall> right1 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right1 = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable2,
                 new Constant(2d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
-        Pair<Call, WarpCall> right2 = createModWarpCall(EQUAL_OPERATOR_FUNCTION_NAME,
+        Pair<Call, WarpCall> right2 = createModWarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME,
                 doubleVariable1,
                 new Constant(3d, DoubleType.DOUBLE),
                 new Constant(0d, DoubleType.DOUBLE));
@@ -879,7 +942,8 @@ public class ExpressionServiceTest
     public void testHypotheticalCaseOrROfANDs()
     {
         Call leftSide = new Call(
-                BOOLEAN, AND_FUNCTION_NAME,
+                BOOLEAN,
+                AND_FUNCTION_NAME,
                 List.of(new Call(
                                 BOOLEAN,
                                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
@@ -906,7 +970,8 @@ public class ExpressionServiceTest
     public void testMultiLevelExp()
     {
         Call leftSide = new Call(
-                BOOLEAN, AND_FUNCTION_NAME,
+                BOOLEAN,
+                AND_FUNCTION_NAME,
                 List.of(new Call(
                                 BOOLEAN,
                                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
@@ -999,7 +1064,8 @@ public class ExpressionServiceTest
                 List.of(castCall, new Constant(slice, VarcharType.VARCHAR)));
         ColumnHandle realColumn = assignments.get(realVariable.getName());
         WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(new WarpVariable(realColumn, realVariable.getType())), VarcharType.createVarcharType(20));
-        WarpCall expectedResult = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+        WarpCall expectedResult = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(expectedCastCall, new WarpSliceConstant(slice, VarcharType.VARCHAR)),
                 BOOLEAN);
         List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
@@ -1015,11 +1081,13 @@ public class ExpressionServiceTest
     {
         ColumnHandle realColumn = assignments.get(realVariable.getName());
         Call castCall = new Call(RealType.REAL, CAST_FUNCTION_NAME, List.of(realVariable));
-        Call warpExpression = new Call(BooleanType.BOOLEAN,
+        Call warpExpression = new Call(
+                BooleanType.BOOLEAN,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 List.of(castCall, new Constant(10L, RealType.REAL)));
         WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(new WarpVariable(realColumn, realVariable.getType())), RealType.REAL);
-        WarpCall expectedResult = new WarpCall(GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
+        WarpCall expectedResult = new WarpCall(
+                GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(expectedCastCall, new WarpPrimitiveConstant(10L, RealType.REAL)),
                 BOOLEAN);
         List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, warpExpression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
@@ -1034,22 +1102,26 @@ public class ExpressionServiceTest
     public void testCastDoubleToRealWithAnd()
     {
         Call castCall = new Call(RealType.REAL, CAST_FUNCTION_NAME, List.of(realVariable));
-        Call leftSide = new Call(BooleanType.BOOLEAN,
+        Call leftSide = new Call(
+                BooleanType.BOOLEAN,
                 GREATER_THAN_OPERATOR_FUNCTION_NAME,
                 List.of(castCall, new Constant(10L, RealType.REAL)));
-        Call rightSide = new Call(BooleanType.BOOLEAN,
+        Call rightSide = new Call(
+                BooleanType.BOOLEAN,
                 LESS_THAN_OPERATOR_FUNCTION_NAME,
                 List.of(castCall, new Constant(100L, RealType.REAL)));
         Call expression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(leftSide, rightSide));
 
         Domain domain = Domain.create(ValueSet.ofRanges(Range.greaterThan(RealType.REAL, 10L)), false);
         List<WarpExpressionData> result = expressionService.convertToWarpExpression(connectorSession, expression, assignments, customStats).orElseThrow().warpExpressionDataLeaves();
-        Optional<NativeExpression> expectedResult = Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_RANGES,
+        Optional<NativeExpression> expectedResult = Optional.of(new NativeExpression(
+                PredicateType.PREDICATE_TYPE_RANGES,
                 FunctionType.FUNCTION_TYPE_CAST,
                 domain,
                 false,
                 false,
-                List.of(RecTypeCode.REC_TYPE_REAL.ordinal()), TransformFunction.NONE));
+                List.of(RecTypeCode.REC_TYPE_REAL.ordinal()),
+                TransformFunction.NONE));
         assertThat(result.getFirst().getNativeExpressionOptional()).isEqualTo(expectedResult);
         assertPushdownStatsSum(0);
     }
@@ -1121,12 +1193,14 @@ public class ExpressionServiceTest
 
         List<WarpExpressionData> expectedResult;
         if (expectedIsValid) {
-            WarpExpression expectedWarpExpression = new WarpCall(CONTAINS.getName(),
+            WarpExpression expectedWarpExpression = new WarpCall(
+                    CONTAINS.getName(),
                     List.of(new WarpVariable(columnHandle, columnHandle.type()),
                             new WarpSliceConstant(slice, arrayType.getElementType())),
                     BOOLEAN);
             RegularColumn regularColumn = new RegularColumn(columnHandle.name());
-            expectedResult = List.of(new WarpExpressionData(expectedWarpExpression,
+            expectedResult = List.of(new WarpExpressionData(
+                    expectedWarpExpression,
                     columnHandle.type(),
                     false,
                     Optional.empty(),
@@ -1154,27 +1228,33 @@ public class ExpressionServiceTest
     @Test
     public void testInFunction()
     {
-        Call ceilCall = new Call(DoubleType.DOUBLE,
+        Call ceilCall = new Call(
+                DoubleType.DOUBLE,
                 CEIL,
                 List.of(doubleVariable1));
 
         ArrayType arrayType = new ArrayType(DoubleType.DOUBLE);
-        Call arrayCall = new Call(arrayType,
+        Call arrayCall = new Call(
+                arrayType,
                 ARRAY_CONSTRUCTOR_FUNCTION_NAME,
                 List.of(new Constant(5d, DoubleType.DOUBLE), new Constant(9d, DoubleType.DOUBLE)));
-        Call callExpression = new Call(BooleanType.BOOLEAN,
+        Call callExpression = new Call(
+                BooleanType.BOOLEAN,
                 IN_PREDICATE_FUNCTION_NAME,
                 List.of(ceilCall, arrayCall));
 
         Type doubleType = doubleVariable1.getType();
-        WarpCall expectedCeilCall = new WarpCall(CEIL.getName(),
+        WarpCall expectedCeilCall = new WarpCall(
+                CEIL.getName(),
                 List.of(new WarpVariable(assignments.get(doubleVariable1.getName()), doubleType)),
                 doubleType);
 
-        WarpCall expectedArrayCall = new WarpCall(ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(),
+        WarpCall expectedArrayCall = new WarpCall(
+                ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(),
                 List.of(new WarpPrimitiveConstant(5d, DoubleType.DOUBLE), new WarpPrimitiveConstant(9d, DoubleType.DOUBLE)),
                 arrayType);
-        WarpExpression expectedExpression = new WarpCall(IN_PREDICATE_FUNCTION_NAME.getName(),
+        WarpExpression expectedExpression = new WarpCall(
+                IN_PREDICATE_FUNCTION_NAME.getName(),
                 List.of(expectedCeilCall, expectedArrayCall),
                 BOOLEAN);
         NativeExpression expectedNativeExpression = NativeExpression
@@ -1186,7 +1266,8 @@ public class ExpressionServiceTest
                 .functionParams(Collections.emptyList())
                 .build();
 
-        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(expectedExpression,
+        List<WarpExpressionData> expectedResult = List.of(new WarpExpressionData(
+                expectedExpression,
                 doubleType,
                 false,
                 Optional.of(expectedNativeExpression),
@@ -1210,15 +1291,19 @@ public class ExpressionServiceTest
         return new WarpVariable(assignments.get(variable.getName()), variable.getType());
     }
 
-    private Pair<Call, WarpCall> createCallExpression(FunctionName functionName,
+    private Pair<Call, WarpCall> createCallExpression(
+            FunctionName functionName,
             FunctionName operator,
             Variable variable,
             Constant operatorValue)
     {
         WarpConstant warpConstant = convertConstantToWarpConstant(operatorValue);
-        WarpCall warpCall = new WarpCall(operator.getName(),
-                List.of(new WarpCall(functionName.getName(),
-                                List.of(createExpectedVariable(variable)), operatorValue.getType()),
+        WarpCall warpCall = new WarpCall(
+                operator.getName(),
+                List.of(new WarpCall(
+                                functionName.getName(),
+                                List.of(createExpectedVariable(variable)),
+                                operatorValue.getType()),
                         warpConstant),
                 BOOLEAN);
         Call call = new Call(
@@ -1233,12 +1318,14 @@ public class ExpressionServiceTest
         return Pair.of(call, warpCall);
     }
 
-    private Pair<Call, WarpCall> createCallExpression(FunctionName operator,
+    private Pair<Call, WarpCall> createCallExpression(
+            FunctionName operator,
             Variable variable,
             Constant operatorValue)
     {
         WarpConstant warpConstant = convertConstantToWarpConstant(operatorValue);
-        WarpCall warpCall = new WarpCall(operator.getName(),
+        WarpCall warpCall = new WarpCall(
+                operator.getName(),
                 List.of(createExpectedVariable(variable), warpConstant),
                 BOOLEAN);
         Call call = new Call(
@@ -1263,8 +1350,10 @@ public class ExpressionServiceTest
     private Pair<Call, WarpCall> createModWarpCall(FunctionName operator, Variable variable, Constant modeValue, Constant operatorValue)
     {
         assertThat(variable.getType()).isEqualTo(modeValue.getType()).isEqualTo(operatorValue.getType());
-        WarpCall warpCall = new WarpCall(operator.getName(),
-                List.of(new WarpCall(MOD.getName(),
+        WarpCall warpCall = new WarpCall(
+                operator.getName(),
+                List.of(new WarpCall(
+                                MOD.getName(),
                                 List.of(createExpectedVariable(variable),
                                         new WarpPrimitiveConstant(modeValue.getValue(), modeValue.getType())),
                                 modeValue.getType()),

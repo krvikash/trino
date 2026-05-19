@@ -124,7 +124,8 @@ class MatchPrepareAfterCollectClassifier
                         .toList();
                 for (NativeQueryCollectData nativeQueryCollectData : correspondingMatchCollects) {
                     nativeQueryCollectDataQueue.remove(nativeQueryCollectData);
-                    handleRemovedMatchCollectElement(nativeQueryCollectData,
+                    handleRemovedMatchCollectElement(
+                            nativeQueryCollectData,
                             classifyArgs,
                             nativeQueryCollectDataQueue,
                             remainingCollectColumnByBlockIndex);
@@ -179,7 +180,8 @@ class MatchPrepareAfterCollectClassifier
         }
     }
 
-    private int updateMatchCollectIds(Optional<MatchData> sortedMatchData,
+    private int updateMatchCollectIds(
+            Optional<MatchData> sortedMatchData,
             ClassifyArgs classifyArgs,
             Deque<NativeQueryCollectData> nativeQueryCollectDataQueue,
             Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex)
@@ -199,7 +201,8 @@ class MatchPrepareAfterCollectClassifier
                 for (NativeQueryCollectData nativeQueryCollectData : matchCollects) {
                     nativeQueryCollectDataQueue.remove(nativeQueryCollectData);
                     if (failedMatchCollectIdAllocation) {
-                        handleRemovedMatchCollectElement(nativeQueryCollectData,
+                        handleRemovedMatchCollectElement(
+                                nativeQueryCollectData,
                                 classifyArgs,
                                 nativeQueryCollectDataQueue,
                                 remainingCollectColumnByBlockIndex);
@@ -219,7 +222,8 @@ class MatchPrepareAfterCollectClassifier
         return matchCollectId;
     }
 
-    private void handleRemovedMatchCollectElement(NativeQueryCollectData nativeQueryCollectData,
+    private void handleRemovedMatchCollectElement(
+            NativeQueryCollectData nativeQueryCollectData,
             ClassifyArgs classifyArgs,
             Deque<NativeQueryCollectData> nativeQueryCollectDataQueue,
             Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex)

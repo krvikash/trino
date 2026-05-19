@@ -13,6 +13,4 @@
  */
 package io.trino.plugin.warp.extension.execution;
 
-public interface TaskResource
-{
-}
+public interface TaskResource {}

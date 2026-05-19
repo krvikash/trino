@@ -49,7 +49,8 @@ public class TestAiFunctionsWithExternalProvider
                 .build();
     }
 
-    private static final String LANGUAGE_MODEL_PROVIDERS = """
+    private static final String LANGUAGE_MODEL_PROVIDERS =
+            """
             {
                 "models": [
                     {
@@ -71,9 +72,9 @@ public class TestAiFunctionsWithExternalProvider
     @Test
     public void testClassify()
     {
-        assertEventually(new Duration(30, SECONDS), new Duration(10, MILLISECONDS), 4, 0.75f, () ->
-        {
-            String result = (String) computeActual(TEST_AI_SESSION,
+        assertEventually(new Duration(30, SECONDS), new Duration(10, MILLISECONDS), 4, 0.75f, () -> {
+            String result = (String) computeActual(
+                    TEST_AI_SESSION,
                     "SELECT ai.classify('I love this product!', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted(MODEL_ID)).getOnlyValue();
             assertThat(result).contains("positive");
         });

@@ -54,11 +54,12 @@ public class CloudStorageModule
     private final StoreType storeType;
     private final Class<? extends Annotation> annotation;
 
-    public CloudStorageModule(String catalogName,
-                              ConnectorContext context,
-                              ConfigurationFactory configFactory,
-                              StoreType storeType,
-                              Class<? extends Annotation> annotation)
+    public CloudStorageModule(
+            String catalogName,
+            ConnectorContext context,
+            ConfigurationFactory configFactory,
+            StoreType storeType,
+            Class<? extends Annotation> annotation)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
@@ -111,7 +112,7 @@ public class CloudStorageModule
         catch (ConfigurationException ignored) {
             // do nothing
         }
-        Map<String, CloudStorage> cloudStorageMap = injector.getInstance(Key.get(new TypeLiteral<>(){}, annotation));
+        Map<String, CloudStorage> cloudStorageMap = injector.getInstance(Key.get(new TypeLiteral<>() {}, annotation));
         SwitchingCloudStorage switchingCloudStorage = new SwitchingCloudStorage(Optional.ofNullable(hdfsCloudStorage), cloudStorageMap);
         binder.bind(CloudStorage.class).annotatedWith(annotation).toInstance(switchingCloudStorage);
     }

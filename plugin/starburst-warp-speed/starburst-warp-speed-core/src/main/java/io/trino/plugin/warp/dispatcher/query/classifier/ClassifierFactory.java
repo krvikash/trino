@@ -45,7 +45,8 @@ public class ClassifierFactory
     private ImmutableMap<ClassificationType, List<Classifier>> classificationTypeToClassifiers;
 
     @Inject
-    public ClassifierFactory(StorageEngineConstants storageEngineConstants,
+    public ClassifierFactory(
+            StorageEngineConstants storageEngineConstants,
             PredicatesCacheService predicatesCacheService,
             BufferAllocator bufferAllocator,
             NativeConfig nativeConfig,
@@ -79,7 +80,8 @@ public class ClassifierFactory
                 storageEngineConstants.getMaxMatchColumns(),
                 bufferAllocator,
                 dispatcherProxiedConnectorTransformer);
-        MatchPrepareAfterCollectClassifier matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService,
+        MatchPrepareAfterCollectClassifier matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(
+                matchCollectIdService,
                 storageEngineConstants.getMaxMatchColumns());
         PredicateBufferClassifier predicateBufferClassifier = new PredicateBufferClassifier(predicatesCacheService, shapingLoggerFactory);
         AllProxyDecisionClassifier allProxyDecisionClassifier = new AllProxyDecisionClassifier(dispatcherProxiedConnectorTransformer);

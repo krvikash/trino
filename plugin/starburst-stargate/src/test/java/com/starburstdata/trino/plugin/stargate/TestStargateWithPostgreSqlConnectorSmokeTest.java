@@ -49,14 +49,14 @@ public class TestStargateWithPostgreSqlConnectorSmokeTest
             case SUPPORTS_TOPN_PUSHDOWN -> true;
             // Writes are not enabled
             case SUPPORTS_CREATE_TABLE,
-                    SUPPORTS_RENAME_TABLE -> false;
+                 SUPPORTS_RENAME_TABLE -> false;
             // TODO Add support in Remote connector (https://starburstdata.atlassian.net/browse/SEP-4795)
             case SUPPORTS_CREATE_VIEW -> false;
             // Writes are not enabled
             case SUPPORTS_INSERT,
-                    SUPPORTS_DELETE,
-                    SUPPORTS_MERGE,
-                    SUPPORTS_UPDATE -> false;
+                 SUPPORTS_DELETE,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_UPDATE -> false;
             // TODO Add support in Remote connector (https://starburstdata.atlassian.net/browse/SEP-4798)
             case SUPPORTS_ARRAY -> false;
             default -> super.hasBehavior(connectorBehavior);

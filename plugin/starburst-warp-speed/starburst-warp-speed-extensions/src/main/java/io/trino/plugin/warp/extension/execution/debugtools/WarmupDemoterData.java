@@ -44,7 +44,8 @@ public class WarmupDemoterData
     private final int defaultRuleTtlInSeconds;
 
     @JsonCreator
-    public WarmupDemoterData(@JsonProperty(value = "maxUsageThresholdInPercentage") Double maxUsageThresholdInPercentage,
+    public WarmupDemoterData(
+            @JsonProperty(value = "maxUsageThresholdInPercentage") Double maxUsageThresholdInPercentage,
             @JsonProperty(value = "cleanupUsageThresholdInPercentage") Double cleanupUsageThresholdInPercentage,
             @JsonProperty(value = "batchSize", defaultValue = "-1") Integer batchSize,
             @JsonProperty(value = "schemaTableName") SchemaTableName schemaTableName,
@@ -228,9 +229,7 @@ public class WarmupDemoterData
         private boolean enableDemoteFeature = true;
         private int defaultRuleTtlInSeconds = 1200;
 
-        private Builder()
-        {
-        }
+        private Builder() {}
 
         public Builder maxUsageThresholdInPercentage(double maxUsageThresholdInPercentage)
         {
@@ -330,7 +329,8 @@ public class WarmupDemoterData
 
         public WarmupDemoterData build()
         {
-            return new WarmupDemoterData(maxUsageThresholdInPercentage,
+            return new WarmupDemoterData(
+                    maxUsageThresholdInPercentage,
                     cleanupUsageThresholdInPercentage,
                     batchSize,
                     schemaTableName,

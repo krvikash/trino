@@ -43,7 +43,8 @@ public class PredicateContextData
 
     private final ListMultimap<RegularColumn, PredicateContext> remainingPredicatesByColumn;
 
-    public PredicateContextData(ImmutableMap<WarpExpression, PredicateContext> leaves,
+    public PredicateContextData(
+            ImmutableMap<WarpExpression, PredicateContext> leaves,
             WarpExpression rootExpression)
     {
         this.leaves = leaves;
@@ -105,8 +106,8 @@ public class PredicateContextData
         return predicateContext.getExpression() instanceof DomainExpression domainExpression &&
                 TypeUtils.isVarcharType(domainExpression.getType()) &&
                 domainExpression.getDomain().getValues() instanceof SortedRangeSet sortedRangeSet &&
-                    /* we choose to warm Lucene in case of PREDICATE_TYPE_STRING_RANGES, cause native
-                     only can say if all the chunk is in or out and then trino needs to filter after us, means we are not tight */
+                /* we choose to warm Lucene in case of PREDICATE_TYPE_STRING_RANGES, cause native
+                 only can say if all the chunk is in or out and then trino needs to filter after us, means we are not tight */
                 !isAllSingleValue(sortedRangeSet.getInclusive(), sortedRangeSet.getSortedRanges(), domainExpression.getType()) &&
                 !isInversePredicate(sortedRangeSet, domainExpression.getType());
     }

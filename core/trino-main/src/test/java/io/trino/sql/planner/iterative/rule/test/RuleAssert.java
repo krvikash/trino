@@ -123,9 +123,9 @@ public class RuleAssert
                 if (actual == plan) { // plans are not comparable, so we can only ensure they are not the same instance
                     fail(format(
                             """
-                                    %s: rule fired but return the original plan:
-                                    %s
-                                    """,
+                            %s: rule fired but return the original plan:
+                            %s
+                            """,
                             rule,
                             formatPlan(plan)));
                 }
@@ -133,10 +133,10 @@ public class RuleAssert
                 if (!ImmutableSet.copyOf(plan.getOutputSymbols()).equals(ImmutableSet.copyOf(actual.getOutputSymbols()))) {
                     fail(format(
                             """
-                                    %s: output schema of transformed and original plans are not equivalent
-                                    \texpected: %s
-                                    \tactual:   %s
-                                    """,
+                            %s: output schema of transformed and original plans are not equivalent
+                            \texpected: %s
+                            \tactual:   %s
+                            """,
                             rule,
                             plan.getOutputSymbols(),
                             actual.getOutputSymbols()));

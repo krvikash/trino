@@ -132,40 +132,47 @@ public class StorageCollectorService
     }
 
     @NativeInterrupt
-    public AggregatorPageArgs openPage(RecordIndexes recordIndexes,
+    public AggregatorPageArgs openPage(
+            RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
             WarpQueryState queryState,
             List<Integer> blocksToLoad)
     {
-        return collectTxService.collectOpenAndRestore(recordIndexes,
+        return collectTxService.collectOpenAndRestore(
+                recordIndexes,
                 queryArgs,
                 pageArena,
                 aggregatorArgs,
                 blocksToLoad);
     }
 
-    void openChunk(int chunkIx,
+    void openChunk(
+            int chunkIx,
             QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs)
     {
-        collectTxService.openChunk(aggregatorPageArgs.collectState(),
+        collectTxService.openChunk(
+                aggregatorPageArgs.collectState(),
                 chunkIx,
                 queryArgs.dispatcherPageSourceStats());
     }
 
-    void collectChunk(AggregatorPageArgs aggregatorPageArgs,
+    void collectChunk(
+            AggregatorPageArgs aggregatorPageArgs,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
-        collectTxService.collectChunk(aggregatorPageArgs.collectState(),
+        collectTxService.collectChunk(
+                aggregatorPageArgs.collectState(),
                 outQueryResultTypes,
                 dispatcherPageSourceStats);
     }
 
     @NativeInterrupt
-    public void prepareBlocks(ChunkProperties chunk,
+    public void prepareBlocks(
+            ChunkProperties chunk,
             RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
@@ -177,7 +184,8 @@ public class StorageCollectorService
             recordIndexes.setCurChunkProperties(chunk);
             openChunk(chunk.chunkIndex(), queryArgs, aggregatorPageArgs);
             try {
-                collectChunk(aggregatorPageArgs,
+                collectChunk(
+                        aggregatorPageArgs,
                         aggregatorPageArgs.queryResultTypes().get(),
                         queryArgs.dispatcherPageSourceStats());
             }
@@ -190,7 +198,8 @@ public class StorageCollectorService
         logger.debug("collectFromStorage after native collect current chunk %s", chunk);
     }
 
-    public Block[] aggregateBlocks(RecordIndexes recordIndexes,
+    public Block[] aggregateBlocks(
+            RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
@@ -234,7 +243,8 @@ public class StorageCollectorService
             storeMatchCollectMetadataBuff = Optional.of(new byte[storageEngineConstants.getMatchCollectMetadataSize() * queryParams.getNumMatchCollect()]);
         }
 
-        return new QueryArgs(queryParams,
+        return new QueryArgs(
+                queryParams,
                 dispatcherPageSourceStats,
                 nativeStats,
                 new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()],
@@ -264,7 +274,8 @@ public class StorageCollectorService
 
         CollectBuffersParams collectBuffersParams = collectTxService.getCollectBuffersAllocationParams(queryParams);
 
-        return new AggregatorArgs(blockFillers,
+        return new AggregatorArgs(
+                blockFillers,
                 collectBuffersParams);
     }
 
@@ -285,10 +296,12 @@ public class StorageCollectorService
     }
 
     @NativeInterrupt
-    public long closePage(QueryArgs queryArgs,
+    public long closePage(
+            QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs)
     {
-        return collectTxService.collectStoreAndClose(queryArgs,
+        return collectTxService.collectStoreAndClose(
+                queryArgs,
                 aggregatorPageArgs);
     }
 

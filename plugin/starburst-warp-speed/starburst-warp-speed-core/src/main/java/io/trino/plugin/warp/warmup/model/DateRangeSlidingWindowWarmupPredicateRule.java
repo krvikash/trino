@@ -45,7 +45,8 @@ public class DateRangeSlidingWindowWarmupPredicateRule
     private final String windowDateFormat;
 
     @JsonCreator
-    public DateRangeSlidingWindowWarmupPredicateRule(@JsonProperty(COLUMN_ID) String columnId,
+    public DateRangeSlidingWindowWarmupPredicateRule(
+            @JsonProperty(COLUMN_ID) String columnId,
             @JsonProperty(START_RANGE_DAYS_BEFORE) int startRangeDaysBefore,
             @JsonProperty(END_RANGE_DAYS_BEFORE) int endRangeDaysBefore,
             @JsonProperty(WINDOW_DATE_FORMAT) String windowDateFormat)

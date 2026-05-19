@@ -48,7 +48,8 @@ public class ParquetTypeVisitor<T>
             checkArgument(group.getFields().size() == 2
                             && group.getFields().get(0).getName().equals("metadata")
                             && group.getFields().get(1).getName().equals("value"),
-                    "Expected variant type group with exactly two fields named 'metadata' and 'value', but found: %s", group.getFields());
+                    "Expected variant type group with exactly two fields named 'metadata' and 'value', but found: %s",
+                    group.getFields());
             checkArgument(!group.isRepetition(REPEATED), "Invalid variant: top-level group is repeated: %s", group);
             return visitor.variant();
         }

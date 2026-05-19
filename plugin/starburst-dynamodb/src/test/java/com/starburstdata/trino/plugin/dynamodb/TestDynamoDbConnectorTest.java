@@ -55,41 +55,41 @@ public class TestDynamoDbConnectorTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_PREDICATE_PUSHDOWN,
-                    SUPPORTS_DYNAMIC_FILTER_PUSHDOWN,
-                    SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY -> true;
+                 SUPPORTS_DYNAMIC_FILTER_PUSHDOWN,
+                 SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY -> true;
             case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
-                    SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
-                    SUPPORTS_ARRAY,
-                    SUPPORTS_LIMIT_PUSHDOWN,
-                    SUPPORTS_TOPN_PUSHDOWN,
-                    SUPPORTS_TOPN_PUSHDOWN_WITH_VARCHAR,
-                    SUPPORTS_AGGREGATION_PUSHDOWN,
-                    SUPPORTS_JOIN_PUSHDOWN,
-                    SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN,
-                    SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
-                    SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY,
-                    SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
-                    SUPPORTS_CREATE_SCHEMA,
-                    SUPPORTS_RENAME_TABLE,
-                    SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
-                    SUPPORTS_COMMENT_ON_TABLE,
-                    SUPPORTS_COMMENT_ON_COLUMN,
-                    SUPPORTS_SET_COLUMN_TYPE,
-                    SUPPORTS_CREATE_VIEW,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_DELETE,
-                    SUPPORTS_ROW_LEVEL_DELETE,
-                    SUPPORTS_CANCELLATION,
-                    SUPPORTS_CREATE_TABLE,
-                    SUPPORTS_CREATE_TABLE_WITH_DATA,
-                    SUPPORTS_INSERT,
-                    SUPPORTS_TRUNCATE,
-                    SUPPORTS_ADD_COLUMN,
-                    SUPPORTS_RENAME_COLUMN,
-                    SUPPORTS_MERGE,
-                    SUPPORTS_UPDATE,
-                    SUPPORTS_ROW_TYPE,
-                    SUPPORTS_NATIVE_QUERY -> false;
+                 SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
+                 SUPPORTS_ARRAY,
+                 SUPPORTS_LIMIT_PUSHDOWN,
+                 SUPPORTS_TOPN_PUSHDOWN,
+                 SUPPORTS_TOPN_PUSHDOWN_WITH_VARCHAR,
+                 SUPPORTS_AGGREGATION_PUSHDOWN,
+                 SUPPORTS_JOIN_PUSHDOWN,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
+                 SUPPORTS_CREATE_SCHEMA,
+                 SUPPORTS_RENAME_TABLE,
+                 SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
+                 SUPPORTS_COMMENT_ON_TABLE,
+                 SUPPORTS_COMMENT_ON_COLUMN,
+                 SUPPORTS_SET_COLUMN_TYPE,
+                 SUPPORTS_CREATE_VIEW,
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                 SUPPORTS_DELETE,
+                 SUPPORTS_ROW_LEVEL_DELETE,
+                 SUPPORTS_CANCELLATION,
+                 SUPPORTS_CREATE_TABLE,
+                 SUPPORTS_CREATE_TABLE_WITH_DATA,
+                 SUPPORTS_INSERT,
+                 SUPPORTS_TRUNCATE,
+                 SUPPORTS_ADD_COLUMN,
+                 SUPPORTS_RENAME_COLUMN,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_UPDATE,
+                 SUPPORTS_ROW_TYPE,
+                 SUPPORTS_NATIVE_QUERY -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -115,7 +115,8 @@ public class TestDynamoDbConnectorTest
     public void testShowCreateTable()
     {
         assertThat((String) computeActual("SHOW CREATE TABLE orders").getOnlyValue())
-                .matches("""
+                .matches(
+                        """
                         CREATE TABLE \\w+\\.\\w+\\.orders \\Q(
                            orderkey bigint NOT NULL COMMENT 'orderkey',
                            custkey bigint COMMENT 'custkey',

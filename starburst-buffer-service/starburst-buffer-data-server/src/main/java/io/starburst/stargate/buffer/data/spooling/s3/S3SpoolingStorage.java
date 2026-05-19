@@ -95,7 +95,7 @@ public class S3SpoolingStorage
     public enum CompatibilityMode
     {
         AWS,
-        GCP
+        GCP,
     }
 
     @Inject

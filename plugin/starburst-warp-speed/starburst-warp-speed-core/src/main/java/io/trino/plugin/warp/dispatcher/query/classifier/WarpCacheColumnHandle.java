@@ -17,6 +17,4 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
 
 public record WarpCacheColumnHandle(String name, Type type)
-        implements ColumnHandle
-{
-}
+        implements ColumnHandle {}

@@ -30,7 +30,7 @@ public class GlobalConfig
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
     public static final String LOCAL_STORE_PATH = "warp-speed.local-store.path";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
-    public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
+    public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; // 256
 
     private boolean isSingle;
     private Set<String> unsupportedFunctions = Collections.emptySet();

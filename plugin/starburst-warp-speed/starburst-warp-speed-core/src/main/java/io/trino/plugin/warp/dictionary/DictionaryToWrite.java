@@ -20,7 +20,8 @@ public class DictionaryToWrite
     private final int recTypeLength;
     private final int weight;
 
-    DictionaryToWrite(Object[] dictionary,
+    DictionaryToWrite(
+            Object[] dictionary,
             int size,
             int recTypeLength,
             int weight)

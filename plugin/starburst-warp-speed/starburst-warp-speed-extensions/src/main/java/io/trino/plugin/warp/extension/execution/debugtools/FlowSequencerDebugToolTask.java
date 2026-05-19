@@ -54,7 +54,7 @@ public class FlowSequencerDebugToolTask
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    //@ApiOperation(value = "dump-flows", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "dump-flows", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public FlowSequencerDumpResult dump()
     {
         List<String> runningFlows = flowsSequencer.getRunningFlows().values().stream().map(Object::toString).collect(Collectors.toList());
@@ -77,7 +77,8 @@ public class FlowSequencerDebugToolTask
         private final long flowId;
 
         @JsonCreator
-        public AbortFlowData(@JsonProperty(value = "flowType") FlowType flowType,
+        public AbortFlowData(
+                @JsonProperty(value = "flowType") FlowType flowType,
                 @JsonProperty(value = "flowId") long flowId)
         {
             this.flowType = flowType;
@@ -118,7 +119,8 @@ public class FlowSequencerDebugToolTask
         private final List<String> pendingFlows;
 
         @JsonCreator
-        public FlowSequencerDumpResult(@JsonProperty(value = "running-flows") List<String> runningFlows,
+        public FlowSequencerDumpResult(
+                @JsonProperty(value = "running-flows") List<String> runningFlows,
                 @JsonProperty(value = "pending-flows") List<String> pendingFlows)
         {
             this.runningFlows = runningFlows;

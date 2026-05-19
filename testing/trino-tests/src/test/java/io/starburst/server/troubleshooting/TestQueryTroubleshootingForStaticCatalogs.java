@@ -105,9 +105,9 @@ public class TestQueryTroubleshootingForStaticCatalogs
     private TestingTrinoServer createCoordinator()
     {
         return createNode(nodeBuilder ->
-                        nodeBuilder.setCoordinator(true)
-                                .addProperty("web-ui.enabled", "true")
-                                .addProperty("node-scheduler.include-coordinator", "false"));
+                nodeBuilder.setCoordinator(true)
+                        .addProperty("web-ui.enabled", "true")
+                        .addProperty("node-scheduler.include-coordinator", "false"));
     }
 
     private TestingTrinoServer createWorker()

@@ -47,7 +47,7 @@ public class MetricsConfig
     @Config("warp-speed.metrics.max-limits")
     public void setMaxLimits(String maxLimits)
     {
-        limits.putAll(Splitter.on(",").withKeyValueSeparator("=").split(maxLimits).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, (entry) -> Long.parseLong(entry.getValue()))));
+        limits.putAll(Splitter.on(",").withKeyValueSeparator("=").split(maxLimits).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> Long.parseLong(entry.getValue()))));
     }
 
     public long getLimit(String type)

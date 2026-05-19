@@ -55,7 +55,7 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
                 .withDataServerBuilder(
                         builder -> builder
                                 .setConfigProperty("memory.heap-headroom", DataSize.succinctBytes(memoryHeadroom).toString())
-                                .setConfigProperty("exchange.staleness-threshold", "2h")) //tmp
+                                .setConfigProperty("exchange.staleness-threshold", "2h")) // tmp
                 .setDataServersCount(dataServersCount)
                 .build();
         URI discoveryServerUri = bufferService.getDiscoveryServer().getBaseUri();

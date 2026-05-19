@@ -45,7 +45,8 @@ public class PrioritizeTask
     private final GlobalConfig globalConfig;
     private final CloudVendorConfig cloudVendorConfig;
 
-    public PrioritizeTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
+    public PrioritizeTask(
+            WarmExecutionTaskFactory warmExecutionTaskFactory,
             WorkerWarmingService workerWarmingService,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
@@ -68,8 +69,7 @@ public class PrioritizeTask
             CloudVendorConfig cloudVendorConfig,
             ShapingLoggerFactory shapingLoggerFactory)
     {
-        super(
-                warmExecutionTaskFactory,
+        super(warmExecutionTaskFactory,
                 workerTaskExecutorService,
                 statsWarmingService,
                 warmingManager,
@@ -109,7 +109,8 @@ public class PrioritizeTask
     protected void warm(WarmData dataToWarm)
     {
         if (dataToWarm.warmExecutionState().equals(WarmExecutionState.EMPTY_ROW_GROUP)) {
-            warmingManager.warmEmptyRowGroup(rowGroupKey, warmupElementsCreator.createWarmupElements(rowGroupKey,
+            warmingManager.warmEmptyRowGroup(rowGroupKey, warmupElementsCreator.createWarmupElements(
+                    rowGroupKey,
                     dataToWarm.requiredWarmUpTypeMap(),
                     new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table()),
                     dataToWarm.columnHandleList()));
@@ -125,7 +126,8 @@ public class PrioritizeTask
 
     private WorkerSubmittableTask createImportTask(int priority)
     {
-        return warmExecutionTaskFactory.createExecutionTask(connectorPageSourceProvider,
+        return warmExecutionTaskFactory.createExecutionTask(
+                connectorPageSourceProvider,
                 transactionHandle,
                 session,
                 dispatcherSplit,

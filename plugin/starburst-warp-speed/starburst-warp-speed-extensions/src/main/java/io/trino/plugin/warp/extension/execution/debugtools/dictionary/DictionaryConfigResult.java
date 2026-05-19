@@ -23,7 +23,8 @@ public class DictionaryConfigResult
     private final long dictionaryMaxSize;
 
     @JsonCreator
-    public DictionaryConfigResult(@JsonProperty("maxDictionaryTotalCacheWeight") long dictionaryCacheTotalSize,
+    public DictionaryConfigResult(
+            @JsonProperty("maxDictionaryTotalCacheWeight") long dictionaryCacheTotalSize,
             @JsonProperty("concurrency") int concurrency,
             @JsonProperty("dictionaryMaxSize") long dictionaryMaxSize)
     {

@@ -134,8 +134,8 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topic)))
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
-                         "('date', 'date', '', ''), " +
-                         "('time', 'time(3) with time zone', '', '')");
+                        "('date', 'date', '', ''), " +
+                        "('time', 'time(3) with time zone', '', '')");
 
         assertThat(query("SELECT date, time FROM " + toDoubleQuoted(topic)))
                 .matches("VALUES (DATE '2025-08-23', TIME '14:46:59.614 +00:00')");
@@ -158,7 +158,7 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topic)))
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
-                         "('timestamp', 'timestamp(3) with time zone', '', '')");
+                        "('timestamp', 'timestamp(3) with time zone', '', '')");
 
         assertThat(query("SELECT timestamp FROM " + toDoubleQuoted(topic)))
                 .matches("VALUES TIMESTAMP '2025-08-23 14:46:59.614 UTC'");
@@ -198,12 +198,12 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topic)))
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
-                         "('bool', 'boolean', '', ''), " +
-                         "('arrtimestamp', 'array(timestamp(3) with time zone)', '', ''), " +
-                         "('arrdate', 'array(date)', '', ''), " +
-                         "('arrstring', 'array(varchar)', '', ''), " +
-                         "('arrtime', 'array(time(3) with time zone)', '', ''), " +
-                         "('arrint', 'array(bigint)', '', '')");
+                        "('bool', 'boolean', '', ''), " +
+                        "('arrtimestamp', 'array(timestamp(3) with time zone)', '', ''), " +
+                        "('arrdate', 'array(date)', '', ''), " +
+                        "('arrstring', 'array(varchar)', '', ''), " +
+                        "('arrtime', 'array(time(3) with time zone)', '', ''), " +
+                        "('arrint', 'array(bigint)', '', '')");
 
         assertThat(query("SELECT bool FROM " + toDoubleQuoted(topic)))
                 .matches("VALUES true");
@@ -233,8 +233,8 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topic)))
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
-                         "('str', 'varchar', '', ''), " +
-                         "('nestedobj', 'row(\"nestedString\" varchar, \"arrObject\" array(row(\"nestedArrayString\" varchar, \"arrInt\" array(bigint))))', '', '')");
+                        "('str', 'varchar', '', ''), " +
+                        "('nestedobj', 'row(\"nestedString\" varchar, \"arrObject\" array(row(\"nestedArrayString\" varchar, \"arrInt\" array(bigint))))', '', '')");
 
         assertThat(query("SELECT nestedObj.arrObject[1].arrInt[1], nestedObj.arrObject[1].arrInt[2], nestedObj.arrObject[1].arrInt[3] FROM " + toDoubleQuoted(topic)))
                 .matches("VALUES (BIGINT '1', BIGINT '2', BIGINT '3')");
@@ -248,7 +248,8 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         String referTopic = "topic-reference-" + randomNameSuffix();
         assertNotExists(referTopic);
         List<ProducerRecord<String, ReferenceEvent>> referenceMessages = ImmutableList.of(
-                new ProducerRecord<>(referTopic, "key-1", new ReferenceEvent("reference-string", new ObjectEvent("test-string",
+                new ProducerRecord<>(referTopic, "key-1", new ReferenceEvent("reference-string", new ObjectEvent(
+                        "test-string",
                         new NestedObjectEvent(ImmutableList.of(new NestedObject(ImmutableList.of(1, 2, 3), "nested-array-string")), "nested-string")))));
         testingKafka.sendMessages(referenceMessages.stream(), properties());
         waitUntilTableExists(referTopic);
@@ -286,7 +287,7 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
 
         assertThat(query("SELECT key1, key2, col1, col2 FROM " + toDoubleQuoted(topic)))
                 .matches("VALUES (CAST(0 as bigint), VARCHAR 'key-0', CAST(0 as bigint), VARCHAR 'string-0'), " +
-                         "(CAST(1 as bigint), VARCHAR 'key-1', CAST(100 as bigint), VARCHAR 'string-1')");
+                        "(CAST(1 as bigint), VARCHAR 'key-1', CAST(100 as bigint), VARCHAR 'string-1')");
 
         List<ProducerRecord<Record, Record>> evolvedMessages = ImmutableList.of(
                 new ProducerRecord<>(topic, new EnvolvedKeyRecord(0L, "key-0", "key-0-3"), createRecordWithEvolvedSchema(0)),
@@ -297,12 +298,12 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         // old records should be preserved, and with the null value for the new key field
         assertThat(query("SELECT key1, key2, key3, col1, col2, col3 FROM " + toDoubleQuoted(topic) + " WHERE key3 IS NULL"))
                 .matches("VALUES (CAST(0 as bigint), VARCHAR 'key-0', CAST (null AS VARCHAR), CAST(0 as bigint), VARCHAR 'string-0', CAST(null AS DOUBLE)), " +
-                         "(CAST(1 as bigint), VARCHAR 'key-1', CAST(null AS VARCHAR), CAST(100 as bigint), VARCHAR 'string-1', CAST(null AS DOUBLE))");
+                        "(CAST(1 as bigint), VARCHAR 'key-1', CAST(null AS VARCHAR), CAST(100 as bigint), VARCHAR 'string-1', CAST(null AS DOUBLE))");
 
         // new records should have additional key field
         assertThat(query("SELECT key1, key2, key3, col1, col2, col3 FROM " + toDoubleQuoted(topic) + " WHERE key3 IS NOT NULL"))
                 .matches("VALUES (CAST(0 as bigint), VARCHAR 'key-0', VARCHAR 'key-0-3', CAST(0 as bigint), VARCHAR 'string-0', CAST(1.01 as double)), " +
-                         "(CAST(1 as bigint), VARCHAR 'key-1', VARCHAR 'key-1-3', CAST(100 as bigint), VARCHAR 'string-1', CAST(1.11 as double))");
+                        "(CAST(1 as bigint), VARCHAR 'key-1', VARCHAR 'key-1-3', CAST(100 as bigint), VARCHAR 'string-1', CAST(1.11 as double))");
     }
 
     @Test
@@ -324,8 +325,8 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         // tombstone message should have message corrupt field - true
         assertThat(query(format("SELECT \"%s-key\", col1, col2, _message_corrupt FROM %s", topicName, toDoubleQuoted(topicName))))
                 .containsAll("VALUES (CAST(0 as bigint), CAST(0 as bigint), VARCHAR 'string-0', false), " +
-                             "(CAST(1 as bigint), CAST(100 as bigint), VARCHAR 'string-1', false), " +
-                             "(CAST(1 as bigint), null, null, true)");
+                        "(CAST(1 as bigint), CAST(100 as bigint), VARCHAR 'string-1', false), " +
+                        "(CAST(1 as bigint), null, null, true)");
     }
 
     @Test
@@ -377,8 +378,8 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         // simple all null values message should have message corrupt field - false
         assertThat(query(format("SELECT \"%s-key\", col1, col2, _message_corrupt FROM %s", topicName, toDoubleQuoted(topicName))))
                 .containsAll("VALUES (CAST(0 as bigint), CAST(0 as bigint), VARCHAR 'string-0', false), " +
-                             "(CAST(1 as bigint), CAST(100 as bigint), VARCHAR 'string-1', false), " +
-                             "(CAST(1 as bigint), null, null, false)");
+                        "(CAST(1 as bigint), CAST(100 as bigint), VARCHAR 'string-1', false), " +
+                        "(CAST(1 as bigint), null, null, false)");
     }
 
     @Test
@@ -404,7 +405,8 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
     void testUbsMockData()
             throws Exception
     {
-        String data = """
+        String data =
+                """
                 {
                      "type": "FEE_PB",
                      "source": "SBE",
@@ -450,32 +452,33 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         assertCount(topicName, 1);
 
         String dataColumnType = "row(\"fxRate\" double, \"dayCount\" bigint, \"settledQuantity\" double, \"postingAccountIdentifier\" varchar, \"accountIdentifier\" varchar, " +
-                                "\"accrualRate\" double, \"securityStatus\" varchar, \"postingAccountIdentifierType\" varchar, \"price\" double, \"accrualId\" varchar, \"accrualDate\" date, " +
-                                "\"tradeIdentifier\" bigint, \"dayCountMethod\" varchar, \"accrualBenchmarkRate\" double, \"accrualKey\" varchar, \"valuationCurrency\" varchar, \"priceType\" varchar, " +
-                                "\"accountIdentifierType\" varchar, \"submarket\" varchar, \"accrualStatus\" varchar, \"accrualType\" varchar, \"accrualCurrency\" varchar, \"market\" varchar, \"accrualAmount\" double, " +
-                                "\"settlementCurrency\" varchar, \"securityIdentifier\" varchar, \"accrualSpread\" double, \"securityIdentifierType\" varchar, \"productTypeCode\" varchar, \"payDate\" date)";
+                "\"accrualRate\" double, \"securityStatus\" varchar, \"postingAccountIdentifierType\" varchar, \"price\" double, \"accrualId\" varchar, \"accrualDate\" date, " +
+                "\"tradeIdentifier\" bigint, \"dayCountMethod\" varchar, \"accrualBenchmarkRate\" double, \"accrualKey\" varchar, \"valuationCurrency\" varchar, \"priceType\" varchar, " +
+                "\"accountIdentifierType\" varchar, \"submarket\" varchar, \"accrualStatus\" varchar, \"accrualType\" varchar, \"accrualCurrency\" varchar, \"market\" varchar, \"accrualAmount\" double, " +
+                "\"settlementCurrency\" varchar, \"securityIdentifier\" varchar, \"accrualSpread\" double, \"securityIdentifierType\" varchar, \"productTypeCode\" varchar, \"payDate\" date)";
         assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topicName)))
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'bigint', '', ''), ".formatted(topicName.toLowerCase(ENGLISH)) +
-                         "('type', 'varchar', '', ''), " +
-                         "('source', 'varchar', '', ''), " +
-                         "('time', 'bigint', '', ''), " +
-                         "('data', '" + dataColumnType + "', '', '')");
+                        "('type', 'varchar', '', ''), " +
+                        "('source', 'varchar', '', ''), " +
+                        "('time', 'bigint', '', ''), " +
+                        "('data', '" + dataColumnType + "', '', '')");
         assertThat(query("SELECT type, source, time FROM " + toDoubleQuoted(topicName)))
                 .matches("VALUES (VARCHAR 'FEE_PB', VARCHAR 'SBE', BIGINT '1755498206356')");
         assertThat(query("SELECT data.fxRate, data.dayCount, data.settledQuantity, data.postingAccountIdentifier, data.accountIdentifier," +
-                         "data.accrualRate, data.securityStatus, data.postingAccountIdentifierType, data.price, data.accrualId, data.accrualDate," +
-                         "data.tradeIdentifier, data.dayCountMethod, data.accrualBenchmarkRate, data.accrualKey, data.valuationCurrency, data.priceType," +
-                         "data.accountIdentifierType, data.submarket, data.accrualStatus, data.accrualType, data.accrualCurrency, data.market, data.accrualAmount," +
-                         "data.settlementCurrency, data.securityIdentifier, data.accrualSpread, data.securityIdentifierType, data.productTypeCode, data.payDate " +
-                         "FROM " + toDoubleQuoted(topicName)))
+                "data.accrualRate, data.securityStatus, data.postingAccountIdentifierType, data.price, data.accrualId, data.accrualDate," +
+                "data.tradeIdentifier, data.dayCountMethod, data.accrualBenchmarkRate, data.accrualKey, data.valuationCurrency, data.priceType," +
+                "data.accountIdentifierType, data.submarket, data.accrualStatus, data.accrualType, data.accrualCurrency, data.market, data.accrualAmount," +
+                "data.settlementCurrency, data.securityIdentifier, data.accrualSpread, data.securityIdentifierType, data.productTypeCode, data.payDate " +
+                "FROM " + toDoubleQuoted(topicName)))
                 .matches("VALUES (DOUBLE '1', BIGINT '365', DOUBLE '-80000', VARCHAR '123456', VARCHAR '123456'," +
-                         "DOUBLE '-0.3', VARCHAR 'GC', VARCHAR 'CCONSOL', DOUBLE '193.01', VARCHAR '123456', DATE '2025-08-12'," +
-                         "BIGINT '3456', VARCHAR '', DOUBLE '193.01', VARCHAR 'PB_123456', VARCHAR 'USD', VARCHAR 'COB'," +
-                         "VARCHAR 'CCONSOL', VARCHAR 'US', VARCHAR 'L', VARCHAR 'SCI', VARCHAR 'USD', VARCHAR 'US', DOUBLE '126.91'," +
-                         "VARCHAR 'USD', VARCHAR '123456', DOUBLE '193.01', VARCHAR 'SEDOL', VARCHAR 'PB', DATE '2024-10-28')");
+                        "DOUBLE '-0.3', VARCHAR 'GC', VARCHAR 'CCONSOL', DOUBLE '193.01', VARCHAR '123456', DATE '2025-08-12'," +
+                        "BIGINT '3456', VARCHAR '', DOUBLE '193.01', VARCHAR 'PB_123456', VARCHAR 'USD', VARCHAR 'COB'," +
+                        "VARCHAR 'CCONSOL', VARCHAR 'US', VARCHAR 'L', VARCHAR 'SCI', VARCHAR 'USD', VARCHAR 'US', DOUBLE '126.91'," +
+                        "VARCHAR 'USD', VARCHAR '123456', DOUBLE '193.01', VARCHAR 'SEDOL', VARCHAR 'PB', DATE '2024-10-28')");
 
-        data = """
+        data =
+                """
                 {
                     "type": "NSF_SWAP",
                     "source": "NSF",
@@ -521,18 +524,18 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
 
         assertThat(query("SELECT type, source, time FROM " + toDoubleQuoted(topicName)))
                 .matches("VALUES (VARCHAR 'FEE_PB', VARCHAR 'SBE', BIGINT '1755498206356'), " +
-                         "(VARCHAR 'NSF_SWAP', VARCHAR 'NSF', BIGINT '1755498134405')");
+                        "(VARCHAR 'NSF_SWAP', VARCHAR 'NSF', BIGINT '1755498134405')");
         assertThat(query("SELECT data.fxRate, data.dayCount, data.settledQuantity, data.postingAccountIdentifier, data.accountIdentifier," +
-                         "data.accrualRate, data.securityStatus, data.postingAccountIdentifierType, data.price, data.accrualId, data.accrualDate," +
-                         "data.tradeIdentifier, data.dayCountMethod, data.accrualBenchmarkRate, data.accrualKey, data.valuationCurrency, data.priceType," +
-                         "data.accountIdentifierType, data.submarket, data.accrualStatus, data.accrualType, data.accrualCurrency, data.market, data.accrualAmount," +
-                         "data.settlementCurrency, data.securityIdentifier, data.accrualSpread, data.securityIdentifierType, data.productTypeCode, data.payDate " +
-                         "FROM " + toDoubleQuoted(topicName) + " WHERE time = 1755498134405"))
+                "data.accrualRate, data.securityStatus, data.postingAccountIdentifierType, data.price, data.accrualId, data.accrualDate," +
+                "data.tradeIdentifier, data.dayCountMethod, data.accrualBenchmarkRate, data.accrualKey, data.valuationCurrency, data.priceType," +
+                "data.accountIdentifierType, data.submarket, data.accrualStatus, data.accrualType, data.accrualCurrency, data.market, data.accrualAmount," +
+                "data.settlementCurrency, data.securityIdentifier, data.accrualSpread, data.securityIdentifierType, data.productTypeCode, data.payDate " +
+                "FROM " + toDoubleQuoted(topicName) + " WHERE time = 1755498134405"))
                 .matches("VALUES (DOUBLE '1', BIGINT '365', DOUBLE '-80000', VARCHAR 'TEST', VARCHAR '583313'," +
-                         "DOUBLE '-0.3', VARCHAR 'GC', VARCHAR 'CCONSOL', DOUBLE '193.01', VARCHAR 'test-psds-nsf-6', DATE '2025-08-17'," +
-                         "BIGINT '3456', VARCHAR 'TEST', DOUBLE '193.01', VARCHAR 'SWAP_test-psds-nsf-6', VARCHAR 'USD', VARCHAR 'COB'," +
-                         "VARCHAR 'WRAPPER', VARCHAR 'US', VARCHAR 'L', VARCHAR 'NSF', VARCHAR 'USD', CAST(null AS VARCHAR), DOUBLE '126.91'," +
-                         "VARCHAR 'USD', VARCHAR '12345', DOUBLE '193.01', VARCHAR 'SEDOL', VARCHAR 'SWAP', DATE '2024-10-28')");
+                        "DOUBLE '-0.3', VARCHAR 'GC', VARCHAR 'CCONSOL', DOUBLE '193.01', VARCHAR 'test-psds-nsf-6', DATE '2025-08-17'," +
+                        "BIGINT '3456', VARCHAR 'TEST', DOUBLE '193.01', VARCHAR 'SWAP_test-psds-nsf-6', VARCHAR 'USD', VARCHAR 'COB'," +
+                        "VARCHAR 'WRAPPER', VARCHAR 'US', VARCHAR 'L', VARCHAR 'NSF', VARCHAR 'USD', CAST(null AS VARCHAR), DOUBLE '126.91'," +
+                        "VARCHAR 'USD', VARCHAR '12345', DOUBLE '193.01', VARCHAR 'SEDOL', VARCHAR 'SWAP', DATE '2024-10-28')");
     }
 
     private Map<String, String> properties()
@@ -643,10 +646,10 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
     private boolean schemaExists()
     {
         return computeActual(format(
-                        "SHOW SCHEMAS FROM %s LIKE '%s'",
-                        getSession().getCatalog().orElseThrow(),
-                        getSession().getSchema().orElseThrow()))
-                       .getRowCount() == 1;
+                "SHOW SCHEMAS FROM %s LIKE '%s'",
+                getSession().getCatalog().orElseThrow(),
+                getSession().getSchema().orElseThrow()))
+                .getRowCount() == 1;
     }
 
     private static String toDoubleQuoted(String tableName)
@@ -722,182 +725,116 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
 
     private static Record createRecordWithEvolvedSchema(long key)
     {
-        return new EvolvedSchemaRecord(multiplyExact(key, 100), format("string-%s", key), (key + 10.1D) / 10.0D);
+        return new EvolvedSchemaRecord(multiplyExact(key, 100), format("string-%s", key), (key + 10.1d) / 10.0d);
     }
 
     @Schema(value = """
-                   {
-                        "$schema": "http://json-schema.org/draft-07/schema#",
-                            "type": "object",
-                            "properties": {
-                                "country": {
-                                    "type": "string",
-                                    "const": "USA"
-                                }
-                            },
-                        "required": ["country"],
-                        "additionalProperties": false
-                    }
-            """, refs = {})
-    private record ConstEvent(String country)
-    {}
+                    {
+                         "$schema": "http://json-schema.org/draft-07/schema#",
+                             "type": "object",
+                             "properties": {
+                                 "country": {
+                                     "type": "string",
+                                     "const": "USA"
+                                 }
+                             },
+                         "required": ["country"],
+                         "additionalProperties": false
+                     }
+                    """, refs = {})
+    private record ConstEvent(String country) {}
 
     // use annotation to define the schema with timestamp field, the prue json serializer not
     // support passing format info
     @Schema(value = """
-            {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "type": "object",
-              "properties": {
-                "timestamp": {
-                  "type": "string",
-                  "format": "date-time"
-                }
-              }
-            }""", refs = {})
-    private record TimestampEvent(String timestamp)
-    {}
+                    {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }""", refs = {})
+    private record TimestampEvent(String timestamp) {}
 
     @Schema(value = """
-            {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "type": "object",
-              "properties": {
-                "date": {
-                  "type": "string",
-                  "format": "date"
-                },
-                "time": {
-                  "type": "string",
-                  "format": "time"
-                }
-              }
-            }""", refs = {})
-    private record DateTimeEvent(String date, String time)
-    {}
+                    {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "time": {
+                          "type": "string",
+                          "format": "time"
+                        }
+                      }
+                    }""", refs = {})
+    private record DateTimeEvent(String date, String time) {}
 
     // use annotation to define the schema with timestamp field, the prue json serializer not
     // support passing format info
     @Schema(value = """
-            {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "type": "object",
-              "properties": {
-                "bool": {
-                  "type": "boolean"
-                },
-                "arrInt": {
-                  "type": "array",
-                  "items": {
-                    "type": "integer",
-                    "minimum": -2147483648,
-                    "maximum": 2147483647
-                  }
-                },
-                "arrString": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "arrTimestamp": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "format": "date-time"
-                  }
-                },
-                "arrDate": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "format": "date"
-                  }
-                },
-                "arrTime": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "format": "time"
-                  }
-                }
-              }
-            }""", refs = {})
-    private record ArrayEvent(boolean bool, List<Integer> arrInt, List<String> arrString, List<String> arrTimestamp, List<String> arrDate, List<String> arrTime)
-    {}
+                    {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "type": "object",
+                      "properties": {
+                        "bool": {
+                          "type": "boolean"
+                        },
+                        "arrInt": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": -2147483648,
+                            "maximum": 2147483647
+                          }
+                        },
+                        "arrString": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "arrTimestamp": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "arrDate": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "date"
+                          }
+                        },
+                        "arrTime": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "time"
+                          }
+                        }
+                      }
+                    }""", refs = {})
+    private record ArrayEvent(boolean bool, List<Integer> arrInt, List<String> arrString, List<String> arrTimestamp, List<String> arrDate, List<String> arrTime) {}
 
     // use annotation to define the schema with array column, the prue json serializer not
     // support passing minimum, maximum info
     @Schema(value = """
-            {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "title": "object_event",
-              "type": "object",
-              "properties": {
-                "str": {
-                  "type": "string"
-                },
-                "nestedObj": {
-                    "type": "object",
-                    "properties": {
-                        "arrObject" : {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "arrInt": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer",
-                                            "minimum": -2147483648,
-                                            "maximum": 2147483647
-                                        }
-                                    },
-                                    "nestedArrayString": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        },
-                        "nestedString": {
-                            "type": "string"
-                        }
-                    }
-                }
-              }
-            }""", refs = {})
-    private record ObjectEvent(String str, NestedObjectEvent nestedObj)
-    {}
-
-    private record NestedObjectEvent(List<NestedObject> arrObject, String nestedString)
-    {}
-
-    private record NestedObject(List<Integer> arrInt, String nestedArrayString)
-    {}
-
-    // use annotation to define the schema with reference column, the prue json serializer not
-    // support passing reference info
-    @Schema(value = """
-            {
-              "$schema": "http://json-schema.org/draft-07/schema#",
-              "title": "reference_event",
-              "type": "object",
-              "properties": {
-                "str": {
-                  "type": "string"
-                },
-                "refer": {
-                    "$ref": "#/refs/object_event"
-                }
-              },
-              "refs": {
-                "object_event": {
-                    "$schema": "http://json-schema.org/draft-07/schema#",
-                    "title": "object_event",
-                    "type": "object",
-                    "properties": {
+                    {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "title": "object_event",
+                      "type": "object",
+                      "properties": {
                         "str": {
-                            "type": "string"
+                          "type": "string"
                         },
                         "nestedObj": {
                             "type": "object",
@@ -926,10 +863,68 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
                                 }
                             }
                         }
-                    }
-                }
-              }
-            }""", refs = {})
-    private record ReferenceEvent(String str, ObjectEvent refer)
-    {}
+                      }
+                    }""", refs = {})
+    private record ObjectEvent(String str, NestedObjectEvent nestedObj) {}
+
+    private record NestedObjectEvent(List<NestedObject> arrObject, String nestedString) {}
+
+    private record NestedObject(List<Integer> arrInt, String nestedArrayString) {}
+
+    // use annotation to define the schema with reference column, the prue json serializer not
+    // support passing reference info
+    @Schema(value = """
+                    {
+                      "$schema": "http://json-schema.org/draft-07/schema#",
+                      "title": "reference_event",
+                      "type": "object",
+                      "properties": {
+                        "str": {
+                          "type": "string"
+                        },
+                        "refer": {
+                            "$ref": "#/refs/object_event"
+                        }
+                      },
+                      "refs": {
+                        "object_event": {
+                            "$schema": "http://json-schema.org/draft-07/schema#",
+                            "title": "object_event",
+                            "type": "object",
+                            "properties": {
+                                "str": {
+                                    "type": "string"
+                                },
+                                "nestedObj": {
+                                    "type": "object",
+                                    "properties": {
+                                        "arrObject" : {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "arrInt": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "integer",
+                                                            "minimum": -2147483648,
+                                                            "maximum": 2147483647
+                                                        }
+                                                    },
+                                                    "nestedArrayString": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "nestedString": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                      }
+                    }""", refs = {})
+    private record ReferenceEvent(String str, ObjectEvent refer) {}
 }

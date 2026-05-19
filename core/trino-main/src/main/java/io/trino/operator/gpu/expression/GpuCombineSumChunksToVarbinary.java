@@ -50,7 +50,8 @@ public class GpuCombineSumChunksToVarbinary
     {
         this.decimal128Type = requireNonNull(decimal128Type, "decimal128Type is null");
         checkState(decimal128Type.getTypeId() == DType.DTypeEnum.DECIMAL128,
-                "decimal128Type must be DECIMAL128, got %s", decimal128Type);
+                "decimal128Type must be DECIMAL128, got %s",
+                decimal128Type);
     }
 
     @Override

@@ -204,7 +204,8 @@ public abstract class BaseTpchWorkload
         else {
             log.info("Creating hive.tpch.%s at %s", table, location);
         }
-        runner.execute("""
+        runner.execute(
+                """
                 CREATE TABLE hive.tpch.%s (LIKE tpch.sf%d.%s)
                 WITH (external_location = '%s', format = 'PARQUET')
                 """.formatted(table, scaleFactor, table, location));

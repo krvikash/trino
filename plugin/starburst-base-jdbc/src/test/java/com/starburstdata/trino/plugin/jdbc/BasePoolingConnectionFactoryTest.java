@@ -191,14 +191,10 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void commit()
-        {
-        }
+        public void commit() {}
 
         @Override
-        public void rollback()
-        {
-        }
+        public void rollback() {}
 
         @Override
         public void close()
@@ -219,9 +215,7 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void setReadOnly(boolean readOnly)
-        {
-        }
+        public void setReadOnly(boolean readOnly) {}
 
         @Override
         public boolean isReadOnly()
@@ -230,9 +224,7 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void setCatalog(String catalog)
-        {
-        }
+        public void setCatalog(String catalog) {}
 
         @Override
         public String getCatalog()
@@ -241,9 +233,7 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void setTransactionIsolation(int level)
-        {
-        }
+        public void setTransactionIsolation(int level) {}
 
         @Override
         public int getTransactionIsolation()
@@ -258,9 +248,7 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void clearWarnings()
-        {
-        }
+        public void clearWarnings() {}
 
         @Override
         public Statement createStatement(int resultSetType, int resultSetConcurrency)
@@ -287,14 +275,10 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void setTypeMap(Map<String, Class<?>> map)
-        {
-        }
+        public void setTypeMap(Map<String, Class<?>> map) {}
 
         @Override
-        public void setHoldability(int holdability)
-        {
-        }
+        public void setHoldability(int holdability) {}
 
         @Override
         public int getHoldability()
@@ -315,14 +299,10 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void rollback(Savepoint savepoint)
-        {
-        }
+        public void rollback(Savepoint savepoint) {}
 
         @Override
-        public void releaseSavepoint(Savepoint savepoint)
-        {
-        }
+        public void releaseSavepoint(Savepoint savepoint) {}
 
         @Override
         public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability)
@@ -391,14 +371,10 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void setClientInfo(String name, String value)
-        {
-        }
+        public void setClientInfo(String name, String value) {}
 
         @Override
-        public void setClientInfo(Properties properties)
-        {
-        }
+        public void setClientInfo(Properties properties) {}
 
         @Override
         public String getClientInfo(String name)
@@ -425,9 +401,7 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void setSchema(String schema)
-        {
-        }
+        public void setSchema(String schema) {}
 
         @Override
         public String getSchema()
@@ -436,14 +410,10 @@ public abstract class BasePoolingConnectionFactoryTest
         }
 
         @Override
-        public void abort(Executor executor)
-        {
-        }
+        public void abort(Executor executor) {}
 
         @Override
-        public void setNetworkTimeout(Executor executor, int milliseconds)
-        {
-        }
+        public void setNetworkTimeout(Executor executor, int milliseconds) {}
 
         @Override
         public int getNetworkTimeout()

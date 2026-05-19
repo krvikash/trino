@@ -134,19 +134,16 @@ public class TestCommonSubqueriesExtractor
             .build();
     private static final MockConnectorColumnHandle HANDLE_1 = new MockConnectorColumnHandle("column1", BIGINT);
     private static final TupleDomain<ColumnHandle> CONSTRAINT_1 = TupleDomain.withColumnDomains(ImmutableMap.of(
-            HANDLE_1,
-            Domain.create(ValueSet.ofRanges(
+            HANDLE_1, Domain.create(ValueSet.ofRanges(
                     Range.lessThan(BIGINT, 50L),
                     Range.greaterThan(BIGINT, 150L)), false)));
     private static final TupleDomain<ColumnHandle> CONSTRAINT_2 = TupleDomain.withColumnDomains(ImmutableMap.of(
-            HANDLE_1,
-            Domain.create(ValueSet.ofRanges(
+            HANDLE_1, Domain.create(ValueSet.ofRanges(
                     Range.lessThan(BIGINT, 20L),
                     Range.greaterThan(BIGINT, 40L)), false)));
 
     private static final TupleDomain<ColumnHandle> CONSTRAINT_3 = TupleDomain.withColumnDomains(ImmutableMap.of(
-            HANDLE_1,
-            Domain.create(ValueSet.ofRanges(
+            HANDLE_1, Domain.create(ValueSet.ofRanges(
                     Range.lessThan(BIGINT, 30L),
                     Range.greaterThan(BIGINT, 70L)), false)));
     private static final SchemaTableName TABLE_NAME = new SchemaTableName(TEST_SCHEMA, TEST_TABLE);
@@ -206,7 +203,8 @@ public class TestCommonSubqueriesExtractor
                         })
                         .build(),
                 ImmutableMap.of());
-        planTester.createCatalog(TPCH_SESSION.getCatalog().get(),
+        planTester.createCatalog(
+                TPCH_SESSION.getCatalog().get(),
                 new TpchConnectorFactory(1),
                 ImmutableMap.of());
         tpchCatalogId = planTester.getCatalogHandle(TPCH_SESSION.getCatalog().get()).getId();
@@ -216,7 +214,8 @@ public class TestCommonSubqueriesExtractor
     @Test
     public void testTopNRankingRowWithWithNonPullableConjuncts()
     {
-        @Language("SQL") String query = """
+        @Language("SQL") String query =
+                """
                 (SELECT *
                 FROM (SELECT nationkey, ROW_NUMBER () OVER (PARTITION BY nationkey ORDER BY regionkey DESC) update_rank
                 FROM nation WHERE regionkey < 11) AS t
@@ -227,12 +226,13 @@ public class TestCommonSubqueriesExtractor
                 WHERE t.update_rank = 1)""";
         CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(query, true, false, false);
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
-        assertThat(planAdaptations).allSatisfy((node, adaptation) ->
+        assertThat(planAdaptations).allSatisfy((node, _) ->
                 assertThat(node).isInstanceOf(TopNRankingNode.class));
         CommonPlanAdaptation topNRankingA = Iterables.get(planAdaptations.values(), 0);
         CommonPlanAdaptation topNRankingB = Iterables.get(planAdaptations.values(), 1);
 
-        PlanMatchPattern commonSubplanA = topNRanking(pattern -> pattern.specification(
+        PlanMatchPattern commonSubplanA = topNRanking(
+                pattern -> pattern.specification(
                                 ImmutableList.of("NATIONKEY"),
                                 ImmutableList.of("REGIONKEY"),
                                 ImmutableMap.of("REGIONKEY", DESC_NULLS_LAST))
@@ -242,7 +242,8 @@ public class TestCommonSubqueriesExtractor
                 filter(
                         new Comparison(LESS_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
                         tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "REGIONKEY", "regionkey"))));
-        PlanMatchPattern commonSubplanB = topNRanking(pattern -> pattern.specification(
+        PlanMatchPattern commonSubplanB = topNRanking(
+                pattern -> pattern.specification(
                                 ImmutableList.of("NATIONKEY"),
                                 ImmutableList.of("REGIONKEY"),
                                 ImmutableMap.of("REGIONKEY", DESC_NULLS_LAST))
@@ -260,16 +261,20 @@ public class TestCommonSubqueriesExtractor
     @Test
     public void testCacheTopNRankingRank()
     {
-        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
-                        SELECT name, regionkey FROM nation WHERE nationkey > 10 ORDER BY regionkey FETCH FIRST 6 ROWS WITH TIES
-                        """,
-                true, false, false);
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(
+                """
+                SELECT name, regionkey FROM nation WHERE nationkey > 10 ORDER BY regionkey FETCH FIRST 6 ROWS WITH TIES
+                """,
+                true,
+                false,
+                false);
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
         assertThat(planAdaptations).hasSize(1);
-        assertThat(planAdaptations).allSatisfy((node, adaptation) -> assertThat(node).isInstanceOf(TopNRankingNode.class));
+        assertThat(planAdaptations).allSatisfy((node, _) -> assertThat(node).isInstanceOf(TopNRankingNode.class));
         CommonPlanAdaptation topNRanking = planAdaptations.values().stream().findFirst().get();
 
-        PlanMatchPattern commonSubplan = topNRanking(pattern -> pattern.specification(
+        PlanMatchPattern commonSubplan = topNRanking(
+                pattern -> pattern.specification(
                                 ImmutableList.of(),
                                 ImmutableList.of("REGIONKEY"),
                                 ImmutableMap.of("REGIONKEY", ASC_NULLS_LAST))
@@ -296,7 +301,8 @@ public class TestCommonSubqueriesExtractor
                                 scanFilterProjectKey(new CacheTableId(tpchCatalogId + ":tiny:nation:0.01")),
                                 ImmutableList.of(),
                                 ImmutableMap.of(REGIONKEY_ID, ASC_NULLS_LAST),
-                                RANK, 6),
+                                RANK,
+                                6),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnsTypes),
@@ -307,16 +313,20 @@ public class TestCommonSubqueriesExtractor
     @Test
     public void testCacheTopNRankingRow()
     {
-        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
-                        SELECT *
-                        FROM (SELECT nationkey, ROW_NUMBER () OVER (PARTITION BY name, nationkey ORDER BY regionkey DESC) update_rank FROM nation) AS t
-                        WHERE t.update_rank = 1""",
-                true, false, false);
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(
+                """
+                SELECT *
+                FROM (SELECT nationkey, ROW_NUMBER () OVER (PARTITION BY name, nationkey ORDER BY regionkey DESC) update_rank FROM nation) AS t
+                WHERE t.update_rank = 1""",
+                true,
+                false,
+                false);
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
         assertThat(planAdaptations).hasSize(1);
-        assertThat(planAdaptations).allSatisfy((node, adaptation) -> assertThat(node).isInstanceOf(TopNRankingNode.class));
+        assertThat(planAdaptations).allSatisfy((node, _) -> assertThat(node).isInstanceOf(TopNRankingNode.class));
         CommonPlanAdaptation topNRanking = planAdaptations.values().stream().findFirst().get();
-        PlanMatchPattern commonSubplan = topNRanking(pattern -> pattern.specification(
+        PlanMatchPattern commonSubplan = topNRanking(
+                pattern -> pattern.specification(
                                 ImmutableList.of("NAME", "NATIONKEY"),
                                 ImmutableList.of("REGIONKEY"),
                                 ImmutableMap.of("REGIONKEY", DESC_NULLS_LAST))
@@ -338,7 +348,8 @@ public class TestCommonSubqueriesExtractor
                                 scanFilterProjectKey(new CacheTableId(tpchCatalogId + ":tiny:nation:0.01")),
                                 ImmutableList.of(NAME_ID, NATIONKEY_ID),
                                 ImmutableMap.of(REGIONKEY_ID, DESC_NULLS_LAST),
-                                ROW_NUMBER, 1),
+                                ROW_NUMBER,
+                                1),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnsTypes),
@@ -348,14 +359,16 @@ public class TestCommonSubqueriesExtractor
     @Test
     public void testCacheTopN()
     {
-        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
-                        SELECT nationkey FROM nation
-                        WHERE regionkey > 10 and nationkey > 2
-                        ORDER BY name ASC, regionkey DESC OFFSET 5 LIMIT 5""",
-                true, false);
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(
+                """
+                SELECT nationkey FROM nation
+                WHERE regionkey > 10 and nationkey > 2
+                ORDER BY name ASC, regionkey DESC OFFSET 5 LIMIT 5""",
+                true,
+                false);
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
         assertThat(planAdaptations).hasSize(1);
-        assertThat(planAdaptations).allSatisfy((node, adaptation) -> assertThat(node).isInstanceOf(TopNNode.class));
+        assertThat(planAdaptations).allSatisfy((node, _) -> assertThat(node).isInstanceOf(TopNNode.class));
         CommonPlanAdaptation topN = planAdaptations.values().stream().findFirst().get();
         PlanMatchPattern commonSubplan = topN(
                 10,
@@ -379,7 +392,8 @@ public class TestCommonSubqueriesExtractor
                 new PlanSignature(
                         topNKey(
                                 scanFilterProjectKey(new CacheTableId(tpchCatalogId + ":tiny:nation:0.01")),
-                                ImmutableMap.of(NAME_ID, ASC_NULLS_LAST, REGIONKEY_ID, DESC_NULLS_LAST), 10),
+                                ImmutableMap.of(NAME_ID, ASC_NULLS_LAST, REGIONKEY_ID, DESC_NULLS_LAST),
+                                10),
                         Optional.empty(),
                         cacheColumnIds,
                         cacheColumnsTypes),
@@ -391,15 +405,17 @@ public class TestCommonSubqueriesExtractor
     @Test
     public void testCacheSingleAggregation()
     {
-        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
-                        SELECT sum(nationkey) FROM nation
-                        WHERE regionkey > 10
-                        GROUP BY name""",
-                true, true);
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(
+                """
+                SELECT sum(nationkey) FROM nation
+                WHERE regionkey > 10
+                GROUP BY name""",
+                true,
+                true);
 
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
         assertThat(planAdaptations).hasSize(1);
-        assertThat(planAdaptations).allSatisfy((node, adaptation) -> assertThat(node).isInstanceOf(AggregationNode.class));
+        assertThat(planAdaptations).allSatisfy((node, _) -> assertThat(node).isInstanceOf(AggregationNode.class));
 
         CommonPlanAdaptation aggregation = Iterables.get(planAdaptations.values(), 0);
         PlanMatchPattern commonSubplan = aggregation(
@@ -437,15 +453,17 @@ public class TestCommonSubqueriesExtractor
     @Test
     public void testCacheSingleProjection()
     {
-        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries("""
-                        SELECT sum(nationkey) FROM nation
-                        WHERE regionkey > 10
-                        GROUP BY name""",
-                false, true);
+        CommonSubqueries commonSubqueries = extractTpchCommonSubqueries(
+                """
+                SELECT sum(nationkey) FROM nation
+                WHERE regionkey > 10
+                GROUP BY name""",
+                false,
+                true);
 
         Map<PlanNode, CommonPlanAdaptation> planAdaptations = commonSubqueries.planAdaptations();
         assertThat(planAdaptations).hasSize(1);
-        assertThat(planAdaptations).allSatisfy((node, adaptation) -> assertThat(node).isInstanceOf(ProjectNode.class));
+        assertThat(planAdaptations).allSatisfy((node, _) -> assertThat(node).isInstanceOf(ProjectNode.class));
 
         CommonPlanAdaptation projection = Iterables.get(planAdaptations.values(), 0);
         PlanMatchPattern commonSubplan =

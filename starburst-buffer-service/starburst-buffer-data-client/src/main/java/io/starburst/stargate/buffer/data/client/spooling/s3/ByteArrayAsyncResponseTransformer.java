@@ -50,9 +50,7 @@ public final class ByteArrayAsyncResponseTransformer<ResponseT>
     }
 
     @Override
-    public void onResponse(ResponseT response)
-    {
-    }
+    public void onResponse(ResponseT response) {}
 
     @Override
     public void onStream(SdkPublisher<ByteBuffer> publisher)

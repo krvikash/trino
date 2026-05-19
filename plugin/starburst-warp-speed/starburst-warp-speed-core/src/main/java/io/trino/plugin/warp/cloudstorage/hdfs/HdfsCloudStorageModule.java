@@ -38,11 +38,12 @@ public class HdfsCloudStorageModule
     private final Class<? extends Annotation> annotation;
     private final boolean isHadoopEnabled;
 
-    public HdfsCloudStorageModule(String catalogName,
-                                  ConnectorContext context,
-                                  ConfigurationFactory configFactory,
-                                  Class<? extends Annotation> annotation,
-                                  boolean isHadoopEnabled)
+    public HdfsCloudStorageModule(
+            String catalogName,
+            ConnectorContext context,
+            ConfigurationFactory configFactory,
+            Class<? extends Annotation> annotation,
+            boolean isHadoopEnabled)
     {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");

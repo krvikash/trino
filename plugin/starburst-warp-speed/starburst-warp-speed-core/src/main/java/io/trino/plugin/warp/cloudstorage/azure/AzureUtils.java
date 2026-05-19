@@ -23,9 +23,7 @@ import java.io.IOException;
 
 final class AzureUtils
 {
-    private AzureUtils()
-    {
-    }
+    private AzureUtils() {}
 
     public static IOException handleAzureException(RuntimeException exception, String action, AzureLocation location)
             throws IOException
@@ -45,7 +43,7 @@ final class AzureUtils
             return BlobErrorCode.BLOB_NOT_FOUND.equals(blobStorageException.getErrorCode());
         }
         if (exception instanceof DataLakeStorageException dataLakeStorageException) {
-            return "PathNotFound" .equals(dataLakeStorageException.getErrorCode());
+            return "PathNotFound".equals(dataLakeStorageException.getErrorCode());
         }
         return false;
     }

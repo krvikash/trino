@@ -33,8 +33,12 @@ public class DispatcherIndexProvider
     }
 
     @Override
-    public ConnectorIndex getIndex(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorIndexHandle indexHandle,
-            List<ColumnHandle> lookupSchema, List<ColumnHandle> outputSchema)
+    public ConnectorIndex getIndex(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorIndexHandle indexHandle,
+            List<ColumnHandle> lookupSchema,
+            List<ColumnHandle> outputSchema)
     {
         return connectorIndexProvider.getIndex(transaction, session, indexHandle, lookupSchema, outputSchema);
     }

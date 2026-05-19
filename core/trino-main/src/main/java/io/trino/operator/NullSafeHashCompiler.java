@@ -286,7 +286,8 @@ public final class NullSafeHashCompiler
                 "checkFromIndexSize",
                 int.class,
                 constantInt(0),
-                dictionaryBlock.invoke("getPositionCount", int.class), hashes.length()).pop());
+                dictionaryBlock.invoke("getPositionCount", int.class),
+                hashes.length()).pop());
 
         Variable position = scope.declareVariable(int.class, "position");
         Variable hash = scope.declareVariable(long.class, "hash");

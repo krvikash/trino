@@ -46,7 +46,8 @@ import static org.mockito.Mockito.when;
 public class CallHomeServiceTest
 {
     private ScheduledExecutorService scheduledExecutorService;
-    @SuppressWarnings("rawtypes") private ScheduledFuture unusedScheduledFuture;
+    @SuppressWarnings("rawtypes")
+    private ScheduledFuture unusedScheduledFuture;
     private CallHomeService callHomeService;
 
     @SuppressWarnings("unchecked")
@@ -69,11 +70,13 @@ public class CallHomeServiceTest
 
         scheduledExecutorService = mock(ScheduledExecutorService.class);
         unusedScheduledFuture = mock(RunnableScheduledFuture.class);
-        when(scheduledExecutorService.schedule(any(CallHomeJob.class),
+        when(scheduledExecutorService.schedule(
+                any(CallHomeJob.class),
                 eq(Integer.valueOf(callHomeConfig.getIntervalInSeconds()).longValue()),
                 eq(TimeUnit.SECONDS))).thenReturn(unusedScheduledFuture);
 
-        callHomeService = new CallHomeService(nodeManager,
+        callHomeService = new CallHomeService(
+                nodeManager,
                 catalogNameProvider,
                 cloudVendorConfig,
                 callHomeConfig,

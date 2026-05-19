@@ -19,7 +19,10 @@ import java.util.Map;
 import java.util.Set;
 
 public sealed interface FlightRecording
-        permits LocalRunningRecording, ReadOnlyLocalRecording, RemoteRecording, CombinedRecording
+        permits CombinedRecording,
+                LocalRunningRecording,
+                ReadOnlyLocalRecording,
+                RemoteRecording
 {
     FlightRecording start();
 
@@ -27,9 +30,7 @@ public sealed interface FlightRecording
 
     void remove();
 
-    default void retainForNodes(Set<String> nodeIds)
-    {
-    }
+    default void retainForNodes(Set<String> nodeIds) {}
 
     Map<String, InputStream> getInputStreams();
 }

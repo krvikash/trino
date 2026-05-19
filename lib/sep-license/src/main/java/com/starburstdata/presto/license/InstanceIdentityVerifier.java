@@ -17,8 +17,8 @@ interface InstanceIdentityVerifier
      * @param identity the instance identity document bytes to verify.
      * @param base64Signature the BASE64 encoded signature to verify with.
      * @throws VerificationException if the signature object is not initialized properly, the passed-in signature is improperly
-     * encoded or of the wrong type, if this signature algorithm is unable to
-     * process the input data provided, etc.
+     *         encoded or of the wrong type, if this signature algorithm is unable to
+     *         process the input data provided, etc.
      */
     void verify(byte[] identity, byte[] base64Signature)
             throws VerificationException;

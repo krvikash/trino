@@ -80,7 +80,8 @@ class InverseValuesPredicateFillerTest
     {
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
-        PredicatesCacheService predicatesCacheService = new PredicatesCacheService(bufferAllocator,
+        PredicatesCacheService predicatesCacheService = new PredicatesCacheService(
+                bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
                 domainToMapBlockConvertor,

@@ -27,13 +27,14 @@ public class TransformedCrcBiFunctionAppender
     private final BiFunction<Slice, String, Slice> transformColumn;
     private final String pattern;
 
-    public TransformedCrcBiFunctionAppender(WriteJuffersWarmUpElement juffersWE,
-                                            StorageEngineConstants storageEngineConstants,
-                                            BufferAllocator bufferAllocator,
-                                            Type filterType,
-                                            boolean isFixedLength,
-                                            BiFunction<Slice, String, Slice> transformColumnFunction,
-                                            String pattern)
+    public TransformedCrcBiFunctionAppender(
+            WriteJuffersWarmUpElement juffersWE,
+            StorageEngineConstants storageEngineConstants,
+            BufferAllocator bufferAllocator,
+            Type filterType,
+            boolean isFixedLength,
+            BiFunction<Slice, String, Slice> transformColumnFunction,
+            String pattern)
     {
         super(juffersWE, storageEngineConstants, bufferAllocator, filterType, isFixedLength);
         this.transformColumn = transformColumnFunction;

@@ -166,45 +166,45 @@ final class TestStorageFileSystem
     {
         String gcsJsonKey = OBJECT_MAPPER.writeValueAsString(GCP_CREDENTIALS_KEY);
         return """
-                {
-                    "configurations": [
-                        {
-                            "id": "s3",
-                            "location": "s3://%s",
-                            "configuration": {
-                                "fs.s3.enabled": "true",
-                                "s3.aws-access-key": "%s",
-                                "s3.aws-secret-key": "%s",
-                                "s3.region": "%s"
-                            }
-                        },
-                        {
-                            "id": "gcs",
-                            "location": "gs://%s",
-                            "configuration": {
-                                "fs.gcs.enabled": "true",
-                                "gcs.json-key": %s
-                            }
-                        },
-                        {
-                            "id": "azure",
-                            "location": "abfs://%s@%s.dfs.core.windows.net",
-                            "configuration": {
-                                "fs.azure.enabled": "true",
-                                "azure.auth-type": "ACCESS_KEY",
-                                "azure.access-key": "%s"
-                            }
-                        },
-                        {
-                            "id": "local",
-                            "location": "local://%10$s",
-                            "configuration": {
-                                "fs.local.enabled": "true",
-                                "local.location": "%10$s"
-                            }
-                        }
-                    ]
-                }
-                """.formatted(S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, GCP_STORAGE_BUCKET, gcsJsonKey, ABFS_CONTAINER, ABFS_ACCOUNT, ABFS_ACCESS_KEY, localLocation).stripIndent();
+               {
+                   "configurations": [
+                       {
+                           "id": "s3",
+                           "location": "s3://%s",
+                           "configuration": {
+                               "fs.s3.enabled": "true",
+                               "s3.aws-access-key": "%s",
+                               "s3.aws-secret-key": "%s",
+                               "s3.region": "%s"
+                           }
+                       },
+                       {
+                           "id": "gcs",
+                           "location": "gs://%s",
+                           "configuration": {
+                               "fs.gcs.enabled": "true",
+                               "gcs.json-key": %s
+                           }
+                       },
+                       {
+                           "id": "azure",
+                           "location": "abfs://%s@%s.dfs.core.windows.net",
+                           "configuration": {
+                               "fs.azure.enabled": "true",
+                               "azure.auth-type": "ACCESS_KEY",
+                               "azure.access-key": "%s"
+                           }
+                       },
+                       {
+                           "id": "local",
+                           "location": "local://%10$s",
+                           "configuration": {
+                               "fs.local.enabled": "true",
+                               "local.location": "%10$s"
+                           }
+                       }
+                   ]
+               }
+               """.formatted(S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, GCP_STORAGE_BUCKET, gcsJsonKey, ABFS_CONTAINER, ABFS_ACCOUNT, ABFS_ACCESS_KEY, localLocation).stripIndent();
     }
 }

@@ -40,7 +40,8 @@ public class SingleValue
     private boolean isConverted;
 
     @JsonCreator
-    public SingleValue(@JsonProperty("type") Type type,
+    public SingleValue(
+            @JsonProperty("type") Type type,
             @JsonProperty("valueBlock") Block valueBlock)
     {
         this(type, null, valueBlock, false);

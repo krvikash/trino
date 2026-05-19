@@ -82,7 +82,7 @@ public class DictionaryTask
 
     @POST
     @Path(DICTIONARY_RESET_MEMORY_TASK_NAME)
-    //@ApiOperation(value = "reset", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "reset", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public int resetMemoryDictionaries()
     {
         return resetMemoryDictionaries(new DictionaryConfigRequest(dictionaryConfig.getMaxDictionaryTotalCacheWeight(), dictionaryConfig.getDictionaryCacheConcurrencyLevel()));
@@ -90,7 +90,7 @@ public class DictionaryTask
 
     @POST
     @Path(DICTIONARY_COUNT_TASK_NAME)
-    //@ApiOperation(value = "count", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "count", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public DictionaryCountResult count()
     {
         return innerCount(false);
@@ -98,7 +98,7 @@ public class DictionaryTask
 
     @GET
     @Path(DICTIONARY_GET_CONFIGURATION)
-    //@ApiOperation(value = "get dictionary config", nickname = "dictionaryGetConfig", extensions = {
+    // @ApiOperation(value = "get dictionary config", nickname = "dictionaryGetConfig", extensions = {
 //            @Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, DictionaryConfigResult> getDictionaryConfig()
     {
@@ -109,7 +109,7 @@ public class DictionaryTask
 
     @POST
     @Path(DICTIONARY_SET_CONFIGURATION_AND_RESET_CACHE)
-    //@ApiOperation(value = "set dictionary config and reset cache", nickname = "dictionarySetConfig", extensions = {
+    // @ApiOperation(value = "set dictionary config and reset cache", nickname = "dictionarySetConfig", extensions = {
 //            @Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public int setDictionaryConfig(DictionaryConfigRequest dictionaryConfig)
     {
@@ -124,7 +124,7 @@ public class DictionaryTask
 
     @GET
     @Path(DICTIONARY_GET_CACHE_KEYS)
-    //@ApiOperation(value = "get dictionary cached values", nickname = "dictionaryGetCachedKeys", extensions = {
+    // @ApiOperation(value = "get dictionary cached values", nickname = "dictionaryGetCachedKeys", extensions = {
 //            @Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public Map<String, Map<String, Integer>> getDictionaryCachedKeys()
     {
@@ -135,7 +135,7 @@ public class DictionaryTask
 
     @POST
     @Path(DICTIONARY_COUNT_AGGREGATED_TASK_NAME)
-    //@ApiOperation(value = "count aggregate", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "count aggregate", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public DictionaryCountResult countAggregated()
     {
         return innerCount(true);
@@ -146,7 +146,8 @@ public class DictionaryTask
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         AtomicInteger totalRemoved = new AtomicInteger();
         workerNodes.forEach(workerNode -> {
-            Integer res = (Integer) postWorkerResult(workerNode,
+            Integer res = (Integer) postWorkerResult(
+                    workerNode,
                     WORKER_DICTIONARY_RESET_TASK_NAME,
                     workerDictionaryConfigRequestJsonCoded,
                     dictionaryConfig,
@@ -162,14 +163,16 @@ public class DictionaryTask
         Map<DebugDictionaryKey, DebugDictionaryMetadata> dictionaryNameToDictionaryMetadata = new HashMap<>();
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
         workerNodes.forEach(workerNode -> {
-            WorkerDictionaryCountResult nodeResult = (WorkerDictionaryCountResult) postWorkerResult(workerNode,
+            WorkerDictionaryCountResult nodeResult = (WorkerDictionaryCountResult) postWorkerResult(
+                    workerNode,
                     WorkerDictionaryCountTask.WORKER_DICTIONARY_PATH,
                     null,
                     null,
                     workerDictionaryCountResultJsonCoded);
             if (aggregated) {
                 nodeResult.getDictionaryMetadataList().forEach(dictionaryMetadata ->
-                        dictionaryNameToDictionaryMetadata.merge(dictionaryMetadata.dictionaryKey(),
+                        dictionaryNameToDictionaryMetadata.merge(
+                                dictionaryMetadata.dictionaryKey(),
                                 dictionaryMetadata,
                                 (v1, v2) -> new DebugDictionaryMetadata(v1.dictionaryKey(), v1.dictionarySize() + v2.dictionarySize(), v1.failedWriteCount() + v2.failedWriteCount())));
             }
@@ -190,7 +193,7 @@ public class DictionaryTask
 
     @GET
     @Path(DICTIONARY_USAGE_TASK_NAME)
-    //@ApiOperation(value = "count", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "count", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public long sumUsage()
     {
         AtomicInteger totalUsage = new AtomicInteger();

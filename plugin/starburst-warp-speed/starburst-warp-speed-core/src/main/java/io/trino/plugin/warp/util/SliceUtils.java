@@ -41,9 +41,7 @@ public class SliceUtils
 {
     private static final Logger logger = Logger.get(SliceUtils.class);
 
-    private SliceUtils()
-    {
-    }
+    private SliceUtils() {}
 
     public static long str2int(Slice value, boolean isPrefix)
     {
@@ -139,7 +137,8 @@ public class SliceUtils
         };
     }
 
-    public static Function<Slice, Slice> getSliceConverter(Type type,
+    public static Function<Slice, Slice> getSliceConverter(
+            Type type,
             int weLength,
             boolean isFixedLength,
             boolean isValidateSize)
@@ -161,7 +160,9 @@ public class SliceUtils
                 if (isValidateSize && (weLength < value.length())) {
                     throw new TrinoException(WarpErrorCode.WARP_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
                             format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
-                                    value.length(), weLength, type));
+                                    value.length(),
+                                    weLength,
+                                    type));
                 }
                 // fail if slice bytes are longer than expected
 
@@ -189,7 +190,9 @@ public class SliceUtils
                 if (isValidateSize && (weLength < value.length())) {
                     throw new TrinoException(WarpErrorCode.WARP_DATA_WARMUP_RULE_ILLEGAL_CHAR_LENGTH,
                             format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
-                                    value.length(), weLength, type));
+                                    value.length(),
+                                    weLength,
+                                    type));
                 }
                 ArrayUtils.replaceSuffix(value, (byte) ' ', (byte) 0);
                 // Pad/trim slice to specific length (with null bytes) if needed
@@ -253,12 +256,17 @@ public class SliceUtils
         {
             ByteBuffer byteBuffer = value.toByteBuffer();
             /* is case of special char len, we use values instead of crc since crc is not used in C layer */
-            return new StringPredicateData(byteBuffer, value.length(),
-                    calcStringValue(byteBuffer, value.length(), weRecLength, crc), orgVal);
+            return new StringPredicateData(
+                    byteBuffer,
+                    value.length(),
+                    calcStringValue(byteBuffer, value.length(), weRecLength, crc),
+                    orgVal);
         }
     }
 
-    public static List<StringPredicateData> getOrderedStringData(SortedRangeSet sortedRangeSet, int numValues,
+    public static List<StringPredicateData> getOrderedStringData(
+            SortedRangeSet sortedRangeSet,
+            int numValues,
             StorageEngineConstants storageEngineConstants)
     {
         Type type = sortedRangeSet.getType();
@@ -280,7 +288,9 @@ public class SliceUtils
         return strDataList;
     }
 
-    public static List<Slice> getOrderedStringPredicateValues(SortedRangeSet sortedRangeSet, int numValues,
+    public static List<Slice> getOrderedStringPredicateValues(
+            SortedRangeSet sortedRangeSet,
+            int numValues,
             StorageEngineConstants storageEngineConstants)
     {
         List<StringPredicateData> strDataList = getOrderedStringData(sortedRangeSet, numValues, storageEngineConstants);

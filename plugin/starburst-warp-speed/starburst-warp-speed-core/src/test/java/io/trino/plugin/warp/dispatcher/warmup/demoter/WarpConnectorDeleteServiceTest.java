@@ -89,7 +89,8 @@ class WarpConnectorDeleteServiceTest
         rowGroupDataService = mock(RowGroupDataService.class);
         WarmupDemoterConfig warmupDemoterConfig = new WarmupDemoterConfig();
         warmupDemoterConfig.setEnableDemote(true);
-        warpDeleteService = spy(new WarpConnectorDeleteService(rowGroupDataService,
+        warpDeleteService = spy(new WarpConnectorDeleteService(
+                rowGroupDataService,
                 warmupDemoterConfig,
                 new NativeConfig(),
                 warmupRuleProvider,
@@ -335,7 +336,9 @@ class WarpConnectorDeleteServiceTest
                 defaultSchemaName,
                 defaultTableName,
                 warmUpElements,
-                Map.of(), 0, false);
+                Map.of(),
+                0,
+                false);
 
         when(rowGroupDataService.getAll()).thenReturn(List.of(rowGroupData));
         when(warmupRuleProvider.getAll()).thenReturn(warmupRules);
@@ -555,7 +558,7 @@ class WarpConnectorDeleteServiceTest
             Set<WarmupPredicateRule> predicates)
     {
         return warmupProperties.stream()
-                .map((prop) -> WarmupRule.builder()
+                .map(prop -> WarmupRule.builder()
                         .schema("schema1")
                         .table("table1")
                         .warpColumn(new RegularColumn("c" + 0))
@@ -579,7 +582,8 @@ class WarpConnectorDeleteServiceTest
 
     private ColumnFilter createColumnFilter(List<WarmUpType> warmupTypes)
     {
-        return new ColumnFilter(new SchemaTableName(defaultSchemaName, defaultTableName),
+        return new ColumnFilter(
+                new SchemaTableName(defaultSchemaName, defaultTableName),
                 List.of(new WarmupDemoterWarmupElementData("c0", warmupTypes)));
     }
 }

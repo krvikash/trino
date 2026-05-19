@@ -16,6 +16,4 @@ package io.trino.plugin.warp.connector;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 
 public class TestingConnectorTransactionHandle
-        implements ConnectorTransactionHandle
-{
-}
+        implements ConnectorTransactionHandle {}

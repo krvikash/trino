@@ -114,9 +114,9 @@ public class WarmupElementsCreator
                 Optional<WarmUpElement> existingWarmUpElement = rowGroupData == null ?
                         Optional.empty() :
                         rowGroupData.getWarmUpElements().stream()
-                                .filter(we -> we.getWarmUpType().equals(warmUpProperty.warmUpType()) &&
-                                        we.getWarpColumn().equals(warpColumn))
-                                .findFirst();
+                        .filter(we -> we.getWarmUpType().equals(warmUpProperty.warmUpType()) &&
+                                      we.getWarpColumn().equals(warpColumn))
+                        .findFirst();
 
                 if (existingWarmUpElement.isPresent()) {
                     if (WarmState.WARM.equals(existingWarmUpElement.get().getWarmState())) {
@@ -154,8 +154,14 @@ public class WarmupElementsCreator
                         recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
                     }
                     if (recTypeLength < 0) {
-                        shapingLogger.error("recTypeLength is negative. recTypeLength=%d, warmUpType=%s, transformFunction=%s, recordData=%s, recTypeCode=%s, fixedLengthStringLimit=%d",
-                                recTypeLength, warmUpType, transformFunction, recordData, recTypeCode, storageEngineConstants.getFixedLengthStringLimit());
+                        shapingLogger.error(
+                                "recTypeLength is negative. recTypeLength=%d, warmUpType=%s, transformFunction=%s, recordData=%s, recTypeCode=%s, fixedLengthStringLimit=%d",
+                                recTypeLength,
+                                warmUpType,
+                                transformFunction,
+                                recordData,
+                                recTypeCode,
+                                storageEngineConstants.getFixedLengthStringLimit());
                         continue;
                     }
 
@@ -178,7 +184,8 @@ public class WarmupElementsCreator
         return warmUpElements;
     }
 
-    List<RecordData> getRecordData(SchemaTableName schemaTableName,
+    List<RecordData> getRecordData(
+            SchemaTableName schemaTableName,
             List<ColumnHandle> columnHandles,
             Set<WarpColumn> actualColumnsToWarm)
     {
@@ -227,8 +234,13 @@ public class WarmupElementsCreator
             return Optional.empty();
         }
         if (recTypeLength < 0) {
-            shapingLogger.error("recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, varcharMaxLen=%d, columnType=%s, cacheColumnId=%s",
-                    recTypeLength, recTypeCode, storageEngineConstants.getVarcharMaxLen(), columnType, cacheColumnId);
+            shapingLogger.error(
+                    "recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, varcharMaxLen=%d, columnType=%s, cacheColumnId=%s",
+                    recTypeLength,
+                    recTypeCode,
+                    storageEngineConstants.getVarcharMaxLen(),
+                    columnType,
+                    cacheColumnId);
             return Optional.empty();
         }
 

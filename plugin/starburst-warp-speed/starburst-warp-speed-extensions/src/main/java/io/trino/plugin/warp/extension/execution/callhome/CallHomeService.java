@@ -69,7 +69,8 @@ public class CallHomeService
 
     @SuppressWarnings("unused")
     @Inject
-    public CallHomeService(NodeManager nodeManager,
+    public CallHomeService(
+            NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
             @ForWarp CloudVendorConfig cloudVendorConfig,
             CallHomeConfig callHomeConfig,
@@ -91,7 +92,8 @@ public class CallHomeService
     }
 
     @VisibleForTesting
-    public CallHomeService(NodeManager nodeManager,
+    public CallHomeService(
+            NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
             CloudVendorConfig cloudVendorConfig,
             CallHomeConfig callHomeConfig,
@@ -198,7 +200,8 @@ public class CallHomeService
 
     private static String getServerLogPath()
     {
-        return System.getProperty(LOG_PATH_PROPERTY_KEY1,
+        return System.getProperty(
+                LOG_PATH_PROPERTY_KEY1,
                 System.getProperty(LOG_PATH_PROPERTY_KEY2, DEFAULT_SERVER_LOG_PATH));
     }
 }

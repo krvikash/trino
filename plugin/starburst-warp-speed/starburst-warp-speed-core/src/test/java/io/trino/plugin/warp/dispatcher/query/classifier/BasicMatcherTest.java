@@ -120,7 +120,8 @@ class BasicMatcherTest
         ConnectorSession session = mock(ConnectorSession.class);
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),

@@ -75,11 +75,13 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
     @Test
     public void testMetadataNextUrlCursorFetchesAllData()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -94,12 +96,14 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
     {
         // The /items/all endpoint response has no next_url column — the strategy's
         // requiredResponseColumnsPaths check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 LIMIT 3
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -113,7 +117,8 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
         // The /items/all endpoint response has no next_url column — the strategy's
         // requiredResponseColumnsPaths check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),

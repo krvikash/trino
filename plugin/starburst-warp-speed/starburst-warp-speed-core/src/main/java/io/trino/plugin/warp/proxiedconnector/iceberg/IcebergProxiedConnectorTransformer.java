@@ -155,7 +155,8 @@ public class IcebergProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         IcebergSplit original = (IcebergSplit) connectorSplit;
-        return new IcebergSplit(original.path(),
+        return new IcebergSplit(
+                original.path(),
                 original.start(),
                 original.length(),
                 original.fileSize(),
@@ -198,7 +199,7 @@ public class IcebergProxiedConnectorTransformer
         PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
         Map<Integer, Pair<String, org.apache.iceberg.types.Type>> columnIdToName = partitionSpec.fields().stream()
                 .filter(partitionField -> partitionField.transform().isIdentity())
-                .collect(Collectors.toMap(PartitionField::sourceId, (partitionField) -> Pair.of(partitionField.name(), partitionField.transform().getResultType(tableSchema.findType(partitionField.sourceId())))));
+                .collect(Collectors.toMap(PartitionField::sourceId, partitionField -> Pair.of(partitionField.name(), partitionField.transform().getResultType(tableSchema.findType(partitionField.sourceId())))));
         org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
                 .map(field -> field.transform().getResultType(tableSchema.findType(field.sourceId())))
                 .toArray(org.apache.iceberg.types.Type[]::new);
@@ -244,14 +245,16 @@ public class IcebergProxiedConnectorTransformer
                 getSplitKey(icebergSplit.path(), icebergSplit.start(), icebergSplit.length()),
                 connectorSplitNodeDistributor);
 
-        List<PartitionKey> partitionKeyMap = getPartitionKeysMap(icebergSplit,
+        List<PartitionKey> partitionKeyMap = getPartitionKeysMap(
+                icebergSplit,
                 (IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle());
 
         String snapshotIdStr = proxiedConnectorConfig.getEnableIcebergSnapshotIdUniqueness() ? String.valueOf(((IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle()).getSnapshotId().orElse(-1L)) : "";
         String deletedFilesHash = Hashing.sha256()
                 .hashString(icebergSplit.deletes().stream().map(DeleteFile::path).sorted().collect(Collectors.joining()), StandardCharsets.UTF_8).toString() + snapshotIdStr;
 
-        return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
+        return new DispatcherSplit(
+                dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
                 icebergSplit.path(),
                 icebergSplit.start(),

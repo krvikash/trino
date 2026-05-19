@@ -19,85 +19,87 @@ public class VendorTestModels
     private static final String AZURE_OPEN_AI_LANGUAGE_ENDPOINT = requireEnv("AZURE_OPEN_AI_LANGUAGE_ENDPOINT");
     private static final String AZURE_OPEN_AI_EMBED_ENDPOINT = requireEnv("AZURE_OPEN_AI_EMBED_ENDPOINT");
 
-    public static final String AZURE_OPEN_AI_MODEL_PROVIDERS = """
-                {
-                  "models": [
-                     {
-                        "id": "%s",
-                        "modelName": "gpt-4o-mini",
-                        "kind": "GENERATE",
-                        "connectionInfo": {
-                            "provider": "OPENAI",
-                            "endpoint": "%s",
-                            "apiKey": "${ENV:AZURE_OPEN_AI_API_KEY}"
-                        }
-                    },
-                    {
-                        "id": "%s",
-                        "modelName": "gpt-4o-mini",
-                        "kind": "GENERATE",
-                        "connectionInfo": {
-                            "provider": "OPENAI",
-                            "endpoint": "%s",
-                            "apiKey": "${ENV:AZURE_OPEN_AI_API_KEY}"
-                        },
-                        "traits": {
-                            "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
-                        }
-                    },
-                    {
-                      "id": "%s",
-                      "modelName": "text-embedding-3-small",
-                      "kind": "EMBED",
-                      "connectionInfo": {
+    public static final String AZURE_OPEN_AI_MODEL_PROVIDERS =
+            """
+            {
+              "models": [
+                 {
+                    "id": "%s",
+                    "modelName": "gpt-4o-mini",
+                    "kind": "GENERATE",
+                    "connectionInfo": {
                         "provider": "OPENAI",
                         "endpoint": "%s",
                         "apiKey": "${ENV:AZURE_OPEN_AI_API_KEY}"
-                      }
                     }
-                  ]
-                }""".formatted(LANGUAGE_MODEL_ID, AZURE_OPEN_AI_LANGUAGE_ENDPOINT, LANGUAGE_MODEL_ID_NON_STREAMING, AZURE_OPEN_AI_LANGUAGE_ENDPOINT, EMBED_MODEL_ID, AZURE_OPEN_AI_EMBED_ENDPOINT);
-
-    public static final String GEMINI_MODEL_PROVIDERS = """
+                },
                 {
-                  "models": [
-                     {
-                        "id": "%s",
-                        "modelName": "gemini-2.5-flash",
-                        "kind": "GENERATE",
-                        "temperature": 0.0,
-                        "connectionInfo": {
-                            "provider": "OPENAI",
-                            "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
-                            "apiKey": "${ENV:GEMINI_API_KEY}"
-                        }
+                    "id": "%s",
+                    "modelName": "gpt-4o-mini",
+                    "kind": "GENERATE",
+                    "connectionInfo": {
+                        "provider": "OPENAI",
+                        "endpoint": "%s",
+                        "apiKey": "${ENV:AZURE_OPEN_AI_API_KEY}"
                     },
-                    {
-                        "id": "%s",
-                        "modelName": "gemini-2.5-flash",
-                        "kind": "GENERATE",
-                        "temperature": 0.0,
-                        "connectionInfo": {
-                            "provider": "OPENAI",
-                            "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
-                            "apiKey": "${ENV:GEMINI_API_KEY}"
-                        },
-                        "traits": {
-                            "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
-                        }
-                    },
-                    {
-                      "id": "%s",
-                      "modelName": "gemini-embedding-001",
-                      "kind": "EMBED",
-                      "connectionInfo": {
+                    "traits": {
+                        "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
+                    }
+                },
+                {
+                  "id": "%s",
+                  "modelName": "text-embedding-3-small",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "OPENAI",
+                    "endpoint": "%s",
+                    "apiKey": "${ENV:AZURE_OPEN_AI_API_KEY}"
+                  }
+                }
+              ]
+            }""".formatted(LANGUAGE_MODEL_ID, AZURE_OPEN_AI_LANGUAGE_ENDPOINT, LANGUAGE_MODEL_ID_NON_STREAMING, AZURE_OPEN_AI_LANGUAGE_ENDPOINT, EMBED_MODEL_ID, AZURE_OPEN_AI_EMBED_ENDPOINT);
+
+    public static final String GEMINI_MODEL_PROVIDERS =
+            """
+            {
+              "models": [
+                 {
+                    "id": "%s",
+                    "modelName": "gemini-2.5-flash",
+                    "kind": "GENERATE",
+                    "temperature": 0.0,
+                    "connectionInfo": {
                         "provider": "OPENAI",
                         "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
                         "apiKey": "${ENV:GEMINI_API_KEY}"
-                      }
                     }
-                  ]
-                }""".formatted(LANGUAGE_MODEL_ID, LANGUAGE_MODEL_ID_NON_STREAMING, EMBED_MODEL_ID);
+                },
+                {
+                    "id": "%s",
+                    "modelName": "gemini-2.5-flash",
+                    "kind": "GENERATE",
+                    "temperature": 0.0,
+                    "connectionInfo": {
+                        "provider": "OPENAI",
+                        "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
+                        "apiKey": "${ENV:GEMINI_API_KEY}"
+                    },
+                    "traits": {
+                        "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
+                    }
+                },
+                {
+                  "id": "%s",
+                  "modelName": "gemini-embedding-001",
+                  "kind": "EMBED",
+                  "connectionInfo": {
+                    "provider": "OPENAI",
+                    "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
+                    "apiKey": "${ENV:GEMINI_API_KEY}"
+                  }
+                }
+              ]
+            }""".formatted(LANGUAGE_MODEL_ID, LANGUAGE_MODEL_ID_NON_STREAMING, EMBED_MODEL_ID);
 
     private VendorTestModels() {}
 }

@@ -17,10 +17,10 @@ import io.trino.spi.block.Block;
 import org.apache.arrow.vector.VariableWidthVector;
 
 public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
-        extends PrimitiveWriter<V> permits
-        CharWriter,
-        VarbinaryWriter,
-        VarcharWriter
+        extends PrimitiveWriter<V>
+        permits CharWriter,
+                VarbinaryWriter,
+                VarcharWriter
 {
     protected VariableWidthWriter(V vector)
     {

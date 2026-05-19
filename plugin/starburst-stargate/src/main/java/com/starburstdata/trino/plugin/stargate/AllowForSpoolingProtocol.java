@@ -17,6 +17,4 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @BindingAnnotation
 @Retention(RUNTIME)
-public @interface AllowForSpoolingProtocol
-{
-}
+public @interface AllowForSpoolingProtocol {}

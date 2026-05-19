@@ -19,10 +19,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record HealthNode(
         long createEpochTime,
         String nodeIdentifier,
-        String httpUri, String state)
+        String httpUri,
+        String state)
 {
     @JsonCreator
-    public HealthNode(@JsonProperty("createEpochTime") long createEpochTime,
+    public HealthNode(
+            @JsonProperty("createEpochTime") long createEpochTime,
             @JsonProperty("nodeIdentifier") String nodeIdentifier,
             @JsonProperty("httpUri") String httpUri,
             @JsonProperty("state") String state)

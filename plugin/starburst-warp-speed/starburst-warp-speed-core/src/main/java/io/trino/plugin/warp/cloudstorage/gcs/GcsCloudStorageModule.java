@@ -39,7 +39,8 @@ public class GcsCloudStorageModule
     private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
-    public GcsCloudStorageModule(ConfigurationFactory configFactory,
+    public GcsCloudStorageModule(
+            ConfigurationFactory configFactory,
             Class<? extends Annotation> annotation)
     {
         this.configFactory = requireNonNull(configFactory, "configFactory is null");

@@ -132,7 +132,7 @@ public class ArrayBlockToVarcharBlockTransformer
             calculatedSizeInBytes += slice.length();
         }
 
-        Slice dataSlice = Slices.allocate(Integer.BYTES + calculatedSizeInBytes + ((Byte.BYTES + Integer.BYTES) * numberOfElements)); //elementsCount + actualBlockSize +  (nullSignalByte + elementLength) * numberOfElementsInRow
+        Slice dataSlice = Slices.allocate(Integer.BYTES + calculatedSizeInBytes + ((Byte.BYTES + Integer.BYTES) * numberOfElements)); // elementsCount + actualBlockSize +  (nullSignalByte + elementLength) * numberOfElementsInRow
 
         int position = 0;
         dataSlice.setInt(position, numberOfElements);
@@ -140,17 +140,17 @@ public class ArrayBlockToVarcharBlockTransformer
         for (int currInt = 0; currInt < numberOfElements; currInt++) {
             if (dataBlock.isNull(currInt)) {
                 dataSlice.setByte(position, StorageConstants.NULL_MARKER_VALUE);
-                position += Byte.BYTES; //update position
+                position += Byte.BYTES; // update position
             }
             else {
                 Slice slice = VARCHAR.getSlice(dataBlock, currInt);
                 int sliceLength = slice.length();
                 dataSlice.setByte(position, 0);
-                position += Byte.BYTES; //update position
-                dataSlice.setInt(position, sliceLength); //set string length
-                position += Integer.BYTES; //update the position
+                position += Byte.BYTES; // update position
+                dataSlice.setInt(position, sliceLength); // set string length
+                position += Integer.BYTES; // update the position
                 if (sliceLength > 0) {
-                    dataSlice.setBytes(position, slice); //set the  string to a slice
+                    dataSlice.setBytes(position, slice); // set the  string to a slice
                 }
                 position += sliceLength;
             }

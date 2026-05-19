@@ -261,7 +261,8 @@ public final class StarburstSqlServerQueryRunner
         public DistributedQueryRunner build()
                 throws Exception
         {
-            return createStarburstSqlServerQueryRunner(server,
+            return createStarburstSqlServerQueryRunner(
+                    server,
                     extraProperties,
                     sessionModifier,
                     unlockEnterpriseFeatures,

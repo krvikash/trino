@@ -33,7 +33,8 @@ public class CrcArrayBlockAppender
     private final CrcStringBlockAppender stringBlockAppender;
     private final Type filterType;
 
-    public CrcArrayBlockAppender(BlockTransformerFactory blockTransformerFactory,
+    public CrcArrayBlockAppender(
+            BlockTransformerFactory blockTransformerFactory,
             WriteJuffersWarmUpElement juffersWE,
             CrcStringBlockAppender stringBlockAppender,
             Type filterType)
@@ -45,7 +46,8 @@ public class CrcArrayBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos,
+    public AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)

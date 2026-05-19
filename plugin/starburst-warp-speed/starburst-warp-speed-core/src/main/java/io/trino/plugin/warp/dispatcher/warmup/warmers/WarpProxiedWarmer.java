@@ -99,7 +99,8 @@ public class WarpProxiedWarmer
     private final StorageWriterService storageWriterService;
 
     @Inject
-    public WarpProxiedWarmer(WarpPageSinkFactory warpPageSinkFactory,
+    public WarpProxiedWarmer(
+            WarpPageSinkFactory warpPageSinkFactory,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             NodeManager nodeManager,
             CatalogNameProvider catalogNameProvider,
@@ -120,7 +121,8 @@ public class WarpProxiedWarmer
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
-    RowGroupData warm(ConnectorPageSourceProvider connectorPageSourceProvider,
+    RowGroupData warm(
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
@@ -140,7 +142,8 @@ public class WarpProxiedWarmer
             SetMultimap<WarpColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
                     .collect(Multimaps.toMultimap(WarmUpElement::getWarpColumn, Function.identity(), HashMultimap::create));
             SchemaTableName schemaTableName = new SchemaTableName(rowGroupKey.schema(), rowGroupKey.table());
-            List<Pair<WarmupElementWriteMetadata, ColumnHandle>> warmupElementsWriteMetadata = createWarmupElementWriteMetadata(proxiedWarmupElementsMultimap,
+            List<Pair<WarmupElementWriteMetadata, ColumnHandle>> warmupElementsWriteMetadata = createWarmupElementWriteMetadata(
+                    proxiedWarmupElementsMultimap,
                     schemaTableName,
                     columnsToWarm,
                     requiredWarmUpTypeMap,
@@ -161,7 +164,8 @@ public class WarpProxiedWarmer
             try {
                 storageWarmerService.createFile(rowGroupKey);
                 fileCookieParams = storageWarmerService.fileOpen(rowGroupKey);
-                storageWriterSplitConfig = storageWriterService.startWarming(nodeIdentifier,
+                storageWriterSplitConfig = storageWriterService.startWarming(
+                        nodeIdentifier,
                         rowGroupFilePath,
                         WarpSessionProperties.getEnableDictionary(session),
                         true);
@@ -171,7 +175,8 @@ public class WarpProxiedWarmer
                     ConnectorTableHandle nonFilterTableHandle = dispatcherProxiedConnectorTransformer.createProxyTableHandleForWarming(dispatcherTableHandle);
 
                     for (Pair<WarmupElementWriteMetadata, ColumnHandle> pair : warmupElementsWriteMetadata) {
-                        ConnectorPageSource connectorPageSource = connectorPageSourceProvider.createPageSource(transactionHandle,
+                        ConnectorPageSource connectorPageSource = connectorPageSourceProvider.createPageSource(
+                                transactionHandle,
                                 session,
                                 nonFilterSplit,
                                 nonFilterTableHandle,
@@ -190,7 +195,7 @@ public class WarpProxiedWarmer
                                 SourcePage nextPage = connectorPageSource.getNextSourcePage();
                                 int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
                                 if (pagePositionCount > 0) {
-                                    if (rowCount == 0) { //first time
+                                    if (rowCount == 0) { // first time
                                         DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, fileOffset, currWarmUpElementWriteMetadata);
                                         outDictionariesWarmInfos.add(dictionaryWarmInfo);
                                     }
@@ -261,7 +266,8 @@ public class WarpProxiedWarmer
         }
     }
 
-    private void closeConnector(ConnectorPageSource connectorPageSource,
+    private void closeConnector(
+            ConnectorPageSource connectorPageSource,
             RowGroupKey rowGroupKey)
     {
         try {
@@ -272,14 +278,19 @@ public class WarpProxiedWarmer
         }
     }
 
-    List<Pair<WarmupElementWriteMetadata, ColumnHandle>> createWarmupElementWriteMetadata(Multimap<WarpColumn, WarmUpElement> proxiedWarmupElements,
+    List<Pair<WarmupElementWriteMetadata, ColumnHandle>> createWarmupElementWriteMetadata(
+            Multimap<WarpColumn, WarmUpElement> proxiedWarmupElements,
             SchemaTableName schemaTableName,
             List<ColumnHandle> columnsToWarm,
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             DispatcherTableHandle tableHandle)
     {
-        logger.debug("createWarmupElementWriteMetadata proxiedWarmupElements = %s, schemaTableName = %s, columnsToWarm= %s, requiredWarmUpTypeMap = %s",
-                proxiedWarmupElements, schemaTableName, columnsToWarm, requiredWarmUpTypeMap);
+        logger.debug(
+                "createWarmupElementWriteMetadata proxiedWarmupElements = %s, schemaTableName = %s, columnsToWarm= %s, requiredWarmUpTypeMap = %s",
+                proxiedWarmupElements,
+                schemaTableName,
+                columnsToWarm,
+                requiredWarmUpTypeMap);
 
         Multimap<WarpColumn, WarmupElementWriteMetadata> columnMap = ArrayListMultimap.create();
         Map<WarmupElementWriteMetadata, ColumnHandle> warmupElementWriteMetadataColumnHandleMap = new HashMap<>();
@@ -321,7 +332,7 @@ public class WarpProxiedWarmer
 
         Map<WarpColumn, Double> priorityMap = new HashMap<>();
         for (WarpColumn warpColumn : requiredWarmUpTypeMap.keySet()) {
-            if (proxiedWarmupElements.containsKey(warpColumn) && warpColumn instanceof RegularColumn) { //if we warmed/skipped all elements of this column we don't need to add it to priority map.
+            if (proxiedWarmupElements.containsKey(warpColumn) && warpColumn instanceof RegularColumn) { // if we warmed/skipped all elements of this column we don't need to add it to priority map.
                 for (WarmupProperties warmupProperties : requiredWarmUpTypeMap.get(warpColumn)) {
                     priorityMap.compute(warpColumn, (_, v) -> Math.max(warmupProperties.priority(), (v == null) ? 0 : v));
                 }

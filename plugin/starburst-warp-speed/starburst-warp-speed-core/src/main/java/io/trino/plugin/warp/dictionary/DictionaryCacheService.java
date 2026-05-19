@@ -49,7 +49,8 @@ public class DictionaryCacheService
     private final DictionaryConfig dictionaryConfig;
 
     @Inject
-    public DictionaryCacheService(DictionaryConfig dictionaryConfig,
+    public DictionaryCacheService(
+            DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
             AttachDictionaryService attachDictionaryService)
     {
@@ -64,7 +65,8 @@ public class DictionaryCacheService
         return dictionariesCache.getWriteDictionary(dictionaryKey, recTypeCode);
     }
 
-    public ReadDictionary computeReadIfAbsent(DictionaryKey dictionaryKey,
+    public ReadDictionary computeReadIfAbsent(
+            DictionaryKey dictionaryKey,
             int usedDictionarySize,
             RecTypeCode recTypeCode,
             int recTypeLength,
@@ -103,7 +105,8 @@ public class DictionaryCacheService
         return res;
     }
 
-    public int writeDictionary(DictionaryKey dictionaryKey,
+    public int writeDictionary(
+            DictionaryKey dictionaryKey,
             RecTypeCode recTypeCode,
             int dictionaryOffset,
             String rowGroupFilePath)

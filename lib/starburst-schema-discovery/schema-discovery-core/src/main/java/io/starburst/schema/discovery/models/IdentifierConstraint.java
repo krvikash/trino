@@ -17,5 +17,5 @@ package io.starburst.schema.discovery.models;
 public enum IdentifierConstraint
 {
     VALID_IN_TRINO,
-    VALID_IN_HIVE_AND_TRINO
+    VALID_IN_HIVE_AND_TRINO,
 }

@@ -19,7 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record CallHomeData(String storePath, boolean collectThreadDumps, boolean waitToFinish)
 {
     @JsonCreator
-    public CallHomeData(@JsonProperty("storePath") String storePath,
+    public CallHomeData(
+            @JsonProperty("storePath") String storePath,
             @JsonProperty("collectThreadDumps") boolean collectThreadDumps,
             @JsonProperty("waitToFinish") boolean waitToFinish)
     {

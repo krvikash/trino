@@ -60,7 +60,8 @@ public class WarmupElementsCloudExporterTest
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any(WarmupExportServiceStats.class))).thenReturn(warmupExportServiceStats);
 
-        warmupElementsCloudExporter = new WarmupElementsCloudExporter(globalConfig,
+        warmupElementsCloudExporter = new WarmupElementsCloudExporter(
+                globalConfig,
                 storageEngineConstants,
                 rowGroupDataService,
                 cloudVendorService,

@@ -688,7 +688,8 @@ public abstract class AbstractPredicatePushdownTest
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("l_partkey", "p_partkey")
-                                .filter(new Comparison(LESS_THAN_OR_EQUAL,
+                                .filter(new Comparison(
+                                        LESS_THAN_OR_EQUAL,
                                         new Reference(createVarcharType(55), "name"),
                                         new Cast(new Reference(createVarcharType(55), "comment"), createVarcharType(55))))
                                 .left(anyIfDynamicFilteringEnabled(tableScan(
@@ -696,13 +697,13 @@ public abstract class AbstractPredicatePushdownTest
                                         ImmutableMap.of("l_partkey", "partkey", "comment", "comment"))))
                                 .right(anyTree(
                                         filter(
-                                                new Comparison(GREATER_THAN_OR_EQUAL,
+                                                new Comparison(
+                                                        GREATER_THAN_OR_EQUAL,
                                                         new Reference(createVarcharType(55), "name"),
                                                         new Constant(createVarcharType(55), utf8Slice("f"))),
                                                 tableScan(
                                                         "part",
                                                         ImmutableMap.of("p_partkey", "partkey", "name", "name"))))))));
-
 
         // min between value could be pushed down, but it's not because between value is expensive
         assertPlan(
@@ -730,7 +731,8 @@ public abstract class AbstractPredicatePushdownTest
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("l_partkey", "p_partkey")
-                                .filter(new Comparison(GREATER_THAN_OR_EQUAL,
+                                .filter(new Comparison(
+                                        GREATER_THAN_OR_EQUAL,
                                         new Reference(createVarcharType(55), "name"),
                                         new Cast(new Reference(createVarcharType(44), "comment"), createVarcharType(55))))
                                 .left(anyIfDynamicFilteringEnabled(tableScan(
@@ -738,7 +740,8 @@ public abstract class AbstractPredicatePushdownTest
                                         ImmutableMap.of("l_partkey", "partkey", "comment", "comment"))))
                                 .right(anyTree(
                                         filter(
-                                                new Comparison(LESS_THAN_OR_EQUAL,
+                                                new Comparison(
+                                                        LESS_THAN_OR_EQUAL,
                                                         new Reference(createVarcharType(55), "name"),
                                                         new Constant(createVarcharType(55), utf8Slice("f"))),
                                                 tableScan(
@@ -754,8 +757,10 @@ public abstract class AbstractPredicatePushdownTest
                                 .equiCriteria("l_partkey", "p_partkey")
                                 .filter(new Comparison(
                                         LESS_THAN_OR_EQUAL,
-                                        new Cast(new Reference(createVarcharType(44), "comment"),
-                                        createVarcharType(55)), new Reference(createVarcharType(55), "name")))
+                                        new Cast(
+                                                new Reference(createVarcharType(44), "comment"),
+                                                createVarcharType(55)),
+                                        new Reference(createVarcharType(55), "name")))
                                 .left(filter(
                                         new Comparison(
                                                 GREATER_THAN_OR_EQUAL,
@@ -892,14 +897,14 @@ public abstract class AbstractPredicatePushdownTest
         assertPlan(
                 """
 
-                        SELECT c.mktsegment
-                   FROM
-                       customer c INNER JOIN nation n ON c.nationkey = n.nationkey
-                   WHERE
-                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
-                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
-                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
-                   """,
+                     SELECT c.mktsegment
+                FROM
+                    customer c INNER JOIN nation n ON c.nationkey = n.nationkey
+                WHERE
+                    (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                    OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                    OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                """,
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
@@ -913,7 +918,7 @@ public abstract class AbstractPredicatePushdownTest
                                                         new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
                                                         new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
                                                 new Logical(AND, ImmutableList.of(
-                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"),createVarcharConstant(25, "BRAZIL"))),
+                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
                                                         new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))))
                                 .left(
                                         filter(
@@ -924,8 +929,7 @@ public abstract class AbstractPredicatePushdownTest
                                 .right(
                                         exchange(
                                                 filter(
-                                                        new In(
-                                                                new Reference(nameColumnType, "N_NAME"),
+                                                        new In(new Reference(nameColumnType, "N_NAME"),
                                                                 ImmutableList.of(
                                                                         createVarcharConstant(25, "ALGERIA"),
                                                                         createVarcharConstant(25, "BRAZIL"),
@@ -939,24 +943,22 @@ public abstract class AbstractPredicatePushdownTest
                                                         tableScan(
                                                                 "nation",
                                                                 ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name"))))))));
-
     }
-
 
     @Test
     public void testSupersetPredicatePushdownOnLeftJoin()
     {
         Type nameColumnType = createVarcharType(25);
         assertPlan(
-                    """
-                    SELECT c.mktsegment
-                    FROM
-                        customer c LEFT JOIN nation n ON c.nationkey = n.nationkey
-                    WHERE
-                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
-                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
-                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
-                    """,
+                """
+                SELECT c.mktsegment
+                FROM
+                    customer c LEFT JOIN nation n ON c.nationkey = n.nationkey
+                WHERE
+                   (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                   OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                   OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                """,
                 output(
                         project(
                                 filter(
@@ -983,7 +985,6 @@ public abstract class AbstractPredicatePushdownTest
                                                                 tableScan(
                                                                         "nation",
                                                                         ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
-
     }
 
     @Test
@@ -993,14 +994,14 @@ public abstract class AbstractPredicatePushdownTest
 
         assertPlan(
                 """
-                    SELECT c.mktsegment
-                    FROM
-                        customer c RIGHT JOIN nation n ON c.nationkey = n.nationkey
-                    WHERE
-                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
-                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
-                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
-                    """,
+                SELECT c.mktsegment
+                FROM
+                    customer c RIGHT JOIN nation n ON c.nationkey = n.nationkey
+                WHERE
+                   (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                   OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                   OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                """,
                 output(
                         project(
                                 filter(
@@ -1036,14 +1037,14 @@ public abstract class AbstractPredicatePushdownTest
 
         assertPlan(
                 """
-                    SELECT c.mktsegment
-                    FROM
-                        customer c FULL JOIN nation n ON c.nationkey = n.nationkey
-                    WHERE
-                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
-                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
-                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
-                    """,
+                SELECT c.mktsegment
+                FROM
+                    customer c FULL JOIN nation n ON c.nationkey = n.nationkey
+                WHERE
+                   (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                   OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                   OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                """,
                 output(
                         project(
                                 filter(
@@ -1071,7 +1072,6 @@ public abstract class AbstractPredicatePushdownTest
                                                                         "nation",
                                                                         ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
     }
-
 
     private Constant createVarcharConstant(int length, String value)
     {

@@ -106,7 +106,8 @@ public class LuceneMatcherTest
     public void before()
     {
         init();
-        this.predicateContextFactory = new PredicateContextFactory(new GlobalConfig(),
+        this.predicateContextFactory = new PredicateContextFactory(
+                new GlobalConfig(),
                 new TestingConnectorProxiedConnectorTransformer());
         luceneElementsMatcher = new LuceneElementsMatcher(dispatcherProxiedConnectorTransformer);
         rowGroupData = mock(RowGroupData.class);
@@ -131,7 +132,8 @@ public class LuceneMatcherTest
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
                 .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -174,7 +176,8 @@ public class LuceneMatcherTest
         PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
                 .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -217,7 +220,8 @@ public class LuceneMatcherTest
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
                 .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -260,7 +264,8 @@ public class LuceneMatcherTest
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
                 .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -289,11 +294,15 @@ public class LuceneMatcherTest
 
         // col1 LIKE '%aa%' = TRUE
         Slice likePattern = Slices.utf8Slice("%aa%");
-        WarpCall likeEqualsTrueCall = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new WarpCall(LIKE_FUNCTION_NAME.getName(),
+        WarpCall likeEqualsTrueCall = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(
+                                LIKE_FUNCTION_NAME.getName(),
                                 List.of(warpVariable,
-                                        new WarpSliceConstant(likePattern, type)), type),
-                        WarpPrimitiveConstant.TRUE), type);
+                                        new WarpSliceConstant(likePattern, type)),
+                                type),
+                        WarpPrimitiveConstant.TRUE),
+                type);
         Query likeQuery = createLikeQuery(likePattern);
         BooleanQuery mustLikeQuery = new BooleanQuery.Builder()
                 .add(likeQuery, BooleanClause.Occur.MUST)
@@ -301,21 +310,27 @@ public class LuceneMatcherTest
 
         // STARTS_WITH(col1, 'b')
         Slice prefix = Slices.utf8Slice("b");
-        WarpCall startsWithCall = new WarpCall("starts_with",
+        WarpCall startsWithCall = new WarpCall(
+                "starts_with",
                 List.of(warpVariable,
-                        new WarpSliceConstant(prefix, type)), type);
+                        new WarpSliceConstant(prefix, type)),
+                type);
         Query startsWithQuery = createPrefixQuery(prefix);
 
         // col1 =, !=, >, >=, <, <= 'str'
-        WarpCall comparisonFunctionCall = new WarpCall(comparisonFunctionName,
+        WarpCall comparisonFunctionCall = new WarpCall(
+                comparisonFunctionName,
                 List.of(warpVariable,
-                        new WarpSliceConstant(comparisonValue, type)), type);
+                        new WarpSliceConstant(comparisonValue, type)),
+                type);
 
         // <expression> AND <expression> AND <expression>
-        WarpCall andCall = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+        WarpCall andCall = new WarpCall(
+                StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeEqualsTrueCall,
                         startsWithCall,
-                        comparisonFunctionCall), type);
+                        comparisonFunctionCall),
+                type);
         BooleanQuery andQuery = new BooleanQuery.Builder()
                 .add(likeQuery, BooleanClause.Occur.MUST)
                 .add(startsWithQuery, BooleanClause.Occur.MUST)
@@ -323,10 +338,12 @@ public class LuceneMatcherTest
                 .build();
 
         // <expression> OR <expression> OR <expression> OR <expression>
-        WarpCall orCallWithExpressions = new WarpCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
+        WarpCall orCallWithExpressions = new WarpCall(
+                StandardFunctions.OR_FUNCTION_NAME.getName(),
                 List.of(likeEqualsTrueCall,
                         startsWithCall,
-                        comparisonFunctionCall), type);
+                        comparisonFunctionCall),
+                type);
         BooleanQuery orQuery = new BooleanQuery.Builder()
                 .add(likeQuery, BooleanClause.Occur.SHOULD)
                 .add(startsWithQuery, BooleanClause.Occur.SHOULD)
@@ -359,21 +376,31 @@ public class LuceneMatcherTest
         WarpVariable warpVariable = new WarpVariable(columnHandle, type);
 
         Slice likePattern = Slices.utf8Slice("%aa%");
-        WarpCall likeCall = new WarpCall(LIKE_FUNCTION_NAME.getName(),
+        WarpCall likeCall = new WarpCall(
+                LIKE_FUNCTION_NAME.getName(),
                 List.of(warpVariable,
-                        new WarpSliceConstant(likePattern, type)), type);
-        WarpCall equalsTrue = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        new WarpSliceConstant(likePattern, type)),
+                type);
+        WarpCall equalsTrue = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        WarpPrimitiveConstant.TRUE), type);
-        WarpCall equalsFalse = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        WarpPrimitiveConstant.TRUE),
+                type);
+        WarpCall equalsFalse = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        WarpPrimitiveConstant.FALSE), type);
-        WarpCall notEqualsTrue = new WarpCall(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        WarpPrimitiveConstant.FALSE),
+                type);
+        WarpCall notEqualsTrue = new WarpCall(
+                StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        WarpPrimitiveConstant.TRUE), type);
-        WarpCall notEqualsFalse = new WarpCall(StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                        WarpPrimitiveConstant.TRUE),
+                type);
+        WarpCall notEqualsFalse = new WarpCall(
+                StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        WarpPrimitiveConstant.FALSE), type);
+                        WarpPrimitiveConstant.FALSE),
+                type);
 
         Query likeQuery = createLikeQuery(likePattern);
 
@@ -401,23 +428,35 @@ public class LuceneMatcherTest
         WarpVariable warpVariable = new WarpVariable(columnHandle, type);
         Slice likePattern = Slices.utf8Slice("%aa%");
 
-        WarpCall likeCall = new WarpCall(LIKE_FUNCTION_NAME.getName(),
+        WarpCall likeCall = new WarpCall(
+                LIKE_FUNCTION_NAME.getName(),
                 List.of(warpVariable,
-                        new WarpSliceConstant(likePattern, type)), type);
-        WarpCall untranslatableCall = new WarpCall("$unfamiliar_call",
-                List.of(warpVariable), type);
-        WarpCall orCall = new WarpCall(StandardFunctions.OR_FUNCTION_NAME.getName(),
+                        new WarpSliceConstant(likePattern, type)),
+                type);
+        WarpCall untranslatableCall = new WarpCall(
+                "$unfamiliar_call",
+                List.of(warpVariable),
+                type);
+        WarpCall orCall = new WarpCall(
+                StandardFunctions.OR_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        untranslatableCall), type);
-        WarpCall andCall = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+                        untranslatableCall),
+                type);
+        WarpCall andCall = new WarpCall(
+                StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        untranslatableCall), type);
-        WarpCall andCallWithInvalidArgument = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+                        untranslatableCall),
+                type);
+        WarpCall andCallWithInvalidArgument = new WarpCall(
+                StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(likeCall,
-                        warpVariable), type);
-        WarpCall andCallWhichCantBeConverted = new WarpCall(StandardFunctions.AND_FUNCTION_NAME.getName(),
+                        warpVariable),
+                type);
+        WarpCall andCallWhichCantBeConverted = new WarpCall(
+                StandardFunctions.AND_FUNCTION_NAME.getName(),
                 List.of(untranslatableCall,
-                        warpVariable), type);
+                        warpVariable),
+                type);
 
         Query likeQuery = createLikeQuery(likePattern);
         BooleanQuery mustLikeQuery = new BooleanQuery.Builder()
@@ -470,7 +509,8 @@ public class LuceneMatcherTest
         builder.add(createWarmUpElementFromColumnHandle(columnHandle, WarmUpType.WARM_UP_TYPE_BASIC));
 
         // PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.copyOf(remainingPredicateContext));
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -488,7 +528,8 @@ public class LuceneMatcherTest
         assertThat(result.remainingPredicateContext().get(warpColumn).getDomain()).isEqualTo(domain);
     }
 
-    private void assertExpressionConversion(String columnName,
+    private void assertExpressionConversion(
+            String columnName,
             ColumnHandle columnHandle,
             Optional<WarpExpression> expression,
             Optional<Domain> domain,
@@ -525,7 +566,8 @@ public class LuceneMatcherTest
         assertThat(result.remainingPredicateContext()).isEmpty();
     }
 
-    private void assertExpressionNotConverted(String columnName,
+    private void assertExpressionNotConverted(
+            String columnName,
             ColumnHandle columnHandle,
             Optional<WarpExpression> expression,
             Optional<Domain> domain)
@@ -561,7 +603,8 @@ public class LuceneMatcherTest
         }
     }
 
-    private MatchContext executeMatch(ColumnHandle columnHandle,
+    private MatchContext executeMatch(
+            ColumnHandle columnHandle,
             TupleDomain<ColumnHandle> tupleDomain,
             WarpExpressionData warpExpressionData)
     {
@@ -575,7 +618,8 @@ public class LuceneMatcherTest
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContextData.getLeaves()
                 .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -594,7 +638,8 @@ public class LuceneMatcherTest
     {
         ColumnHandle columnHandle = mockColumnHandle("columnName", varcharType, dispatcherProxiedConnectorTransformer);
         WarmedWarmupTypes warmUpElementByType = createColumnToWarmUpElementByType(List.of(columnHandle), WarmUpType.WARM_UP_TYPE_LUCENE);
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),

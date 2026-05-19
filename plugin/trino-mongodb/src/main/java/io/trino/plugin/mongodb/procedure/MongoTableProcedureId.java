@@ -15,5 +15,5 @@ package io.trino.plugin.mongodb.procedure;
 
 public enum MongoTableProcedureId
 {
-    UPDATE_SCHEMA,
+    UPDATE_SCHEMA
 }

@@ -81,7 +81,5 @@ public class TextFileLines
         }
     }
 
-    private TextFileLines()
-    {
-    }
+    private TextFileLines() {}
 }

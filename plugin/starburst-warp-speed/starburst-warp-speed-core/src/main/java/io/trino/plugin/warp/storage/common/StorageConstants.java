@@ -22,7 +22,5 @@ public final class StorageConstants
     public static final int NOT_NULL_MARKER_VALUE = 0;
     public static final int NULL_MARKER_VALUE = 1;
 
-    private StorageConstants()
-    {
-    }
+    private StorageConstants() {}
 }

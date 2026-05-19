@@ -74,7 +74,8 @@ public class LuceneRulesHandler
         luceneRules.put(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::greatThanOrEqual));
     }
 
-    public boolean rewrite(WarpExpression warpExpression,
+    public boolean rewrite(
+            WarpExpression warpExpression,
             LuceneRewriteContext context)
     {
         if (warpExpression instanceof WarpCall warpCall) {

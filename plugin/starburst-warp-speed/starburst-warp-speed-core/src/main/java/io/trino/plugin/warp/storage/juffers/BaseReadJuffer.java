@@ -26,7 +26,5 @@ public abstract class BaseReadJuffer
         super(bufferAllocator, bufferType);
     }
 
-    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs)
-    {
-    }
+    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs) {}
 }

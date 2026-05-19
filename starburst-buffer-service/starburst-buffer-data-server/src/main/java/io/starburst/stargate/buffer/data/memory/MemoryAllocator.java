@@ -76,7 +76,8 @@ public class MemoryAllocator
         this.highWatermark = (long) (chunksMemory * highWatermarkRatio);
         double chunkSlicePoolingFraction = memoryAllocatorConfig.getChunkSlicePoolingFraction();
         checkArgument(0.0 <= chunkSlicePoolingFraction && chunkSlicePoolingFraction < 1.0,
-                "chunkSlicePoolingFraction expected to be in range [0.0, 1.0), but is %s", chunkSlicePoolingFraction);
+                "chunkSlicePoolingFraction expected to be in range [0.0, 1.0), but is %s",
+                chunkSlicePoolingFraction);
         this.chunkSlicePoolingLimit = (long) (chunksMemory * chunkSlicePoolingFraction);
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.chunkSlicePool = new ArrayDeque<>(toIntExact(chunkSlicePoolingLimit / chunkSliceSizeInBytes));
@@ -219,7 +220,8 @@ public class MemoryAllocator
 
     private record PendingAllocation(int bytes, SettableFuture<Slice> future)
     {
-        public PendingAllocation {
+        public PendingAllocation
+        {
             requireNonNull(future, "future is null");
         }
     }

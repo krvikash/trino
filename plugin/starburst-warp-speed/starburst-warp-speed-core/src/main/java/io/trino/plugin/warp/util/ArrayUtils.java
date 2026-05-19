@@ -103,7 +103,7 @@ public class ArrayUtils
             array[0] = value;
         }
 
-        //Value of i will be [1, 2, 4, 8, 16, 32, ..., len]
+        // Value of i will be [1, 2, 4, 8, 16, 32, ..., len]
         for (int i = 1; i < len; i += i) {
             System.arraycopy(array, 0, array, i, Math.min((len - i), i));
         }
@@ -122,7 +122,7 @@ public class ArrayUtils
             array[0] = value;
         }
 
-        //Value of i will be [1, 2, 4, 8, 16, 32, ..., len]
+        // Value of i will be [1, 2, 4, 8, 16, 32, ..., len]
         for (int i = 1; i < len; i += i) {
             System.arraycopy(array, 0, array, i, Math.min((len - i), i));
         }

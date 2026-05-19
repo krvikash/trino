@@ -27,7 +27,8 @@ public class PredicateData
     private final int predicateSize;
     private final Type columnType;
 
-    private PredicateData(PredicateInfo predicateInfo,
+    private PredicateData(
+            PredicateInfo predicateInfo,
             boolean collectNulls,
             int predicateHashCode,
             int predicateSize,
@@ -111,8 +112,7 @@ public class PredicateData
         private int predicateSize;
         private Type columnType;
 
-        private Builder()
-        {}
+        private Builder() {}
 
         public Builder predicateInfo(PredicateInfo predicateInfo)
         {
@@ -146,7 +146,8 @@ public class PredicateData
 
         public PredicateData build()
         {
-            return new PredicateData(predicateInfo,
+            return new PredicateData(
+                    predicateInfo,
                     isCollectNulls,
                     predicateHashCode,
                     predicateSize,

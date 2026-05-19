@@ -213,7 +213,7 @@ public class TestQueryManager
         try (QueryRunner queryRunner = TpchQueryRunner.builder().addExtraProperty("query.max-output-data-size", "200MB").build()) {
             assertThatThrownBy(() -> queryRunner.execute("SELECT * FROM tpch.sf100.customer"))
                     .hasMessage("Exceeded output data size limit of 200MB");
-            //Query with predicate produces ~170MB
+            // Query with predicate produces ~170MB
             queryRunner.execute("SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
         }
     }
@@ -229,7 +229,7 @@ public class TestQueryManager
                     .build();
             assertThatThrownBy(() -> queryRunner.execute(session, "SELECT * FROM tpch.sf100.customer"))
                     .hasMessage("Exceeded output data size limit of 200MB");
-            //Query with predicate produces ~170MB
+            // Query with predicate produces ~170MB
             queryRunner.execute(session, "SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
         }
     }
@@ -243,7 +243,7 @@ public class TestQueryManager
             addIcebergCatalog(queryRunner);
             assertThatThrownBy(() -> queryRunner.execute("CREATE TABLE iceberg.default.t2 AS SELECT * FROM tpch.sf100.customer"))
                     .hasMessage("Exceeded write limit of 50MB");
-            //Query with predicate writes ~32MB
+            // Query with predicate writes ~32MB
             queryRunner.execute("CREATE TABLE iceberg.default.t1 AS SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
             queryRunner.execute("DROP TABLE iceberg.default.t1");
         }
@@ -261,7 +261,7 @@ public class TestQueryManager
                     .build();
             assertThatThrownBy(() -> queryRunner.execute(session, "CREATE TABLE iceberg.default.t2 AS SELECT * FROM tpch.sf100.customer"))
                     .hasMessage("Exceeded write limit of 50MB");
-            //Query with predicate writes ~32MB
+            // Query with predicate writes ~32MB
             queryRunner.execute(session, "CREATE TABLE iceberg.default.t1 AS SELECT * FROM tpch.sf100.customer WHERE nationkey = 0");
             queryRunner.execute("DROP TABLE iceberg.default.t1");
         }

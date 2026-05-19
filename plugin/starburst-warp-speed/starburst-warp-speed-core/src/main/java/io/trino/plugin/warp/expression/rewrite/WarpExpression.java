@@ -19,8 +19,7 @@ import io.trino.plugin.warp.expression.WarpExpressionData;
 import java.io.Serializable;
 import java.util.List;
 
-public record WarpExpression(@JsonProperty("rootExpression") io.trino.plugin.warp.expression.WarpExpression rootExpression,
-                             @JsonProperty("warpExpressionDataLeaves") List<WarpExpressionData> warpExpressionDataLeaves)
-        implements Serializable
-{
-}
+public record WarpExpression(
+        @JsonProperty("rootExpression") io.trino.plugin.warp.expression.WarpExpression rootExpression,
+        @JsonProperty("warpExpressionDataLeaves") List<WarpExpressionData> warpExpressionDataLeaves)
+        implements Serializable {}

@@ -87,7 +87,8 @@ public class WarmupElementsCreatorTest
         String medium = "medium";
         String low = "low";
 
-        List<ColumnHandle> columns = mockColumns(List.of(Pair.of(high, IntegerType.INTEGER),
+        List<ColumnHandle> columns = mockColumns(List.of(
+                Pair.of(high, IntegerType.INTEGER),
                 Pair.of(medium, IntegerType.INTEGER),
                 Pair.of(low, IntegerType.INTEGER)));
 
@@ -102,7 +103,8 @@ public class WarmupElementsCreatorTest
                 new RegularColumn(low),
                 Set.of(new WarmupProperties(WARM_UP_TYPE_DATA, 1, 0, TransformFunction.NONE)));
 
-        List<WarmUpElement> warmupElements = warmupElementsCreator.createWarmupElements(new RowGroupKey("schema", "table", "file_path", 0, 1L, 0, "", ""),
+        List<WarmUpElement> warmupElements = warmupElementsCreator.createWarmupElements(
+                new RowGroupKey("schema", "table", "file_path", 0, 1L, 0, "", ""),
                 warmupProperties,
                 schemaTableName,
                 columns);
@@ -152,7 +154,8 @@ public class WarmupElementsCreatorTest
         String high = "high";
         String medium = "medium";
         String low = "low";
-        List<ColumnHandle> columns = mockColumns(List.of(Pair.of(low, IntegerType.INTEGER),
+        List<ColumnHandle> columns = mockColumns(List.of(
+                Pair.of(low, IntegerType.INTEGER),
                 Pair.of(medium, IntegerType.INTEGER),
                 Pair.of(high, IntegerType.INTEGER)));
 
@@ -236,7 +239,8 @@ public class WarmupElementsCreatorTest
         String high = "high";
         String medium = "medium";
         String low = "low";
-        List<ColumnHandle> columns = mockColumns(List.of(Pair.of(low, IntegerType.INTEGER),
+        List<ColumnHandle> columns = mockColumns(List.of(
+                Pair.of(low, IntegerType.INTEGER),
                 Pair.of(medium, JsonType.JSON), // json type is not supported
                 Pair.of(high, IntegerType.INTEGER)));
 

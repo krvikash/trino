@@ -22,6 +22,4 @@ import com.google.inject.Module;
  * registered in {@code META-INF/services/io.trino.server.testing.TestingServerExtensionModule}.
  */
 public interface TestingServerExtensionModule
-        extends Module
-{
-}
+        extends Module {}

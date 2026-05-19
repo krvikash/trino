@@ -82,8 +82,7 @@ public class CopyOnWriteIcebergMergeSink
             Optional<String> nameMapping,
             int formatVersion)
     {
-        super(
-                locationProvider,
+        super(locationProvider,
                 fileWriterFactory,
                 fileSystem,
                 previousDeleteFiles,

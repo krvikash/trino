@@ -31,7 +31,6 @@ import static io.trino.spi.expression.StandardFunctions.NOT_EQUAL_OPERATOR_FUNCT
 
 class EqualityRewriter
         implements ExpressionRewriter<WarpCall>
-
 {
     private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(argumentCount().equalTo(2))
@@ -67,7 +66,7 @@ class EqualityRewriter
         boolean value = (boolean) ((WarpConstant) expression.getChildren().get(1)).getValue();
         BooleanQuery.Builder queryBuilder = context.queryBuilder();
         BooleanClause.Occur res;
-        if (isEqual != value) { //=false->false, =true->true, !=true->false, !=false->true
+        if (isEqual != value) { // =false->false, =true->true, !=true->false, !=false->true
             // See https://stackoverflow.com/a/16091066
             queryBuilder.add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
             res = BooleanClause.Occur.MUST_NOT;

@@ -50,8 +50,9 @@ public class ReadErrorHandler
     private final PrintMetricsTimerTask printMetricsTimerTask;
 
     @Inject
-    public ReadErrorHandler(RowGroupDataService rowGroupDataService,
-                            PrintMetricsTimerTask printMetricsTimerTask)
+    public ReadErrorHandler(
+            RowGroupDataService rowGroupDataService,
+            PrintMetricsTimerTask printMetricsTimerTask)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.printMetricsTimerTask = requireNonNull(printMetricsTimerTask);

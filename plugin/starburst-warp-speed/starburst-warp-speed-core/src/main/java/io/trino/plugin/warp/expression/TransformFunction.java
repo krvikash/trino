@@ -43,6 +43,6 @@ public record TransformFunction(
         UPPER,
         DATE,
         ELEMENT_AT,
-        JSON_EXTRACT_SCALAR
+        JSON_EXTRACT_SCALAR,
     }
 }

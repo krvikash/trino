@@ -45,7 +45,8 @@ public class TestAwsBedrockPromptCaching
     // The content is meaningful so as not to confuse the model, but the main purpose is length.
     // This prompt must exceed 1024 tokens to properly test Bedrock's prompt caching behavior.
     // Start with a cache busting string, to make sure the test does reuse the cache from a previous run.
-    private static final String LONG_SYSTEM_PROMPT = """
+    private static final String LONG_SYSTEM_PROMPT =
+            """
             [Test session initialized at %s with random seed %d]
 
             You are an expert data analyst specializing in SQL query optimization and data lakehouse architecture.
@@ -181,7 +182,7 @@ public class TestAwsBedrockPromptCaching
     {
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
-        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor, (ctx, usage) -> capturedUsages.add(usage));
+        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor, (_, usage) -> capturedUsages.add(usage));
     }
 
     @AfterAll

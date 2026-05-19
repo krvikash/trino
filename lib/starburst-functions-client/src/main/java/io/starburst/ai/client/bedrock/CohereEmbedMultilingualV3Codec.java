@@ -42,7 +42,8 @@ public final class CohereEmbedMultilingualV3Codec
             .put(EmbeddingType.BINARY, "binary")
             .buildOrThrow();
 
-    private static final String COHERE_REQUEST_TEMPLATE = """
+    private static final String COHERE_REQUEST_TEMPLATE =
+            """
             {
                 "texts":["%s"],
                 "input_type": "search_query",
@@ -50,14 +51,15 @@ public final class CohereEmbedMultilingualV3Codec
                 "embedding_types": ["%s"]
             }
             """;
-    private static final String COHERE_BATCH_REQUEST_TEMPLATE = """
-                {
-                    "texts":%s,
-                    "input_type": "search_document",
-                    "truncate": "NONE",
-                    "embedding_types": ["%s"]
-                }
-                """;
+    private static final String COHERE_BATCH_REQUEST_TEMPLATE =
+            """
+            {
+                "texts":%s,
+                "input_type": "search_document",
+                "truncate": "NONE",
+                "embedding_types": ["%s"]
+            }
+            """;
 
     private CohereEmbedMultilingualV3Codec() {}
 

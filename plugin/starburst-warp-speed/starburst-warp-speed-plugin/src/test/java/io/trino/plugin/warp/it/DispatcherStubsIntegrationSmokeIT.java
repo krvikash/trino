@@ -172,7 +172,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         try {
             logger.debug("demote all start");
 
-            String result = executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
+            String result = executeRestCommand(
+                    WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                     WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
                     WarmupDemoterData.builder().maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
                             .cleanupUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
@@ -189,7 +190,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             Map<String, Object> res = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             Double highestPriority = (Double) res.entrySet()
                     .stream()
-                    .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
+                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
                     .findAny()
                     .orElseThrow()
                     .getValue();
@@ -199,7 +200,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             restDemoteConfigToDefaults(target);
 
 //            validateEmptyUsage();
-            String dictionariesReset = executeRestCommand(DictionaryTask.DICTIONARY_PATH,
+            String dictionariesReset = executeRestCommand(
+                    DictionaryTask.DICTIONARY_PATH,
                     DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME,
                     null,
                     HttpMethod.POST,
@@ -233,7 +235,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                     .build();
             Map<String, Object> res = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {})
-                    .readValue(executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
+                    .readValue(executeRestCommand(
+                            WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                             WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
                             warmupDemoterData,
                             HttpMethod.POST,
@@ -241,31 +244,31 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                             target));
             Double maxUsage = (Double) res.entrySet()
                     .stream()
-                    .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.MAX_USAGE_THRESHOLD_KEY))
+                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.MAX_USAGE_THRESHOLD_KEY))
                     .findAny()
                     .orElseThrow()
                     .getValue();
             Double cleanUsage = (Double) res.entrySet()
                     .stream()
-                    .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.CLEANUP_USAGE_THRESHOLD_KEY))
+                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.CLEANUP_USAGE_THRESHOLD_KEY))
                     .findAny()
                     .orElseThrow()
                     .getValue();
             Integer batchSize = (Integer) res.entrySet()
                     .stream()
-                    .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.BATCH_SIZE_KEY))
+                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.BATCH_SIZE_KEY))
                     .findAny()
                     .orElseThrow()
                     .getValue();
             Double epsilon = (Double) res.entrySet()
                     .stream()
-                    .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.EPSILON_KEY))
+                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.EPSILON_KEY))
                     .findAny()
                     .orElseThrow()
                     .getValue();
             Integer maxElementsToDemote = (Integer) res.entrySet()
                     .stream()
-                    .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY))
+                    .filter(entry -> entry.getKey().endsWith(WorkerWarmupDemoterTask.MAX_ELEMENTS_TO_DEMOTE_ITERATION_KEY))
                     .findAny()
                     .orElseThrow()
                     .getValue();
@@ -309,7 +312,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         validateQueryStats(query, session, expectedQueryStats, Collections.emptyList(), expectedSplits, expectedRows, false);
     }
 
-    protected void validateQueryStats(@Language("SQL") String query,
+    protected void validateQueryStats(
+            @Language("SQL") String query,
             Session session,
             Map<String, Long> expectedJmxCounters,
             Collection<String> expectedPositiveQueryStats)
@@ -317,7 +321,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         validateQueryStats(query, session, expectedJmxCounters, expectedPositiveQueryStats, OptionalInt.empty(), OptionalInt.empty(), false);
     }
 
-    protected void validateQueryStats(@Language("SQL") String query,
+    protected void validateQueryStats(
+            @Language("SQL") String query,
             Session session,
             Map<String, Long> expectedJmxCounters,
             Collection<String> expectedPositiveQueryStats,
@@ -423,7 +428,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     }
 
     @SuppressWarnings("LanguageMismatch")
-    protected void warmAndValidate(String query,
+    protected void warmAndValidate(
+            String query,
             Session session,
             int expectedFinishedWarmupElements,
             int expectedWarmAccomplished,
@@ -437,13 +443,15 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 Optional.ofNullable(expectedWarmedFailed));
     }
 
-    protected void warmAndValidate(@Language("SQL") String query,
+    protected void warmAndValidate(
+            @Language("SQL") String query,
             Session session,
             int expectedFinishedWarmupElements,
             int expectedWarmAccomplished,
             Optional<Integer> expectedWarmedFailed)
     {
-        List<String> statsColNames = List.of("warm_accomplished",
+        List<String> statsColNames = List.of(
+                "warm_accomplished",
                 "warmup_elements_count",
                 "warm_failed",
                 "warm_started");
@@ -480,8 +488,14 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             long actualWarmAccomplished = (Long) materializedRowAfter.getField(0) - beforeWarmAccomplishedStats;
             long actualElementsFinishedCount = (Long) materializedRowAfter.getField(1) - beforeWarmupElementsCount;
             long actualWarmFailed = (Long) materializedRowAfter.getField(2) - beforeWarmupFailedCount;
-            logger.debug("actualWarmAccomplished=%d, expectedWarmAccomplished=%d, actualElementsFinishedCount=%d, expectedFinishedWarmupElements=%d, actualWarmFailed=%d, expectedWarmedFailed=%s",
-                    actualWarmAccomplished, expectedWarmAccomplished, actualElementsFinishedCount, expectedFinishedWarmupElements, actualWarmFailed, expectedWarmedFailed.toString());
+            logger.debug(
+                    "actualWarmAccomplished=%d, expectedWarmAccomplished=%d, actualElementsFinishedCount=%d, expectedFinishedWarmupElements=%d, actualWarmFailed=%d, expectedWarmedFailed=%s",
+                    actualWarmAccomplished,
+                    expectedWarmAccomplished,
+                    actualElementsFinishedCount,
+                    expectedFinishedWarmupElements,
+                    actualWarmFailed,
+                    expectedWarmedFailed.toString());
             assertThat(actualWarmAccomplished)
                     .describedAs("actualWarmAccomplished is not as expected. %s", query)
                     .isEqualTo(expectedWarmAccomplished);
@@ -502,8 +516,14 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             long actualDictionaryMaxExceptionCount = (long) (Long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
             long actualDictionaryWriteCount = (long) (Long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
             long actualReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-            logger.info("actualDictionaryMaxExceptionCount=%d, expectedMaxException=%d, actualDictionaryWriteCount=%d, ,expectedWarmupElements=%d, actualReadDictionaryCount=%s, expectedReadDictionaryCount=%s",
-                    actualDictionaryMaxExceptionCount, expectedMaxException, actualDictionaryWriteCount, expectedDictionaryWriteCount, actualReadDictionaryCount, expectedReadDictionaryCount);
+            logger.info(
+                    "actualDictionaryMaxExceptionCount=%d, expectedMaxException=%d, actualDictionaryWriteCount=%d, ,expectedWarmupElements=%d, actualReadDictionaryCount=%s, expectedReadDictionaryCount=%s",
+                    actualDictionaryMaxExceptionCount,
+                    expectedMaxException,
+                    actualDictionaryWriteCount,
+                    expectedDictionaryWriteCount,
+                    actualReadDictionaryCount,
+                    expectedReadDictionaryCount);
             assertThat(actualDictionaryMaxExceptionCount).isEqualTo(expectedMaxException);
             assertThat(actualDictionaryWriteCount).isEqualTo(expectedDictionaryWriteCount);
             assertThat(actualReadDictionaryCount).isEqualTo(expectedReadDictionaryCount);
@@ -511,7 +531,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         });
     }
 
-    protected void warmAndValidate(String query,
+    protected void warmAndValidate(
+            String query,
             boolean defaultWarmup,
             int expectedWarmupElements,
             int expectedWarmFinished)
@@ -520,14 +541,16 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "false")
                 .setSystemProperty(catalog + "." + WarpSessionProperties.EMPTY_QUERY, "true")
                 .build();
-        warmAndValidate(query,
+        warmAndValidate(
+                query,
                 session,
                 expectedWarmupElements,
                 expectedWarmFinished,
                 0);
     }
 
-    protected void warmAndValidateWithExport(String query,
+    protected void warmAndValidateWithExport(
+            String query,
             Session session,
             int expectedWarmupElements,
             int expectedWarmFinished,
@@ -543,7 +566,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             MaterializedResult jmxAfter = computeActual(jmxSession, "select sum(export_row_group_accomplished) from \"*warmupExportService*\"");
             MaterializedRow materializedRowAfter = jmxAfter.getMaterializedRows().getFirst();
             long actualNewExportRowGroupAccomplishedAfter = (Long) materializedRowAfter.getField(0) - beforeExportRowGroupCount;
-            logger.info("actualNewExportRowGroupAccomplished=%d, expectedExportRowGroupsAccomplished=%d",
+            logger.info(
+                    "actualNewExportRowGroupAccomplished=%d, expectedExportRowGroupsAccomplished=%d",
                     actualNewExportRowGroupAccomplishedAfter,
                     expectedExportRowGroupsAccomplished);
             assertThat(actualNewExportRowGroupAccomplishedAfter).isEqualTo(expectedExportRowGroupsAccomplished);
@@ -602,7 +626,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             return new DemoteInput(demoteInput.catalog(), (Long) materializedRow.getField(0), (Long) materializedRow.getField(1));
         }).collect(Collectors.toMap(DemoteInput::catalog, Function.identity()));
 
-        executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
+        executeRestCommand(
+                WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                 WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
                 WarmupDemoterData.builder()
                         .maxUsageThresholdInPercentage(DEMOTE_CLEAN_UP_USAGE)
@@ -675,7 +700,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         return res;
     }
 
-    protected boolean validateStat(MaterializedRow beforeStatsMaterializedRow,
+    protected boolean validateStat(
+            MaterializedRow beforeStatsMaterializedRow,
             String jmxTable,
             List<String> statColNames)
     {
@@ -685,9 +711,12 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         for (int i = 0; i < beforeStatsMaterializedRow.getFieldCount(); i++) {
             result = (long) beforeStatsMaterializedRow.getField(i) <= (long) afterStatsMaterializedRow.getField(i);
             if (!result) {
-                logger.warn("validateStat:: before[%s]= %s VS after[%s]=%s",
-                        statColNames.get(i), beforeStatsMaterializedRow.getField(i),
-                        statColNames.get(i), afterStatsMaterializedRow.getField(i));
+                logger.warn(
+                        "validateStat:: before[%s]= %s VS after[%s]=%s",
+                        statColNames.get(i),
+                        beforeStatsMaterializedRow.getField(i),
+                        statColNames.get(i),
+                        afterStatsMaterializedRow.getField(i));
                 break;
             }
         }
@@ -703,7 +732,8 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 catalog,
                 WarmingServiceStats.class.getSimpleName().toLowerCase(Locale.ROOT));
 
-        long result = (long) getServiceStats(jmxSession,
+        long result = (long) getServiceStats(
+                jmxSession,
                 warmStatsTableName,
                 List.of(statColName))
                 .getField(0);

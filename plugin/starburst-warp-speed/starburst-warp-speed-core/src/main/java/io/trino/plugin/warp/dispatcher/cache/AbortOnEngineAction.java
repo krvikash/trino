@@ -63,7 +63,8 @@ public class AbortOnEngineAction
                         false,
                         warmingCandidate.fileOffset(),
                         warmingCandidate.fileCookie());
-                rowGroupDataService.updateTmpRowGroupData(tmpRowGroupData,
+                rowGroupDataService.updateTmpRowGroupData(
+                        tmpRowGroupData,
                         warmSinkResult.warmUpElement(),
                         warmSinkResult.offset(),
                         totalRecords);
@@ -93,7 +94,7 @@ public class AbortOnEngineAction
             }
 
             try {
-                //abort from engine should be transitive
+                // abort from engine should be transitive
                 warpCacheFilesMerger.deleteTmpRowGroups(tmpRowGroupDataList);
             }
             catch (Exception e) {

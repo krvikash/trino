@@ -66,7 +66,8 @@ public class WarpClient
     private final Optional<Supplier<JwtBuilder>> jwtBuilder;
 
     @Inject
-    public WarpClient(CatalogName catalogName,
+    public WarpClient(
+            CatalogName catalogName,
             @ForWarp HttpClient httpClient,
             WarpExtensionConfig warpExtensionConfig)
     {
@@ -76,10 +77,10 @@ public class WarpClient
 
         jwtBuilder = warpExtensionConfig.getInternalCommunicationSharedSecret() != null ?
                 Optional.of(() -> new DefaultJwtBuilder()
-                        .serializeToJsonWith(new JacksonSerializer<>())
-                        .signWith(hmacShaKeyFor(Hashing.sha256().hashString(warpExtensionConfig.getInternalCommunicationSharedSecret(), UTF_8).asBytes()))
-                        .subject(warpExtensionConfig.getClusterUUID())
-                        .expiration(Date.from(ZonedDateTime.now(ZoneId.systemDefault()).plusMinutes(5).toInstant()))) :
+                                  .serializeToJsonWith(new JacksonSerializer<>())
+                                  .signWith(hmacShaKeyFor(Hashing.sha256().hashString(warpExtensionConfig.getInternalCommunicationSharedSecret(), UTF_8).asBytes()))
+                                  .subject(warpExtensionConfig.getClusterUUID())
+                                  .expiration(Date.from(ZonedDateTime.now(ZoneId.systemDefault()).plusMinutes(5).toInstant()))) :
                 Optional.empty();
     }
 
@@ -129,7 +130,8 @@ public class WarpClient
                 }
             }
             else {
-                logger.error("error response for %s : %d=>%s / %s",
+                logger.error(
+                        "error response for %s : %d=>%s / %s",
                         requestWithUser.getUri(),
                         response.getStatusCode(),
                         response.getJson(),

@@ -646,19 +646,20 @@ public class SnowflakeClient
                 .map(this::quoted)
                 .collect(joining(", "));
 
-        String insertSql = """
+        String insertSql =
+                """
                 INSERT INTO %s (%s)
                 SELECT %s FROM %s temp_table
                 WHERE EXISTS (SELECT 1 FROM %s page_sink_table WHERE page_sink_table.%s = temp_table.%s)
                 """
-                .formatted(
-                        quoted(handle.getRemoteTableName()),
-                        columns,
-                        columns,
-                        quoted(temporaryTable),
-                        quoted(pageSinkTable),
-                        pageSinkIdName,
-                        pageSinkIdName);
+                        .formatted(
+                                quoted(handle.getRemoteTableName()),
+                                columns,
+                                columns,
+                                quoted(temporaryTable),
+                                quoted(pageSinkTable),
+                                pageSinkIdName,
+                                pageSinkIdName);
 
         execute(session, connection, insertSql);
     }
@@ -698,20 +699,21 @@ public class SnowflakeClient
                 .map(column -> column + " = temp_table." + column)
                 .collect(joining(", "));
 
-        String updateSql = """
+        String updateSql =
+                """
                 UPDATE %s SET %s FROM
                   %s AS temp_table
                     JOIN
                   %s AS page_sink_table
                     ON page_sink_table.%s = temp_table.%s
                 """
-                .formatted(
-                        targetTableName,
-                        updateAssigns,
-                        sourceTableName,
-                        quoted(pageSinkTable),
-                        pageSinkIdName,
-                        pageSinkIdName);
+                        .formatted(
+                                targetTableName,
+                                updateAssigns,
+                                sourceTableName,
+                                quoted(pageSinkTable),
+                                pageSinkIdName,
+                                pageSinkIdName);
 
         ImmutableList.Builder<String> conditions = ImmutableList.builder();
         for (int i = 0; i < keyNamesSize; i++) {
@@ -742,16 +744,17 @@ public class SnowflakeClient
 
         String pageSinkIdName = handle.getPageSinkIdColumnName().orElseThrow();
 
-        String deleteSql = """
+        String deleteSql =
+                """
                 DELETE FROM %s USING %s AS temp_table
                 JOIN %s AS page_sink_table ON page_sink_table.%s = temp_table.%s
                 """
-                .formatted(
-                        targetTableName,
-                        sourceTableName,
-                        quoted(pageSinkTable),
-                        pageSinkIdName,
-                        pageSinkIdName);
+                        .formatted(
+                                targetTableName,
+                                sourceTableName,
+                                quoted(pageSinkTable),
+                                pageSinkIdName,
+                                pageSinkIdName);
 
         String condition = handle.getColumnNames().stream()
                 .map(this::quoted)
@@ -1289,7 +1292,8 @@ public class SnowflakeClient
         try (Connection connection = connectionFactory.openConnection(session);
                 Handle handle = Jdbi.open(connection)) {
             String statsTable = remoteTableName.getCatalogName().map(catalogName -> catalogName + DATABASE_SEPARATOR).orElse("") + "information_schema.tables";
-            Long rowCount = handle.createQuery("""
+            Long rowCount = handle.createQuery(
+                            """
                             SELECT (
                               SELECT ROW_COUNT
                               FROM %s

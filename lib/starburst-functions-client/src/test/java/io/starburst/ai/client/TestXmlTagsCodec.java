@@ -21,7 +21,8 @@ public class TestXmlTagsCodec
     void testDecode()
             throws Exception
     {
-        String response = """
+        String response =
+                """
                 Some junk before
                 <p_1>
                 Sentence 1.
@@ -42,7 +43,8 @@ public class TestXmlTagsCodec
     void testDecodeFromIndex()
             throws Exception
     {
-        String response = """
+        String response =
+                """
                 <p_8>
                 Sentence 1.
                 Sentence 2.

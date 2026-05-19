@@ -25,7 +25,5 @@ public enum QueryResultType
     QUERY_RESULT_TYPE_SINGLE_NO_NULL,
     QUERY_RESULT_TYPE_NUM_OF;
 
-    QueryResultType()
-    {
-    }
+    QueryResultType() {}
 }

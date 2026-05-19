@@ -121,13 +121,13 @@ class ConnectorFeaturesTestHelper
                 .sorted(Comparator.comparing(Method::getName))
                 .map(method ->
                         """
-                                    @Test
-                                    @Override
-                                    public void %s(%s)
-                                    {
-                                        skipDuplicateTestCoverage("%1$s"%s);
-                                    }
-                                """.formatted(
+                            @Test
+                            @Override
+                            public void %s(%s)
+                            {
+                                skipDuplicateTestCoverage("%1$s"%s);
+                            }
+                        """.formatted(
                                 method.getName(),
                                 IntStream.range(0, method.getParameterTypes().length)
                                         .mapToObj(i -> "%s arg%s".formatted(formatClassName(method.getParameterTypes()[i]), i))

@@ -78,28 +78,39 @@ public class RowGroupDataDao
                 if (rowGroupDataFile.exists()) {
                     logger.debug("loading row group for key [%s]", key);
                     try (RandomAccessFile randomAccessFile = new RandomAccessFile(rowGroupDataFile, "r")) {
-                        //read object size
+                        // read object size
                         final int offsetSize = Long.BYTES;
                         randomAccessFile.seek(randomAccessFile.length() - offsetSize);
                         long objectSize = randomAccessFile.readLong();
 
                         if ((objectSize <= 0) || (objectSize >= randomAccessFile.length() - offsetSize)) {
-                            shapingLogger.error("load file failed %s length %d objectSize %d",
-                                    rowGroupDataFile.getAbsolutePath(), randomAccessFile.length(), objectSize);
+                            shapingLogger.error(
+                                    "load file failed %s length %d objectSize %d",
+                                    rowGroupDataFile.getAbsolutePath(),
+                                    randomAccessFile.length(),
+                                    objectSize);
                             throw new RuntimeException("corrupted RowGroupData file");
                         }
 
                         // read object
                         long objectOffset = randomAccessFile.length() - (objectSize + offsetSize);
-                        logger.debug("read length %d objectSize %d objectOffset %d objectOffsetInPages %d",
-                                randomAccessFile.length(), objectSize, objectOffset, objectOffset >> 13);
+                        logger.debug(
+                                "read length %d objectSize %d objectOffset %d objectOffsetInPages %d",
+                                randomAccessFile.length(),
+                                objectSize,
+                                objectOffset,
+                                objectOffset >> 13);
                         randomAccessFile.seek(objectOffset);
                         byte[] bytes = new byte[Long.valueOf(objectSize).intValue()];
                         int readBytes = randomAccessFile.read(bytes);
 
                         if (readBytes <= 0) {
-                            shapingLogger.error("load file failed %s length %d objectSize %d objectOffset %d",
-                                    rowGroupDataFile.getAbsolutePath(), randomAccessFile.length(), objectSize, objectOffset);
+                            shapingLogger.error(
+                                    "load file failed %s length %d objectSize %d objectOffset %d",
+                                    rowGroupDataFile.getAbsolutePath(),
+                                    randomAccessFile.length(),
+                                    objectSize,
+                                    objectOffset);
                             throw new RuntimeException("corrupted RowGroupData file");
                         }
                         String str = CompressionUtil.decompressGzip(bytes);

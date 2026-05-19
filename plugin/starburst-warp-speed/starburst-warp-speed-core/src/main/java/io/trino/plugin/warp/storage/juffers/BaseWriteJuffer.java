@@ -32,7 +32,5 @@ public abstract class BaseWriteJuffer
         }
     }
 
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
-    {
-    }
+    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid) {}
 }

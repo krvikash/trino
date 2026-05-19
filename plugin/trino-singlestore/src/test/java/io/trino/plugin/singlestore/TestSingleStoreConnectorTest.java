@@ -514,8 +514,10 @@ public class TestSingleStoreConnectorTest
                                     .equals(ImmutableList.of(
                                             Range.range(
                                                     createVarcharType(25),
-                                                    utf8Slice("POLAND"), true,
-                                                    utf8Slice("VIETNAM"), true)));
+                                                    utf8Slice("POLAND"),
+                                                    true,
+                                                    utf8Slice("VIETNAM"),
+                                                    true)));
                         },
                         TupleDomain.all(),
                         ImmutableMap.of())));
@@ -560,8 +562,7 @@ public class TestSingleStoreConnectorTest
                         "'AA', 'AA', 'AA'",
                         "'aa', 'aa', 'aa'",
                         "'bb', 'bb', 'bb'",
-                        "'cc', 'cc', 'cc'"
-                ))) {
+                        "'cc', 'cc', 'cc'"))) {
             // char pushdown
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'aa'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char BETWEEN 'aa' AND 'bb'")).isFullyPushedDown();
@@ -600,8 +601,7 @@ public class TestSingleStoreConnectorTest
                         "'BB', 'BB', 'BB', 'BB', 'BB'",
                         "'bb', 'bb', 'bb', 'bb', 'bb'",
                         "'cc', 'cc', 'cc', 'cc', 'cc'",
-                        "'dd', 'dd', null, null, null"
-                ))) {
+                        "'dd', 'dd', null, null, null"))) {
             for (String operator : List.of("=", "<>", "<", "<=", ">", ">=", "IS NOT DISTINCT FROM")) {
                 assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar " + operator + " 'aa' OR other_varchar = 'bb'")).isFullyPushedDown();
                 assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char " + operator + " 'aa' OR other_char = 'bb'")).isFullyPushedDown();
@@ -652,9 +652,7 @@ public class TestSingleStoreConnectorTest
                         "'AA', 'AA', 'AA', 'AA', 'AA', 'AA'",
                         "'aa', 'aa', 'aa', 'aa', 'aa', 'aa'",
                         "'bb', 'bb', 'bb', 'bb', 'bb', 'bb'",
-                        "'%%', '%%', '%%', '%%', '%%', '%%'"
-                ))) {
-
+                        "'%%', '%%', '%%', '%%', '%%', '%%'"))) {
             // tiny text
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE NULL")).isReplacedWithEmptyValues();
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE '%'")).isFullyPushedDown();
@@ -749,8 +747,7 @@ public class TestSingleStoreConnectorTest
                         "'aa', 'aa', 'aa'",
                         "'aa  ', 'aa  ', 'aa  '",
                         "'bb', 'bb', 'bb'",
-                        "'cc', 'cc', 'cc'"
-                ));
+                        "'cc', 'cc', 'cc'"));
                 TestTable rightTable = new TestTable(
                         onRemoteDatabase(),
                         "tpch.single_store_join_with_binary_right",
@@ -767,8 +764,7 @@ public class TestSingleStoreConnectorTest
                                 "'aa', 'aa', 'aa'",
                                 "'aa  ', 'aa  ', 'aa  '",
                                 "'bb', 'bb', 'bb'",
-                                "'cc', 'cc', 'cc'"
-                        ))) {
+                                "'cc', 'cc', 'cc'"))) {
             assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_255 = r.some_varchar_255".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
             assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_255 = r.some_varchar_10000".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
             assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_255 = r.some_longtext".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
@@ -795,8 +791,7 @@ public class TestSingleStoreConnectorTest
                         "null, null, null, null, null",
                         "'2022-01-01', '2023-01-01', '2022-01-01 10:00:00', '2023-01-01 10:00:00', '2022-01-01 10:00:00.000001'",
                         "'2023-01-01', '2024-01-01', '2023-01-01 10:00:00', '2024-01-01 10:00:00', '2023-01-01 10:00:00.000001'",
-                        "'2024-01-01', '2025-01-01', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001'"
-                ))) {
+                        "'2024-01-01', '2025-01-01', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001'"))) {
             for (String operator : List.of("=", "<>", "<", "<=", ">", ">=", "IS NOT DISTINCT FROM")) {
                 assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '2023-01-01'".formatted(table.getName(), operator))).isFullyPushedDown();
 
@@ -851,8 +846,7 @@ public class TestSingleStoreConnectorTest
                         "null, null, null, null, null, null, null, null, null, null",
                         "'2022-01-01', '2023-01-01', '2022-01-01 10:00:00', '2023-01-01 10:00:00', '2022-01-01 10:00:00.000001', '2023-01-01 10:00:00.000001', '2022-01-01 10:00:00', '2023-01-01 10:00:00', '2022-01-01 10:00:00.000001', '2023-01-01 10:00:00.000001'",
                         "'2023-01-01', '2024-01-01', '2023-01-01 10:00:00', '2024-01-01 10:00:00', '2023-01-01 10:00:00.000001', '2024-01-01 10:00:00.000001', '2023-01-01 10:00:00', '2024-01-01 10:00:00', '2023-01-01 10:00:00.000001', '2024-01-01 10:00:00.000001'",
-                        "'2024-01-01', '2025-01-01', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001', '2025-01-01 10:00:00.000001', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001', '2025-01-01 10:00:00.000001'"
-                ))) {
+                        "'2024-01-01', '2025-01-01', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001', '2025-01-01 10:00:00.000001', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001', '2025-01-01 10:00:00.000001'"))) {
             for (String operator : List.of("=", "<>", "<", "<=", ">", ">=", "IS NOT DISTINCT FROM")) {
                 assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '2023-01-01' OR c_other_date = DATE '2024-01-01'".formatted(table.getName(), operator))).isFullyPushedDown();
                 assertThat(query("SELECT c_date FROM %s WHERE c_date %s c_other_date OR c_datetime = c_other_datetime".formatted(table.getName(), operator))).isFullyPushedDown();
@@ -1090,11 +1084,11 @@ public class TestSingleStoreConnectorTest
                             "(VARCHAR 'ą    ', VARCHAR 'ą    ', VARCHAR 'ą    ')")
                     .isFullyPushedDown();
 
-            assertThat(query(session, "SELECT min(t_varchar), max(t_varchar) FROM " + testTable.getName()+ " WHERE t_varchar = 'a' GROUP BY t_varchar"))
+            assertThat(query(session, "SELECT min(t_varchar), max(t_varchar) FROM " + testTable.getName() + " WHERE t_varchar = 'a' GROUP BY t_varchar"))
                     .skippingTypesCheck()
                     .matches("VALUES (VARCHAR 'a', VARCHAR 'a')")
                     .isFullyPushedDown();
-            assertThat(query(session, "SELECT min(t_char), max(t_char) FROM " + testTable.getName()+ " WHERE t_char = 'a' GROUP BY t_char"))
+            assertThat(query(session, "SELECT min(t_char), max(t_char) FROM " + testTable.getName() + " WHERE t_char = 'a' GROUP BY t_char"))
                     .skippingTypesCheck()
                     .matches("VALUES (VARCHAR 'a    ', VARCHAR 'a    ')")
                     .isFullyPushedDown();
@@ -1149,11 +1143,11 @@ public class TestSingleStoreConnectorTest
             assertThat(query(
                     session,
                     """
-                            SELECT a_varchar, COUNT(*)
-                            FROM  %s
-                            WHERE a_varchar = 'a'
-                            GROUP BY a_varchar
-                            """.formatted(table.getName())))
+                    SELECT a_varchar, COUNT(*)
+                    FROM  %s
+                    WHERE a_varchar = 'a'
+                    GROUP BY a_varchar
+                    """.formatted(table.getName())))
                     .isFullyPushedDown()
                     .skippingTypesCheck()
                     .matches("VALUES (VARCHAR 'a', BIGINT '1')");
@@ -1162,11 +1156,11 @@ public class TestSingleStoreConnectorTest
             assertThat(query(
                     session,
                     """
-                            SELECT a_char, COUNT(*)
-                            FROM  %s
-                            WHERE a_char = 'a'
-                            GROUP BY a_char
-                            """.formatted(table.getName())))
+                    SELECT a_char, COUNT(*)
+                    FROM  %s
+                    WHERE a_char = 'a'
+                    GROUP BY a_char
+                    """.formatted(table.getName())))
                     .isFullyPushedDown()
                     .skippingTypesCheck()
                     .matches("VALUES (CHAR 'a ', BIGINT '2')"); // char is padded with spaces so 'a' and 'a ' are same
@@ -1175,11 +1169,11 @@ public class TestSingleStoreConnectorTest
             assertThat(query(
                     session,
                     """
-                            SELECT a_char AS a_alias, COUNT(*)
-                            FROM  %s
-                            WHERE a_char = 'a'
-                            GROUP BY a_char
-                            """.formatted(table.getName())))
+                    SELECT a_char AS a_alias, COUNT(*)
+                    FROM  %s
+                    WHERE a_char = 'a'
+                    GROUP BY a_char
+                    """.formatted(table.getName())))
                     .isFullyPushedDown()
                     .skippingTypesCheck()
                     .matches("VALUES (CHAR 'a ', BIGINT '2')");

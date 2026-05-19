@@ -337,7 +337,7 @@ public class MultiGroupMerger
      * The result of decomposing a group according to the merging capacity across multiple groups.
      *
      * @param multiGroupMerges -- subgroups of branches that can be merged together with other groups.
-     * each merge consists of multiple branches from the new group, and one or more hanging groups
+     *         each merge consists of multiple branches from the new group, and one or more hanging groups
      * @param hangingBranches -- branches that cannot be merged currently
      */
     public record MultiGroupMergeDecomposition(List<MultiGroupMerge> multiGroupMerges, List<Integer> hangingBranches)

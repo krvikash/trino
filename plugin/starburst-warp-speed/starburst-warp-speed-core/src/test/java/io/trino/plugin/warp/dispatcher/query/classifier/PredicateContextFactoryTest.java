@@ -242,8 +242,11 @@ public class PredicateContextFactoryTest
         io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expA, List.of(convertToWarpExpressionData(expA)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA,
-                convertDomainToDomainPredicateData(x, domain)),
+        WarpCall expectedExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(
+                        expA,
+                        convertDomainToDomainPredicateData(x, domain)),
                 BOOLEAN);
         assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
         assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
@@ -271,9 +274,12 @@ public class PredicateContextFactoryTest
         io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expA, List.of(convertToWarpExpressionData(expA)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA,
-                convertDomainToDomainPredicateData(x, domain),
-                convertDomainToDomainPredicateData(y, domain)),
+        WarpCall expectedExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(
+                        expA,
+                        convertDomainToDomainPredicateData(x, domain),
+                        convertDomainToDomainPredicateData(y, domain)),
                 BOOLEAN);
         assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
         assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
@@ -306,9 +312,12 @@ public class PredicateContextFactoryTest
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expression,
-                convertDomainToDomainPredicateData(x, domain),
-                convertDomainToDomainPredicateData(y, domain)),
+        WarpCall expectedExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(
+                        expression,
+                        convertDomainToDomainPredicateData(x, domain),
+                        convertDomainToDomainPredicateData(y, domain)),
                 BOOLEAN);
         assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
         assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
@@ -341,10 +350,13 @@ public class PredicateContextFactoryTest
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
-        WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA,
-                expB,
-                convertDomainToDomainPredicateData(x, domain),
-                convertDomainToDomainPredicateData(y, domain)),
+        WarpCall expectedExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(
+                        expA,
+                        expB,
+                        convertDomainToDomainPredicateData(x, domain),
+                        convertDomainToDomainPredicateData(y, domain)),
                 BOOLEAN);
         assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
         assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
@@ -373,8 +385,10 @@ public class PredicateContextFactoryTest
     {
         Type variableType = columnHandle.type();
 
-        return new WarpCall(LIKE_FUNCTION_NAME.getName(),
+        return new WarpCall(
+                LIKE_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(columnHandle, variableType),
-                        new WarpSliceConstant(likePattern, VarcharType.VARCHAR)), BOOLEAN);
+                        new WarpSliceConstant(likePattern, VarcharType.VARCHAR)),
+                BOOLEAN);
     }
 }

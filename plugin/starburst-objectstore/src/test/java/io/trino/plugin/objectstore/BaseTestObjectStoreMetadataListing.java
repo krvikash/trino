@@ -89,7 +89,7 @@ public abstract class BaseTestObjectStoreMetadataListing
         }
     }
 
-    //override because in objectstore we actually get results ignoring the faulty objects
+    // override because in objectstore we actually get results ignoring the faulty objects
     @Test
     @Override
     public void testTableColumnsWithOnlySchemaFilter()

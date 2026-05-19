@@ -70,14 +70,15 @@ public class StarburstDataframePlanResource
     private final LanguageFunctionManager languageFunctionManager;
 
     @Inject
-    public StarburstDataframePlanResource(TestingTrinoMetadataFactory testingTrinoMetadataFactory,
-             AnalyzerFactory analyzerFactory,
-             HttpRequestSessionContextFactory sessionContextFactory,
-             DispatchManager dispatchManager,
-             TransactionManager transactionManager,
-             SessionSupplier sessionSupplier,
-             Tracer tracer,
-             LanguageFunctionManager languageFunctionManager)
+    public StarburstDataframePlanResource(
+            TestingTrinoMetadataFactory testingTrinoMetadataFactory,
+            AnalyzerFactory analyzerFactory,
+            HttpRequestSessionContextFactory sessionContextFactory,
+            DispatchManager dispatchManager,
+            TransactionManager transactionManager,
+            SessionSupplier sessionSupplier,
+            Tracer tracer,
+            LanguageFunctionManager languageFunctionManager)
     {
         this.testingTrinoMetadataFactory = requireNonNull(testingTrinoMetadataFactory, "testingTrinoMetadataFactory is null");
         this.analyzerFactory = requireNonNull(analyzerFactory, "analyzerFactory is null");

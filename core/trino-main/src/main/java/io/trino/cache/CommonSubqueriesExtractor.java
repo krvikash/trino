@@ -731,8 +731,8 @@ public final class CommonSubqueriesExtractor
         }
 
         Expression predicateWithDynamicFilters =
-                // Subquery specific dynamic filters need to be added back to subplan.
-                // Actual dynamic filter domains are accounted for in PlanSignature on worker nodes.
+        // Subquery specific dynamic filters need to be added back to subplan.
+        // Actual dynamic filter domains are accounted for in PlanSignature on worker nodes.
                 symbolMapper.map(combineConjuncts(
                         predicate,
                         and(subplan.getDynamicConjuncts())));

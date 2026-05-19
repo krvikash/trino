@@ -18,7 +18,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record ExportState(
         ExportState.State state,
-        int temporaryFailureCount, long lastTemporaryFailure)
+        int temporaryFailureCount,
+        long lastTemporaryFailure)
 {
     public static final ExportState NOT_EXPORTED = new ExportState(State.NOT_EXPORTED, 0, 0);
     public static final ExportState EXPORTED = new ExportState(State.EXPORTED, 0, 0);
@@ -39,6 +40,6 @@ public record ExportState(
     {
         NOT_EXPORTED,
         EXPORTED,
-        FAILED_PERMANENTLY
+        FAILED_PERMANENTLY,
     }
 }

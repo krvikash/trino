@@ -119,9 +119,7 @@ public class ArrayReadWriteTest
         }
     }
 
-    public void onClose()
-    {
-    }
+    public void onClose() {}
 
     static Stream<Arguments> params()
     {
@@ -163,7 +161,7 @@ public class ArrayReadWriteTest
 
         ByteArrayBlock row2Block = (ByteArrayBlock) fillBlock.getUnderlyingValueBlock().getArray(block.getUnderlyingValuePosition(1));
         assertThat(row2Block.getPositionCount()).isEqualTo(5 + (addNulls ? 1 : 0));
-        IntStream.range(0, 5).forEach((index) -> assertThat(TinyintType.TINYINT.getByte(row2Block, index)).isEqualTo((byte) 1));
+        IntStream.range(0, 5).forEach(index -> assertThat(TinyintType.TINYINT.getByte(row2Block, index)).isEqualTo((byte) 1));
         assertThat(!addNulls || row2Block.isNull(5)).isEqualTo(true);
         assertThat(fillBlock).isNotNull();
     }
@@ -202,7 +200,7 @@ public class ArrayReadWriteTest
 
         LongArrayBlock row2Block = (LongArrayBlock) fillBlock.getUnderlyingValueBlock().getArray(block.getUnderlyingValuePosition(1));
         assertThat(row2Block.getPositionCount()).isEqualTo(3 + (addNulls ? 1 : 0));
-        IntStream.range(0, 3).forEach((index) -> assertThat(BigintType.BIGINT.getLong(row2Block, index)).isEqualTo(1000));
+        IntStream.range(0, 3).forEach(index -> assertThat(BigintType.BIGINT.getLong(row2Block, index)).isEqualTo(1000));
         assertThat(!addNulls || row2Block.isNull(3)).isEqualTo(true);
         assertThat(fillBlock).isNotNull();
     }
@@ -241,7 +239,7 @@ public class ArrayReadWriteTest
 
         IntArrayBlock row2Block = (IntArrayBlock) fillBlock.getUnderlyingValueBlock().getArray(block.getUnderlyingValuePosition(1));
         assertThat(row2Block.getPositionCount()).isEqualTo(3 + (addNulls ? 1 : 0));
-        IntStream.range(0, 3).forEach((index) -> assertThat(IntegerType.INTEGER.getInt(row2Block, index)).isEqualTo(1000));
+        IntStream.range(0, 3).forEach(index -> assertThat(IntegerType.INTEGER.getInt(row2Block, index)).isEqualTo(1000));
         assertThat(!addNulls || row2Block.isNull(3)).isEqualTo(true);
         assertThat(fillBlock).isNotNull();
     }
@@ -273,7 +271,7 @@ public class ArrayReadWriteTest
 
         IntArrayBlock rowBlock = (IntArrayBlock) fillBlock.getUnderlyingValueBlock().getArray(block.getUnderlyingValuePosition(0));
         assertThat(rowBlock.getPositionCount()).isEqualTo(3 + (addNulls ? 1 : 0));
-        IntStream.range(0, 3).forEach((index) -> assertThat(IntegerType.INTEGER.getInt(rowBlock, index)).isEqualTo(1000));
+        IntStream.range(0, 3).forEach(index -> assertThat(IntegerType.INTEGER.getInt(rowBlock, index)).isEqualTo(1000));
         assertThat(!addNulls || rowBlock.isNull(3)).isEqualTo(true);
         assertThat(fillBlock).isNotNull();
     }
@@ -281,7 +279,8 @@ public class ArrayReadWriteTest
     private void initialize(StorageEngineConstants storageEngineConstants, BufferAllocator bufferAllocator, RecTypeCode arrayTypeCode, ArrayType arrayType)
     {
         WarmUpElementAllocationParams warmUpElementAllocationParams = new WarmUpElementAllocationParams(arrayTypeCode, storageEngineConstants.getVarcharMaxLen(), 1000, 0, 1000, true, false, null);
-        WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(mock(StorageEngine.class),
+        WriteJuffersWarmUpElement juffersWE = new WriteJuffersWarmUpElement(
+                mock(StorageEngine.class),
                 storageEngineConstants,
                 bufferAllocator,
                 new RecordBufferParams(arena.allocate(100, ValueLayout.JAVA_INT.byteSize())),
@@ -292,7 +291,9 @@ public class ArrayReadWriteTest
                 arena);
         juffersWE.createBuffers(false);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
-        appender = new ArrayBlockAppender(blockTransformerFactory, juffersWE,
+        appender = new ArrayBlockAppender(
+                blockTransformerFactory,
+                juffersWE,
                 new VariableLengthStringBlockAppender(juffersWE, storageEngineConstants, storageEngineConstants.getVarcharMaxLen(), arrayType, storageEngineConstants.getVarcharMaxLen()),
                 arrayType);
         this.juffersWE = new ReadJuffersWarmUpElement(bufferAllocator, true);

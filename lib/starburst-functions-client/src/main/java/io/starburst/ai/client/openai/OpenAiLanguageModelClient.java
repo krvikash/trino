@@ -132,7 +132,7 @@ public class OpenAiLanguageModelClient
     {
         ChatCompletionAccumulator chatCompletionAccumulator = ChatCompletionAccumulator.create();
         try (StreamResponse<ChatCompletionChunk> streamResponse =
-                     client.chat().completions().createStreaming(params)) {
+                client.chat().completions().createStreaming(params)) {
             streamResponse.stream()
                     .takeWhile(_ -> !isCancelled.get())
                     .peek(chatCompletionAccumulator::accumulate)
@@ -218,7 +218,7 @@ public class OpenAiLanguageModelClient
                             .name(toolDef.getName())
                             .description(toolDef.getDescription())
                             .parameters(parametersBuilder.build())
-                            //.strict(true) // Guarantees arguments will be generated that match the schema, but strict mode seems to prevent
+                            // .strict(true) // Guarantees arguments will be generated that match the schema, but strict mode seems to prevent
                             // usage of tools with optional parameters:
                             // Caused by: com.openai.errors.BadRequestException: 400: Invalid schema for function 'search': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'max_results'.
 

@@ -23,7 +23,5 @@ public enum CompressionAlg
     COMPRESSION_ALG_LZ4HC,
     COMPRESSION_ALG_NUM_OF;
 
-    CompressionAlg()
-    {
-    }
+    CompressionAlg() {}
 }

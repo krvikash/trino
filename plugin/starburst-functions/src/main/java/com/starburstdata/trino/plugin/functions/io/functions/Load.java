@@ -130,8 +130,7 @@ public class Load
     {
         public LoadFunction()
         {
-            super(
-                    IO_SCHEMA_NAME,
+            super(IO_SCHEMA_NAME,
                     NAME,
                     ImmutableList.<ArgumentSpecification>builder()
                             .add(ScalarArgumentSpecification.builder()
@@ -191,7 +190,9 @@ public class Load
             Optional<Character> escape = getSingleCharacter(ESCAPE_CHAR_ARGUMENT_NAME, escapeArgument);
             checkFunctionArgument(
                     formatArgument.getNullableValue().isNull() == descriptorArgument.getDescriptor().isEmpty(),
-                    "%s and %s arguments must be both specified or both omitted", FORMAT_ARGUMENT_NAME, DESCRIPTOR_ARGUMENT_NAME);
+                    "%s and %s arguments must be both specified or both omitted",
+                    FORMAT_ARGUMENT_NAME,
+                    DESCRIPTOR_ARGUMENT_NAME);
 
             checkFunctionArgument(locationArgument.getValue() != null, "location cannot be null");
             String location = ((Slice) locationArgument.getValue()).toStringUtf8();
@@ -308,7 +309,7 @@ public class Load
         {
             Function<URI, DiscoveryTrinoFileSystem> fileSystemProvider = _ -> new DiscoveryTrinoFileSystem(fileSystem);
             OrcDataSourceFactory orcDataSourceFactory = (id, size, options, inputFile) -> new HdfsOrcDataSource(id, size, options, inputFile, new FileFormatDataSourceStats());
-            ParquetDataSourceFactory parquetDataSourceFactory = (inputFile) -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
+            ParquetDataSourceFactory parquetDataSourceFactory = inputFile -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
             return new SchemaDiscoveryController(fileSystemProvider, parquetDataSourceFactory, orcDataSourceFactory, Dialect.TRINO);
         }
 

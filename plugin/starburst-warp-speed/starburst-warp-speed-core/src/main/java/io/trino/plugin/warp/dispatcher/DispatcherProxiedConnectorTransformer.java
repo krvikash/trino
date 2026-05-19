@@ -85,7 +85,8 @@ public interface DispatcherProxiedConnectorTransformer
                 .collect(Collectors.toSet());
     }
 
-    DispatcherSplit createDispatcherSplit(ConnectorSplit proxyConnectorSplit,
+    DispatcherSplit createDispatcherSplit(
+            ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
             ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session);
@@ -182,7 +183,8 @@ public interface DispatcherProxiedConnectorTransformer
 
     ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit);
 
-    default Optional<ConnectorBucketNodeMap> getBucketNodeMapping(ConnectorTransactionHandle transactionHandle,
+    default Optional<ConnectorBucketNodeMap> getBucketNodeMapping(
+            ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorPartitioningHandle partitioningHandle,
             ConnectorNodePartitioningProvider nodePartitionProvider,

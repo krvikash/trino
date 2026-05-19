@@ -96,11 +96,11 @@ class MatchClassifier
         Map<WarpExpression, PredicateContext> remainingPredicateExpressions = isNone ?
                 Collections.emptyMap() :
                 leaves.entrySet()
-                        .stream()
+                .stream()
                         // TODO: This is not accurate, one match is not enough to determine that there are no remaining matches (for example in the case of domain + expression).
                         // TODO: This is ok for now since we mark canBeTight = false in the query context
-                        .filter(entry -> !matchColumns.contains(entry.getValue().getWarpColumn()))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                .filter(entry -> !matchColumns.contains(entry.getValue().getWarpColumn()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         // TODO: The predicate is not accurate anymore, leaves are changed while root remains as-is
         PredicateContextData remainingPredicateContextData = new PredicateContextData(ImmutableMap.copyOf(remainingPredicateExpressions), predicateContextData.getRootExpression());
@@ -113,7 +113,8 @@ class MatchClassifier
                 .build();
     }
 
-    private MatchResult handleLogicalFunction(ClassifyArgs classifyArgs,
+    private MatchResult handleLogicalFunction(
+            ClassifyArgs classifyArgs,
             Map<WarpExpression, PredicateContext> leaves,
             WarpExpression expression)
     {
@@ -144,7 +145,8 @@ class MatchClassifier
         return result;
     }
 
-    private Optional<MatchData> handleFlatExpression(ClassifyArgs classifyArgs,
+    private Optional<MatchData> handleFlatExpression(
+            ClassifyArgs classifyArgs,
             Map<WarpExpression, PredicateContext> leaves,
             WarpExpression expression)
     {
@@ -175,7 +177,9 @@ class MatchClassifier
         return res;
     }
 
-    private MatchResult handleAndExpression(ClassifyArgs classifyArgs, WarpCall andExpression,
+    private MatchResult handleAndExpression(
+            ClassifyArgs classifyArgs,
+            WarpCall andExpression,
             Map<WarpExpression, PredicateContext> leaves)
     {
         List<MatchData> terms = new ArrayList<>();
@@ -211,7 +215,7 @@ class MatchClassifier
                     Optional<PredicateContext> predicateContextBase = tryMergeAndPredicates(existingPredicateContext, predicateContext);
                     if (predicateContextBase.isPresent()) {
                         if (predicateContextBase.get().getDomain().isNone()) {
-                            //no need to continue - will return emptyPageSource
+                            // no need to continue - will return emptyPageSource
                             return new MatchResult(Optional.of(new NoneMatchData()), true);
                         }
                         remainingPredicateContext.put(warpColumn, predicateContextBase.get());
@@ -252,11 +256,13 @@ class MatchClassifier
             NativeExpression expression1 = existingPredicateContext.getNativeExpression().get();
             NativeExpression expression2 = newPredicateContext.getNativeExpression().get();
             NativeExpression mergedNativeExpression = expression1.mergeAnd(expression2);
-            WarpExpression warpExpression = new WarpCall(AND_FUNCTION_NAME.getName(),
+            WarpExpression warpExpression = new WarpCall(
+                    AND_FUNCTION_NAME.getName(),
                     List.of(existingPredicateContext.getExpression(), newPredicateContext.getExpression()),
                     BooleanType.BOOLEAN);
             res = Optional.of(new PredicateContext(
-                    new WarpExpressionData(warpExpression,
+                    new WarpExpressionData(
+                            warpExpression,
                             existingPredicateContext.getColumnType(),
                             mergedNativeExpression.collectNulls(),
                             Optional.of(mergedNativeExpression),
@@ -316,7 +322,7 @@ class MatchClassifier
         else {
             terms = terms.stream().filter(x -> !(x instanceof NoneMatchData)).collect(Collectors.toList());
             if (terms.isEmpty()) {
-                //means all where none
+                // means all where none
                 result = Optional.of(new NoneMatchData());
             }
             else if (terms.size() == 1) {

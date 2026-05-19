@@ -51,7 +51,7 @@ public class PredicateCacheTask
     @GET
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    //@ApiOperation(value = "predicates", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "predicates", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public PredicateCacheDump dumpPredicateCache()
     {
         Map<PredicateBufferPoolType, Map<Integer, PredicateCacheData>> pool = predicatesCacheService.getPredicateCachePool();

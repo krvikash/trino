@@ -44,30 +44,30 @@ public abstract class BaseSapHanaConnectorTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT,
-                    SUPPORTS_JOIN_PUSHDOWN -> true;
+                 SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
+                 SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT,
+                 SUPPORTS_JOIN_PUSHDOWN -> true;
             case SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
-                    SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
-                    SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
-                    SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE,
-                    SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN -> false;
+                 SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
+                 SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
+                 SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE,
+                 SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN -> false;
             case SUPPORTS_COMMENT_ON_TABLE,
-                    SUPPORTS_COMMENT_ON_COLUMN,
-                    SUPPORTS_ADD_COLUMN_WITH_COMMENT,
-                    SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT,
-                    SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT -> false;
+                 SUPPORTS_COMMENT_ON_COLUMN,
+                 SUPPORTS_ADD_COLUMN_WITH_COMMENT,
+                 SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT,
+                 SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT -> false;
             case SUPPORTS_RENAME_SCHEMA -> false;
             case SUPPORTS_SET_COLUMN_TYPE,
-                    SUPPORTS_ADD_COLUMN_WITH_POSITION -> false;
+                 SUPPORTS_ADD_COLUMN_WITH_POSITION -> false;
             case SUPPORTS_DROP_NOT_NULL_CONSTRAINT -> false;
             case SUPPORTS_ARRAY,
-                    SUPPORTS_MAP_TYPE,
-                    SUPPORTS_ROW_TYPE,
-                    SUPPORTS_NEGATIVE_DATE -> false;
+                 SUPPORTS_MAP_TYPE,
+                 SUPPORTS_ROW_TYPE,
+                 SUPPORTS_NEGATIVE_DATE -> false;
             case SUPPORTS_MERGE,
-                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+                 SUPPORTS_ROW_LEVEL_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -109,7 +109,7 @@ public abstract class BaseSapHanaConnectorTest
             // TODO https://starburstdata.atlassian.net/browse/SEP-9302
             case "time(6)" -> Optional.empty();
             case "timestamp(3) with time zone",
-                    "timestamp(6) with time zone" -> Optional.of(dataMappingTestSetup.asUnsupported());
+                 "timestamp(6) with time zone" -> Optional.of(dataMappingTestSetup.asUnsupported());
             case "date" -> Optional.of(dataMappingTestSetup)
                     .filter(testSetup -> !testSetup.getSampleValueLiteral().equals("DATE '1582-10-05'"));
             default -> Optional.of(dataMappingTestSetup);
@@ -154,8 +154,11 @@ public abstract class BaseSapHanaConnectorTest
     public void testDecimalPredicatePushdown()
     {
         String schemaName = getSession().getSchema().orElseThrow();
-        try (TestTable testTable = new TestTable(server::execute, schemaName + ".test_decimal_pushdown",
-                "(short_decimal decimal(9, 3), long_decimal decimal(30, 10))", ImmutableList.of("123.321, 123456789.987654321"))) {
+        try (TestTable testTable = new TestTable(
+                server::execute,
+                schemaName + ".test_decimal_pushdown",
+                "(short_decimal decimal(9, 3), long_decimal decimal(30, 10))",
+                ImmutableList.of("123.321, 123456789.987654321"))) {
             assertThat(query("SELECT * FROM " + testTable.getName() + " WHERE short_decimal <= 124"))
                     .matches("VALUES (CAST(123.321 AS decimal(9,3)), CAST(123456789.987654321 AS decimal(30, 10)))")
                     .isFullyPushedDown();
@@ -184,8 +187,11 @@ public abstract class BaseSapHanaConnectorTest
     public void testCharPredicatePushdown()
     {
         String schemaName = getSession().getSchema().orElseThrow();
-        try (TestTable testTable = new TestTable(onRemoteDatabase(), schemaName + ".test_char_pushdown",
-                "(char_1 char(1), char_5 char(5), char_10 char(10))", ImmutableList.of("'0', '0', '0'", "'1', '12345', '1234567890'"))) {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                schemaName + ".test_char_pushdown",
+                "(char_1 char(1), char_5 char(5), char_10 char(10))",
+                ImmutableList.of("'0', '0', '0'", "'1', '12345', '1234567890'"))) {
             assertThat(query("SELECT * FROM " + testTable.getName() + " WHERE char_1 = '0' AND char_5 = '0'"))
                     .matches("VALUES (CHAR'0', CHAR'0    ', CHAR'0         ')")
                     .isFullyPushedDown();
@@ -202,21 +208,24 @@ public abstract class BaseSapHanaConnectorTest
     public void testDecimalAvgPushdown()
     {
         String schemaName = getSession().getSchema().orElseThrow();
-        try (TestTable testTable = new TestTable(onRemoteDatabase(),
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
                 schemaName + ".test_agg_pushdown_avg_max_decimal",
                 "(t_decimal DECIMAL(38, 10))",
                 ImmutableList.of("12345789.9876543210", format("%s.%s", "1".repeat(28), "9".repeat(10))))) {
             // For max decimal precision we cannot extend the scale and precision and hence the result doesn't match Trino avg semantics
             assertThatThrownBy(() -> assertThat(query("SELECT avg(t_decimal) FROM " + testTable.getName())).isFullyPushedDown())
                     .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining("""
+                    .hasMessageContaining(
+                            """
                             elements not found:
                               (555555555555555555561728450.9938271605)
                             and elements not expected:
                               (555555555555555555561728450.9938270000)""");
         }
 
-        try (TestTable testTable = new TestTable(onRemoteDatabase(),
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
                 schemaName + ".test_agg_pushdown_avg_max_decimal",
                 "(t_decimal DECIMAL(18, 18))",
                 ImmutableList.of("0.987654321234567890", format("0.%s", "1".repeat(18))))) {
@@ -239,7 +248,8 @@ public abstract class BaseSapHanaConnectorTest
     {
         assertThat(query("SELECT * FROM _SYS_BI.M_TIME_DIMENSION_YEAR")).returnsEmptyResult();
         assertThat((String) computeActual("SHOW CREATE TABLE _SYS_BI.M_TIME_DIMENSION_YEAR").getOnlyValue())
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE saphana._sys_bi.m_time_dimension_year (
                            year varchar(4) NOT NULL,
                            year_int integer,
@@ -248,7 +258,8 @@ public abstract class BaseSapHanaConnectorTest
 
         assertThat(query("SELECT * FROM _SYS_BI.M_TIME_DIMENSION_MONTH")).returnsEmptyResult();
         assertThat((String) computeActual("SHOW CREATE TABLE _SYS_BI.M_TIME_DIMENSION_MONTH").getOnlyValue())
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE saphana._sys_bi.m_time_dimension_month (
                            year varchar(4) NOT NULL,
                            halfyear varchar(2),
@@ -264,7 +275,8 @@ public abstract class BaseSapHanaConnectorTest
 
         assertThat(query("SELECT * FROM _SYS_BI.M_TIME_DIMENSION_WEEK")).returnsEmptyResult();
         assertThat((String) computeActual("SHOW CREATE TABLE _SYS_BI.M_TIME_DIMENSION_WEEK").getOnlyValue())
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE saphana._sys_bi.m_time_dimension_week (
                            year varchar(4) NOT NULL,
                            halfyear varchar(2),
@@ -283,7 +295,8 @@ public abstract class BaseSapHanaConnectorTest
 
         assertThat(query("SELECT * FROM _SYS_BI.M_TIME_DIMENSION")).returnsEmptyResult();
         assertThat((String) computeActual("SHOW CREATE TABLE _SYS_BI.M_TIME_DIMENSION").getOnlyValue())
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE saphana._sys_bi.m_time_dimension (
                            datetimestamp timestamp(7) NOT NULL,
                            date_sql date,
@@ -319,7 +332,8 @@ public abstract class BaseSapHanaConnectorTest
 
         assertThat(query("SELECT * FROM _SYS_BI.M_FISCAL_CALENDAR")).returnsEmptyResult();
         assertThat((String) computeActual("SHOW CREATE TABLE _SYS_BI.M_FISCAL_CALENDAR").getOnlyValue())
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE saphana._sys_bi.m_fiscal_calendar (
                            calendar_variant varchar(2) NOT NULL,
                            date varchar(8) NOT NULL,

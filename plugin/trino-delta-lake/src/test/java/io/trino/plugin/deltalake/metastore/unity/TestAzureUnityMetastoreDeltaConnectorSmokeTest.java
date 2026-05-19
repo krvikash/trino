@@ -72,7 +72,8 @@ public class TestAzureUnityMetastoreDeltaConnectorSmokeTest
     public void testShowCreateTable()
     {
         assertThat((String) computeScalar("SHOW CREATE TABLE region"))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE delta.%s.region (
                            regionkey bigint,
                            name varchar,

@@ -20,5 +20,4 @@ public record BufferNodeExchangeMetrics(
         int chunksSpooled,
         long bytesSpooled,
         int totalChunks,
-        long totalBytes)
-{}
+        long totalBytes) {}

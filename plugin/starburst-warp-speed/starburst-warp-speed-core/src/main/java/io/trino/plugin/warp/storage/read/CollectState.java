@@ -73,15 +73,17 @@ public class CollectState
         COLLECT_STATE_OFFSET_IS_FULL_SCAN = COLLECT_STATE_LAYOUT.byteOffset(PathElement.groupElement("is_full_scan"));
     }
 
-    public CollectState(ThreadArena arena,
+    public CollectState(
+            ThreadArena arena,
             int payloadSize, // payload is taken at the begining of the memory layout
-            int storageBufferMetadaSize)  // this memory is allocated as a buffer following the match state struct
+            int storageBufferMetadaSize) // this memory is allocated as a buffer following the match state struct
     {
         this.collectStateWithPayload = arena.allocate(payloadSize + COLLECT_STATE_LAYOUT.byteSize() + storageBufferMetadaSize, ValueLayout.JAVA_LONG.byteSize());
         this.collectState = collectStateWithPayload.asSlice(payloadSize, COLLECT_STATE_LAYOUT);
     }
 
-    public void setState(QueryArgs queryArgs,
+    public void setState(
+            QueryArgs queryArgs,
             AggregatorPageArgs aggregatorPageArgs,
             RecordIndexes recordIndexes,
             int numWesToCollect)
@@ -94,7 +96,8 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_BUFFER_STATES, aggregatorPageArgs.recordBufferStates().map(m -> m.address()).orElse(0L));
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_INDEXES, recordIndexes.getAddress());
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_MATCH_COLLECT_METADATA, aggregatorPageArgs.matchCollectMetadata().map(m -> m.address()).orElse(0L));
-        RowGroupData.setFileCookie(collectState.asSlice(COLLECT_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
+        RowGroupData.setFileCookie(
+                collectState.asSlice(COLLECT_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
                 (int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()],
                 fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
                 fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
@@ -106,7 +109,8 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_IS_FULL_SCAN, (queryParams.getNumMatchElements() == 0) ? (byte) 1 : (byte) 0);
     }
 
-    public void setLazyState(QueryParams queryParams,
+    public void setLazyState(
+            QueryParams queryParams,
             long[] fileCookie,
             int numChunksInRange,
             MemorySegment recordBufferStates,
@@ -119,7 +123,8 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_BUFFER_STATES, recordBufferStates.address());
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_INDEXES, recordIndexes.getAddress());
         collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_MATCH_COLLECT_METADATA, 0L);
-        RowGroupData.setFileCookie(collectState.asSlice(COLLECT_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
+        RowGroupData.setFileCookie(
+                collectState.asSlice(COLLECT_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
                 (int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()],
                 fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
                 fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);

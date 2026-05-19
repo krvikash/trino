@@ -47,7 +47,8 @@ public class WarpPageSource
     private long completedBytes;
     private long completedPositions;
 
-    public WarpPageSource(StorageEngineConstants storageEngineConstants,
+    public WarpPageSource(
+            StorageEngineConstants storageEngineConstants,
             long rowsLimit,
             Optional<FilteringStats> filteringStats,
             QueryParams queryParams,

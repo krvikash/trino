@@ -70,7 +70,8 @@ public class StorageWarmerService
     private final NativeStorageStateHandler nativeStorageStateHandler;
 
     @Inject
-    public StorageWarmerService(RowGroupDataService rowGroupDataService,
+    public StorageWarmerService(
+            RowGroupDataService rowGroupDataService,
             StorageEngine storageEngine,
             GlobalConfig globalConfig,
             WarmupDemoterService warmupDemoterService,
@@ -135,7 +136,8 @@ public class StorageWarmerService
         }
     }
 
-    public WarmSinkResult sinkClose(PageSink pageSink,
+    public WarmSinkResult sinkClose(
+            PageSink pageSink,
             WarmupElementWriteMetadata currWarmUpElement,
             int rowCount,
             boolean isValidWE,
@@ -157,7 +159,7 @@ public class StorageWarmerService
             }
         }
         else {
-            //case we never init sink it means that total rowCount is 0, and RowGroup will be mark as EmptyPageSource
+            // case we never init sink it means that total rowCount is 0, and RowGroup will be mark as EmptyPageSource
             updatedWarmupElement = currWarmUpElement.warmUpElement();
         }
         return new WarmSinkResult(updatedWarmupElement, newOffset);
@@ -238,7 +240,8 @@ public class StorageWarmerService
         storageEngineTxService.doneWarming(skipWait);
     }
 
-    public boolean finishWarm(long flowId,
+    public boolean finishWarm(
+            long flowId,
             boolean releaseTx,
             boolean force,
             boolean runDemote)
@@ -253,7 +256,7 @@ public class StorageWarmerService
             }
             catch (Throwable ignored) {
                 logger.warn("demoter failed");
-            } //do nothing
+            } // do nothing
         }
 
         return finish;

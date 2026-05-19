@@ -17,6 +17,4 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 
 import java.util.Set;
 
-public record SimplifiedColumns(Set<RegularColumn> simplifiedColumns)
-{
-}
+public record SimplifiedColumns(Set<RegularColumn> simplifiedColumns) {}

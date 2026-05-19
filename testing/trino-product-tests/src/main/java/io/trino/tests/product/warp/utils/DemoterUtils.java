@@ -148,7 +148,8 @@ public class DemoterUtils
     {
         if (!(getDiffFromInitial(demoterStatsAfter, demoterStatsBefore, JMXCachingConstants.WarmupDemoter.NUMBER_OF_RUNS) > 0 ||
                 getDiffFromInitial(demoterStatsAfter, demoterStatsBefore, JMXCachingConstants.WarmupDemoter.NUMBER_OF_RUNS_FAIL) > 0)) {
-            throw new Exception(String.format("Demoter did not run NUMBER OF RUNS: %d should be > %d or NUMBER_OF_RUNS_FAIL: %d should be > %d",
+            throw new Exception(String.format(
+                    "Demoter did not run NUMBER OF RUNS: %d should be > %d or NUMBER_OF_RUNS_FAIL: %d should be > %d",
                     getValue(demoterStatsAfter, JMXCachingConstants.WarmupDemoter.NUMBER_OF_RUNS),
                     getValue(demoterStatsBefore, JMXCachingConstants.WarmupDemoter.NUMBER_OF_RUNS),
                     getValue(demoterStatsAfter, JMXCachingConstants.WarmupDemoter.NUMBER_OF_RUNS_FAIL),

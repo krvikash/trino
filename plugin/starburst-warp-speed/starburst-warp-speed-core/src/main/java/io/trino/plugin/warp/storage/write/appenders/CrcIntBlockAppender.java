@@ -62,7 +62,8 @@ public class CrcIntBlockAppender
     }
 
     @Override
-    protected AppendResult appendFromMapBlock(BlockPosHolder blockPos,
+    protected AppendResult appendFromMapBlock(
+            BlockPosHolder blockPos,
             int jufferPos,
             Object key)
     {

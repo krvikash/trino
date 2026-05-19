@@ -588,12 +588,18 @@ public class TestGpuCasts
             if (cpu instanceof Outcome.Failure(Throwable failure)) {
                 throw new AssertionError(format(
                         "Expected cast %s -> %s of [%s] to succeed on CPU, but it failed: %s",
-                        from, to, sqlValueExpression, failure));
+                        from,
+                        to,
+                        sqlValueExpression,
+                        failure));
             }
             if (gpu instanceof Outcome.Failure(Throwable failure)) {
                 throw new AssertionError(format(
                         "Expected cast %s -> %s of [%s] to succeed on GPU, but it failed: %s",
-                        from, to, sqlValueExpression, failure));
+                        from,
+                        to,
+                        sqlValueExpression,
+                        failure));
             }
             Object cpuValue = ((Outcome.Success) cpu).nativeValue();
             Object gpuValue = ((Outcome.Success) gpu).nativeValue();
@@ -617,12 +623,18 @@ public class TestGpuCasts
             if (cpu instanceof Outcome.Success(Object nativeValue)) {
                 throw new AssertionError(format(
                         "Expected cast %s -> %s of [%s] to fail on CPU, but it produced: %s",
-                        from, to, sqlValueExpression, nativeValue));
+                        from,
+                        to,
+                        sqlValueExpression,
+                        nativeValue));
             }
             if (gpu instanceof Outcome.Success(Object nativeValue)) {
                 throw new AssertionError(format(
                         "Expected cast %s -> %s of [%s] to fail on GPU, but it produced: %s",
-                        from, to, sqlValueExpression, nativeValue));
+                        from,
+                        to,
+                        sqlValueExpression,
+                        nativeValue));
             }
             ErrorCode cpuCode = errorCode(((Outcome.Failure) cpu).exception());
             ErrorCode gpuCode = errorCode(((Outcome.Failure) gpu).exception());
@@ -633,7 +645,9 @@ public class TestGpuCasts
             if (!codesMatch && !relaxedMatch) {
                 throw new AssertionError(format(
                         "Cast %s -> %s of [%s]: CPU failed with %s, GPU failed with %s",
-                        from, to, sqlValueExpression,
+                        from,
+                        to,
+                        sqlValueExpression,
                         describeFailure(((Outcome.Failure) cpu).exception()),
                         describeFailure(((Outcome.Failure) gpu).exception())));
             }
@@ -658,7 +672,8 @@ public class TestGpuCasts
                 Page page = getOnlyElement(executeWithCpu(List.of(inputPage), castExpression, layout));
                 checkState(page.getChannelCount() == 1 && page.getPositionCount() == 1,
                         "Expected a one-column, one-row result; got %s columns and %s rows",
-                        page.getChannelCount(), page.getPositionCount());
+                        page.getChannelCount(),
+                        page.getPositionCount());
                 return new Outcome.Success(readNativeValue(to, page.getBlock(0), 0));
             }
             catch (Throwable t) {
@@ -678,7 +693,8 @@ public class TestGpuCasts
                 Page page = getOnlyElement(outputPages);
                 checkState(page.getChannelCount() == 1 && page.getPositionCount() == 1,
                         "Expected a one-column, one-row result; got %s columns and %s rows",
-                        page.getChannelCount(), page.getPositionCount());
+                        page.getChannelCount(),
+                        page.getPositionCount());
                 return new Outcome.Success(readNativeValue(to, page.getBlock(0), 0));
             }
             catch (Throwable t) {

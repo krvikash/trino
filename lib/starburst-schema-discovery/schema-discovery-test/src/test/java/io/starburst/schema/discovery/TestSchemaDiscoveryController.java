@@ -68,11 +68,13 @@ public class TestSchemaDiscoveryController
 
         ImmutableList<Column> dsColumn = ImmutableList.of(new Column(toLowerCase("ds"), new HiveType(HiveTypes.HIVE_DATE)));
         ImmutableList<Column> testColumn = ImmutableList.of(new Column(toLowerCase("test"), new HiveType(HiveTypes.HIVE_STRING), Optional.of("test")));
-        DiscoveredPartitions partitions = new DiscoveredPartitions(dsColumn, ImmutableList.of(new DiscoveredPartitionValues(ensureEndsWithSlash(directory.appendPath("ds=2012-12-29")), ImmutableMap.of(toLowerCase("ds"), "2012-12-29")),
+        DiscoveredPartitions partitions = new DiscoveredPartitions(dsColumn, ImmutableList.of(
+                new DiscoveredPartitionValues(ensureEndsWithSlash(directory.appendPath("ds=2012-12-29")), ImmutableMap.of(toLowerCase("ds"), "2012-12-29")),
                 new DiscoveredPartitionValues(ensureEndsWithSlash(directory.appendPath("ds=2012-12-30")), ImmutableMap.of(toLowerCase("ds"), "2012-12-30"))));
         DiscoveredColumns columns = new DiscoveredColumns(testColumn, ImmutableSet.of());
         Map<String, String> standardOptionsUnwrapped = new OptionsMap(CsvOptions.standard()).unwrap();
-        DiscoveredTable expectedDiscoveredTable = new DiscoveredTable(true,
+        DiscoveredTable expectedDiscoveredTable = new DiscoveredTable(
+                true,
                 ensureEndsWithSlash(uriFromLocation(directory)),
                 new TableName(Optional.empty(), toLowerCase("partitioned")),
                 TableFormat.CSV,
@@ -112,7 +114,8 @@ public class TestSchemaDiscoveryController
                         toLowerCase("minute"), new InferredPartitionProjection(true, ProjectionType.INTEGER)));
         DiscoveredColumns columns = new DiscoveredColumns(testColumn, ImmutableSet.of());
         Map<String, String> standardOptionsUnwrapped = new OptionsMap(CsvOptions.standard()).unwrap();
-        DiscoveredTable expectedTable = new DiscoveredTable(true,
+        DiscoveredTable expectedTable = new DiscoveredTable(
+                true,
                 ensureEndsWithSlash(directory.appendSuffix("/npschema").appendSuffix("/nptable")),
                 new TableName(Optional.of(toLowerCase("npschema")), toLowerCase("nptable")),
                 TableFormat.CSV,

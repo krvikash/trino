@@ -845,12 +845,13 @@ public abstract class BaseIcebergTimeZoneTest
                             .add("'updated-row', TIMESTAMP '2024-08-01 12:00:00.987654 America/New_York'")
                             .add("'inserted-row', TIMESTAMP '2023-08-01 12:00:00.987654 America/New_York'")
                             .build())) {
-                assertUpdate("""
-                            MERGE INTO %s t USING %s s ON (t.timestamp_tz = s.timestamp_tz)
-                            WHEN MATCHED AND t.key = 'update-this-row' THEN UPDATE SET key = 'updated-row', timestamp_tz = TIMESTAMP '1970-08-01 12:00:00.987654 UTC'
-                            WHEN MATCHED THEN DELETE
-                            WHEN NOT MATCHED THEN INSERT (key, timestamp_tz) VALUES(s.key, s.timestamp_tz)
-                            """.formatted(targetTable.getName(), sourceTable.getName()),
+                assertUpdate(
+                        """
+                        MERGE INTO %s t USING %s s ON (t.timestamp_tz = s.timestamp_tz)
+                        WHEN MATCHED AND t.key = 'update-this-row' THEN UPDATE SET key = 'updated-row', timestamp_tz = TIMESTAMP '1970-08-01 12:00:00.987654 UTC'
+                        WHEN MATCHED THEN DELETE
+                        WHEN NOT MATCHED THEN INSERT (key, timestamp_tz) VALUES(s.key, s.timestamp_tz)
+                        """.formatted(targetTable.getName(), sourceTable.getName()),
                         3);
                 assertThat(query("SELECT * FROM " + targetTable.getName()))
                         .skippingTypesCheck()

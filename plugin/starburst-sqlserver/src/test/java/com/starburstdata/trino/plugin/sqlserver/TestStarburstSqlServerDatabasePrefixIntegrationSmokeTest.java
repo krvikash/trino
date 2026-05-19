@@ -392,13 +392,14 @@ public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
         try (TestTable table = new TestTable(sqlServer::execute, "dbo.test_table_for_show_create", "(a VARCHAR(25))")) {
             String tableName = table.getName().split("\\.")[1];
             assertThat((String) computeActual("SHOW CREATE TABLE " + databaseSchemaTableName(sqlServerDatabaseName, "dbo", tableName)).getOnlyValue())
-                    .isEqualTo(format("""
-                                    CREATE TABLE sqlserver."%s.dbo".%s (
-                                       a varchar(25)
-                                    )
-                                    WITH (
-                                       data_compression = 'NONE'
-                                    )""",
+                    .isEqualTo(format(
+                            """
+                            CREATE TABLE sqlserver."%s.dbo".%s (
+                               a varchar(25)
+                            )
+                            WITH (
+                               data_compression = 'NONE'
+                            )""",
                             sqlServerDatabaseName,
                             tableName));
         }
@@ -430,7 +431,8 @@ public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
             sqlServer.execute(format("ALTER DATABASE %s SET ALLOW_SNAPSHOT_ISOLATION ON", testDatabase));
             sqlServer.execute(format("ALTER DATABASE %s SET READ_COMMITTED_SNAPSHOT ON", testDatabase));
 
-            sqlServer.execute("""
+            sqlServer.execute(
+                    """
                     USE %1$s;
                     CREATE USER %2$s;
                     GRANT CONTROL ON DATABASE::%1$s TO %2$s;

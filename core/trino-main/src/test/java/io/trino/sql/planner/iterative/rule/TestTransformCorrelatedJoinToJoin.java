@@ -499,8 +499,7 @@ public class TestTransformCorrelatedJoinToJoin
                                         filter(
                                                 TRUE,
                                                 join(INNER, innerJoinBuilder -> innerJoinBuilder
-                                                        .left(
-                                                                values("b"))
+                                                        .left(values("b"))
                                                         .right(filter(
                                                                 TRUE,
                                                                 values("c", "d"))))))));

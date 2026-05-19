@@ -240,8 +240,7 @@ public abstract class BaseTestToolUse
     {
         public CalculatorTool()
         {
-            super(
-                    "calculator",
+            super("calculator",
                     "Performs basic arithmetic operations on two numbers",
                     ImmutableList.of(
                             new ToolParameter(
@@ -298,8 +297,7 @@ public abstract class BaseTestToolUse
     {
         public WeatherTool()
         {
-            super(
-                    "get_weather",
+            super("get_weather",
                     "Gets the current weather for a specified location",
                     ImmutableList.of(
                             new ToolParameter(
@@ -333,8 +331,7 @@ public abstract class BaseTestToolUse
     {
         public SearchTool()
         {
-            super(
-                    "search",
+            super("search",
                     "Searches for information on the internet",
                     ImmutableList.of(
                             new ToolParameter(
@@ -369,8 +366,7 @@ public abstract class BaseTestToolUse
     {
         public ClockTool()
         {
-            super(
-                    "clock",
+            super("clock",
                     "Gets the current UTC timestamp",
                     ImmutableList.of());
         }

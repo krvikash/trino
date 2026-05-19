@@ -22,6 +22,4 @@ import com.google.errorprone.annotations.Immutable;
  */
 @Immutable
 public sealed interface SourceNode
-        permits Operation, Block
-{
-}
+        permits Operation, Block {}

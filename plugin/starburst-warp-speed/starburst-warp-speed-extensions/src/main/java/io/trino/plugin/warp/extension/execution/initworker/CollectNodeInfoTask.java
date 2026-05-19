@@ -47,7 +47,7 @@ public class CollectNodeInfoTask
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    //@ApiOperation(value = "collectNodeInfo", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "collectNodeInfo", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public CollectNodeInfoResult collectNodeInfo()
     {
         CollectNodeInfoResult result = new CollectNodeInfoResult(nativeConfig.getTaskMaxWorkerThreads());

@@ -37,8 +37,8 @@ public class TestDeltaLakeSchemaDiscovery
         assertThat(processor)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/table1/")
-                                       && discovered.errors().isEmpty()
-                                       && discovered.tables().size() == 1)
+                        && discovered.errors().isEmpty()
+                        && discovered.tables().size() == 1)
                 .extracting(discovered -> discovered.tables().get(0))
                 .matches(table -> table.valid() && table.path().path().endsWith("deltalake/table1/") && table.format() == TableFormat.DELTA_LAKE);
     }
@@ -52,13 +52,13 @@ public class TestDeltaLakeSchemaDiscovery
         assertThat(processor)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/")
-                                       && discovered.errors().isEmpty()
-                                       && discovered.tables().size() == 3)
+                        && discovered.errors().isEmpty()
+                        && discovered.tables().size() == 3)
                 .extracting(DiscoveredSchema::tables)
                 .matches(tables ->
                         tables.get(0).valid() && tables.get(0).path().path().endsWith("deltalake/table3/") && tables.get(0).format() == TableFormat.DELTA_LAKE &&
-                        tables.get(1).valid() && tables.get(1).path().path().endsWith("deltalake/table2/") && tables.get(1).format() == TableFormat.DELTA_LAKE &&
-                        tables.get(2).valid() && tables.get(2).path().path().endsWith("deltalake/table1/") && tables.get(2).format() == TableFormat.DELTA_LAKE);
+                                tables.get(1).valid() && tables.get(1).path().path().endsWith("deltalake/table2/") && tables.get(1).format() == TableFormat.DELTA_LAKE &&
+                                tables.get(2).valid() && tables.get(2).path().path().endsWith("deltalake/table1/") && tables.get(2).format() == TableFormat.DELTA_LAKE);
     }
 
     @Test
@@ -71,12 +71,12 @@ public class TestDeltaLakeSchemaDiscovery
         assertThat(processor)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/")
-                                       && discovered.errors().isEmpty()
-                                       && discovered.tables().size() == 2)
+                        && discovered.errors().isEmpty()
+                        && discovered.tables().size() == 2)
                 .extracting(DiscoveredSchema::tables)
                 .matches(tables ->
                         tables.get(0).valid() && tables.get(0).path().path().endsWith("deltalake/table2/") && tables.get(0).format() == TableFormat.DELTA_LAKE &&
-                        tables.get(1).valid() && tables.get(1).path().path().endsWith("deltalake/table1/") && tables.get(1).format() == TableFormat.DELTA_LAKE);
+                                tables.get(1).valid() && tables.get(1).path().path().endsWith("deltalake/table1/") && tables.get(1).format() == TableFormat.DELTA_LAKE);
     }
 
     @Test
@@ -89,11 +89,11 @@ public class TestDeltaLakeSchemaDiscovery
         assertThat(processor)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/")
-                                       && discovered.errors().isEmpty()
-                                       && discovered.tables().size() == 3)
+                        && discovered.errors().isEmpty()
+                        && discovered.tables().size() == 3)
                 .extracting(DiscoveredSchema::tables)
                 .matches(tables -> tables.stream().anyMatch(table -> !table.valid() && table.path().path().endsWith("deltalake/table1/") && table.format() == TableFormat.ERROR) &&
-                               tables.stream().anyMatch(table -> table.valid() && table.path().path().endsWith("deltalake/table2/") && table.format() == TableFormat.DELTA_LAKE) &&
-                               tables.stream().anyMatch(table -> !table.valid() && table.path().path().endsWith("deltalake/table3/") && table.format() == TableFormat.ERROR));
+                        tables.stream().anyMatch(table -> table.valid() && table.path().path().endsWith("deltalake/table2/") && table.format() == TableFormat.DELTA_LAKE) &&
+                        tables.stream().anyMatch(table -> !table.valid() && table.path().path().endsWith("deltalake/table3/") && table.format() == TableFormat.ERROR));
     }
 }

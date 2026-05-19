@@ -74,11 +74,10 @@ class TestRealBufferingServiceApiFactory
         };
         BufferExchangeConfig config = new BufferExchangeConfig()
                 .setUseVirtualThreadsUri(useVirtualThreadsUri);
-        DiscoveryApi discoveryApi = new DiscoveryApi() {
+        DiscoveryApi discoveryApi = new DiscoveryApi()
+        {
             @Override
-            public void updateBufferNode(BufferNodeInfo bufferNodeInfo)
-            {
-            }
+            public void updateBufferNode(BufferNodeInfo bufferNodeInfo) {}
 
             @Override
             public BufferNodeInfoResponse getBufferNodes()

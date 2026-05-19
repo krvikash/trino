@@ -21,8 +21,7 @@ public class FormatValidation
     private static final Pattern PREFIXED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|[0-9]|_)+");
     private static final Pattern NAMESPACED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*:([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*");
 
-    private FormatValidation()
-    {}
+    private FormatValidation() {}
 
     public static boolean isValidIdentifier(String identifier)
     {

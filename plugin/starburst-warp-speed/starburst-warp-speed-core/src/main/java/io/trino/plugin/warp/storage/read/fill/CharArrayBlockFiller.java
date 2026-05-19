@@ -61,13 +61,14 @@ public class CharArrayBlockFiller
                 valueIsNull[i] = false;
                 int currentValueSize = slice.getInt(nativeSlicePosition);
                 nativePositions[i] += Integer.BYTES;
-                nativeSlicePosition += Integer.BYTES + currentValueSize; //update the nativeSlicePosition to look in the slice
+                nativeSlicePosition += Integer.BYTES + currentValueSize; // update the nativeSlicePosition to look in the slice
                 valueLengths[i] = currentValueSize; // fixed size
             }
             outputPosition += valueLengths[i];
         }
         Type charType = CharType.createCharType(valueLengths[0]);
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(charType,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                charType,
                 valueLengths[0],
                 true,
                 true);
@@ -115,7 +116,8 @@ public class CharArrayBlockFiller
             outputPosition += valueLengths[i];
         }
         Type charType = CharType.createCharType(valueLengths[0]);
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(charType,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                charType,
                 valueLengths[0],
                 true,
                 true);

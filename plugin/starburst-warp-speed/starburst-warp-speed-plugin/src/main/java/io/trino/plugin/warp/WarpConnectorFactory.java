@@ -75,7 +75,8 @@ public class WarpConnectorFactory
             }
         }
 
-        WarpConnectorContext warpConnectorContext = new WarpConnectorContext(context,
+        WarpConnectorContext warpConnectorContext = new WarpConnectorContext(
+                context,
                 warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, context.getCurrentNode().isCoordinator(), configMap));
 
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
@@ -83,7 +84,8 @@ public class WarpConnectorFactory
                 configMap,
                 warpConnectorContext,
                 WarpExtensionHandlerModule.class,
-                Map.of(ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
+                Map.of(
+                        ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName())));
     }

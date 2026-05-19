@@ -22,7 +22,8 @@ import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection
 
 public interface WarpDeleteService
 {
-    TupleRankResult buildTupleRank(List<TupleFilter> tupleFilters,
+    TupleRankResult buildTupleRank(
+            List<TupleFilter> tupleFilters,
             boolean forceDeleteFailedObjects);
 
     DeletionStats delete(List<TupleRank> tupleRankList, DemoteContext demoteContext)

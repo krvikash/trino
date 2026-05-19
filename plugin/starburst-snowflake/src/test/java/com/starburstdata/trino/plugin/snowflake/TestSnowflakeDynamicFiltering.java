@@ -48,9 +48,7 @@ public class TestSnowflakeDynamicFiltering
     @Override
     @Test
     @Disabled
-    public void testDynamicFilteringWithLimit()
-    {
-    }
+    public void testDynamicFilteringWithLimit() {}
 
     @Override
     protected boolean isJoinPushdownEnabledByDefault()

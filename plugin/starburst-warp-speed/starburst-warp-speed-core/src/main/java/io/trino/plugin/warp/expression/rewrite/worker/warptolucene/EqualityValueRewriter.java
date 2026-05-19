@@ -58,9 +58,7 @@ public class EqualityValueRewriter
                             warpCall.getFunctionName().equals(STRPOS.getName()))))
             .with(argument(1).matching(x -> x instanceof WarpConstant && !x.getType().equals(BooleanType.BOOLEAN)));
 
-    public EqualityValueRewriter()
-    {
-    }
+    public EqualityValueRewriter() {}
 
     @Override
     public Pattern<WarpCall> getPattern()

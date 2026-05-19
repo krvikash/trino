@@ -51,7 +51,8 @@ public class TestJsonSchemaDiscovery
         ImmutableMap<String, String> options = ImmutableMap.of(GeneralOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = JsonSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("json/with-array-fields.json"), options);
         TypeInfo internalFields = structType(ImmutableList.of("startTime", "endTime"), ImmutableList.of(HIVE_INT, HIVE_INT));
-        assertThat(schemaColumns.columns()).containsExactly(toColumn("id", HIVE_INT).withSampleValue("1"),
+        assertThat(schemaColumns.columns()).containsExactly(
+                toColumn("id", HIVE_INT).withSampleValue("1"),
                 toColumn("intervals", arrayType(internalFields)),
                 toColumn("ints", arrayType(HIVE_INT)));
     }
@@ -62,7 +63,8 @@ public class TestJsonSchemaDiscovery
         Map<String, String> options = ImmutableMap.of(GeneralOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = JsonSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("json/not_always_matching_fields.json"), options);
         TypeInfo internalFields = structType(ImmutableList.of("endTime", "startTime"), ImmutableList.of(HIVE_INT, HIVE_INT));
-        assertThat(schemaColumns.columns()).containsExactly(toColumn("id", HIVE_INT).withSampleValue("1"),
+        assertThat(schemaColumns.columns()).containsExactly(
+                toColumn("id", HIVE_INT).withSampleValue("1"),
                 toColumn("intervals", structType(ImmutableList.of("a", "b"), ImmutableList.of(internalFields, internalFields))));
     }
 

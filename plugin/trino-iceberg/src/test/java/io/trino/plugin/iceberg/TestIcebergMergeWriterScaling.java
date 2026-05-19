@@ -72,18 +72,20 @@ public class TestIcebergMergeWriterScaling
         insertedCount = (long) computeScalar("SELECT COUNT(*) FROM tpch.tiny.orders WHERE custkey % 5 = 0 AND orderkey % 10 = 0");
         long sourceRowCount = updatedCount + deletedCount + insertedCount;
         // Source: mix of rows for UPDATE (custkey%3=0), DELETE (custkey%3=1), INSERT (negative orderkey)
-        assertUpdate(format("""
-                CREATE TABLE %s AS
-                SELECT orderkey, custkey, orderstatus, totalprice, orderpriority, clerk, 'updated_' || clerk AS new_clerk
-                FROM tpch.tiny.orders WHERE custkey %% 3 = 0
-                UNION ALL
-                SELECT orderkey, custkey, orderstatus, totalprice, orderpriority, clerk, clerk AS new_clerk
-                FROM tpch.tiny.orders WHERE custkey %% 3 = 1
-                UNION ALL
-                SELECT -(orderkey) AS orderkey, custkey, orderstatus, totalprice, 'NEW' AS orderpriority,
-                       'new_clerk' AS clerk, 'new_clerk' AS new_clerk
-                FROM tpch.tiny.orders WHERE custkey %% 5 = 0 AND orderkey %% 10 = 0
-                """, sourceTable),
+        assertUpdate(format(
+                        """
+                        CREATE TABLE %s AS
+                        SELECT orderkey, custkey, orderstatus, totalprice, orderpriority, clerk, 'updated_' || clerk AS new_clerk
+                        FROM tpch.tiny.orders WHERE custkey %% 3 = 0
+                        UNION ALL
+                        SELECT orderkey, custkey, orderstatus, totalprice, orderpriority, clerk, clerk AS new_clerk
+                        FROM tpch.tiny.orders WHERE custkey %% 3 = 1
+                        UNION ALL
+                        SELECT -(orderkey) AS orderkey, custkey, orderstatus, totalprice, 'NEW' AS orderpriority,
+                               'new_clerk' AS clerk, 'new_clerk' AS new_clerk
+                        FROM tpch.tiny.orders WHERE custkey %% 5 = 0 AND orderkey %% 10 = 0
+                        """,
+                        sourceTable),
                 sourceRowCount);
     }
 
@@ -159,16 +161,20 @@ public class TestIcebergMergeWriterScaling
 
         try {
             // Create target table
-            assertUpdate(format("""
-                    CREATE TABLE %s
-                    WITH (%s)
-                    AS SELECT orderkey, custkey, orderstatus, totalprice, orderpriority, clerk
-                    FROM tpch.tiny.orders
-                    """, target, tableProperties),
+            assertUpdate(format(
+                            """
+                            CREATE TABLE %s
+                            WITH (%s)
+                            AS SELECT orderkey, custkey, orderstatus, totalprice, orderpriority, clerk
+                            FROM tpch.tiny.orders
+                            """,
+                            target,
+                            tableProperties),
                     ordersCount);
 
             // Run merge with scaling enabled
-            String mergeStatement = format("""
+            String mergeStatement = format(
+                    """
                     MERGE INTO %s AS t USING %s AS s
                     ON t.orderkey = s.orderkey
                     WHEN MATCHED AND s.custkey %% 3 = 0
@@ -178,7 +184,9 @@ public class TestIcebergMergeWriterScaling
                     WHEN NOT MATCHED
                         THEN INSERT (orderkey, custkey, orderstatus, totalprice, orderpriority, clerk)
                              VALUES (s.orderkey, s.custkey, s.orderstatus, s.totalprice, s.orderpriority, s.clerk)
-                    """, target, sourceTable);
+                    """,
+                    target,
+                    sourceTable);
             assertUpdate(scalingEnabledSession(), mergeStatement, deletedCount + updatedCount + insertedCount);
 
             // Verify row count
@@ -194,17 +202,21 @@ public class TestIcebergMergeWriterScaling
                     .matches(format("VALUES BIGINT '%d'", insertedCount));
 
             // Verify updates
-            assertThat(query(format("""
+            assertThat(query(format(
+                    """
                     SELECT COUNT(*) FROM %s
                     WHERE orderpriority = 'UPDATED' AND clerk LIKE 'updated_%%'
-                    """, target)))
+                    """,
+                    target)))
                     .matches(format("VALUES BIGINT '%d'", updatedCount));
 
             // Verify deletes (only check non-negative orderkeys to avoid tpch bucket overflow on negative keys)
-            assertThat(query(format("""
+            assertThat(query(format(
+                    """
                     SELECT COUNT(*) FROM %s t
                     WHERE t.orderkey > 0 AND EXISTS (SELECT 1 FROM tpch.tiny.orders o WHERE o.orderkey = t.orderkey AND o.custkey %% 3 = 1)
-                    """, target)))
+                    """,
+                    target)))
                     .matches("VALUES BIGINT '0'");
         }
         finally {

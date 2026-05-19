@@ -74,7 +74,8 @@ public class RowGroupDataServiceTest
         metricsManager = TestingTxService.createMetricsManager();
         nodeManager = mockNodeManager();
         nodeIdentifier = nodeManager.getCurrentNode().getNodeIdentifier();
-        rowGroupDataService = spy(new RowGroupDataService(rowGroupDataDao,
+        rowGroupDataService = spy(new RowGroupDataService(
+                rowGroupDataDao,
                 storageEngine,
                 globalConfig,
                 metricsManager,
@@ -151,7 +152,8 @@ public class RowGroupDataServiceTest
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(null);
 
-        RowGroupDataService rowGroupDataService = spy(new RowGroupDataService(rowGroupDataDao,
+        RowGroupDataService rowGroupDataService = spy(new RowGroupDataService(
+                rowGroupDataDao,
                 storageEngine,
                 globalConfig,
                 metricsManager,
@@ -174,7 +176,8 @@ public class RowGroupDataServiceTest
     public void testAliasKeysSavedBySharedKey()
     {
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
-        rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
+        rowGroupDataService = new RowGroupDataService(
+                rowGroupDataDao,
                 storageEngine,
                 new GlobalConfig(),
                 metricsManager,
@@ -198,7 +201,8 @@ public class RowGroupDataServiceTest
     void test_removeElements()
     {
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
-        rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
+        rowGroupDataService = new RowGroupDataService(
+                rowGroupDataDao,
                 storageEngine,
                 new GlobalConfig(),
                 metricsManager,
@@ -239,7 +243,8 @@ public class RowGroupDataServiceTest
     void test_removeElements_all()
     {
         RowGroupDataDao rowGroupDataDao = mock(RowGroupDataDao.class);
-        rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
+        rowGroupDataService = new RowGroupDataService(
+                rowGroupDataDao,
                 storageEngine,
                 new GlobalConfig(),
                 metricsManager,

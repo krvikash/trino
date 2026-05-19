@@ -30,8 +30,7 @@ import static java.lang.Boolean.TRUE;
 
 public class IrAttributeUtils
 {
-    private IrAttributeUtils()
-    {}
+    private IrAttributeUtils() {}
 
     public static boolean isKnownDeterministic(Map<AttributeKey, Object> attributes)
     {

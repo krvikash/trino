@@ -64,7 +64,8 @@ public class RowGroupTask
     private final WarpClient warpClient;
 
     @Inject
-    public RowGroupTask(CoordinatorNodeManager coordinatorNodeManager,
+    public RowGroupTask(
+            CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
@@ -76,7 +77,7 @@ public class RowGroupTask
     @Audit
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    //@ApiOperation(value = "count", nickname = "rowGroupCount", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "count", nickname = "rowGroupCount", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public RowGroupCountResult count()
     {
         return innerCount(false);
@@ -87,7 +88,7 @@ public class RowGroupTask
     @Audit
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    //@ApiOperation(value = "count-with-files", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "count-with-files", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public RowGroupCountResult countWithFiles()
     {
         return innerCount(true);
@@ -134,7 +135,7 @@ public class RowGroupTask
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Audit
-    //@ApiOperation(value = "reset", nickname = "rowGroupReset", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "reset", nickname = "rowGroupReset", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public void reset()
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();

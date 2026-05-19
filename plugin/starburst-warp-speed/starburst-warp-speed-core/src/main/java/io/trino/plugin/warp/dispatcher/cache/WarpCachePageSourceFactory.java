@@ -206,7 +206,7 @@ public class WarpCachePageSourceFactory
             if (PageSourceDecision.PREFILL.equals(pageSourceDecision)) {
                 dispatcherPageSourceStats.addwarp_prefilled_collect_columns(columns.size());
                 queryClassifier.close(queryContext);
-                //in prefill queryContext doesn't hold any WE
+                // in prefill queryContext doesn't hold any WE
                 int totalRecords = getTotalRecords(rowGroupData);
                 PrefilledPageSource prefilledPageSource = new PrefilledPageSource(
                         queryContext.getPrefilledQueryCollectDataByBlockIndex(),
@@ -238,7 +238,8 @@ public class WarpCachePageSourceFactory
                     storageCollectorService,
                     matchService,
                     workerMemoryManager);
-            DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(EmptyPageSource::new,
+            DispatcherPageSource dispatcherPageSource = new DispatcherPageSource(
+                    EmptyPageSource::new,
                     queryClassifier,
                     Collections.emptyList(), // no proxied in case of cache
                     warpPageSource,
@@ -247,7 +248,7 @@ public class WarpCachePageSourceFactory
                     pageSourceDecision,
                     dispatcherPageSourceStats,
                     closeHandler,
-                    null, //used for debug for mixed case, unused in CM
+                    null, // used for debug for mixed case, unused in CM
                     null,
                     0, // no proxied in case of cache
                     readErrorHandler,
@@ -257,8 +258,12 @@ public class WarpCachePageSourceFactory
         }
         catch (Exception e) {
             closeResources(closeHandler, afterLockRowGroupData, queryContext, "EXCEPTION");
-            throw new RuntimeException(format("Failed to create page source. queryStoreId=%s, rowGroupData=%s, queryContext=%s, dispatcherTableHandle=%s",
-                    queryStoreId, afterLockRowGroupData, queryContext, dispatcherTableHandle), e);
+            throw new RuntimeException(format(
+                    "Failed to create page source. queryStoreId=%s, rowGroupData=%s, queryContext=%s, dispatcherTableHandle=%s",
+                    queryStoreId,
+                    afterLockRowGroupData,
+                    queryContext,
+                    dispatcherTableHandle), e);
         }
     }
 

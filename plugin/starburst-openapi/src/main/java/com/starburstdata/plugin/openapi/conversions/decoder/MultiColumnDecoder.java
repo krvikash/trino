@@ -46,7 +46,7 @@ public class MultiColumnDecoder
         this.keyToColumnWriter = requireNonNull(keyToColumnWriter, "keyToColumnWriter is null");
         Map<String, String> mutableIdentifierToKey = new HashMap<>();
         ImmutableList.Builder<OpenApiColumnHandle> columnHandlesBuilder = ImmutableList.builder();
-        keyToColumnWriter.keySet().stream().sorted().forEach((key) -> {
+        keyToColumnWriter.keySet().stream().sorted().forEach(key -> {
             String identifier = key.toLowerCase(ENGLISH);
             String oldKey = mutableIdentifierToKey.put(identifier, key);
             if (oldKey != null) {

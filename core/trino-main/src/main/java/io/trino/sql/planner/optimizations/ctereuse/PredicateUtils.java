@@ -55,8 +55,7 @@ import static java.util.HashMap.newHashMap;
 
 public class PredicateUtils
 {
-    private PredicateUtils()
-    {}
+    private PredicateUtils() {}
 
     public static Block truePredicate(Optional<String> blockName, List<Block.Parameter> parameters, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
@@ -393,9 +392,9 @@ public class PredicateUtils
      * @param operation -- the root operation
      * @param originalOperations -- the map value -> operation to resolve source operations
      * @param processedOperations -- the map value -> operation where all processed operations are recorded
-     * The processed operations might be either rewritten or unchanged. In both cases, the original result values
-     * might be reused. Therefore, all the processed operations must be recorded so that we can build the resulting
-     * optimized block consisting of the processed operations, and not the of original ones
+     *         The processed operations might be either rewritten or unchanged. In both cases, the original result values
+     *         might be reused. Therefore, all the processed operations must be recorded so that we can build the resulting
+     *         optimized block consisting of the processed operations, and not the of original ones
      * @return -- the result of the optimized root operation. It might be the same as the original result, or different
      */
     private static Value optimizeLogicalOperations(

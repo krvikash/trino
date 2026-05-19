@@ -31,7 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestReloadingModelClientProvider
         extends AbstractTestQueryFramework
 {
-    private static final String MODEL_SPECS_V1 = """
+    private static final String MODEL_SPECS_V1 =
+            """
             {
                 "models": [
                     {
@@ -73,7 +74,8 @@ public class TestReloadingModelClientProvider
                 ]
             }""";
 
-    String MODEL_SPECS_V2 = """
+    String MODEL_SPECS_V2 =
+            """
             {
                 "models": [
                     {
@@ -122,7 +124,6 @@ public class TestReloadingModelClientProvider
                 ]
             }""";
 
-
     private File modelSpecsFile;
 
     @Override
@@ -144,7 +145,8 @@ public class TestReloadingModelClientProvider
         assertThatThrownBy(() -> simplePrompt("haiku35"))
                 .hasMessage("Language model client not found for id: haiku35");
 
-        String result = (String) computeActual(TEST_AI_SESSION,
+        String result = (String) computeActual(
+                TEST_AI_SESSION,
                 "SELECT ai.classify('I love this product!', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted("meta_llama")).getOnlyValue();
         assertThat(result).contains("positive");
         assertThat(simpleEmbedding("titan_v2"))
@@ -166,7 +168,8 @@ public class TestReloadingModelClientProvider
         // Verify that the updated classify prompt is set to the mask prompt.
         String prompt = "My credit card number is 1234-5678-9012-3456 and my password is hunter2";
         assertEventually(() -> {
-            String modifiedPromptResult = (String) computeActual(TEST_AI_SESSION,
+            String modifiedPromptResult = (String) computeActual(
+                    TEST_AI_SESSION,
                     "SELECT ai.classify('%s', ARRAY['credit card number', 'password'], '%s')".formatted(prompt, "meta_llama")).getOnlyValue();
             assertThat(modifiedPromptResult.strip())
                     .isEqualTo("My credit card number is [MASKED] and my password is [MASKED]");

@@ -23,7 +23,8 @@ public class CacheWarmupElementArgs
     private final WarmupElementBlocks warmupElementBlocks;
     private WarmingCandidate warmingCandidate;
 
-    public CacheWarmupElementArgs(WarmupElementWriteMetadata warmupElementWriteMetadata,
+    public CacheWarmupElementArgs(
+            WarmupElementWriteMetadata warmupElementWriteMetadata,
             WarmupElementBlocks warmupElementBlocks)
     {
         this.warmupElementWriteMetadata = warmupElementWriteMetadata;

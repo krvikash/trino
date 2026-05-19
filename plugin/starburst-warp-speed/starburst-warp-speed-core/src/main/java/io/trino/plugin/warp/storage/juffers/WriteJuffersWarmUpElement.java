@@ -69,7 +69,8 @@ public class WriteJuffersWarmUpElement
     private Int128 recordBufferSingleLongDec;
     private int actualRecTypeLength; // largest record encountered
 
-    public WriteJuffersWarmUpElement(StorageEngine storageEngine,
+    public WriteJuffersWarmUpElement(
+            StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             RecordBufferParams recordBufferParams,
@@ -102,7 +103,8 @@ public class WriteJuffersWarmUpElement
         newChunk();
 
         if (allocParams.isRecBufferNeeded()) {
-            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator,
+            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(
+                    bufferAllocator,
                     allocParams,
                     storageEngine,
                     warmUpState.getMemory(),
@@ -110,7 +112,8 @@ public class WriteJuffersWarmUpElement
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
 
             if (allocParams.isExtBufferNeeded()) {
-                ExtendedJuffer extendedJuffers = new ExtendedJuffer(bufferAllocator,
+                ExtendedJuffer extendedJuffers = new ExtendedJuffer(
+                        bufferAllocator,
                         allocParams,
                         storageEngine,
                         warmUpState.getMemory(),
@@ -193,7 +196,8 @@ public class WriteJuffersWarmUpElement
             }
         }
 
-        recordBufferParams.setParams(recordBufferMin,
+        recordBufferParams.setParams(
+                recordBufferMin,
                 recordBufferMax,
                 recordBufferPos,
                 getNullJuffer().getNullsCount(),
@@ -234,7 +238,8 @@ public class WriteJuffersWarmUpElement
             getExtRecordJuffer().commitAndResetExtRecordBuffer(numExtBytes);
         }
 
-        recordBufferParams.setParams(recordBufferMin,
+        recordBufferParams.setParams(
+                recordBufferMin,
                 recordBufferMax,
                 numRecs,
                 getNullJuffer().getNullsCount() + addedNV,
@@ -530,7 +535,7 @@ public class WriteJuffersWarmUpElement
         return (ByteBuffer) getBufferByType(JuffersType.CHUNKS);
     }
 
-        // used for tests to avoid hitting invalid chunk type exceptipon
+    // used for tests to avoid hitting invalid chunk type exceptipon
     @VisibleForTesting
     public void setChunkTypeAsValid()
     {

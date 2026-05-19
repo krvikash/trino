@@ -30,7 +30,8 @@ public class InverseStringValuesPredicateFiller
 {
     private static final Logger logger = Logger.get(StringValuesPredicateFiller.class);
 
-    public InverseStringValuesPredicateFiller(StorageEngineConstants storageEngineConstants,
+    public InverseStringValuesPredicateFiller(
+            StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator)
     {
         super(storageEngineConstants, bufferAllocator);

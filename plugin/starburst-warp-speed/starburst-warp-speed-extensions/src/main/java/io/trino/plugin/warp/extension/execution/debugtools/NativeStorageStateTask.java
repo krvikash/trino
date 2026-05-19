@@ -56,7 +56,8 @@ public class NativeStorageStateTask
     private final WarpClient warpClient;
 
     @Inject
-    public NativeStorageStateTask(CoordinatorNodeManager coordinatorNodeManager,
+    public NativeStorageStateTask(
+            CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);

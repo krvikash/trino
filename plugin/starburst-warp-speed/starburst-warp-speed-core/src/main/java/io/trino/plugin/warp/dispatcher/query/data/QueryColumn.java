@@ -95,9 +95,7 @@ public abstract class QueryColumn
         protected WarpColumn warpColumn;
         protected Type type;
 
-        public Builder()
-        {
-        }
+        public Builder() {}
 
         public Builder(QueryColumn queryColumn)
         {

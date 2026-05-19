@@ -62,7 +62,7 @@ public class ValuesPredicateFiller
         convertValues(predicateBufferVals, domain);
     }
 
-    //lower value and high value are equal in valuesPredicate (singleValue), so it enough to take only one value
+    // lower value and high value are equal in valuesPredicate (singleValue), so it enough to take only one value
     protected void convertValues(ByteBuffer buf, Domain domain)
     {
         Type type = domain.getType();

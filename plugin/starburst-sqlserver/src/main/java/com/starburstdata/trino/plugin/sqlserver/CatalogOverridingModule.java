@@ -75,7 +75,5 @@ public class CatalogOverridingModule
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
     @BindingAnnotation
-    public @interface ForCatalogOverriding
-    {
-    }
+    public @interface ForCatalogOverriding {}
 }

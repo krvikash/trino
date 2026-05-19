@@ -17,5 +17,5 @@ public enum WarmState
 {
     COLD,
     WARM,
-    HOT
+    HOT,
 }

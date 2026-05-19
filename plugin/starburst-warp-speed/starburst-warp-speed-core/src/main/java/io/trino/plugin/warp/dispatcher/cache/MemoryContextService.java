@@ -53,7 +53,8 @@ public class MemoryContextService
     private final Set<WarpCacheTask> runningTasks;
 
     @Inject
-    public MemoryContextService(CacheManagerContext cacheManagerContext,
+    public MemoryContextService(
+            CacheManagerContext cacheManagerContext,
             MetricsManager metricsManager,
             WarmupDemoterConfig warmupDemoterConfig,
             ShapingLoggerFactory shapingLoggerFactory)
@@ -80,9 +81,9 @@ public class MemoryContextService
     public void releaseMemory(LocalMemoryContext localMemoryContext)
     {
         try {
-            //localMemoryContext is null when revoke triggered before setting localMemoryContext
+            // localMemoryContext is null when revoke triggered before setting localMemoryContext
             if (localMemoryContext != null) {
-                localMemoryContext.trySetBytes(0); //warming finished
+                localMemoryContext.trySetBytes(0); // warming finished
                 localMemoryContexts.put(localMemoryContext);
             }
         }
@@ -115,8 +116,11 @@ public class MemoryContextService
         long revokedMemory = 0;
         try {
             if (runningTasks.isEmpty()) {
-                logger.debug("revoke %s bytes triggered but WarpCacheManager doesn't have any running warming tasks. allocatedMemory=%s, localMemoryContextsSize=%s. ignoring this event",
-                        bytesToRevoke, getAllocatedMemory(), localMemoryContexts.size());
+                logger.debug(
+                        "revoke %s bytes triggered but WarpCacheManager doesn't have any running warming tasks. allocatedMemory=%s, localMemoryContextsSize=%s. ignoring this event",
+                        bytesToRevoke,
+                        getAllocatedMemory(),
+                        localMemoryContexts.size());
                 return 0;
             }
             shapingLogger.info("revoke memory triggered bytesToRevoke=%s, allocatedMemory=%s, runningTasksSize=%s, localMemoryContexts.size()=%s", bytesToRevoke, getAllocatedMemory(), getRunningSize(), localMemoryContexts.size());
@@ -124,13 +128,13 @@ public class MemoryContextService
             revokeIsRunning = true;
             int iteration = 0;
             while (revokedMemory < bytesToRevoke && !runningTasks.isEmpty()) {
-                //better to pick tasks that is still running and not to interrupt current warming tasks
+                // better to pick tasks that is still running and not to interrupt current warming tasks
                 Optional<WarpCacheTask> warpCacheTaskOpt = runningTasks.stream().filter(x -> !x.isWarmStarted() && !x.isRevoked()).max(Comparator.comparingLong(WarpCacheTask::getRetainedSizeInBytes));
                 if (warpCacheTaskOpt.isEmpty()) {
                     warpCacheTaskOpt = runningTasks.stream().filter(x -> !x.isRevoked()).max(Comparator.comparingLong(WarpCacheTask::getRetainedSizeInBytes));
                 }
                 if (warpCacheTaskOpt.isEmpty()) {
-                    //protect a race in case another thread poll a task
+                    // protect a race in case another thread poll a task
                     logger.debug("running task is not empty but all elements are revoked. break runningTaskSize=%s, they should be clean by WarpCacheTask flow", getRunningSize());
                     break;
                 }

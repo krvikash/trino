@@ -61,8 +61,7 @@ import static java.util.function.Function.identity;
 
 public class AssignmentsUtils
 {
-    private AssignmentsUtils()
-    {}
+    private AssignmentsUtils() {}
 
     // TODO use this method to validate selector blocks in operation constructors
     public static boolean isFieldSelector(Block block)

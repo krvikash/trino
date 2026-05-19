@@ -22,7 +22,6 @@ import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 
 public class CrcMapBlockAppender
         extends CrcBlockAppender
-
 {
     private final BlockAppender valuesBlockAppender;
 
@@ -33,7 +32,8 @@ public class CrcMapBlockAppender
     }
 
     @Override
-    AppendResult appendWithoutDictionary(int jufferPos,
+    AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)

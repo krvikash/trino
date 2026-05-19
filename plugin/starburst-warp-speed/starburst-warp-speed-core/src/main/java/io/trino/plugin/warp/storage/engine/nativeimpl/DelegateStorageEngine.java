@@ -20,7 +20,5 @@ import io.trino.plugin.warp.storage.engine.StorageEngine;
 public class DelegateStorageEngine
         implements StorageEngine
 {
-    public DelegateStorageEngine()
-    {
-    }
+    public DelegateStorageEngine() {}
 }

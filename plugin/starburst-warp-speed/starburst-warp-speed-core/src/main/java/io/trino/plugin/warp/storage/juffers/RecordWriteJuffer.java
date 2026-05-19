@@ -34,7 +34,8 @@ public class RecordWriteJuffer
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
     private boolean isDictionaryValid;
 
-    public RecordWriteJuffer(BufferAllocator bufferAllocator,
+    public RecordWriteJuffer(
+            BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             MemorySegment warmUpState,

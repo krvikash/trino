@@ -320,7 +320,8 @@ public class StarburstSynapseClient
     protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
     {
         try (Handle handle = Jdbi.open(connection)) {
-            return handle.createQuery("""
+            return handle.createQuery(
+                            """
                             SELECT c.name AS column_name, collation_name FROM sys.columns c
                             INNER JOIN sys.tables t on c.object_id = t.object_id
                             INNER JOIN sys.schemas s on s.schema_id = t.schema_id
@@ -328,7 +329,8 @@ public class StarburstSynapseClient
                             """)
                     .bind("schema_name", remoteTableName.getSchemaName().orElseThrow())
                     .bind("table_name", remoteTableName.getTableName())
-                    .collectRows(toImmutableMap(rowView -> rowView.getColumn("column_name", String.class),
+                    .collectRows(toImmutableMap(
+                            rowView -> rowView.getColumn("column_name", String.class),
                             rowView -> getCaseSensitivityForCollation(rowView.getColumn("collation_name", String.class))));
         }
     }

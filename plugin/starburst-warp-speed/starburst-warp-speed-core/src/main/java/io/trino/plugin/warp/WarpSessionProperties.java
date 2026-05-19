@@ -174,7 +174,8 @@ public final class WarpSessionProperties
             return Arrays.stream(properties.trim().split(",")).map(String::trim).collect(Collectors.toSet());
         }
         catch (Exception e) {
-            logger.error("failed to parse session unsupported_functions properties, return default=%s",
+            logger.error(
+                    "failed to parse session unsupported_functions properties, return default=%s",
                     nativeConfig.getUnsupportedNativeFunctions());
             return nativeConfig.getUnsupportedNativeFunctions();
         }

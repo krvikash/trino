@@ -42,7 +42,8 @@ public class DispatcherSplit
     private final ConnectorSplit proxyConnectorSplit;
 
     @JsonCreator
-    public DispatcherSplit(@JsonProperty("schemaName") String schemaName,
+    public DispatcherSplit(
+            @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("path") String path,
             @JsonProperty("start") long start,
@@ -55,7 +56,8 @@ public class DispatcherSplit
         this(schemaName, tableName, path, start, length, fileModifiedTime, Collections.emptyList(), partitionKeys, deletedFilesHash, proxyConnectorSplit);
     }
 
-    public DispatcherSplit(String schemaName,
+    public DispatcherSplit(
+            String schemaName,
             String tableName,
             String path,
             long start,

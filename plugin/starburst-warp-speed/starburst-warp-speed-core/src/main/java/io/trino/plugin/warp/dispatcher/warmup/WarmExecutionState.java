@@ -17,5 +17,5 @@ public enum WarmExecutionState
 {
     NOTHING_TO_WARM,
     EMPTY_ROW_GROUP,
-    WARM
+    WARM,
 }

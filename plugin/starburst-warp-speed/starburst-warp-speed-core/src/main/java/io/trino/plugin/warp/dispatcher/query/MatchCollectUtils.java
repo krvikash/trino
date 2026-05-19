@@ -53,6 +53,6 @@ public class MatchCollectUtils
     {
         DISABLED,
         ORDINARY,
-        MAPPED
+        MAPPED,
     }
 }

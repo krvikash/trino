@@ -60,7 +60,7 @@ public class RowGroupDataDumpTask
     @Audit
     @GET
     @Path(CACHED_ROW_GROUP)
-    //@ApiOperation(value = "dump row groups", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "dump row groups", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public String dumpRowGroupDatas()
     {
         try {
@@ -75,7 +75,7 @@ public class RowGroupDataDumpTask
 
     @GET
     @Path(CACHED_SHARED_ROW_GROUP)
-    //@ApiOperation(value = "dump shared row groups", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "dump shared row groups", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public String dumpSharedRowGroupDatas()
     {
         try {

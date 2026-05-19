@@ -26,7 +26,8 @@ public class TransformedColumnData
     private final TransformFunctionData transformFunction;
 
     @JsonCreator
-    public TransformedColumnData(@JsonProperty(KEY) String columnName,
+    public TransformedColumnData(
+            @JsonProperty(KEY) String columnName,
             @JsonProperty(TRANSFORM_FUNCTION) TransformFunctionData transformFunction)
     {
         super(columnName);

@@ -19,6 +19,7 @@ public enum PredicateHeaderFlags
 {
     PREDICATE_FLAG_HAS_FUNCTION(6),
     PREDICATE_FLAG_COLLECT_NULL(7);
+
     final int offset;
 
     PredicateHeaderFlags(int offset)

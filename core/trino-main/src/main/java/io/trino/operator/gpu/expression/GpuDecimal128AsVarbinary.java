@@ -40,7 +40,8 @@ public class GpuDecimal128AsVarbinary
         checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
         @Borrow ColumnVector input = inputColumns.getFirst();
         checkState(input.getType().getTypeId() == DType.DTypeEnum.DECIMAL128,
-                "Expected DECIMAL128 input, got %s", input.getType());
+                "Expected DECIMAL128 input, got %s",
+                input.getType());
         return GpuCombineSumChunksToVarbinary.decimal128ToBytes(input);
     }
 }

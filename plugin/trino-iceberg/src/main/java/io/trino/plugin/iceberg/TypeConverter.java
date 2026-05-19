@@ -99,11 +99,10 @@ public final class TypeConverter
                         .map(field -> new RowType.Field(Optional.of(field.name()), toTrinoType(field.type(), typeManager)))
                         .collect(toImmutableList()));
             }
-            case VARIANT ->
-                switch (((IcebergTypeManager) typeManager).variantTypeMapping()) {
-                    case JSON -> typeManager.getType(new TypeSignature(JSON));
-                    case VARIANT -> VARIANT;
-                };
+            case VARIANT -> switch (((IcebergTypeManager) typeManager).variantTypeMapping()) {
+                case JSON -> typeManager.getType(new TypeSignature(JSON));
+                case VARIANT -> VARIANT;
+            };
             case GEOMETRY, GEOGRAPHY,
                  UNKNOWN -> throw new TrinoException(NOT_SUPPORTED, format("Cannot convert from Iceberg type '%s' (%s) to Trino type", type, type.typeId()));
         };

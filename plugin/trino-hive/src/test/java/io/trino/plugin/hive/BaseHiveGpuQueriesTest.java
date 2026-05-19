@@ -172,9 +172,9 @@ public abstract class BaseHiveGpuQueriesTest
             String tableName = "test_gpu_int32_64_decimals_" + randomNameSuffix();
             assertUpdate(
                     """
-                            CREATE TABLE %s (d_int32 decimal(7,2), d_int64 decimal(15,4))
-                            WITH (external_location = '%s', format = 'PARQUET')
-                            """.formatted(tableName, directory));
+                    CREATE TABLE %s (d_int32 decimal(7,2), d_int64 decimal(15,4))
+                    WITH (external_location = '%s', format = 'PARQUET')
+                    """.formatted(tableName, directory));
             assertThat(query("SELECT d_int32, d_int64 FROM " + tableName))
                     .executesWithGpu(TableScanNode.class);
             assertUpdate("DROP TABLE " + tableName);
@@ -184,9 +184,9 @@ public abstract class BaseHiveGpuQueriesTest
             String longTableName = "test_gpu_int32_64_as_long_decimal_" + randomNameSuffix();
             assertUpdate(
                     """
-                            CREATE TABLE %s (d_int32 decimal(27,2), d_int64 decimal(27,4))
-                            WITH (external_location = '%s', format = 'PARQUET')
-                            """.formatted(longTableName, directory));
+                    CREATE TABLE %s (d_int32 decimal(27,2), d_int64 decimal(27,4))
+                    WITH (external_location = '%s', format = 'PARQUET')
+                    """.formatted(longTableName, directory));
             assertThat(query("SELECT d_int32, d_int64 FROM " + longTableName))
                     .executesWithGpu(TableScanNode.class);
             assertUpdate("DROP TABLE " + longTableName);
@@ -270,9 +270,9 @@ public abstract class BaseHiveGpuQueriesTest
         String tableName = "test_gpu_int64_ts_" + precision.getPrecision() + "_" + randomNameSuffix();
         assertUpdate(session,
                 """
-                        CREATE TABLE %s (ts timestamp(%s))
-                        WITH (external_location = '%s', format = 'PARQUET')
-                        """.formatted(tableName, precision.getPrecision(), directory));
+                CREATE TABLE %s (ts timestamp(%s))
+                WITH (external_location = '%s', format = 'PARQUET')
+                """.formatted(tableName, precision.getPrecision(), directory));
         assertThat(query(session, "SELECT ts FROM " + tableName))
                 .executesWithGpu(TableScanNode.class);
         assertUpdate(session, "DROP TABLE " + tableName);
@@ -361,7 +361,8 @@ public abstract class BaseHiveGpuQueriesTest
     @Test
     public void testSelectWithColumnPruning()
     {
-        assertUpdate("CREATE TABLE test_gpu_pruning AS " +
+        assertUpdate(
+                "CREATE TABLE test_gpu_pruning AS " +
                         "SELECT orderkey, orderstatus, totalprice, orderdate FROM tpch.tiny.orders",
                 15000);
 
@@ -377,7 +378,8 @@ public abstract class BaseHiveGpuQueriesTest
     @Test
     public void testSelectWithPartitioning()
     {
-        assertUpdate("CREATE TABLE test_gpu_partitioned " +
+        assertUpdate(
+                "CREATE TABLE test_gpu_partitioned " +
                         "WITH (partitioned_by = ARRAY['orderstatus']) AS " +
                         "SELECT orderkey, totalprice, orderstatus FROM tpch.tiny.orders",
                 15000);

@@ -107,10 +107,11 @@ public class ExpressionService
         this.nativeExpressionRulesHandler = requireNonNull(nativeExpressionRulesHandler);
     }
 
-    public Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> convertToWarpExpression(ConnectorSession session,
-                                                            ConnectorExpression expression,
-                                                            Map<String, ColumnHandle> assignments,
-                                                            Map<String, Long> customStats)
+    public Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> convertToWarpExpression(
+            ConnectorSession session,
+            ConnectorExpression expression,
+            Map<String, ColumnHandle> assignments,
+            Map<String, Long> customStats)
     {
         Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> res;
         try {
@@ -122,7 +123,8 @@ public class ExpressionService
                     unsupportedFunctions.stream().collect(MoreCollectors.onlyElement()).equals("*")) {
                 return Optional.empty();
             }
-            Optional<WarpExpression> warpExpressionOpt = convertToWarpExpression(session,
+            Optional<WarpExpression> warpExpressionOpt = convertToWarpExpression(
+                    session,
                     expression,
                     assignments,
                     unsupportedFunctions,
@@ -190,7 +192,8 @@ public class ExpressionService
 
                 Optional<NativeExpression> nativeExpressionOptional;
                 if (isNullExpression(warpExpression)) {
-                    nativeExpressionOptional = Optional.of(new NativeExpression(PredicateType.PREDICATE_TYPE_VALUES,
+                    nativeExpressionOptional = Optional.of(new NativeExpression(
+                            PredicateType.PREDICATE_TYPE_VALUES,
                             FunctionType.FUNCTION_TYPE_NONE,
                             Domain.onlyNull(columnType),
                             true,
@@ -212,7 +215,8 @@ public class ExpressionService
                 }
 
                 if (column.isPresent() && isSupportedColumnType(columnType)) {
-                    WarpExpressionData warpExpressionData = new WarpExpressionData(warpExpression,
+                    WarpExpressionData warpExpressionData = new WarpExpressionData(
+                            warpExpression,
                             columnType,
                             nativeExpressionOptional.isPresent() && nativeExpressionOptional.get().collectNulls(),
                             nativeExpressionOptional,
@@ -224,7 +228,8 @@ public class ExpressionService
         return true;
     }
 
-    private Optional<WarpExpression> convertToWarpExpression(ConnectorSession session,
+    private Optional<WarpExpression> convertToWarpExpression(
+            ConnectorSession session,
             ConnectorExpression expression,
             Map<String, ColumnHandle> assignments,
             Set<String> unsupportedFunctions,
@@ -278,7 +283,8 @@ public class ExpressionService
         return res;
     }
 
-    private ConnectorExpressionRule.RewriteContext<WarpExpression> createContext(Map<String, ColumnHandle> assignments,
+    private ConnectorExpressionRule.RewriteContext<WarpExpression> createContext(
+            Map<String, ColumnHandle> assignments,
             ConnectorSession session,
             Set<String> unsupportedFunctions,
             Map<String, Long> customStats)
@@ -367,7 +373,7 @@ public class ExpressionService
     {
         boolean res = true;
         if (TypeUtils.isLongDecimalType(columnType)) {
-            //todo can't serialize LongDecimalType since Int128 is not serializable
+            // todo can't serialize LongDecimalType since Int128 is not serializable
             res = false;
         }
         else if (isLongTimestampType(columnType) || isLongTimestampTypeWithTimeZoneType(columnType) || isLongTimeWithTimeZoneType(columnType)) {

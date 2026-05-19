@@ -40,10 +40,11 @@ public class AzureCloudStorage
     private final TracingOptions tracingOptions;
     private final AzureAuth azureAuth;
 
-    public AzureCloudStorage(AzureFileSystemFactory fileSystemFactory,
-                             HttpClient httpClient,
-                             TracingOptions tracingOptions,
-                             AzureAuth azureAuth)
+    public AzureCloudStorage(
+            AzureFileSystemFactory fileSystemFactory,
+            HttpClient httpClient,
+            TracingOptions tracingOptions,
+            AzureAuth azureAuth)
     {
         super(fileSystemFactory);
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
@@ -64,7 +65,8 @@ public class AzureCloudStorage
             client.uploadFromFile(source.toString(), true);
             BlobProperties blobProperties = client.getProperties();
 
-            return new CloudObjectMetadata(blobProperties.getETag(),
+            return new CloudObjectMetadata(
+                    blobProperties.getETag(),
                     blobProperties.getLastModified().toInstant(),
                     blobProperties.getBlobSize());
         }
@@ -85,7 +87,8 @@ public class AzureCloudStorage
         try {
             BlobProperties blobProperties = client.downloadToFile(target.toString());
 
-            return new CloudObjectMetadata(blobProperties.getETag(),
+            return new CloudObjectMetadata(
+                    blobProperties.getETag(),
                     blobProperties.getLastModified().toInstant(),
                     blobProperties.getBlobSize());
         }
@@ -115,7 +118,8 @@ public class AzureCloudStorage
             targetClient.copyFromUrl(sourceClient.getBlobUrl());
             BlobProperties blobProperties = targetClient.getProperties();
 
-            return new CloudObjectMetadata(blobProperties.getETag(),
+            return new CloudObjectMetadata(
+                    blobProperties.getETag(),
                     blobProperties.getLastModified().toInstant(),
                     blobProperties.getBlobSize());
         }

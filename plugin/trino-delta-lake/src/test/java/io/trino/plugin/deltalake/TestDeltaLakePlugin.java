@@ -152,7 +152,8 @@ public class TestDeltaLakePlugin
     public void testRegisterProcedureDisabledForUnity()
     {
         ConnectorFactory factory = getConnectorFactory();
-        assertThatThrownBy(() -> factory.create("test",
+        assertThatThrownBy(() -> factory.create(
+                "test",
                 ImmutableMap.of(
                         "hive.metastore", "unity",
                         "hive.metastore.unity.catalog-name", "catalog",
@@ -167,7 +168,8 @@ public class TestDeltaLakePlugin
     public void testUnityMetastore()
     {
         ConnectorFactory factory = getConnectorFactory();
-        factory.create("test",
+        factory.create(
+                        "test",
                         ImmutableMap.of(
                                 "hive.metastore", "unity",
                                 "hive.metastore.unity.catalog-name", "catalog",
@@ -182,7 +184,8 @@ public class TestDeltaLakePlugin
     public void testUnityProxyMetastore()
     {
         ConnectorFactory factory = getConnectorFactory();
-        factory.create("test",
+        factory.create(
+                        "test",
                         ImmutableMap.of(
                                 "hive.metastore", "unity",
                                 "hive.metastore.unity.catalog-name", "catalog",

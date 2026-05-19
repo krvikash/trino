@@ -56,8 +56,7 @@ final class TestSecretsResolverCredentialProvider
                         .setPasswordKey("password"),
                 new SecretsResolver(
                         ImmutableMap.of(
-                                "failing",
-                                _ -> {
+                                "failing", _ -> {
                                     throw new UnsupportedOperationException();
                                 })));
 

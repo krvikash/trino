@@ -928,10 +928,10 @@ public class SapHanaClient
         Long getRowCount(String schema, String tableName)
         {
             Optional<Long> rowCount = handle.createQuery("" +
-                    "SELECT RECORD_COUNT " +
-                    "FROM SYS.M_TABLES " +
-                    "WHERE SCHEMA_NAME = :schema " +
-                    "  AND TABLE_NAME = :table_name")
+                            "SELECT RECORD_COUNT " +
+                            "FROM SYS.M_TABLES " +
+                            "WHERE SCHEMA_NAME = :schema " +
+                            "  AND TABLE_NAME = :table_name")
                     .bind("schema", schema)
                     .bind("table_name", tableName)
                     .mapTo(Long.class)

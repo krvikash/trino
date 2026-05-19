@@ -17,5 +17,5 @@ public enum TableType
 {
     warp,
     warp_iceberg,
-    warp_delta_lake
+    warp_delta_lake,
 }

@@ -17,28 +17,28 @@ import io.trino.spi.block.Block;
 import org.apache.arrow.vector.FixedWidthVector;
 
 public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
-        extends PrimitiveWriter<V> permits
-        BigintWriter,
-        BooleanWriter,
-        DateWriter,
-        DecimalWriter,
-        DoubleWriter,
-        IntegerWriter,
-        IntervalDayWriter,
-        IntervalYearMonthWriter,
-        IpAddressWriter,
-        RealWriter,
-        SmallIntWriter,
-        TimeSecWriter,
-        TimeMilliWriter,
-        TimeMicroWriter,
-        TimeNanoWriter,
-        TimestampSecWriter,
-        TimestampMilliWriter,
-        TimestampMicroWriter,
-        TimestampNanoWriter,
-        TinyIntWriter,
-        UuidWriter
+        extends PrimitiveWriter<V>
+        permits BigintWriter,
+                BooleanWriter,
+                DateWriter,
+                DecimalWriter,
+                DoubleWriter,
+                IntegerWriter,
+                IntervalDayWriter,
+                IntervalYearMonthWriter,
+                IpAddressWriter,
+                RealWriter,
+                SmallIntWriter,
+                TimeMicroWriter,
+                TimeMilliWriter,
+                TimeNanoWriter,
+                TimeSecWriter,
+                TimestampMicroWriter,
+                TimestampMilliWriter,
+                TimestampNanoWriter,
+                TimestampSecWriter,
+                TinyIntWriter,
+                UuidWriter
 {
     protected FixedWidthWriter(V vector)
     {

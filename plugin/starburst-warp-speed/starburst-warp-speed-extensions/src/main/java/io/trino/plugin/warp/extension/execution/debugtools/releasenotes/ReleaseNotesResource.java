@@ -38,13 +38,11 @@ public class ReleaseNotesResource
     public static final String RELEASE_NOTES_PATH = "release-notes";
 
     @Inject
-    public ReleaseNotesResource()
-    {
-    }
+    public ReleaseNotesResource() {}
 
     @Audit
     @POST
-    //@ApiOperation(value = "release-notes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "release-notes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public List<ReleaseNoteVersionData> getReleaseNotes(ReleaseNotesRequestData requestData)
     {
         return null;

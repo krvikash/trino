@@ -13,6 +13,4 @@
  */
 package io.trino.plugin.warp.dispatcher.query.data;
 
-public interface QueryData
-{
-}
+public interface QueryData {}

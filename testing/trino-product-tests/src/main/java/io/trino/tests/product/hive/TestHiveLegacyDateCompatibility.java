@@ -142,8 +142,7 @@ public class TestHiveLegacyDateCompatibility
             onHive().executeQuery("CREATE TABLE %s.%s (id integer) PARTITIONED BY (date_col date) STORED AS PARQUET ".formatted(SCHEMA, hiveTableName));
             onHive().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, hiveTableName, TABLE_VALUES));
 
-            ID_TO_DATE.forEach((id, date) ->
-            {
+            ID_TO_DATE.forEach((id, date) -> {
                 assertThat(onHive().executeQuery("SELECT id FROM %s WHERE date_col = '%s'".formatted(hiveTableName, date)))
                         .containsOnly(row(id));
 
@@ -172,7 +171,8 @@ public class TestHiveLegacyDateCompatibility
                     row(1, null),
                     row(2, Date.valueOf("1600-02-29")),
                     row(3, null),
-                    row(4, Date.valueOf("2000-02-29"))};
+                    row(4, Date.valueOf("2000-02-29")),
+            };
 
             assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(expectedRows);
             assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(expectedRows);
@@ -210,7 +210,8 @@ public class TestHiveLegacyDateCompatibility
         try {
             onTrino().executeQuery("SET SESSION hive.timestamp_precision = '%s'".formatted(MILLISECONDS));
             onHive().executeQuery("SET hive.parquet.date.proleptic.gregorian=false");
-            onHive().executeQuery("""
+            onHive().executeQuery(
+                    """
                     CREATE TABLE %s.%s(
                     id INT,
                     date_struct STRUCT<id:INT, date_col:DATE, tmst:TIMESTAMP>,
@@ -221,7 +222,8 @@ public class TestHiveLegacyDateCompatibility
                     dates_timestamps ARRAY<STRUCT<date_col:DATE, tmst:TIMESTAMP>>)
                     STORED AS PARQUET""".formatted(SCHEMA, hiveTableName));
 
-            onHive().executeQuery("""
+            onHive().executeQuery(
+                    """
                     INSERT INTO %s.%s VALUES
                     (
                         1,
@@ -275,7 +277,8 @@ public class TestHiveLegacyDateCompatibility
 
         try {
             onTrino().executeQuery("SET SESSION hive.timestamp_precision = '%s'".formatted(MILLISECONDS));
-            onHive().executeQuery("""
+            onHive().executeQuery(
+                    """
                     CREATE TABLE %s.%s(
                     id INT,
                     date_struct STRUCT<id:INT, date_col:DATE, tmst:TIMESTAMP>,
@@ -286,7 +289,8 @@ public class TestHiveLegacyDateCompatibility
                     dates_timestamps ARRAY<STRUCT<date_col:DATE, tmst:TIMESTAMP>>)
                     STORED AS ORC tblproperties ("orc.proleptic.gregorian" = "false");""".formatted(SCHEMA, hiveTableName));
 
-            onHive().executeQuery("""
+            onHive().executeQuery(
+                    """
                     INSERT INTO %s.%s VALUES
                     (
                         1,

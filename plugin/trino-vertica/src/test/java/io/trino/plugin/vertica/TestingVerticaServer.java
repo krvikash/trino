@@ -35,7 +35,6 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * @see <a href="https://www.microfocus.com/productlifecycle/?term=Vertica">Vertica product lifecycle</a>
- *
  * @deprecated because it actually does not work, see constructor comment for details
  */
 @Deprecated

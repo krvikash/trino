@@ -32,6 +32,4 @@ public record WarpPluginSharedInstances(
         StorageEngine storageEngine,
         StorageEngineConstants storageEngineConstants,
         MatchCollectIdService matchCollectIdService,
-        DemoterSync demoterSync)
-{
-}
+        DemoterSync demoterSync) {}

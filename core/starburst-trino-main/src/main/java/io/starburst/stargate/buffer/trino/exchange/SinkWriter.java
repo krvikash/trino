@@ -148,7 +148,8 @@ public class SinkWriter
                 taskAttemptId,
                 dataPagesIdGenerator.nextId(),
                 pollResult.getDataByPartition());
-        Futures.addCallback(currentRequestFuture, new FutureCallback<>() {
+        Futures.addCallback(currentRequestFuture, new FutureCallback<>()
+        {
             @Override
             public void onSuccess(AddDataPagesResponse result)
             {

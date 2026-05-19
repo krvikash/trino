@@ -78,8 +78,9 @@ public final class AiQueryRunner
 
     public static Map<String, String> starburstAiExternalStorageProperties()
     {
-        return ImmutableMap.of("ai.client.models.storage",
-                "EXTERNAL", "ai.client.cache.refresh.enabled", "true");
+        return ImmutableMap.of(
+                "ai.client.models.storage", "EXTERNAL",
+                "ai.client.cache.refresh.enabled", "true");
     }
 
     public static Session sessionWithRole(String role)
@@ -93,7 +94,8 @@ public final class AiQueryRunner
     static void main()
             throws Exception
     {
-        String json = """
+        String json =
+                """
                 {
                     "models": [
                         {

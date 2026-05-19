@@ -32,7 +32,8 @@ public class WarpCall
     private final Type type;
 
     @JsonCreator
-    public WarpCall(@JsonProperty("functionName") String functionName,
+    public WarpCall(
+            @JsonProperty("functionName") String functionName,
             @JsonProperty("arguments") List<WarpExpression> arguments,
             @JsonProperty("type") Type type)
     {

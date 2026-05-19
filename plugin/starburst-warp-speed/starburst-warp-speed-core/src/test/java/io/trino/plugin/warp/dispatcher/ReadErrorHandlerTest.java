@@ -67,7 +67,8 @@ class ReadErrorHandlerTest
     public void beforeEach()
     {
         rowGroupDataDao = mock(RowGroupDataDao.class);
-        rowGroupDataService = new RowGroupDataService(rowGroupDataDao,
+        rowGroupDataService = new RowGroupDataService(
+                rowGroupDataDao,
                 new StubsStorageEngine(),
                 new GlobalConfig(),
                 TestingTxService.createMetricsManager(),
@@ -113,7 +114,8 @@ class ReadErrorHandlerTest
         assertThat(actualFailure).isEqualTo(Set.of(WarmUpElementState.FAILED_PERMANENTLY));
     }
 
-    private QueryContext mockQueryContext(ImmutableList<NativeQueryCollectData> failedElementCollectData,
+    private QueryContext mockQueryContext(
+            ImmutableList<NativeQueryCollectData> failedElementCollectData,
             List<QueryMatchData> matchColumns)
     {
         QueryContext queryContext = mock(QueryContext.class);

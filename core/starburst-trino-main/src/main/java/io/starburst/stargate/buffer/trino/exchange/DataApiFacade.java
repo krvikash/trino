@@ -134,8 +134,7 @@ public class DataApiFacade
             BufferExchangeConfig config,
             ScheduledExecutorService executor)
     {
-        this(
-                discoveryManager,
+        this(discoveryManager,
                 apiFactory,
                 new RetryExecutorConfig(
                         config.getDataClientMaxRetries(),

@@ -114,8 +114,7 @@ public record DiscoveredPartitions(List<Column> columns, List<DiscoveredPartitio
                 .collect(Collectors.joining(", "));
     }
 
-    public record IntegerProjectionMinMaxRange(int min, int max)
-    {}
+    public record IntegerProjectionMinMaxRange(int min, int max) {}
 
     public record ValidatedPartitions(Optional<String> errorMessage, DiscoveredPartitions partitions)
     {

@@ -657,16 +657,14 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(B),
                         Optional.of(new OrderingScheme(ImmutableList.of(B, A), ImmutableMap.of(B, ASC_NULLS_LAST, A, DESC_NULLS_FIRST)))),
                 ImmutableMap.of(
-                        new Symbol(BIGINT, "sum"),
-                        new WindowNode.Function(
+                        new Symbol(BIGINT, "sum"), new WindowNode.Function(
                                 sumFunction,
                                 ImmutableList.of(new Reference(BIGINT, "a")),
                                 Optional.empty(),
                                 DEFAULT_FRAME,
                                 true,
                                 false),
-                        new Symbol(BOOLEAN, "lag"),
-                        new WindowNode.Function(
+                        new Symbol(BOOLEAN, "lag"), new WindowNode.Function(
                                 lagFunction,
                                 ImmutableList.of(new Reference(BOOLEAN, "b")),
                                 Optional.of(new OrderingScheme(ImmutableList.of(A, B), ImmutableMap.of(B, ASC_NULLS_FIRST, A, DESC_NULLS_LAST))),

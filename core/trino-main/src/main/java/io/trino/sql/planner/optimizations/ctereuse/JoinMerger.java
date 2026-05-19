@@ -586,8 +586,7 @@ public class JoinMerger
                 case INNER -> optimizeLogicalOperations(conjunction(ImmutableList.of(pulledLeftEnforcedPredicate, pulledRightEnforcedPredicate), nameAllocator));
                 case LEFT -> optimizeLogicalOperations(pulledLeftEnforcedPredicate);
                 case RIGHT -> optimizeLogicalOperations(pulledRightEnforcedPredicate);
-                case FULL ->
-                        truePredicate(Optional.empty(), ImmutableList.of(new Block.Parameter(nameAllocator.newName(), irType(relationRowType(trinoType(unifiedJoin.result().type()))))), nameAllocator);
+                case FULL -> truePredicate(Optional.empty(), ImmutableList.of(new Block.Parameter(nameAllocator.newName(), irType(relationRowType(trinoType(unifiedJoin.result().type()))))), nameAllocator);
             };
 
             traversalStates.add(new CteReuse.TraversalState(

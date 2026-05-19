@@ -219,7 +219,8 @@ public abstract class LeafTypeEncoder
         {
             BigDecimal bigDecimal = asValidBigDecimal(value);
             if (bigDecimal.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) != 0) {
-                throw new TrinoException(OPENAPI_UNSUPPORTED_PARAMETER_VALUE,
+                throw new TrinoException(
+                        OPENAPI_UNSUPPORTED_PARAMETER_VALUE,
                         "Cannot use non-integer NUMBER value for an integer parameter");
             }
             return bigDecimal.toPlainString();

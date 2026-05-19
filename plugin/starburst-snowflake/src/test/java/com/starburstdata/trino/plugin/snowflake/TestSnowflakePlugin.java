@@ -68,12 +68,13 @@ public class TestSnowflakePlugin
                         ImmutableMap.of(),
                         new TestingConnectorContext()))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessage("""
-                            The snowflake_jdbc connector is DEPRECATED.
-                            It will be removed in a future release.
-                            Please migrate to the snowflake_parallel connector.
-                            If you need to continue using the JDBC connector temporarily, set connector.name=deprecated_snowflake_jdbc.
-                            """);
+                .hasMessage(
+                        """
+                        The snowflake_jdbc connector is DEPRECATED.
+                        It will be removed in a future release.
+                        Please migrate to the snowflake_parallel connector.
+                        If you need to continue using the JDBC connector temporarily, set connector.name=deprecated_snowflake_jdbc.
+                        """);
     }
 
     @Test

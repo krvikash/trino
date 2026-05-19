@@ -60,9 +60,7 @@ public final class DynamoDbQueryRunner
                 .buildOrThrow();
     }
 
-    private DynamoDbQueryRunner()
-    {
-    }
+    private DynamoDbQueryRunner() {}
 
     public static Builder builder(File schemaDirectory)
     {

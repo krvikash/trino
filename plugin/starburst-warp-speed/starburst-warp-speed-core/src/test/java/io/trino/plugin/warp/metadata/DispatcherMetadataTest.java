@@ -116,7 +116,8 @@ public class DispatcherMetadataTest
         dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
         dispatcherTableHandleBuilderProvider = new DispatcherTableHandleBuilderProvider(dispatcherProxiedConnectorTransformer);
         NativeExpressionRulesHandler nativeExpressionRulesHandler = new NativeExpressionRulesHandler(new StubsStorageEngineConstants(), metricsManager);
-        expressionService = new ExpressionService(dispatcherProxiedConnectorTransformer,
+        expressionService = new ExpressionService(
+                dispatcherProxiedConnectorTransformer,
                 new ExperimentSupportedFunction(metricsManager),
                 globalConfig,
                 new NativeConfig(),
@@ -212,7 +213,8 @@ public class DispatcherMetadataTest
         TestingConnectorColumnHandle columnHandleCol1 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col1like");
         TestingConnectorColumnHandle columnHandleCol2 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col2like");
         String columnName1 = columnHandleCol1.name();
-        Map<String, ColumnHandle> assignments = Map.of(columnName1, columnHandleCol1,
+        Map<String, ColumnHandle> assignments = Map.of(
+                columnName1, columnHandleCol1,
                 columnHandleCol2.name(), columnHandleCol2);
         Slice pattern = Slices.utf8Slice("%hello%");
 
@@ -254,7 +256,8 @@ public class DispatcherMetadataTest
         TestingConnectorColumnHandle columnHandleCol1 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col1like");
         TestingConnectorColumnHandle columnHandleCol2 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col2like");
         TestingConnectorColumnHandle columnHandleCol3 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col3Single");
-        Map<String, ColumnHandle> assignments = Map.of(columnHandleCol1.name(), columnHandleCol1,
+        Map<String, ColumnHandle> assignments = Map.of(
+                columnHandleCol1.name(), columnHandleCol1,
                 columnHandleCol2.name(), columnHandleCol2);
         Slice pattern = Slices.utf8Slice("%hello%");
 
@@ -265,12 +268,14 @@ public class DispatcherMetadataTest
         WarpExpression expectedWarpExpressionCol2 = createLikeWarpCall(columnHandleCol2, pattern);
         RegularColumn regularColumn1 = new RegularColumn(columnHandleCol1.name());
         RegularColumn regularColumn2 = new RegularColumn(columnHandleCol2.name());
-        List<WarpExpressionData> expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
+        List<WarpExpressionData> expectedWarpExpressions = List.of(
+                new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
                 new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
         Domain domain = Domain.singleValue(VarcharType.VARCHAR, Slices.utf8Slice("aa"));
         TupleDomain<ColumnHandle> predicateCol3 = TupleDomain.withColumnDomains(Map.of(columnHandleCol3, domain));
 
-        runApplyFilterWarpExpressionTestCase(predicateCol3,
+        runApplyFilterWarpExpressionTestCase(
+                predicateCol3,
                 connectorExpression,
                 assignments,
                 predicateCol3,
@@ -283,7 +288,8 @@ public class DispatcherMetadataTest
         TestingConnectorColumnHandle columnHandleCol1 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col1like");
         TestingConnectorColumnHandle columnHandleCol2 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col2like");
         TestingConnectorColumnHandle columnHandleCol3 = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "col3range");
-        Map<String, ColumnHandle> assignments = Map.of(columnHandleCol1.name(), columnHandleCol1,
+        Map<String, ColumnHandle> assignments = Map.of(
+                columnHandleCol1.name(), columnHandleCol1,
                 columnHandleCol2.name(), columnHandleCol2);
         Slice pattern = Slices.utf8Slice("%hello%");
 
@@ -292,13 +298,15 @@ public class DispatcherMetadataTest
         ConnectorExpression connectorExpression = ConnectorExpressions.and(connectorExpressionCol1, connectorExpressionCol2);
         WarpExpression expectedWarpExpressionCol1 = createLikeWarpCall(columnHandleCol1, pattern);
         WarpExpression expectedWarpExpressionCol2 = createLikeWarpCall(columnHandleCol2, pattern);
-        List<WarpExpressionData> expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol1.name())),
+        List<WarpExpressionData> expectedWarpExpressions = List.of(
+                new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol1.name())),
                 new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), new RegularColumn(columnHandleCol2.name())));
         Range range = Range.range(columnHandleCol2.type(), Slices.utf8Slice("aa"), false, Slices.utf8Slice("ad"), false);
         Domain domain = Domain.create(ValueSet.ofRanges(range), false);
         TupleDomain<ColumnHandle> predicateCol3 = TupleDomain.withColumnDomains(Map.of(columnHandleCol3, domain));
 
-        runApplyFilterWarpExpressionTestCase(predicateCol3,
+        runApplyFilterWarpExpressionTestCase(
+                predicateCol3,
                 connectorExpression,
                 assignments,
                 predicateCol3,
@@ -312,7 +320,8 @@ public class DispatcherMetadataTest
         TestingConnectorColumnHandle columnHandleCol1 = mockColumnHandle("lucene1col", VarcharType.VARCHAR, dispatcherProxiedConnectorTransformer);
         TestingConnectorColumnHandle columnHandleCol2 = mockColumnHandle("lucene2col", VarcharType.VARCHAR, dispatcherProxiedConnectorTransformer);
         String column1Name = columnHandleCol1.name();
-        Map<String, ColumnHandle> assignments = Map.of(column1Name, columnHandleCol1,
+        Map<String, ColumnHandle> assignments = Map.of(
+                column1Name, columnHandleCol1,
                 columnHandleCol2.name(), columnHandleCol2);
         RegularColumn regularColumn1 = new RegularColumn(column1Name);
         Slice pattern1 = Slices.utf8Slice("%hello%");
@@ -327,7 +336,8 @@ public class DispatcherMetadataTest
         WarpExpression expectedWarpExpressionCol1 = createLikeWarpCall(columnHandleCol1, pattern1);
         TupleDomain<ColumnHandle> expectedPredicate = predicate1;
         List<WarpExpressionData> expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
-        constraintApplicationResult = runApplyFilterWarpExpressionTestCase(predicate1,
+        constraintApplicationResult = runApplyFilterWarpExpressionTestCase(
+                predicate1,
                 connectorExpression1,
                 assignments,
                 expectedPredicate,
@@ -339,11 +349,13 @@ public class DispatcherMetadataTest
         Map<ColumnHandle, Domain> columnDomains2 = Map.of(columnHandleCol1, Domain.create(sortedRangeSet2, false));
         TupleDomain<ColumnHandle> predicate2 = TupleDomain.withColumnDomains(columnDomains2);
         expectedPredicate = expectedPredicate.intersect(predicate2);
-        expectedWarpExpressionCol1 = andWarpExpressions(expectedWarpExpressionCol1,
+        expectedWarpExpressionCol1 = andWarpExpressions(
+                expectedWarpExpressionCol1,
                 createLikeWarpCall(columnHandleCol1, pattern2));
         expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1));
         DispatcherTableHandle tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().getFirst().handle();
-        constraintApplicationResult = runApplyFilterWarpExpressionTestCase(predicate2,
+        constraintApplicationResult = runApplyFilterWarpExpressionTestCase(
+                predicate2,
                 connectorExpression2,
                 assignments,
                 expectedPredicate,
@@ -358,7 +370,8 @@ public class DispatcherMetadataTest
         expectedPredicate = expectedPredicate.intersect(predicate3);
         WarpExpression expectedWarpExpressionCol2 = createLikeWarpCall(columnHandleCol2, pattern1);
         RegularColumn regularColumn2 = new RegularColumn(columnHandleCol2.name());
-        expectedWarpExpressions = List.of(new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
+        expectedWarpExpressions = List.of(
+                new WarpExpressionData(expectedWarpExpressionCol1, VarcharType.VARCHAR, false, Optional.empty(), regularColumn1),
                 new WarpExpressionData(expectedWarpExpressionCol2, VarcharType.VARCHAR, false, Optional.empty(), regularColumn2));
         tableHandle = (DispatcherTableHandle) constraintApplicationResult.orElseThrow().getAlternatives().getFirst().handle();
         runApplyFilterWarpExpressionTestCase(predicate3, connectorExpression3, assignments, expectedPredicate, expectedWarpExpressions, tableHandle);
@@ -372,7 +385,8 @@ public class DispatcherMetadataTest
 
     private Call createLikeCall(TestingConnectorColumnHandle columnHandleCol, Slice pattern)
     {
-        return new Call(BOOLEAN,
+        return new Call(
+                BOOLEAN,
                 LIKE_FUNCTION_NAME,
                 List.of(new Variable(columnHandleCol.name(), columnHandleCol.type()),
                         new Constant(pattern, VarcharType.VARCHAR)));
@@ -380,7 +394,8 @@ public class DispatcherMetadataTest
 
     private WarpCall createLikeWarpCall(TestingConnectorColumnHandle columnHandleCol, Slice pattern)
     {
-        return new WarpCall(LIKE_FUNCTION_NAME.getName(),
+        return new WarpCall(
+                LIKE_FUNCTION_NAME.getName(),
                 ImmutableList.of(new WarpVariable(columnHandleCol, columnHandleCol.type()),
                         new WarpSliceConstant(pattern, VarcharType.VARCHAR)),
                 BOOLEAN);
@@ -453,7 +468,8 @@ public class DispatcherMetadataTest
 
     private DispatcherTableHandle createDispatcherTableHandle()
     {
-        return new DispatcherTableHandle(schemaName,
+        return new DispatcherTableHandle(
+                schemaName,
                 tableName,
                 OptionalLong.empty(),
                 TupleDomain.all(),
@@ -476,7 +492,8 @@ public class DispatcherMetadataTest
     {
         ConnectorMetadata hiveMetadata = mock(HiveMetadata.class);
         ConnectorTableMetadata connectorTableMetadata = mock(ConnectorTableMetadata.class);
-        when(connectorTableMetadata.getProperties()).thenReturn(Map.of(HiveTableProperties.EXTERNAL_LOCATION_PROPERTY, "test",
+        when(connectorTableMetadata.getProperties()).thenReturn(Map.of(
+                HiveTableProperties.EXTERNAL_LOCATION_PROPERTY, "test",
                 HiveTableProperties.STORAGE_FORMAT_PROPERTY, HiveStorageFormat.ORC));
         when(hiveMetadata.getTableMetadata(any(), any())).thenReturn(connectorTableMetadata);
         when(hiveMetadata.applyLimit(any(), any(), anyLong())).thenReturn(Optional.empty());

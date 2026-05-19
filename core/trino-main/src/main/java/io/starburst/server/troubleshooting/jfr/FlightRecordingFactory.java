@@ -14,7 +14,9 @@ import io.trino.spi.QueryId;
 import java.util.Optional;
 
 public sealed interface FlightRecordingFactory
-        permits RemoteRecordingFactory, LocalRecordingFactory, LocalRemoteCombiningFactory
+        permits LocalRecordingFactory,
+                LocalRemoteCombiningFactory,
+                RemoteRecordingFactory
 {
     Optional<FlightRecording> findOrCreate(QueryId queryId, boolean createIfNeeded);
 

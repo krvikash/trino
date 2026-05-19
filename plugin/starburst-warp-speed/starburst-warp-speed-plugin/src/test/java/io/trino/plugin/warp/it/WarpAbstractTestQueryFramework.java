@@ -236,6 +236,6 @@ public abstract class WarpAbstractTestQueryFramework
     {
         COORDINATOR,
         WORKER,
-        CACHE_MGR
+        CACHE_MGR,
     }
 }

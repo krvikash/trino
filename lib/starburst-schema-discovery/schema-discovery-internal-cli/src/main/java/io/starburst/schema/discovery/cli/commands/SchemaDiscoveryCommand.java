@@ -187,7 +187,7 @@ public final class SchemaDiscoveryCommand
     private SchemaDiscoveryController buildSchemaDiscoveryController(ExecutorService executorService)
     {
         OrcDataSourceFactory orcDataSourceFactory = (id, size, options, inputFile) -> new HdfsOrcDataSource(id, size, options, inputFile, new FileFormatDataSourceStats());
-        ParquetDataSourceFactory parquetDataSourceFactory = (inputFile) -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
+        ParquetDataSourceFactory parquetDataSourceFactory = inputFile -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
         return new SchemaDiscoveryController(SchemaDiscoveryCommand::getFileSystem, parquetDataSourceFactory, orcDataSourceFactory, Dialect.valueOf(dialect.toUpperCase(ENGLISH)), executorService);
     }
 

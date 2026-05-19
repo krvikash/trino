@@ -142,10 +142,10 @@ public class TestLocalPriorityPartitionNodeMapper
         assertThat(mapping.getBaseNodesCount()).isEqualTo(SINGLE_NODE_PER_PARTITION);
         assertThat(Multimaps.asMap(mapping.getMapping()))
                 .isEqualTo(ImmutableMap.of(
-                                0, ImmutableList.of(0L),
-                                1, ImmutableList.of(0L),
-                                2, ImmutableList.of(0L),
-                                3, ImmutableList.of(0L)));
+                        0, ImmutableList.of(0L),
+                        1, ImmutableList.of(0L),
+                        2, ImmutableList.of(0L),
+                        3, ImmutableList.of(0L)));
     }
 
     @Test

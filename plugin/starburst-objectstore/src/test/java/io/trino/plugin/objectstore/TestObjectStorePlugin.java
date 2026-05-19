@@ -91,12 +91,12 @@ public class TestObjectStorePlugin
         ConnectorFactory factory = getConnectorFactory(STARBURST_OBJECTSTORE);
 
         assertThatThrownBy(() -> factory.create(
-                        "test",
-                        ImmutableMap.<String, String>builder()
-                                .put(key, value)
-                                .put("hive.metastore.uri", "thrift://localhost:1234")
-                                .buildOrThrow(),
-                        new TestingConnectorContext()))
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put(key, value)
+                        .put("hive.metastore.uri", "thrift://localhost:1234")
+                        .buildOrThrow(),
+                new TestingConnectorContext()))
                 .hasMessageContaining(exceptionString);
     }
 

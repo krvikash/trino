@@ -21,9 +21,7 @@ public class DispatcherSessionProperties
 {
     private static final List<PropertyMetadata<?>> sessionProperties = List.of();
 
-    private DispatcherSessionProperties()
-    {
-    }
+    private DispatcherSessionProperties() {}
 
     public static List<PropertyMetadata<?>> getSessionProperties()
     {

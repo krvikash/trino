@@ -453,7 +453,8 @@ public class BufferExchange
                     exception -> {
                         callerStack.addSuppressed(exception);
                         log.warn(callerStack, "Could not remove exchange %s on node %d", externalExchangeId, bufferNodeId);
-                    }, directExecutor());
+                    },
+                    directExecutor());
             return;
         }
 
@@ -510,7 +511,7 @@ public class BufferExchange
 
             for (long nodeId : bufferNodeIds) {
                 ListenableFuture<Void> future = triggerRemoveExchange(nodeId);
-                addExceptionCallback(future, (t) -> {
+                addExceptionCallback(future, t -> {
                     callerStack.addSuppressed(t);
                     log.warn(callerStack, "Could not remove exchange %s on node %d", externalExchangeId, nodeId);
                 });

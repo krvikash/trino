@@ -63,8 +63,8 @@ public class ObjectStoreProxiedConnectorTransformerTest
     private final HiveProxiedConnectorTransformer hiveProxiedConnectorTransformer =
             new HiveProxiedConnectorTransformer(new ProxiedConnectorConfig());
     final Map<String, DispatcherProxiedConnectorTransformer> transformerMap =
-            Map.of(ObjectStoreProxiedConnectorTransformer.getTransformerKey(HiveColumnHandle.class),
-                    hiveProxiedConnectorTransformer);
+            Map.of(
+                    ObjectStoreProxiedConnectorTransformer.getTransformerKey(HiveColumnHandle.class), hiveProxiedConnectorTransformer);
 
     @Test
     public void testCreateDispatcherSplit()
@@ -196,8 +196,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 Optional.empty(),
                 Optional.of(List.of(new HivePartition(new SchemaTableName("1", "2")))),
                 TupleDomain.withColumnDomains(Map.of(
-                        new HiveColumnHandle("col", 0, HIVE_INT, INTEGER, Optional.empty(), REGULAR, Optional.empty()),
-                        Domain.singleValue(INTEGER, 1L))),
+                        new HiveColumnHandle("col", 0, HIVE_INT, INTEGER, Optional.empty(), REGULAR, Optional.empty()), Domain.singleValue(INTEGER, 1L))),
                 TupleDomain.all(),
                 Optional.empty(),
                 Optional.empty(),

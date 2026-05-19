@@ -81,7 +81,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
-                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    topN(10,
+                                            ImmutableList.of(sort("o", ASCENDING, FIRST)),
+                                            TopNNode.Step.PARTIAL,
                                             tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))),
                                     limit(10, ImmutableList.of(), true, ImmutableList.of("o"),
                                             tableScan(
@@ -94,7 +96,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
-                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    topN(10,
+                                            ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, FIRST)),
+                                            TopNNode.Step.PARTIAL,
                                             tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber"))),
                                     limit(10, ImmutableList.of(), true, ImmutableList.of("o", "l"),
                                             tableScan(
@@ -107,7 +111,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 100001"))
                     .matches(anyTree(
                             chooseAlternativeNode(
-                                    topN(100001, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    topN(100001,
+                                            ImmutableList.of(sort("o", ASCENDING, FIRST)),
+                                            TopNNode.Step.PARTIAL,
                                             tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))),
                                     limit(100001, ImmutableList.of(), true, ImmutableList.of("o"),
                                             tableScan(
@@ -135,7 +141,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC LIMIT 10"))
                     .matches(anyTree(
                             topN(
-                                    10, ImmutableList.of(sort("o", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
+                                    10,
+                                    ImmutableList.of(sort("o", ASCENDING, LAST)),
+                                    TopNNode.Step.PARTIAL,
                                     tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
 
             // Sorting property mismatch - wrong direction
@@ -143,7 +151,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             topN(
-                                    10, ImmutableList.of(sort("o", DESCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    10,
+                                    ImmutableList.of(sort("o", DESCENDING, FIRST)),
+                                    TopNNode.Step.PARTIAL,
                                     tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
 
             // Sorting property mismatch on 2nd column
@@ -151,7 +161,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber LIMIT 10"))
                     .matches(anyTree(
                             topN(
-                                    10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
+                                    10,
+                                    ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, LAST)),
+                                    TopNNode.Step.PARTIAL,
                                     tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber")))));
 
             // Verify results
@@ -195,7 +207,9 @@ public class TestIcebergPartialTopNOptimization
                     query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
-                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    topN(10,
+                                            ImmutableList.of(sort("o", ASCENDING, FIRST)),
+                                            TopNNode.Step.PARTIAL,
                                             tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))),
                                     limit(10, ImmutableList.of(), true, ImmutableList.of("o"),
                                             tableScan(

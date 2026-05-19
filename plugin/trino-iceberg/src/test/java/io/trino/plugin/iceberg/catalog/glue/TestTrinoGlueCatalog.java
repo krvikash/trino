@@ -347,11 +347,9 @@ public class TestTrinoGlueCatalog
         }
 
         @Override
-        public void invalidateCache()
-        {}
+        public void invalidateCache() {}
 
         @Override
-        public void invalidateCache(SchemaTableName tableName)
-        {}
+        public void invalidateCache(SchemaTableName tableName) {}
     }
 }

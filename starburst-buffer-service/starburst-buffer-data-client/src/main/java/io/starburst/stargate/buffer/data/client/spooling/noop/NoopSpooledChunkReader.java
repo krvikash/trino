@@ -28,6 +28,5 @@ public class NoopSpooledChunkReader
     @Override
     public void close()
             throws Exception
-    {
-    }
+    {}
 }

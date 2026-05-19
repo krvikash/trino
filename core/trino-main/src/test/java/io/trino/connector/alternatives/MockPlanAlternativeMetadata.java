@@ -897,7 +897,8 @@ public class MockPlanAlternativeMetadata
                     // Give up since getRanges() is not supported
                     return;
                 }
-                log.debug("domain : column %s, domain type: %s, isNullAllowed: %s, rangeCount %d, isSingleValue: %s,  isDiscreteSet: %s, getDiscreteSet: %s",
+                log.debug(
+                        "domain : column %s, domain type: %s, isNullAllowed: %s, rangeCount %d, isSingleValue: %s,  isDiscreteSet: %s, getDiscreteSet: %s",
                         columnHandle,
                         domain.getType(),
                         domain.isNullAllowed(),

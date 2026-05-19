@@ -154,22 +154,14 @@ public class ArrowPageWriter
             case TimeStampNanoVector vector -> new TimestampNanoWriter(vector);
 
             // Type dependant writers
-            case DecimalVector vector when type instanceof DecimalType decimalType ->
-                    new DecimalWriter(vector, decimalType);
-            case VarCharVector vector when type instanceof CharType charType ->
-                    new CharWriter(vector, charType);
-            case VarCharVector vector when type instanceof VarcharType ->
-                    new VarcharWriter(vector);
-            case FixedSizeBinaryVector vector when type instanceof UuidType ->
-                    new UuidWriter(vector);
-            case FixedSizeBinaryVector vector when type instanceof IpAddressType ->
-                    new IpAddressWriter(vector);
-            case MapVector vector when type instanceof MapType mapType ->
-                    mapWriterForVector(vector, mapType);
-            case ListVector vector when type instanceof ArrayType arrayType ->
-                    new ArrayWriter(vector, writerForVector(vector.getDataVector(), arrayType.getElementType()));
-            case StructVector structVector when type instanceof RowType rowType ->
-                    new RowWriter(structVector, writersForVectors(structVector.getChildrenFromFields(), rowType.getFields()));
+            case DecimalVector vector when type instanceof DecimalType decimalType -> new DecimalWriter(vector, decimalType);
+            case VarCharVector vector when type instanceof CharType charType -> new CharWriter(vector, charType);
+            case VarCharVector vector when type instanceof VarcharType -> new VarcharWriter(vector);
+            case FixedSizeBinaryVector vector when type instanceof UuidType -> new UuidWriter(vector);
+            case FixedSizeBinaryVector vector when type instanceof IpAddressType -> new IpAddressWriter(vector);
+            case MapVector vector when type instanceof MapType mapType -> mapWriterForVector(vector, mapType);
+            case ListVector vector when type instanceof ArrayType arrayType -> new ArrayWriter(vector, writerForVector(vector.getDataVector(), arrayType.getElementType()));
+            case StructVector structVector when type instanceof RowType rowType -> new RowWriter(structVector, writersForVectors(structVector.getChildrenFromFields(), rowType.getFields()));
             case StructVector structVector when type instanceof TimeWithTimeZoneType timeWithTimeZoneType -> switch (timeWithTimeZoneType.getPrecision()) {
                 case PRECISION_SECONDS -> new TimeSecWithTimeZoneWriter(structVector);
                 case PRECISION_MILLIS -> new TimeMilliWithTimeZoneWriter(structVector);

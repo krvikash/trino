@@ -13,6 +13,4 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
-public record AppendResult(int nullsCount)
-{
-}
+public record AppendResult(int nullsCount) {}

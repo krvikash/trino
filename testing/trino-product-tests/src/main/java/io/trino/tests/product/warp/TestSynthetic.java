@@ -291,16 +291,16 @@ public class TestSynthetic
                 "%s=ARRAY[%s]".formatted(
                         tableType.equals(TableType.warp_iceberg) ? IcebergTableProperties.PARTITIONING_PROPERTY : HiveTableProperties.PARTITIONED_BY_PROPERTY,
                         testFormat.partition_by()
-                                .stream()
-                                .map(s -> "'" + s + "'")
-                                .collect(Collectors.joining(",")));
+                        .stream()
+                        .map(s -> "'" + s + "'")
+                        .collect(Collectors.joining(",")));
 
         String bucketedByStr = (testFormat.bucketed_by() == null || testFormat.bucketed_by().isEmpty()) ? "" :
                 "bucketed_by=ARRAY[%s],bucket_count=%d".formatted(
                         testFormat.bucketed_by()
-                                .stream()
-                                .map(s -> "'" + s + "'")
-                                .collect(Collectors.joining(",")),
+                        .stream()
+                        .map(s -> "'" + s + "'")
+                        .collect(Collectors.joining(",")),
                         testFormat.bucket_count());
 
         String location = "%s='s3://warp-speed-us-east1-systemtests/%s/%s'".formatted(

@@ -60,7 +60,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Second select is served from cache
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_from",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Insert invalidates cache
@@ -71,7 +72,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_from",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Alter table invalidates cache without repopulating it
@@ -82,7 +84,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_from",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Comment on table invalidates cache
@@ -93,7 +96,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_from",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Rename table invalidates cache
@@ -105,7 +109,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_from_renamed",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_from_renamed",
                     ImmutableMultiset.of());
         }
         finally {
@@ -128,7 +133,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Second select is served from cache
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_view_view",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_view_view",
                     ImmutableMultiset.of());
 
             // Insert invalidates cache
@@ -139,7 +145,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_view_view",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_view_view",
                     ImmutableMultiset.of());
 
             // Comment on view invalidates its cache entry
@@ -150,7 +157,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_view_view",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_view_view",
                     ImmutableMultiset.of());
 
             // Rename view invalidates cache
@@ -162,7 +170,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_view_view_renamed",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_view_view_renamed",
                     ImmutableMultiset.of());
         }
         finally {
@@ -187,7 +196,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Select is served from cache
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_mview_view",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_mview_view",
                     ImmutableMultiset.of());
 
             // Insert into source table invalidates its cache entry and makes MV stale
@@ -201,7 +211,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Select after refresh is served from cache
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_mview_view",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_mview_view",
                     ImmutableMultiset.of());
 
             // Rename MV invalidates cache
@@ -213,7 +224,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM test_select_mview_view_renamed",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM test_select_mview_view_renamed",
                     ImmutableMultiset.of());
         }
         finally {
@@ -236,7 +248,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Other system tables are served from cache
-            assertGlueMetastoreApiInvocations("SELECT * FROM \"test_select_snapshots$snapshots\"",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM \"test_select_snapshots$snapshots\"",
                     ImmutableMultiset.of());
 
             // Insert invalidates cache
@@ -247,7 +260,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM \"test_select_snapshots$snapshots\"",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM \"test_select_snapshots$snapshots\"",
                     ImmutableMultiset.of());
 
             // Rename table invalidates cache
@@ -259,7 +273,8 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertGlueMetastoreApiInvocations("SELECT * FROM \"test_select_snapshots_renamed$snapshots\"",
+            assertGlueMetastoreApiInvocations(
+                    "SELECT * FROM \"test_select_snapshots_renamed$snapshots\"",
                     ImmutableMultiset.of());
         }
         finally {

@@ -86,11 +86,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(storageEngineModule,
+        return DispatcherQueryRunner.createQueryRunner(
+                storageEngineModule,
                 Optional.empty(),
                 numNodes,
                 Collections.emptyMap(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
@@ -146,11 +148,13 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     {
         ImmutableSet<WarmupPredicateRule> predicates = ImmutableSet.of(new PartitionValueWarmupPredicateRule(C1, "1"), new PartitionValueWarmupPredicateRule(C2, "shlomi"));
         ImmutableSet<WarmupPredicateRule> predicates2 = ImmutableSet.of(new PartitionValueWarmupPredicateRule(C1, "2"), new PartitionValueWarmupPredicateRule(C2, "shlomi2"));
-        createWarmupRules(DEFAULT_SCHEMA,
+        createWarmupRules(
+                DEFAULT_SCHEMA,
                 "t",
                 Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                 predicates);
-        createWarmupRules(DEFAULT_SCHEMA,
+        createWarmupRules(
+                DEFAULT_SCHEMA,
                 "t",
                 Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                 predicates2);
@@ -176,7 +180,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         List<WarmupColRuleData> result = getWarmupRules();
         assertThat(result).isEmpty();
 
-        WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(
+                0,
                 DEFAULT_SCHEMA,
                 "t",
                 new RegularColumnData(C2),
@@ -186,7 +191,8 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule(C2, "2"),
                         new DateSlidingWindowWarmupPredicateRule(C2, 30, "DATE_FORMAT", "")));
 
-        WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(
+                0,
                 DEFAULT_SCHEMA,
                 "t",
                 new RegularColumnData(C2),
@@ -242,7 +248,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         // Validate that we go to Native
         MaterializedResult result = computeActual(getSession(), query);
-        assertThat(result.getRowCount()).isEqualTo(0); //return 0 because we don't have native
+        assertThat(result.getRowCount()).isEqualTo(0); // return 0 because we don't have native
     }
 
     private HiveColumnHandle validateLikeExpression(WarpExpression likeExpression, String likePattern)

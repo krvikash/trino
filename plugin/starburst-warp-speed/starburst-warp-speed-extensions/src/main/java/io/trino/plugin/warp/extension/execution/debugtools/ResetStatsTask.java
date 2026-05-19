@@ -48,6 +48,6 @@ public class ResetStatsTask
     {
         Map<String, WarpStatsBase> all = metricsManager.getAll();
         Pattern pattern = Pattern.compile(resetStatsData.getStatsKey());
-        all.entrySet().stream().filter((entry) -> pattern.matcher(entry.getKey()).matches()).forEach((entry) -> entry.getValue().reset());
+        all.entrySet().stream().filter(entry -> pattern.matcher(entry.getKey()).matches()).forEach(entry -> entry.getValue().reset());
     }
 }

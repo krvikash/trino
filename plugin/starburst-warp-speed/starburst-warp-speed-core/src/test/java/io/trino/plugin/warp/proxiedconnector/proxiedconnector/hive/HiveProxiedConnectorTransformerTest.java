@@ -197,8 +197,7 @@ public class HiveProxiedConnectorTransformerTest
                 Optional.empty(),
                 Optional.of(List.of(new HivePartition(new SchemaTableName("1", "2")))),
                 TupleDomain.withColumnDomains(Map.of(
-                        new HiveColumnHandle("col", 0, HIVE_INT, INTEGER, Optional.empty(), REGULAR, Optional.empty()),
-                        Domain.singleValue(INTEGER, 1L))),
+                        new HiveColumnHandle("col", 0, HIVE_INT, INTEGER, Optional.empty(), REGULAR, Optional.empty()), Domain.singleValue(INTEGER, 1L))),
                 TupleDomain.all(),
                 Optional.empty(),
                 Optional.empty(),

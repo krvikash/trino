@@ -19,5 +19,5 @@ public enum PredicateBufferPoolType
     TINY,
     SMALL,
     MEDIUM,
-    LARGE
+    LARGE,
 }

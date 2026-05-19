@@ -120,7 +120,8 @@ public class SliceUtilsTest
     @Test
     public void testGetSliceConverterLongVarCharShouldDoNothing()
     {
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(VarcharType.VARCHAR,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                VarcharType.VARCHAR,
                 16,
                 false,
                 true);
@@ -134,7 +135,8 @@ public class SliceUtilsTest
     @Test
     public void testGetSliceConverterShortVarCharShouldCopyValue()
     {
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(VarcharType.VARCHAR,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                VarcharType.VARCHAR,
                 6,
                 true,
                 true);
@@ -148,7 +150,8 @@ public class SliceUtilsTest
     @Test
     public void testGetSliceConverterShortVarCharSameLengthAsOriginShouldReturnSameSlice()
     {
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(VarcharType.VARCHAR,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                VarcharType.VARCHAR,
                 5,
                 true,
                 true);
@@ -161,7 +164,8 @@ public class SliceUtilsTest
     @Test
     public void testGetSliceConverterCharShouldRemoveTrailingSpaces()
     {
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(CharType.createCharType(5),
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                CharType.createCharType(5),
                 5,
                 true,
                 true);
@@ -176,7 +180,8 @@ public class SliceUtilsTest
     public void testGetSliceConverterFixedSizeCharValidateSize()
     {
         Type type = CharType.createCharType(5);
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(type,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                type,
                 3,
                 true,
                 true);
@@ -184,15 +189,19 @@ public class SliceUtilsTest
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         assertThatThrownBy(() -> sliceConverter.apply(origBuffer))
                 .isInstanceOf(TrinoException.class)
-                .hasMessage(format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
-                        origBuffer.length(), 3, type));
+                .hasMessage(format(
+                        "Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
+                        origBuffer.length(),
+                        3,
+                        type));
     }
 
     @Test
     public void testGetSliceConverterVarCharValidateSize()
     {
         Type type = CharType.createCharType(5);
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(type,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                type,
                 3,
                 false,
                 true);
@@ -200,15 +209,19 @@ public class SliceUtilsTest
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         assertThatThrownBy(() -> sliceConverter.apply(origBuffer))
                 .isInstanceOf(TrinoException.class)
-                .hasMessage(format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
-                        origBuffer.length(), 3, type));
+                .hasMessage(format(
+                        "Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
+                        origBuffer.length(),
+                        3,
+                        type));
     }
 
     @Test
     public void testGetSliceConverterUTF8VarCharValidateSize()
     {
         Type type = CharType.createCharType(1);
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(type,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                type,
                 1,
                 false,
                 true);
@@ -216,14 +229,18 @@ public class SliceUtilsTest
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         assertThatThrownBy(() -> sliceConverter.apply(origBuffer))
                 .isInstanceOf(TrinoException.class)
-                .hasMessage(format("Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
-                        origBuffer.length(), 1, type));
+                .hasMessage(format(
+                        "Mismatch in slice length[%d] and expected col length[%d], col type[%s]",
+                        origBuffer.length(),
+                        1,
+                        type));
     }
 
     @Test
     public void testGetSliceConverterVarChar()
     {
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(CharType.createCharType(1),
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                CharType.createCharType(1),
                 1,
                 false,
                 true);

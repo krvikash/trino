@@ -332,7 +332,7 @@ public class TestSchemaFromDirectory
                 .matches(discovered -> discovered.errors().isEmpty() && discovered.tables().size() == 1 && discovered.rootPath().path().endsWith("csv/dates_single_col/"))
                 .extracting(discovered -> discovered.tables().getFirst())
                 .matches(table -> table.valid() && table.format() == TableFormat.CSV && table.columns().columns().size() == 1 &&
-                                  table.columns().columns().getFirst().type().equals(new HiveType(STRING_TYPE)));
+                        table.columns().columns().getFirst().type().equals(new HiveType(STRING_TYPE)));
     }
 
     /**
@@ -368,7 +368,8 @@ public class TestSchemaFromDirectory
         ListenableFuture<DiscoveredSchema> discoveryFuture = controller.discover(new DiscoverRequest(uriFromLocation(directory), uriFromLocation(directory), TableFormat.JSON, CSV_OPTIONS));
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
 
-        TypeInfo filterSetTypeInfo = structType(ImmutableList.of("items"),
+        TypeInfo filterSetTypeInfo = structType(
+                ImmutableList.of("items"),
                 ImmutableList.of(arrayType(structType(ImmutableList.of("name", "valueSet"), ImmutableList.of(HIVE_STRING, structType(ImmutableList.of("items"), ImmutableList.of(arrayType(structType(ImmutableList.of("value"), ImmutableList.of(HIVE_STRING))))))))));
         TypeInfo requestParametersTypeInfo = structType(
                 ImmutableList.of("pageSize", "maxResults", "filterSet", "roleArn", "roleSessionName", "durationSeconds", "maxRecords"),
@@ -569,10 +570,17 @@ public class TestSchemaFromDirectory
     private static Column jsonWithEmptyValuesOnlyColumns()
     {
         return Util.column("_ab_additional_properties", HiveTypes.structType(
-                ImmutableList.of("context",
-                        "event", "referer", "session", "username"),
+                ImmutableList.of(
+                        "context",
+                        "event",
+                        "referer",
+                        "session",
+                        "username"),
                 ImmutableList.of(HiveTypes.structType(ImmutableList.of("course_id", "enterprise_uuid", "org_id", "path"), ImmutableList.of(STRING_TYPE, STRING_TYPE, STRING_TYPE, STRING_TYPE)),
-                        STRING_TYPE, STRING_TYPE, STRING_TYPE, STRING_TYPE)));
+                        STRING_TYPE,
+                        STRING_TYPE,
+                        STRING_TYPE,
+                        STRING_TYPE)));
     }
 
     private void testEmptyAsync(BiConsumer<File, Processor> proc)
@@ -661,7 +669,8 @@ public class TestSchemaFromDirectory
     {
         assertThat(discoveredTableSet.tables()).hasSize(1);
         DiscoveredColumns discoveredSchema = discoveredTableSet.tables().getFirst().columns();
-        assertThat(discoveredSchema.columns()).containsExactly(Util.column("a", HIVE_INT).withSampleValue("1"),
+        assertThat(discoveredSchema.columns()).containsExactly(
+                Util.column("a", HIVE_INT).withSampleValue("1"),
                 Util.column("b", adjustType(new DecimalTypeInfo(20, 0))).withSampleValue("2"),
                 Util.column("c", HIVE_INT).withSampleValue("3"),
                 Util.column("x", HiveTypes.HIVE_STRING).withSampleValue("hey"));

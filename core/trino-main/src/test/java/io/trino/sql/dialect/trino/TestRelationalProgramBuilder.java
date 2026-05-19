@@ -178,8 +178,7 @@ final class TestRelationalProgramBuilder
                 new PlanNodeId("aggregation"),
                 VALUES_NODE,
                 ImmutableMap.of(
-                        new Symbol(BIGINT, "sum_agg"),
-                        new AggregationNode.Aggregation(
+                        new Symbol(BIGINT, "sum_agg"), new AggregationNode.Aggregation(
                                 sumFunction,
                                 ImmutableList.of(new Reference(BIGINT, "a")),
                                 false,
@@ -1456,10 +1455,8 @@ final class TestRelationalProgramBuilder
                 new PlanNodeId("project"),
                 VALUES_NODE,
                 Assignments.copyOf(ImmutableMap.of(
-                        new Symbol(BOOLEAN, "b"),
-                        new Reference(BOOLEAN, "b"),
-                        new Symbol(BOOLEAN, "c"),
-                        new io.trino.sql.ir.Comparison(
+                        new Symbol(BOOLEAN, "b"), new Reference(BOOLEAN, "b"),
+                        new Symbol(BOOLEAN, "c"), new io.trino.sql.ir.Comparison(
                                 Operator.GREATER_THAN,
                                 new Reference(BIGINT, "a"),
                                 new io.trino.sql.ir.Constant(BIGINT, 5L)))));
@@ -1972,8 +1969,7 @@ final class TestRelationalProgramBuilder
                                 ImmutableList.of(new Symbol(BOOLEAN, "b"), new Symbol(BIGINT, "a")),
                                 ImmutableMap.of(new Symbol(BOOLEAN, "b"), ASC_NULLS_LAST, new Symbol(BIGINT, "a"), DESC_NULLS_FIRST)))),
                 ImmutableMap.of(
-                        new Symbol(BOOLEAN, "lag_function"),
-                        new WindowNode.Function(
+                        new Symbol(BOOLEAN, "lag_function"), new WindowNode.Function(
                                 lagFunction,
                                 ImmutableList.of(new Reference(BOOLEAN, "b"), new io.trino.sql.ir.Constant(BIGINT, 5L)),
                                 Optional.of(new OrderingScheme(ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")), ImmutableMap.of(new Symbol(BOOLEAN, "b"), ASC_NULLS_FIRST, new Symbol(BIGINT, "a"), DESC_NULLS_LAST))),

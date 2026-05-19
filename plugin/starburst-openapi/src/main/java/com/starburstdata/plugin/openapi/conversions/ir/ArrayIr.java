@@ -17,6 +17,4 @@ package com.starburstdata.plugin.openapi.conversions.ir;
  * @param items The type of the items contained in this array.
  */
 public record ArrayIr(SchemaIr items)
-        implements SchemaIr
-{
-}
+        implements SchemaIr {}

@@ -22,7 +22,5 @@ public enum MatchNodeType
     MATCH_NODE_TYPE_LEAF,
     MATCH_NODE_TYPE_NUM_OF;
 
-    MatchNodeType()
-    {
-    }
+    MatchNodeType() {}
 }

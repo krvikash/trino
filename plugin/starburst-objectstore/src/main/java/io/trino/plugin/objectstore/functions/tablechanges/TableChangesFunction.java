@@ -67,8 +67,7 @@ public class TableChangesFunction
 
     public TableChangesFunction(Connector icebergConnector, Connector deltaConnector, ObjectStoreSessionProperties sessionProperties)
     {
-        super(
-                SCHEMA_NAME,
+        super(SCHEMA_NAME,
                 NAME,
                 ImmutableList.of(
                         ScalarArgumentSpecification.builder().name(SCHEMA_NAME_ARGUMENT).type(VARCHAR).build(),

@@ -48,11 +48,13 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
+                new WarpStubsStorageEngineModule(),
                 Optional.empty(),
                 numNodes,
                 Collections.emptyMap(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",
@@ -72,7 +74,8 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     public void testDynamicCatalog()
     {
         String catalogDir = "\"hive.metastore.catalog.dir\"='file://" + hiveDir.toAbsolutePath() + "'";
-        String createCatalogSql = """
+        String createCatalogSql =
+                """
                 CREATE CATALOG IF NOT EXISTS iceberg_read_warp USING warp_speed
                 WITH (
                 "warp-speed.proxied-connector"='iceberg',
@@ -119,8 +122,16 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioning = ARRAY['bucket(%s, 1)', 'truncate(%s, 1)'])"
                         .formatted(aCol, dateIntCol, dateDateCol, aCol, aCol));
         int partitionValue = 20190315;
-        @Language("SQL") String sql = format("INSERT INTO %s(%s, %s, %s) VALUES('a-%d', %d, CAST('2020-04-%d%d' AS date))",
-                table, aCol, dateIntCol, dateDateCol, 1, partitionValue, 1, 2);
+        @Language("SQL") String sql = format(
+                "INSERT INTO %s(%s, %s, %s) VALUES('a-%d', %d, CAST('2020-04-%d%d' AS date))",
+                table,
+                aCol,
+                dateIntCol,
+                dateDateCol,
+                1,
+                partitionValue,
+                1,
+                2);
         assertUpdate(sql, 1);
         computeActual(format("SELECT * FROM %s", table));
     }

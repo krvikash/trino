@@ -71,7 +71,8 @@ public class WorkerStorageEngineProvider
                     shapingLoggerFactory);
 
             if (sharedConfig.isFailureGeneratorEnabled()) {
-                storageEngine = (StorageEngine) Proxy.newProxyInstance(storageEngine.getClass().getClassLoader(),
+                storageEngine = (StorageEngine) Proxy.newProxyInstance(
+                        storageEngine.getClass().getClassLoader(),
                         new Class<?>[] {StorageEngine.class},
                         failureGeneratorInvocationHandler.getMethodInvocationHandler(storageEngine));
             }

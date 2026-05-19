@@ -78,7 +78,8 @@ public class WarmupElementMatchParams
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_TIGHTNESS_REQUIRED = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("tightness_required"));
     }
 
-    public WarmupElementMatchParams(MemorySegment matchParamsMem,
+    public WarmupElementMatchParams(
+            MemorySegment matchParamsMem,
             MemorySegment predBuf,
             int fileOffset,
             RecTypeCode recTypeCode,

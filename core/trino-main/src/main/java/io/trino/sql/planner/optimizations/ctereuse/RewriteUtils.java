@@ -45,8 +45,7 @@ import static io.trino.sql.newir.Region.singleBlockRegion;
 
 public class RewriteUtils
 {
-    private RewriteUtils()
-    {}
+    private RewriteUtils() {}
 
     public static Optional<Block> rebaseBlock(Block block, Type newType, FieldMapping fieldMapping, ProgramBuilder.ValueNameAllocator nameAllocator)
     {

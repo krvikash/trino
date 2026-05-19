@@ -96,7 +96,8 @@ public class TestIcebergCacheSubqueriesTest
                     .getTableHandle(session, new QualifiedObjectName(ICEBERG_CATALOG, session.getSchema().get(), testTable.getName())));
             IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandler.get().connectorHandle();
 
-            @Language("SQL") String selectQuery = """
+            @Language("SQL") String selectQuery =
+                    """
                     select name from %s where year = 2000
                     union all
                     select name from %s FOR VERSION AS OF %s where year = 2000
@@ -125,7 +126,8 @@ public class TestIcebergCacheSubqueriesTest
                 "iceberg_do_not_cache",
                 "(year INT, name VARCHAR) with (partitioning = ARRAY['year'])",
                 ImmutableList.of("2001, 'value1'", "2001, 'value2'"))) {
-            @Language("SQL") String selectQuery = """
+            @Language("SQL") String selectQuery =
+                    """
                     SELECT name FROM %s WHERE year = 2001 AND name = 'value2'
                     UNION ALL
                     SELECT name FROM %s WHERE year = 2001 AND name = 'value1'
@@ -149,29 +151,22 @@ public class TestIcebergCacheSubqueriesTest
     @Override
     @Test
     @Disabled("Flaky - see ENG-10621 and ENG-12580")
-    public void testSubsequentQueryReadsFromCache()
-    {
-    }
+    public void testSubsequentQueryReadsFromCache() {}
 
     @Override
     @Test
     @Disabled("Flaky - see ENG-9462 and ENG-12580")
-    public void testSubsequentQueryReadsFromCacheWithDynamicFilterOnDataColumn()
-    {
-    }
+    public void testSubsequentQueryReadsFromCacheWithDynamicFilterOnDataColumn() {}
 
     @Override
     @ParameterizedTest
     @MethodSource("isDynamicRowFilteringEnabled")
     @Disabled("Flaky - see ENG-9396 and ENG-12580")
-    public void testDynamicFilterCache(boolean isDynamicRowFilteringEnabled)
-    {
-    }
+    public void testDynamicFilterCache(boolean isDynamicRowFilteringEnabled) {}
 
     @Override
     protected void createPartitionedTableAsSelect(String tableName, List<String> partitionColumns, String asSelect)
     {
-
         @Language("SQL") String sql = format(
                 "CREATE TABLE %s WITH (partitioning=array[%s]) as %s",
                 tableName,

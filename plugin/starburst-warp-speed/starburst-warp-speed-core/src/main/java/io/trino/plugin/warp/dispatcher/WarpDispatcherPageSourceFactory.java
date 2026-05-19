@@ -94,8 +94,7 @@ public class WarpDispatcherPageSourceFactory
             NativeStorageStateHandler nativeStorageStateHandler,
             ShapingLoggerFactory shapingLoggerFactory)
     {
-        super(
-                storageEngineConstants,
+        super(storageEngineConstants,
                 rowGroupDataService,
                 metricsManager,
                 dispatcherProxiedConnectorTransformer,
@@ -128,7 +127,8 @@ public class WarpDispatcherPageSourceFactory
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         if ((!nativeStorageStateHandler.isStorageAvailable() && dispatcherTableHandle.isSubsumedPredicates())) {
-            throw new TrinoException(WarpErrorCode.WARP_NATIVE_ERROR,
+            throw new TrinoException(
+                    WarpErrorCode.WARP_NATIVE_ERROR,
                     "storage is not available");
         }
 
@@ -136,11 +136,13 @@ public class WarpDispatcherPageSourceFactory
                 !dispatcherProxiedConnectorTransformer.isValidForAcceleration(dispatcherTableHandle) ||
                 WarpSessionProperties.isBypassEnabled(session)) {
             logger.debug("Query is not valid for acceleration, reading from proxy connector without warmup. dispatcherTableHandle=%s", dispatcherTableHandle);
-            QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(columns,
+            QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(
+                    columns,
                     dispatcherTableHandle,
                     dynamicFilter,
                     session);
-            addProxiedColumnStats(dispatcherPageSourceStats,
+            addProxiedColumnStats(
+                    dispatcherPageSourceStats,
                     customStatsContext,
                     columns,
                     basicQueryContext);
@@ -179,7 +181,8 @@ public class WarpDispatcherPageSourceFactory
         return connectorPageSource;
     }
 
-    ConnectorPageSource getConnectorPageSource(ConnectorPageSourceProvider connectorPageSourceProvider,
+    ConnectorPageSource getConnectorPageSource(
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
@@ -196,7 +199,8 @@ public class WarpDispatcherPageSourceFactory
 
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
-        RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -227,13 +231,15 @@ public class WarpDispatcherPageSourceFactory
 
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
         try {
-            QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(columns,
+            QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(
+                    columns,
                     dispatcherTableHandle,
                     dynamicFilter,
                     session);
 
             if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
-                addProxiedColumnStats(dispatcherPageSourceStats,
+                addProxiedColumnStats(
+                        dispatcherPageSourceStats,
                         customStatsContext,
                         columns,
                         basicQueryContext);
@@ -256,7 +262,8 @@ public class WarpDispatcherPageSourceFactory
             final RowGroupData afterLockRowGroupData = rowGroupDataService.getIfPresent(rowGroupKey); // re-fetch the row group since it might have been changed while this flow was in read-lock
 
             if (logger.isDebugEnabled()) {
-                logger.debug("Intersected fullPredicate: %s, dynamicFilter: %s -> into tupleDomain: %s",
+                logger.debug(
+                        "Intersected fullPredicate: %s, dynamicFilter: %s -> into tupleDomain: %s",
                         dispatcherTableHandle.getFullPredicate().toString(),
                         dynamicFilter.getCurrentPredicate().toString(),
                         basicQueryContext.getPredicateContextData());
@@ -279,7 +286,8 @@ public class WarpDispatcherPageSourceFactory
             addColumnStats(customStatsContext, queryContext);
 
             if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
-                addProxiedColumnStats(dispatcherPageSourceStats,
+                addProxiedColumnStats(
+                        dispatcherPageSourceStats,
                         customStatsContext,
                         columns,
                         queryContext);
@@ -303,9 +311,10 @@ public class WarpDispatcherPageSourceFactory
             if (PageSourceDecision.PREFILL.equals(pageSourceDecision)) {
                 dispatcherPageSourceStats.addwarp_prefilled_collect_columns(columns.size());
                 queryClassifier.close(queryContext);
-                //in prefill queryContext doesn't hold any WE
+                // in prefill queryContext doesn't hold any WE
                 int totalRecords = getTotalRecords(rowGroupData);
-                return new PrefilledPageSource(queryContext.getPrefilledQueryCollectDataByBlockIndex(),
+                return new PrefilledPageSource(
+                        queryContext.getPrefilledQueryCollectDataByBlockIndex(),
                         dispatcherPageSourceStats,
                         afterLockRowGroupData,
                         totalRecords,
@@ -317,7 +326,8 @@ public class WarpDispatcherPageSourceFactory
                 try {
                     increaseMixedCounters(dispatcherPageSourceStats, queryContext);
 
-                    ConnectorPageSource mixedPageSource = createMixedPageSource(connectorPageSourceProvider,
+                    ConnectorPageSource mixedPageSource = createMixedPageSource(
+                            connectorPageSourceProvider,
                             queryClassifier,
                             queryContext,
                             transactionHandle,
@@ -337,11 +347,15 @@ public class WarpDispatcherPageSourceFactory
                 catch (Exception e) {
                     if (Thread.currentThread().isInterrupted()) {
                         closeHandler.accept(afterLockRowGroupData, "WARP_TX_ALLOCATION_INTERRUPTED", shapingLogger);
-                        throw new TrinoException(WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
+                        throw new TrinoException(
+                                WarpErrorCode.WARP_TX_ALLOCATION_INTERRUPTED,
                                 "interrupted while trying to create page source");
                     }
-                    shapingLogger.warn(e, "Failed to create a mixed page source, returning proxied connector page source. rowGroupData=%s, queryContext=%s",
-                            afterLockRowGroupData, queryContext);
+                    shapingLogger.warn(
+                            e,
+                            "Failed to create a mixed page source, returning proxied connector page source. rowGroupData=%s, queryContext=%s",
+                            afterLockRowGroupData,
+                            queryContext);
                     dispatcherPageSourceStats.incexternal_collect_columns();
                 }
             }
@@ -396,7 +410,8 @@ public class WarpDispatcherPageSourceFactory
             connectorTableHandle = dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(dispatcherTableHandle);
             proxiedSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
         }
-        return proxiedConnectorPageSourceProvider.createPageSource(transactionHandle,
+        return proxiedConnectorPageSourceProvider.createPageSource(
+                transactionHandle,
                 session,
                 proxiedSplit,
                 connectorTableHandle,
@@ -463,7 +478,8 @@ public class WarpDispatcherPageSourceFactory
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
         long deletedRowsCount = dispatcherProxiedConnectorTransformer.getDeletedRowsCount(dispatcherSplit.getProxyConnectorSplit());
-        return new DispatcherPageSource(proxiedConnectorPageSourceProvider,
+        return new DispatcherPageSource(
+                proxiedConnectorPageSourceProvider,
                 queryClassifier,
                 warpWithoutPrefilledAndProxiedCollectTypes,
                 warpPageSource,
@@ -480,7 +496,8 @@ public class WarpDispatcherPageSourceFactory
                 shapingLoggerFactory);
     }
 
-    private void addProxiedColumnStats(DispatcherPageSourceStats globalPageSourceStats,
+    private void addProxiedColumnStats(
+            DispatcherPageSourceStats globalPageSourceStats,
             CustomStatsContext customStatsContext,
             List<ColumnHandle> columns,
             QueryContext queryContext)
@@ -491,7 +508,7 @@ public class WarpDispatcherPageSourceFactory
                 .flatMap(x -> Stream.of(x.getName()))
                 .distinct()
                 .count();
-        if (columns.isEmpty()) { //couldn't find any representative column to get from warp
+        if (columns.isEmpty()) { // couldn't find any representative column to get from warp
             globalPageSourceStats.incexternal_collect_columns();
         }
         else {

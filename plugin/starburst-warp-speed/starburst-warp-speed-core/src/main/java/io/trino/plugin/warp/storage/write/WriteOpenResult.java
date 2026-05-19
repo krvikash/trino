@@ -15,6 +15,4 @@ package io.trino.plugin.warp.storage.write;
 
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 
-record WriteOpenResult(StorageWriterContext storageWriterContext, DictionaryWarmInfo dictionaryInfo)
-{
-}
+record WriteOpenResult(StorageWriterContext storageWriterContext, DictionaryWarmInfo dictionaryInfo) {}

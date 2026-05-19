@@ -92,14 +92,14 @@ public class StorageWriterServiceTest
     public static Page buildIntPage(int... values)
     {
         IntArrayBlockBuilder block = new IntArrayBlockBuilder(null, values.length);
-        IntStream.range(0, values.length).forEach((i) -> block.writeInt(values[i]));
+        IntStream.range(0, values.length).forEach(i -> block.writeInt(values[i]));
         return new Page(block.build());
     }
 
     public static Page buildLongPage(long... values)
     {
         LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, values.length);
-        IntStream.range(0, values.length).forEach((i) -> block.writeLong(values[i]));
+        IntStream.range(0, values.length).forEach(i -> block.writeLong(values[i]));
         return new Page(block.build());
     }
 
@@ -151,7 +151,8 @@ public class StorageWriterServiceTest
         CatalogName catalogName = new CatalogName("f");
         WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(new ShapingLoggerFactory(catalogName, new SharedConfig()));
         WorkerMemoryManager workerMemoryManager = new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(catalogName, new SharedConfig()));
-        storageWriterService = new StorageWriterService(storageEngine,
+        storageWriterService = new StorageWriterService(
+                storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
                 dictionaryCacheService,
@@ -262,7 +263,8 @@ public class StorageWriterServiceTest
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType varcharArrayType = new ArrayType(VARCHAR);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
                         varcharArrayType),
                 WarmUpType.WARM_UP_TYPE_DATA);
         String[][] values = new String[][] {
@@ -339,7 +341,8 @@ public class StorageWriterServiceTest
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         final int typeLength = 5;
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
                         VarcharType.createVarcharType(typeLength)),
                 WarmUpType.WARM_UP_TYPE_DATA);
 
@@ -358,7 +361,8 @@ public class StorageWriterServiceTest
     public void writeVarchar()
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_DATA);
         String[] values = {"a", "A"};
@@ -376,7 +380,8 @@ public class StorageWriterServiceTest
     public void writeVarcharIndex()
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_BASIC);
         String[] values = {"a", "A"};
@@ -397,7 +402,8 @@ public class StorageWriterServiceTest
     public void writeVarcharWithLucene()
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
 
@@ -413,14 +419,15 @@ public class StorageWriterServiceTest
         assertThat(directory).isNotNull();
 
         storageWriterService.close(page.getPositionCount(), storageWriterSplitConfig, storageWriterContext);
-        assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); //since it finish will throw AlreadyClosedException.class
+        assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); // since it finish will throw AlreadyClosedException.class
     }
 
     @Test
     public void abortVarcharWithLucene()
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
 
@@ -436,7 +443,7 @@ public class StorageWriterServiceTest
         assertThat(directory).isNotNull();
 
         storageWriterService.abort(false, storageWriterContext, storageWriterSplitConfig);
-        assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); //since it finish will throw AlreadyClosedException.class
+        assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); // since it finish will throw AlreadyClosedException.class
     }
 
     @Test
@@ -537,7 +544,8 @@ public class StorageWriterServiceTest
 
     private StorageWriterSplitConfig startWarming(String suffix)
     {
-        return storageWriterService.startWarming("nodeIdentifier",
+        return storageWriterService.startWarming(
+                "nodeIdentifier",
                 rowGroupFilePath + suffix,
                 true,
                 true);

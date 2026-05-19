@@ -51,7 +51,8 @@ class CrcStringBlockAppenderTest
     public void beforeEach()
     {
         super.beforeEach();
-        blockAppender = new CrcStringBlockAppender(writeJuffersWarmUpElement,
+        blockAppender = new CrcStringBlockAppender(
+                writeJuffersWarmUpElement,
                 new StubsStorageEngineConstants(),
                 bufferAllocator,
                 VARCHAR_TYPE,
@@ -60,7 +61,8 @@ class CrcStringBlockAppenderTest
 
     static Stream<Arguments> params()
     {
-        List<Slice> values = List.of(Slices.utf8Slice("aaaaa"),
+        List<Slice> values = List.of(
+                Slices.utf8Slice("aaaaa"),
                 Slices.utf8Slice("bbbbb"),
                 Slices.utf8Slice("ccccc"),
                 Slices.utf8Slice("ddddd"));

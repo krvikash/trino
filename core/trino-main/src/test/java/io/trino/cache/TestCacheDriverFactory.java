@@ -410,7 +410,8 @@ public class TestCacheDriverFactory
             this(identity(), identity());
         }
 
-        public <T> TestPageSourceProviderFactory(Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> unenforcedPredicateSupplier,
+        public <T> TestPageSourceProviderFactory(
+                Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> unenforcedPredicateSupplier,
                 Function<TupleDomain<ColumnHandle>, TupleDomain<ColumnHandle>> prunePredicateSupplier)
         {
             this.unenforcedPredicateSupplier = unenforcedPredicateSupplier;

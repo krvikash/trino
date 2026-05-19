@@ -1012,7 +1012,8 @@ public class MongoSession
                         Document metadata = new Document();
                         metadata.append(FIELDS_NAME_KEY, key);
                         metadata.append(FIELDS_TYPE_KEY, type.getDisplayName());
-                        metadata.append(FIELDS_HIDDEN_KEY,
+                        metadata.append(
+                                FIELDS_HIDDEN_KEY,
                                 key.equals("_id") && type.equals(OBJECT_ID));
 
                         fields.put(key, metadata);

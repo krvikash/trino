@@ -180,7 +180,9 @@ final class TestIcebergVariantDatatype
     @Test
     void testVariantArray()
     {
-        try (TestTable table = newTrinoTable("test_variant_array", "(id int, variant JSON)",
+        try (TestTable table = newTrinoTable(
+                "test_variant_array",
+                "(id int, variant JSON)",
                 List.of("1, JSON '[1, 2, 3]'", "2, JSON '[]'", "3, JSON '[\"a\", \"b\", \"c\"]'", "4, JSON '[null, 1, \"test\"]'"))) {
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES (1, JSON '[1,2,3]'), (2, JSON '[]'), (3, JSON '[\"a\",\"b\",\"c\"]'), (4, JSON '[null,1,\"test\"]')");
@@ -474,8 +476,11 @@ final class TestIcebergVariantDatatype
                 .bucket(INT_COLUMN_IDENTITY.getName(), 2)
                 .build();
 
-        assertUpdate(format("CREATE TABLE %s (%s int) WITH (format = 'PARQUET', format_version = 3, partitioning = ARRAY['bucket(%s, 2)'])",
-                tableName, INT_COL_NAME, INT_COL_NAME));
+        assertUpdate(format(
+                "CREATE TABLE %s (%s int) WITH (format = 'PARQUET', format_version = 3, partitioning = ARRAY['bucket(%s, 2)'])",
+                tableName,
+                INT_COL_NAME,
+                INT_COL_NAME));
 
         Table table = loadTable(tableName);
         addVariantColumn(table);
@@ -508,7 +513,8 @@ final class TestIcebergVariantDatatype
         String tableName = "test_variant_alter_partition_" + randomNameSuffix();
         BaseTable table = createTableWithVariantColumn(tableName, "PARQUET");
 
-        writeParquetDataToIcebergTable(metastoreDir + "/variant-alter-col-partition-%s.parquet".formatted(randomNameSuffix()),
+        writeParquetDataToIcebergTable(
+                metastoreDir + "/variant-alter-col-partition-%s.parquet".formatted(randomNameSuffix()),
                 DataFiles.builder(PartitionSpec.unpartitioned()),
                 table,
                 Variant.of(TEST_METADATA, TEST_OBJECT));
@@ -524,7 +530,8 @@ final class TestIcebergVariantDatatype
         String tableName = "test_variant_multiple_rows_" + randomNameSuffix();
         BaseTable table = createTableWithVariantColumn(tableName, "PARQUET");
 
-        writeParquetDataToIcebergTable(metastoreDir + "/variant-multiple-%s.parquet".formatted(randomNameSuffix()),
+        writeParquetDataToIcebergTable(
+                metastoreDir + "/variant-multiple-%s.parquet".formatted(randomNameSuffix()),
                 DataFiles.builder(PartitionSpec.unpartitioned()),
                 table,
                 Variant.of(TEST_METADATA, TEST_OBJECT),
@@ -546,7 +553,8 @@ final class TestIcebergVariantDatatype
         BaseTable table = createTableWithVariantColumn(tableName, "PARQUET");
 
         // multiple files to kick the optimize procedure
-        writeParquetDataToIcebergTable(metastoreDir + "/variant-write-%s.parquet".formatted(randomNameSuffix()),
+        writeParquetDataToIcebergTable(
+                metastoreDir + "/variant-write-%s.parquet".formatted(randomNameSuffix()),
                 DataFiles.builder(PartitionSpec.unpartitioned()),
                 table,
                 Variant.of(TEST_METADATA, TEST_OBJECT));
@@ -581,7 +589,8 @@ final class TestIcebergVariantDatatype
         String tableName = "test_variant_orc_" + randomNameSuffix();
         BaseTable table = createTableWithVariantColumn(tableName, "ORC");
 
-        writeOrcDataToIcebergTable(metastoreDir + "/variant-part-%s.orc".formatted(randomNameSuffix()),
+        writeOrcDataToIcebergTable(
+                metastoreDir + "/variant-part-%s.orc".formatted(randomNameSuffix()),
                 Variant.of(TEST_METADATA, TEST_OBJECT),
                 DataFiles.builder(PartitionSpec.unpartitioned()),
                 table);
@@ -601,7 +610,8 @@ final class TestIcebergVariantDatatype
         String tableName = "test_variant_avro_" + randomNameSuffix();
         BaseTable table = createTableWithVariantColumn(tableName, "AVRO");
 
-        writeAvroDataToIcebergTable(metastoreDir + "/variant-%s.avro".formatted(randomNameSuffix()),
+        writeAvroDataToIcebergTable(
+                metastoreDir + "/variant-%s.avro".formatted(randomNameSuffix()),
                 Variant.of(TEST_METADATA, TEST_OBJECT),
                 DataFiles.builder(PartitionSpec.unpartitioned()),
                 table);
@@ -616,7 +626,8 @@ final class TestIcebergVariantDatatype
     @Test
     void testUnsupportedForFormatVersion()
     {
-        assertThatThrownBy(() -> computeActual("CREATE TABLE test_unsupported_format_version(x int, variant JSON) WITH (format_version=2)"),
+        assertThatThrownBy(
+                () -> computeActual("CREATE TABLE test_unsupported_format_version(x int, variant JSON) WITH (format_version=2)"),
                 "variant is not supported until v3");
 
         try (TestTable table = newTrinoTable("test_unsupported_format_version", "(x int)  WITH (format_version=2)")) {

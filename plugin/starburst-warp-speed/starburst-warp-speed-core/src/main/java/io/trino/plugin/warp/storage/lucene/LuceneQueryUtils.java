@@ -39,16 +39,15 @@ public class LuceneQueryUtils
     // See https://www.elastic.co/guide/en/elasticsearch/reference/current/regexp-syntax.html
     private static final char[] REGEXP_RESERVED_CHARACTERS = {'.', '?', '+', '*', '|', '{', '}', '[', ']', '(', ')', '"', '#', '@', '&', '<', '>', '~'};
 
-    private LuceneQueryUtils()
-    {
-    }
+    private LuceneQueryUtils() {}
 
     public static Query createRangeQuery(Range range)
     {
         if (range.isSingleValue()) {
             return new TermQuery(new Term(VALUE_FIELD_NAME, new String(((Slice) range.getSingleValue()).getBytes(), Charset.defaultCharset())));
         }
-        return new TermRangeQuery(VALUE_FIELD_NAME,
+        return new TermRangeQuery(
+                VALUE_FIELD_NAME,
                 range.isLowUnbounded() ? null : new BytesRef(((Slice) range.getLowBoundedValue()).getBytes()),
                 range.isHighUnbounded() ? null : new BytesRef(((Slice) range.getHighBoundedValue()).getBytes()),
                 range.isLowInclusive(),

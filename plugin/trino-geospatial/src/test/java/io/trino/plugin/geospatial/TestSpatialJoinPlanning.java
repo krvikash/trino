@@ -556,29 +556,29 @@ public class TestSpatialJoinPlanning
         assertPlan(
                 """
 
-                        SELECT c.mktsegment
-                   FROM
-                       tpch.tiny.customer c INNER JOIN tpch.tiny.nation n ON ST_Contains(ST_GeometryFromText(CAST(c.nationkey AS VARCHAR)), ST_GeometryFromText(CAST(n.nationkey AS VARCHAR)))
-                   WHERE
-                       (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
-                       OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
-                       OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
-                   """,
+                     SELECT c.mktsegment
+                FROM
+                    tpch.tiny.customer c INNER JOIN tpch.tiny.nation n ON ST_Contains(ST_GeometryFromText(CAST(c.nationkey AS VARCHAR)), ST_GeometryFromText(CAST(n.nationkey AS VARCHAR)))
+                WHERE
+                    (n.name IN ('UNITED STATES', 'CANADA', 'BRAZIL') AND c.acctbal BETWEEN 1000 AND 5000)
+                    OR (n.name IN ('CHINA', 'INDIA', 'GERMANY', 'FRANCE') AND c.acctbal BETWEEN 500 AND 3000)
+                    OR (n.name IN ('EGYPT', 'ALGERIA', 'BRAZIL') AND c.acctbal BETWEEN 2000 AND 6000)
+                """,
                 output(
                         spatialJoin(new Logical(
-                                AND,
-                                ImmutableList.of(
-                                        new Logical(OR, ImmutableList.of(
-                                                new Logical(AND, ImmutableList.of(
-                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
-                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
-                                                new Logical(AND, ImmutableList.of(
-                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
-                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
-                                                new Logical(AND, ImmutableList.of(
-                                                        new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"),createVarcharConstant(25, "BRAZIL"))),
-                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
-                                        new Call(ST_CONTAINS, ImmutableList.of(new Reference(GEOMETRY, "C_NATIONKEY_AS_GEO"), new Reference(GEOMETRY, "N_NATIONKEY_AS_GEO"))))),
+                                        AND,
+                                        ImmutableList.of(
+                                                new Logical(OR, ImmutableList.of(
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                        new Logical(AND, ImmutableList.of(
+                                                                new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
+                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                                new Call(ST_CONTAINS, ImmutableList.of(new Reference(GEOMETRY, "C_NATIONKEY_AS_GEO"), new Reference(GEOMETRY, "N_NATIONKEY_AS_GEO"))))),
                                 project(
                                         ImmutableMap.of("C_NATIONKEY_AS_GEO", expression(new Call(ST_GEOMETRY_FROM_TEXT, ImmutableList.of(new Cast(new Reference(BIGINT, "C_NATIONKEY"), VARCHAR))))),
                                         filter(
@@ -590,8 +590,7 @@ public class TestSpatialJoinPlanning
                                         project(
                                                 ImmutableMap.of("N_NATIONKEY_AS_GEO", expression(new Call(ST_GEOMETRY_FROM_TEXT, ImmutableList.of(new Cast(new Reference(BIGINT, "N_NATIONKEY"), VARCHAR))))),
                                                 filter(
-                                                        new In(
-                                                                new Reference(nameColumnType, "N_NAME"),
+                                                        new In(new Reference(nameColumnType, "N_NAME"),
                                                                 ImmutableList.of(
                                                                         createVarcharConstant(25, "ALGERIA"),
                                                                         createVarcharConstant(25, "BRAZIL"),
@@ -605,7 +604,6 @@ public class TestSpatialJoinPlanning
                                                         tableScan(
                                                                 "nation",
                                                                 ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name"))))))));
-
     }
 
     @Test
@@ -638,18 +636,17 @@ public class TestSpatialJoinPlanning
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
                                                                 new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
                                         spatialLeftJoin(new Call(ST_CONTAINS, ImmutableList.of(new Reference(GEOMETRY, "C_NATIONKEY_AS_GEO"), new Reference(GEOMETRY, "N_NATIONKEY_AS_GEO"))),
+                                                project(
+                                                        ImmutableMap.of("C_NATIONKEY_AS_GEO", expression(new Call(ST_GEOMETRY_FROM_TEXT, ImmutableList.of(new Cast(new Reference(BIGINT, "C_NATIONKEY"), VARCHAR))))),
+                                                        tableScan(
+                                                                "customer",
+                                                                ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey"))),
+                                                exchange(
                                                         project(
-                                                                ImmutableMap.of("C_NATIONKEY_AS_GEO", expression(new Call(ST_GEOMETRY_FROM_TEXT, ImmutableList.of(new Cast(new Reference(BIGINT, "C_NATIONKEY"), VARCHAR))))),
+                                                                ImmutableMap.of("N_NATIONKEY_AS_GEO", expression(new Call(ST_GEOMETRY_FROM_TEXT, ImmutableList.of(new Cast(new Reference(BIGINT, "N_NATIONKEY"), VARCHAR))))),
                                                                 tableScan(
-                                                                        "customer",
-                                                                        ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey"))),
-                                                        exchange(
-                                                                project(
-                                                                        ImmutableMap.of("N_NATIONKEY_AS_GEO", expression(new Call(ST_GEOMETRY_FROM_TEXT, ImmutableList.of(new Cast(new Reference(BIGINT, "N_NATIONKEY"), VARCHAR))))),
-                                                                        tableScan(
-                                                                                "nation",
-                                                                                ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
-
+                                                                        "nation",
+                                                                        ImmutableMap.of("N_NATIONKEY", "nationkey", "N_NAME", "name")))))))));
     }
 
     private Constant createVarcharConstant(int length, String value)

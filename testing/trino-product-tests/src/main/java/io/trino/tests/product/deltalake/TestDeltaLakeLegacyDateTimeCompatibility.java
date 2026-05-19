@@ -730,7 +730,7 @@ public class TestDeltaLakeLegacyDateTimeCompatibility
     {
         MILLISECONDS,
         MICROSECONDS,
-        NANOSECONDS
+        NANOSECONDS,
     }
 
     private static ImmutableList<String> fractions(Precision precision)

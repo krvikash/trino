@@ -239,7 +239,8 @@ public class RateLimitingTestHarness
                             return null;
                         }
                     },
-                    new ApiFactory() {
+                    new ApiFactory()
+                    {
                         @Override
                         public DiscoveryApi createDiscoveryApi()
                         {

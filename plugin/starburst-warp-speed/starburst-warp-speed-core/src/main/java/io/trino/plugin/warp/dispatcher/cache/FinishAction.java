@@ -47,7 +47,8 @@ public class FinishAction
     private final DictionaryCacheService dictionaryCacheService;
 
     @Inject
-    public FinishAction(RowGroupDataService rowGroupDataService,
+    public FinishAction(
+            RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
             WarpCacheFilesMerger warpCacheFilesMerger,
             DictionaryCacheService dictionaryCacheService)
@@ -74,7 +75,8 @@ public class FinishAction
                         true,
                         warmingCandidate.fileOffset(),
                         warmingCandidate.fileCookie());
-                rowGroupDataService.updateTmpRowGroupData(tmpRowGroupData,
+                rowGroupDataService.updateTmpRowGroupData(
+                        tmpRowGroupData,
                         warmSinkResult.warmUpElement(),
                         warmSinkResult.offset(),
                         totalRecords);

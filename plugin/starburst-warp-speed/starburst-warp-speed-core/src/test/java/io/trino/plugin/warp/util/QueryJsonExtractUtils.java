@@ -43,9 +43,7 @@ import java.util.stream.Stream;
 
 public class QueryJsonExtractUtils
 {
-    private QueryJsonExtractUtils()
-    {
-    }
+    private QueryJsonExtractUtils() {}
 
     static void main()
             throws IOException

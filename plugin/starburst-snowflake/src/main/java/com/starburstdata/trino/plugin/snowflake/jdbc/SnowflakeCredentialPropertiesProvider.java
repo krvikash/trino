@@ -42,14 +42,12 @@ public class SnowflakeCredentialPropertiesProvider
         provider.getConnectionUser(Optional.of(identity)).ifPresent(user -> properties.put("user", user));
         Optional<String> connectionPassword = provider.getConnectionPassword(Optional.of(identity));
         if (connectionPassword.isPresent()) {
-            verify(
-                    snowflakeCredentialConfig.getPrivateKeyFile().isEmpty() && snowflakeCredentialConfig.getPrivateKey().isEmpty(),
+            verify(snowflakeCredentialConfig.getPrivateKeyFile().isEmpty() && snowflakeCredentialConfig.getPrivateKey().isEmpty(),
                     "Cannot use both password private key authentication");
             verify(snowflakeCredentialConfig.getPrivateKeyPassphrase().isEmpty(), "Cannot use private key passphrase with password authentication");
         }
         else {
-            verify(
-                    snowflakeCredentialConfig.getPrivateKeyFile().isPresent() != snowflakeCredentialConfig.getPrivateKey().isPresent(),
+            verify(snowflakeCredentialConfig.getPrivateKeyFile().isPresent() != snowflakeCredentialConfig.getPrivateKey().isPresent(),
                     "Either private key or private key file must be set if password is not set");
         }
         connectionPassword.ifPresent(password -> properties.put("password", password));

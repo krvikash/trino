@@ -332,7 +332,9 @@ public abstract class AbstractTestEncodingDecoding
             blockBuilder.appendNull();
         };
 
-        assertRoundTrip(VARCHAR, builder,
+        assertRoundTrip(
+                VARCHAR,
+                builder,
                 "ala ma kota 🐈",
                 "数据应用",
                 "\"quoted\"",
@@ -375,7 +377,9 @@ public abstract class AbstractTestEncodingDecoding
             blockBuilder.appendNull();
         };
 
-        assertRoundTrip(charType, builder,
+        assertRoundTrip(
+                charType,
+                builder,
                 "ala  ",
                 "ma   ",
                 "kota ",

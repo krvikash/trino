@@ -267,7 +267,8 @@ public class StarburstSqlServerMultiDatabaseClient
         return getTablesInternal(
                 connection,
                 databaseSchema.map(DatabaseSchemaName::databaseName).orElse(null),
-                databaseSchema.map(DatabaseSchemaName::schemaName), remoteTableName);
+                databaseSchema.map(DatabaseSchemaName::schemaName),
+                remoteTableName);
     }
 
     @Override

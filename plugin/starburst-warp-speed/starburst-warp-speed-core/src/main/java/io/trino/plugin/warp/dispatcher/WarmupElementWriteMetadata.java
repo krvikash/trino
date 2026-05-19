@@ -59,9 +59,7 @@ public record WarmupElementWriteMetadata(
         private SchemaTableColumn schemaTableColumn;
         private boolean fitForDictionary = true;
 
-        private Builder()
-        {
-        }
+        private Builder() {}
 
         public Builder warmUpElement(WarmUpElement warmUpElement)
         {
@@ -95,7 +93,8 @@ public record WarmupElementWriteMetadata(
 
         public WarmupElementWriteMetadata build()
         {
-            return new WarmupElementWriteMetadata(warmUpElement,
+            return new WarmupElementWriteMetadata(
+                    warmUpElement,
                     connectorBlockIndex,
                     type,
                     schemaTableColumn,

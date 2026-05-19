@@ -31,7 +31,7 @@ import static java.util.Collections.nCopies;
 
 public abstract class TrinoOperation
         extends Operation
-        // TODO sealed?
+// TODO sealed?
 {
     public TrinoOperation(String dialect, String name)
     {

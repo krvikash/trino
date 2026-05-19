@@ -22,7 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 
 public class VariableLengthStringDictionaryWriter
-            extends DictionaryWriter
+        extends DictionaryWriter
 {
     @Override
     public byte[] getDictionaryWriteData(DictionaryToWrite dictionaryToWrite)

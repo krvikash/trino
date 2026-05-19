@@ -1905,7 +1905,7 @@ public interface ConnectorMetadata
      * from the page source, since the engine may choose the original plan at runtime.
      *
      * @return {@link ApplyPartialTopNResult} with the alternative table handle and whether the original plan should be retained,
-     * or empty if the connector cannot optimize for the requested sort order
+     *         or empty if the connector cannot optimize for the requested sort order
      */
     default Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,

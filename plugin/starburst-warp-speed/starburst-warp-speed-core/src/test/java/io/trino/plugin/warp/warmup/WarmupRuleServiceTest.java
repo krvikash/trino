@@ -92,9 +92,10 @@ public class WarmupRuleServiceTest
                 .thenReturn(Pair.of(connectorMetadata, connectorTransactionHandle));
         tableHandle = mock(ConnectorTableHandle.class);
         when(connectorMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), eq(Optional.empty()), eq(Optional.empty()))).thenAnswer(_ -> tableHandle);
-        when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer((_) -> columnMap);
+        when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer(_ -> columnMap);
         globalConfig = new GlobalConfig();
-        warmupRuleService = new WarmupRuleService(proxiedConnector,
+        warmupRuleService = new WarmupRuleService(
+                proxiedConnector,
                 storageEngineConstants,
                 new WarmupDemoterConfig(),
                 dispatcherProxiedConnectorTransformer,
@@ -138,7 +139,7 @@ public class WarmupRuleServiceTest
     {
         createColumn(VarcharType.createVarcharType(10));
         WarmupRule warmupRule1 = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
-        WarmupRule warmupRule2 = WarmupRule.builder(warmupRule1)/*.id(0)*/.build();
+        WarmupRule warmupRule2 = WarmupRule.builder(warmupRule1) /*.id(0)*/.build();
 
         WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule1, warmupRule2));
         assertThat(warmupRuleResult.rejectedRules().size()).isEqualTo(1);
@@ -156,7 +157,7 @@ public class WarmupRuleServiceTest
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_LUCENE);
 
-        //update existing rule
+        // update existing rule
         WarmupRule updatedWarmupRule1 = WarmupRule.builder(warmupRule1)
                 .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
                 .build();
@@ -164,7 +165,7 @@ public class WarmupRuleServiceTest
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
         assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
 
-        //now try to save a new rule with non-existing id
+        // now try to save a new rule with non-existing id
         WarmupRule warmupRule3 = WarmupRule.builder(warmupRule1)
                 .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .id(new Random().nextInt(10000, 100000))
@@ -196,7 +197,8 @@ public class WarmupRuleServiceTest
     public void testWarmupTypeDoesntSupportColType()
     {
         Type baseType = VarcharType.createVarcharType(10);
-        Map<Type, String> unsupportedTypeToMessage = Map.of(RowType.rowType(RowType.field(baseType)), "doesn't support column type row",
+        Map<Type, String> unsupportedTypeToMessage = Map.of(
+                RowType.rowType(RowType.field(baseType)), "doesn't support column type row",
                 new ArrayType(baseType), "doesn't support column type array",
                 new MapType(baseType, baseType, new TypeOperators()), "doesn't support column type map",
                 JsonType.JSON, "doesn't support column type json");
@@ -217,7 +219,8 @@ public class WarmupRuleServiceTest
     public void testLuceneWarmupTypeDoesntSupportColType()
     {
         Type baseType = VarcharType.createVarcharType(10);
-        Map<Type, String> unsupportedTypeToMessage = Map.of(RowType.rowType(RowType.field(baseType)), "doesn't support column type row",
+        Map<Type, String> unsupportedTypeToMessage = Map.of(
+                RowType.rowType(RowType.field(baseType)), "doesn't support column type row",
                 new MapType(baseType, baseType, new TypeOperators()), "doesn't support column type map",
                 JsonType.JSON, "doesn't support column type json");
         WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
@@ -240,7 +243,7 @@ public class WarmupRuleServiceTest
 
         Set<Type> supportedTypeToMessage = Set.of(new ArrayType(baseType));
         WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
-        supportedTypeToMessage.forEach((type) -> {
+        supportedTypeToMessage.forEach(type -> {
             createColumn(type);
             assertRuleApplied(warmupRule);
         });
@@ -269,7 +272,8 @@ public class WarmupRuleServiceTest
     public void testNeverOnUnsupportedColType()
     {
         Type baseType = VarcharType.createVarcharType(10);
-        List<Type> unsupportedTypes = ImmutableList.of(RowType.rowType(RowType.field(baseType)),
+        List<Type> unsupportedTypes = ImmutableList.of(
+                RowType.rowType(RowType.field(baseType)),
                 new ArrayType(baseType),
                 new MapType(baseType, baseType, new TypeOperators()),
                 JsonType.JSON);
@@ -287,7 +291,8 @@ public class WarmupRuleServiceTest
     @Test
     public void testUnknownColumn()
     {
-        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE,
+        WarmupRule warmupRule = createRule(
+                WarmUpType.WARM_UP_TYPE_LUCENE,
                 Set.of(new PartitionValueWarmupPredicateRule("col2", "2")));
         assertRuleRejected(warmupRule, "Rule refer to a non-exist column");
     }
@@ -357,7 +362,7 @@ public class WarmupRuleServiceTest
                 .warmUpType(warmUpType)
                 .priority(0)
                 .ttl(0)
-                //.id(0)
+                // .id(0)
                 .predicates(predicates)
                 .build();
     }

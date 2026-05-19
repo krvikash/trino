@@ -58,7 +58,8 @@ public class SynapseServer
             .withBackoff(Duration.ofSeconds(10), Duration.ofMinutes(5), 1.5)
             .withJitter(0.25)
             .withMaxRetries(5)
-            .onRetry(event -> LOG.warn("Retrying SynapseServer initialization (attempt %d) due to: %s",
+            .onRetry(event -> LOG.warn(
+                    "Retrying SynapseServer initialization (attempt %d) due to: %s",
                     event.getAttemptCount(),
                     event.getLastException().getMessage()))
             .build();

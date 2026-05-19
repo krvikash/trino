@@ -160,29 +160,31 @@ public class SmartPinningPartitionNodeMapper
     {
         ListenableFuture<BufferNodesState> bufferNodesStateFuture = getBufferNodeStateWithActiveNodes();
 
-        return Futures.transform(bufferNodesStateFuture, bufferNodesState -> {
-            synchronized (SmartPinningPartitionNodeMapper.this) {
-                updateBaseMapping(bufferNodesState);
+        return Futures.transform(
+                bufferNodesStateFuture,
+                bufferNodesState -> {
+                    synchronized (SmartPinningPartitionNodeMapper.this) {
+                        updateBaseMapping(bufferNodesState);
 
-                if (preserveOrderWithinPartition) {
-                    // pick one buffer node per partition
-                    ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
-                    IntStream.range(0, outputPartitionCount).forEach(partition -> {
-                        List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
-                                .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
-                                .collect(toImmutableList());
+                        if (preserveOrderWithinPartition) {
+                            // pick one buffer node per partition
+                            ImmutableListMultimap.Builder<Integer, Long> mapping = ImmutableListMultimap.builder();
+                            IntStream.range(0, outputPartitionCount).forEach(partition -> {
+                                List<BufferNodeInfo> candidateNodes = partitionToNode.get(partition).stream()
+                                        .map(nodeId -> bufferNodesState.getActiveBufferNodes().get(nodeId))
+                                        .collect(toImmutableList());
 
-                        RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
-                        mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
-                    });
-                    // it is fine to use baseNodesCount here with values greater than 1 even though there is just a single node mapped to each partition
-                    return new PartitionNodeMapping(mapping.build(), baseNodesCount);
-                }
-                // return whole mapping
-                return new PartitionNodeMapping(partitionToNode, baseNodesCount);
-            }
-        },
-        directExecutor());
+                                RandomSelector<BufferNodeInfo> bufferNodeInfoRandomSelector = buildNodeSelector(candidateNodes);
+                                mapping.put(partition, bufferNodeInfoRandomSelector.next().nodeId());
+                            });
+                            // it is fine to use baseNodesCount here with values greater than 1 even though there is just a single node mapped to each partition
+                            return new PartitionNodeMapping(mapping.build(), baseNodesCount);
+                        }
+                        // return whole mapping
+                        return new PartitionNodeMapping(partitionToNode, baseNodesCount);
+                    }
+                },
+                directExecutor());
     }
 
     private ListenableFuture<BufferNodesState> getBufferNodeStateWithActiveNodes()

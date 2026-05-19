@@ -45,7 +45,8 @@ public class CacheManagerModule
         if (serverConfig.isCoordinator()) {
             binder.bind(CacheController.class).in(Scopes.SINGLETON);
 
-            install(new AbstractConfigurationAwareModule() {
+            install(new AbstractConfigurationAwareModule()
+            {
                 @Override
                 protected void setup(Binder binder) {}
 

@@ -54,7 +54,8 @@ public class TestBufferExchangeSpecialCases
             MockBufferService mockBufferService = testSetup.getMockBufferService();
 
             // long-running query which and writes reasonably sized output (not too small, not too big) to an exchange.
-            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query("""
+            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query(
+                    """
                     WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
                          small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
                     SELECT count(*) FROM small,big WHERE small.k = big.k"""));
@@ -92,7 +93,8 @@ public class TestBufferExchangeSpecialCases
             MockBufferService mockBufferService = testSetup.getMockBufferService();
 
             // long-running query which and writes reasonably sized output (not too small, not too big) to an exchange.
-            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query("""
+            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query(
+                    """
                     WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
                          small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
                     SELECT count(*) FROM small,big WHERE small.k = big.k"""));

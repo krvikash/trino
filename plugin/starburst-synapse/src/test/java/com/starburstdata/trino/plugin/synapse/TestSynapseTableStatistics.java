@@ -162,7 +162,8 @@ public class TestSynapseTableStatistics
     public void testNullsFraction()
     {
         String tableName = "test_stats_table_with_nulls_" + randomNameSuffix();
-        assertUpdate("" +
+        assertUpdate(
+                "" +
                         "CREATE TABLE " + tableName + " AS " +
                         "SELECT " +
                         "    if(nationkey % 3 = 0, NULL, nationkey) nationkey, " +

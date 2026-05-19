@@ -45,7 +45,8 @@ public class PrintMetricsTimerTaskTest
         MetricsConfig metricsConfig = new MetricsConfig();
         metricsRegistry = new MetricsRegistry(new CatalogNameProvider(CATALOG_NAME), metricsConfig);
         metricsManager = new MetricsManager(metricsRegistry);
-        printMetricsTimerTask = new PrintMetricsTimerTask(metricsConfig,
+        printMetricsTimerTask = new PrintMetricsTimerTask(
+                metricsConfig,
                 metricsManager,
                 new CatalogNameProvider("warp"),
                 new ScheduledMetricsHandler(),
@@ -55,7 +56,7 @@ public class PrintMetricsTimerTaskTest
     @AfterEach
     public void after()
     {
-        metricsRegistry.getAll().values().forEach((stat) -> metricsManager.unregisterMetric(stat.getJmxKey()));
+        metricsRegistry.getAll().values().forEach(stat -> metricsManager.unregisterMetric(stat.getJmxKey()));
     }
 
     @SuppressWarnings("unchecked")

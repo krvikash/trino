@@ -35,11 +35,8 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 class ContainsArrayRewriter
         implements ConnectorExpressionRule<Call, WarpExpression>
-
 {
-    public ContainsArrayRewriter()
-    {
-    }
+    public ContainsArrayRewriter() {}
 
     private static final Pattern<Call> PATTERN = ConnectorExpressionPatterns.call()
             .with(ConnectorExpressionPatterns.argumentCount().equalTo(2))
@@ -47,7 +44,7 @@ class ContainsArrayRewriter
             .with(ConnectorExpressionPatterns.functionName().equalTo(CONTAINS))
             .with(ConnectorExpressionPatterns.argument(0).matching(x -> x instanceof Variable variable &&
                     variable.getType() instanceof ArrayType arrayType &&
-                            (arrayType.getElementType() instanceof VarcharType || arrayType.getElementType() instanceof CharType)))
+                    (arrayType.getElementType() instanceof VarcharType || arrayType.getElementType() instanceof CharType)))
             .with(ConnectorExpressionPatterns.argument(1).matching(x -> x instanceof Constant));
 
     @Override

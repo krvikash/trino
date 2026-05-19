@@ -60,12 +60,13 @@ public final class EnvMultinodeWarpSpeedMinio
     private final String hadoopImagesVersion;
 
     @Inject
-    public EnvMultinodeWarpSpeedMinio(DockerFiles dockerFiles,
-                                  PortBinder portBinder,
-                                  StandardMultinode standardMultinode,
-                                  EnvironmentConfig config,
-                                  Hadoop hadoop,
-                                  Minio minio)
+    public EnvMultinodeWarpSpeedMinio(
+            DockerFiles dockerFiles,
+            PortBinder portBinder,
+            StandardMultinode standardMultinode,
+            EnvironmentConfig config,
+            Hadoop hadoop,
+            Minio minio)
     {
         super(standardMultinode, hadoop, minio);
         this.portBinder = requireNonNull(portBinder, "portBinder is null");

@@ -452,7 +452,6 @@ public class TestVerticaConnectorTest
                 .ordered()
                 .isFullyPushedDown();
 
-
         assertThat(query("SELECT orderkey, totalprice " +
                 "FROM (SELECT orderkey, totalprice FROM (SELECT orderkey, totalprice FROM orders ORDER BY 1 NULLS FIRST, 2 LIMIT 10) " +
                 "ORDER BY 2, 1 NULLS FIRST LIMIT 5) ORDER BY 1 NULLS FIRST, 2 LIMIT 3"))
@@ -506,7 +505,8 @@ public class TestVerticaConnectorTest
 
     // extension for BaseJdbcConnectorTest.testLimitPushdown
     @Test
-    public void testLimitPushdownOverTopN(){
+    public void testLimitPushdownOverTopN()
+    {
         // with TopN over numeric column
         PlanMatchPattern topnOverTableScan = project(node(TopNNode.class, anyTree(node(TableScanNode.class))));
         assertConditionallyPushedDown(
@@ -614,7 +614,7 @@ public class TestVerticaConnectorTest
     }
 
     @Test
-    //Vertica truncates when we cast decimal values instead of rounding as trino
+    // Vertica truncates when we cast decimal values instead of rounding as trino
     @Override
     public void testNumericAggregationPushdown()
     {
@@ -627,7 +627,8 @@ public class TestVerticaConnectorTest
             assertThat(query("SELECT avg(short_decimal), avg(long_decimal), avg(a_bigint), avg(t_double) FROM " + emptyTable.getName())).isNotFullyPushedDown(AggregationNode.class);
         }
 
-        try (TestTable testTable = createAggregationTestTable(schemaName + ".test_num_agg_pd",
+        try (TestTable testTable = createAggregationTestTable(
+                schemaName + ".test_num_agg_pd",
                 ImmutableList.of("100.000, 100000000.000000000, 100.000, 100000000", "123.321, 123456789.987654321, 123.321, 123456789"))) {
             assertThat(query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + testTable.getName())).isFullyPushedDown();
             assertThat(query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + testTable.getName())).isFullyPushedDown();

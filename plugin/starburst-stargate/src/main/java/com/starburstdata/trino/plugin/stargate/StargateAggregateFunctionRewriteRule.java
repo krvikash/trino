@@ -78,9 +78,9 @@ class StargateAggregateFunctionRewriteRule
             return Optional.empty();
         }
         String arguments = rewrittenArguments.stream()
-                                   .map(Optional::get)
-                                   .map(ParameterizedExpression::expression)
-                                   .collect(joining(", "));
+                .map(Optional::get)
+                .map(ParameterizedExpression::expression)
+                .collect(joining(", "));
         List<QueryParameter> parameters = rewrittenArguments.stream()
                 .map(Optional::get)
                 .flatMap(parameterizedExpression -> parameterizedExpression.parameters().stream())
@@ -89,7 +89,8 @@ class StargateAggregateFunctionRewriteRule
         String orderBy = aggregateFunction.getSortItems().stream()
                 .map(sortItem -> {
                     JdbcColumnHandle columnHandle = (JdbcColumnHandle) context.getAssignment(sortItem.getName());
-                    return format("%s %s",
+                    return format(
+                            "%s %s",
                             identifierQuote.apply(columnHandle.getColumnName()),
                             toSql(sortItem.getSortOrder()));
                 })
@@ -118,9 +119,9 @@ class StargateAggregateFunctionRewriteRule
         }
 
         return Optional.of(new JdbcExpression(
-                        call,
-                        parameters,
-                        outputTypeHandle.get()));
+                call,
+                parameters,
+                outputTypeHandle.get()));
     }
 
     private static String toSql(SortOrder sortOrder)

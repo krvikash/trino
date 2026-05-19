@@ -126,7 +126,8 @@ public class HivePageSourceProvider
     }
 
     @Override
-    public Optional<ConnectorGpuPageSource> createGpuPageSource(ConnectorTransactionHandle transaction,
+    public Optional<ConnectorGpuPageSource> createGpuPageSource(
+            ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorSplit split,
             ConnectorTableHandle tableHandle,

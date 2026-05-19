@@ -55,7 +55,7 @@ public class FlowPriorityQueueTest
     @Test
     public void testSecondSameTypeShouldReturnFinishedFuture()
     {
-        IntStream.range(0, 10).forEach((i) -> {
+        IntStream.range(0, 10).forEach(i -> {
             CompletableFuture<Long> futureJob = flowPriorityQueue.addFlow(FlowType.WARMUP, i, Optional.empty());
             assertThat(futureJob.isDone()).isTrue();
         });
@@ -172,7 +172,7 @@ public class FlowPriorityQueueTest
                 job.cancel(false);
             }
             catch (Throwable e) {
-                //ignore
+                // ignore
             }
         });
     }

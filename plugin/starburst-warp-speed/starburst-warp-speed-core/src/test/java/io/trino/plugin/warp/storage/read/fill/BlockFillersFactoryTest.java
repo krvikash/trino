@@ -32,7 +32,8 @@ public class BlockFillersFactoryTest
     {
         DictionaryConfig dictionaryConfig = new DictionaryConfig();
         dictionaryConfig.setEnableDictionary(true);
-        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
+        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(
+                dictionaryConfig,
                 TestingTxService.createMetricsManager(),
                 mock(AttachDictionaryService.class));
         BlockFillersFactory blockFillersFactory = new BlockFillersFactory(

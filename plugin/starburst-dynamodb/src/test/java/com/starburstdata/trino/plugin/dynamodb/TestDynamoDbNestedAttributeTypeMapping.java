@@ -176,22 +176,19 @@ public class TestDynamoDbNestedAttributeTypeMapping
                 .tableName(tableName)
                 .item(ImmutableMap.of(
                         "row_id", AttributeValue.builder().s("a").build(),
-                        "value", AttributeValue.builder().ss("a").build()
-                )).build());
+                        "value", AttributeValue.builder().ss("a").build())).build());
 
         dynamoDbClient.putItem(PutItemRequest.builder()
                 .tableName(tableName)
                 .item(ImmutableMap.of(
                         "row_id", AttributeValue.builder().s("b").build(),
-                        "value", AttributeValue.builder().ss("a", "b").build()
-                )).build());
+                        "value", AttributeValue.builder().ss("a", "b").build())).build());
 
         dynamoDbClient.putItem(PutItemRequest.builder()
                 .tableName(tableName)
                 .item(ImmutableMap.of(
                         "row_id", AttributeValue.builder().s("c").build(),
-                        "value", AttributeValue.builder().ss("a", "b", "c").build()
-                )).build());
+                        "value", AttributeValue.builder().ss("a", "b", "c").build())).build());
     }
 
     private void prepareMapData(String tableName)
@@ -202,8 +199,7 @@ public class TestDynamoDbNestedAttributeTypeMapping
                 .tableName(tableName)
                 .item(ImmutableMap.of(
                         "row_id", AttributeValue.builder().s("a").build(),
-                        "value", AttributeValue.builder().m(ImmutableMap.of("a", AttributeValue.builder().s("abc").build())).build()
-                )).build());
+                        "value", AttributeValue.builder().m(ImmutableMap.of("a", AttributeValue.builder().s("abc").build())).build())).build());
 
         dynamoDbClient.putItem(PutItemRequest.builder()
                 .tableName(tableName)
@@ -211,9 +207,7 @@ public class TestDynamoDbNestedAttributeTypeMapping
                         "row_id", AttributeValue.builder().s("b").build(),
                         "value", AttributeValue.builder().m(ImmutableMap.of(
                                 "a", AttributeValue.builder().s("abc").build(),
-                                "b", AttributeValue.builder().n("123").build()
-                        )).build()
-                )).build());
+                                "b", AttributeValue.builder().n("123").build())).build())).build());
 
         dynamoDbClient.putItem(PutItemRequest.builder()
                 .tableName(tableName)
@@ -222,8 +216,6 @@ public class TestDynamoDbNestedAttributeTypeMapping
                         "value", AttributeValue.builder().m(ImmutableMap.of(
                                 "a", AttributeValue.builder().s("abc").build(),
                                 "b", AttributeValue.builder().n("123").build(),
-                                "c", AttributeValue.builder().ss("def", "ghi").build()
-                        )).build()
-                )).build());
+                                "c", AttributeValue.builder().ss("def", "ghi").build())).build())).build());
     }
 }

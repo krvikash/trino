@@ -34,7 +34,8 @@ public final class DiscoveryServerApplicationModules
 
     private static Module getDiscoveryServerApplicationModule(Optional<String> configPrefix)
     {
-        return new AbstractConfigurationAwareModule() {
+        return new AbstractConfigurationAwareModule()
+        {
             @Override
             protected void setup(Binder binder)
             {

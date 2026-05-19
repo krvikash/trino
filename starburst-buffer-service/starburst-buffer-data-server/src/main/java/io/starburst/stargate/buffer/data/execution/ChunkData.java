@@ -18,7 +18,7 @@ public sealed interface ChunkData
     enum ChunkPlacement
     {
         MEMORY,
-        LOCAL_DISK
+        LOCAL_DISK,
     }
 
     ChunkPlacement chunkPlacement();

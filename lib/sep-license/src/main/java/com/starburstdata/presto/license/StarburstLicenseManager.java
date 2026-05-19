@@ -84,7 +84,7 @@ class StarburstLicenseManager
     {
         requireNonNull(feature, "feature is null");
         @SuppressWarnings("FormatStringAnnotation") // the lambda is implementing a @FormatMethod, but Error Prone doesn't see it somehow
-        boolean hasLicense = checkFeature(Optional.of(feature), (message) -> {
+        boolean hasLicense = checkFeature(Optional.of(feature), message -> {
             throw new StarburstLicenseException(message);
         });
         verify(hasLicense, "Not licensed for feature but check did not throw");

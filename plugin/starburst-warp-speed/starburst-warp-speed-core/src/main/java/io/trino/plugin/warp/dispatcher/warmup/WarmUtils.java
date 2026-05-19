@@ -68,7 +68,8 @@ public class WarmUtils
         return getRowGroupStorageObjectName(rowGroupKey, cloudImportExportPath);
     }
 
-    public static Optional<WarmupRule> findMostRelevantRuleForWarmupElement(RowGroupData rowGroupData,
+    public static Optional<WarmupRule> findMostRelevantRuleForWarmupElement(
+            RowGroupData rowGroupData,
             WarmUpElement warmUpElement,
             List<WarmupRule> rulesForWarmupElement)
     {
@@ -76,15 +77,16 @@ public class WarmUtils
                 .getPartitionKeys()
                 .entrySet()
                 .stream()
-                .collect(Collectors.toMap(entry -> (RegularColumn) entry.getKey(),
+                .collect(Collectors.toMap(
+                        entry -> (RegularColumn) entry.getKey(),
                         Map.Entry::getValue));
 
         return Objects.nonNull(rulesForWarmupElement) ?
                 rulesForWarmupElement.stream()
-                        .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
-                        .filter(warmupRule -> (isEmptyCollection(warmupRule.getPredicates()) ||
-                                warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys))))
-                        .max(WorkerWarmingService.warmupRuleComparator)
+                .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
+                .filter(warmupRule -> (isEmptyCollection(warmupRule.getPredicates()) ||
+                        warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys))))
+                .max(WorkerWarmingService.warmupRuleComparator)
                 : Optional.empty();
     }
 

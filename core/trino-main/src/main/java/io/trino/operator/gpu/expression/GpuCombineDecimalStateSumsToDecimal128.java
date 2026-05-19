@@ -54,14 +54,16 @@ public final class GpuCombineDecimalStateSumsToDecimal128
     {
         this.decimal128Type = requireNonNull(decimal128Type, "decimal128Type is null");
         checkState(decimal128Type.getTypeId() == DType.DTypeEnum.DECIMAL128,
-                "decimal128Type must be DECIMAL128, got %s", decimal128Type);
+                "decimal128Type must be DECIMAL128, got %s",
+                decimal128Type);
     }
 
     @Override
     public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
     {
         checkState(inputColumns.size() == 5,
-                "Expected 4 chunk-sum columns plus an overflow-sum column, got %s", inputColumns.size());
+                "Expected 4 chunk-sum columns plus an overflow-sum column, got %s",
+                inputColumns.size());
         @Borrow ColumnVector overflowSum = inputColumns.get(4);
 
         try (Table chunks = new Table(

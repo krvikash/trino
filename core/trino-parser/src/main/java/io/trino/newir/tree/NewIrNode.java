@@ -14,6 +14,9 @@
 package io.trino.newir.tree;
 
 public sealed interface NewIrNode
-        permits AttributeNode, BlockNode, OperationNode, ProgramNode, RegionNode, TypeNode
-{
-}
+        permits AttributeNode,
+                BlockNode,
+                OperationNode,
+                ProgramNode,
+                RegionNode,
+                TypeNode {}

@@ -51,7 +51,7 @@ public class ByteBufferInputStreamTest
             throws IOException
     {
         try (ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(nativeJuffer, 10)) {
-            IntStream.range(0, 10).forEach((_) -> byteBufferInputStream.read());
+            IntStream.range(0, 10).forEach(_ -> byteBufferInputStream.read());
             byteBufferInputStream.read();
             assertThat(byteBufferInputStream.available()).isZero();
         }

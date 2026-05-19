@@ -85,8 +85,7 @@ public final class Join
             Map<AttributeKey, Object> leftAttributes,
             Map<AttributeKey, Object> rightAttributes)
     {
-        this(
-                resultName,
+        this(resultName,
                 left,
                 right,
                 leftCriteriaSelector,

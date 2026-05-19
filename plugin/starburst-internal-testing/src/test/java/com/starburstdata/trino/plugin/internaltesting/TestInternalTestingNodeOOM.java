@@ -53,9 +53,11 @@ public class TestInternalTestingNodeOOM
         ProcessBuilder processBuilder = new ProcessBuilder(
                 ProcessHandle.current().info().command().orElseThrow(),
                 "-Xmx512m",
-                "--add-modules", "jdk.incubator.vector",
+                "--add-modules",
+                "jdk.incubator.vector",
                 "-XX:+ExitOnOutOfMemoryError",
-                "-cp", System.getProperty("java.class.path"),
+                "-cp",
+                System.getProperty("java.class.path"),
                 OOMRunner.class.getName(),
                 nodeType.value);
         processBuilder.redirectErrorStream(true);

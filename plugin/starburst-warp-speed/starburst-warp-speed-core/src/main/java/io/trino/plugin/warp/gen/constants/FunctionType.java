@@ -29,7 +29,5 @@ public enum FunctionType
     FUNCTION_TYPE_TRANSFORMED,
     FUNCTION_TYPE_NUM_OF;
 
-    FunctionType()
-    {
-    }
+    FunctionType() {}
 }

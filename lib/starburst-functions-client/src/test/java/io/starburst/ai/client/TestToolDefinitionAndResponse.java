@@ -216,8 +216,7 @@ public class TestToolDefinitionAndResponse
     {
         public CalculatorTestTool()
         {
-            super(
-                    "calculator",
+            super("calculator",
                     "Performs math operations",
                     ImmutableList.of(
                             new ToolParameter(
@@ -251,8 +250,7 @@ public class TestToolDefinitionAndResponse
     {
         public SearchTestTool()
         {
-            super(
-                    "search",
+            super("search",
                     "Searches for information",
                     ImmutableList.of(
                             new ToolParameter(
@@ -279,8 +277,7 @@ public class TestToolDefinitionAndResponse
     {
         public NestedStructureTestTool()
         {
-            super(
-                    "create_users",
+            super("create_users",
                     "Creates multiple users",
                     ImmutableList.of(
                             new ToolParameter(
@@ -315,8 +312,7 @@ public class TestToolDefinitionAndResponse
     {
         public ComplexStructureTestTool()
         {
-            super(
-                    "define_table",
+            super("define_table",
                     "Defines a table structure",
                     ImmutableList.of(
                             new ToolParameter(

@@ -29,9 +29,10 @@ public class LuceneIndexReader
     private final String rowGroupFilePath;
     private final ChunkState chunkState;
 
-    public LuceneIndexReader(StorageEngineConstants storageEngineConstants,
-                             String rowGroupFilePath,
-                             ChunkState chunkState)
+    public LuceneIndexReader(
+            StorageEngineConstants storageEngineConstants,
+            String rowGroupFilePath,
+            ChunkState chunkState)
     {
         this.storageEngineConstants = storageEngineConstants;
         this.rowGroupFilePath = rowGroupFilePath;
@@ -53,12 +54,20 @@ public class LuceneIndexReader
             int readBytes = randomAccessFile.read(luceneBytes);
 
             if (readBytes <= 0) {
-                logger.error("loadSmallFile failed rowGroupFilePath %s chunkState %s luceneFileType %s readBytes %d",
-                        rowGroupFilePath, chunkState, luceneFileType, readBytes);
+                logger.error(
+                        "loadSmallFile failed rowGroupFilePath %s chunkState %s luceneFileType %s readBytes %d",
+                        rowGroupFilePath,
+                        chunkState,
+                        luceneFileType,
+                        readBytes);
                 throw new RuntimeException("end of file reached");
             }
-            logger.debug("loadSmallFile rowGroupFilePath %s chunkState %s luceneFileType %s readBytes %d",
-                    rowGroupFilePath, chunkState, luceneFileType, readBytes);
+            logger.debug(
+                    "loadSmallFile rowGroupFilePath %s chunkState %s luceneFileType %s readBytes %d",
+                    rowGroupFilePath,
+                    chunkState,
+                    luceneFileType,
+                    readBytes);
             return ByteBuffer.wrap(luceneBytes);
         }
     }
@@ -81,12 +90,23 @@ public class LuceneIndexReader
             int readBytes = randomAccessFile.read(luceneBytes);
 
             if (readBytes <= 0) {
-                logger.error("loadBigFilePage failed rowGroupFilePath %s chunkState %s pageIndex %d length %d bufferSize %d readBytes %d",
-                        rowGroupFilePath, chunkState, pageIndex, length, bufferSize, readBytes);
+                logger.error(
+                        "loadBigFilePage failed rowGroupFilePath %s chunkState %s pageIndex %d length %d bufferSize %d readBytes %d",
+                        rowGroupFilePath,
+                        chunkState,
+                        pageIndex,
+                        length,
+                        bufferSize,
+                        readBytes);
                 throw new RuntimeException("end of file reached");
             }
-            logger.debug("loadBigFilePage rowGroupFilePath %s chunkState %s pageIndex %d bufferSize %d readBytes %d",
-                    rowGroupFilePath, chunkState, pageIndex, bufferSize, readBytes);
+            logger.debug(
+                    "loadBigFilePage rowGroupFilePath %s chunkState %s pageIndex %d bufferSize %d readBytes %d",
+                    rowGroupFilePath,
+                    chunkState,
+                    pageIndex,
+                    bufferSize,
+                    readBytes);
             return ByteBuffer.wrap(luceneBytes);
         }
     }

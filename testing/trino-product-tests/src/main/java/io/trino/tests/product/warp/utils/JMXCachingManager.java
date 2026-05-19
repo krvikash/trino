@@ -43,9 +43,7 @@ public class JMXCachingManager
     private static Map<Class<?>, List<String>> stats;
     private static Map<String, String> counterToErrorMessage;
 
-    private JMXCachingManager()
-    {
-    }
+    private JMXCachingManager() {}
 
     public static List<String> getStatsNames(Class<?> clazz)
     {

@@ -163,7 +163,7 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
                         """
                         Actual rows (up to 100 of 1 extra rows shown, 1 rows in total):
                             [1, 2]\
-                            """);
+                        """);
     }
 
     @Override

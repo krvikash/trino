@@ -30,14 +30,14 @@ public class WarehouseAwareDriverPoolingConnectionFactory
 {
     public WarehouseAwareDriverPoolingConnectionFactory(
             String catalogName,
-            Properties connectionProperties, BaseJdbcConfig config,
+            Properties connectionProperties,
+            BaseJdbcConfig config,
             JdbcConnectionPoolConfig poolConfig,
             CredentialProvider credentialProvider,
             IdentityCacheMapping identityCacheMapping,
             SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
-        super(
-                catalogName,
+        super(catalogName,
                 SnowflakeDriver.class,
                 connectionProperties,
                 config,

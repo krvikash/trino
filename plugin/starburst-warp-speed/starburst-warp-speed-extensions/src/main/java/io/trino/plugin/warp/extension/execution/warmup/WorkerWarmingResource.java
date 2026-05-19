@@ -47,7 +47,7 @@ public class WorkerWarmingResource
 
     @GET
     @Path(STATUS)
-    //@ApiOperation(value = "worker warming status", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "worker warming status", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public WorkerWarmingStatusData getStatus()
     {
         WarmingServiceStats warmingServiceStats = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());

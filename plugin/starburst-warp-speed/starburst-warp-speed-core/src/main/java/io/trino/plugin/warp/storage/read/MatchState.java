@@ -39,7 +39,7 @@ public class MatchState
     static final StructLayout MATCH_BITMAP_DESC_LAYOUT;
     static final long MATCH_BITMAP_DESC_OFFSET_BM_ADDRESS;
     static final long MATCH_BITMAP_DESC_OFFSET_RESET_POINT;
-    //private static final long MATCH_BITMAP_DESC_OFFSET_POP_COUNT;
+    // private static final long MATCH_BITMAP_DESC_OFFSET_POP_COUNT;
 
     private static final StructLayout MATCH_LUCENE_STATE_LAYOUT;
     private static final long MATCH_LUCENE_STATE_OFFSET_UNIQUE_ID;
@@ -80,7 +80,7 @@ public class MatchState
                 ValueLayout.JAVA_INT.withName("pop_count")).withName("page_bm_t");
         MATCH_BITMAP_DESC_OFFSET_BM_ADDRESS = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("bm"));
         MATCH_BITMAP_DESC_OFFSET_RESET_POINT = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("reset_point"));
-        //MATCH_BITMAP_DESC_OFFSET_POP_COUNT = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("pop_count"));
+        // MATCH_BITMAP_DESC_OFFSET_POP_COUNT = MATCH_BITMAP_DESC_LAYOUT.byteOffset(PathElement.groupElement("pop_count"));
 
         MATCH_LUCENE_STATE_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_INT.withName("unique_id"),
@@ -123,7 +123,8 @@ public class MatchState
         MATCH_STATE_OFFSET_MAX_TREE_HEIGHT = MATCH_STATE_LAYOUT.byteOffset(PathElement.groupElement("max_height"));
     }
 
-    public MatchState(QueryArgs queryArgs,
+    public MatchState(
+            QueryArgs queryArgs,
             ThreadArena arena,
             Optional<MemorySegment> matchCollectMetadata,
             int payloadSize, // payload is taken at the begining of the memory layout
@@ -199,7 +200,8 @@ public class MatchState
 
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_LUCENE_BM, luceneBitmaps.map(m -> m.address()).orElse(0L));
         matchState.set(ValueLayout.JAVA_LONG, MATCH_STATE_OFFSET_MATCH_COLLECT_MD, matchCollectMetadata.map(m -> m.address()).orElse(0L));
-        RowGroupData.setFileCookie(matchState.asSlice(MATCH_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
+        RowGroupData.setFileCookie(
+                matchState.asSlice(MATCH_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
                 (int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()],
                 fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
                 fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);

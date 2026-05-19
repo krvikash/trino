@@ -44,7 +44,8 @@ public class TestOrcSchemaDiscovery
     public void testUsers()
     {
         DiscoveredColumns schemaColumns = orcSchemaDiscovery.discoverColumns(Util.testFile("orc/users.orc"), ImmutableMap.of());
-        assertThat(schemaColumns.columns()).containsExactly(toColumn("name", HIVE_STRING),
+        assertThat(schemaColumns.columns()).containsExactly(
+                toColumn("name", HIVE_STRING),
                 toColumn("favorite_color", HIVE_STRING),
                 toColumn("favorite_numbers", arrayType(HIVE_INT)));
     }
@@ -68,7 +69,8 @@ public class TestOrcSchemaDiscovery
     {
         DiscoveredColumns schemaColumns = orcSchemaDiscovery.discoverColumns(Util.testFile("orc/from-trino.orc"), ImmutableMap.of());
         TypeInfo structType = structType(ImmutableList.of("s_string", "s_double"), ImmutableList.of(HIVE_STRING, HIVE_DOUBLE));
-        assertThat(schemaColumns.columns()).containsExactly(toColumn("_col0", HIVE_STRING),
+        assertThat(schemaColumns.columns()).containsExactly(
+                toColumn("_col0", HIVE_STRING),
                 toColumn("_col1", HIVE_BYTE),
                 toColumn("_col2", HIVE_SHORT),
                 toColumn("_col3", HIVE_INT),

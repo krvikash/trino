@@ -124,9 +124,7 @@ import static java.util.Objects.requireNonNull;
 
 public class ArrowDecodingUtils
 {
-    private ArrowDecodingUtils()
-    {
-    }
+    private ArrowDecodingUtils() {}
 
     public static VectorTypeDecoder<?>[] createVectorTypeDecoders(List<Column> columns, List<ValueVector> vectors)
     {

@@ -160,14 +160,14 @@ public abstract class BaseSynapseFailureRecoveryTest
     @Override
     protected void testRequestTimeouts()
     {
-        this.assertThatQuery("SELECT * FROM nation").experiencing(FailureInjector.InjectedFailureType.TASK_MANAGEMENT_REQUEST_TIMEOUT).at(leafStage()).failsWithoutRetries((failure) -> {
+        this.assertThatQuery("SELECT * FROM nation").experiencing(FailureInjector.InjectedFailureType.TASK_MANAGEMENT_REQUEST_TIMEOUT).at(leafStage()).failsWithoutRetries(failure -> {
             failure.hasMessageContaining("Encountered too many errors talking to a worker node");
         }).finishesSuccessfully();
-        this.assertThatQuery("SELECT * FROM nation").experiencing(FailureInjector.InjectedFailureType.TASK_MANAGEMENT_REQUEST_TIMEOUT).at(boundaryDistributedStage()).failsWithoutRetries((failure) -> {
+        this.assertThatQuery("SELECT * FROM nation").experiencing(FailureInjector.InjectedFailureType.TASK_MANAGEMENT_REQUEST_TIMEOUT).at(boundaryDistributedStage()).failsWithoutRetries(failure -> {
             failure.hasMessageContaining("Encountered too many errors talking to a worker node");
         }).finishesSuccessfully();
         if (this.areWriteRetriesSupported()) {
-            this.assertThatQuery("INSERT INTO <table> SELECT * FROM nation").withSetupQuery(Optional.of("CREATE TABLE <table> AS SELECT * FROM nation WITH NO DATA")).withCleanupQuery(Optional.of("DROP TABLE <table>")).experiencing(FailureInjector.InjectedFailureType.TASK_GET_RESULTS_REQUEST_TIMEOUT).at(leafStage()).failsWithoutRetries((failure) -> {
+            this.assertThatQuery("INSERT INTO <table> SELECT * FROM nation").withSetupQuery(Optional.of("CREATE TABLE <table> AS SELECT * FROM nation WITH NO DATA")).withCleanupQuery(Optional.of("DROP TABLE <table>")).experiencing(FailureInjector.InjectedFailureType.TASK_GET_RESULTS_REQUEST_TIMEOUT).at(leafStage()).failsWithoutRetries(failure -> {
                 failure.hasMessageFindingMatch("Encountered too many errors talking to a worker node|Error closing remote buffer");
             }).finishesSuccessfullyWithoutTaskFailures();
         }

@@ -134,7 +134,7 @@ public class WarmupDemoterServiceTest
     @Test
     public void testRunWarmupDemoterWithStatusExecuting()
     {
-        //initialize demote context as if one is running now
+        // initialize demote context as if one is running now
         warmupDemoterService.initDemoteContext(
                 warmupDemoterConfig.getMaxUsageThresholdPercentage(),
                 warmupDemoterConfig.getCleanupUsageThresholdPercentage(),
@@ -467,7 +467,8 @@ public class WarmupDemoterServiceTest
         assertThat(list).containsExactlyElementsOf(List.of(t2, t3, t1));
     }
 
-    private void setConfig(double maxUsageThresholdPercentage,
+    private void setConfig(
+            double maxUsageThresholdPercentage,
             double cleanupUsageThresholdPercentage,
             int batchSize,
             long maxElementsToDemote,

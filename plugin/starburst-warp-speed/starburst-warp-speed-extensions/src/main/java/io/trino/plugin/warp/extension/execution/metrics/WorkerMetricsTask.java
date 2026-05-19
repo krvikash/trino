@@ -44,7 +44,8 @@ public class WorkerMetricsTask
     private final WorkerNodeManager workerNodeManager;
 
     @Inject
-    public WorkerMetricsTask(WorkerCapacityManager workerCapacityManager,
+    public WorkerMetricsTask(
+            WorkerCapacityManager workerCapacityManager,
             WarpClient warpClient,
             WorkerNodeManager workerNodeManager)
     {
@@ -54,14 +55,15 @@ public class WorkerMetricsTask
     }
 
     @GET
-    //@ApiOperation(value = "get", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "get", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public ClusterMetricsResult workerMetricsGet()
     {
         long totalCapacity = workerCapacityManager.getTotalCapacity();
         long storageAllocated = workerCapacityManager.getCurrentUsage();
         Map nodeStatus = getNodeStatus();
         Map generalPoolInfo = (Map) ((Map) nodeStatus.get("memoryInfo")).get("pool");
-        return new ClusterMetricsResult((Double) nodeStatus.get("systemCpuLoad"),
+        return new ClusterMetricsResult(
+                (Double) nodeStatus.get("systemCpuLoad"),
                 ((long) generalPoolInfo.get("maxBytes")) - (long) generalPoolInfo.get("freeBytes"),
                 (long) generalPoolInfo.get("maxBytes"),
                 storageAllocated,

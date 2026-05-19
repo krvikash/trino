@@ -30,9 +30,13 @@ public class UpdateSchemaProcedure
 {
     public enum UpdateMode
     {
-        /** Replace the table definition regardless of conflicts with the existing definition. */
+        /**
+         * Replace the table definition regardless of conflicts with the existing definition.
+         */
         REPLACE,
-        /** Throw an exception if the new definition conflicts with the existing definition. */
+        /**
+         * Throw an exception if the new definition conflicts with the existing definition.
+         */
         FAIL,
     }
 

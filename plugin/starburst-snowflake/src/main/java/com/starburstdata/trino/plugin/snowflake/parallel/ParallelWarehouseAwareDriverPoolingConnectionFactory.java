@@ -39,8 +39,7 @@ public class ParallelWarehouseAwareDriverPoolingConnectionFactory
             IdentityCacheMapping identityCacheMapping,
             SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
-        super(
-                catalogName,
+        super(catalogName,
                 connectionProperties,
                 config,
                 poolConfig,

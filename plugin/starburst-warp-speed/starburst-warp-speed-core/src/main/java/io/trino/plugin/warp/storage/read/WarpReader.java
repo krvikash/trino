@@ -51,7 +51,8 @@ public class WarpReader
     private final MatcherArgs matcherArgs;
     private MatcherPageArgs matcherPageArgs;
 
-    WarpReader(QueryParams queryParams,
+    WarpReader(
+            QueryParams queryParams,
             CustomStatsContext customStatsContext,
             BlocksAggregator blocksAggregator,
             Matcher matcher,
@@ -91,14 +92,16 @@ public class WarpReader
         pageArena = workerMemoryManager.getThreadArena();
 
         // each API call will throw exception if failed
-        aggregatorPageArgs = blocksAggregator.openPage(recordIndexes,
+        aggregatorPageArgs = blocksAggregator.openPage(
+                recordIndexes,
                 queryArgs,
                 pageArena,
                 aggregatorArgs,
                 queryState,
                 blocksToLoad);
 
-        matcherPageArgs = matcher.openPage(recordIndexes,
+        matcherPageArgs = matcher.openPage(
+                recordIndexes,
                 pageArena,
                 queryArgs,
                 matcherArgs,
@@ -122,7 +125,8 @@ public class WarpReader
             if (chunk.isEmpty()) {
                 break;
             }
-            blocksAggregator.prepareBlocks(chunk.get(),
+            blocksAggregator.prepareBlocks(
+                    chunk.get(),
                     recordIndexes,
                     queryArgs,
                     aggregatorArgs,
@@ -148,14 +152,16 @@ public class WarpReader
             openPage(preLoadedBlocks, recordIndexes);
             if (prepareBlocks(preLoadedBlocks, recordIndexes, pageChunksList)) {
                 if (queryState.getNumRecordsInCurPage() > rowsLimit - queryState.getTotalNumReadRecords()) {
-                    shapingLogger.warn("numRecordsInCurPage is exceeding the limit. numRecordsInCurPage %d totalNumReadRecords %d rowsLimit %d page limit %d",
+                    shapingLogger.warn(
+                            "numRecordsInCurPage is exceeding the limit. numRecordsInCurPage %d totalNumReadRecords %d rowsLimit %d page limit %d",
                             queryState.getNumRecordsInCurPage(),
                             queryState.getTotalNumReadRecords(),
                             rowsLimit,
                             rowsLimit - queryState.getTotalNumReadRecords());
                 }
 
-                blocksAggregator.aggregateBlocks(recordIndexes,
+                blocksAggregator.aggregateBlocks(
+                        recordIndexes,
                         queryArgs,
                         aggregatorArgs,
                         aggregatorPageArgs,
@@ -269,7 +275,8 @@ public class WarpReader
         private final int positionCount;
         private final Block[] blocks;
 
-        public WarpSourcePage(RecordIndexes recordIndexes,
+        public WarpSourcePage(
+                RecordIndexes recordIndexes,
                 List<ChunkProperties> chunkPropertiesList,
                 int positionCount,
                 Block[] blocks)
@@ -337,7 +344,8 @@ public class WarpReader
 
             try {
                 pageArena = workerMemoryManager.getThreadArena();
-                aggregatorPageArgs = blocksAggregator.openPage(recordIndexes,
+                aggregatorPageArgs = blocksAggregator.openPage(
+                        recordIndexes,
                         queryArgs,
                         pageArena,
                         aggregatorArgs,
@@ -345,7 +353,8 @@ public class WarpReader
                         blocksToLoad);
 
                 for (ChunkProperties chunk : chunkPropertiesList) {
-                    blocksAggregator.prepareBlocks(chunk,
+                    blocksAggregator.prepareBlocks(
+                            chunk,
                             recordIndexes,
                             queryArgs,
                             aggregatorArgs,
@@ -354,7 +363,8 @@ public class WarpReader
                             blocksToLoad);
                 }
 
-                blocksAggregator.aggregateBlocks(recordIndexes,
+                blocksAggregator.aggregateBlocks(
+                        recordIndexes,
                         queryArgs,
                         aggregatorArgs,
                         aggregatorPageArgs,

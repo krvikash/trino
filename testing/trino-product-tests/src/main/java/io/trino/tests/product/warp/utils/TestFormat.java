@@ -27,12 +27,33 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public record TestFormat(String name, int lines, String table_name, List<Column> structure, String data_format, List<WarmupRule> warmup_rules,
-                         Map<String, Object> session_properties, String warm_query, boolean skip, boolean pt_enable, boolean skip_caching,
-                         List<QueryData> queries_data, WarmTypeForStrings warm_type_for_strings, String description,
-                         int expected_warm_failures, List<String> failed_warmup_elements, Map<String, Long> expected_dictionary_counters, Set<TableType> skip_type,
-                         Map<String, Long> iceberg_expected_dictionary_counters, Map<String, Long> dl_expected_dictionary_counters, int split_count,
-                         List<String> partition_by, List<Object> bucketed_by, int bucket_count, Optional<String> orig_table_name, Map<String, TestFormat> overriding)
+public record TestFormat(
+        String name,
+        int lines,
+        String table_name,
+        List<Column> structure,
+        String data_format,
+        List<WarmupRule> warmup_rules,
+        Map<String, Object> session_properties,
+        String warm_query,
+        boolean skip,
+        boolean pt_enable,
+        boolean skip_caching,
+        List<QueryData> queries_data,
+        WarmTypeForStrings warm_type_for_strings,
+        String description,
+        int expected_warm_failures,
+        List<String> failed_warmup_elements,
+        Map<String, Long> expected_dictionary_counters,
+        Set<TableType> skip_type,
+        Map<String, Long> iceberg_expected_dictionary_counters,
+        Map<String, Long> dl_expected_dictionary_counters,
+        int split_count,
+        List<String> partition_by,
+        List<Object> bucketed_by,
+        int bucket_count,
+        Optional<String> orig_table_name,
+        Map<String, TestFormat> overriding)
 {
     public record Column(String name, String type, List<Object> args) {}
 
@@ -43,10 +64,18 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             int priority,
             Duration ttl) {}
 
-    public record QueryData(String query, List<Object> expected_result, String query_id,
-                            Map<String, Long> expected_counters, Map<String, Object> session_properties,
-                            boolean skip, List<Object> expected_iceberg_result, List<Object> expected_dl_result,
-                            Map<String, Long> iceberg_expected_counters, Map<String, Long> dl_expected_counters, boolean skip_caching) {}
+    public record QueryData(
+            String query,
+            List<Object> expected_result,
+            String query_id,
+            Map<String, Long> expected_counters,
+            Map<String, Object> session_properties,
+            boolean skip,
+            List<Object> expected_iceberg_result,
+            List<Object> expected_dl_result,
+            Map<String, Long> iceberg_expected_counters,
+            Map<String, Long> dl_expected_counters,
+            boolean skip_caching) {}
 
     public String getTableName()
     {
@@ -88,9 +117,9 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
                 .origTableName(testFormat.orig_table_name());
     }
 
-    //The test format that we got from the json, should be changed in case table type other than warp (DL or Iceberg)
-    //was provided in the test command line
-    //The table name, expected results and expected counters sometimes are affect by table type
+    // The test format that we got from the json, should be changed in case table type other than warp (DL or Iceberg)
+    // was provided in the test command line
+    // The table name, expected results and expected counters sometimes are affect by table type
     public TestFormat withTableType(String newTableName, TableType tableType)
     {
         List<QueryData> updatedQueriesData = new ArrayList<>();
@@ -148,9 +177,18 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             }
         }
 
-        return new QueryData(updatedQuery, expectedResult,
-                queryData.query_id, expectedCounters, queryData.session_properties, queryData.skip,
-                null, null, null, null, queryData.skip_caching);
+        return new QueryData(
+                updatedQuery,
+                expectedResult,
+                queryData.query_id,
+                expectedCounters,
+                queryData.session_properties,
+                queryData.skip,
+                null,
+                null,
+                null,
+                null,
+                queryData.skip_caching);
     }
 
     public static class Builder
@@ -342,18 +380,64 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
 
         public TestFormat build()
         {
-            return new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
-                    skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
-                    expectedWarmFailures, failedWarmupElements, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, overriding);
+            return new TestFormat(
+                    name,
+                    lines,
+                    tableName,
+                    structure,
+                    dataFormat,
+                    warmupRules,
+                    sessionProperties,
+                    warmQuery,
+                    skip,
+                    ptEnable,
+                    skipCaching,
+                    queriesData,
+                    warmTypeForStrings,
+                    description,
+                    expectedWarmFailures,
+                    failedWarmupElements,
+                    expectedDictionaryCounters,
+                    skipType,
+                    expectedIcebergDictionaryCounters,
+                    expectedDLDictionaryCounters,
+                    splitCount,
+                    partitionBy,
+                    bucketedBy,
+                    bucketCount,
+                    origTableName,
+                    overriding);
         }
 
         public TestFormat build(String overridingKey)
         {
-            TestFormat testFormat = new TestFormat(name, lines, tableName, structure, dataFormat, warmupRules, sessionProperties, warmQuery,
-                    skip, ptEnable, skipCaching, queriesData, warmTypeForStrings, description,
-                    expectedWarmFailures, failedWarmupElements, expectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, overriding);
+            TestFormat testFormat = new TestFormat(
+                    name,
+                    lines,
+                    tableName,
+                    structure,
+                    dataFormat,
+                    warmupRules,
+                    sessionProperties,
+                    warmQuery,
+                    skip,
+                    ptEnable,
+                    skipCaching,
+                    queriesData,
+                    warmTypeForStrings,
+                    description,
+                    expectedWarmFailures,
+                    failedWarmupElements,
+                    expectedDictionaryCounters,
+                    skipType,
+                    expectedIcebergDictionaryCounters,
+                    expectedDLDictionaryCounters,
+                    splitCount,
+                    partitionBy,
+                    bucketedBy,
+                    bucketCount,
+                    origTableName,
+                    overriding);
             if (overriding != null) {
                 TestFormat overridingTestFormat = overriding.get(overridingKey);
                 testFormat = mergeTestFormat(testFormat, overridingTestFormat);
@@ -379,10 +463,33 @@ public record TestFormat(String name, int lines, String table_name, List<Column>
             if (overridingTestFormat.queries_data != null && !overridingTestFormat.queries_data.isEmpty()) {
                 queriesData = mergeQueriesWithOverrding(queriesData, overridingTestFormat.queries_data);
             }
-            return new TestFormat(calculatedName, calculatedLines, calculatedTableName, structure, calculatedDataFormat, warmupRules, calculatedSessionProperties, calculatedWarmQuery,
-                    overridingTestFormat.skip, overridingTestFormat.pt_enable, skipCaching, queriesData, warmTypeForStrings, description,
-                    calculatedExpectedWarmFailures, calculatedFailedWarmupElements, calculatedExpectedDictionaryCounters, skipType, expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters, splitCount, partitionBy, bucketedBy, bucketCount, origTableName, new HashMap<>());
+            return new TestFormat(
+                    calculatedName,
+                    calculatedLines,
+                    calculatedTableName,
+                    structure,
+                    calculatedDataFormat,
+                    warmupRules,
+                    calculatedSessionProperties,
+                    calculatedWarmQuery,
+                    overridingTestFormat.skip,
+                    overridingTestFormat.pt_enable,
+                    skipCaching,
+                    queriesData,
+                    warmTypeForStrings,
+                    description,
+                    calculatedExpectedWarmFailures,
+                    calculatedFailedWarmupElements,
+                    calculatedExpectedDictionaryCounters,
+                    skipType,
+                    expectedIcebergDictionaryCounters,
+                    expectedDLDictionaryCounters,
+                    splitCount,
+                    partitionBy,
+                    bucketedBy,
+                    bucketCount,
+                    origTableName,
+                    new HashMap<>());
         }
 
         private List<QueryData> mergeQueriesWithOverrding(List<QueryData> queriesData, List<QueryData> overridingQueries)

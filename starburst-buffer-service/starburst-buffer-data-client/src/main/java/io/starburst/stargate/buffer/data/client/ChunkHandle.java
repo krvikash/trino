@@ -27,11 +27,12 @@ public record ChunkHandle(
 {
     // todo: parseClass does not work on records
     // java.lang.UnsupportedOperationException: can't get field offset on a record class: private final long io.starburst.stargate.buffer.data.client.ChunkHandle.bufferNodeId
-    //private static final int INSTANCE_SIZE = ClassLayout.parseClass(ChunkHandle.class).instanceSize();
+    // private static final int INSTANCE_SIZE = ClassLayout.parseClass(ChunkHandle.class).instanceSize();
     private static final int OBJECT_HEADER_SIZE = 16; /* object header with possible padding */
     public static final int INSTANCE_SIZE = OBJECT_HEADER_SIZE + Long.BYTES + Integer.BYTES + Long.BYTES + Integer.BYTES;
 
-    public ChunkHandle {
+    public ChunkHandle
+    {
         checkArgument(dataSizeInBytes >= 0, "dataSizeInBytes must be greater or equal to 0");
     }
 }

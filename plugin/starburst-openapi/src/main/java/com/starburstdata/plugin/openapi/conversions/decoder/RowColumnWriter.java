@@ -82,7 +82,8 @@ public class RowColumnWriter
 
     @Override
     public void writeToBuilder(
-            BlockBuilder blockBuilder, JsonNode node)
+            BlockBuilder blockBuilder,
+            JsonNode node)
     {
         if (node.isNull()) {
             blockBuilder.appendNull();

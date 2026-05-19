@@ -49,10 +49,8 @@ public class RewriteCast
         }
 
         return switch (targetType) {
-            case DateType _ ->
-                    Optional.of(new JdbcTypeHandle(DATE, Optional.of("Date32"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
-            case TimestampType timestampType ->
-                    Optional.of(new JdbcTypeHandle(TIMESTAMP, Optional.of("DateTime64(%s)".formatted(timestampType.getPrecision())), Optional.empty(), Optional.of(timestampType.getPrecision()), Optional.empty(), Optional.empty()));
+            case DateType _ -> Optional.of(new JdbcTypeHandle(DATE, Optional.of("Date32"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+            case TimestampType timestampType -> Optional.of(new JdbcTypeHandle(TIMESTAMP, Optional.of("DateTime64(%s)".formatted(timestampType.getPrecision())), Optional.empty(), Optional.of(timestampType.getPrecision()), Optional.empty(), Optional.empty()));
             default -> Optional.empty();
         };
     }

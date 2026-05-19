@@ -199,14 +199,10 @@ public class NativeLoggerTest
         }
 
         @Override
-        public void flush()
-        {
-        }
+        public void flush() {}
 
         @Override
-        public void close()
-        {
-        }
+        public void close() {}
 
         public LogRecord popLast()
         {

@@ -33,7 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DataValueDictionary
         implements WriteDictionary, ReadDictionary
 {
-    static final int MAX_DICTIONARY_SIZE = 1024 * 1024; //Note: the actual dictionary size in double, each element we add to preBlock
+    static final int MAX_DICTIONARY_SIZE = 1024 * 1024; // Note: the actual dictionary size in double, each element we add to preBlock
     private static final Logger logger = Logger.get(DataValueDictionary.class);
 
     private static final ArrayList<Short> indicesValue = new ArrayList<>(DictionaryConfig.DICTIONARY_MAX_SIZE);
@@ -57,7 +57,7 @@ public class DataValueDictionary
     private int attachedDictionarySize;
     private int maxRecTypeLength;
     private List<Object> readDictionary;
-    private Block preBlock; //optimization. dictionary values as block. Used by Fillers
+    private Block preBlock; // optimization. dictionary values as block. Used by Fillers
     private boolean shouldExport;
     private boolean isImmutable;
 
@@ -66,7 +66,8 @@ public class DataValueDictionary
      * it's done because we need to use ShortBuffer, which gets only short values.
      * in Fillers, we convert back index value to positive number with Short.toUnsignedInt function.
      */
-    DataValueDictionary(DictionaryConfig dictionaryConfig,
+    DataValueDictionary(
+            DictionaryConfig dictionaryConfig,
             DictionaryKey dictionaryKey,
             int fixedRecTypeLength,
             int maxRecTypeLength,
@@ -97,7 +98,7 @@ public class DataValueDictionary
             addKeyLock.lock();
             try {
                 Object value = getKeyValue(key);
-                index = writeDictionary.computeIfAbsent(value, (_) -> {
+                index = writeDictionary.computeIfAbsent(value, _ -> {
                     int incDictionaryWeight = addedWeight(value);
                     if (writeDictionary.size() == dictionaryMaxSize || (incDictionaryWeight + dictionaryWeight > maxDictionaryCacheWeight)) {
                         throw new DictionaryException("dictionary get failed due max size", WarmUpElementState.State.FAILED_TEMPORARILY, dictionaryKey, DictionaryState.DICTIONARY_MAX_EXCEPTION);
@@ -267,7 +268,7 @@ public class DataValueDictionary
             dictionaryStats.adddictionaries_varlen_str_weight(incDictionaryWeight);
         }
         else {
-            incDictionaryWeight = fixedRecTypeLength; //for preDictionary
+            incDictionaryWeight = fixedRecTypeLength; // for preDictionary
         }
         dictionaryWeight += incDictionaryWeight;
         dictionaryStats.adddictionaries_weight(incDictionaryWeight);
@@ -278,10 +279,10 @@ public class DataValueDictionary
         int incDictionaryWeight;
         if (isVarlen()) {
             maxRecTypeLength = Math.max(((Slice) key).length(), maxRecTypeLength);
-            incDictionaryWeight = ((Slice) key).length(); //for preDictionary
+            incDictionaryWeight = ((Slice) key).length(); // for preDictionary
         }
         else {
-            incDictionaryWeight = fixedRecTypeLength; //for preDictionary
+            incDictionaryWeight = fixedRecTypeLength; // for preDictionary
         }
         return incDictionaryWeight;
     }

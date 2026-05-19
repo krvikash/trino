@@ -81,9 +81,7 @@ public class TableAwarePageSourceProvider
     }
 
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 
     public long getMemoryUsage()
     {

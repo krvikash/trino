@@ -34,7 +34,8 @@ public final class SapHanaDockerInitializer
     {
         // https://help.sap.com/viewer/6b94445c94ae495c83a19646e7c3fd56/2.0.04/en-US/82e4575eec664846a9918e9ed1d90d41.html
         return ImmutableMap
-                .of("kernel.shmmax", "1073741824", // Maximum size of shared memory segment
+                .of(
+                        "kernel.shmmax", "1073741824", // Maximum size of shared memory segment
                         "kernel.shmall", "8388608", // Total amount of shared memory pages
                         "net.ipv4.ip_local_port_range", "40000 60999");
     }
@@ -66,9 +67,9 @@ public final class SapHanaDockerInitializer
         exposePortsRange(container, 59013, 59014); // Instance agent
 
         container.withCreateContainerCmdModifier(command -> command
-                .getHostConfig()
-                .withSysctls(sysctlMap())
-                .withUlimits(ImmutableList.of(new Ulimit("nofile", 1048576L, 1048576L))))
+                        .getHostConfig()
+                        .withSysctls(sysctlMap())
+                        .withUlimits(ImmutableList.of(new Ulimit("nofile", 1048576L, 1048576L))))
                 .withCommand("--passwords-url", "file:///hana/mounts/passwords.json", "--agree-to-sap-license");
 
         container.withCopyFileToContainer(

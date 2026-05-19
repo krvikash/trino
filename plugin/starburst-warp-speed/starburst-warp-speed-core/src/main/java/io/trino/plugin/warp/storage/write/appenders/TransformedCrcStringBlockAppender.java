@@ -26,7 +26,8 @@ public class TransformedCrcStringBlockAppender
 {
     private final Function<Slice, Slice> transformColumn;
 
-    public TransformedCrcStringBlockAppender(WriteJuffersWarmUpElement juffersWE,
+    public TransformedCrcStringBlockAppender(
+            WriteJuffersWarmUpElement juffersWE,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             Type filterType,
@@ -37,7 +38,7 @@ public class TransformedCrcStringBlockAppender
         this.transformColumn = transformColumnFunction;
     }
 
-    //todo: what to do with non utf8 characters?
+    // todo: what to do with non utf8 characters?
     @Override
     protected Slice getSlice(Slice slice)
     {

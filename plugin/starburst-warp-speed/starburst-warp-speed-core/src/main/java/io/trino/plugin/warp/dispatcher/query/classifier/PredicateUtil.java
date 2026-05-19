@@ -49,9 +49,7 @@ public class PredicateUtil
 
     public static final int PREDICATE_HEADER_SIZE = 5; // determined by the storage engine layer and verified to be correct at NativeStorageEngine init
 
-    private PredicateUtil()
-    {
-    }
+    private PredicateUtil() {}
 
     static boolean canApplyPredicate(Optional<WarmUpElement> warmUpElement, Type type)
     {
@@ -130,12 +128,12 @@ public class PredicateUtil
                 Objects.hash(domain.getValues().getRanges().getSpan().isLowUnbounded(), domain.getValues().getRanges().getSpan().isLowUnbounded());
         hashCode = Objects.hash(nativeExpression, columnType, hashCode, predicateType);
         return PredicateData.builder()
-                            .predicateHashCode(hashCode)
-                            .isCollectNulls(domain.isNullAllowed())
-                            .predicateSize(predicateSize)
-                            .predicateInfo(predicateInfo)
-                            .columnType(columnType)
-                            .build();
+                .predicateHashCode(hashCode)
+                .isCollectNulls(domain.isNullAllowed())
+                .predicateSize(predicateSize)
+                .predicateInfo(predicateInfo)
+                .columnType(columnType)
+                .build();
     }
 
     static PredicateData calcPredicateData(Domain domain, int recTypeLength, boolean transformAllowed, Type columnType)
@@ -274,7 +272,7 @@ public class PredicateUtil
         return true;
     }
 
-    //this method replaced sortedRangeSet.getOrderedRanges().stream().allMatch(range -> range.isSingleValue()) because of complexity of getOrderRanges
+    // this method replaced sortedRangeSet.getOrderedRanges().stream().allMatch(range -> range.isSingleValue()) because of complexity of getOrderRanges
     public static boolean isAllSingleValue(boolean[] inclusive, Block sortedRangesBlock, Type type)
     {
         for (boolean isInclusive : inclusive) {

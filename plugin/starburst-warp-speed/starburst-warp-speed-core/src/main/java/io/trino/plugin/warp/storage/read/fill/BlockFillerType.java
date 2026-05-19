@@ -25,5 +25,5 @@ public enum BlockFillerType
     ARRAY_VARCHAR,
     ARRAY_INTEGER,
     ARRAY_CHAR,
-    ARRAY_BOOLEAN
+    ARRAY_BOOLEAN,
 }

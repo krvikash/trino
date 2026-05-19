@@ -590,7 +590,8 @@ public class BufferExchangeSource
                 // if we got closed in the meantime immediately cancel request
                 future.cancel(true);
             }
-            Futures.addCallback(future, new FutureCallback<>() {
+            Futures.addCallback(future, new FutureCallback<>()
+            {
                 @Override
                 public void onSuccess(ChunkDataResponse chunkData)
                 {
@@ -697,10 +698,11 @@ public class BufferExchangeSource
         }
     }
 
-    private enum PreserveOrderingMode {
+    private enum PreserveOrderingMode
+    {
         UNKNOWN,
         ALLOW_REORDERING,
-        PRESERVE_ORDERING
+        PRESERVE_ORDERING,
     }
 
     private static class SpeculativeSourceOutputChoices

@@ -45,7 +45,7 @@ public class CustomStatsContextTest
         assertThat(customStatsContext.getStat(jmxKey)).isNotNull();
 
         WarpStatsBase statsNew = new WarpTestStats(jmxKey);
-        //does not create new instance
+        // does not create new instance
         assertThat(customStatsContext.getOrRegister(statsNew)).isEqualTo(stats);
     }
 

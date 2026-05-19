@@ -579,7 +579,7 @@ public class TestPredicateUtils
                 PredicateUtils.optimizeLogicalOperations(conjunction(ImmutableList.of(conjunctionOfFields(0), conjunction(ImmutableList.of(conjunctionOfFields(1), TRUE_ON_ROW), nameAllocator)), nameAllocator)),
                 conjunctionOfFields(0, 1));
 
-        //flatten conjunctions and constant-fold
+        // flatten conjunctions and constant-fold
         assertBlock(
                 PredicateUtils.optimizeLogicalOperations(conjunction(ImmutableList.of(conjunctionOfFields(0), conjunction(ImmutableList.of(conjunctionOfFields(1), FALSE_ON_ROW), nameAllocator)), nameAllocator)),
                 FALSE_ON_ROW);

@@ -194,8 +194,13 @@ public class LocalStoreService
     }
 
     @Override
-    public CloudVendorResult appendOnCloud(String path, File localFile, StorageObjectMetadata metadata,
-                                           long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnCloud(
+            String path,
+            File localFile,
+            StorageObjectMetadata metadata,
+            long startOffset,
+            boolean isSparseFile,
+            Callable<Boolean> validateBeforeDo)
     {
         validateLocation(path);
 

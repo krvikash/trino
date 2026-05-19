@@ -66,13 +66,14 @@ public class TestTaskSplitting
     @Test
     public void testTaskSplitting()
     {
-        String testQuery = """
-           SELECT * FROM
-             tpch.sf1.lineitem l1,
-             tpch.sf1.lineitem l2
-           WHERE
-             l1.orderkey = l2.orderkey and l1.linenumber = l2.linenumber
-             AND l1.partkey * l2.partkey = 0""";
+        String testQuery =
+                """
+                SELECT * FROM
+                  tpch.sf1.lineitem l1,
+                  tpch.sf1.lineitem l2
+                WHERE
+                  l1.orderkey = l2.orderkey and l1.linenumber = l2.linenumber
+                  AND l1.partkey * l2.partkey = 0""";
 
         assertThat(query(testQuery))
                 .returnsEmptyResult();

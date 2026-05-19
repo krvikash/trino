@@ -62,13 +62,13 @@ public class QueryContext
     private final int totalRecords;
     private final String queryId;
 
-    public QueryContext(PredicateContextData predicateContextData,
-                        ImmutableList<ColumnHandle> remainingCollectColumns,
-                        boolean enableMatchCollect,
-                        String queryId)
+    public QueryContext(
+            PredicateContextData predicateContextData,
+            ImmutableList<ColumnHandle> remainingCollectColumns,
+            boolean enableMatchCollect,
+            String queryId)
     {
-        this(
-                Optional.empty(),
+        this(Optional.empty(),
                 ImmutableList.of(),
                 ImmutableMap.of(),
                 predicateContextData,
@@ -83,12 +83,12 @@ public class QueryContext
     }
 
     // used only for tests
-    public QueryContext(PredicateContextData predicateContextData,
+    public QueryContext(
+            PredicateContextData predicateContextData,
             ImmutableMap<Integer, ColumnHandle> remainingCollectColumnByBlockIndex,
             String queryId)
     {
-        this(
-                Optional.empty(),
+        this(Optional.empty(),
                 ImmutableList.of(),
                 ImmutableMap.of(),
                 predicateContextData,
@@ -102,7 +102,8 @@ public class QueryContext
                 queryId);
     }
 
-    private QueryContext(Optional<MatchData> matchData,
+    private QueryContext(
+            Optional<MatchData> matchData,
             ImmutableList<NativeQueryCollectData> nativeQueryCollectDataList,
             ImmutableMap<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex,
             PredicateContextData predicateContextData,
@@ -305,7 +306,8 @@ public class QueryContext
 
         public QueryContext build()
         {
-            return new QueryContext(matchData,
+            return new QueryContext(
+                    matchData,
                     ImmutableList.copyOf(nativeQueryCollectDataList),
                     ImmutableMap.copyOf(prefilledQueryCollectDataByBlockIndex),
                     predicateContextData,

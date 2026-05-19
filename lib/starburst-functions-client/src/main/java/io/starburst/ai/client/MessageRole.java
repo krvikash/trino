@@ -12,5 +12,5 @@ package io.starburst.ai.client;
 public enum MessageRole
 {
     USER,
-    ASSISTANT
+    ASSISTANT,
 }

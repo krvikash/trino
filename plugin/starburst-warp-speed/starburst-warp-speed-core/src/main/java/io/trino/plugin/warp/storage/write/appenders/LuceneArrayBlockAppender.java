@@ -35,7 +35,8 @@ public class LuceneArrayBlockAppender
 {
     private final LuceneIndexer luceneIndexer;
 
-    public LuceneArrayBlockAppender(WriteJuffersWarmUpElement juffersWE,
+    public LuceneArrayBlockAppender(
+            WriteJuffersWarmUpElement juffersWE,
             LuceneIndexer luceneIndexer)
     {
         super(juffersWE);
@@ -43,7 +44,8 @@ public class LuceneArrayBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos,
+    public AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)

@@ -53,7 +53,8 @@ public class WorkerDictionaryCountTask
     private final WorkerNodeManager workerNodeManager;
 
     @Inject
-    public WorkerDictionaryCountTask(DictionaryCacheService dictionaryCacheService,
+    public WorkerDictionaryCountTask(
+            DictionaryCacheService dictionaryCacheService,
             WorkerNodeManager workerNodeManager)
     {
         this.dictionaryCacheService = dictionaryCacheService;

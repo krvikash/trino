@@ -22,13 +22,15 @@ public interface Matcher
 {
     MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext);
 
-    MatcherPageArgs openPage(RecordIndexes recordIndexes,
+    MatcherPageArgs openPage(
+            RecordIndexes recordIndexes,
             ThreadArena pageArena,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
             AggregatorPageArgs aggregatorPageArgs);
 
-    Optional<ChunkProperties> match(int recordsPageLimit,
+    Optional<ChunkProperties> match(
+            int recordsPageLimit,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
             MatcherPageArgs matcherPageArgs,

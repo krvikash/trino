@@ -27,9 +27,7 @@ public class DomainUtils
 {
     private static final Logger logger = Logger.get(DomainUtils.class);
 
-    private DomainUtils()
-    {
-    }
+    private DomainUtils() {}
 
     public static <T> SimplifyResult<T> simplify(TupleDomain<T> tupleDomain, int predicateThreshold)
     {
@@ -45,8 +43,11 @@ public class DomainUtils
             Domain simplifyDomain = domain;
             if (domain.getValues() instanceof SortedRangeSet sortedRangeSet) {
                 if (sortedRangeSet.getRangeCount() > predicateThreshold) {
-                    logger.debug("Simplifying the domain of column %s. rangeCount=%d > predicateThreshold=%d",
-                            entry.getKey(), sortedRangeSet.getRangeCount(), predicateThreshold);
+                    logger.debug(
+                            "Simplifying the domain of column %s. rangeCount=%d > predicateThreshold=%d",
+                            entry.getKey(),
+                            sortedRangeSet.getRangeCount(),
+                            predicateThreshold);
                     simplifyDomain = domain.simplify(predicateThreshold);
                     simplifiedColumns.add(entry.getKey());
                 }

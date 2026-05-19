@@ -76,7 +76,8 @@ public abstract class BaseTestObjectStoreProperties
                 .skippingTypesCheck()
                 .exceptColumns("Value", "Description")
                 // Name, Default, Type
-                .matches("""
+                .matches(
+                        """
                         VALUES
                         ('objectstore.bucket_execution_enabled', 'true', 'boolean'),
                         ('objectstore.chunked_line_reader_enabled', 'true', 'boolean'),

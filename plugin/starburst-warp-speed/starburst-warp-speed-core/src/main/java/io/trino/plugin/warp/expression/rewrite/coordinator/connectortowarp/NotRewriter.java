@@ -29,7 +29,6 @@ import static io.trino.spi.expression.StandardFunctions.NOT_FUNCTION_NAME;
 
 class NotRewriter
         implements ConnectorExpressionRule<Call, WarpExpression>
-
 {
     private static final Pattern<Call> PATTERN = ConnectorExpressionPatterns.call()
             .with(ConnectorExpressionPatterns.argumentCount().equalTo(1))

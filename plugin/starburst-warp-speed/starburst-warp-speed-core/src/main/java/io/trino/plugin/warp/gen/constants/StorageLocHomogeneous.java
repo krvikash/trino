@@ -23,7 +23,5 @@ public enum StorageLocHomogeneous
     STORAGE_LOC_HOMOGENEOUS_ZERO,
     STORAGE_LOC_HOMOGENEOUS_NUM_OF;
 
-    StorageLocHomogeneous()
-    {
-    }
+    StorageLocHomogeneous() {}
 }

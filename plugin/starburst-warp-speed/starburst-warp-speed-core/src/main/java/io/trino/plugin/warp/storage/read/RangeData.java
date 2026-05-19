@@ -36,14 +36,16 @@ public class RangeData
         checkArgument(
                 upperBound > lowerBound,
                 "upperExclusive %s must be higher than lowerInclusive %s",
-                upperBound, lowerBound);
+                upperBound,
+                lowerBound);
 
         rowCount += upperBound - lowerBound;
         if (!upperExclusive.isEmpty()) {
             checkArgument(
                     lowerBound >= upperExclusive.getLast(),
                     "lowerInclusive %s must be greater than previous upperExclusive %s",
-                    lowerBound, upperExclusive.getLast());
+                    lowerBound,
+                    upperExclusive.getLast());
             if (lowerBound == upperExclusive.getLast()) { // merge ranges
                 upperExclusive.set(upperExclusive.size() - 1, upperBound);
                 return;

@@ -27,7 +27,5 @@ public enum DataWarmEvents
     DATA_WARM_EVENTS_EXT_RECS,
     DATA_WARM_EVENTS_NUM_OF;
 
-    DataWarmEvents()
-    {
-    }
+    DataWarmEvents() {}
 }

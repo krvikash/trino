@@ -42,7 +42,8 @@ public class DispatcherSplitManager
     private final NodeManager nodeManager;
 
     @Inject
-    DispatcherSplitManager(@ForWarp ConnectorSplitManager proxyConnectorSplitManager,
+    DispatcherSplitManager(
+            @ForWarp ConnectorSplitManager proxyConnectorSplitManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             NodeManager nodeManager)
@@ -73,7 +74,8 @@ public class DispatcherSplitManager
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
 
         return new DispatcherSplitSource(
-                proxyConnectorSplitManager.getSplits(transactionHandle,
+                proxyConnectorSplitManager.getSplits(
+                        transactionHandle,
                         session,
                         dispatcherTableHandle.getProxyConnectorTableHandle(),
                         dynamicFilter,

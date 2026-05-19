@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class MockDataNodeStats
 {
-    public enum Key {
+    public enum Key
+    {
         SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT,
         REJECTED_DRAINING_ADD_DATA_PAGES_REQUEST_COUNT,
         REJECTED_EXCHANGE_FINISHED_ADD_DATA_PAGES_REQUEST_COUNT,

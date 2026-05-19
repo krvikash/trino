@@ -229,7 +229,9 @@ final class TestGpuLookupJoin
                         return result;
                     }
                     case GpuOperation.Data _ -> throw new IllegalStateException("Build should never emit data");
-                    case GpuOperation.Yielded _ -> { /* continue */ }
+                    case GpuOperation.Yielded _ -> {
+                        /* continue */
+                    }
                     case GpuOperation.Finished _ -> {
                         return result;
                     }

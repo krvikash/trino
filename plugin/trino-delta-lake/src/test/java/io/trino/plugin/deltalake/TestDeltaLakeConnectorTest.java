@@ -298,10 +298,10 @@ public class TestDeltaLakeConnectorTest
             assertThat(query("TABLE \"" + table.getName() + "$properties\""))
                     .skippingTypesCheck()
                     .matches("VALUES " +
-                             "('delta.enableDeletionVectors', 'false')," +
-                             "('delta.minReaderVersion', '3')," +
-                             "('delta.minWriterVersion', '7')," +
-                             "('delta.feature.variantType', 'supported')");
+                            "('delta.enableDeletionVectors', 'false')," +
+                            "('delta.minReaderVersion', '3')," +
+                            "('delta.minWriterVersion', '7')," +
+                            "('delta.feature.variantType', 'supported')");
 
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, null)", 1);
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (2, JSON 'null')", 1);
@@ -315,10 +315,10 @@ public class TestDeltaLakeConnectorTest
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (6, JSON '123')", 1);
             assertThat(query("SELECT * FROM " + table.getName() + " WHERE id > 2"))
                     .matches("VALUES " +
-                             "(3, JSON '{\"key\": \"value\"}'), " +
-                             "(4, JSON '[1, 2, 3]'), " +
-                             "(5, JSON 'true'), " +
-                             "(6, JSON '123')");
+                            "(3, JSON '{\"key\": \"value\"}'), " +
+                            "(4, JSON '[1, 2, 3]'), " +
+                            "(5, JSON 'true'), " +
+                            "(6, JSON '123')");
             assertThat(query("SELECT variant FROM " + table.getName() + " WHERE id = 3"))
                     .matches("VALUES (JSON '{\"key\": \"value\"}')");
             assertThat(query("SELECT json_extract_scalar(variant, '$[1]') FROM " + table.getName() + " WHERE id = 4"))
@@ -345,10 +345,10 @@ public class TestDeltaLakeConnectorTest
             assertThat(query("TABLE \"" + table.getName() + "$properties\""))
                     .skippingTypesCheck()
                     .matches("VALUES " +
-                             "('delta.enableDeletionVectors', 'false')," +
-                             "('delta.minReaderVersion', '3')," +
-                             "('delta.minWriterVersion', '7')," +
-                             "('delta.feature.variantType', 'supported')");
+                            "('delta.enableDeletionVectors', 'false')," +
+                            "('delta.minReaderVersion', '3')," +
+                            "('delta.minWriterVersion', '7')," +
+                            "('delta.feature.variantType', 'supported')");
         }
     }
 
@@ -399,29 +399,31 @@ public class TestDeltaLakeConnectorTest
             assertThat(query("SHOW STATS FOR " + table.getName()))
                     .skippingTypesCheck()
                     .matches("VALUES " +
-                             "('variant', 16e0, 2e0, 0e0, NULL, NULL, NULL), " +
-                             "(NULL, NULL, NULL, NULL, 2e0, NULL, NULL)");
+                            "('variant', 16e0, 2e0, 0e0, NULL, NULL, NULL), " +
+                            "(NULL, NULL, NULL, NULL, 2e0, NULL, NULL)");
 
             assertThat(query("SHOW STATS FOR (SELECT * FROM " + table.getName() + " WHERE variant = JSON '{\"id\":1}')"))
                     .skippingTypesCheck()
                     .matches("VALUES " +
-                             "('variant', 8e0, 1e0, 0e0, NULL, NULL, NULL), " +
-                             "(NULL, NULL, NULL, NULL, 1e0, NULL, NULL)");
+                            "('variant', 8e0, 1e0, 0e0, NULL, NULL, NULL), " +
+                            "(NULL, NULL, NULL, NULL, 1e0, NULL, NULL)");
 
             assertUpdate("ANALYZE " + table.getName());
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (JSON '{\"id\":3}')", 1);
             assertThat(query("SHOW STATS FOR " + table.getName()))
                     .skippingTypesCheck()
                     .matches("VALUES " +
-                             "('variant', 24e0, 3e0, 0e0, NULL, NULL, NULL), " +
-                             "(NULL, NULL, NULL, NULL, 3e0, NULL, NULL)");
+                            "('variant', 24e0, 3e0, 0e0, NULL, NULL, NULL), " +
+                            "(NULL, NULL, NULL, NULL, 3e0, NULL, NULL)");
         }
     }
 
     @Test
     void testVariantArray()
     {
-        try (TestTable table = newTrinoTable("test_variant_array", "(id int, variant JSON)",
+        try (TestTable table = newTrinoTable(
+                "test_variant_array",
+                "(id int, variant JSON)",
                 List.of("1, JSON '[1, 2, 3]'", "2, JSON '[]'", "3, JSON '[\"a\", \"b\", \"c\"]'", "4, JSON '[null, 1, \"test\"]'"))) {
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES (1, JSON '[1,2,3]'), (2, JSON '[]'), (3, JSON '[\"a\",\"b\",\"c\"]'), (4, JSON '[null,1,\"test\"]')");
@@ -445,11 +447,11 @@ public class TestDeltaLakeConnectorTest
                         "5, JSON 'null'"))) {
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES " +
-                             "(1, JSON '{\"key1\":\"value1\",\"key2\":\"value2\"}'), " +
-                             "(2, JSON '{}'), " +
-                             "(3, JSON '{\"nested\":{\"a\":1,\"b\":2}}'), " +
-                             "(4, JSON '{\"mixed\":[1,2,3],\"value\":null}')," +
-                             "(5, JSON 'null')");
+                            "(1, JSON '{\"key1\":\"value1\",\"key2\":\"value2\"}'), " +
+                            "(2, JSON '{}'), " +
+                            "(3, JSON '{\"nested\":{\"a\":1,\"b\":2}}'), " +
+                            "(4, JSON '{\"mixed\":[1,2,3],\"value\":null}')," +
+                            "(5, JSON 'null')");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON '{}'"))
                     .matches("VALUES 2");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant != JSON '{}'"))
@@ -467,10 +469,10 @@ public class TestDeltaLakeConnectorTest
                         "4, JSON '{\"nested_row\": {\"inner1\": 1, \"inner2\": \"value\"}}'"))) {
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES " +
-                             "(1, JSON '{\"field1\":123,\"field2\":\"text\"}'), " +
-                             "(2, JSON '{\"field1\":null,\"field2\":null}'), " +
-                             "(3, JSON '{\"field1\":456,\"field2\":\"another\",\"field3\":true}'), " +
-                             "(4, JSON '{\"nested_row\":{\"inner1\":1,\"inner2\":\"value\"}}')");
+                            "(1, JSON '{\"field1\":123,\"field2\":\"text\"}'), " +
+                            "(2, JSON '{\"field1\":null,\"field2\":null}'), " +
+                            "(3, JSON '{\"field1\":456,\"field2\":\"another\",\"field3\":true}'), " +
+                            "(4, JSON '{\"nested_row\":{\"inner1\":1,\"inner2\":\"value\"}}')");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON '{\"field1\":123,\"field2\":\"text\"}'"))
                     .matches("VALUES 1");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant IS NOT NULL"))
@@ -488,10 +490,10 @@ public class TestDeltaLakeConnectorTest
                         "4, JSON '{\"mixed\": {\"arr\": [1, {\"key\": \"val\"}, null], \"num\": 123}}'"))) {
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES " +
-                             "(1, JSON '{\"array_of_maps\":[{\"id\":1},{\"id\":2}]}'), " +
-                             "(2, JSON '{\"map_of_arrays\":{\"list1\":[1,2],\"list2\":[3,4]}}'), " +
-                             "(3, JSON '{\"deeply_nested\":{\"level1\":{\"level2\":{\"value\":42}}}}'), " +
-                             "(4, JSON '{\"mixed\":{\"arr\":[1,{\"key\":\"val\"},null],\"num\":123}}')");
+                            "(1, JSON '{\"array_of_maps\":[{\"id\":1},{\"id\":2}]}'), " +
+                            "(2, JSON '{\"map_of_arrays\":{\"list1\":[1,2],\"list2\":[3,4]}}'), " +
+                            "(3, JSON '{\"deeply_nested\":{\"level1\":{\"level2\":{\"value\":42}}}}'), " +
+                            "(4, JSON '{\"mixed\":{\"arr\":[1,{\"key\":\"val\"},null],\"num\":123}}')");
             assertThat(query("SELECT count(*) FROM " + table.getName() + " WHERE variant IS NOT NULL"))
                     .matches("VALUES CAST(4 AS BIGINT)");
         }
@@ -502,13 +504,13 @@ public class TestDeltaLakeConnectorTest
     {
         try (TestTable table = newTrinoTable("test_row_with_variant", "(id int, row_col ROW(name VARCHAR, data JSON))")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
-                         "(1, ROW('test', JSON '{\"info\": \"value\"}')), " +
-                         "(2, ROW('null_data', NULL))", 2);
+                    "(1, ROW('test', JSON '{\"info\": \"value\"}')), " +
+                    "(2, ROW('null_data', NULL))", 2);
 
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES " +
-                             "(1, CAST(ROW('test', JSON '{\"info\":\"value\"}') AS ROW(name VARCHAR, data JSON))), " +
-                             "(2, CAST(ROW(VARCHAR 'null_data', NULL) AS ROW(name VARCHAR, data JSON)))");
+                            "(1, CAST(ROW('test', JSON '{\"info\":\"value\"}') AS ROW(name VARCHAR, data JSON))), " +
+                            "(2, CAST(ROW(VARCHAR 'null_data', NULL) AS ROW(name VARCHAR, data JSON)))");
 
             assertThat(query("SELECT row_col.data FROM " + table.getName() + " WHERE row_col.name = 'test'"))
                     .matches("VALUES JSON '{\"info\":\"value\"}'");
@@ -520,13 +522,13 @@ public class TestDeltaLakeConnectorTest
     {
         try (TestTable table = newTrinoTable("test_nested_complex", "(id int, nested ARRAY(ROW(id INT, variant JSON)))")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
-                         "(1, ARRAY[ROW(1, JSON '{\"a\": 1}'), ROW(2, JSON 'null')]), " +
-                         "(2, ARRAY[ROW(3, JSON '[]')])", 2);
+                    "(1, ARRAY[ROW(1, JSON '{\"a\": 1}'), ROW(2, JSON 'null')]), " +
+                    "(2, ARRAY[ROW(3, JSON '[]')])", 2);
 
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES " +
-                             "(1, ARRAY[CAST(ROW(1, JSON '{\"a\":1}') AS ROW(id INT, variant JSON)), CAST(ROW(2, JSON 'null') AS ROW(id INT, variant JSON))]), " +
-                             "(2, ARRAY[CAST(ROW(3, JSON '[]') AS ROW(id INT, variant JSON))])");
+                            "(1, ARRAY[CAST(ROW(1, JSON '{\"a\":1}') AS ROW(id INT, variant JSON)), CAST(ROW(2, JSON 'null') AS ROW(id INT, variant JSON))]), " +
+                            "(2, ARRAY[CAST(ROW(3, JSON '[]') AS ROW(id INT, variant JSON))])");
         }
     }
 
@@ -535,10 +537,10 @@ public class TestDeltaLakeConnectorTest
     {
         try (TestTable table = newTrinoTable("test_array_of_variant", "(id int, arr ARRAY(JSON))")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
-                         "(1, ARRAY[JSON '{\"a\": 1}', JSON '123']),\n" +
-                         "(2, ARRAY[JSON '[]', JSON '{}']),\n" +
-                         "(3, ARRAY[JSON '[\"a\", \"b\", \"c\"]']),\n" +
-                         "(4, ARRAY[JSON '[null, 1, \"test\"]'])", 4);
+                    "(1, ARRAY[JSON '{\"a\": 1}', JSON '123']),\n" +
+                    "(2, ARRAY[JSON '[]', JSON '{}']),\n" +
+                    "(3, ARRAY[JSON '[\"a\", \"b\", \"c\"]']),\n" +
+                    "(4, ARRAY[JSON '[null, 1, \"test\"]'])", 4);
 
             assertThat(query("SELECT * FROM " + table.getName() + " WHERE id = 1"))
                     .matches("VALUES (1, ARRAY[JSON '{\"a\":1}', JSON '123'])");
@@ -562,15 +564,15 @@ public class TestDeltaLakeConnectorTest
     {
         try (TestTable table = newTrinoTable("test_map_of_variant", "(id int, map_col MAP(VARCHAR, JSON))")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES " +
-                         "(1, MAP(ARRAY['key1', 'key2'], ARRAY[JSON '{\"value\": 1}', JSON 'null'])), " +
-                         "(2, MAP(ARRAY['a'], ARRAY[JSON '[]']))," +
-                         "(3, MAP(ARRAY['x'], ARRAY[JSON '{\"map\":null}']))", 3);
+                    "(1, MAP(ARRAY['key1', 'key2'], ARRAY[JSON '{\"value\": 1}', JSON 'null'])), " +
+                    "(2, MAP(ARRAY['a'], ARRAY[JSON '[]']))," +
+                    "(3, MAP(ARRAY['x'], ARRAY[JSON '{\"map\":null}']))", 3);
 
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES " +
-                             "(1, MAP(ARRAY[VARCHAR 'key1', VARCHAR 'key2'], ARRAY[JSON '{\"value\":1}', JSON 'null'])), " +
-                             "(2, MAP(ARRAY[VARCHAR 'a'], ARRAY[JSON '[]'])), " +
-                             "(3, MAP(ARRAY[VARCHAR 'x'], ARRAY[JSON '{\"map\":null}']))");
+                            "(1, MAP(ARRAY[VARCHAR 'key1', VARCHAR 'key2'], ARRAY[JSON '{\"value\":1}', JSON 'null'])), " +
+                            "(2, MAP(ARRAY[VARCHAR 'a'], ARRAY[JSON '[]'])), " +
+                            "(3, MAP(ARRAY[VARCHAR 'x'], ARRAY[JSON '{\"map\":null}']))");
 
             assertThat(query("SELECT map_col['key1'] FROM " + table.getName() + " WHERE id = 1"))
                     .matches("VALUES JSON '{\"value\":1}'");
@@ -733,7 +735,8 @@ public class TestDeltaLakeConnectorTest
                 "CREATE TABLE " + tableName + "(a INT, part ROW(field INT)) WITH (partitioned_by = ARRAY['part'])",
                 "Using array, map or row type on partitioned columns is unsupported");
 
-        assertQueryFails("CREATE TABLE test_variant_partition (id int, part json) WITH (partitioned_by = ARRAY['part'])",
+        assertQueryFails(
+                "CREATE TABLE test_variant_partition (id int, part json) WITH (partitioned_by = ARRAY['part'])",
                 "Using variant type on partitioned columns is unsupported");
     }
 

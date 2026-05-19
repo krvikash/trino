@@ -40,7 +40,8 @@ public final class OpenSearchSessionProperties
                         "Read only required fields from a row type",
                         openSearchConfig.isProjectionPushdownEnabled(),
                         false))
-                .add(booleanProperty(AGGREGATION_PUSHDOWN_ENABLED,
+                .add(booleanProperty(
+                        AGGREGATION_PUSHDOWN_ENABLED,
                         "Enable aggregation pushdown",
                         openSearchConfig.isAggregationPushdownEnabled(),
                         false))

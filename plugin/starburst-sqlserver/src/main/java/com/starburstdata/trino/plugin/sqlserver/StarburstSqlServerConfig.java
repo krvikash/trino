@@ -88,8 +88,7 @@ public class StarburstSqlServerConfig
     @PostConstruct
     public void validate()
     {
-        verify(
-                overrideCatalogEnabled || overrideCatalogName == null || overrideCatalogName.isBlank(),
+        verify(overrideCatalogEnabled || overrideCatalogName == null || overrideCatalogName.isBlank(),
                 SQLSERVER_OVERRIDE_CATALOG_ENABLED + " needs to be set in order to use " + SQLSERVER_OVERRIDE_CATALOG_NAME + " parameter");
     }
 }

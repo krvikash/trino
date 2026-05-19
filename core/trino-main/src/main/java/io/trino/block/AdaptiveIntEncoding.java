@@ -143,8 +143,8 @@ final class AdaptiveIntEncoding
 
         // Assume all run lengths and run values use the maximum bit width.
         int rleSizeInBytes = BitPackingUtils.estimateEncodedIntsSizeInBytes(runCount, maxRunLengthWidth)
-                             + BitPackingUtils.estimateEncodedIntsSizeInBytes(runCount, maxValueWidth)
-                             + Integer.BYTES; // To store the run count
+                + BitPackingUtils.estimateEncodedIntsSizeInBytes(runCount, maxValueWidth)
+                + Integer.BYTES; // To store the run count
         // Assume all values use the maximum bit width.
         int bitPackingSizeInBytes = BitPackingUtils.estimateEncodedIntsSizeInBytes(length, maxValueWidth);
         // Assume all deltas use the maximum delta bit width.

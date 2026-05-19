@@ -29,9 +29,7 @@ public record RowGroupDataValidation(
     public static final RowGroupDataValidation EMPTY_VALIDATION = new RowGroupDataValidation(null, 0, 0);
 
     @JsonCreator
-    public RowGroupDataValidation
-    {
-    }
+    public RowGroupDataValidation {}
 
     public RowGroupDataValidation(StorageObjectMetadata storageObjectMetadata)
     {

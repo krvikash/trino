@@ -14,6 +14,4 @@
 package io.trino.plugin.warp.di;
 
 public interface ExtraModule
-        extends WarpBaseModule
-{
-}
+        extends WarpBaseModule {}

@@ -179,8 +179,7 @@ public class TestDynamicPageFilter
         bloomFilter.insert(5L);
         FilterEvaluator filterEvaluator = createDynamicFilterEvaluator(
                 DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(bloomFilter, ValueSet.all(INTEGER), INTEGER, false)))),
+                        column, DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(bloomFilter, ValueSet.all(INTEGER), INTEGER, false)))),
                 ImmutableMap.of(column, 0),
                 1);
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {1, 3});
@@ -189,8 +188,7 @@ public class TestDynamicPageFilter
         bloomFilter.insert(1L);
         filterEvaluator = createDynamicFilterEvaluator(
                 DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(
-                        column,
-                        DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(bloomFilter, ValueSet.all(INTEGER), INTEGER, true)))),
+                        column, DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(bloomFilter, ValueSet.all(INTEGER), INTEGER, true)))),
                 ImmutableMap.of(column, 0),
                 1);
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {0, 2, 4});

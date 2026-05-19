@@ -61,8 +61,7 @@ public class TestDiscoveredTablesDiffGenerator
             new DiscoveredColumns(ImmutableList.of(
                     new Column(toLowerCase("pcolumn1234"), new HiveType(HiveTypes.STRING_TYPE)),
                     new Column(toLowerCase("pcolumn1235"), new HiveType(HiveTypes.HIVE_INT)),
-                    new Column(toLowerCase("pcolumn1236"), new HiveType(HiveTypes.HIVE_DATE))
-            ), ImmutableList.of()),
+                    new Column(toLowerCase("pcolumn1236"), new HiveType(HiveTypes.HIVE_DATE))), ImmutableList.of()),
             new DiscoveredPartitions(
                     ImmutableList.of(new Column(toLowerCase("date"), new HiveType(HiveTypes.HIVE_DATE))),
                     ImmutableList.of(
@@ -77,8 +76,7 @@ public class TestDiscoveredTablesDiffGenerator
             TableFormat.CSV,
             ImmutableMap.of(),
             new DiscoveredColumns(ImmutableList.of(
-                    new Column(toLowerCase("pcolumn1234"), new HiveType(HiveTypes.STRING_TYPE))
-            ), ImmutableList.of()),
+                    new Column(toLowerCase("pcolumn1234"), new HiveType(HiveTypes.STRING_TYPE))), ImmutableList.of()),
             new DiscoveredPartitions(
                     ImmutableList.of(new Column(toLowerCase("projection_1"), new HiveType(HiveTypes.HIVE_INT))),
                     ImmutableList.of(
@@ -123,8 +121,7 @@ public class TestDiscoveredTablesDiffGenerator
             ImmutableMap.of(),
             new DiscoveredColumns(ImmutableList.of(
                     new Column(toLowerCase("pcolumn12344"), new HiveType(HiveTypes.STRING_TYPE)),
-                    new Column(toLowerCase("pcolumn1235"), new HiveType(HiveTypes.HIVE_INT))
-            ), ImmutableList.of()),
+                    new Column(toLowerCase("pcolumn1235"), new HiveType(HiveTypes.HIVE_INT))), ImmutableList.of()),
             new DiscoveredPartitions(
                     ImmutableList.of(new Column(toLowerCase("date"), new HiveType(HiveTypes.HIVE_DATE))),
                     ImmutableList.of(
@@ -139,8 +136,7 @@ public class TestDiscoveredTablesDiffGenerator
             TableFormat.CSV,
             ImmutableMap.of(),
             new DiscoveredColumns(ImmutableList.of(
-                    new Column(toLowerCase("pcolumn1234"), new HiveType(HiveTypes.STRING_TYPE))
-            ), ImmutableList.of()),
+                    new Column(toLowerCase("pcolumn1234"), new HiveType(HiveTypes.STRING_TYPE))), ImmutableList.of()),
             new DiscoveredPartitions(
                     ImmutableList.of(new Column(toLowerCase("projection_1"), new HiveType(HiveTypes.HIVE_INT))),
                     ImmutableList.of(

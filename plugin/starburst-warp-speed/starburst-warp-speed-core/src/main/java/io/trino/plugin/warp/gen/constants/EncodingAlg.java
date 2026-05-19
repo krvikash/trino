@@ -23,7 +23,5 @@ public enum EncodingAlg
     ENCODING_ALG_BIT_PACKING_DELTA,
     ENCODING_ALG_NUM_OF;
 
-    EncodingAlg()
-    {
-    }
+    EncodingAlg() {}
 }

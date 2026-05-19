@@ -69,8 +69,7 @@ public class CacheController
     {
         public SubplanKey(CanonicalSubplan subplan)
         {
-            this(
-                    subplan.getKeyChain(),
+            this(subplan.getKeyChain(),
                     // TopN and TopNRanking are treated as aggregations because of an assumption of a significant reduction of output rows
                     subplan.getGroupByColumns().isPresent() || subplan.getKey() instanceof TopNKey || subplan.getKey() instanceof TopNRankingKey);
         }

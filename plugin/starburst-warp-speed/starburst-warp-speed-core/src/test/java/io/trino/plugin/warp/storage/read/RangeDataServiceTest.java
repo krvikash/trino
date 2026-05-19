@@ -58,9 +58,7 @@ public class RangeDataServiceTest
         rangeFillerService = new NativeRangeFillerService();
     }
 
-    public void onClose()
-    {
-    }
+    public void onClose() {}
 
     @Test
     public void testAllOneShot()

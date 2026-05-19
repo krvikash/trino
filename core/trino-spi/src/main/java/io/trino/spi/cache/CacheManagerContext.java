@@ -21,7 +21,7 @@ public interface CacheManagerContext
 {
     /**
      * @return {@link MemoryAllocator} that {@link CacheManager} can use to allocate revocable memory
-     * from the engine.
+     *         from the engine.
      */
     MemoryAllocator revocableMemoryAllocator();
 

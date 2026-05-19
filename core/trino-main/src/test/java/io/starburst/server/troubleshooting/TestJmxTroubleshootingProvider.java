@@ -75,7 +75,7 @@ public class TestJmxTroubleshootingProvider
                 bind(JmxTroubleshootingProvider.class);
             }
         })
-        .initialize()
-        .getInstance(JmxTroubleshootingProvider.class);
+                .initialize()
+                .getInstance(JmxTroubleshootingProvider.class);
     }
 }

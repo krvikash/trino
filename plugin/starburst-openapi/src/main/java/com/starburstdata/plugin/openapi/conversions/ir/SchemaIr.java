@@ -14,9 +14,7 @@ package com.starburstdata.plugin.openapi.conversions.ir;
  * filtered down representations. The intention is to re-use this between parameters and responses.
  */
 public sealed interface SchemaIr
-        permits ObjectIr,
-        ArrayIr,
-        JsonIr,
-        LeafIr
-{
-}
+        permits ArrayIr,
+                JsonIr,
+                LeafIr,
+                ObjectIr {}

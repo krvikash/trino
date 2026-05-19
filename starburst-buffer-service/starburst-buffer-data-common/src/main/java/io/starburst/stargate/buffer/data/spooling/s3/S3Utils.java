@@ -91,7 +91,5 @@ public class S3Utils
         return s3AsyncClientBuilder.build();
     }
 
-    private S3Utils()
-    {
-    }
+    private S3Utils() {}
 }

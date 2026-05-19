@@ -30,12 +30,10 @@ public class StubCloudVendorService
     public StubCloudVendorService() {}
 
     @Override
-    public void uploadToCloud(byte[] bytes, String path)
-    {}
+    public void uploadToCloud(byte[] bytes, String path) {}
 
     @Override
-    public void uploadFileToCloud(String localInputPath, String s3OutputPath)
-    {}
+    public void uploadFileToCloud(String localInputPath, String s3OutputPath) {}
 
     @Override
     public CloudVendorResult uploadFileToCloud(String path, File file, Callable<Boolean> validateBeforeDo)
@@ -62,8 +60,13 @@ public class StubCloudVendorService
     }
 
     @Override
-    public CloudVendorResult appendOnCloud(String path, File file, StorageObjectMetadata metadata,
-                                           long startOffset, boolean isSparseFile, Callable<Boolean> validateBeforeDo)
+    public CloudVendorResult appendOnCloud(
+            String path,
+            File file,
+            StorageObjectMetadata metadata,
+            long startOffset,
+            boolean isSparseFile,
+            Callable<Boolean> validateBeforeDo)
     {
         return new CloudVendorResult();
     }

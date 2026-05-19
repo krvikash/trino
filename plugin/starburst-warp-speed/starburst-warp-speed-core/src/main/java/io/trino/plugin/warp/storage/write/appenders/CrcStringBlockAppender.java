@@ -37,7 +37,8 @@ public class CrcStringBlockAppender
     private final Type filterType;
     private final boolean isFixedLength;
 
-    public CrcStringBlockAppender(WriteJuffersWarmUpElement juffersWE,
+    public CrcStringBlockAppender(
+            WriteJuffersWarmUpElement juffersWE,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             Type filterType,
@@ -62,7 +63,8 @@ public class CrcStringBlockAppender
         // string length must be taken form type since the warm up type length represents the index length (maximum is 8)
         int stringLength = TypeUtils.getTypeLength(filterType, storageEngineConstants.getVarcharMaxLen());
 
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(filterType,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                filterType,
                 stringLength,
                 isFixedLength,
                 false);
@@ -96,12 +98,14 @@ public class CrcStringBlockAppender
     }
 
     @Override
-    protected AppendResult appendFromMapBlock(BlockPosHolder blockPos,
+    protected AppendResult appendFromMapBlock(
+            BlockPosHolder blockPos,
             int jufferPos,
             Object key)
     {
         int stringLength = TypeUtils.getTypeLength(filterType, storageEngineConstants.getVarcharMaxLen());
-        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(filterType,
+        Function<Slice, Slice> sliceConverter = SliceUtils.getSliceConverter(
+                filterType,
                 stringLength,
                 isFixedLength,
                 false);
@@ -124,7 +128,8 @@ public class CrcStringBlockAppender
         return new AppendResult(nullsCount);
     }
 
-    private void writeValue(BlockPosHolder blockPos,
+    private void writeValue(
+            BlockPosHolder blockPos,
             int jufferPos,
             int stringLength,
             Slice value)

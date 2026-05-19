@@ -244,9 +244,9 @@ class TestSinkMappingScaler
 
         // if some nodes are already in active mapping those will be reused
         result = scaler.process(sinkState(ImmutableMultimap.<Integer, Long>builder()
-                .putAll(0, 1L, 3L)
-                .putAll(1, 13L)
-                .build(),
+                        .putAll(0, 1L, 3L)
+                        .putAll(1, 13L)
+                        .build(),
                 ImmutableMap.of(),
                 Optional.empty()));
         assertThat(result.writersToAdd().keySet()).containsExactlyInAnyOrder(0, 1);

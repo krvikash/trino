@@ -54,7 +54,8 @@ public class WarpInputDirectory
     private final int[] fileLengths;
     private final String filePrefix;
 
-    protected WarpInputDirectory(LuceneIndexReader luceneIndexReader,
+    protected WarpInputDirectory(
+            LuceneIndexReader luceneIndexReader,
             StorageEngineConstants storageEngineConstants,
             LucenePageCacheStats lucenePageCacheStats,
             int indexUniqueIdInRowGroup,
@@ -138,7 +139,8 @@ public class WarpInputDirectory
     {
         logger.debug("indexUniqueIdInRowGroup=%d, openInput file %s while input", indexUniqueIdInRowGroup, fileName);
         LuceneFileType luceneFileType = LuceneFileType.getType(fileName);
-        return new WarpReadIndexInput(luceneIndexReader,
+        return new WarpReadIndexInput(
+                luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 smallFilePageCache,
@@ -155,7 +157,8 @@ public class WarpInputDirectory
     {
         logger.debug("indexUniqueIdInRowGroup=%d, openChecksumInput file %s while input", indexUniqueIdInRowGroup, fileName);
         LuceneFileType luceneFileType = LuceneFileType.getType(fileName);
-        return new WarpReadIndexInput(luceneIndexReader,
+        return new WarpReadIndexInput(
+                luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 smallFilePageCache,

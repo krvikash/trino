@@ -98,7 +98,8 @@ public class RateLimitingTestServer
                 new TestingHttpServerModule("testing"),
                 new JsonModule(),
                 new JaxrsModule(),
-                new AbstractConfigurationAwareModule() {
+                new AbstractConfigurationAwareModule()
+                {
                     @Override
                     protected void setup(Binder binder)
                     {

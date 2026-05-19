@@ -412,11 +412,12 @@ public class TestDeterminePreferredDynamicFilterTimeout
     @Test
     public void testWithMultiplyingNode()
     {
-        assertPlan("""
-                        SELECT a.a_1, a.a_2 FROM table_small_a a,table_small_b b
-                        JOIN table_small_c c ON b.b_2 = c.c_1 AND c.c_2 = b.b_3
-                        WHERE a.a_1 BETWEEN b.b_1 AND b.b_2
-                        """,
+        assertPlan(
+                """
+                SELECT a.a_1, a.a_2 FROM table_small_a a,table_small_b b
+                JOIN table_small_c c ON b.b_2 = c.c_1 AND c.c_2 = b.b_3
+                WHERE a.a_1 BETWEEN b.b_1 AND b.b_2
+                """,
                 anyTree(filter(
                         new Between(new Reference(INTEGER, "A_1"), new Reference(INTEGER, "B_1"), new Reference(INTEGER, "B_2")),
                         join(INNER, builder -> builder
@@ -474,7 +475,10 @@ public class TestDeterminePreferredDynamicFilterTimeout
                         .setSystemProperty(FILTERING_SEMI_JOIN_TO_INNER, "false")
                         .build(),
                 anyTree(
-                        semiJoin("A_1", "B_1", "SEMI_JOIN_RESULT", dynamicFilter("DF"),
+                        semiJoin("A_1",
+                                "B_1",
+                                "SEMI_JOIN_RESULT",
+                                dynamicFilter("DF"),
                                 filter(TRUE,
                                         dynamicFilters -> dynamicFilters
                                                 .addConsumer(consumer -> consumer
@@ -493,10 +497,10 @@ public class TestDeterminePreferredDynamicFilterTimeout
     {
         assertPlan(
                 """
-                        SELECT a.a_1 FROM table_undefined_a a
-                        INNER JOIN (SELECT max(b_1) AS max_b FROM table_undefined_b) AS b
-                        ON a.a_1 > b.max_b
-                        """,
+                SELECT a.a_1 FROM table_undefined_a a
+                INNER JOIN (SELECT max(b_1) AS max_b FROM table_undefined_b) AS b
+                ON a.a_1 > b.max_b
+                """,
                 anyTree(
                         anyTree(
                                 filter(
@@ -516,7 +520,8 @@ public class TestDeterminePreferredDynamicFilterTimeout
                                                 .right(
                                                         aggregation(ImmutableMap.of("MAX_1", aggregationFunction("max", ImmutableList.of("MAX_2"))), FINAL,
                                                                 anyTree(
-                                                                        aggregation(ImmutableMap.of("MAX_2", aggregationFunction("max", ImmutableList.of("B_1"))), PARTIAL,
+                                                                        aggregation(ImmutableMap.of("MAX_2", aggregationFunction("max", ImmutableList.of("B_1"))),
+                                                                                PARTIAL,
                                                                                 tableScan("table_undefined_b", ImmutableMap.of("B_1", "b_1")))))))))));
     }
 }

@@ -110,7 +110,7 @@ public class WarpCacheManagerDeleteServiceTest
                 WarmUpType.WARM_UP_TYPE_DATA,
                 10,
                 warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
-                TransformFunction.NONE); //from defaultWarmupProperties
+                TransformFunction.NONE); // from defaultWarmupProperties
         TupleRank tupleRank = result.tupleRankList().getFirst();
 
         assertThat(tupleRank.warmupProperties()).isEqualTo(expectedProperties);
@@ -138,7 +138,7 @@ public class WarpCacheManagerDeleteServiceTest
         assertThat(result.failedObjects().size()).isEqualTo(0);
         assertThat(result.immediateObjects().size()).isEqualTo(0);
 
-        WarmupProperties expectedProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 5, 100, TransformFunction.NONE); //from CacheManagerRule
+        WarmupProperties expectedProperties = new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 5, 100, TransformFunction.NONE); // from CacheManagerRule
         TupleRank tupleRank = result.tupleRankList().getFirst();
 
         assertThat(tupleRank.warmupProperties()).isEqualTo(expectedProperties);
@@ -200,7 +200,7 @@ public class WarpCacheManagerDeleteServiceTest
                 WarmUpType.WARM_UP_TYPE_DATA,
                 10,
                 warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
-                TransformFunction.NONE); //from defaultWarmupProperties
+                TransformFunction.NONE); // from defaultWarmupProperties
 
         TupleRank tupleRank = new TupleRank(warmupProperties, null, rowGroupKey);
         List<TupleRank> tupleRanks = List.of(tupleRank);

@@ -48,7 +48,6 @@ public class RateMonitor
     /**
      * @param bufferNodeId target buffer node that we want to register to send an addDataPages request to
      * @return delay in milliseconds before we actually do the request
-     *
      * @deprecated used by old rate limiting mechanism
      */
     @Deprecated

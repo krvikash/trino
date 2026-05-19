@@ -44,7 +44,8 @@ public class GpuExtractInt32Chunk
         this.chunkType = requireNonNull(chunkType, "chunkType is null");
         DType.DTypeEnum chunkTypeId = chunkType.getTypeId();
         checkArgument(chunkTypeId == DType.DTypeEnum.UINT32 || chunkTypeId == DType.DTypeEnum.INT32,
-                "chunkType must be UINT32 or INT32, got %s", chunkType);
+                "chunkType must be UINT32 or INT32, got %s",
+                chunkType);
     }
 
     @Override
@@ -54,7 +55,8 @@ public class GpuExtractInt32Chunk
         @Borrow ColumnVector input = inputColumns.getFirst();
         DType.DTypeEnum inputTypeId = input.getType().getTypeId();
         checkState(inputTypeId == DType.DTypeEnum.DECIMAL128,
-                "Expected DECIMAL128 input column, got %s", input.getType());
+                "Expected DECIMAL128 input column, got %s",
+                input.getType());
         return Aggregation128Utils.extractInt32Chunk(input, chunkType, chunkIdx);
     }
 }

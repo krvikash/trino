@@ -88,19 +88,23 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testPartitionedEqualityDeletes()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_partitioned_equality_deletes",
+        try (TestTable table = newTrinoTable(
+                "test_partitioned_equality_deletes",
                 "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'b'), (4, 'b')", 4);
 
             BaseTable icebergTable = loadTable(table.getName());
             // Active — partitions 'a' and 'b' have data
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Object[] {
-                    "a"})), ImmutableMap.of("id", 1L), Optional.empty());
+                    "a",
+            })), ImmutableMap.of("id", 1L), Optional.empty());
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Object[] {
-                    "b"})), ImmutableMap.of("id", 3L), Optional.empty());
+                    "b",
+            })), ImmutableMap.of("id", 3L), Optional.empty());
             // Dangling — partition 'c' has no data files
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Object[] {
-                    "c"})), ImmutableMap.of("id", 1L), Optional.empty());
+                    "c",
+            })), ImmutableMap.of("id", 1L), Optional.empty());
             assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(3);
             // Dangling delete in partition 'c' has no effect; active deletes in 'a' and 'b' remove id=1 and id=3
             assertThat(query("SELECT id, part FROM " + table.getName()))
@@ -109,13 +113,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 1),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 1),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
 
             assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(2);
             assertThat(query("SELECT id, part FROM " + table.getName()))
@@ -127,7 +131,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testDanglingEqualityDeleteRemoved()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_dangling_equality_delete",
+        try (TestTable table = newTrinoTable(
+                "test_dangling_equality_delete",
                 "(nationkey bigint, name varchar, regionkey bigint, comment varchar)")) {
             BaseTable icebergTable = loadTable(table.getName());
 
@@ -155,13 +160,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 2),
-                            ('dangling_equality_delete_files_count', 2),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 2),
+                    ('dangling_equality_delete_files_count', 2),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
 
             assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(1);
             assertThat(query("SELECT * FROM " + table.getName()))
@@ -174,7 +179,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testGlobalPositionDelete()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_global_position_delete",
+        try (TestTable table = newTrinoTable(
+                "test_global_position_delete",
                 "(nationkey bigint, name varchar, regionkey bigint, comment varchar)")) {
             // Dangling — written before data has lower sequence number
             BaseTable icebergTable = loadTable(table.getName());
@@ -194,13 +200,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 1),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 1),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
             assertThat(query("SELECT count(*) FROM " + table.getName()))
                     .matches("VALUES BIGINT '24'");
@@ -211,7 +217,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testPartitionedPositionDelete()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_partitioned_position_delete",
+        try (TestTable table = newTrinoTable(
+                "test_partitioned_position_delete",
                 "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'b')", 3);
 
@@ -226,13 +233,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 1),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 1),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
         }
     }
@@ -241,7 +248,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testFileReferencedPositionDelete()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_file_referenced_position_delete",
+        try (TestTable table = newTrinoTable(
+                "test_file_referenced_position_delete",
                 "(nationkey bigint, name varchar, regionkey bigint, comment varchar)")) {
             assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM tpch.tiny.nation", 25);
 
@@ -260,13 +268,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 1),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 1),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
             assertThat(query("SELECT count(*) FROM " + table.getName()))
                     .matches("VALUES BIGINT '24'");
@@ -282,7 +290,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
         // Force the writer to record _file metrics so the bounds get populated, then verify the procedure
         // marks the delete dangling even though partition 'a' contains live data files at acceptable
         // sequence numbers.
-        try (TestTable table = newTrinoTable("test_position_delete_path_bounds",
+        try (TestTable table = newTrinoTable(
+                "test_position_delete_path_bounds",
                 "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'b')", 3);
 
@@ -293,13 +302,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 1),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 1),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(0);
         }
     }
@@ -311,25 +320,30 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
         // When a position delete file targets multiple distinct data file paths, the manifest entry's
         // _file lower/upper bounds differ. Partition 'a' has live data files at acceptable sequence
         // numbers, so the procedure must keep the delete file.
-        try (TestTable table = newTrinoTable("test_position_delete_multi_path_bounds",
+        try (TestTable table = newTrinoTable(
+                "test_position_delete_multi_path_bounds",
                 "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'b')", 3);
 
             BaseTable icebergTable = loadTable(table.getName());
-            writePositionDeletesForTable(icebergTable, icebergTable.spec(), new PartitionData(new Object[] {"a"}),
-                    List.of("local:///nonexistent_a.parquet", "local:///nonexistent_b.parquet"), true);
+            writePositionDeletesForTable(
+                    icebergTable,
+                    icebergTable.spec(),
+                    new PartitionData(new Object[] {"a"}),
+                    List.of("local:///nonexistent_a.parquet", "local:///nonexistent_b.parquet"),
+                    true);
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
 
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 0),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 0),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(positionDeleteFileCount(table.getName())).isEqualTo(1);
         }
     }
@@ -338,7 +352,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testDeletionVectorActiveAndDangling()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_deletion_vector",
+        try (TestTable table = newTrinoTable(
+                "test_deletion_vector",
                 "(id integer) WITH (format_version = 3)")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES 1, 2, 3, 4, 5", 5);
 
@@ -357,13 +372,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 1),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 1),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(deleteFileCount(table.getName())).isEqualTo(1);
             assertThat(query("SELECT count(*) FROM " + table.getName()))
                     .matches("VALUES BIGINT '4'");
@@ -374,7 +389,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testPositionDeletesDanglingWhenDvExists()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_position_deletes_with_deletion_vector",
+        try (TestTable table = newTrinoTable(
+                "test_position_deletes_with_deletion_vector",
                 "(id integer) WITH (format_version = 2)")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES 1, 2, 3, 4, 5", 5);
 
@@ -394,13 +410,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 2),
-                            ('dangling_equality_delete_files_count', 0),
-                            ('dangling_position_delete_files_count', 2),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 2),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', 2),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
 
             assertThat(deleteFileCount(table.getName())).isEqualTo(1);
             assertThat(query("SELECT count(*) FROM " + table.getName()))
@@ -412,7 +428,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     void testPartitionEvolution()
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_partition_evolution",
+        try (TestTable table = newTrinoTable(
+                "test_partition_evolution",
                 "(id bigint, part varchar) WITH (partitioning = ARRAY['part'])")) {
             // Insert data under spec 0 (identity(part))
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'b')", 2);
@@ -420,7 +437,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             // Write an equality delete for partition 'a' under spec 0 — this is active
             BaseTable icebergTable = loadTable(table.getName());
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Object[] {
-                    "a"})), ImmutableMap.of("id", 1L), Optional.empty());
+                    "a",
+            })), ImmutableMap.of("id", 1L), Optional.empty());
 
             // Evolve partition spec and insert data under new spec
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY['truncate(part, 1)']");
@@ -431,7 +449,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             icebergTable = loadTable(table.getName());
             PartitionSpec newSpec = icebergTable.spec();
             writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.of(newSpec), Optional.of(new PartitionData(new Object[] {
-                    "a"})), ImmutableMap.of("id", 99L), Optional.empty());
+                    "a",
+            })), ImmutableMap.of("id", 99L), Optional.empty());
 
             assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(2);
 
@@ -441,13 +460,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 1),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 1),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
             assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(1);
         }
     }
@@ -460,7 +479,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
         // file cannot be safely removed because it may still apply to non-optimized partitions.
         // However, rewritten data files get a sequence number >= the delete file's,
         // making the delete effectively dangling for those partitions.
-        try (TestTable testTable = newTrinoTable("test_optimize_partition_keeps_global_delete_",
+        try (TestTable testTable = newTrinoTable(
+                "test_optimize_partition_keeps_global_delete_",
                 "(id bigint, part varchar)")) {
             String tableName = testTable.getName();
 
@@ -482,9 +502,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             icebergTable.refresh();
 
             // Global equality delete using the old unpartitioned spec targeting id=1
-            writeEqualityDeleteForTable(icebergTable, fileSystemFactory,
-                    Optional.of(unpartitionedSpec), Optional.empty(),
-                    ImmutableMap.of("id", 1L), Optional.empty());
+            writeEqualityDeleteForTable(
+                    icebergTable,
+                    fileSystemFactory,
+                    Optional.of(unpartitionedSpec),
+                    Optional.empty(),
+                    ImmutableMap.of("id", 1L),
+                    Optional.empty());
 
             assertQuery("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + EQUALITY_DELETES.id(), "VALUES 1");
             assertQuery("SELECT count(*) FROM " + tableName, "VALUES 6"); // 9 - 3 deleted (id=1 from each partition)
@@ -525,13 +549,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertUpdate(
                     "ALTER TABLE " + tableName + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 1),
-                            ('dangling_equality_delete_files_count', 1),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 1),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
 
             assertQuery("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + EQUALITY_DELETES.id(), "VALUES 0");
             assertQuery("SELECT count(*) FROM " + tableName, "VALUES 6");
@@ -555,7 +579,8 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     {
         // Regression test: manifests with wrong partition data types (e.g., String in Integer field)
         // cause StructLikeWrapper.equals() returning false
-        try (TestTable table = newTrinoTable("test_corrupt_partition_types",
+        try (TestTable table = newTrinoTable(
+                "test_corrupt_partition_types",
                 "(id bigint, part integer) WITH (partitioning = ARRAY['part'])")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 10)", 1);
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (2, 20)", 1);
@@ -563,14 +588,18 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             BaseTable icebergTable = loadTable(table.getName());
 
             // Active equality delete for partition 10 (has data)
-            writeEqualityDeleteForTable(icebergTable, fileSystemFactory,
+            writeEqualityDeleteForTable(
+                    icebergTable,
+                    fileSystemFactory,
                     Optional.of(icebergTable.spec()),
                     Optional.of(new PartitionData(new Object[] {10})),
                     ImmutableMap.of("id", 1L),
                     Optional.empty());
             icebergTable = loadTable(table.getName());
             // Dangling equality delete for partition 30 (no data)
-            writeEqualityDeleteForTable(icebergTable, fileSystemFactory,
+            writeEqualityDeleteForTable(
+                    icebergTable,
+                    fileSystemFactory,
                     Optional.of(icebergTable.spec()),
                     Optional.of(new PartitionData(new Object[] {30})),
                     ImmutableMap.of("id", 99L),
@@ -585,13 +614,13 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
 
             assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
                     """
-                            VALUES
-                            ('removed_delete_files_count', 2),
-                            ('dangling_equality_delete_files_count', 2),
-                            ('dangling_position_delete_files_count', 0),
-                            ('dangling_dv_files_count', 0),
-                            ('data_files_without_sequence_numbers', 0),
-                            ('unexpected_delete_files_count', 0)""");
+                    VALUES
+                    ('removed_delete_files_count', 2),
+                    ('dangling_equality_delete_files_count', 2),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
 
             // Both delete files must be deleted
             assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(0);

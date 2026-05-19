@@ -21,7 +21,5 @@ public enum FailureRepetitionMode
     REP_MODE_RANDOM,
     REP_MODE_ALWAYS;
 
-    FailureRepetitionMode()
-    {
-    }
+    FailureRepetitionMode() {}
 }

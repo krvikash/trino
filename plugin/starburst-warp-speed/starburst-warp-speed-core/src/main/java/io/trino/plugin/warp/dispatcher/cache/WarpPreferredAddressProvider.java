@@ -32,7 +32,7 @@ class WarpPreferredAddressProvider
     @Override
     public HostAddress getPreferredAddress(CacheSplitId splitId)
     {
-        //todo: validate DispatcherSplitManager override this decision
+        // todo: validate DispatcherSplitManager override this decision
         return nodeManager.getCurrentNode().getHostAndPort();
     }
 }

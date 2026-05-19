@@ -355,7 +355,9 @@ public final class GpuAggregationCompiler
     {
         verify(column.type().equals(VARBINARY), "sum(decimal) FINAL input must be VARBINARY, got %s", column.type());
         verify(outputType.equals(finalStepOutputType),
-                "sum(decimal) FINAL output type must equal function return type, got %s vs %s", outputType, finalStepOutputType);
+                "sum(decimal) FINAL output type must equal function return type, got %s vs %s",
+                outputType,
+                finalStepOutputType);
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -finalStepOutputType.getScale());
         return Optional.of(AggregateCompilation.decimalSumFinal(column.channel(), decimal128Type, finalStepOutputType));
     }
@@ -512,18 +514,18 @@ public final class GpuAggregationCompiler
      * into the optional pre-projection / aggregation / post-projection pipeline.
      *
      * @param outputType the Trino type the aggregate's output column carries (the AggregationNode's
-     * symbol type for this aggregate — the *intermediate* type for PARTIAL, or
-     * the return type for SINGLE/FINAL)
+     *         symbol type for this aggregate — the *intermediate* type for PARTIAL, or
+     *         the return type for SINGLE/FINAL)
      * @param preProjection compiled expressions appended to the pre-projection stage as derived
-     * input columns (e.g. the four chunks for long-decimal sum). Empty for
-     * simple aggregates that read the source column directly.
+     *         input columns (e.g. the four chunks for long-decimal sum). Empty for
+     *         simple aggregates that read the source column directly.
      * @param aggregates one or more aggregate slot factories — multiple for chunked aggregations
-     * like long-decimal sum (4 INT64 sums of UINT32/INT32 chunks). Each factory
-     * receives the resolved input channel (the appended derived column when
-     * {@code preProjection} is non-empty; the source channel otherwise) and
-     * returns the configured {@link GpuAggregateFunction}.
+     *         like long-decimal sum (4 INT64 sums of UINT32/INT32 chunks). Each factory
+     *         receives the resolved input channel (the appended derived column when
+     *         {@code preProjection} is non-empty; the source channel otherwise) and
+     *         returns the configured {@link GpuAggregateFunction}.
      * @param postProjection optional reshape from N slot result columns back to one output column
-     * — e.g. reassembling four chunk sums into a 16-byte LIST&lt;INT8&gt;.
+     *         — e.g. reassembling four chunk sums into a 16-byte LIST&lt;INT8&gt;.
      */
     private record AggregateCompilation(
             Type outputType,
@@ -543,7 +545,8 @@ public final class GpuAggregationCompiler
             // one derived column per aggregate slot.
             verify(preProjection.isEmpty() || preProjection.size() == aggregates.size(),
                     "preProjection size %s must match aggregates size %s when non-empty",
-                    preProjection.size(), aggregates.size());
+                    preProjection.size(),
+                    aggregates.size());
             // The pipeline builder pass-throughs the single aggregate slot when no post-projection
             // is provided, so multi-slot compilations must declare one.
             verify(postProjection.isPresent() || aggregates.size() == 1,
@@ -563,7 +566,9 @@ public final class GpuAggregationCompiler
             // magnitude < 10^18, max DECIMAL128 ~ 10^38, max rows per cuDF batch ~ 2^31.
             int negatedScale = -inputDecimalType.getScale();
             verify(decimal128Type.getScale() == negatedScale,
-                    "decimal128Type must have the same scale as the input, got %s vs %s", decimal128Type.getScale(), negatedScale);
+                    "decimal128Type must have the same scale as the input, got %s vs %s",
+                    decimal128Type.getScale(),
+                    negatedScale);
             CompiledExpression cast = new CompiledExpression(
                     (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
                     new InputChannels(List.of(sourceChannel)),

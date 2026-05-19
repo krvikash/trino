@@ -150,7 +150,7 @@ public class WorkerCacheManager
 
         WarpSplitCache(PlanSignature planSignature)
         {
-            //this has a smaller memory footprint
+            // this has a smaller memory footprint
             this.planSignature = new PlanSignature(
                     new SignatureKey(warmupRuleService.hash(planSignature.getKey().toString())),
                     planSignature.getGroupByColumns(),
@@ -226,7 +226,8 @@ public class WorkerCacheManager
                 Map<Integer, List<CacheWarmupElementArgs>> connectorIndexToWarmColumns = toWarm.stream()
                         .collect(Collectors.groupingBy(
                                 WarmupElementWriteMetadata::connectorBlockIndex,
-                                Collectors.mapping(writeMetadata -> new CacheWarmupElementArgs(writeMetadata, new WarmupElementBlocks(chunkSize)),
+                                Collectors.mapping(
+                                        writeMetadata -> new CacheWarmupElementArgs(writeMetadata, new WarmupElementBlocks(chunkSize)),
                                         Collectors.toList())));
                 WarpCacheTask warpCacheTask = new WarpCacheTask(
                         cacheActions,
@@ -284,7 +285,8 @@ public class WorkerCacheManager
             }
             String uniqueKey = hashFunction.hashString(key, StandardCharsets.UTF_8).toString();
             String schema = "WarpCache";
-            return new RowGroupKey(schema,
+            return new RowGroupKey(
+                    schema,
                     planSignature.getKey().toString(),
                     uniqueKey,
                     0,

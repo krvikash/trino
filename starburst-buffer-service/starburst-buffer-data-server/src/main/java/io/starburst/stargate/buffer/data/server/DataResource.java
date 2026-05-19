@@ -259,8 +259,14 @@ public class DataResource
                 inProgressLatch.release();
                 stats.getOverloadedAddDataPagesCount().update(1);
                 addDataPagesThrottlingCalculator.recordThrottlingEvent();
-                logger.debug("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
-                        exchangeId, taskId, attemptId, dataPagesId, inProgressLatch, maxInProgressAddDataPagesRequests);
+                logger.debug(
+                        "rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
+                        exchangeId,
+                        taskId,
+                        attemptId,
+                        dataPagesId,
+                        inProgressLatch,
+                        maxInProgressAddDataPagesRequests);
                 consumeRequestAndCompleteAsyncResponse(
                         clientId,
                         asyncResponse,
@@ -380,7 +386,9 @@ public class DataResource
                                 public void onAllDataRead()
                                 {
                                     verify(bytesRead == contentLength,
-                                            "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
+                                            "Actual number of bytes read %s not equal to contentLength %s",
+                                            bytesRead,
+                                            contentLength);
 
                                     SliceInput sliceInput = slice.getInput();
                                     long readChecksum = sliceInput.readLong();
@@ -609,10 +617,8 @@ public class DataResource
 
         switch (chunkDataResult) {
             case SpooledChunkResult result -> resumeSpooledChunk(asyncResponse, result);
-            case ChunkContentResult(MemoryChunkDataLease lease) ->
-                    streamMemoryChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
-            case ChunkContentResult(DiskChunkDataLease lease) ->
-                    streamDiskChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
+            case ChunkContentResult(MemoryChunkDataLease lease) -> streamMemoryChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
+            case ChunkContentResult(DiskChunkDataLease lease) -> streamDiskChunk(lease, outputStream, request, response, bufferNodeId, exchangeId, partitionId, chunkId);
         }
     }
 
@@ -888,7 +894,7 @@ public class DataResource
         private enum State
         {
             DELEGATE_SET,
-            DELEGATE_RELEASED
+            DELEGATE_RELEASED,
         }
 
         private volatile Optional<ReadListener> delegate;

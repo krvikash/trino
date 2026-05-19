@@ -24,9 +24,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public class GcsUtils
 {
-    private GcsUtils()
-    {
-    }
+    private GcsUtils() {}
 
     public static BlobId getBlobId(GcsLocation location)
     {

@@ -241,7 +241,7 @@ public final class IcebergQueryRunner
             @SuppressWarnings("resource")
             QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
                     .setIcebergProperties(ImmutableMap.<String, String>builder()
-                                    .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
+                            .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
                             .put("hive.metastore.catalog.dir", "s3://%s/".formatted(bucketName))
                             .put("fs.s3.enabled", "true")
                             .put("s3.aws-access-key", MINIO_ROOT_USER)
@@ -474,7 +474,7 @@ public final class IcebergQueryRunner
 
             if (isEnvSet("VENDED_CREDENTIALS")) {
                 builder.addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true")
-                        .addIcebergProperty("gcs.auth-type", "APPLICATION_DEFAULT"); //currently it must be set even if not used
+                        .addIcebergProperty("gcs.auth-type", "APPLICATION_DEFAULT"); // currently it must be set even if not used
             }
             else {
                 byte[] jsonKeyBytes = Base64.getDecoder().decode(requireEnv("GCP_CREDENTIALS_KEY"));

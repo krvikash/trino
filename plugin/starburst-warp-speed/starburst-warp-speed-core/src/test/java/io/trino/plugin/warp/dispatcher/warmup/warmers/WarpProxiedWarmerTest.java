@@ -136,7 +136,8 @@ public class WarpProxiedWarmerTest
         globalConfig = new GlobalConfig();
         globalConfig.setLocalStorePath(
                 Files.createTempDirectory(this.getClass().getName()).toFile().getAbsolutePath());
-        when(connectorPageSourceProvider.createPageSource(any(),
+        when(connectorPageSourceProvider.createPageSource(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -181,11 +182,13 @@ public class WarpProxiedWarmerTest
                         Pair.of(column2, IntegerType.INTEGER),
                         Pair.of(column3, VarcharType.VARCHAR)));
         Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
-        columnNameToWarmUpType.putAll(new RegularColumn(column1), List.of(WarmUpType.WARM_UP_TYPE_BASIC,
+        columnNameToWarmUpType.putAll(new RegularColumn(column1), List.of(
+                WarmUpType.WARM_UP_TYPE_BASIC,
                 WarmUpType.WARM_UP_TYPE_DATA,
                 WarmUpType.WARM_UP_TYPE_LUCENE));
         columnNameToWarmUpType.put(new RegularColumn(column2), WarmUpType.WARM_UP_TYPE_BASIC);
-        columnNameToWarmUpType.putAll(new RegularColumn(column3), List.of(WarmUpType.WARM_UP_TYPE_BASIC,
+        columnNameToWarmUpType.putAll(new RegularColumn(column3), List.of(
+                WarmUpType.WARM_UP_TYPE_BASIC,
                 WarmUpType.WARM_UP_TYPE_DATA));
         List<WarmUpElement> warmupElements = createRegularWarmupElements(columnNameToWarmUpType);
         SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap = createWarmupPriorityMap(columnNameToWarmUpType);
@@ -202,7 +205,8 @@ public class WarpProxiedWarmerTest
     {
         return columns.stream().map(columnHandles -> {
             ConnectorPageSource connectorPageSource = mock(ConnectorPageSource.class);
-            when(connectorPageSourceProvider.createPageSource(any(),
+            when(connectorPageSourceProvider.createPageSource(
+                    any(),
                     any(),
                     any(),
                     any(),
@@ -238,7 +242,8 @@ public class WarpProxiedWarmerTest
         columnNameToWarmUpType.put(column4, WarmUpType.WARM_UP_TYPE_DATA);
         List<WarmUpElement> warmupElements = createRegularWarmupElements(columnNameToWarmUpType);
         SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap = HashMultimap.create();
-        requiredWarmUpTypeMap.putAll(column0, Set.of(new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 3, 0, TransformFunction.NONE),
+        requiredWarmUpTypeMap.putAll(column0, Set.of(
+                new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 3, 0, TransformFunction.NONE),
                 new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 7, 0, TransformFunction.NONE)));
         requiredWarmUpTypeMap.put(column1, new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 9, 0, TransformFunction.NONE));
         requiredWarmUpTypeMap.put(column2, new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 5, 0, TransformFunction.NONE));
@@ -268,15 +273,18 @@ public class WarpProxiedWarmerTest
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         String column1 = "C1";
         WarpColumn warpColumn1 = new RegularColumn(column1);
-        List<ColumnHandle> columnsToWarm = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columnsToWarm = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(column1, VarcharType.VARCHAR)));
         Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
-        columnNameToWarmUpType.putAll(warpColumn1, List.of(WarmUpType.WARM_UP_TYPE_DATA,
+        columnNameToWarmUpType.putAll(warpColumn1, List.of(
+                WarmUpType.WARM_UP_TYPE_DATA,
                 WarmUpType.WARM_UP_TYPE_BASIC));
 
         List<WarmUpElement> warmupElements = createRegularWarmupElements(columnNameToWarmUpType);
         SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap = HashMultimap.create();
-        requiredWarmUpTypeMap.putAll(warpColumn1, Set.of(new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 2, 0, TransformFunction.NONE),
+        requiredWarmUpTypeMap.putAll(warpColumn1, Set.of(
+                new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, 2, 0, TransformFunction.NONE),
                 new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC, 3, 0, TransformFunction.NONE)));
 
         when(connectorPageSource.isFinished()).thenReturn(true);
@@ -298,7 +306,8 @@ public class WarpProxiedWarmerTest
 
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
             RegularColumn column1 = new RegularColumn("c3");
-            List<ColumnHandle> columnsToWarm = mockColumns(dispatcherProxiedConnectorTransformer,
+            List<ColumnHandle> columnsToWarm = mockColumns(
+                    dispatcherProxiedConnectorTransformer,
                     List.of(Pair.of(column1.getName(), IntegerType.INTEGER)));
             Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
             columnNameToWarmUpType.put(column1, WarmUpType.WARM_UP_TYPE_BASIC);
@@ -325,7 +334,8 @@ public class WarpProxiedWarmerTest
 
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
             RegularColumn column1 = new RegularColumn("c1");
-            List<ColumnHandle> columnsToWarm = mockColumns(dispatcherProxiedConnectorTransformer,
+            List<ColumnHandle> columnsToWarm = mockColumns(
+                    dispatcherProxiedConnectorTransformer,
                     List.of(Pair.of(column1.getName(), IntegerType.INTEGER)));
             Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
             columnNameToWarmUpType.put(column1, WarmUpType.WARM_UP_TYPE_BASIC);
@@ -351,7 +361,8 @@ public class WarpProxiedWarmerTest
         WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
         RegularColumn column1 = new RegularColumn("c1");
-        List<ColumnHandle> columnsToWarm = mockColumns(dispatcherProxiedConnectorTransformer,
+        List<ColumnHandle> columnsToWarm = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of(column1.getName(), IntegerType.INTEGER)));
         Multimap<WarpColumn, WarmUpType> columnNameToWarmUpType = ArrayListMultimap.create();
         columnNameToWarmUpType.put(column1, WarmUpType.WARM_UP_TYPE_BASIC);
@@ -371,14 +382,16 @@ public class WarpProxiedWarmerTest
         Assertions.assertEquals(WarmUpElementState.FAILED_PERMANENTLY, warmUpElement.getState());
     }
 
-    private RowGroupData act(WarpProxiedWarmer warpProxiedWarmer,
+    private RowGroupData act(
+            WarpProxiedWarmer warpProxiedWarmer,
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair,
             List<ColumnHandle> columnsToWarm,
             List<WarmUpElement> warmupElements,
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap)
     {
         RowGroupData rowGroupData = RowGroupData.builder().rowGroupKey(dispatcherSplitRowGroupKeyPair.getRight()).warmUpElements(List.of()).build();
-        return warpProxiedWarmer.warm(connectorPageSourceProvider,
+        return warpProxiedWarmer.warm(
+                connectorPageSourceProvider,
                 connectorTransactionHandle,
                 connectorSession,
                 dispatcherTableHandle,
@@ -417,7 +430,8 @@ public class WarpProxiedWarmerTest
                 mock(WorkerCapacityManager.class),
                 mock(NativeStorageStateHandler.class),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
-        return new WarpProxiedWarmer(warpPageSinkFactory,
+        return new WarpProxiedWarmer(
+                warpPageSinkFactory,
                 dispatcherProxiedConnectorTransformer,
                 nodeManager,
                 new CatalogNameProvider("catalog-name"),

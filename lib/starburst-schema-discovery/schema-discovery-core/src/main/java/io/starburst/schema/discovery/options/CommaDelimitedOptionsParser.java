@@ -40,10 +40,10 @@ public class CommaDelimitedOptionsParser
         optionNames = optionsClasses.stream()
                 .flatMap(optionsClass -> Arrays.stream(optionsClass.getDeclaredFields()))
                 .filter(field -> field.isAnnotationPresent(OptionDescription.class) &&
-                                 Modifier.isStatic(field.getModifiers()) &&
-                                 Modifier.isPublic(field.getModifiers()) &&
-                                 Modifier.isFinal(field.getModifiers()) &&
-                                 field.getType().equals(String.class))
+                        Modifier.isStatic(field.getModifiers()) &&
+                        Modifier.isPublic(field.getModifiers()) &&
+                        Modifier.isFinal(field.getModifiers()) &&
+                        field.getType().equals(String.class))
                 .map(CommaDelimitedOptionsParser::extractStringValue)
                 .filter(Predicate.not(String::isEmpty))
                 .collect(toImmutableSet());

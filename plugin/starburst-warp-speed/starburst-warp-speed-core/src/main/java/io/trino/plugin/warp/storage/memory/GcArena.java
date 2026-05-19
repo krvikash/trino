@@ -27,7 +27,8 @@ public class GcArena
 
     private final Runnable limitFunc;
 
-    public GcArena(Runnable limitFunc,
+    public GcArena(
+            Runnable limitFunc,
             AtomicLong numAllocatedBytes,
             ShapingLogger shapingLogger)
     {

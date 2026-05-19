@@ -81,8 +81,7 @@ public class TableScanOperationMetadata
 
     public TableScanOperationMetadata(JsonCodec<TableHandle> tableHandleCodec, JsonCodec<List<ColumnHandle>> columnHandleCodec, JsonCodec<TupleDomain<ColumnHandle>> tupleDomainCodec, Function<String, Type> typeDeserializer)
     {
-        this(
-                tableHandleCodec::fromJson,
+        this(tableHandleCodec::fromJson,
                 tableHandleCodec::toJson,
                 columnHandleCodec::fromJson,
                 columnHandleCodec::toJson,

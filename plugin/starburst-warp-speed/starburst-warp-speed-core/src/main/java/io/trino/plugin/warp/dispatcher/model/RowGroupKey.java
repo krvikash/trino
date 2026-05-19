@@ -30,15 +30,24 @@ public final class RowGroupKey
 {
     // how many slashes to skip in file name to reach the file path and offset/length/file-modification-time part
     public static final int FILE_NAME_START_OF_FILE_NAME = 6;
-    @Serial private static final long serialVersionUID = 0L;
-    @JsonProperty("schema_name") private final String schema;
-    @JsonProperty("table_name") private final String table;
-    @JsonProperty("file_path") private final String filePath;
-    @JsonProperty("file_offset") private final long offset;
-    @JsonProperty("length") private final long length;
-    @JsonProperty("file_modified_time") private final long fileModifiedTime;
-    @JsonProperty("deleted_files_hash") private final String deletedFilesHash;
-    @JsonProperty("catalog_name") private final String catalogName;
+    @Serial
+    private static final long serialVersionUID = 0L;
+    @JsonProperty("schema_name")
+    private final String schema;
+    @JsonProperty("table_name")
+    private final String table;
+    @JsonProperty("file_path")
+    private final String filePath;
+    @JsonProperty("file_offset")
+    private final long offset;
+    @JsonProperty("length")
+    private final long length;
+    @JsonProperty("file_modified_time")
+    private final long fileModifiedTime;
+    @JsonProperty("deleted_files_hash")
+    private final String deletedFilesHash;
+    @JsonProperty("catalog_name")
+    private final String catalogName;
 
     @JsonIgnore
     private int hashCode;

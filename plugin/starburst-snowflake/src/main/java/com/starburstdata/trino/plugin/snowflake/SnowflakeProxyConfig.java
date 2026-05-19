@@ -112,6 +112,6 @@ public class SnowflakeProxyConfig
     public enum SnowflakeProxyProtocol
     {
         HTTP,
-        HTTPS
+        HTTPS,
     }
 }

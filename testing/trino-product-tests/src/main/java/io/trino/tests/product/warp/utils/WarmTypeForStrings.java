@@ -17,5 +17,5 @@ public enum WarmTypeForStrings
 {
     lucene_data_only,
     no_lucene,
-    lucene_data_basic
+    lucene_data_basic,
 }

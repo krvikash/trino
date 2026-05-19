@@ -546,24 +546,24 @@ public class OracleClient
         Optional<ColumnMapping> columnMapping = switch (typeHandle.jdbcType()) {
             case Types.SMALLINT -> {
                 yield Optional.of(ColumnMapping.longMapping(
-                    SMALLINT,
-                    ResultSet::getShort,
-                    smallintWriteFunction(),
-                    FULL_PUSHDOWN));
+                        SMALLINT,
+                        ResultSet::getShort,
+                        smallintWriteFunction(),
+                        FULL_PUSHDOWN));
             }
             case OracleTypes.BINARY_FLOAT -> {
                 yield Optional.of(ColumnMapping.longMapping(
-                    REAL,
-                    (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)),
-                    oracleRealWriteFunction(),
-                    FULL_PUSHDOWN));
+                        REAL,
+                        (resultSet, columnIndex) -> floatToRawIntBits(resultSet.getFloat(columnIndex)),
+                        oracleRealWriteFunction(),
+                        FULL_PUSHDOWN));
             }
             case OracleTypes.BINARY_DOUBLE, OracleTypes.FLOAT -> {
                 yield Optional.of(ColumnMapping.doubleMapping(
-                    DOUBLE,
-                    ResultSet::getDouble,
-                    oracleDoubleWriteFunction(),
-                    FULL_PUSHDOWN));
+                        DOUBLE,
+                        ResultSet::getDouble,
+                        oracleDoubleWriteFunction(),
+                        FULL_PUSHDOWN));
             }
             case OracleTypes.NUMBER -> {
                 int columnSize = typeHandle.requiredColumnSize();
@@ -633,31 +633,31 @@ public class OracleClient
             }
             case OracleTypes.VARCHAR, OracleTypes.NVARCHAR -> {
                 yield Optional.of(ColumnMapping.sliceMapping(
-                    createVarcharType(typeHandle.requiredColumnSize()),
-                    (varcharResultSet, varcharColumnIndex) -> utf8Slice(varcharResultSet.getString(varcharColumnIndex)),
-                    varcharWriteFunction(),
-                    FULL_PUSHDOWN));
+                        createVarcharType(typeHandle.requiredColumnSize()),
+                        (varcharResultSet, varcharColumnIndex) -> utf8Slice(varcharResultSet.getString(varcharColumnIndex)),
+                        varcharWriteFunction(),
+                        FULL_PUSHDOWN));
             }
             case OracleTypes.CLOB, OracleTypes.NCLOB -> {
                 yield Optional.of(ColumnMapping.sliceMapping(
-                    createUnboundedVarcharType(),
-                    (resultSet, columnIndex) -> utf8Slice(resultSet.getString(columnIndex)),
-                    varcharWriteFunction(),
-                    DISABLE_PUSHDOWN));
+                        createUnboundedVarcharType(),
+                        (resultSet, columnIndex) -> utf8Slice(resultSet.getString(columnIndex)),
+                        varcharWriteFunction(),
+                        DISABLE_PUSHDOWN));
             }
             case OracleTypes.VARBINARY -> {
                 yield Optional.of(ColumnMapping.sliceMapping(
-                    VARBINARY,
-                    (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
-                    varbinaryWriteFunction(),
-                    FULL_PUSHDOWN)); // Oracle's RAW(n)
+                        VARBINARY,
+                        (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
+                        varbinaryWriteFunction(),
+                        FULL_PUSHDOWN)); // Oracle's RAW(n)
             }
             case OracleTypes.BLOB -> {
                 yield Optional.of(ColumnMapping.sliceMapping(
-                     VARBINARY,
-                     (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
-                     varbinaryWriteFunction(),
-                     DISABLE_PUSHDOWN));
+                        VARBINARY,
+                        (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex)),
+                        varbinaryWriteFunction(),
+                        DISABLE_PUSHDOWN));
             }
             case OracleTypes.TIMESTAMP -> {
                 int timestampPrecision = typeHandle.requiredDecimalDigits();
@@ -932,7 +932,8 @@ public class OracleClient
             return null;
         }
         if (timestampBytes.length != DATE_INTERNAL_BYTE_SIZE && timestampBytes.length != TIMESTAMP_INTERNAL_BYTE_SIZE) {
-            throw new TrinoException(NOT_SUPPORTED,
+            throw new TrinoException(
+                    NOT_SUPPORTED,
                     "Unexpected Oracle TIMESTAMP length: " + timestampBytes.length);
         }
         LocalDateTime localDateTime = toLocalDateTime(timestampBytes);

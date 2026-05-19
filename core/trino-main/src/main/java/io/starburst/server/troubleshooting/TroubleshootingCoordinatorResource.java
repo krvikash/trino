@@ -107,12 +107,13 @@ public class TroubleshootingCoordinatorResource
                     asyncResponse,
                     immediateFuture(Response
                             .status(NOT_FOUND)
-                            .entity("""
+                            .entity(
+                                    """
                                     Troubleshooting archive for '%s' is no longer available. The archive is available only up to %s after query is finished.
                                     Please re-run the query and download the archive immediately after query is done.
                                     """.formatted(
-                                    queryId,
-                                    maxAccessDuration.toString())).build()),
+                                            queryId,
+                                            maxAccessDuration.toString())).build()),
                     executorService);
         }
         else {

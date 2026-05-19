@@ -41,7 +41,8 @@ public abstract class BaseCollectTxService
     protected final NativeConfig nativeConfig;
     protected final ShapingLogger shapingLogger;
 
-    public BaseCollectTxService(StorageEngine storageEngine,
+    public BaseCollectTxService(
+            StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             ShapingLoggerFactory shapingLoggerFactory,
@@ -62,22 +63,26 @@ public abstract class BaseCollectTxService
     }
 
     // open chunk before collect
-    void openChunk(CollectState collectState,
+    void openChunk(
+            CollectState collectState,
             int chunkIndex,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         logger.debug("openChunk chunkIndex %d", chunkIndex);
         long startTime = System.nanoTime();
-        boolean success = storageEngine.openChunk(collectState.getStateMemory(),
+        boolean success = storageEngine.openChunk(
+                collectState.getStateMemory(),
                 chunkIndex);
         dispatcherPageSourceStats.addnative_read_time(System.nanoTime() - startTime);
         if (!success) {
-            throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED,
+            throw new TrinoException(
+                    WARP_UNRECOVERABLE_COLLECT_FAILED,
                     String.format(Locale.US, "openChunk failed unexpectedly chunkIndex %d", chunkIndex));
         }
     }
 
-    void collectChunk(CollectState collectState,
+    void collectChunk(
+            CollectState collectState,
             MemorySegment outQueryResultTypes,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
@@ -101,7 +106,8 @@ public abstract class BaseCollectTxService
         }
     }
 
-    void allocCollectBuffer(SegmentAllocator allocator,
+    void allocCollectBuffer(
+            SegmentAllocator allocator,
             JbufType bufType,
             int bufferSize,
             MemorySegment[] outCollectSegments)

@@ -108,7 +108,8 @@ public class WeGroupCloudExporterTaskTest
 
         ArgumentCaptor<RowGroupData> rowGroupDataCaptor = ArgumentCaptor.forClass(RowGroupData.class);
 
-        WeGroupCloudExporterTask task = new WeGroupCloudExporterTask(rowGroupKey,
+        WeGroupCloudExporterTask task = new WeGroupCloudExporterTask(
+                rowGroupKey,
                 cloudImportExportPath,
                 workerTaskExecutorService,
                 rowGroupDataService,
@@ -137,7 +138,8 @@ public class WeGroupCloudExporterTaskTest
                 .when(warmupElementsCloudExporter)
                 .exportFile(any(RowGroupData.class), eq(cloudImportExportPath));
 
-        WeGroupCloudExporterTask task = new WeGroupCloudExporterTask(rowGroupKey,
+        WeGroupCloudExporterTask task = new WeGroupCloudExporterTask(
+                rowGroupKey,
                 cloudImportExportPath,
                 workerTaskExecutorService,
                 rowGroupDataService,

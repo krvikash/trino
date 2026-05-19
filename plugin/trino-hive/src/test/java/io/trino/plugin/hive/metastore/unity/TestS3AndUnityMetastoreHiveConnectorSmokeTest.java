@@ -116,7 +116,8 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 }
             }
         }
-        DATABRICKS.execute("""
+        DATABRICKS.execute(
+                """
                 CREATE TABLE IF NOT EXISTS %s.%s.%s
                 USING DELTA
                 AS SELECT 1 col
@@ -310,11 +311,12 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
         String tableName = "hive_table_" + randomNameSuffix();
         String schemaLocation = getTpchSchemaLocation(getQueryRunner());
         try {
-            DATABRICKS.execute("""
-                CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
-                USING PARQUET
-                LOCATION '%s'
-                """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName, "%s/%s".formatted(schemaLocation, tableName)));
+            DATABRICKS.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
+                    USING PARQUET
+                    LOCATION '%s'
+                    """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName, "%s/%s".formatted(schemaLocation, tableName)));
             assertUpdate("INSERT INTO " + tableName + " VALUES (1)", 1);
             assertThat(query("SELECT * FROM " + tableName))
                     .matches("VALUES 1");
@@ -329,16 +331,17 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     public void testShowCreateTable()
     {
         assertThat((String) computeScalar("SHOW CREATE TABLE region"))
-                .isEqualTo("""
-                           CREATE TABLE hive.%s.region (
-                              regionkey bigint,
-                              name varchar,
-                              comment varchar
-                           )
-                           WITH (
-                              external_location = '%s/%s/region',
-                              format = 'PARQUET'
-                           )""".formatted(SCHEMA_NAME, DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME));
+                .isEqualTo(
+                        """
+                        CREATE TABLE hive.%s.region (
+                           regionkey bigint,
+                           name varchar,
+                           comment varchar
+                        )
+                        WITH (
+                           external_location = '%s/%s/region',
+                           format = 'PARQUET'
+                        )""".formatted(SCHEMA_NAME, DATABRICKS_UNITY_EXTERNAL_LOCATION, SCHEMA_NAME));
     }
 
     @Override
@@ -388,7 +391,8 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
             assertThat(query(newSession, "SHOW SCHEMAS"))
                     .skippingTypesCheck()
                     .containsAll(format("VALUES '%s'", schemaName));
-        } finally {
+        }
+        finally {
             assertUpdate(newSession, "DROP SCHEMA " + schemaName);
         }
     }

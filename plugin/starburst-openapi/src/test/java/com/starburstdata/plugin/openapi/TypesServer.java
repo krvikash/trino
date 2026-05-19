@@ -146,7 +146,7 @@ public class TypesServer
         public String any()
         {
             return """
-                    { "whole": { "bunch": [ { "of": "types", "test": true, "testing": 1 } ] } }""";
+                   { "whole": { "bunch": [ { "of": "types", "test": true, "testing": 1 } ] } }""";
         }
 
         @Path("/string/byte/invalid")
@@ -309,8 +309,8 @@ public class TypesServer
         public String validMap()
         {
             return """
-                    { "valid": true, "also_valid": false, "also_also_valid": null }
-                    """;
+                   { "valid": true, "also_valid": false, "also_also_valid": null }
+                   """;
         }
 
         @Path("/object/map/invalid")
@@ -319,8 +319,8 @@ public class TypesServer
         public String invalidMap()
         {
             return """
-                    { "valid": true, "invalid": 0 }
-                    """;
+                   { "valid": true, "invalid": 0 }
+                   """;
         }
 
         @Path("/object/row/valid")
@@ -329,8 +329,8 @@ public class TypesServer
         public String validRow()
         {
             return """
-                    { "present": true, "null": null, "dropped": true }
-                    """;
+                   { "present": true, "null": null, "dropped": true }
+                   """;
         }
 
         @Path("/object/row/invalid")
@@ -339,8 +339,8 @@ public class TypesServer
         public String invalidRow()
         {
             return """
-                    { "typed": 0 }
-                    """;
+                   { "typed": 0 }
+                   """;
         }
     }
 

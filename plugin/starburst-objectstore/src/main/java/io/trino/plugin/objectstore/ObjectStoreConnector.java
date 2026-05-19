@@ -263,7 +263,9 @@ public class ObjectStoreConnector
             for (Procedure procedure : connector.getProcedures()) {
                 String name = procedure.getName();
                 switch (requireNonNullElse(procedureExposures.remove(type, name), UNDEFINED)) {
-                    case INACCESSIBLE -> { /* skipped */ }
+                    case INACCESSIBLE -> {
+                        /* skipped */
+                    }
                     case UNDEFINED -> throw new IllegalStateException("Unknown procedure provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
                         Procedure boundProcedure = translateArguments(procedure.getMethodHandle(), ConnectorSession.class, session -> sessionProperties.unwrap(type, session))
@@ -306,7 +308,9 @@ public class ObjectStoreConnector
                 verify(name.equals(name.toUpperCase(Locale.ROOT)), "Procedure name is not uppercase: %s", name);
 
                 switch (requireNonNullElse(featureExposures.remove(type, name), UNDEFINED)) {
-                    case INACCESSIBLE -> { /* skipped */ }
+                    case INACCESSIBLE -> {
+                        /* skipped */
+                    }
                     case UNDEFINED -> throw new IllegalStateException("Unknown table procedure provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
                         TableProcedureMetadata existing = tableProcedures.putIfAbsent(name, procedure);
@@ -315,9 +319,11 @@ public class ObjectStoreConnector
                         }
 
                         verify(procedure.getExecutionMode().isReadsData() == existing.getExecutionMode().isReadsData(),
-                                "Procedure uses different execution mode for reads data: %s", name);
+                                "Procedure uses different execution mode for reads data: %s",
+                                name);
                         verify(procedure.getExecutionMode().supportsFilter() == existing.getExecutionMode().supportsFilter(),
-                                "Procedure uses different execution mode for supports filter: %s", name);
+                                "Procedure uses different execution mode for supports filter: %s",
+                                name);
 
                         Set<String> difference = symmetricDifference(
                                 procedure.getProperties().stream()
@@ -353,7 +359,9 @@ public class ObjectStoreConnector
                 SchemaTableName name = systemTable.getTableMetadata().getTable();
 
                 switch (requireNonNullElse(systemTableExposures.remove(type, name), UNDEFINED)) {
-                    case INACCESSIBLE -> { /* skipped */ }
+                    case INACCESSIBLE -> {
+                        /* skipped */
+                    }
                     case UNDEFINED -> throw new IllegalStateException("Unknown system table provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
                         SystemTable existing = systemTables.putIfAbsent(name, systemTable);
@@ -362,21 +370,28 @@ public class ObjectStoreConnector
                         }
 
                         verify(systemTable.getDistribution() == existing.getDistribution(),
-                                "System table uses different distribution: %s", name);
+                                "System table uses different distribution: %s",
+                                name);
                         verify(systemTable.getTableMetadata().getTable().equals(existing.getTableMetadata().getTable()),
-                                "System table uses different table: %s", name);
+                                "System table uses different table: %s",
+                                name);
                         verify(systemTable.getTableMetadata().getCheckConstraints().equals(existing.getTableMetadata().getCheckConstraints()),
-                                "System table uses different check constraints: %s", name);
+                                "System table uses different check constraints: %s",
+                                name);
                         verify(systemTable.getTableMetadata().getColumns().equals(existing.getTableMetadata().getColumns()),
-                                "System table uses different columns: %s", name);
+                                "System table uses different columns: %s",
+                                name);
                         verify(systemTable.getTableMetadata().getComment().equals(existing.getTableMetadata().getComment()),
-                                "System table uses different comment: %s", name);
+                                "System table uses different comment: %s",
+                                name);
 
                         Set<String> propertiesDiff = symmetricDifference(
                                 systemTable.getTableMetadata().getProperties().keySet(),
                                 existing.getTableMetadata().getProperties().keySet());
                         verify(propertiesDiff.isEmpty(),
-                                "System table '%s' uses different properties: %s", name, propertiesDiff);
+                                "System table '%s' uses different properties: %s",
+                                name,
+                                propertiesDiff);
 
                         Set<Map.Entry<String, Object>> propertyValuesDiff = symmetricDifference(
                                 systemTable.getTableMetadata().getProperties().entrySet(),
@@ -385,7 +400,9 @@ public class ObjectStoreConnector
                                 .map(Map.Entry::getKey)
                                 .collect(toImmutableList());
                         verify(propertyValuesDiff.isEmpty(),
-                                "System table '%s' uses different properties values for: %s", name, propertyNamesWithValuesDiff);
+                                "System table '%s' uses different properties values for: %s",
+                                name,
+                                propertyNamesWithValuesDiff);
                     }
                 }
             }

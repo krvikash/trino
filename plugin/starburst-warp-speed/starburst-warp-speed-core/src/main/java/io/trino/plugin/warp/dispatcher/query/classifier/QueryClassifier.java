@@ -57,7 +57,8 @@ public class QueryClassifier
     private final GlobalConfig globalConfig;
 
     @Inject
-    public QueryClassifier(ClassifierFactory classifierFactory,
+    public QueryClassifier(
+            ClassifierFactory classifierFactory,
             MatchCollectIdService matchCollectIdService,
             PredicateContextFactory predicateContextFactory,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
@@ -70,7 +71,8 @@ public class QueryClassifier
         this.globalConfig = requireNonNull(globalConfig);
     }
 
-    public QueryContext classify(QueryContext baseQueryContext,
+    public QueryContext classify(
+            QueryContext baseQueryContext,
             RowGroupData rowGroupData,
             DispatcherTableHandle dispatcherTableHandle,
             Optional<ConnectorSession> session)
@@ -101,7 +103,7 @@ public class QueryClassifier
             boolean enableInverseWithNulls = false;
             boolean debugNoPredicateBuffer = false;
             if (session.isPresent()) {
-                //in cacheManager we don't have session
+                // in cacheManager we don't have session
                 minMaxFilter = WarpSessionProperties.isMinMaxFilter(session.get());
                 mappedMatchCollect = WarpSessionProperties.getEnabledMappedMatchCollect(session.get());
                 varcharMappedMatchCollect = WarpSessionProperties.getEnabledVarcharMappedMatchCollect(session.get());
@@ -109,7 +111,8 @@ public class QueryClassifier
                 debugNoPredicateBuffer = WarpSessionProperties.isDebugNoPredicateBuffer(session.get(), globalConfig);
             }
             WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData, storeIdOpt);
-            ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+            ClassifyArgs classifyArgs = new ClassifyArgs(
+                    dispatcherTableHandle,
                     rowGroupData,
                     baseQueryContext.getPredicateContextData(),
                     baseQueryContext.getRemainingCollectColumnByBlockIndex(),
@@ -195,25 +198,29 @@ public class QueryClassifier
         }
     }
 
-    public QueryContext getBasicQueryContext(List<ColumnHandle> collectColumns,
+    public QueryContext getBasicQueryContext(
+            List<ColumnHandle> collectColumns,
             DispatcherTableHandle dispatcherTableHandle,
             DynamicFilter dynamicFilter,
             ConnectorSession session)
     {
-        return getBasicQueryContext(collectColumns,
+        return getBasicQueryContext(
+                collectColumns,
                 dispatcherTableHandle,
                 dynamicFilter,
                 session,
                 ClassificationType.QUERY);
     }
 
-    public QueryContext getBasicQueryContext(List<ColumnHandle> collectColumns,
+    public QueryContext getBasicQueryContext(
+            List<ColumnHandle> collectColumns,
             DispatcherTableHandle dispatcherTableHandle,
             DynamicFilter dynamicFilter,
             ConnectorSession session,
             ClassificationType classificationType)
     {
-        PredicateContextData predicateContextData = predicateContextFactory.create(session,
+        PredicateContextData predicateContextData = predicateContextFactory.create(
+                session,
                 dynamicFilter,
                 dispatcherTableHandle);
         boolean enableMatchCollect = (classificationType == ClassificationType.QUERY) &&
@@ -222,11 +229,12 @@ public class QueryClassifier
             WarpExpression expression = predicateContextData.getRootExpression();
             if (expression instanceof WarpCall warpCall && (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
                     warpCall.getArguments().stream().anyMatch(x -> x instanceof WarpCall child && child.getFunctionName().equals(OR_FUNCTION_NAME.getName())))) {
-                //we cannot support match collect together with OR pushdown. In case OR is pushed we must disable match collect for all elements.
+                // we cannot support match collect together with OR pushdown. In case OR is pushed we must disable match collect for all elements.
                 enableMatchCollect = false;
             }
         }
-        return new QueryContext(predicateContextData,
+        return new QueryContext(
+                predicateContextData,
                 ImmutableList.copyOf(collectColumns),
                 enableMatchCollect,
                 session.getQueryId());

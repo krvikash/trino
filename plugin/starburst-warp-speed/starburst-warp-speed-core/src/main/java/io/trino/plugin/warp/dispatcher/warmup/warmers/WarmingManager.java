@@ -100,7 +100,8 @@ public class WarmingManager
         return Optional.empty();
     }
 
-    public void warm(RowGroupKey rowGroupKey,
+    public void warm(
+            RowGroupKey rowGroupKey,
             ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
@@ -126,11 +127,12 @@ public class WarmingManager
             rowGroupData = rowGroupDataService.getOrCreateRowGroupData(rowGroupKey, partitionKeys);
 
             try {
-                //TODO add logic of rowGroupDataService.verifyUpdatedRowGroupData
+                // TODO add logic of rowGroupDataService.verifyUpdatedRowGroupData
                 if (!newWarmupElements.isEmpty()) {
                     StopWatch stopWatch = new StopWatch();
                     stopWatch.start();
-                    rowGroupData = warpProxiedWarmer.warm(connectorPageSourceProvider,
+                    rowGroupData = warpProxiedWarmer.warm(
+                            connectorPageSourceProvider,
                             transactionHandle,
                             session,
                             dispatcherTableHandle,

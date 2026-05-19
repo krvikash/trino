@@ -72,13 +72,13 @@ public class CacheMgrWarmupRuleCloudFetcherTest
     public void testFetch()
             throws IOException
     {
-        //nothing returned due warmupRuleCloudFetcherConfig.getStorePath == null
+        // nothing returned due warmupRuleCloudFetcherConfig.getStorePath == null
         warmupRuleCloudFetcher.fetch();
         assertThat(warmupRuleFetcherStats.getsuccess()).isZero();
         assertThat(warmupRuleFetcherStats.getfail()).isZero();
         verify(warmupRuleService, never()).replaceAll(anyList());
 
-        //nothing returned from CloudVendorService
+        // nothing returned from CloudVendorService
         warmupRuleCloudFetcherConfig.setStorePath("path");
         String path = warmupRuleCloudFetcherConfig.getStorePath();
         StorageObjectMetadata storageObjectMetadata = new StorageObjectMetadata();
@@ -109,7 +109,7 @@ public class CacheMgrWarmupRuleCloudFetcherTest
     {
         warmupRuleCloudFetcherConfig.setStorePath("path");
         String path = warmupRuleCloudFetcherConfig.getStorePath();
-        //null returned from CloudVendorService
+        // null returned from CloudVendorService
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(null);
 
         warmupRuleCloudFetcher.fetch();
@@ -127,7 +127,7 @@ public class CacheMgrWarmupRuleCloudFetcherTest
         assertThat(warmupRuleFetcherStats.getfail()).isZero();
         verify(warmupRuleService, never()).replaceAll(anyList());
 
-        //validate nothing returned when nothing changed
+        // validate nothing returned when nothing changed
         storageObjectMetadata = new StorageObjectMetadata();
         when(cloudVendorService.getObjectMetadata(path)).thenReturn(storageObjectMetadata);
 

@@ -474,7 +474,7 @@ public class ElasticsearchClient
                     JsonNode metaNode = nullSafeNode(mappings, "_meta");
                     JsonNode trino = nullSafeNode(metaNode, "trino");
                     if (trino.isNull()) {
-                        //stay backwards compatible with _meta.presto namespace for meta properties for some releases
+                        // stay backwards compatible with _meta.presto namespace for meta properties for some releases
                         trino = nullSafeNode(metaNode, "presto");
                     }
                     if (!trino.isNull() && trino.isObject()) {

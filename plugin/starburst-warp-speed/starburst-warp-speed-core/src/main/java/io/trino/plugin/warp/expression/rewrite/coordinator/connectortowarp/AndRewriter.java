@@ -37,9 +37,7 @@ public class AndRewriter
     private static final Pattern<Call> PATTERN = ConnectorExpressionPatterns.call()
             .with(ConnectorExpressionPatterns.functionName().equalTo(AND_FUNCTION_NAME));
 
-    public AndRewriter()
-    {
-    }
+    public AndRewriter() {}
 
     @Override
     public Pattern<Call> getPattern()
@@ -59,7 +57,8 @@ public class AndRewriter
         if (children.isEmpty()) {
             return Optional.empty();
         }
-        children = children.stream().filter(child -> getColumnHandle(child).isPresent() ||
+        children = children.stream()
+                .filter(child -> getColumnHandle(child).isPresent() ||
                         (child instanceof WarpCall warpCall &&
                                 warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())))
                 .collect(Collectors.toList());

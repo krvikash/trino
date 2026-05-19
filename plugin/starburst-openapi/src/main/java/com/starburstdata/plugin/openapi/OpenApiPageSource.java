@@ -271,9 +271,7 @@ public class OpenApiPageSource<S>
         return pageFuture == null ? NOT_BLOCKED : pageFuture;
     }
 
-    record OpenApiResult<P>(Iterator<SourcePage> pageIterator, P newPaginationState)
-    {
-    }
+    record OpenApiResult<P>(Iterator<SourcePage> pageIterator, P newPaginationState) {}
 
     private static final class RetryableException
             extends RuntimeException

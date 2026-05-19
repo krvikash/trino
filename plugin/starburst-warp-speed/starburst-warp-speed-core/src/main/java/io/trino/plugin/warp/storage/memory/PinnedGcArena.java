@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PinnedGcArena
         extends ArenaBase
 {
-    public PinnedGcArena(AtomicLong numAllocatedBytes,
+    public PinnedGcArena(
+            AtomicLong numAllocatedBytes,
             ShapingLogger shapingLogger)
     {
         super(numAllocatedBytes, shapingLogger);

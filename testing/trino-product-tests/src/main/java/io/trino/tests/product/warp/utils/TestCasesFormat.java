@@ -20,16 +20,17 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-public record TestCasesFormat(String name,
-                              int lines,
-                              String table_name,
-                              List<TestFormat.Column> structure,
-                              List<TestCase> cases,
-                              boolean skip,
-                              boolean pt_enable,
-                              List<String> partition_by,
-                              List<Object> bucketed_by,
-                              int bucket_count)
+public record TestCasesFormat(
+        String name,
+        int lines,
+        String table_name,
+        List<TestFormat.Column> structure,
+        List<TestCase> cases,
+        boolean skip,
+        boolean pt_enable,
+        List<String> partition_by,
+        List<Object> bucketed_by,
+        int bucket_count)
 {
     public String getTableName()
     {

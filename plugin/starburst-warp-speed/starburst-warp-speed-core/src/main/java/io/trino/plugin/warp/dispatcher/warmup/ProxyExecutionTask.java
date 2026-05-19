@@ -65,7 +65,8 @@ public class ProxyExecutionTask
     private final int executionTaskPriority;
     private final ShapingLogger shapingLogger;
 
-    public ProxyExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
+    public ProxyExecutionTask(
+            WarmExecutionTaskFactory warmExecutionTaskFactory,
             EventBus eventBus,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             WarmingManager warmingManager,
@@ -91,8 +92,7 @@ public class ProxyExecutionTask
             StorageWarmerService storageWarmerService,
             ShapingLoggerFactory shapingLoggerFactory)
     {
-        super(
-                warmExecutionTaskFactory,
+        super(warmExecutionTaskFactory,
                 workerTaskExecutorService,
                 warmingServiceStats,
                 warmingManager,
@@ -142,7 +142,8 @@ public class ProxyExecutionTask
         List<WarmUpElement> warmupElements;
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         try {
-            warmupElements = warmupElementsCreator.createWarmupElements(rowGroupKey,
+            warmupElements = warmupElementsCreator.createWarmupElements(
+                    rowGroupKey,
                     dataToWarm.requiredWarmUpTypeMap(),
                     schemaTableName,
                     dataToWarm.columnHandleList());
@@ -197,7 +198,8 @@ public class ProxyExecutionTask
             stopWatch.start();
             statsWarmingService.incwarm_started();
             statsWarmingService.addwaiting_for_lock_nano(stopWatch.getNanoTime());
-            warmingManager.warm(rowGroupKey,
+            warmingManager.warm(
+                    rowGroupKey,
                     connectorPageSourceProvider,
                     transactionHandle,
                     session,
@@ -230,7 +232,8 @@ public class ProxyExecutionTask
 
         // Just a precaution - make sure we're not stuck on an infinite loop of warmups.
         if (iterationCount >= globalConfig.getMaxWarmupIterationsPerQuery()) {
-            shapingLogger.error("Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, warpColumns=%s, dataToWarm=%s",
+            shapingLogger.error(
+                    "Max iteration count has reached (%d), won't try to warm again. rowGroupKey=%s, warpColumns=%s, dataToWarm=%s",
                     globalConfig.getMaxWarmupIterationsPerQuery(),
                     rowGroupKey,
                     columns.stream().map(dispatcherProxiedConnectorTransformer::getWarpRegularColumn).collect(Collectors.toList()),

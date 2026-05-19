@@ -36,12 +36,11 @@ import static io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil.can
 class BasicMatcher
         implements Matcher
 {
-    BasicMatcher()
-    {
-    }
+    BasicMatcher() {}
 
     @Override
-    public MatchContext match(ClassifyArgs classifyArgs,
+    public MatchContext match(
+            ClassifyArgs classifyArgs,
             MatchContext matchContext)
     {
         ImmutableListMultimap<WarpColumn, WarmUpElement> basicColNameToWarmupElement = classifyArgs.getWarmedWarmupTypes().basicWarmedElements();
@@ -63,8 +62,8 @@ class BasicMatcher
                         .filter(element ->
                                 ((element.getWarpColumn() instanceof TransformedColumn transformedColumn) &&
                                         Objects.equals(transformedColumn.getTransformFunction(), nativeExpression.get().transformFunction())) ||
-                                (!element.getWarpColumn().isTransformedColumn() &&
-                                        Objects.equals(nativeExpression.get().transformFunction(), TransformFunction.NONE)))
+                                        (!element.getWarpColumn().isTransformedColumn() &&
+                                                Objects.equals(nativeExpression.get().transformFunction(), TransformFunction.NONE)))
                         .findFirst();
 
                 if (warmUpElement.isPresent() && canApplyPredicate(warmUpElement, predicateContext.getColumnType())) {

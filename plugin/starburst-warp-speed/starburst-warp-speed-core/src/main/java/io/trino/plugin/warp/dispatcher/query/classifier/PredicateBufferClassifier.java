@@ -92,7 +92,8 @@ class PredicateBufferClassifier
         Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue = new ArrayDeque<>(queryContext.getNativeQueryCollectDataList());
         int columnIx = 0;
 
-        Optional<MatchData> matchDataWithPredicateBuffers = queryContext.getMatchData().map(matchData -> calcMatchDataWithLogical(classifyArgs,
+        Optional<MatchData> matchDataWithPredicateBuffers = queryContext.getMatchData().map(matchData -> calcMatchDataWithLogical(
+                classifyArgs,
                 matchData,
                 queryContext,
                 columnIx,
@@ -108,7 +109,8 @@ class PredicateBufferClassifier
                 .build();
     }
 
-    private QueryMatchData createPredicateBuffer(QueryContext queryContext,
+    private QueryMatchData createPredicateBuffer(
+            QueryContext queryContext,
             ClassifyArgs classifyArgs,
             QueryMatchData queryMatchData,
             Map<Integer, ColumnHandle> newRemainingCollectColumnByBlockIndex,
@@ -147,13 +149,15 @@ class PredicateBufferClassifier
             int recTypeLength = queryMatchData.getWarmUpElement().getRecTypeLength();
             if (nativeExpressionOptional.isPresent()) {
                 domain = nativeExpressionOptional.get().domain();
-                predicateData = calcPredicateData(nativeExpressionOptional.get(),
+                predicateData = calcPredicateData(
+                        nativeExpressionOptional.get(),
                         recTypeLength,
                         transformAllowed,
                         columnType);
             }
             else {
-                predicateData = calcPredicateData(domain,
+                predicateData = calcPredicateData(
+                        domain,
                         recTypeLength,
                         transformAllowed,
                         columnType);
@@ -208,9 +212,12 @@ class PredicateBufferClassifier
             PredefinedPredicate predefinedPredicate = isNullAllowed ? allWithNulls : allWithoutNulls;
             predicateCacheData = predefinedPredicate.predicateCacheData;
             if (tightnessRequired) {
-                logger.debug("Tightness requirement can't be met because no predicate buffer is available. " +
-                        "predicateData=%s, queryMatchData=%s, queryContext=%s",
-                        predicateData, queryMatchData, queryContext);
+                logger.debug(
+                        "Tightness requirement can't be met because no predicate buffer is available. " +
+                                "predicateData=%s, queryMatchData=%s, queryContext=%s",
+                        predicateData,
+                        queryMatchData,
+                        queryContext);
                 // Not tight anymore - remove prefill.
                 // Theoretically, we can try to find another nativeQueryMatchData of the same column with canBeTight() = true,
                 // but since we currently choose only one nativeQueryMatchData of type lucene \ basic per column, we'll actually need to create it.
@@ -233,7 +240,8 @@ class PredicateBufferClassifier
         return Pair.of(predicateCacheData, allocatedBuffer);
     }
 
-    private void rollbackMapMatchCollect(QueryContext queryContext,
+    private void rollbackMapMatchCollect(
+            QueryContext queryContext,
             QueryMatchData queryMatchData,
             ClassifyArgs classifyArgs,
             Deque<NativeQueryCollectData> newNativeQueryCollectDataQueue,
@@ -254,7 +262,8 @@ class PredicateBufferClassifier
         }
     }
 
-    private MatchData calcMatchDataWithLogical(ClassifyArgs classifyArgs,
+    private MatchData calcMatchDataWithLogical(
+            ClassifyArgs classifyArgs,
             MatchData matchData,
             QueryContext queryContext,
             int columnIx,
@@ -267,7 +276,8 @@ class PredicateBufferClassifier
             List<MatchData> terms = logicalMatchData.getTerms();
             List<MatchData> newTerms = new ArrayList<>();
             for (MatchData term : terms) {
-                MatchData newTerm = calcMatchDataWithLogical(classifyArgs,
+                MatchData newTerm = calcMatchDataWithLogical(
+                        classifyArgs,
                         term,
                         queryContext,
                         columnIx,
@@ -280,7 +290,8 @@ class PredicateBufferClassifier
             res = new LogicalMatchData(logicalMatchData.getOperator(), newTerms);
         }
         else if (matchData instanceof QueryMatchData queryMatchData) {
-            res = createPredicateBuffer(queryContext,
+            res = createPredicateBuffer(
+                    queryContext,
                     classifyArgs,
                     queryMatchData,
                     newRemainingCollectColumnByBlockIndex,
@@ -304,7 +315,7 @@ class PredicateBufferClassifier
                 .predicateInfo(predicateInfo)
                 .predicateHashCode(0)
                 .predicateSize(PredicateUtil.PREDICATE_HEADER_SIZE)
-                .columnType(IntegerType.INTEGER) //fake - unused
+                .columnType(IntegerType.INTEGER) // fake - unused
                 .build();
         PredicateCacheData predicateCacheData = predicatesCacheService.predicateDataToBuffer(predicateData, null).get();
         return new PredefinedPredicate(isCollectNulls, predicateCacheData);

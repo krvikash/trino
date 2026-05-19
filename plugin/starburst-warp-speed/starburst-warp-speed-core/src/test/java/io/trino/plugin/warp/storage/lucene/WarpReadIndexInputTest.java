@@ -55,7 +55,8 @@ public class WarpReadIndexInputTest
 
         lucenePageCacheStats = LucenePageCacheStats.create();
 
-        warpReadIndexInput = new WarpReadIndexInput(luceneIndexReader,
+        warpReadIndexInput = new WarpReadIndexInput(
+                luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 new ByteBuffer[LuceneFileType.numSmallFiles()],
@@ -237,7 +238,7 @@ public class WarpReadIndexInputTest
 
     ByteBuffer[] allocateLuceneByteBuffers()
     {
-        return IntStream.range(0, 4).mapToObj((_) -> allocateByteBuffer()).toList().toArray(new ByteBuffer[0]);
+        return IntStream.range(0, 4).mapToObj(_ -> allocateByteBuffer()).toList().toArray(new ByteBuffer[0]);
     }
 
     @Test

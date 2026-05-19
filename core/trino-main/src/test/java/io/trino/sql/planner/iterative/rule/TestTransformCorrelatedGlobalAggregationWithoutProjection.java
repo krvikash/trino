@@ -175,7 +175,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         project(ImmutableMap.of("min_1", expression(new Reference(BIGINT, "min_1")), "corr", expression(new Reference(BIGINT, "corr"))),
                                 aggregation(ImmutableMap.of("min_1", aggregationFunction("min", ImmutableList.of("a"))),
                                         join(LEFT, builder -> builder
-                                                .left(assignUniqueId("unique",
+                                                .left(assignUniqueId(
+                                                        "unique",
                                                         values(ImmutableMap.of("corr", 0))))
                                                 .right(values(ImmutableMap.of("a", 0, "b", 1)))))));
     }
@@ -200,7 +201,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                 "min_1", aggregationFunction("min", ImmutableList.of("a")),
                                                 "max_1", aggregationFunction("max", ImmutableList.of("b"))),
                                         join(LEFT, builder -> builder
-                                                .left(assignUniqueId("unique",
+                                                .left(assignUniqueId(
+                                                        "unique",
                                                         values(ImmutableMap.of("corr", 0))))
                                                 .right(values(ImmutableMap.of("a", 0, "b", 1)))))));
     }
@@ -360,7 +362,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.filter(
                                                 new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.values(p.symbol("a"), p.symbol("b"))),
@@ -377,11 +380,13 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         join(LEFT, builder -> builder
                                                 .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
-                                                                .left(filter(TRUE,
+                                                                .left(filter(
+                                                                        TRUE,
                                                                         values("a", "b")))
                                                                 .right(values("c", "d")).build()))))));
 
@@ -393,9 +398,9 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
                                 .source(p.filter(
-                                                new Logical(AND, ImmutableList.of(
-                                                        new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
-                                                        new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))),
+                                        new Logical(AND, ImmutableList.of(
+                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))),
                                         p.join(INNER,
                                                 p.project(Assignments.identity(p.symbol("b")),
                                                         p.filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "corr")),
@@ -416,7 +421,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                         new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         filter(TRUE,
@@ -451,12 +457,14 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         join(LEFT, builder -> builder
                                                 .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
                                                                 .left(values("a", "b"))
-                                                                .right(filter(TRUE,
+                                                                .right(filter(
+                                                                        TRUE,
                                                                         values("c", "d"))).build()))))));
 
         // Test with nested joins
@@ -467,7 +475,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.filter(
                                                 new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(INNER,
@@ -487,7 +496,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         join(LEFT, builder -> builder
                                                 .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
@@ -505,7 +515,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.filter(
                                                 new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(LEFT,
@@ -525,7 +536,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         join(LEFT, builder -> builder
                                                 .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
@@ -543,7 +555,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.filter(
                                                 new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(RIGHT,
@@ -563,7 +576,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         join(LEFT, builder -> builder
                                                 .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
@@ -581,7 +595,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.filter(
                                                 new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(FULL,
@@ -601,7 +616,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         join(LEFT, builder -> builder
                                                 .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
@@ -619,7 +635,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.join(INNER,
                                                 p.values(p.symbol("a"), p.symbol("b")),
                                                 p.values(p.symbol("c"), p.symbol("d"))),
@@ -635,7 +652,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         SINGLE,
                                         join(LEFT, builder -> builder
                                                 .left(
-                                                        assignUniqueId("unique",
+                                                        assignUniqueId(
+                                                                "unique",
                                                                 values("corr")))
                                                 .right(
                                                         join(INNER, subQueryJoinBuilder -> subQueryJoinBuilder
@@ -651,7 +669,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.join(LEFT,
                                                 p.filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         p.values(p.symbol("a"), p.symbol("b"))),
@@ -667,7 +686,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.join(RIGHT,
                                                 p.filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         p.values(p.symbol("a"), p.symbol("b"))),
@@ -683,7 +703,8 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                         p.aggregation(outerBuilder -> outerBuilder
                                 .addAggregation(p.symbol("sum"), PlanBuilder.aggregation("sum", ImmutableList.of(new Reference(BIGINT, "c"))), ImmutableList.of(BIGINT))
                                 .globalGrouping()
-                                .source(p.join(INNER,
+                                .source(p.join(
+                                        INNER,
                                         p.join(FULL,
                                                 p.filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         p.values(p.symbol("a"), p.symbol("b"))),

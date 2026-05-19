@@ -55,11 +55,11 @@ public class TestSnowflakeTableStatisticsWithDatabasePrefix
             assertQuery(
                     "SHOW STATS FOR " + fullyQualifiedTableName,
                     """
-                            VALUES
-                            ('name', NULL, NULL, NULL, NULL, NULL, NULL),
-                            ('nationkey', NULL, NULL, NULL, NULL, NULL, NULL),
-                            ('comment', NULL, NULL, NULL, NULL, NULL, NULL),
-                            (NULL, NULL, NULL, NULL, 25, NULL, NULL)""");
+                    VALUES
+                    ('name', NULL, NULL, NULL, NULL, NULL, NULL),
+                    ('nationkey', NULL, NULL, NULL, NULL, NULL, NULL),
+                    ('comment', NULL, NULL, NULL, NULL, NULL, NULL),
+                    (NULL, NULL, NULL, NULL, 25, NULL, NULL)""");
         }
         finally {
             assertUpdate("DROP TABLE " + fullyQualifiedTableName);

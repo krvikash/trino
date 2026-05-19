@@ -146,7 +146,8 @@ public class HiveConnector
     @Override
     public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return new ConnectorPageSourceProviderFactory() {
+        return new ConnectorPageSourceProviderFactory()
+        {
             @Override
             public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle)
             {

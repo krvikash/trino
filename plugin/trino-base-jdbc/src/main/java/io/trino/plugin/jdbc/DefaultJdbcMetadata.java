@@ -359,7 +359,8 @@ public class DefaultJdbcMetadata
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> constraintResult = applyFilter(
                 session,
                 unified,
-                new Constraint(unionedConstraint,
+                new Constraint(
+                        unionedConstraint,
                         unionExpression.expression(),
                         unionExpression.assignments(),
                         unionedConstraint.asPredicate(),

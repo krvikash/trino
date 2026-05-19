@@ -2782,8 +2782,7 @@ public class TestLogicalPlanner
                                                                 .equiCriteria("CUSTOMER_CUSTKEY", "ORDERS_CUSTKEY")
                                                                 .left(tableScan("customer", ImmutableMap.of("CUSTOMER_CUSTKEY", "custkey")))
                                                                 .right(anyTree(project(tableScan("orders", ImmutableMap.of("ORDERS_CUSTKEY", "custkey"))))))))
-                                        .right(
-                                                anyTree(tableScan("orders", ImmutableMap.of("ORDERS2_CUSTKEY", "custkey"))))))));
+                                        .right(anyTree(tableScan("orders", ImmutableMap.of("ORDERS2_CUSTKEY", "custkey"))))))));
     }
 
     @Test

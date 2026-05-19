@@ -69,7 +69,5 @@ class Converter
         return HiveTypes.structType(names, fields);
     }
 
-    private Converter()
-    {
-    }
+    private Converter() {}
 }

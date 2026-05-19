@@ -88,6 +88,6 @@ public abstract class BaseSnowflakeConnectorSmokeTest
 
     private SqlExecutor onRemoteDatabase()
     {
-        return (sql) -> SnowflakeServer.safeExecuteOnDatabase(getTestDatabase().getName(), sql);
+        return sql -> SnowflakeServer.safeExecuteOnDatabase(getTestDatabase().getName(), sql);
     }
 }

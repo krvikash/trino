@@ -39,7 +39,8 @@ public record NativeExpression(
         TransformFunction transformFunction)
 {
     @JsonCreator
-    public NativeExpression(@JsonProperty("predicateType") PredicateType predicateType,
+    public NativeExpression(
+            @JsonProperty("predicateType") PredicateType predicateType,
             @JsonProperty("functionType") FunctionType functionType,
             @JsonProperty("domain") Domain domain,
             @JsonProperty("collectNulls") boolean collectNulls,
@@ -162,8 +163,7 @@ public record NativeExpression(
 
         private TransformFunction transformFunction = TransformFunction.NONE;
 
-        private Builder()
-        {}
+        private Builder() {}
 
         public Builder predicateType(PredicateType predicateType)
         {
@@ -230,12 +230,14 @@ public record NativeExpression(
         {
             NativeExpression res;
             if (domain.isAll() || domain.isNone()) {
-                res = new NativeExpression(predicateType,
+                res = new NativeExpression(
+                        predicateType,
                         requireNonNull(functionType),
                         domain,
                         domain.isAll(),
                         true,
-                        Collections.emptyList(), TransformFunction.NONE);
+                        Collections.emptyList(),
+                        TransformFunction.NONE);
             }
             else {
                 checkArgument(domain.getValues() instanceof SortedRangeSet);
@@ -243,7 +245,8 @@ public record NativeExpression(
                 Block sortedRanges = sortedRangeSet.getSortedRanges();
                 boolean[] inclusive = sortedRangeSet.getInclusive();
                 boolean allSingleValue = PredicateUtil.isAllSingleValue(inclusive, sortedRanges, domain.getType());
-                res = new NativeExpression(requireNonNull(predicateType),
+                res = new NativeExpression(
+                        requireNonNull(predicateType),
                         requireNonNull(functionType),
                         domain,
                         requireNonNull(collectNulls),

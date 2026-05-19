@@ -26,7 +26,8 @@ public class TransformedCrcDateBlockAppender
 {
     private final Function<BlockPosHolder, Integer> transformColumn;
 
-    public TransformedCrcDateBlockAppender(WriteJuffersWarmUpElement juffersWE,
+    public TransformedCrcDateBlockAppender(
+            WriteJuffersWarmUpElement juffersWE,
             Function<BlockPosHolder, Integer> transformColumnFunction)
     {
         super(juffersWE);

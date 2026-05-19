@@ -24,7 +24,7 @@ public class NoneMatchData
     @Override
     public boolean isPartOfLogicalOr()
     {
-        //none is never created inside OR expression
+        // none is never created inside OR expression
         return false;
     }
 

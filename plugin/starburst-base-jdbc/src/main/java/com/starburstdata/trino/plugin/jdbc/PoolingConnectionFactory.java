@@ -178,7 +178,8 @@ public class PoolingConnectionFactory
 
     protected Connection wrapConnection(Connection connection, HikariDataSource dataSource)
     {
-        return new ForwardingConnection() {
+        return new ForwardingConnection()
+        {
             @Override
             protected Connection delegate()
             {

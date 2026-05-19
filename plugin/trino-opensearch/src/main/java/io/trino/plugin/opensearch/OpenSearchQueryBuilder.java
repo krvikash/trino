@@ -71,7 +71,8 @@ public final class OpenSearchQueryBuilder
     private OpenSearchQueryBuilder() {}
 
     private static final Map<String, BiFunction<String, String, AggregationBuilder>> CONVERTERS =
-            ImmutableMap.of(MetricAggregation.MAX, (alias, field) -> new MaxAggregationBuilder(alias).field(field),
+            ImmutableMap.of(
+                    MetricAggregation.MAX, (alias, field) -> new MaxAggregationBuilder(alias).field(field),
                     MetricAggregation.MIN, (alias, field) -> new MinAggregationBuilder(alias).field(field),
                     MetricAggregation.SUM, (alias, field) -> new SumAggregationBuilder(alias).field(field),
                     MetricAggregation.AVG, (alias, field) -> new AvgAggregationBuilder(alias).field(field),

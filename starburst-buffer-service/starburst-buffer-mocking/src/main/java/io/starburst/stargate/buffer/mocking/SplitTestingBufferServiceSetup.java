@@ -60,12 +60,12 @@ public class SplitTestingBufferServiceSetup
             properties.put("fault-tolerant-execution-max-partition-count", "5");
             properties.put("fault-tolerant-execution-target-task-input-size", "10MB");
             properties.put("fault-tolerant-execution-target-task-split-count", "4");
-                    // to trigger spilling
+            // to trigger spilling
             properties.put("exchange.deduplication-buffer-size", "1kB");
             properties.put("fault-tolerant-execution-task-memory", "1GB");
-                    // limit number of threads to detect potential thread leaks
+            // limit number of threads to detect potential thread leaks
             properties.put("query.executor-pool-size", "10");
-                    // enable exchange compression to follow production deployment recommendations
+            // enable exchange compression to follow production deployment recommendations
             properties.put("exchange.compression-codec", "LZ4");
             properties.put("http-server.http.port", "8080");
 

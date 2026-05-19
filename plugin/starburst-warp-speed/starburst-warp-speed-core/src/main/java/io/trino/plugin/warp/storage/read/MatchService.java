@@ -60,7 +60,8 @@ public class MatchService
     private final RangeFillerService rangeFillerService;
 
     @Inject
-    MatchService(BufferAllocator bufferAllocator,
+    MatchService(
+            BufferAllocator bufferAllocator,
             StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             RangeFillerService rangeFillerService,
@@ -107,7 +108,8 @@ public class MatchService
         int matchIx = 0;
         for (WarmupElementMatchParams matchParams : queryArgs.queryParams().getMatchElementsParamsList()) {
             if (matchParams.hasLuceneParams()) {
-                matcherArgs.luceneMatchers()[matchParams.getLuceneIx()] = new LuceneMatcher(storageEngine,
+                matcherArgs.luceneMatchers()[matchParams.getLuceneIx()] = new LuceneMatcher(
+                        storageEngine,
                         storageEngineConstants,
                         matcherArgs.matchJuffersWe().get(matchIx),
                         matchParams.getLuceneQueryMatchData(),
@@ -123,7 +125,8 @@ public class MatchService
     }
 
     @NativeInterrupt
-    public MatcherPageArgs openPage(RecordIndexes recordIndexes,
+    public MatcherPageArgs openPage(
+            RecordIndexes recordIndexes,
             ThreadArena pageArena,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
@@ -136,7 +139,8 @@ public class MatchService
         if (queryParams.getNumMatchElements() > 0) {
             try {
                 long startTime = System.nanoTime();
-                MatchState matchState = new MatchState(queryArgs,
+                MatchState matchState = new MatchState(
+                        queryArgs,
                         pageArena,
                         aggregatorPageArgs.matchCollectMetadata(),
                         storageEngineConstants.getMatchStatePayload(),
@@ -160,7 +164,8 @@ public class MatchService
             int matchIx = 0;
             for (WarmupElementMatchParams matchParams : queryParams.getMatchElementsParamsList()) {
                 // only for lucene
-                matcherArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(matchStateOpt.map(m -> m.getLuceneBitmaps().orElse(null)).orElse(null),
+                matcherArgs.matchJuffersWe().get(matchIx).createLuceneBuffers(
+                        matchStateOpt.map(m -> m.getLuceneBitmaps().orElse(null)).orElse(null),
                         matchParams.hasLuceneParams() ? luceneBitmapSizePerWE * matchParams.getLuceneIx() : 0);
                 matchIx++;
             }
@@ -247,7 +252,8 @@ public class MatchService
                 }
 
                 if ((numChunks < 0) || !luceneSuccess || !matchSuccess) {
-                    throw new TrinoException(WARP_UNRECOVERABLE_MATCH_FAILED,
+                    throw new TrinoException(
+                            WARP_UNRECOVERABLE_MATCH_FAILED,
                             "match failed numChunks " + numChunks + " lucene " + luceneSuccess + " match " + matchSuccess);
                 }
 
@@ -259,7 +265,8 @@ public class MatchService
         return !matchExhausted;
     }
 
-    public Optional<ChunkProperties> match(int recordsPageLimit,
+    public Optional<ChunkProperties> match(
+            int recordsPageLimit,
             QueryArgs queryArgs,
             MatcherArgs matcherArgs,
             MatcherPageArgs matcherPageArgs,
@@ -294,7 +301,8 @@ public class MatchService
             // return a partial chunk in this page and store the rest
             int extraInLastChunk = chunk.numRecordsInChunk() + numRecordsInPage - recordsPageLimit;
             chunk.reduceNumRecordsInChunk(extraInLastChunk);
-            ChunkProperties chunkToStore = new ChunkProperties(chunk.chunkIndex(),
+            ChunkProperties chunkToStore = new ChunkProperties(
+                    chunk.chunkIndex(),
                     extraInLastChunk,
                     chunk.type(),
                     chunk.startIx() + chunk.numRecordsInChunk());

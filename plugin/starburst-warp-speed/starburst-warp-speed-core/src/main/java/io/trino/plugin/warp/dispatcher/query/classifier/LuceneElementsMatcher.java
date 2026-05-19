@@ -162,7 +162,8 @@ final class LuceneElementsMatcher
         return isValid;
     }
 
-    private boolean buildLuceneDomainQuery(BooleanQuery.Builder queryBuilder,
+    private boolean buildLuceneDomainQuery(
+            BooleanQuery.Builder queryBuilder,
             PredicateContext domainPredicateContext,
             Optional<WarmUpElement> basicWarmUpElement,
             ClassifyArgs classifyArgs)

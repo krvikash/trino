@@ -20,7 +20,9 @@ import static java.util.Objects.requireNonNull;
 
 public abstract sealed class PrimitiveWriter<V extends ValueVector>
         implements ArrowWriter
-        permits FixedWidthWriter, NullWriter, VariableWidthWriter
+        permits FixedWidthWriter,
+                NullWriter,
+                VariableWidthWriter
 {
     protected final V vector;
 

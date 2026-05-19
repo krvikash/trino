@@ -55,7 +55,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
 
     private static final Pattern DATABRICKS_COMMUNICATION_FAILURE_MATCH = Pattern.compile(
             "\\Q[Databricks][\\E(DatabricksJDBCDriver|JDBCDriver)\\Q](500593) Communication link failure. Failed to connect to server. Reason: " +
-            "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*");
+                    "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*");
     private static final String DATABRICKS_CLUSTER_PENDING_MATCH = "The current cluster state is Pending";
     private static final String DATABRICKS_CLUSTER_TERMINATED_MATCH = "The current cluster state is Terminated";
     private static final RetryPolicy<Object> DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
@@ -140,7 +140,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
             }
         }
         String schemaLocation = getTpchSchemaLocation(queryRunner);
-        onDatabricks().execute("""
+        onDatabricks().execute(
+                """
                 CREATE TABLE IF NOT EXISTS %s.%s.%s
                 USING PARQUET
                 LOCATION '%s'
@@ -235,7 +236,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     void testCatalogManagedTable()
     {
         String tableName = "catalog_managed_table_" + randomNameSuffix();
-        onDatabricks().execute("""
+        onDatabricks().execute(
+                """
                 CREATE TABLE IF NOT EXISTS %s.%s.%s (id int)
                 USING DELTA
                 TBLPROPERTIES('delta.feature.catalogManaged' = 'supported', 'delta.enableRowTracking' = 'false', 'delta.checkpointPolicy' = 'classic')
@@ -262,7 +264,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     {
         String tableName = "read_timestamp_ntz_" + randomNameSuffix();
         try {
-            onDatabricks().execute("""
+            onDatabricks().execute(
+                    """
                     CREATE TABLE %s.%s.%s (id int, ts_ntz timestamp_ntz)
                     USING DELTA
                     """.formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
@@ -281,7 +284,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         String tableName = "external_read_write_timestamp_ntz_" + randomNameSuffix();
         String tableLocation = format("%s/%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME, tableName);
         try {
-            onDatabricks().execute("""
+            onDatabricks().execute(
+                    """
                     CREATE TABLE %s.%s.%s (id int, ts_ntz timestamp_ntz)
                     USING DELTA
                     LOCATION '%s'
@@ -343,24 +347,24 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         String tableName = "test_create_" + randomNameSuffix();
         String tableLocation = format("%s/%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME, tableName);
         assertUpdate("CREATE TABLE " + tableName +
-                     " (col_boolean boolean, " +
-                     "col_tinyint tinyint, " +
-                     "col_smallint smallint, " +
-                     "col_integer integer, " +
-                     "col_bigint bigint, " +
-                     "col_real real, " +
-                     "col_double double, " +
-                     "col_decimal decimal(10,0), " +
-                     "col_decimal_prec_short decimal(4,2), " +
-                     "col_decimal_prec_long decimal(19,9), " +
-                     "col_char char," +
-                     "col_varchar varchar, " +
-                     "col_varbinary varbinary, " +
-                     "col_date date, " +
-                     "col_timestamp timestamp(3), " +
-                     "col_array array(integer), " +
-                     "col_map map(timestamp(3), integer), " +
-                     "col_row row(a bigint, b varchar)) WITH (location='" + tableLocation + "')");
+                " (col_boolean boolean, " +
+                "col_tinyint tinyint, " +
+                "col_smallint smallint, " +
+                "col_integer integer, " +
+                "col_bigint bigint, " +
+                "col_real real, " +
+                "col_double double, " +
+                "col_decimal decimal(10,0), " +
+                "col_decimal_prec_short decimal(4,2), " +
+                "col_decimal_prec_long decimal(19,9), " +
+                "col_char char," +
+                "col_varchar varchar, " +
+                "col_varbinary varbinary, " +
+                "col_date date, " +
+                "col_timestamp timestamp(3), " +
+                "col_array array(integer), " +
+                "col_map map(timestamp(3), integer), " +
+                "col_row row(a bigint, b varchar)) WITH (location='" + tableLocation + "')");
         try {
             assertThat(query("SELECT * FROM " + tableName))
                     .returnsEmptyResult();
@@ -376,11 +380,11 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         String tableName = "test_create_" + randomNameSuffix();
         String tableLocation = format("%s/%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME, tableName);
         assertUpdate("CREATE TABLE " + tableName + " WITH (location='" + tableLocation + "') " +
-                     "AS SELECT CAST(array[row(1, row(10), array[row(11)], map(array[2], array[row(1)]))] " +
-                     "AS array(row(a integer, b row(x integer), c array(row(v integer)), d map(integer, row(field integer))))) AS col_1", 1);
+                "AS SELECT CAST(array[row(1, row(10), array[row(11)], map(array[2], array[row(1)]))] " +
+                "AS array(row(a integer, b row(x integer), c array(row(v integer)), d map(integer, row(field integer))))) AS col_1", 1);
         try {
             assertThat(query("SELECT * FROM " + tableName)).matches("SELECT CAST(array[row(1, row(10), array[row(11)], map(array[2], array[row(1)]))] " +
-                                                                    "AS array(row(a integer, b row(x integer), c array(row(v integer)), d map(integer, row(field integer)))))");
+                    "AS array(row(a integer, b row(x integer), c array(row(v integer)), d map(integer, row(field integer)))))");
         }
         finally {
             assertUpdate("DROP TABLE " + tableName);
@@ -436,7 +440,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     {
         String tableName = "delta_table_" + randomNameSuffix();
         try {
-            onDatabricks().execute("""
+            onDatabricks().execute(
+                    """
                     CREATE TABLE IF NOT EXISTS %s.%s.%s (c int)
                     USING DELTA
                     """.formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
@@ -452,7 +457,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     {
         String tableName = "delta_table_disallow_" + randomNameSuffix();
         try {
-            onDatabricks().execute("""
+            onDatabricks().execute(
+                    """
                     CREATE TABLE %s.%s.%s (c int, d int NOT NULL)
                     USING DELTA
                     TBLPROPERTIES ('delta.enableRowTracking'='false')
@@ -476,7 +482,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     public void testShowCreateTable()
     {
         assertThat((String) computeScalar("SHOW CREATE TABLE region"))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE delta.%s.region (
                            regionkey bigint,
                            name varchar,

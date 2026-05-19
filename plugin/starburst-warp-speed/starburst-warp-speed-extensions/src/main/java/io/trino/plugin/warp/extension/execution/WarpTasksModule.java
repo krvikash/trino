@@ -49,7 +49,8 @@ public class WarpTasksModule
     @Override
     public void configure(Binder binder)
     {
-        Multibinder<BooleanSupplier> booleanSupplierMultibinder = Multibinder.newSetBinder(binder,
+        Multibinder<BooleanSupplier> booleanSupplierMultibinder = Multibinder.newSetBinder(
+                binder,
                 BooleanSupplier.class,
                 Names.named(TaskExecutor.NAMED_TASK_EXEC_ENABLE_SUPPLIER));
         taskExecutionEnabledSupplierClassSet.forEach(supplier -> booleanSupplierMultibinder.addBinding()
@@ -59,7 +60,7 @@ public class WarpTasksModule
         Multibinder<TaskResource> multibinder = Multibinder.newSetBinder(binder, TaskResource.class);
 
         getTaskExecutors(isCoordinator, isWorker, isCacheMgr)
-                .forEach((task) -> {
+                .forEach(task -> {
                     jaxrsBinder(binder).bind(task);
                     multibinder.addBinding().to(task.asSubclass(TaskResource.class));
                 });

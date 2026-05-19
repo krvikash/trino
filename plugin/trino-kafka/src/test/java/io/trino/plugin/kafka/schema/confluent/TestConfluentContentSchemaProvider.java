@@ -108,7 +108,8 @@ public class TestConfluentContentSchemaProvider
 
     private static JsonSchema getJsonSchemaWithReference()
     {
-        return new JsonSchema("""
+        return new JsonSchema(
+                """
                 {
                     "type": "object",
                     "properties": {
@@ -142,7 +143,8 @@ public class TestConfluentContentSchemaProvider
 
     private static JsonSchema getJsonSchema()
     {
-        return new JsonSchema("""
+        return new JsonSchema(
+                """
                 {
                     "type": "object",
                     "properties": {

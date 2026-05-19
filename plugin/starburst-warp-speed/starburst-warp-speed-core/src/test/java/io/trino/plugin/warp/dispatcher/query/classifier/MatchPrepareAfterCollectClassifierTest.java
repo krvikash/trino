@@ -77,15 +77,18 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData lucene = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, data, basicWithCollectLowestPriority);
-        ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(0, new TestingColumnHandle(data.getWarpColumn().getName()),
+        ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
+                0, new TestingColumnHandle(data.getWarpColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
-        LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR,
+        LogicalMatchData matchData = new LogicalMatchData(
+                LogicalMatchData.Operator.OR,
                 List.of(basicWithCollectLowestPriority, onlyMatch, data, lucene));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 collectColumnsByBlockIndex,
@@ -120,13 +123,15 @@ public class MatchPrepareAfterCollectClassifierTest
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
                 0, new TestingColumnHandle(data.getWarpColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
-        LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND,
+        LogicalMatchData matchData = new LogicalMatchData(
+                LogicalMatchData.Operator.AND,
                 List.of(basicWithCollectLowestPriority, onlyMatch, data));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 collectColumnsByBlockIndex,
@@ -172,7 +177,8 @@ public class MatchPrepareAfterCollectClassifierTest
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
                 collectColumnsByBlockIndex,
@@ -213,7 +219,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData luceneCollectIndexMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         NativeQueryCollectData basicCollectIndexCollectData = generateNativeQueryCollectData(true, 0, basicCollectIndexMatchData.getWarpColumn());
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -243,7 +250,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -277,7 +285,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -307,7 +316,8 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
         QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(),
@@ -343,7 +353,8 @@ public class MatchPrepareAfterCollectClassifierTest
         ColumnHandle collectColumnHandle2 = mock(ColumnHandle.class);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
 
-        ClassifyArgs classifyArgs = new ClassifyArgs(dispatcherTableHandle,
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
                 rowGroupData,
                 mock(PredicateContextData.class),
                 ImmutableMap.of(0, collectColumnHandle1, 1, collectColumnHandle2),

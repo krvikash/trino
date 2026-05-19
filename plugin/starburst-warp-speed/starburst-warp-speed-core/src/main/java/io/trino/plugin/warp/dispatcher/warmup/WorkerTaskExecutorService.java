@@ -160,8 +160,11 @@ public class WorkerTaskExecutorService
     private ExecutorService getPrioritizeExecutorService()
     {
         int poolSize = getPoolSize(globalConfig.getPrioritizeExecutorPoolSize());
-        return new ThreadPoolExecutor(poolSize, poolSize,
-                60L, TimeUnit.SECONDS,
+        return new ThreadPoolExecutor(
+                poolSize,
+                poolSize,
+                60L,
+                TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(queueSize),
                 new ThreadFactoryBuilder().setNameFormat("warp-speed-prioritize-%s").setDaemon(true).build());
     }
@@ -172,8 +175,11 @@ public class WorkerTaskExecutorService
         BlockingQueue<Runnable> blockingQueue = new PriorityBlockingQueue<>(
                 queueSize,
                 Comparator.comparingDouble(x -> ((WorkerSubmittableTask) x).getPriority()).reversed());
-        return new ThreadPoolExecutor(poolSize, poolSize,
-                60L, TimeUnit.SECONDS,
+        return new ThreadPoolExecutor(
+                poolSize,
+                poolSize,
+                60L,
+                TimeUnit.SECONDS,
                 blockingQueue,
                 new ThreadFactoryBuilder().setNameFormat("warp-speed-cloud-%s").setDaemon(true).build());
     }
@@ -191,8 +197,11 @@ public class WorkerTaskExecutorService
                 queueSize,
                 Comparator.comparingDouble(x -> ((WorkerSubmittableTask) x).getPriority()).reversed());
 
-        return new ThreadPoolExecutor(poolSize, poolSize,
-                60L, TimeUnit.SECONDS,
+        return new ThreadPoolExecutor(
+                poolSize,
+                poolSize,
+                60L,
+                TimeUnit.SECONDS,
                 blockingQueue,
                 new ThreadFactoryBuilder().setNameFormat("warp-speed-proxy-%s").setDaemon(true).build());
     }
@@ -320,15 +329,15 @@ public class WorkerTaskExecutorService
     {
         SCHEDULED,
         REJECTED,
-        CONFLICT
+        CONFLICT,
     }
 
     public enum TaskExecutionType
     {
         CLASSIFY(0),
         PROXY(0),
-        //import end export tasks run in the same executor, priority will impact which task will be handled first.
-        //import should be handled before export
+        // import end export tasks run in the same executor, priority will impact which task will be handled first.
+        // import should be handled before export
         IMPORT(10),
         EXPORT(0),
         CACHE(0);

@@ -36,9 +36,26 @@ public class TestExpressionCodeSplit
         // For this we use AND, and CASE, which are both splittable, and nest the lambda invocations inside.
 
         // test filter
-        assertQuery("""
-                        SELECT nationkey FROM nation
-                        WHERE name LIKE 'A%' AND
+        assertQuery(
+                """
+                SELECT nationkey FROM nation
+                WHERE name LIKE 'A%' AND
+                    CASE ANY_MATCH(ARRAY[nationkey], n ->  n > 1000)
+                        WHEN
+                            TRUE THEN 1
+                        ELSE (
+                            CASE ANY_MATCH(ARRAY[nationkey], n ->  n < 3)
+                                WHEN
+                                    TRUE THEN -1
+                                ELSE 0
+                            END)
+                    END < 0""",
+                "VALUES (0), (1)");
+
+        // test projection
+        assertQuery(
+                """
+                SELECT nationkey, name LIKE 'A%' AND
                             CASE ANY_MATCH(ARRAY[nationkey], n ->  n > 1000)
                                 WHEN
                                     TRUE THEN 1
@@ -48,23 +65,8 @@ public class TestExpressionCodeSplit
                                             TRUE THEN -1
                                         ELSE 0
                                     END)
-                            END < 0""",
-                "VALUES (0), (1)");
-
-        // test projection
-        assertQuery("""
-                        SELECT nationkey, name LIKE 'A%' AND
-                                    CASE ANY_MATCH(ARRAY[nationkey], n ->  n > 1000)
-                                        WHEN
-                                            TRUE THEN 1
-                                        ELSE (
-                                            CASE ANY_MATCH(ARRAY[nationkey], n ->  n < 3)
-                                                WHEN
-                                                    TRUE THEN -1
-                                                ELSE 0
-                                            END)
-                                    END < 0
-                                FROM nation WHERE nationkey < 3""",
+                            END < 0
+                        FROM nation WHERE nationkey < 3""",
                 "VALUES (0, true), (1, true), (2, false)");
     }
 
@@ -75,39 +77,41 @@ public class TestExpressionCodeSplit
         // For this we use AND, and CASE, which are both splittable, and nest the UDF function calls, which add call site bindings, inside.
 
         // test filter
-        assertQuery("""
-                        WITH
-                          FUNCTION len(x varchar)
-                            RETURNS BIGINT
-                            RETURN length(x)
-                        SELECT nationkey FROM nation
-                        WHERE name LIKE '%' AND
-                            CASE length(name)
-                                WHEN 4 THEN 1
-                                ELSE (
-                                    CASE
-                                        WHEN len(comment) < 40 THEN -1
-                                        ELSE 0
-                                    END)
-                            END  < 0""",
+        assertQuery(
+                """
+                WITH
+                  FUNCTION len(x varchar)
+                    RETURNS BIGINT
+                    RETURN length(x)
+                SELECT nationkey FROM nation
+                WHERE name LIKE '%' AND
+                    CASE length(name)
+                        WHEN 4 THEN 1
+                        ELSE (
+                            CASE
+                                WHEN len(comment) < 40 THEN -1
+                                ELSE 0
+                            END)
+                    END  < 0""",
                 "VALUES (5), (6), (12)");
 
         // test projection
-        assertQuery("""
-                        WITH
-                          FUNCTION len(x varchar)
-                            RETURNS BIGINT
-                            RETURN length(x)
-                        SELECT nationkey, name LIKE '%' AND
-                            CASE length(name)
-                                WHEN 4 THEN 1
-                                ELSE (
-                                    CASE
-                                        WHEN len(comment) < 40 THEN -1
-                                        ELSE 0
-                                    END)
-                            END  < 0
-                        FROM nation WHERE nationkey < 7""",
+        assertQuery(
+                """
+                WITH
+                  FUNCTION len(x varchar)
+                    RETURNS BIGINT
+                    RETURN length(x)
+                SELECT nationkey, name LIKE '%' AND
+                    CASE length(name)
+                        WHEN 4 THEN 1
+                        ELSE (
+                            CASE
+                                WHEN len(comment) < 40 THEN -1
+                                ELSE 0
+                            END)
+                    END  < 0
+                FROM nation WHERE nationkey < 7""",
                 "VALUES (0, false), (1, false), (2, false), (3, false), (4, false), (5, true), (6, true)");
     }
 
@@ -115,15 +119,17 @@ public class TestExpressionCodeSplit
     public void testBetweenExpression()
     {
         // test filter
-        assertQuery("""
-                        SELECT nationkey FROM nation
-                        WHERE length(name) BETWEEN 5 AND 6 AND nationkey <= 5""",
+        assertQuery(
+                """
+                SELECT nationkey FROM nation
+                WHERE length(name) BETWEEN 5 AND 6 AND nationkey <= 5""",
                 "VALUES (2), (3), (4)");
 
         // test projection
-        assertQuery("""
-                        SELECT nationkey, length(name) BETWEEN 5 AND 6
-                        FROM nation WHERE nationkey <= 5""",
+        assertQuery(
+                """
+                SELECT nationkey, length(name) BETWEEN 5 AND 6
+                FROM nation WHERE nationkey <= 5""",
                 "VALUES (0, false), (1, false), (2, true), (3, true), (4, true), (5, false)");
     }
 }

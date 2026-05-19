@@ -32,7 +32,8 @@ public record WarmData(
         QueryContext queryContext,
         List<WarmUpElement> warmWarmUpElements)
 {
-    public WarmData(List<ColumnHandle> columnHandleList,
+    public WarmData(
+            List<ColumnHandle> columnHandleList,
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             WarmExecutionState warmExecutionState,
             boolean txMemoryReserved,
@@ -52,7 +53,8 @@ public record WarmData(
                 warmWarmUpElements);
     }
 
-    public WarmData(List<ColumnHandle> columnHandleList,
+    public WarmData(
+            List<ColumnHandle> columnHandleList,
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             WarmExecutionState warmExecutionState,
             boolean txMemoryReserved,

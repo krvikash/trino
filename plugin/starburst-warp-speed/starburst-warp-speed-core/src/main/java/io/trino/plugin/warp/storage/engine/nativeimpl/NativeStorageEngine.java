@@ -168,80 +168,112 @@ public class NativeStorageEngine
         this.exceptionThrower = (panicHaltPolicy == 0) ? Optional.of(exceptionThrower) : Optional.empty();
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
 
-        logger.info("load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d",
-                taskMaxWorkerThreads, panicHaltPolicy);
+        logger.info(
+                "load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d",
+                taskMaxWorkerThreads,
+                panicHaltPolicy);
         try (Arena arena = Arena.ofConfined()) {
             SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
             Linker linker = Linker.nativeLinker();
 
             // file API
-            mFileOpen = linker.downcallHandle(libraryHandle.find("storage_file_open").orElseThrow(),
+            mFileOpen = linker.downcallHandle(
+                    libraryHandle.find("storage_file_open").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mFileClose = linker.downcallHandle(libraryHandle.find("storage_file_close").orElseThrow(),
+            mFileClose = linker.downcallHandle(
+                    libraryHandle.find("storage_file_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mFileTruncate = linker.downcallHandle(libraryHandle.find("storage_file_truncate").orElseThrow(),
+            mFileTruncate = linker.downcallHandle(
+                    libraryHandle.find("storage_file_truncate").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mFilePunchHole = linker.downcallHandle(libraryHandle.find("storage_file_punch_hole").orElseThrow(),
+            mFilePunchHole = linker.downcallHandle(
+                    libraryHandle.find("storage_file_punch_hole").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mFileAboutToBeDeleted = linker.downcallHandle(libraryHandle.find("warp_speed_file_is_about_to_be_deleted").orElseThrow(),
+            mFileAboutToBeDeleted = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_file_is_about_to_be_deleted").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
 
             // init API
-            mInitEnv = linker.downcallHandle(libraryHandle.find("env_init").orElseThrow(),
+            mInitEnv = linker.downcallHandle(
+                    libraryHandle.find("env_init").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mInitGetWarmupRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_warmup_record_buffer_size").orElseThrow(),
+            mInitGetWarmupRecordBufferSize = linker.downcallHandle(
+                    libraryHandle.find("we_get_fixed_warmup_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetFixedCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_fixed_collect_record_buffer_size").orElseThrow(),
+            mInitGetFixedCollectRecordBufferSize = linker.downcallHandle(
+                    libraryHandle.find("we_get_fixed_collect_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetVarlenCollectRecordBufferSize = linker.downcallHandle(libraryHandle.find("we_get_varlen_collect_record_buffer_size").orElseThrow(),
+            mInitGetVarlenCollectRecordBufferSize = linker.downcallHandle(
+                    libraryHandle.find("we_get_varlen_collect_record_buffer_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetFixedCollectTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_fixed_query_tx_size").orElseThrow(),
+            mInitGetFixedCollectTxSize = linker.downcallHandle(
+                    libraryHandle.find("data_chunk_get_fixed_query_tx_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetVarlenCollectTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_varlen_query_tx_size").orElseThrow(),
+            mInitGetVarlenCollectTxSize = linker.downcallHandle(
+                    libraryHandle.find("data_chunk_get_varlen_query_tx_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetFixedWarmupDataTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_fixed_warmup_tx_size").orElseThrow(),
+            mInitGetFixedWarmupDataTxSize = linker.downcallHandle(
+                    libraryHandle.find("data_chunk_get_fixed_warmup_tx_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetVarlenWarmupDataTxSize = linker.downcallHandle(libraryHandle.find("data_chunk_get_varlen_warmup_tx_size").orElseThrow(),
+            mInitGetVarlenWarmupDataTxSize = linker.downcallHandle(
+                    libraryHandle.find("data_chunk_get_varlen_warmup_tx_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mInitGetWarmupBasicTxSize = linker.downcallHandle(libraryHandle.find("index_chunk_tx_warmup_alloc_get_size").orElseThrow(),
+            mInitGetWarmupBasicTxSize = linker.downcallHandle(
+                    libraryHandle.find("index_chunk_tx_warmup_alloc_get_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
-            mInitGetWarmupLuceneTxSize = linker.downcallHandle(libraryHandle.find("lucene_chunk_tx_warmup_alloc_get_size").orElseThrow(),
+            mInitGetWarmupLuceneTxSize = linker.downcallHandle(
+                    libraryHandle.find("lucene_chunk_tx_warmup_alloc_get_size").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT));
 
             // warmup API
-            mWarmupElementOpen = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_open").orElseThrow(),
+            mWarmupElementOpen = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_warmup_element_open").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mWarmupElementClose = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_element_close").orElseThrow(),
+            mWarmupElementClose = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_warmup_element_close").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mWarmupVerifyQueryOffset = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_verify_query_offset").orElseThrow(),
+            mWarmupVerifyQueryOffset = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_warmup_verify_query_offset").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mWarmupChunk = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_chunk").orElseThrow(),
+            mWarmupChunk = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_warmup_chunk").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mWarmupChunkExtRec = linker.downcallHandle(libraryHandle.find("warp_speed_warmup_chunk_ext_rec").orElseThrow(),
+            mWarmupChunkExtRec = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_warmup_chunk_ext_rec").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
             // match API
-            mMatchOpen = linker.downcallHandle(libraryHandle.find("warp_speed_match_open").orElseThrow(),
+            mMatchOpen = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_match_open").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mMatchAgg = linker.downcallHandle(libraryHandle.find("warp_speed_match_agg").orElseThrow(),
+            mMatchAgg = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_match_agg").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
-            mMatchLucenePrepare = linker.downcallHandle(libraryHandle.find("warp_speed_match_lucene_prepare").orElseThrow(),
+            mMatchLucenePrepare = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_match_lucene_prepare").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
-            mMatchLuceneCompleted = linker.downcallHandle(libraryHandle.find("warp_speed_match_lucene_completed").orElseThrow(),
+            mMatchLuceneCompleted = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_match_lucene_completed").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
-            mMatch = linker.downcallHandle(libraryHandle.find("warp_speed_match").orElseThrow(),
+            mMatch = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_match").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
-            mMatchClose = linker.downcallHandle(libraryHandle.find("warp_speed_match_close").orElseThrow(),
+            mMatchClose = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_match_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
             // collect API
-            mCollectOpen = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open").orElseThrow(),
+            mCollectOpen = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_collect_open").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mCollectOpenChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_open_chunk").orElseThrow(),
+            mCollectOpenChunk = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_collect_open_chunk").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
-            mCollectCollectChunk = linker.downcallHandle(libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
+            mCollectCollectChunk = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_collect_collect_chunk").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mCollectClose = linker.downcallHandle(libraryHandle.find("warp_speed_collect_close").orElseThrow(),
+            mCollectClose = linker.downcallHandle(
+                    libraryHandle.find("warp_speed_collect_close").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
             MemorySegment envProperties = arena.allocate(ENV_PROPERTIES_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize());
@@ -440,7 +472,7 @@ public class NativeStorageEngine
     {
         int fileDescriptor;
         try (Arena arena = Arena.ofConfined();
-             NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
+                NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             fileDescriptor = (int) mFileOpen.invokeExact(arena.allocateFrom(fileName), logId.id());
             if (fileDescriptor >= 0) {
                 return fileDescriptor;
@@ -496,7 +528,7 @@ public class NativeStorageEngine
     public void filePunchHole(String fileName, int startOffset, int endOffset)
     {
         try (Arena arena = Arena.ofConfined();
-             NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
+                NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
             mFilePunchHole.invokeExact(arena.allocateFrom(fileName), startOffset, endOffset, logId.id());
         }
         catch (Throwable t) {

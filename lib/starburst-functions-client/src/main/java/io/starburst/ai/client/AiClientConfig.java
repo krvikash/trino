@@ -174,6 +174,6 @@ public class AiClientConfig
     {
         NONE,
         FILE,
-        EXTERNAL
+        EXTERNAL,
     }
 }

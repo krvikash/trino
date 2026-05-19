@@ -28,9 +28,9 @@ abstract class BaseAiFunctionsSmokeTest
     @Test
     void testClassify()
     {
-        assertEventually(new Duration(15, SECONDS), new Duration(10, MILLISECONDS), 3, 0.75f, () ->
-        {
-            String result = (String) computeActual(TEST_AI_SESSION,
+        assertEventually(new Duration(15, SECONDS), new Duration(10, MILLISECONDS), 3, 0.75f, () -> {
+            String result = (String) computeActual(
+                    TEST_AI_SESSION,
                     "SELECT ai.classify('I love this product!', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted(LANGUAGE_MODEL_ID)).getOnlyValue();
             assertThat(result).contains("positive");
         });
@@ -42,7 +42,8 @@ abstract class BaseAiFunctionsSmokeTest
         try (TestTable table = newTrinoTable(
                 "test_generate_embeddings_table_function_",
                 "(id INT, data VARCHAR, embedding ARRAY(REAL))")) {
-            assertUpdate("""
+            assertUpdate(
+                    """
                     INSERT INTO %s (id, data, embedding)
                     SELECT id, data, embedding
                     FROM TABLE(starburst.ai.generate_embeddings(
@@ -50,7 +51,8 @@ abstract class BaseAiFunctionsSmokeTest
                       data_column => DESCRIPTOR(data),
                       source => TABLE(SELECT * FROM (VALUES (0, 'apple'), (1, 'orange'), (2, null), (3, ''), (4, 'cat'), (5, 'dog'), (6, 'shirt'), (7, 'pants')) AS t (id, data)),
                       model_id => '%s'))
-                    """.formatted(table.getName(), EMBED_MODEL_ID), 8);
+                    """.formatted(table.getName(), EMBED_MODEL_ID),
+                    8);
 
             assertQuery(
                     "SELECT id, data FROM (SELECT id, data, cosine_similarity(embedding, starburst.ai.generate_embedding('animal', '%2$s')) AS similarity FROM %1$s ORDER BY similarity DESC LIMIT 2)".formatted(table.getName(), EMBED_MODEL_ID),

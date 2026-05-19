@@ -101,19 +101,21 @@ public class TestDispatcherRestIT
 
     private void cleanModel()
     {
-        createdTables.forEach((tableName) -> assertUpdate("DROP TABLE IF EXISTS " + tableName));
-        createdSchemas.forEach((schemaName) -> assertUpdate("DROP SCHEMA IF EXISTS " + schemaName));
+        createdTables.forEach(tableName -> assertUpdate("DROP TABLE IF EXISTS " + tableName));
+        createdSchemas.forEach(schemaName -> assertUpdate("DROP SCHEMA IF EXISTS " + schemaName));
     }
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
+                new WarpStubsStorageEngineModule(),
                 Optional.empty(),
                 2,
                 Map.of(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",
@@ -138,7 +140,8 @@ public class TestDispatcherRestIT
         assertThat(warmupColRuleDataListResult).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
                 new RegularColumnData("col2"),
@@ -148,7 +151,8 @@ public class TestDispatcherRestIT
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule("col2", "2"),
                         new DateSlidingWindowWarmupPredicateRule("col2", 30, "XXX", "")));
 
-        WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
                 new RegularColumnData("col2"),
@@ -158,7 +162,8 @@ public class TestDispatcherRestIT
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule("col2", "2"),
                         new DateSlidingWindowWarmupPredicateRule("col2", 30, "XXX", "")));
 
-        WarmupColRuleData basicWarmupColRuleDataData = new WarmupColRuleData(0,
+        WarmupColRuleData basicWarmupColRuleDataData = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
                 new RegularColumnData("col2"),
@@ -194,7 +199,8 @@ public class TestDispatcherRestIT
         assertThat(basicWarmupColRuleDataResult.getTable()).isEqualTo(basicWarmupColRuleDataData.getTable());
         assertThat(basicWarmupColRuleDataResult.getPredicates()).isEqualTo(basicWarmupColRuleDataData.getPredicates());
 
-        WarmupColRuleData warmupColRuleDataError = new WarmupColRuleData(10,
+        WarmupColRuleData warmupColRuleDataError = new WarmupColRuleData(
+                10,
                 "s1",
                 "t1",
                 new RegularColumnData("col2"),
@@ -206,7 +212,7 @@ public class TestDispatcherRestIT
         RuleResultDTO ruleResultDTO = jsonMapper.readerFor(RuleResultDTO.class).readValue(restResult);
         assertThat(ruleResultDTO.appliedRules().isEmpty()).isTrue();
         assertThat(ruleResultDTO.rejectedRules().isEmpty()).isFalse();
-        assertThat(getWarmupRules()).isEqualTo(warmupColRuleDataListResult); //nothing has changed
+        assertThat(getWarmupRules()).isEqualTo(warmupColRuleDataListResult); // nothing has changed
 
         restResult = executeRestCommand(
                 WarmupRuleService.WARMUP_PATH,
@@ -229,59 +235,78 @@ public class TestDispatcherRestIT
     private static Stream<Arguments> provideTransformedColumnDataTestParams()
     {
         return Stream.of(
-                Arguments.arguments(new TransformedColumnData("col2",
+                Arguments.arguments(new TransformedColumnData(
+                        "col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.LOWER))),
-                Arguments.arguments(new TransformedColumnData("col2",
+                Arguments.arguments(new TransformedColumnData(
+                        "col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.UPPER))),
-                Arguments.arguments(new TransformedColumnData("col2",
+                Arguments.arguments(new TransformedColumnData(
+                        "col2",
                         new TransformFunctionData(TransformFunctionData.TransformType.DATE))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData("index", WarpExpressionData.Type.VARCHAR))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.INTEGER))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData("7", WarpExpressionData.Type.INTEGER))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7L, WarpExpressionData.Type.BIGINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.BIGINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData("7", WarpExpressionData.Type.BIGINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData((short) 7, WarpExpressionData.Type.SMALLINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.SMALLINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData("7", WarpExpressionData.Type.SMALLINT))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7.0, WarpExpressionData.Type.DOUBLE))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7f, WarpExpressionData.Type.DOUBLE))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData("7.0", WarpExpressionData.Type.DOUBLE))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7f, WarpExpressionData.Type.REAL))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData(7.0, WarpExpressionData.Type.REAL))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.ELEMENT_AT,
                                 ImmutableList.of(new WarpPrimitiveConstantData("7.0", WarpExpressionData.Type.REAL))))),
                 Arguments.arguments(new TransformedColumnData("col2",
-                        new TransformFunctionData(TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR,
+                        new TransformFunctionData(
+                                TransformFunctionData.TransformType.JSON_EXTRACT_SCALAR,
                                 ImmutableList.of(new WarpPrimitiveConstantData("$.field", WarpExpressionData.Type.VARCHAR))))));
     }
 
@@ -294,7 +319,8 @@ public class TestDispatcherRestIT
         assertThat(result).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData basicWarmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData basicWarmupColRuleData = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
                 transformedColumnData,
@@ -329,7 +355,8 @@ public class TestDispatcherRestIT
         assertThat(result).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData basicWarmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData basicWarmupColRuleData = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
                 new TransformedColumnData("col2", new TransformFunctionData(TransformFunctionData.TransformType.NONE)),
@@ -355,10 +382,12 @@ public class TestDispatcherRestIT
         assertThat(result).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData basicWarmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData basicWarmupColRuleData = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
-                new TransformedColumnData("col2", new TransformFunctionData(TransformFunctionData.TransformType.ELEMENT_AT,
+                new TransformedColumnData("col2", new TransformFunctionData(
+                        TransformFunctionData.TransformType.ELEMENT_AT,
                         ImmutableList.of(new WarpPrimitiveConstantData(7, WarpExpressionData.Type.VARCHAR)))),
                 WarmUpType.WARM_UP_TYPE_BASIC,
                 5,
@@ -382,7 +411,8 @@ public class TestDispatcherRestIT
         assertThat(result).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleDataLucene = new WarmupColRuleData(
+                0,
                 "s1",
                 "t1",
                 new RegularColumnData("col2"),
@@ -397,7 +427,8 @@ public class TestDispatcherRestIT
         result = getWarmupRules();
 
         assertThat(result).hasSize(1);
-        warmupColRuleDataLucene = new WarmupColRuleData(result.getFirst().getId(),
+        warmupColRuleDataLucene = new WarmupColRuleData(
+                result.getFirst().getId(),
                 "s1",
                 "t1",
                 new RegularColumnData("col2"),
@@ -421,7 +452,8 @@ public class TestDispatcherRestIT
 
         createSchemaAndTable("s3", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(
+                0,
                 "s3",
                 "t1",
                 new RegularColumnData("col2"),
@@ -447,7 +479,8 @@ public class TestDispatcherRestIT
 
         createSchemaAndTable("s3", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(
+                0,
                 "s3",
                 "t1",
                 new RegularColumnData("col1"),
@@ -469,7 +502,8 @@ public class TestDispatcherRestIT
     {
         createSchemaAndTable("s3", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(
+                0,
                 "s3",
                 "t1",
                 new RegularColumnData("col2"),
@@ -481,7 +515,8 @@ public class TestDispatcherRestIT
 
         executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_REPLACE, List.of(warmupColRuleData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
-        WarmupColRuleData newWarmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData newWarmupColRuleData = new WarmupColRuleData(
+                0,
                 "s3",
                 "t1",
                 new RegularColumnData("col1"),
@@ -495,7 +530,8 @@ public class TestDispatcherRestIT
         assertThat(result.getFirst().getPriority()).isEqualTo(10);
         assertThat(result.getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
 
-        WarmupColRuleData updateWarmupColRuleData = new WarmupColRuleData(result.getFirst().getId(),
+        WarmupColRuleData updateWarmupColRuleData = new WarmupColRuleData(
+                result.getFirst().getId(),
                 "s3",
                 "t1",
                 new RegularColumnData("col2"),
@@ -520,7 +556,8 @@ public class TestDispatcherRestIT
     {
         createSchemaAndTable("s3", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData warmupColRuleData = new WarmupColRuleData(
+                0,
                 "s3",
                 "t1",
                 new RegularColumnData("col1"),
@@ -532,7 +569,8 @@ public class TestDispatcherRestIT
 
         executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_REPLACE, List.of(warmupColRuleData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
-        WarmupColRuleData newWarmupColRuleData = new WarmupColRuleData(0,
+        WarmupColRuleData newWarmupColRuleData = new WarmupColRuleData(
+                0,
                 "s3",
                 "t1",
                 new RegularColumnData("col1"),

@@ -94,9 +94,7 @@ public class WarmupExportingService
     }
 
     @Override
-    public void init()
-    {
-    }
+    public void init() {}
 
     void export(String cloudImportExportPath, RowGroupKey rowGroupKey, int delay)
     {
@@ -106,7 +104,8 @@ public class WarmupExportingService
             return;
         }
 
-        WeGroupCloudExporterTask weGroupCloudExporterTask = new WeGroupCloudExporterTask(rowGroupKey,
+        WeGroupCloudExporterTask weGroupCloudExporterTask = new WeGroupCloudExporterTask(
+                rowGroupKey,
                 cloudImportExportPath,
                 workerTaskExecutorService,
                 rowGroupDataService,

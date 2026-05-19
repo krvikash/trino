@@ -120,11 +120,11 @@ public class WarmupCacheData
     public List<WarmingCandidate> getWarmingCandidates()
     {
         return isNull() ? emptyList() : connectorIndexToWarmColumns.values()
-                .stream()
-                .flatMap(Collection::stream)
-                .map(CacheWarmupElementArgs::getWarmupCandidate)
-                .filter(Objects::nonNull) // warming candidate can be null when CacheWarmer:initCandidate fails
-                .collect(Collectors.toList());
+                                        .stream()
+                                        .flatMap(Collection::stream)
+                                        .map(CacheWarmupElementArgs::getWarmupCandidate)
+                                        .filter(Objects::nonNull) // warming candidate can be null when CacheWarmer:initCandidate fails
+                                        .collect(Collectors.toList());
     }
 
     private boolean isNull()

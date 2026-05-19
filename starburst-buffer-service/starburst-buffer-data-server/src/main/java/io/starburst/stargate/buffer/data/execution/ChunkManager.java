@@ -150,9 +150,10 @@ public class ChunkManager
     private final Optional<LocalDiskAllocator> localDiskAllocator;
     private final ChunkDataFactory chunkDataFactory;
 
-    enum ExchangeRemovalReason {
+    enum ExchangeRemovalReason
+    {
         EXPLICIT,
-        ABANDONED
+        ABANDONED,
     }
 
     // exchangeId -> exchange
@@ -798,6 +799,7 @@ public class ChunkManager
     }
 
     // TODO: Remove when method is available in airlift
+
     /**
      * Process a list of tasks as a single unit
      * (similar to {@link com.google.common.util.concurrent.Futures#successfulAsList(ListenableFuture[])})
@@ -818,10 +820,10 @@ public class ChunkManager
      * @param maxConcurrency maximum number of tasks allowed to run in parallel
      * @param submitExecutor task submission executor
      * @return {@link ListenableFuture} containing a list of values returned by the {@code tasks}.
-     * The order of elements in the list matches the order of {@code tasks}.
-     * If the result future is cancelled all the remaining tasks are cancelled (submitted tasks will be cancelled, pending tasks will not be submitted).
-     * If any of the submitted tasks fails or are cancelled, the remaining tasks will continue to execute.
-     * If any of the submitted tasks fails or are cancelled, the remaining pending tasks are cancelled.
+     *         The order of elements in the list matches the order of {@code tasks}.
+     *         If the result future is cancelled all the remaining tasks are cancelled (submitted tasks will be cancelled, pending tasks will not be submitted).
+     *         If any of the submitted tasks fails or are cancelled, the remaining tasks will continue to execute.
+     *         If any of the submitted tasks fails or are cancelled, the remaining pending tasks are cancelled.
      */
     private static <T, R> ListenableFuture<List<R>> processAllToCompletion(List<T> tasks, Function<T, ListenableFuture<R>> submitter, int maxConcurrency, Executor submitExecutor)
     {
@@ -890,7 +892,9 @@ public class ChunkManager
                             exchangeId,
                             chunkDataLeaseMap,
                             contentLength);
-                    addCallback(spoolingFuture, new FutureCallback<>()
+                    addCallback(
+                            spoolingFuture,
+                            new FutureCallback<>()
                             {
                                 @Override
                                 public void onSuccess(Map<Long, SpooledChunk> spooledChunkMap)
@@ -993,8 +997,7 @@ public class ChunkManager
 
     record ChunksWithExchangeId(
             String exchangeId,
-            List<Chunk> chunks)
-    {}
+            List<Chunk> chunks) {}
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})

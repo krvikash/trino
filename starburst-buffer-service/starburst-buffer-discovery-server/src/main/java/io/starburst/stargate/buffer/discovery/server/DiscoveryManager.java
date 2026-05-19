@@ -79,7 +79,8 @@ public class DiscoveryManager
         this.bufferNodeDiscoveryStalenessThreshold = config.getBufferNodeDiscoveryStalenessThreshold();
         checkArgument(bufferNodeDiscoveryStalenessThreshold.toMillis() <= DRAINED_NODES_STALENESS_THRESHOLD.toMillis(),
                 "bufferNodeDiscoveryStalenessThreshold %s larger than DRAINED_NODES_STALENESS_THRESHOLD %s",
-                bufferNodeDiscoveryStalenessThreshold, DRAINED_NODES_STALENESS_THRESHOLD);
+                bufferNodeDiscoveryStalenessThreshold,
+                DRAINED_NODES_STALENESS_THRESHOLD);
         this.startGracePeriod = config.getStartGracePeriod();
         this.discoveryStats = requireNonNull(discoveryStats, "discoveryStats is null");
         this.executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("discovery-manager-%s"));

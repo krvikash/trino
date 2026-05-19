@@ -80,12 +80,12 @@ class FlightRecorderHttpClient
 
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.failsafeExecutor = Failsafe.with(RetryPolicy.builder()
-                .withMaxDuration(Duration.of(3, SECONDS))
-                .withMaxAttempts(-1)
-                .withBackoff(10, 250, MILLIS)
-                .handleIf(FlightRecorderHttpClient::requestCanBeRetried)
-                .build())
-            .with(executorService);
+                        .withMaxDuration(Duration.of(3, SECONDS))
+                        .withMaxAttempts(-1)
+                        .withBackoff(10, 250, MILLIS)
+                        .handleIf(FlightRecorderHttpClient::requestCanBeRetried)
+                        .build())
+                .with(executorService);
     }
 
     public void start(Set<String> nodeIds)
@@ -224,9 +224,7 @@ class FlightRecorderHttpClient
         });
     }
 
-    private record HttpResponses<T>(Map<String, T> responses, Map<String, Throwable> exceptions)
-    {
-    }
+    private record HttpResponses<T>(Map<String, T> responses, Map<String, Throwable> exceptions) {}
 
     static final class InputStreamResponseHandler
             implements ResponseHandler<InputStreamResponseHandler.InputStreamResponse, HttpStatusException>

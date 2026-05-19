@@ -94,7 +94,7 @@ public class BenchmarkSortingFileWriter
             "LARGE_PAGE_COMPRESSIBLE",
             "LARGE_PAGE_INCOMPRESSIBLE",
             "LINE_ITEM_VARCHAR",
-            "LINE_ITEM_BIGINT"
+            "LINE_ITEM_BIGINT",
     })
     public DataSet dataSet;
 
@@ -355,9 +355,7 @@ public class BenchmarkSortingFileWriter
         }
 
         @Override
-        public void appendRows(Page dataPage)
-        {
-        }
+        public void appendRows(Page dataPage) {}
 
         @Override
         public Closeable commit()
@@ -366,9 +364,7 @@ public class BenchmarkSortingFileWriter
         }
 
         @Override
-        public void rollback()
-        {
-        }
+        public void rollback() {}
 
         @Override
         public long getValidationCpuNanos()

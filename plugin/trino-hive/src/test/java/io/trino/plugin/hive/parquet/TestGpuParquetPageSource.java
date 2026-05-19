@@ -396,7 +396,9 @@ public class TestGpuParquetPageSource
                             case ConnectorGpuPageSource.Blocked(CompletableFuture<?> _) -> throw new IllegalStateException("Blocking not supported");
                             case ConnectorGpuPageSource.Data(GpuPage page) -> pages.add(page);
                             case ConnectorGpuPageSource.Finished() -> finished = true;
-                            case ConnectorGpuPageSource.Yielded() -> { /* continue */ }
+                            case ConnectorGpuPageSource.Yielded() -> {
+                                /* continue */
+                            }
                         }
                     }
                 }

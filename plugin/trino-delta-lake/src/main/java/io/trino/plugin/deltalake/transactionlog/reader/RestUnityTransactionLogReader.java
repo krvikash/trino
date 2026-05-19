@@ -87,14 +87,18 @@ class RestUnityTransactionLogReader
         if (stagedCommitsInfo.getCommits() == null || stagedCommitsInfo.getCommits().isEmpty()) {
             // If there are no staged commits, the published latest version must be equal or greater than the current version.
             checkArgument(version >= stagedCommitsInfo.getLatestTableVersion(),
-                    "Latest published version: %s is less than expected known version: %s", version, stagedCommitsInfo.getLatestTableVersion());
+                    "Latest published version: %s is less than expected known version: %s",
+                    version,
+                    stagedCommitsInfo.getLatestTableVersion());
             // No new commits available, return the current transactions
             return new TransactionLogTail(transactions.build(), version);
         }
 
         long firstStagedCommitVersion = stagedCommitsInfo.getCommits().getFirst().version();
         checkArgument(version >= firstStagedCommitVersion - 1,
-                "There is a gap between the published version: %s and the first staged commit: %s", version, firstStagedCommitVersion);
+                "There is a gap between the published version: %s and the first staged commit: %s",
+                version,
+                firstStagedCommitVersion);
 
         if (stagedCommitsInfo.getLatestTableVersion() == version) {
             // If the latest table version is equal to the current version, it means no new commits are available.

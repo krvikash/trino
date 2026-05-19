@@ -54,7 +54,8 @@ public class TestStarburstOracleParallelSubpartitionsConnectorSmokeTest
 
     private void partitionTables()
     {
-        oracleServer.get().executeInOracle(format("""
+        oracleServer.get().executeInOracle(format(
+                """
                 ALTER TABLE %s.nation MODIFY PARTITION BY RANGE (nationkey) INTERVAL (5)
                 SUBPARTITION BY LIST (regionkey)
                 SUBPARTITION TEMPLATE (
@@ -63,7 +64,8 @@ public class TestStarburstOracleParallelSubpartitionsConnectorSmokeTest
                     SUBPARTITION asia VALUES (2),
                     SUBPARTITION europe VALUES (3),
                     SUBPARTITION middle_east VALUES (4)
-                ) (PARTITION before_4 VALUES LESS THAN (4))""", SUBPARTITIONED_USER));
+                ) (PARTITION before_4 VALUES LESS THAN (4))""",
+                SUBPARTITIONED_USER));
 
         oracleServer.get().executeInOracle(format("ALTER TABLE %s.region MODIFY PARTITION BY HASH(name) PARTITIONS 3", SUBPARTITIONED_USER));
     }

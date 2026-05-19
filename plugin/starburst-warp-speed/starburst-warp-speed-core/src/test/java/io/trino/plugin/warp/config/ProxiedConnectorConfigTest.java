@@ -33,7 +33,9 @@ public class ProxiedConnectorConfigTest
                 .containsExactlyInAnyOrder(ProxiedConnectorConfig.HUDI_CONNECTOR_NAME, ProxiedConnectorConfig.HIVE_CONNECTOR_NAME);
 
         proxiedConnectorConfig.setPassThroughDispatcherSet(
-                String.format(Locale.US, " %s,%s, %s ",
+                String.format(
+                        Locale.US,
+                        " %s,%s, %s ",
                         ProxiedConnectorConfig.HUDI_CONNECTOR_NAME,
                         ProxiedConnectorConfig.HIVE_CONNECTOR_NAME,
                         ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME));

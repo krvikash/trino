@@ -65,7 +65,8 @@ public class TestingDataServer
     private final long nodeId;
     private final ChunkDataFactory chunkDataFactory;
 
-    private TestingDataServer(long nodeId,
+    private TestingDataServer(
+            long nodeId,
             Supplier<Optional<Module>> discoveryApiModule,
             Map<String, String> configProperties,
             boolean useBlackholeStorage,

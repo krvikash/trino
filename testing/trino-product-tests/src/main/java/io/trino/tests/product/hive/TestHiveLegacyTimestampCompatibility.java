@@ -150,7 +150,8 @@ public class TestHiveLegacyTimestampCompatibility
             // Hive cannot accept Julian leap year dates
             QueryAssert.Row[] expectedRows = {
                     row(Timestamp.valueOf("1600-02-29 11:12:13.654")),
-                    row(Timestamp.valueOf("2000-02-29 00:00:00.999"))};
+                    row(Timestamp.valueOf("2000-02-29 00:00:00.999")),
+            };
 
             assertThat(onHive().executeQuery("SELECT tmst FROM " + hiveTableName)).containsOnly(expectedRows);
             assertThat(onTrino().executeQuery("SELECT tmst FROM " + trinoTableName)).containsOnly(expectedRows);

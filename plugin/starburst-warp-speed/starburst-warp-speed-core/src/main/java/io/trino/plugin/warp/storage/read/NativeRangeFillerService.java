@@ -24,9 +24,7 @@ public class NativeRangeFillerService
         implements RangeFillerService
 {
     @Inject
-    public NativeRangeFillerService()
-    {
-    }
+    public NativeRangeFillerService() {}
 
     // return the number of rows collected in this round
     @Override

@@ -42,7 +42,9 @@ public class SliceLease
             int sliceLength)
     {
         checkArgument(sliceLength <= MAX_SLICE_LENGTH,
-                "sliceLength %s exceeded MAX_SLICE_LENGTH %s", sliceLength, MAX_SLICE_LENGTH);
+                "sliceLength %s exceeded MAX_SLICE_LENGTH %s",
+                sliceLength,
+                MAX_SLICE_LENGTH);
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.sliceFuture = memoryAllocator.allocate(sliceLength);
     }

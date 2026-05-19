@@ -104,15 +104,19 @@ public class TestLocalExecutionPlannerAlternatives
                 symbol1, new TestingColumnHandle("col1"),
                 symbol2, new TestingColumnHandle("col2"));
 
-        PlanNode plan = AggregationNode.singleAggregation(new PlanNodeId("aggregation"),
-                new ChooseAlternativeNode(chooseAlternativeNodeId,
+        PlanNode plan = AggregationNode.singleAggregation(
+                new PlanNodeId("aggregation"),
+                new ChooseAlternativeNode(
+                        chooseAlternativeNodeId,
                         ImmutableList.of(
                                 planBuilder.tableScan(
                                         getTableHandle("alternative1"),
-                                        ImmutableList.of(symbol1, symbol2), symbolMapping),
+                                        ImmutableList.of(symbol1, symbol2),
+                                        symbolMapping),
                                 planBuilder.tableScan(
                                         getTableHandle("alternative2"),
-                                        ImmutableList.of(symbol1, symbol2), symbolMapping)),
+                                        ImmutableList.of(symbol1, symbol2),
+                                        symbolMapping)),
                         new FilteredTableScan(planBuilder.tableScan(ImmutableList.of(), false), Optional.empty())),
                 ImmutableMap.of(),
                 globalAggregation());
@@ -140,18 +144,22 @@ public class TestLocalExecutionPlannerAlternatives
                 symbol1, new TestingColumnHandle("col1"),
                 symbol2, new TestingColumnHandle("col2"));
 
-        PlanNode plan = AggregationNode.singleAggregation(new PlanNodeId("aggregation"),
+        PlanNode plan = AggregationNode.singleAggregation(
+                new PlanNodeId("aggregation"),
                 ExchangeNode.partitionedExchange(
                         new PlanNodeId("local exchange"),
                         LOCAL,
-                        new ChooseAlternativeNode(chooseAlternativeNodeId,
+                        new ChooseAlternativeNode(
+                                chooseAlternativeNodeId,
                                 ImmutableList.of(
                                         planBuilder.tableScan(
                                                 getTableHandle("alternative1"),
-                                                ImmutableList.of(symbol1, symbol2), symbolMapping),
+                                                ImmutableList.of(symbol1, symbol2),
+                                                symbolMapping),
                                         planBuilder.tableScan(
                                                 getTableHandle("alternative2"),
-                                                ImmutableList.of(symbol1, symbol2), symbolMapping)),
+                                                ImmutableList.of(symbol1, symbol2),
+                                                symbolMapping)),
                                 new FilteredTableScan(planBuilder.tableScan(ImmutableList.of(), false), Optional.empty())),
                         ImmutableList.of(symbol1)),
                 ImmutableMap.of(),

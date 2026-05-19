@@ -50,7 +50,8 @@ public class DispatcherQueryRunner
 
     private DispatcherQueryRunner() {}
 
-    public static QueryRunner createQueryRunner(Module storageEngineModule,
+    public static QueryRunner createQueryRunner(
+            Module storageEngineModule,
             Optional<Module> optionalProxyModule,
             int numOfNodes,
             Map<String, String> coordinatorProperties,
@@ -102,7 +103,8 @@ public class DispatcherQueryRunner
         return createQueryRunner(storageEngineModule, optionalProxyModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
     }
 
-    private static QueryRunner createQueryRunner(Module storageEngineModule,
+    private static QueryRunner createQueryRunner(
+            Module storageEngineModule,
             Optional<Module> optionalProxyModule,
             Map<String, String> additionalCatalogConfig,
             String connectorName,

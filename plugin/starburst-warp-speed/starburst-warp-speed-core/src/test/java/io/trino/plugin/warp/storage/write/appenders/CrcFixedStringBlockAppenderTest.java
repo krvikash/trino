@@ -49,7 +49,8 @@ class CrcFixedStringBlockAppenderTest
     public void beforeEach()
     {
         super.beforeEach();
-        blockAppender = new CrcStringBlockAppender(writeJuffersWarmUpElement,
+        blockAppender = new CrcStringBlockAppender(
+                writeJuffersWarmUpElement,
                 new StubsStorageEngineConstants(),
                 bufferAllocator,
                 VARCHAR_TYPE,

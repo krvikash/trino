@@ -49,7 +49,8 @@ class IntBlockAppenderTest
 
     static Stream<Arguments> params()
     {
-        List<LocalDate> dateValues = List.of(LocalDate.of(2023, 7, 19),
+        List<LocalDate> dateValues = List.of(
+                LocalDate.of(2023, 7, 19),
                 LocalDate.of(2023, 7, 20),
                 LocalDate.of(2020, 7, 20));
         int expectedMax = dateValues.stream().mapToInt(x -> (int) x.toEpochDay()).max().getAsInt();

@@ -72,7 +72,7 @@ public class DemoterSync
             CatalogName catalogName,
             NodeManager nodeManager)
     {
-        //we use nodeIdentifier since tests with multi-node are on the same jvm
+        // we use nodeIdentifier since tests with multi-node are on the same jvm
         String nodeIdentifier = requireNonNull(nodeManager).getCurrentNode().getNodeIdentifier();
         long demoteKey = (catalogName + nodeIdentifier).hashCode();
         resetDemoterContext(demoteKey, catalogName, warmupDemoterService, flowsSequencer);
@@ -129,8 +129,9 @@ public class DemoterSync
 
     /// //////// demoter ///////////
 
-    //called by demote initiator
-    public boolean tryStartDemoteProcess(long demoteKey,
+    // called by demote initiator
+    public boolean tryStartDemoteProcess(
+            long demoteKey,
             double maxUsageThresholdPercentage,
             double cleanupUsageThresholdPercentage,
             int batchSize,
@@ -147,7 +148,8 @@ public class DemoterSync
         }
         CatalogName catalogName = demoteContext.catalogName();
 
-        logger.debug("catalog[%s]: tryStartDemoteProcess start - demoteKey[%d], epsilon[%s], isResetHighestPriority=%s",
+        logger.debug(
+                "catalog[%s]: tryStartDemoteProcess start - demoteKey[%d], epsilon[%s], isResetHighestPriority=%s",
                 catalogName,
                 demoteKey,
                 epsilon,
@@ -171,7 +173,8 @@ public class DemoterSync
         return false;
     }
 
-    private void startDemoteProcess(long demoteKey,
+    private void startDemoteProcess(
+            long demoteKey,
             double maxUsageThresholdPercentage,
             double cleanupUsageThresholdPercentage,
             int batchSize,
@@ -239,8 +242,12 @@ public class DemoterSync
             return;
         }
         CatalogName catalogName = demoteContext.catalogName();
-        logger.debug("catalog[%s]: finishDemoteProcess start demoteStatus[%s] lowestPriorityExist[%s] highestPriorityDemoted[%s]",
-                catalogName, demoteStatus, lowestPriorityExist, highestPriorityDemoted);
+        logger.debug(
+                "catalog[%s]: finishDemoteProcess start demoteStatus[%s] lowestPriorityExist[%s] highestPriorityDemoted[%s]",
+                catalogName,
+                demoteStatus,
+                lowestPriorityExist,
+                highestPriorityDemoted);
 
         demoterServiceContextMap
                 .computeIfPresent(demoteKey,
@@ -290,7 +297,8 @@ public class DemoterSync
                             .stream()
                             .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
                             .map(entry -> {
-                                logger.debug("catalog[%s]: callConnectorSyncStartDemote start calling connectorSyncStartDemote catalog[%s]",
+                                logger.debug(
+                                        "catalog[%s]: callConnectorSyncStartDemote start calling connectorSyncStartDemote catalog[%s]",
                                         catalogName,
                                         entry.getValue().catalogName);
 
@@ -321,7 +329,7 @@ public class DemoterSync
 
     private void markDemoteCycleStart(Map.Entry<Long, DemoteContext> entry)
     {
-        //mark demote start cycle
+        // mark demote start cycle
         demoterServiceContextMap
                 .computeIfPresent(entry.getKey(),
                         (_, demoteContext) -> new DemoteContext(
@@ -339,7 +347,7 @@ public class DemoterSync
         CatalogName catalogName = demoteContext.catalogName();
         logger.debug("catalog[%s]: loopUntilNothingToDemote start ", catalogName);
 
-        //check the status of all demoter calls
+        // check the status of all demoter calls
         while (demoterServiceContextMap
                 .entrySet()
                 .stream()
@@ -350,15 +358,16 @@ public class DemoterSync
             double minLowestPriorityExist = getMinLowestPriorityExist();
 
             try {
-                //run all non initiators
+                // run all non initiators
                 Futures.allAsList(demoterServiceContextMap
                                 .entrySet()
                                 .stream()
                                 .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
-                                .filter(entry -> !entry.getKey().equals(demoteKey)) //run all but the initiator
+                                .filter(entry -> !entry.getKey().equals(demoteKey)) // run all but the initiator
                                 .filter(entry -> !DemoteStatus.NO_ELEMENTS_TO_DEMOTE.equals(demoterServiceContextMap.get(entry.getKey()).demoteStatus))
                                 .map(entry -> {
-                                    logger.debug("catalog[%s]: loopUntilNothingToDemote before calling future connectorSyncStartDemoteCycle on catalog[%s]",
+                                    logger.debug(
+                                            "catalog[%s]: loopUntilNothingToDemote before calling future connectorSyncStartDemoteCycle on catalog[%s]",
                                             catalogName,
                                             entry.getValue().catalogName);
                                     markDemoteCycleStart(entry);
@@ -382,7 +391,7 @@ public class DemoterSync
                 throw new RuntimeException(e);
             }
 
-            //run initiator
+            // run initiator
             demoteContext = demoterServiceContextMap.get(demoteKey);
             if (demoteContext == null) {
                 logger.debug("aborting loopUntilNothingToDemote, demoteKey doesnt exists anymore. demoteKey[%d]", demoteKey);
@@ -406,7 +415,7 @@ public class DemoterSync
             return;
         }
 
-        //find the highest priority that was demoted and set all on that value
+        // find the highest priority that was demoted and set all on that value
         highestPriorityDemoted.set(getMaxHighestPriorityDemoted());
 
         try {
@@ -416,11 +425,13 @@ public class DemoterSync
                             .filter(entry -> entry.getValue().flowId() != INVALID_FLOW_ID)
                             .filter(entry -> !entry.getKey().equals(demoteKey))
                             .map(entry -> {
-                                logger.debug("catalog[%s]: callConnectorSyncDemoteEnd before calling future connectorSyncDemoteEnd on catalog[%s] with maxHighestPriorityDemoted=%s",
+                                logger.debug(
+                                        "catalog[%s]: callConnectorSyncDemoteEnd before calling future connectorSyncDemoteEnd on catalog[%s] with maxHighestPriorityDemoted=%s",
                                         demoteContext.catalogName,
                                         entry.getValue().catalogName,
                                         highestPriorityDemoted.get());
-                                return submit(() ->
+                                return submit(
+                                        () ->
                                                 entry.getValue().warmupDemoterService.connectorSyncDemoteEnd(highestPriorityDemoted.get(), false),
                                         entry.getKey());
                             })
@@ -480,11 +491,15 @@ public class DemoterSync
         }
 
         demoterServiceContextMap
-                .computeIfPresent(demoteKey,
+                .computeIfPresent(
+                        demoteKey,
                         (_, demoteContextTmp) -> new DemoteContext(flowId, demoteContextTmp));
 
-        logger.debug("catalog[%s]: flowStart finish got flowId[%s], start demote nano sec waited = %d",
-                catalogName, flowId, stopWatch.getNanoTime());
+        logger.debug(
+                "catalog[%s]: flowStart finish got flowId[%s], start demote nano sec waited = %d",
+                catalogName,
+                flowId,
+                stopWatch.getNanoTime());
     }
 
     private void flowFinish(long demoteKey)
@@ -513,7 +528,8 @@ public class DemoterSync
                 demoteContext.warmupDemoterService(),
                 demoteContext.flowsSequencer());
 
-        logger.debug("catalog[%s]: flowFinish finish for flowId[%s] took %s ms",
+        logger.debug(
+                "catalog[%s]: flowFinish finish for flowId[%s] took %s ms",
                 catalogName,
                 demoteContext.flowId(),
                 Duration.ofNanos(demoteContext.stopWatch().getNanoTime()).toMillis());
@@ -568,7 +584,8 @@ public class DemoterSync
             long flowId,
             StopWatch stopWatch)
     {
-        DemoteContext(CatalogName catalogName,
+        DemoteContext(
+                CatalogName catalogName,
                 WarmupDemoterService warmupDemoterService,
                 FlowsSequencer flowsSequencer)
         {
@@ -598,7 +615,8 @@ public class DemoterSync
                     demoteContext.stopWatch());
         }
 
-        DemoteContext(double lowestPriorityExist,
+        DemoteContext(
+                double lowestPriorityExist,
                 double highestPriorityDemoted,
                 DemoteStatus demoteStatus,
                 DemoteContext demoteContext)

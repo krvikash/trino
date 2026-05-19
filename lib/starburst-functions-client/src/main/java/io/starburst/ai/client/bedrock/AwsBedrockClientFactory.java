@@ -155,7 +155,7 @@ public class AwsBedrockClientFactory
         connectionInfo.region().ifPresent(region ->
                 clientBuilder.region(Region.of(region)));
 
-        RetryCondition customRetryCondition = (context) -> {
+        RetryCondition customRetryCondition = context -> {
             Throwable exception = context.exception();
             log.warn(exception, "Exception in Bedrock client, checking if should retry");
             // Retry on default retryable conditions

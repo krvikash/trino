@@ -27,7 +27,8 @@ public class ThreadArena
 
     private final Runnable onCloseFunc;
 
-    public ThreadArena(Runnable onCloseFunc,
+    public ThreadArena(
+            Runnable onCloseFunc,
             AtomicLong numAllocatedBytes,
             ShapingLogger shapingLogger)
     {

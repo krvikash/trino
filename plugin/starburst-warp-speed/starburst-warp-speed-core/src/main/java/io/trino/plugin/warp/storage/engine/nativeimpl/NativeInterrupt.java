@@ -20,6 +20,4 @@ import static java.lang.annotation.ElementType.METHOD;
 
 @Target(METHOD)
 @Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
-public @interface NativeInterrupt
-{
-}
+public @interface NativeInterrupt {}

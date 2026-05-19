@@ -26,8 +26,9 @@ public abstract class ArenaBase
     protected long numAllocatedBytes;
     protected ShapingLogger shapingLogger;
 
-    public ArenaBase(AtomicLong numAllocatedBytes,
-             ShapingLogger shapingLogger)
+    public ArenaBase(
+            AtomicLong numAllocatedBytes,
+            ShapingLogger shapingLogger)
     {
         this.globalNumAlllocatedBytes = numAllocatedBytes;
         this.shapingLogger = shapingLogger;

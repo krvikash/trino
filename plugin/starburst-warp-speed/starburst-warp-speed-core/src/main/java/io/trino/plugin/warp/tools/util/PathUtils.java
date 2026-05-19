@@ -19,9 +19,7 @@ import java.util.stream.Stream;
 
 public class PathUtils
 {
-    private PathUtils()
-    {
-    }
+    private PathUtils() {}
 
     // Since for "s3://xxx/model_entities" Path.of() results in "s3:/xxxx/model_entities"
     public static String getUriPath(String firstPart, String... parts)

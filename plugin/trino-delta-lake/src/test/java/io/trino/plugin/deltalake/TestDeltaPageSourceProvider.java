@@ -72,19 +72,17 @@ public class TestDeltaPageSourceProvider
         MetadataEntry metadataEntry = createMetadataEntry(
                 ImmutableList.of(partitionedColumn),
                 """
-                        {"fields":[{"name":"partitionedColumn","type":"long","nullable":false,"metadata":{}}]}"
-                        """);
+                {"fields":[{"name":"partitionedColumn","type":"long","nullable":false,"metadata":{}}]}"
+                """);
         DeltaLakeTableHandle tableHandle = createDeltaLakeTableHandle(metadataEntry, TupleDomain.all());
         TupleDomain<ColumnHandle> predicate = TupleDomain.withColumnDomains(ImmutableMap.of(
                 partitionedColumnHandle, Domain.singleValue(BIGINT, 0L),
-                regularColumnHandle, Domain.singleValue(BIGINT, 0L)
-        ));
+                regularColumnHandle, Domain.singleValue(BIGINT, 0L)));
         TupleDomain<ColumnHandle> prunedPredicate = pageSourceProvider.prunePredicate(
                 TEST_SESSION.toConnectorSession(),
                 prepareSplit(TupleDomain.all(), ImmutableMap.of("partitionedColumn", Optional.of("0"))),
                 tableHandle,
-                predicate
-        );
+                predicate);
         assertThat(prunedPredicate).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(regularColumnHandle, Domain.singleValue(BIGINT, 0L))));
 
         // prune data column domain if domain fully contains split data
@@ -94,8 +92,7 @@ public class TestDeltaPageSourceProvider
                         TupleDomain.withColumnDomains(ImmutableMap.of(regularColumnHandle, Domain.multipleValues(BIGINT, ImmutableList.of(0L)))),
                         ImmutableMap.of("partitionedColumn", Optional.of("0"))),
                 tableHandle,
-                predicate
-        )).isEqualTo(TupleDomain.all());
+                predicate)).isEqualTo(TupleDomain.all());
     }
 
     @Test
@@ -107,26 +104,23 @@ public class TestDeltaPageSourceProvider
         MetadataEntry metadataEntry = createMetadataEntry(
                 ImmutableList.of(partitionedColumn),
                 """
-                        {"fields":[{"name":"partitionedColumn","type":"long","nullable":false,"metadata":{}}]}"
-                        """);
+                {"fields":[{"name":"partitionedColumn","type":"long","nullable":false,"metadata":{}}]}"
+                """);
         DeltaLakeTableHandle tableHandle = createDeltaLakeTableHandle(metadataEntry, TupleDomain.all());
         TupleDomain<ColumnHandle> predicate = TupleDomain.withColumnDomains(ImmutableMap.of(
                 partitionedColumnHandle, Domain.singleValue(BIGINT, 0L),
-                regularColumnHandle, Domain.singleValue(BIGINT, 0L)
-        ));
+                regularColumnHandle, Domain.singleValue(BIGINT, 0L)));
         TupleDomain<ColumnHandle> prunedPredicate = pageSourceProvider.prunePredicate(
                 TEST_SESSION.toConnectorSession(),
                 prepareSplit(TupleDomain.all(), ImmutableMap.of("partitionedColumn", Optional.of("1"))),
                 tableHandle,
-                predicate
-        );
+                predicate);
         assertThat(prunedPredicate).isEqualTo(TupleDomain.none());
         prunedPredicate = pageSourceProvider.prunePredicate(
                 TEST_SESSION.toConnectorSession(),
                 prepareSplit(TupleDomain.all(), ImmutableMap.of("partitionedColumn", Optional.of("0"))),
                 tableHandle,
-                predicate
-        );
+                predicate);
         assertThat(prunedPredicate).isNotEqualTo(TupleDomain.none());
     }
 
@@ -137,8 +131,8 @@ public class TestDeltaPageSourceProvider
         MetadataEntry metadataEntry = createMetadataEntry(
                 ImmutableList.of(),
                 """
-                        {"fields":[{"name":"partitionedColumn","type":"long","nullable":false,"metadata":{}}]}"
-                        """);
+                {"fields":[{"name":"partitionedColumn","type":"long","nullable":false,"metadata":{}}]}"
+                """);
 
         TupleDomain<ColumnHandle> unenforcedPredicate = pageSourceProvider.getUnenforcedPredicate(
                 TEST_SESSION.toConnectorSession(),
@@ -178,8 +172,7 @@ public class TestDeltaPageSourceProvider
                 name,
                 type,
                 columnType,
-                Optional.empty()
-        );
+                Optional.empty());
     }
 
     private static DeltaLakeSplit prepareSplit(TupleDomain<ColumnHandle> statisticsPredicate, Map<String, Optional<String>> partitioningKeys)

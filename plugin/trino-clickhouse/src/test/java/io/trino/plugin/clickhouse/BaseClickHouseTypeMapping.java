@@ -1198,8 +1198,10 @@ public abstract class BaseClickHouseTypeMapping
                 .addRoundTrip("timestamp(%s)".formatted(precision), format("'%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp))
                 .addRoundTrip("datetime64(%s)".formatted(precision), format("'%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp));
         SqlDataTypeTest tupleDateTime64Tests = SqlDataTypeTest.create()
-                .addRoundTrip(format("Tuple(value DateTime64(%d))", precision), format("('%s')", timestamp),
-                        rowType(field("value", createTimestampType(precision))), format("cast(row(TIMESTAMP '%s') as row(value timestamp(%d)))", timestamp, precision));
+                .addRoundTrip(format("Tuple(value DateTime64(%d))", precision),
+                        format("('%s')", timestamp),
+                        rowType(field("value", createTimestampType(precision))),
+                        format("cast(row(TIMESTAMP '%s') as row(value timestamp(%d)))", timestamp, precision));
 
         for (ZoneId timeZoneId : timezones()) {
             Session session = Session.builder(getSession())
@@ -2112,7 +2114,8 @@ public abstract class BaseClickHouseTypeMapping
                             " CAST(ROW(CAST(NULL AS date)) AS ROW(value date))");
             assertQuery("SELECT c1.value, c2.value, c3.value, c4.value FROM " + table.getName(),
                     "VALUES (CAST(NULL AS integer), CAST(NULL AS bigint), CAST(NULL AS double), CAST(NULL AS date))");
-            assertQuery("SELECT c1.value, c2.value, c3.value, c4.value FROM " + table.getName()
+            assertQuery(
+                    "SELECT c1.value, c2.value, c3.value, c4.value FROM " + table.getName()
                             + " WHERE c1.value IS NULL AND c2.value IS NULL AND c3.value IS NULL AND c4.value IS NULL",
                     "VALUES (CAST(NULL AS integer), CAST(NULL AS bigint), CAST(NULL AS double), CAST(NULL AS date))");
         }
@@ -2125,9 +2128,11 @@ public abstract class BaseClickHouseTypeMapping
                 List.of("(2, null, null)"))) {
             assertThat(query(mapStringAsVarcharSession(), "SELECT * FROM " + table.getName()))
                     .matches("SELECT CAST(ROW(2, CAST(NULL AS varchar), CAST(NULL AS double)) AS ROW(id integer, name varchar, score double))");
-            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.name, c1.score FROM " + table.getName(),
+            assertQuery(mapStringAsVarcharSession(),
+                    "SELECT c1.id, c1.name, c1.score FROM " + table.getName(),
                     "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS double))");
-            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.name, c1.score FROM " + table.getName()
+            assertQuery(mapStringAsVarcharSession(),
+                    "SELECT c1.id, c1.name, c1.score FROM " + table.getName()
                             + " WHERE c1.name IS NULL AND c1.score IS NULL",
                     "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS double))");
         }
@@ -2140,9 +2145,11 @@ public abstract class BaseClickHouseTypeMapping
                 List.of("(2, (null, null))"))) {
             assertThat(query(mapStringAsVarcharSession(), "SELECT * FROM " + table.getName()))
                     .matches("SELECT CAST(ROW(2, CAST(ROW(CAST(NULL AS varchar), CAST(NULL AS integer)) AS ROW(name varchar, age integer))) AS ROW(id integer, info ROW(name varchar, age integer)))");
-            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.info.name, c1.info.age FROM " + table.getName(),
+            assertQuery(mapStringAsVarcharSession(),
+                    "SELECT c1.id, c1.info.name, c1.info.age FROM " + table.getName(),
                     "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS integer))");
-            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.info.name, c1.info.age FROM " + table.getName()
+            assertQuery(mapStringAsVarcharSession(),
+                    "SELECT c1.id, c1.info.name, c1.info.age FROM " + table.getName()
                             + " WHERE c1.info.name IS NULL AND c1.info.age IS NULL",
                     "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS integer))");
         }
@@ -2292,7 +2299,9 @@ public abstract class BaseClickHouseTypeMapping
         try (QueryRunner queryRunner = ClickHouseQueryRunner.builder(clickhouseServer)
                 .addConnectorProperty("jdbc-types-mapped-to-varchar", "Int32")
                 .build()) {
-            try (TestTable table = new TestTable(clickhouseServer::execute, "tpch.test_tuple_forced_varchar",
+            try (TestTable table = new TestTable(
+                    clickhouseServer::execute,
+                    "tpch.test_tuple_forced_varchar",
                     "(col Tuple(value Int32)) ENGINE=Log")) {
                 clickhouseServer.execute("INSERT INTO " + table.getName() + " VALUES ((42))");
                 assertThat(queryRunner.execute(getSession(), "SELECT col FROM clickhouse." + table.getName()).getOnlyValue())
@@ -2342,81 +2351,147 @@ public abstract class BaseClickHouseTypeMapping
 
         // Date
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Date)", "['1970-01-01', '2017-07-01']", new ArrayType(DATE),
+                .addRoundTrip(
+                        "Array(Date)",
+                        "['1970-01-01', '2017-07-01']",
+                        new ArrayType(DATE),
                         "ARRAY[DATE '1970-01-01', DATE '2017-07-01']")
-                .addRoundTrip("Array(Date32)", "['1952-04-03', '2017-07-01']", new ArrayType(DATE),
+                .addRoundTrip(
+                        "Array(Date32)",
+                        "['1952-04-03', '2017-07-01']",
+                        new ArrayType(DATE),
                         "ARRAY[DATE '1952-04-03', DATE '2017-07-01']")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_date"));
 
         // Timestamp
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(DateTime)", "['2024-01-15 12:30:45']", new ArrayType(createTimestampType(0)),
+                .addRoundTrip(
+                        "Array(DateTime)",
+                        "['2024-01-15 12:30:45']",
+                        new ArrayType(createTimestampType(0)),
                         "ARRAY[TIMESTAMP '2024-01-15 12:30:45']")
-                .addRoundTrip("Array(DateTime64(3))", "['2024-01-15 12:30:45.123']", new ArrayType(createTimestampType(3)),
+                .addRoundTrip(
+                        "Array(DateTime64(3))",
+                        "['2024-01-15 12:30:45.123']",
+                        new ArrayType(createTimestampType(3)),
                         "ARRAY[TIMESTAMP '2024-01-15 12:30:45.123']")
-                .addRoundTrip("Array(DateTime('UTC'))", "['2024-01-15 12:30:45']", new ArrayType(TIMESTAMP_TZ_SECONDS),
+                .addRoundTrip(
+                        "Array(DateTime('UTC'))",
+                        "['2024-01-15 12:30:45']",
+                        new ArrayType(TIMESTAMP_TZ_SECONDS),
                         "ARRAY[TIMESTAMP '2024-01-15 12:30:45 UTC']")
-                .addRoundTrip("Array(DateTime64(3, 'UTC'))", "['2024-01-15 12:30:45.123']", new ArrayType(createTimestampWithTimeZoneType(3)),
+                .addRoundTrip(
+                        "Array(DateTime64(3, 'UTC'))",
+                        "['2024-01-15 12:30:45.123']",
+                        new ArrayType(createTimestampWithTimeZoneType(3)),
                         "ARRAY[TIMESTAMP '2024-01-15 12:30:45.123 UTC']")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_timestamp"));
 
         // Decimal
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Decimal(3, 1))", "[10.0, 10.1, -10.1]", new ArrayType(createDecimalType(3, 1)),
+                .addRoundTrip(
+                        "Array(Decimal(3, 1))",
+                        "[10.0, 10.1, -10.1]",
+                        new ArrayType(createDecimalType(3, 1)),
                         "ARRAY[CAST('10.0' AS decimal(3, 1)), CAST('10.1' AS decimal(3, 1)), CAST('-10.1' AS decimal(3, 1))]")
-                .addRoundTrip("Array(Decimal(24, 2))", "[2, 2.3, 123456789.3]", new ArrayType(createDecimalType(24, 2)),
+                .addRoundTrip(
+                        "Array(Decimal(24, 2))",
+                        "[2, 2.3, 123456789.3]",
+                        new ArrayType(createDecimalType(24, 2)),
                         "ARRAY[CAST('2.00' AS decimal(24, 2)), CAST('2.30' AS decimal(24, 2)), CAST('123456789.30' AS decimal(24, 2))]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal"));
 
         // String as varbinary (default)
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(String)", "['hello', 'world']", new ArrayType(VARBINARY),
+                .addRoundTrip(
+                        "Array(String)",
+                        "['hello', 'world']",
+                        new ArrayType(VARBINARY),
                         "ARRAY[to_utf8('hello'), to_utf8('world')]")
-                .addRoundTrip("Array(FixedString(8))", "['Alice']", new ArrayType(VARBINARY),
+                .addRoundTrip(
+                        "Array(FixedString(8))",
+                        "['Alice']",
+                        new ArrayType(VARBINARY),
                         "ARRAY[to_utf8('Alice\0\0\0')]")
-                .addRoundTrip("Array(LowCardinality(String))", "['hello', 'world']", new ArrayType(VARBINARY),
+                .addRoundTrip(
+                        "Array(LowCardinality(String))",
+                        "['hello', 'world']",
+                        new ArrayType(VARBINARY),
                         "ARRAY[to_utf8('hello'), to_utf8('world')]")
-                .addRoundTrip("Array(LowCardinality(FixedString(8)))", "['Alice']", new ArrayType(VARBINARY),
+                .addRoundTrip(
+                        "Array(LowCardinality(FixedString(8)))",
+                        "['Alice']",
+                        new ArrayType(VARBINARY),
                         "ARRAY[to_utf8('Alice\0\0\0')]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_string"));
 
         // String as varchar
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(String)", "['hello', 'world']", new ArrayType(VARCHAR),
+                .addRoundTrip(
+                        "Array(String)",
+                        "['hello', 'world']",
+                        new ArrayType(VARCHAR),
                         "CAST(ARRAY['hello', 'world'] AS array(varchar))")
-                .addRoundTrip("Array(FixedString(8))", "['Alice']", new ArrayType(VARCHAR),
+                .addRoundTrip(
+                        "Array(FixedString(8))",
+                        "['Alice']",
+                        new ArrayType(VARCHAR),
                         "CAST(ARRAY[VARCHAR 'Alice\0\0\0'] AS array(varchar))")
-                .addRoundTrip("Array(LowCardinality(String))", "['hello', 'world']", new ArrayType(VARCHAR),
+                .addRoundTrip(
+                        "Array(LowCardinality(String))",
+                        "['hello', 'world']",
+                        new ArrayType(VARCHAR),
                         "CAST(ARRAY['hello', 'world'] AS array(varchar))")
-                .addRoundTrip("Array(LowCardinality(FixedString(8)))", "['Alice']", new ArrayType(VARCHAR),
+                .addRoundTrip(
+                        "Array(LowCardinality(FixedString(8)))",
+                        "['Alice']",
+                        new ArrayType(VARCHAR),
                         "CAST(ARRAY[VARCHAR 'Alice\0\0\0'] AS array(varchar))")
                 .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_array_string_varchar"));
 
         // Enum
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Enum8('active' = 1, 'inactive' = 2))", "['active', 'inactive']",
-                        new ArrayType(createUnboundedVarcharType()), "ARRAY[VARCHAR 'active', VARCHAR 'inactive']")
-                .addRoundTrip("Array(Enum16('low' = 1, 'high' = 2))", "['low', 'high']",
-                        new ArrayType(createUnboundedVarcharType()), "ARRAY[VARCHAR 'low', VARCHAR 'high']")
+                .addRoundTrip(
+                        "Array(Enum8('active' = 1, 'inactive' = 2))",
+                        "['active', 'inactive']",
+                        new ArrayType(createUnboundedVarcharType()),
+                        "ARRAY[VARCHAR 'active', VARCHAR 'inactive']")
+                .addRoundTrip(
+                        "Array(Enum16('low' = 1, 'high' = 2))",
+                        "['low', 'high']",
+                        new ArrayType(createUnboundedVarcharType()),
+                        "ARRAY[VARCHAR 'low', VARCHAR 'high']")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_enum"));
 
         // UUID
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(UUID)", "['114514ea-0601-1981-1142-e9b55b0abd6d']",
-                        new ArrayType(UuidType.UUID), "ARRAY[UUID '114514ea-0601-1981-1142-e9b55b0abd6d']")
+                .addRoundTrip(
+                        "Array(UUID)",
+                        "['114514ea-0601-1981-1142-e9b55b0abd6d']",
+                        new ArrayType(UuidType.UUID),
+                        "ARRAY[UUID '114514ea-0601-1981-1142-e9b55b0abd6d']")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_uuid"));
 
         // IP address
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(IPv4)", "['192.168.1.1', '10.0.0.1']",
-                        new ArrayType(IPADDRESS), "ARRAY[IPADDRESS '192.168.1.1', IPADDRESS '10.0.0.1']")
-                .addRoundTrip("Array(IPv6)", "['2001:db8::1', '::1']",
-                        new ArrayType(IPADDRESS), "ARRAY[IPADDRESS '2001:db8::1', IPADDRESS '::1']")
+                .addRoundTrip(
+                        "Array(IPv4)",
+                        "['192.168.1.1', '10.0.0.1']",
+                        new ArrayType(IPADDRESS),
+                        "ARRAY[IPADDRESS '192.168.1.1', IPADDRESS '10.0.0.1']")
+                .addRoundTrip(
+                        "Array(IPv6)",
+                        "['2001:db8::1', '::1']",
+                        new ArrayType(IPADDRESS),
+                        "ARRAY[IPADDRESS '2001:db8::1', IPADDRESS '::1']")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_ip"));
 
         // Nested arrays
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Array(Int32))", "[[1, 2], [3, 4]]", new ArrayType(new ArrayType(INTEGER)),
+                .addRoundTrip(
+                        "Array(Array(Int32))",
+                        "[[1, 2], [3, 4]]",
+                        new ArrayType(new ArrayType(INTEGER)),
                         "ARRAY[ARRAY[1, 2], ARRAY[3, 4]]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_nested"));
     }
@@ -2425,7 +2500,9 @@ public abstract class BaseClickHouseTypeMapping
     public void testArrayWithTupleElement()
     {
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Tuple(a Int32, b String))", "[(1, 'hello'), (2, 'world')]",
+                .addRoundTrip(
+                        "Array(Tuple(a Int32, b String))",
+                        "[(1, 'hello'), (2, 'world')]",
                         new ArrayType(rowType(field("a", INTEGER), field("b", VARBINARY))),
                         "ARRAY[CAST(ROW(1, to_utf8('hello')) AS row(a integer, b varbinary)), CAST(ROW(2, to_utf8('world')) AS row(a integer, b varbinary))]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_of_tuple"));
@@ -2597,21 +2674,27 @@ public abstract class BaseClickHouseTypeMapping
     {
         // value with trailing zeros: JDBC driver may return BigDecimal with lower scale than column scale
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Decimal(10, 2))", "[123.45, 0.00, 1.00]",
+                .addRoundTrip(
+                        "Array(Decimal(10, 2))",
+                        "[123.45, 0.00, 1.00]",
                         new ArrayType(createDecimalType(10, 2)),
                         "ARRAY[CAST('123.45' AS decimal(10, 2)), CAST('0.00' AS decimal(10, 2)), CAST('1.00' AS decimal(10, 2))]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal_short"));
 
         // long decimal (p > 18)
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Decimal(19, 2))", "[12345678901234567.89, 1.00]",
+                .addRoundTrip(
+                        "Array(Decimal(19, 2))",
+                        "[12345678901234567.89, 1.00]",
                         new ArrayType(createDecimalType(19, 2)),
                         "ARRAY[CAST('12345678901234567.89' AS decimal(19, 2)), CAST('1.00' AS decimal(19, 2))]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal_long"));
 
         // Decimal128(6) = Decimal(38, 6)
         SqlDataTypeTest.create()
-                .addRoundTrip("Array(Decimal128(6))", "[12345678901234567890123456789012.123456]",
+                .addRoundTrip(
+                        "Array(Decimal128(6))",
+                        "[12345678901234567890123456789012.123456]",
                         new ArrayType(createDecimalType(38, 6)),
                         "ARRAY[CAST('12345678901234567890123456789012.123456' AS decimal(38, 6))]")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal128"));
@@ -2685,7 +2768,9 @@ public abstract class BaseClickHouseTypeMapping
         try (QueryRunner queryRunner = ClickHouseQueryRunner.builder(clickhouseServer)
                 .addConnectorProperty("jdbc-types-mapped-to-varchar", "Int32")
                 .build()) {
-            try (TestTable table = new TestTable(clickhouseServer::execute, "tpch.test_array_forced_varchar",
+            try (TestTable table = new TestTable(
+                    clickhouseServer::execute,
+                    "tpch.test_array_forced_varchar",
                     "(col Array(Int32)) ENGINE=Log")) {
                 clickhouseServer.execute("INSERT INTO " + table.getName() + " VALUES ([1, 2, 3])");
                 assertThat(queryRunner.execute(getSession(), "SELECT col FROM clickhouse." + table.getName()).getOnlyValue())
@@ -2698,10 +2783,14 @@ public abstract class BaseClickHouseTypeMapping
     public void testTupleWithArrayField()
     {
         SqlDataTypeTest.create()
-                .addRoundTrip("Tuple(a Int32, b Array(Int32))", "(42, [1, 2, 3])",
+                .addRoundTrip(
+                        "Tuple(a Int32, b Array(Int32))",
+                        "(42, [1, 2, 3])",
                         rowType(field("a", INTEGER), field("b", new ArrayType(INTEGER))),
                         "CAST(ROW(42, ARRAY[1, 2, 3]) AS row(a integer, b array(integer)))")
-                .addRoundTrip("Tuple(a Array(String), b Int32)", "(['hello', 'world'], 7)",
+                .addRoundTrip(
+                        "Tuple(a Array(String), b Int32)",
+                        "(['hello', 'world'], 7)",
                         rowType(field("a", new ArrayType(VARBINARY)), field("b", INTEGER)),
                         "CAST(ROW(ARRAY[to_utf8('hello'), to_utf8('world')], 7) AS row(a array(varbinary), b integer))")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_with_array"));

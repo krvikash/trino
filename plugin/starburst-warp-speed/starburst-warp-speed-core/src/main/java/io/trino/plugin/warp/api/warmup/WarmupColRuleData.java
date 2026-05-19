@@ -35,7 +35,8 @@ public class WarmupColRuleData
     private final Duration ttl;
 
     @JsonCreator
-    public WarmupColRuleData(@JsonProperty("id") int id,
+    public WarmupColRuleData(
+            @JsonProperty("id") int id,
             @JsonProperty("schema") String schema,
             @JsonProperty("table") String table,
             @JsonProperty("column") WarpColumnData column,

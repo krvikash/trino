@@ -414,7 +414,7 @@ public class TestTimestampCoercer
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1888-12-31 15:15:15.123456789", "1888-12-31T15:15:15.123456789");
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1969-12-31 15:15:15.123456789", "1969-12-31T15:15:15.123456789");
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 15:15:15.123456789", "1970-01-01T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 00:00:00.000000001", "1970-01-01T00:00:00.000000001"); //epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 00:00:00.000000001", "1970-01-01T00:00:00.000000001"); // epoch day
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("2024-03-30 15:15:15.123456789", "2024-03-30T15:15:15.123456789");
 
         assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("-9999-12-31 23:59:59.999999999", "-9999-10-15T23:59:59.999999999");
@@ -582,7 +582,7 @@ public class TestTimestampCoercer
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1888-12-31 15:15:15.123456789", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1969-12-31 15:15:15.123456789", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 15:15:15.123456789", zoneId);
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 00:00:00.000000001", zoneId); //epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 00:00:00.000000001", zoneId); // epoch day
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("2024-03-30 15:15:15.123456789", zoneId);
     }
 

@@ -40,8 +40,8 @@ public class TestStatsWrapper
             throws JsonProcessingException
     {
         NativeStats dummyNotInNode = new NativeStats();
-        dummyNotInNode.addread_time_wait_nanos(9); //not persist
-        dummyNotInNode.addread_cache_md_chunk_hits(9); //not persist
+        dummyNotInNode.addread_time_wait_nanos(9); // not persist
+        dummyNotInNode.addread_cache_md_chunk_hits(9); // not persist
         JsonNode jsonNode = jsonMapper.readerFor(List.class).readTree(jsonMapper.writeValueAsString(dummyNotInNode));
         String res = jsonMapper.writeValueAsString(dummyNotInNode);
         assertThat(jsonNode.get("read_time_wait_nanos")).isEqualTo(null);

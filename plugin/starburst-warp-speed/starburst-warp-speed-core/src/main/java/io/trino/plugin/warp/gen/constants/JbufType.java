@@ -27,7 +27,5 @@ public enum JbufType
     JBUF_TYPE_TEMP,
     JBUF_TYPE_NUM_OF;
 
-    JbufType()
-    {
-    }
+    JbufType() {}
 }

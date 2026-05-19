@@ -26,7 +26,8 @@ public class WorkerDictionaryCountResult
     private final String nodeIdentifier;
 
     @JsonCreator
-    public WorkerDictionaryCountResult(@JsonProperty("dictionaryMetadataList") List<DebugDictionaryMetadata> debugDictionaryMetadataList,
+    public WorkerDictionaryCountResult(
+            @JsonProperty("dictionaryMetadataList") List<DebugDictionaryMetadata> debugDictionaryMetadataList,
             @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("nodeIdentifier") String nodeIdentifier)
     {
         this.debugDictionaryMetadataList = debugDictionaryMetadataList;

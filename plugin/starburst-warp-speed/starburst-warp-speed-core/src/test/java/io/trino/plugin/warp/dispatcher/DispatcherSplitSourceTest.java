@@ -78,7 +78,8 @@ public class DispatcherSplitSourceTest
 
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
         mockNodeManager(1, 2, 3);
-        dispatcherSplitSource = new DispatcherSplitSource(connectorSplitSource,
+        dispatcherSplitSource = new DispatcherSplitSource(
+                connectorSplitSource,
                 mock(DispatcherTableHandle.class),
                 mock(ConnectorSession.class),
                 new TestingConnectorProxiedConnectorTransformer(),

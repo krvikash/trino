@@ -3255,13 +3255,15 @@ public class TestIcebergSparkCompatibility
 
         onSpark().executeQuery(format("CREATE TABLE %1$s (customer STRING, zipcode BIGINT, purchase BIGINT) USING ICEBERG TBLPROPERTIES('format-version' = 3, 'write.merge.mode' = '%2$s', 'write.update.mode' = '%2$s')", sparkTableName, mergeMode));
 
-        onTrino().executeQuery(format("""
+        onTrino().executeQuery(format(
+                """
                 INSERT INTO %s (customer, zipcode, purchase)
                         VALUES ('joe_0', 91000, 0),
                                ('joe_1', 91000, 1),
                                ('joe_2', 92000, 2),
                                ('joe_3', 92000, 3)
-                """, trinoTableName));
+                """,
+                trinoTableName));
 
         List<Row> expected = List.of(
                 row("joe_0", 91000, 0, 0, 1),
@@ -3284,7 +3286,6 @@ public class TestIcebergSparkCompatibility
         assertThat(onTrino().executeQuery("SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + trinoTableName)).containsOnly(expected);
         assertThat(onSpark().executeQuery("SELECT customer, zipcode, purchase, _row_id, _last_updated_sequence_number FROM " + sparkTableName)).containsOnly(expected);
 
-
         onSpark().executeQuery(format("INSERT INTO %s (customer, zipcode, purchase) VALUES ('joe_4', 74000, 4), ('joe_5', 74000, 5)", sparkTableName));
         // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory continuous
 
@@ -3304,11 +3305,11 @@ public class TestIcebergSparkCompatibility
         assertThat(onSpark().executeQuery("SELECT customer, zipcode, purchase, _row_id, _last_updated_sequence_number FROM " + sparkTableName)).containsOnly(expected);
 
         onTrino().executeQuery(format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", trinoTableName) +
-                        "    ON t.customer = s.customer" +
-                        "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
-                        "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
-                        "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
-                        "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)");
+                "    ON t.customer = s.customer" +
+                "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
+                "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
+                "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
+                "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)");
         // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory sequential
         expected = List.of(
                 row("joe_2", 60000, 2, 2, 4),

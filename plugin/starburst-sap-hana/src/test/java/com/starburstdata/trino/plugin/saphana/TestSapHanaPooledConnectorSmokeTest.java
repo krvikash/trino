@@ -34,11 +34,11 @@ public class TestSapHanaPooledConnectorSmokeTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_RENAME_SCHEMA,
-                    SUPPORTS_ARRAY,
-                    SUPPORTS_CREATE_VIEW,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_MERGE,
-                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+                 SUPPORTS_ARRAY,
+                 SUPPORTS_CREATE_VIEW,
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_ROW_LEVEL_UPDATE -> false;
             case SUPPORTS_UPDATE -> true;
             default -> super.hasBehavior(connectorBehavior);
         };

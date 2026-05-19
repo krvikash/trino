@@ -48,7 +48,8 @@ public class ExchangeStateMachine
         requireNonNull(initialState, "initialState is null");
         requireNonNull(executor, "executor is null");
         checkArgument(initialState == CREATED || initialState == SOURCE_STREAMING,
-                "unexpected initial exchange state %s", initialState);
+                "unexpected initial exchange state %s",
+                initialState);
         this.exchangeState = new StateMachine<>("exchange " + exchangeId, executor, initialState, TERMINAL_EXCHANGE_STATES);
     }
 

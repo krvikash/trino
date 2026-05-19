@@ -99,7 +99,13 @@ final class TestSortTempFileFactory
         double tolerance = 0.02; // 2% tolerance around expected ratio
         assertThat(actualRatio)
                 .as("Written bytes ratio should be within %.0f%% of expected ratio %.4f. Optimized: %d bytes, ORC: %d bytes, Actual ratio: %.4f, Types: %s, Rows: %d",
-                        tolerance * 100, expectedRatio, optimizedBytes, orcBytes, actualRatio, columnTypes, actualRows)
+                        tolerance * 100,
+                        expectedRatio,
+                        optimizedBytes,
+                        orcBytes,
+                        actualRatio,
+                        columnTypes,
+                        actualRows)
                 .isBetween(expectedRatio * (1 - tolerance), expectedRatio * (1 + tolerance));
     }
 

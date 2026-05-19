@@ -52,14 +52,10 @@ public class RewriteCast
         }
 
         return switch (targetType) {
-            case TinyintType tinyintType ->
-                    Optional.of(new JdbcTypeHandle(TINYINT, Optional.of(tinyintType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
-            case SmallintType smallintType ->
-                    Optional.of(new JdbcTypeHandle(SMALLINT, Optional.of(smallintType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
-            case IntegerType integerType ->
-                    Optional.of(new JdbcTypeHandle(INTEGER, Optional.of(integerType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
-            case BigintType bigintType ->
-                    Optional.of(new JdbcTypeHandle(BIGINT, Optional.of(bigintType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+            case TinyintType tinyintType -> Optional.of(new JdbcTypeHandle(TINYINT, Optional.of(tinyintType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+            case SmallintType smallintType -> Optional.of(new JdbcTypeHandle(SMALLINT, Optional.of(smallintType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+            case IntegerType integerType -> Optional.of(new JdbcTypeHandle(INTEGER, Optional.of(integerType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
+            case BigintType bigintType -> Optional.of(new JdbcTypeHandle(BIGINT, Optional.of(bigintType.getBaseName()), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
             case DecimalType decimalType -> Optional.of(new JdbcTypeHandle(
                     NUMBER,
                     Optional.of("NUMBER"),
@@ -74,10 +70,8 @@ public class RewriteCast
                     Optional.empty(),
                     Optional.empty(),
                     Optional.empty()));
-            case VarcharType varcharType ->
-                    Optional.of(new JdbcTypeHandle(VARCHAR, Optional.of(varcharType.getBaseName()), varcharType.getLength(), Optional.empty(), Optional.empty(), Optional.empty()));
-            case DateType dateType ->
-                    Optional.of(new JdbcTypeHandle(DATE, Optional.of(dateType.getBaseName()), Optional.of(10), Optional.empty(), Optional.empty(), Optional.empty()));
+            case VarcharType varcharType -> Optional.of(new JdbcTypeHandle(VARCHAR, Optional.of(varcharType.getBaseName()), varcharType.getLength(), Optional.empty(), Optional.empty(), Optional.empty()));
+            case DateType dateType -> Optional.of(new JdbcTypeHandle(DATE, Optional.of(dateType.getBaseName()), Optional.of(10), Optional.empty(), Optional.empty(), Optional.empty()));
             case TimestampType timestampType -> Optional.of(new JdbcTypeHandle(
                     TIMESTAMP,
                     Optional.of(timestampType.getBaseName()),

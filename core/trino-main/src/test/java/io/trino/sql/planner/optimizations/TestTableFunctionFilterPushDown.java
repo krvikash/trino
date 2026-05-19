@@ -61,11 +61,12 @@ public class TestTableFunctionFilterPushDown
     public void testFilterOnPassThroughColumnPushedBelowJsonTable()
     {
         // A filter on a pass-through column `orderkey` is pushed below the table function
-        @Language("SQL") String sql = """
-                                      SELECT x
-                                      FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
-                                      WHERE orderkey = 1
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT x
+                FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
+                WHERE orderkey = 1
+                """;
 
         assertPlan(sql,
                 output(
@@ -82,12 +83,13 @@ public class TestTableFunctionFilterPushDown
     {
         // A filter on a pass-through column `orderkey` is pushed below the table function
         // even when JSON_TABLE is planned as an OUTER join to the input row.
-        @Language("SQL") String sql = """
-                                      SELECT x
-                                      FROM orders
-                                      LEFT JOIN JSON_TABLE(comment, 'lax $[100]' AS root COLUMNS(x BIGINT PATH 'lax $')) ON TRUE
-                                      WHERE orderkey = 1
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT x
+                FROM orders
+                LEFT JOIN JSON_TABLE(comment, 'lax $[100]' AS root COLUMNS(x BIGINT PATH 'lax $')) ON TRUE
+                WHERE orderkey = 1
+                """;
 
         assertPlan(sql,
                 output(
@@ -103,11 +105,12 @@ public class TestTableFunctionFilterPushDown
     public void testFilterOnProperOutputColumnRemainsAboveJsonTable()
     {
         // A filter on a proper output column `x` cannot be pushed below
-        @Language("SQL") String sql = """
-                                      SELECT orderkey, x
-                                      FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
-                                      WHERE x = 1
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT orderkey, x
+                FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
+                WHERE x = 1
+                """;
 
         assertPlan(sql,
                 output(
@@ -127,11 +130,12 @@ public class TestTableFunctionFilterPushDown
         ResolvedFunction addFunction = new TestingFunctionResolution().resolveOperator(OperatorType.ADD, ImmutableList.of(BIGINT, BIGINT));
         // A single conjunct that references both a pass-through column and a proper output column
         // cannot be pushed — the whole conjunct stays above
-        @Language("SQL") String sql = """
-                                      SELECT orderkey, x
-                                      FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
-                                      WHERE orderkey + x > 0
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT orderkey, x
+                FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
+                WHERE orderkey + x > 0
+                """;
 
         assertPlan(sql,
                 anyTree(
@@ -152,17 +156,19 @@ public class TestTableFunctionFilterPushDown
     public void testPartialPushdownThroughJsonTable()
     {
         // One conjunct on a pass-through column is pushed below; one on a proper output stays above.
-        @Language("SQL") String sql = """
-                                      SELECT x
-                                      FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
-                                      WHERE orderkey = 1 AND x = 2
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT x
+                FROM orders, JSON_TABLE(comment, 'lax $' AS root COLUMNS(x BIGINT PATH 'lax $'))
+                WHERE orderkey = 1 AND x = 2
+                """;
 
         assertPlan(sql,
                 anyTree(
                         filter(
                                 new Comparison(EQUAL, new Reference(BIGINT, "x"), new Constant(BIGINT, 2L)),
-                                tableFunctionProcessor(builder -> builder
+                                tableFunctionProcessor(
+                                        builder -> builder
                                                 .name("$json_table")
                                                 .passThroughSymbols(ImmutableList.of(ImmutableList.of()))
                                                 .properOutputs(ImmutableList.of("x")),
@@ -176,12 +182,13 @@ public class TestTableFunctionFilterPushDown
     public void testFilterOnPartitioningColumnPushedThroughTableFunction()
     {
         // A filter on a partitioning column is pushed below the table function
-        @Language("SQL") String sql = """
-                                      SELECT *
-                                      FROM TABLE(mock.system.pass_through_function(
-                                          INPUT => TABLE(SELECT orderkey, totalprice FROM orders) PARTITION BY orderkey))
-                                      WHERE orderkey = 1
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT *
+                FROM TABLE(mock.system.pass_through_function(
+                    INPUT => TABLE(SELECT orderkey, totalprice FROM orders) PARTITION BY orderkey))
+                WHERE orderkey = 1
+                """;
 
         assertPlan(sql,
                 output(
@@ -198,12 +205,13 @@ public class TestTableFunctionFilterPushDown
     public void testFilterOnNonPartitioningPassThroughColumnNotPushedForArbitraryTableFunction()
     {
         // A filter on a non-partitioning pass-through column must not be pushed for non-JsonTable functions.
-        @Language("SQL") String sql = """
-                                      SELECT *
-                                      FROM TABLE(mock.system.pass_through_function(
-                                          INPUT => TABLE(SELECT orderkey, totalprice FROM orders) PARTITION BY orderkey))
-                                      WHERE totalprice > 100.0
-                                      """;
+        @Language("SQL") String sql =
+                """
+                SELECT *
+                FROM TABLE(mock.system.pass_through_function(
+                    INPUT => TABLE(SELECT orderkey, totalprice FROM orders) PARTITION BY orderkey))
+                WHERE totalprice > 100.0
+                """;
 
         assertPlan(sql,
                 output(

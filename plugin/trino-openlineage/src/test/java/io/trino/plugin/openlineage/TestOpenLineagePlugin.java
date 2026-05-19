@@ -32,7 +32,8 @@ final class TestOpenLineagePlugin
                         ImmutableMap.<String, String>builder()
                                 .put("openlineage-event-listener.transport.type", "noop")
                                 .put("bootstrap.quiet", "true")
-                                .buildOrThrow(), new TestingEventListenerContext())
+                                .buildOrThrow(),
+                        new TestingEventListenerContext())
                 .shutdown();
     }
 

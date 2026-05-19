@@ -230,7 +230,8 @@ public class TestHiveMetadataListing
     }
 
     @Test
-    public void testTableCommentsListing() {
+    public void testTableCommentsListing()
+    {
         String withSchemaFilterForComments = format(
                 "SELECT comment FROM system.metadata.table_comments WHERE schema_name = '%s'",
                 DATABASE_NAME);

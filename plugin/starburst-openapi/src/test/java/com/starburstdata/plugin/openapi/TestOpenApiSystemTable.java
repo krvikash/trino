@@ -69,7 +69,8 @@ public class TestOpenApiSystemTable
     @Test
     void testTableFunctionsTableApiPaths()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT function_name, api_path
                 FROM openapi.system.table_functions
                 WHERE function_name = 'pet_find_by_status'"""))
@@ -79,13 +80,15 @@ public class TestOpenApiSystemTable
     @Test
     void testTableFunctionsTableDescriptions()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT description
                 FROM openapi.system.table_functions
                 WHERE function_name = 'pet_find_by_status'"""))
                 .matches("VALUES CAST('Finds Pets by status.' AS VARCHAR)");
 
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT description
                 FROM openapi.system.table_functions
                 WHERE function_name = 'pet_pet_id'"""))
@@ -95,7 +98,8 @@ public class TestOpenApiSystemTable
     @Test
     void testTableFunctionsTableInputColumns()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT col_type, col_required
                 FROM openapi.system.table_functions
                 CROSS JOIN UNNEST(input_columns) AS t(col_name, col_type, col_required)
@@ -108,7 +112,8 @@ public class TestOpenApiSystemTable
     void testTableFunctionsTableInputColumnsNullWhenNoParameters()
     {
         // store_inventory has no query parameters — input_columns must be NULL
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT input_columns
                 FROM openapi.system.table_functions
                 WHERE function_name = 'store_inventory'"""))
@@ -118,13 +123,15 @@ public class TestOpenApiSystemTable
     @Test
     void testTableFunctionsTableOutputColumns()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT cardinality(output_columns) > 0
                 FROM openapi.system.table_functions
                 WHERE function_name = 'store_inventory'"""))
                 .matches("VALUES true");
 
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT output_columns[1].name IS NOT NULL
                 FROM openapi.system.table_functions
                 WHERE function_name = 'store_inventory'"""))
@@ -134,11 +141,13 @@ public class TestOpenApiSystemTable
     @Test
     void testTableFunctionsTableFilterByApiPath()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT function_name
                 FROM openapi.system.table_functions
                 WHERE api_path LIKE '/pet%'"""))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             CAST('pet_find_by_status' AS VARCHAR),
                             CAST('pet_find_by_tags' AS VARCHAR),

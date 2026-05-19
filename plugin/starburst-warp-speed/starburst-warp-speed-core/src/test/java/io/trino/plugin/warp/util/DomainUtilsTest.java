@@ -35,7 +35,8 @@ public class DomainUtilsTest
     public void testSimplify()
     {
         int predicateThreshold = 1;
-        List<Range> tooManyRanges = ImmutableList.of(Range.lessThan(VarcharType.VARCHAR, Slices.utf8Slice("a")),
+        List<Range> tooManyRanges = ImmutableList.of(
+                Range.lessThan(VarcharType.VARCHAR, Slices.utf8Slice("a")),
                 Range.greaterThan(VarcharType.VARCHAR, Slices.utf8Slice("s")));
 
         Domain tooBigDomain = Domain.create(SortedRangeSet.copyOf(VarcharType.VARCHAR, tooManyRanges), true);
@@ -55,7 +56,8 @@ public class DomainUtilsTest
 
     private Domain createSimplifyExpectedResult(Domain domain)
     {
-        return Domain.create(SortedRangeSet.copyOf(domain.getType(),
+        return Domain.create(SortedRangeSet.copyOf(
+                        domain.getType(),
                         Collections.singletonList(domain.getValues().getRanges().getSpan())),
                 domain.isNullAllowed());
     }

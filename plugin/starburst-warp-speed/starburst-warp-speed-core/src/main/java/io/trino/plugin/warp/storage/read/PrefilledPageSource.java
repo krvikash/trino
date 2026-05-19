@@ -44,7 +44,8 @@ public class PrefilledPageSource
     private final Optional<RowGroupCloseHandler> closeHandler;
     private boolean finished;
 
-    public PrefilledPageSource(Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex,
+    public PrefilledPageSource(
+            Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex,
             DispatcherPageSourceStats stats,
             RowGroupData rowGroupData,
             int totalRecords,

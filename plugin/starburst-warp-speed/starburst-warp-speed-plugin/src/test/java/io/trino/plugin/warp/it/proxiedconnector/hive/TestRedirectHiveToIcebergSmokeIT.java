@@ -44,11 +44,13 @@ public class TestRedirectHiveToIcebergSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(storageEngineModule,
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
+                storageEngineModule,
                 Optional.empty(),
                 numNodes,
                 Collections.emptyMap(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",

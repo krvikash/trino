@@ -56,8 +56,11 @@ public class CacheManagerModule
         binder.bind(WarpCacheFilesMerger.class);
         binder.bind(MemoryContextService.class);
         binder.bind(CacheManagerContext.class).toInstance(context);
-        MapBinder<CacheWarmState, CacheAction> mapBinder = MapBinder.newMapBinder(binder,
-                CacheWarmState.class, CacheAction.class, Names.named("CacheActions"));
+        MapBinder<CacheWarmState, CacheAction> mapBinder = MapBinder.newMapBinder(
+                binder,
+                CacheWarmState.class,
+                CacheAction.class,
+                Names.named("CacheActions"));
 
         mapBinder.addBinding(CacheWarmState.FINISHING).to(FinishAction.class);
         mapBinder.addBinding(CacheWarmState.EMPTY_PAGE).to(EmptyPageAction.class);

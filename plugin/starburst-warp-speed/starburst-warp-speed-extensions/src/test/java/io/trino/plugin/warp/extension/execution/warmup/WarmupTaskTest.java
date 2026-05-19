@@ -74,7 +74,8 @@ public class WarmupTaskTest
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
         warpClient = mock(WarpClient.class);
 
-        task = new WarmupTask(warmupRuleService,
+        task = new WarmupTask(
+                warmupRuleService,
                 warmupRuleFetcher,
                 coordinatorNodeManager,
                 warpClient,
@@ -128,7 +129,8 @@ public class WarmupTaskTest
 
         ImmutableList<WarmupColRuleUsageData> workerWarmupColRuleDataList = warmupRules.stream()
                 .map(WarmupRuleApiMapper::fromModel)
-                .map(warmupColRuleData -> new WarmupColRuleUsageData(warmupColRuleData.getId(),
+                .map(warmupColRuleData -> new WarmupColRuleUsageData(
+                        warmupColRuleData.getId(),
                         warmupColRuleData.getSchema(),
                         warmupColRuleData.getTable(),
                         warmupColRuleData.getColumn(),
@@ -138,7 +140,8 @@ public class WarmupTaskTest
                         warmupColRuleData.getPredicates(),
                         10 * WorkerWarmupTask.MEGABYTE))
                 .collect(toImmutableList());
-        ImmutableList<WarmupDefaultRuleUsageData> defaultRuleUsageData = ImmutableList.of(new WarmupDefaultRuleUsageData(8 * WorkerWarmupTask.MEGABYTE, WarmUpType.WARM_UP_TYPE_DATA),
+        ImmutableList<WarmupDefaultRuleUsageData> defaultRuleUsageData = ImmutableList.of(
+                new WarmupDefaultRuleUsageData(8 * WorkerWarmupTask.MEGABYTE, WarmUpType.WARM_UP_TYPE_DATA),
                 new WarmupDefaultRuleUsageData(4 * WorkerWarmupTask.MEGABYTE, WarmUpType.WARM_UP_TYPE_BASIC));
         WarmupRulesUsageData warmupRulesUsageData = new WarmupRulesUsageData(workerWarmupColRuleDataList, defaultRuleUsageData);
         when(warpClient.getRestEndpoint(any())).thenReturn(HttpUriBuilder.uriBuilderFrom(URI.create("http://aaa.com")));

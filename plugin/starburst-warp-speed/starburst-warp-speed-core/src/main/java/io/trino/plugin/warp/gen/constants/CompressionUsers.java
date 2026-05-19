@@ -24,7 +24,5 @@ public enum CompressionUsers
     COMPRESSION_USERS_CHUNKS_MAP,
     COMPRESSION_USERS_NUM_OF;
 
-    CompressionUsers()
-    {
-    }
+    CompressionUsers() {}
 }

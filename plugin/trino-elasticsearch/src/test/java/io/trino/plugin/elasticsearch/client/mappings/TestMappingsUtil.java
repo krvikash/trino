@@ -64,7 +64,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -77,7 +78,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -90,7 +92,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -110,7 +113,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -123,7 +127,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -135,7 +140,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -155,7 +161,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -167,7 +174,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -180,7 +188,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -199,7 +208,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -211,7 +221,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -223,7 +234,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -242,7 +254,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -253,7 +266,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -264,7 +278,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -281,7 +296,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -292,7 +308,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -304,7 +321,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -323,7 +341,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -341,7 +360,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -359,7 +379,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -384,7 +405,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -397,7 +419,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -410,7 +433,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -435,7 +459,8 @@ final class TestMappingsUtil
             throws MergingMappingException
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -454,7 +479,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -473,7 +499,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String expectedMappings = """
+        String expectedMappings =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -503,7 +530,8 @@ final class TestMappingsUtil
     void testShouldNotCreateArrayOfTypesForPropertyNameOtherThanType()
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -516,7 +544,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -536,7 +565,8 @@ final class TestMappingsUtil
     void testShouldComplainOnNotCompatibleFields()
     {
         @Language("JSON")
-        String mappings1 = """
+        String mappings1 =
+                """
                 {
                   "mappings": {
                     "properties": {
@@ -549,7 +579,8 @@ final class TestMappingsUtil
                 """;
 
         @Language("JSON")
-        String mappings2 = """
+        String mappings2 =
+                """
                 {
                   "mappings": {
                     "properties": {

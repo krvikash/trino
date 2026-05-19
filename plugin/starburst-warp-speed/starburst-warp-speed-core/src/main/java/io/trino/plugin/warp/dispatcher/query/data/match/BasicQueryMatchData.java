@@ -33,7 +33,8 @@ public class BasicQueryMatchData
 {
     protected final NativeExpression nativeExpression;
 
-    private BasicQueryMatchData(WarmUpElement warmUpElement,
+    private BasicQueryMatchData(
+            WarmUpElement warmUpElement,
             Type type,
             PredicateCacheData predicateCacheData,
             boolean collectNulls,
@@ -62,8 +63,11 @@ public class BasicQueryMatchData
     @Override
     public boolean canMapMatchCollect()
     {
-        return domain.filter(domain -> PredicateUtil.canMapMatchCollect(domain.getType(), getNativeExpression().predicateType(),
-                getNativeExpression().functionType(), domain.getValues().getRanges().getRangeCount())).isPresent();
+        return domain.filter(domain -> PredicateUtil.canMapMatchCollect(
+                domain.getType(),
+                getNativeExpression().predicateType(),
+                getNativeExpression().functionType(),
+                domain.getValues().getRanges().getRangeCount())).isPresent();
     }
 
     @Override
@@ -139,7 +143,8 @@ public class BasicQueryMatchData
         @Override
         public BasicQueryMatchData build()
         {
-            return new BasicQueryMatchData(warmUpElementOptional.orElseThrow(),
+            return new BasicQueryMatchData(
+                    warmUpElementOptional.orElseThrow(),
                     type,
                     predicateCacheData,
                     collectNulls,

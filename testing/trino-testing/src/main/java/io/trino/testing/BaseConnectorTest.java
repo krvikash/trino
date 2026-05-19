@@ -7556,10 +7556,11 @@ public abstract class BaseConnectorTest
     @Test
     public void testCteReuse()
     {
-        String query = """
-                       WITH t as (SELECT * FROM nation WHERE nationkey > 3)
-                       SELECT cardinality(histogram(regionkey)) FROM t UNION ALL SELECT cardinality(histogram(nationkey)) FROM t
-                       """;
+        String query =
+                """
+                WITH t as (SELECT * FROM nation WHERE nationkey > 3)
+                SELECT cardinality(histogram(regionkey)) FROM t UNION ALL SELECT cardinality(histogram(nationkey)) FROM t
+                """;
         String explainQuery = "EXPLAIN " + query;
 
         String planWithoutCteReuse = (String) computeActual(explainQuery).getOnlyValue();
@@ -7597,10 +7598,11 @@ public abstract class BaseConnectorTest
         String createTable = "CREATE TABLE " + tableName + " AS SELECT nationkey, CAST(ROW(regionkey, nationkey) AS row(regionkey bigint, x bigint)) r FROM nation";
         assertUpdate(createTable, 25);
 
-        String query = """
-                       WITH t as (SELECT * FROM %s)
-                       SELECT count(r.regionkey) FROM t UNION ALL SELECT max(nationkey) FROM t
-                       """.formatted(tableName);
+        String query =
+                """
+                WITH t as (SELECT * FROM %s)
+                SELECT count(r.regionkey) FROM t UNION ALL SELECT max(nationkey) FROM t
+                """.formatted(tableName);
         String explainQuery = "EXPLAIN " + query;
 
         String planWithoutCteReuse = (String) computeActual(explainQuery).getOnlyValue();

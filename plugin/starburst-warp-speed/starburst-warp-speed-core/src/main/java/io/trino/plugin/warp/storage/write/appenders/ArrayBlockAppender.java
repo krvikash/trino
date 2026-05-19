@@ -33,7 +33,8 @@ public class ArrayBlockAppender
     private final VariableLengthStringBlockAppender varcharBlockAppender;
     private final Type filterType;
 
-    public ArrayBlockAppender(BlockTransformerFactory blockTransformerFactory,
+    public ArrayBlockAppender(
+            BlockTransformerFactory blockTransformerFactory,
             WriteJuffersWarmUpElement juffersWE,
             VariableLengthStringBlockAppender varcharBlockAppender,
             Type filterType)
@@ -45,7 +46,8 @@ public class ArrayBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos,
+    public AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)

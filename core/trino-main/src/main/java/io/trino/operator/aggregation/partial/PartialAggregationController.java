@@ -136,7 +136,7 @@ public class PartialAggregationController
     {
         AGGREGATION,
         HLL,
-        PASSTHROUGH
+        PASSTHROUGH,
     }
 
     /**

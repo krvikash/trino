@@ -566,8 +566,8 @@ public class ElasticsearchMetadata
                         if (metadata.schema()
                                 .fields().stream()
                                 .anyMatch(field -> columnName.equals(field.name()) &&
-                                                   ((field.type() instanceof PrimitiveType(String name) && "keyword".equals(name))
-                                                   || column.delegatedField().isPresent()))) {
+                                        ((field.type() instanceof PrimitiveType(String name) && "keyword".equals(name))
+                                                || column.delegatedField().isPresent()))) {
                             newRegexes.put(columnName + column.delegatedField().map(delegate -> "." + delegate).orElse(""),
                                     likeToRegexp(slice, escape));
                             continue;

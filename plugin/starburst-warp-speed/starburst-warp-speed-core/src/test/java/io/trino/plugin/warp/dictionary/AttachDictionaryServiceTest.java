@@ -57,7 +57,8 @@ class AttachDictionaryServiceTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         DictionaryWriterFactory dictionaryWriterFactory = new DictionaryWriterFactory();
 
-        attachDictionaryService = new AttachDictionaryService(mock(WorkerCapacityManager.class),
+        attachDictionaryService = new AttachDictionaryService(
+                mock(WorkerCapacityManager.class),
                 storageEngineConstants,
                 new DictionaryConfig(),
                 metricsManager,
@@ -91,7 +92,8 @@ class AttachDictionaryServiceTest
     public void testReadWriteDictionaryFixedLengthChar()
             throws IOException
     {
-        io.airlift.slice.Slice[] values = {Slices.utf8Slice("aaa"),
+        io.airlift.slice.Slice[] values = {
+                Slices.utf8Slice("aaa"),
                 Slices.utf8Slice("bbbb"),
                 Slices.utf8Slice("cccc"),
                 Slices.utf8Slice("dddd"),
@@ -121,7 +123,8 @@ class AttachDictionaryServiceTest
     public void testReadWriteDictionaryChangedLengthChar()
             throws IOException
     {
-        io.airlift.slice.Slice[] values = {Slices.utf8Slice("1"),
+        io.airlift.slice.Slice[] values = {
+                Slices.utf8Slice("1"),
                 Slices.utf8Slice("88888888"),
                 Slices.utf8Slice("333"),
                 Slices.utf8Slice("4444"),

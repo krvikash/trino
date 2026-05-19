@@ -59,8 +59,12 @@ public class LocalDiskTier
         validateExchangeIdAsPathSegment(directory, exchangeId);
         if (memorySkipThreshold.isEmpty()
                 || exchangeCumulativeClosedBytes < memorySkipThreshold.get().toBytes()) {
-            log.debug("Disk tier skipped for exchange %s chunk %s: cumulativeClosedBytes=%s, threshold=%s",
-                    exchangeId, chunkId, exchangeCumulativeClosedBytes, memorySkipThreshold.map(DataSize::toBytes).orElse(-1L));
+            log.debug(
+                    "Disk tier skipped for exchange %s chunk %s: cumulativeClosedBytes=%s, threshold=%s",
+                    exchangeId,
+                    chunkId,
+                    exchangeCumulativeClosedBytes,
+                    memorySkipThreshold.map(DataSize::toBytes).orElse(-1L));
             return Optional.empty();
         }
 

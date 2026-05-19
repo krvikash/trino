@@ -47,7 +47,8 @@ class VariableLengthStringBlockAppenderTest
     public void beforeEach()
     {
         super.beforeEach();
-        blockAppender = new VariableLengthStringBlockAppender(writeJuffersWarmUpElement,
+        blockAppender = new VariableLengthStringBlockAppender(
+                writeJuffersWarmUpElement,
                 new StubsStorageEngineConstants(),
                 5,
                 VARCHAR_TYPE,
@@ -56,7 +57,8 @@ class VariableLengthStringBlockAppenderTest
 
     static Stream<Arguments> params()
     {
-        List<Slice> values = List.of(Slices.utf8Slice("aaaaa"),
+        List<Slice> values = List.of(
+                Slices.utf8Slice("aaaaa"),
                 Slices.utf8Slice("bbbbb"),
                 Slices.utf8Slice("ccccc"),
                 Slices.utf8Slice("ddddd"));

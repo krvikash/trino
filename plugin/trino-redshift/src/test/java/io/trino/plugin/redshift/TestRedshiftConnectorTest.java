@@ -798,7 +798,6 @@ public class TestRedshiftConnectorTest
                 "test_like_predicate_pushdown_char_with_spaces",
                 "(id integer, data CHAR(5))",
                 List.of("1, 'ABC'", "2, 'ABC '", "3, 'ABC  '", "4, NULL"))) {
-
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC'"))
                     .returnsEmptyResult()
                     .isFullyPushedDown();

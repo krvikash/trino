@@ -22,7 +22,5 @@ public enum WarmUpType
     WARM_UP_TYPE_DATA,
     WARM_UP_TYPE_NUM_OF;
 
-    WarmUpType()
-    {
-    }
+    WarmUpType() {}
 }

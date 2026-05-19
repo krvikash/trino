@@ -34,9 +34,10 @@ public class DispatcherNodePartitioningProvider
     private final CoordinatorNodeManager coordinatorNodeManager;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
 
-    public DispatcherNodePartitioningProvider(ConnectorNodePartitioningProvider nodePartitionProvider,
-                                              CoordinatorNodeManager coordinatorNodeManager,
-                                              DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
+    public DispatcherNodePartitioningProvider(
+            ConnectorNodePartitioningProvider nodePartitionProvider,
+            CoordinatorNodeManager coordinatorNodeManager,
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
         this.nodePartitionProvider = nodePartitionProvider;
         this.coordinatorNodeManager = coordinatorNodeManager;

@@ -55,7 +55,8 @@ public class GcsCloudStorage
 
         Blob targetBlob = storage.createFrom(blobInfo, Path.of(source.toString()), precondition);
 
-        return new CloudObjectMetadata(targetBlob.getEtag(),
+        return new CloudObjectMetadata(
+                targetBlob.getEtag(),
                 targetBlob.getTimeStorageClassUpdatedOffsetDateTime().toInstant(),
                 targetBlob.getSize());
     }
@@ -89,7 +90,8 @@ public class GcsCloudStorage
 
         Blob destinationBlob = blob.get().copyTo(GcsUtils.getBlobId(targetLocation)).getResult();
 
-        return new CloudObjectMetadata(destinationBlob.getEtag(),
+        return new CloudObjectMetadata(
+                destinationBlob.getEtag(),
                 destinationBlob.getTimeStorageClassUpdatedOffsetDateTime().toInstant(),
                 destinationBlob.getSize());
     }

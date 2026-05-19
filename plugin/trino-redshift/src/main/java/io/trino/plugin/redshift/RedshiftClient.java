@@ -486,7 +486,8 @@ public class RedshiftClient
 
             List<JdbcColumnHandle> result = columns.build();
             if (result.isEmpty()) {
-                throw new TableNotFoundException(schemaTableName,
+                throw new TableNotFoundException(
+                        schemaTableName,
                         "External table '%s' has no supported columns".formatted(schemaTableName));
             }
             return result;
@@ -542,8 +543,7 @@ public class RedshiftClient
             case "timestamptz", "timestamp with time zone" -> new JdbcTypeHandle(Types.TIMESTAMP_WITH_TIMEZONE, Optional.of("timestamptz"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
             case "binary", "varbyte", "varbinary" -> new JdbcTypeHandle(Types.LONGVARBINARY, Optional.of("binary"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
             // Unbounded string types
-            case "string", "varchar", "character varying", "nvarchar", "text" ->
-                    new JdbcTypeHandle(Types.VARCHAR, Optional.of("varchar"), Optional.of(REDSHIFT_MAX_VARCHAR), Optional.empty(), Optional.empty(), Optional.empty());
+            case "string", "varchar", "character varying", "nvarchar", "text" -> new JdbcTypeHandle(Types.VARCHAR, Optional.of("varchar"), Optional.of(REDSHIFT_MAX_VARCHAR), Optional.empty(), Optional.empty(), Optional.empty());
             // Complex / unknown types (array, struct, map, etc.) → VARCHAR
             default -> new JdbcTypeHandle(Types.VARCHAR, Optional.of("varchar"), Optional.of(REDSHIFT_MAX_VARCHAR), Optional.empty(), Optional.empty(), Optional.empty());
         };

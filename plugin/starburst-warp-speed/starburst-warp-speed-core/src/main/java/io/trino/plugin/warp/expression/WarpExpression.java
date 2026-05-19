@@ -19,13 +19,14 @@ import io.trino.spi.type.Type;
 
 import java.util.List;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
         property = "expressionType")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = WarpVariable.class, name = "variable"),
         @JsonSubTypes.Type(value = WarpCall.class, name = "call"),
         @JsonSubTypes.Type(value = WarpSliceConstant.class, name = "slice"),
-        @JsonSubTypes.Type(value = WarpPrimitiveConstant.class, name = "primitive")
+        @JsonSubTypes.Type(value = WarpPrimitiveConstant.class, name = "primitive"),
 })
 public interface WarpExpression
 {

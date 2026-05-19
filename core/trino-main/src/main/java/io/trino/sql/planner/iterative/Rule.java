@@ -76,10 +76,10 @@ public interface Rule<T>
 
         /**
          * @param mainAlternative an alternative that won't be pruned by the engine, one that can be used for all splits,
-         * or empty if the original {@code PlanNode} is to be retained.
+         *         or empty if the original {@code PlanNode} is to be retained.
          * @param additionalAlternatives the rest of the alternatives or an empty list if there are no more alternatives.
-         * The engine might prune elements off the end of the list or even ignore it completely.
-         * For example, if the rule was run by an optimizer that is not alternative-aware.
+         *         The engine might prune elements off the end of the list or even ignore it completely.
+         *         For example, if the rule was run by an optimizer that is not alternative-aware.
          */
         public static Result ofNodeAlternatives(Optional<PlanNode> mainAlternative, Iterable<PlanNode> additionalAlternatives)
         {
@@ -99,7 +99,7 @@ public interface Rule<T>
 
         /**
          * @return true if there's no main alternative nor additional alternatives.
-         * When running within an optimizer that is not alternative-aware, prefer {@code getMainAlternative().isEmpty()} over this method
+         *         When running within an optimizer that is not alternative-aware, prefer {@code getMainAlternative().isEmpty()} over this method
          */
         public boolean isEmpty()
         {

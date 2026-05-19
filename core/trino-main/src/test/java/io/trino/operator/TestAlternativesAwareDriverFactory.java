@@ -265,9 +265,7 @@ public class TestAlternativesAwareDriverFactory
         }
 
         @Override
-        public void noMoreOperators()
-        {
-        }
+        public void noMoreOperators() {}
 
         @Override
         public OperatorFactory duplicate()

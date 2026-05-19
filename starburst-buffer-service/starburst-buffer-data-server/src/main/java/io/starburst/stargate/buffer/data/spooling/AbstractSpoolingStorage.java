@@ -31,7 +31,7 @@ import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translate
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractSpoolingStorage
-            implements SpoolingStorage
+        implements SpoolingStorage
 {
     private final MergedFileNameGenerator mergedFileNameGenerator;
     private final CounterStat spooledDataSize;
@@ -72,8 +72,10 @@ public abstract class AbstractSpoolingStorage
         String mergedFileName = mergedFileNameGenerator.getNextMergedFileName(bufferNodeId, exchangeId);
         ListenableFuture<Map<Long, SpooledChunk>> putObjectFuture = putStorageObject(mergedFileName, chunkDataLeaseMap, contentLength);
         // not chaining result with whenComplete as it breaks cancellation
-        Futures.addCallback(putObjectFuture,
-                new FutureCallback<Object>() {
+        Futures.addCallback(
+                putObjectFuture,
+                new FutureCallback<Object>()
+                {
                     @Override
                     public void onSuccess(Object result)
                     {
@@ -88,7 +90,8 @@ public abstract class AbstractSpoolingStorage
                     {
                         spoolingFailures.update(1);
                     }
-                }, directExecutor());
+                },
+                directExecutor());
         return translateFailures(putObjectFuture);
     }
 

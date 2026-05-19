@@ -10,6 +10,4 @@
 package io.starburst.ai.client;
 
 public interface ModelClientProviderWithDao
-        extends ModelClientProvider, ModelConnectionSpecDao
-{
-}
+        extends ModelClientProvider, ModelConnectionSpecDao {}

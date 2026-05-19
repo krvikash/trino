@@ -129,7 +129,7 @@ public class WarpCacheTask
         CacheWarmState cacheWarmState = CacheWarmState.ABORT_ON_INIT_PROCESS;
         boolean loadFromWarmingThread = false;
         if (revoked) {
-            //all resources already released by @revoke
+            // all resources already released by @revoke
             return;
         }
         if (isAborted()) {
@@ -247,7 +247,7 @@ public class WarpCacheTask
             }
         }
         else {
-            cacheWarmupElementArgs.getWarmupCandidate().setFailedCandidate(); //mark the candidate who caused the failure.
+            cacheWarmupElementArgs.getWarmupCandidate().setFailedCandidate(); // mark the candidate who caused the failure.
             setWarpAbort();
         }
     }
@@ -260,8 +260,10 @@ public class WarpCacheTask
         }
         statsWarmingService.incwarm_started();
         warmupCacheData.getCacheWarmupElementArgsList().forEach(cacheWarmupElementArgs -> {
-            WarmingCandidate warmingCandidate = new WarmingCandidate(new long[] {INVALID_FILE_COOKIE_FD,
-                    0, 0}, null, 0, cacheWarmupElementArgs.getWarmupElementWriteMetadata(), null, null);
+            WarmingCandidate warmingCandidate = new WarmingCandidate(new long[] {
+                    INVALID_FILE_COOKIE_FD,
+                    0, 0,
+            }, null, 0, cacheWarmupElementArgs.getWarmupElementWriteMetadata(), null, null);
             cacheWarmupElementArgs.setWarmingCandidate(warmingCandidate);
         });
         CacheWarmState cacheWarmState = CacheWarmState.EMPTY_PAGE;
@@ -285,7 +287,8 @@ public class WarpCacheTask
         finally {
             try {
                 cacheAction = cacheActions.get(cacheWarmState);
-                boolean warmSucceeded = cacheAction.close(warmingCandidates,
+                boolean warmSucceeded = cacheAction.close(
+                        warmingCandidates,
                         rowGroupKey,
                         flowId,
                         storageWriterSplitConfig);
@@ -397,7 +400,7 @@ public class WarpCacheTask
         }
         revoked = true;
         if (warmStarted) {
-            //let flow to clean the data
+            // let flow to clean the data
             setEngineAbort();
             return;
         }
@@ -406,7 +409,7 @@ public class WarpCacheTask
         blocksToProcess.add(STOP_TRIGGER);
         warmupCacheData.clear();
         memoryContextService.releaseMemory(localMemoryContext);
-        localMemoryContext = null; //we set to null in case it started, so we won't release twice
+        localMemoryContext = null; // we set to null in case it started, so we won't release twice
         memoryContextService.remove(this);
         workerTaskExecutorService.taskFinished(rowGroupKey);
     }
@@ -456,7 +459,7 @@ public class WarpCacheTask
             return;
         }
         if (totalRecords == 0) {
-            //means query aborted before task added to the queue. just clean the task from the list
+            // means query aborted before task added to the queue. just clean the task from the list
             memoryContextService.remove(this);
         }
         this.engineAbort = true;

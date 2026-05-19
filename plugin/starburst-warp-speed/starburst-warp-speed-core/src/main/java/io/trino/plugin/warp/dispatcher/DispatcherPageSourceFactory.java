@@ -206,7 +206,8 @@ public abstract class DispatcherPageSourceFactory
         return pageSourceDecision;
     }
 
-    protected void increaseMixedCounters(DispatcherPageSourceStats stats,
+    protected void increaseMixedCounters(
+            DispatcherPageSourceStats stats,
             QueryContext queryContext)
     {
         stats.addexternal_collect_columns(queryContext.getRemainingCollectColumnByBlockIndex().size());
@@ -248,10 +249,10 @@ public abstract class DispatcherPageSourceFactory
 
     protected void addColumnStats(CustomStatsContext customStatsContext, QueryContext queryContext)
     {
-        queryContext.getNativeQueryCollectDataList().forEach((collectData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
-        queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach((prefilledData) -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getWarpColumn().getName()), 1));
-        queryContext.getMatchLeavesDFS().forEach((matchData) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, matchData.getWarpColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
-        queryContext.getRemainingCollectColumnByBlockIndex().values().forEach((collectColumnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(collectColumnHandle).getName()), 1));
+        queryContext.getNativeQueryCollectDataList().forEach(collectData -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, collectData.getWarpColumn().getName(), collectData.getWarmUpElement().getWarmUpType()), 1));
+        queryContext.getPrefilledQueryCollectDataByBlockIndex().values().forEach(prefilledData -> customStatsContext.addFixedStat(createFixedStatKey(PREFILLED, prefilledData.getWarpColumn().getName()), 1));
+        queryContext.getMatchLeavesDFS().forEach(matchData -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, matchData.getWarpColumn().getName(), matchData.getWarmUpElement().getWarmUpType()), 1));
+        queryContext.getRemainingCollectColumnByBlockIndex().values().forEach(collectColumnHandle -> customStatsContext.addFixedStat(createFixedStatKey(EXTERNAL_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(collectColumnHandle).getName()), 1));
         queryContext.getPredicateContextData()
                 .getRemainingColumns()
                 .stream()
@@ -274,7 +275,7 @@ public abstract class DispatcherPageSourceFactory
     protected void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
     {
         dispatcherPageSourceStats.incfiltered_by_predicate();
-        columns.forEach((columnHandle) -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
+        columns.forEach(columnHandle -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
         Set<RegularColumn> warpMatchColumns = basicQueryContext.getPredicateContextData().getRemainingColumns();
         warpMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
         dispatcherPageSourceStats.addwarp_collect_columns(columns.size());

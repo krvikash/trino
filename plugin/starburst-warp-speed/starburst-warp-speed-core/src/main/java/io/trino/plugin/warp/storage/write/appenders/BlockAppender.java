@@ -63,7 +63,8 @@ public abstract class BlockAppender
         return result;
     }
 
-    abstract AppendResult appendWithoutDictionary(int jufferPos,
+    abstract AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder);

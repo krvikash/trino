@@ -36,7 +36,5 @@ class DecimalParser
         return Optional.of(BigDecimal.valueOf(parsed.doubleValue()));
     }
 
-    private DecimalParser()
-    {
-    }
+    private DecimalParser() {}
 }

@@ -35,7 +35,8 @@ public abstract class ArraySliceFiller
 {
     protected final int queryStringNullValueSize;
 
-    protected ArraySliceFiller(StorageEngineConstants storageEngineConstants,
+    protected ArraySliceFiller(
+            StorageEngineConstants storageEngineConstants,
             BlockFillerType blockFillerType,
             Type elementType)
     {
@@ -91,7 +92,8 @@ public abstract class ArraySliceFiller
     }
 
     @Override
-    protected Block fillRawBlock(ReadJuffersWarmUpElement juffersWE,
+    protected Block fillRawBlock(
+            ReadJuffersWarmUpElement juffersWE,
             RecTypeCode recTypeCode,
             int recLength, // not used
             int rowsToFill,
@@ -139,7 +141,8 @@ public abstract class ArraySliceFiller
     }
 
     @Override
-    public Block fillRawBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,
+    public Block fillRawBlockWithDictionary(
+            ReadJuffersWarmUpElement juffersWE,
             int rowsToFill,
             RecTypeCode recTypeCode,
             int recTypeLength,

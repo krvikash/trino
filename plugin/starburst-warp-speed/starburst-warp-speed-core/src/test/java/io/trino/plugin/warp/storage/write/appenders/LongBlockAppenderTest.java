@@ -75,7 +75,8 @@ class LongBlockAppenderTest
 
         DecimalType shortDecimalType = DecimalType.createDecimalType(9, 2);
         assertThat(TypeUtils.isShortDecimalType(shortDecimalType)).isTrue();
-        List<BigDecimal> shortDecimalValues = List.of(new BigDecimal("123456789"),
+        List<BigDecimal> shortDecimalValues = List.of(
+                new BigDecimal("123456789"),
                 new BigDecimal("123.45"),
                 new BigDecimal("67.89"),
                 new BigDecimal("1.23"),

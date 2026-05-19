@@ -69,7 +69,7 @@ public interface DataApi
      *
      * @return BufferNodeExchangeMetrics showing current state of the exchange on this buffer node.
      *
-     * In case of failure returned future will wrap {@link DataApiException}
+     *         In case of failure returned future will wrap {@link DataApiException}
      */
     ListenableFuture<BufferNodeExchangeMetrics> pingExchange(String exchangeId);
 
@@ -100,7 +100,7 @@ public interface DataApi
      * @param dataPagesByPartition data to be recorded in an open chunk for given exchange; pages are grouped by partitionId
      * @return server-side rate limit (if applicable)
      *
-     * In case of failure returned future will wrap {@link DataApiException}
+     *         In case of failure returned future will wrap {@link DataApiException}
      */
     ListenableFuture<Optional<RateLimitInfo>> addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition);
 
@@ -120,7 +120,7 @@ public interface DataApi
      * @param partitionId partition id (from {@link ChunkHandle})
      * @param chunkId chunk id (from {@link ChunkHandle})
      *
-     * In case of failure returned future will wrap {@link DataApiException}
+     *         In case of failure returned future will wrap {@link DataApiException}
      */
     ListenableFuture<ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId);
 

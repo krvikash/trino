@@ -32,7 +32,7 @@ public class IcebergBranchProperties
     public enum ReferenceType
     {
         BRANCH,
-        TAG
+        TAG,
     }
 
     private static final String TYPE_PROPERTY = "type";

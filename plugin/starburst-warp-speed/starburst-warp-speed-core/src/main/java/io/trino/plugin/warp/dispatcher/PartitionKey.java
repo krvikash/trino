@@ -15,6 +15,4 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 
-public record PartitionKey(RegularColumn regularColumn, String partitionValue)
-{
-}
+public record PartitionKey(RegularColumn regularColumn, String partitionValue) {}

@@ -34,6 +34,6 @@ public record WarmUpElementState(
     {
         VALID,
         FAILED_PERMANENTLY,
-        FAILED_TEMPORARILY
+        FAILED_TEMPORARILY,
     }
 }

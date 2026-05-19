@@ -101,7 +101,7 @@ public abstract class WarpSpeedCloudTestBase
 
         try (QueryExecutor queryExecutor = onTrino()) {
             queryExecutor.executeQuery("CREATE SCHEMA IF NOT EXISTS %s.%s WITH (location = '%s')"
-                            .formatted(CATALOG_NAME, schema, getPathForSchema(SCHEMA_NAME)));
+                    .formatted(CATALOG_NAME, schema, getPathForSchema(SCHEMA_NAME)));
 
             queryExecutor.executeQuery("USE %s.%s".formatted(CATALOG_NAME, schema));
             queryExecutor.executeQuery("CREATE TABLE IF NOT EXISTS %s AS SELECT * FROM tpch.tiny.nation".formatted(table));

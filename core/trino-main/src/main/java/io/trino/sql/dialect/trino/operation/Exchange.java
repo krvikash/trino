@@ -94,8 +94,7 @@ public class Exchange
             Optional<SortOrderList> sortOrders,
             List<Map<AttributeKey, Object>> sourceAttributes)
     {
-        this(
-                resultName,
+        this(resultName,
                 inputs,
                 inputFieldSelectors,
                 partitioningBoundArguments,

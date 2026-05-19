@@ -15,6 +15,4 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 
-public record WarmSinkResult(WarmUpElement warmUpElement, int offset)
-{
-}
+public record WarmSinkResult(WarmUpElement warmUpElement, int offset) {}

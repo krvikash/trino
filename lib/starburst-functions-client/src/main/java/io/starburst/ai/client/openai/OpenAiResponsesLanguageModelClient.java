@@ -140,7 +140,7 @@ public class OpenAiResponsesLanguageModelClient
     private Response stream(ResponseCreateParams params, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         try (StreamResponse<ResponseStreamEvent> streamResponse =
-                     client.responses().createStreaming(params)) {
+                client.responses().createStreaming(params)) {
             return streamResponse.stream()
                     .takeWhile(_ -> !isCancelled.get())
                     .peek(event -> {

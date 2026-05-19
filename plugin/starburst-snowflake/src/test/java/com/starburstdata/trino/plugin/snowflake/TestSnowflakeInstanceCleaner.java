@@ -86,12 +86,12 @@ public class TestSnowflakeInstanceCleaner
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
             snowflakeDatabasesToDrop = handle.createQuery("SELECT database_name, created " +
-                    "FROM INFORMATION_SCHEMA.DATABASES " +
-                    // database_name is lowercased to ensure it matches case from databasestoKeep
-                    "WHERE lower(database_name) not in (<databases_to_keep>) " +
-                    "AND database_name like concat(:database_prefix, '%') " +
-                    "AND datediff(hour, created, current_timestamp) > 24 " +
-                    "AND comment = :database_comment")
+                            "FROM INFORMATION_SCHEMA.DATABASES " +
+                            // database_name is lowercased to ensure it matches case from databasestoKeep
+                            "WHERE lower(database_name) not in (<databases_to_keep>) " +
+                            "AND database_name like concat(:database_prefix, '%') " +
+                            "AND datediff(hour, created, current_timestamp) > 24 " +
+                            "AND comment = :database_comment")
                     .bindList("databases_to_keep", databasesToKeep)
                     .bind("database_prefix", tmpDatabasePrefix)
                     .bind("database_comment", tmpDatabaseComment)
@@ -140,7 +140,8 @@ public class TestSnowflakeInstanceCleaner
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
             // the table_name is lowercased before comparison to ensure it matches case from tablesToKeep
-            objectsToDrop = handle.createQuery("""
+            objectsToDrop = handle.createQuery(
+                            """
                             SELECT table_schema, table_name, table_type
                             FROM INFORMATION_SCHEMA.TABLES
                             WHERE datediff(hour, created, current_timestamp) > 24
@@ -188,7 +189,8 @@ public class TestSnowflakeInstanceCleaner
             handle.execute("USE ROLE " + ROLE);
             handle.execute("USE WAREHOUSE " + TEST_WAREHOUSE);
             handle.execute("USE DATABASE " + TEST_DATABASE);
-            handle.createQuery("""
+            handle.createQuery(
+                            """
                             SELECT table_type, count(*) AS c
                             FROM INFORMATION_SCHEMA.TABLES
                             WHERE table_catalog = :table_catalog AND lower(table_schema) = :table_schema

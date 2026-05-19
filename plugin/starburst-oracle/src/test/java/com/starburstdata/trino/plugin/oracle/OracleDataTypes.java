@@ -67,8 +67,11 @@ public final class OracleDataTypes
 
     /* Utility */
 
-    private static <T> DataType<T> dataType(String insertType, Type prestoResultType,
-            Function<T, String> toLiteral, Function<T, ?> toTrinoQueryResult)
+    private static <T> DataType<T> dataType(
+            String insertType,
+            Type prestoResultType,
+            Function<T, String> toLiteral,
+            Function<T, ?> toTrinoQueryResult)
     {
         return DataType.dataType(insertType, prestoResultType, toLiteral, toTrinoQueryResult);
     }

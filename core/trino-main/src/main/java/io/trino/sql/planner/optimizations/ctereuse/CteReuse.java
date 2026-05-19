@@ -155,8 +155,7 @@ import static java.util.function.Function.identity;
 
 public class CteReuse
 {
-    private CteReuse()
-    {}
+    private CteReuse() {}
 
     public static Optional<Program> reuseCommonSubqueries(Plan plan, PlannerContext plannerContext, Session session, FormatOptions formatOptions)
     {
@@ -505,8 +504,8 @@ public class CteReuse
         return new TableScan(
                 nameAllocator.newName(),
                 columnsList.isEmpty() ? EMPTY_ROW : RowType.anonymous(columnsList.stream()
-                        .map(Map.Entry::getValue)
-                        .collect(toImmutableList())),
+                                                                      .map(Map.Entry::getValue)
+                                                                      .collect(toImmutableList())),
                 unificationResult.unifiedHandle(),
                 unifiedColumnHandles,
                 // the enforcedConstraint must be based on columns exposed by the TableScan
@@ -797,7 +796,7 @@ public class CteReuse
      * @param nameAllocator -- ValueNameAllocator needed for creating new operations
      * @param newOperations -- a collection of newly created operations
      * @param multiGroupMerger -- a structure to enable merging multi-source operations, like Join. It records operations whose sources
-     * belong to multiple groups.
+     *         belong to multiple groups.
      */
     public static void mergeGroupRecursively(
             UnifiedStates unifiedStates,
@@ -1704,10 +1703,10 @@ public class CteReuse
      * @param fieldMapping -- the output type of the recent operation might have changed. The mapping serves to update the next operation accordingly
      * @param fieldsToPrune -- additional fields output by the recent operation as the result of unifying with other branches
      * @param predicateToApply -- predicate extracted from this branch as the result of unifying with other branches. Note: it might use fields marked as fieldsToPrune.
-     * The predicate is assumed to be optimized. It is based on the recent unified operation type.
+     *         The predicate is assumed to be optimized. It is based on the recent unified operation type.
      * @param enforcedPredicate -- predicate guaranteed for the unified plan. Note: it might not be the full guaranteed predicate.
-     * It only contains the conjuncts supported by the output fields of the recent operation. It is used when creating new predicates to avoid repetition.
-     * The predicate is assumed to be optimized. It is based on the recent unified operation type.
+     *         It only contains the conjuncts supported by the output fields of the recent operation. It is used when creating new predicates to avoid repetition.
+     *         The predicate is assumed to be optimized. It is based on the recent unified operation type.
      * @param enforcedLimit -- limit guaranteed for the unified plan
      */
     public record TraversalContext(FieldMapping fieldMapping, Set<Integer> fieldsToPrune, Block predicateToApply, Block enforcedPredicate, OptionalLong enforcedLimit)
@@ -1806,11 +1805,11 @@ public class CteReuse
      * It consists of operation results and block parameters which are visible and can be correctly used as arguments.
      *
      * @param operationResults - accessible operation results mapped to the operations that return them.
-     * In Trino plan, we can only access the results of preceding operations in the same block.
-     * Although certain operation results from outer blocks are visible, they cannot be referenced in arguments,
-     * and are not present in this map.
+     *         In Trino plan, we can only access the results of preceding operations in the same block.
+     *         Although certain operation results from outer blocks are visible, they cannot be referenced in arguments,
+     *         and are not present in this map.
      * @param blockParameters - accessible block parameters mapped to blocks that declare them.
-     * It contains parameters of the current block and parameters of all outer blocks.
+     *         It contains parameters of the current block and parameters of all outer blocks.
      */
     private record AccessibleValueMap(Map<Operation.Result, Operation> operationResults, Map<Block.Parameter, Block> blockParameters)
     {

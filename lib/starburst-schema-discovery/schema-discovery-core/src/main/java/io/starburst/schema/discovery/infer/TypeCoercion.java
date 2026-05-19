@@ -290,7 +290,5 @@ public class TypeCoercion
         throw new TrinoException(SchemaDiscoveryErrorCode.UNEXPECTED_DATA_TYPE, "Unexpected decimal type: " + type);
     }
 
-    private TypeCoercion()
-    {
-    }
+    private TypeCoercion() {}
 }

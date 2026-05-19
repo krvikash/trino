@@ -54,7 +54,8 @@ public class WorkerCapacityManagerTest
     {
         globalConfig = new GlobalConfig();
         catalogNameProvider = new CatalogNameProvider("CatalogName");
-        workerCapacityManager = new WorkerCapacityManager(globalConfig,
+        workerCapacityManager = new WorkerCapacityManager(
+                globalConfig,
                 new WarmupDemoterConfig(),
                 new StubsStorageEngineConstants(),
                 mock(NativeStorageStateHandler.class),

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.TimeZone;
 
 // TODO: Replace this with UtcTimeZoneCalendar from the Starburst plugins toolkit
+
 /**
  * {@link Calendar} with UTC time zone and no operations besides
  * {@link #getTimeZone()}.

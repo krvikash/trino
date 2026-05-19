@@ -101,8 +101,7 @@ public class CompiledWithOssMetadata
         if ((prefix.getSchema().isEmpty() || SCHEMA_NAME.equals(prefix.getSchema().get())) &&
                 (prefix.getTable().isEmpty() || TABLE_NAME.equals(prefix.getTable().get()))) {
             return Map.of(
-                    new SchemaTableName(SCHEMA_NAME, TABLE_NAME),
-                    List.of(new ColumnMetadata(COLUMN1_NAME, VARCHAR), new ColumnMetadata(COLUMN2_NAME, VARCHAR), new ColumnMetadata(COLUMN3_NAME, CUSTOM_TYPE)));
+                    new SchemaTableName(SCHEMA_NAME, TABLE_NAME), List.of(new ColumnMetadata(COLUMN1_NAME, VARCHAR), new ColumnMetadata(COLUMN2_NAME, VARCHAR), new ColumnMetadata(COLUMN3_NAME, CUSTOM_TYPE)));
         }
         return Map.of();
     }

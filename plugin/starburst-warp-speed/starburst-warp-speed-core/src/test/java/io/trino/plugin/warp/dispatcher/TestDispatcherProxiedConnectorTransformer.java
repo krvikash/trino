@@ -81,7 +81,8 @@ public class TestDispatcherProxiedConnectorTransformer
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers1);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap1 = getNodeToPathsMap(dispatcherSplits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap1 = getNodeToPathsMap(
+                dispatcherSplits,
                 connectorTransformer,
                 workers1);
 
@@ -95,7 +96,8 @@ public class TestDispatcherProxiedConnectorTransformer
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers2);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap2 = getNodeToPathsMap(dispatcherSplits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap2 = getNodeToPathsMap(
+                dispatcherSplits,
                 connectorTransformer,
                 workers2);
 
@@ -112,14 +114,16 @@ public class TestDispatcherProxiedConnectorTransformer
 
         // 3 nodes
         Node newWorker = getInternalNode(18);
-        List<Node> workers3 = Stream.concat(Stream.of(newWorker),
+        List<Node> workers3 = Stream.concat(
+                        Stream.of(newWorker),
                         workers2.stream())
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers3);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap3 = getNodeToPathsMap(dispatcherSplits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap3 = getNodeToPathsMap(
+                dispatcherSplits,
                 connectorTransformer,
                 workers3);
 
@@ -128,7 +132,7 @@ public class TestDispatcherProxiedConnectorTransformer
         validateNodeMap(dispatcherSplits, workers3, nodeToHiveSplitsMap3);
 
         List<Node> worker3AsList = Lists.newArrayList(workers3);
-        //make sure "old" nodes don't exchange splits between them
+        // make sure "old" nodes don't exchange splits between them
         assertThat(nodeToHiveSplitsMap3.get(worker3AsList.get(1))).hasSizeGreaterThan(10)
                 .doesNotContainAnyElementsOf(nodeToHiveSplitsMap3.get(worker3AsList.get(2)));
         assertThat(nodeToHiveSplitsMap3.get(worker3AsList.get(2))).hasSizeGreaterThan(10)
@@ -137,14 +141,16 @@ public class TestDispatcherProxiedConnectorTransformer
 
         // 4 nodes
         newWorker = getInternalNode(19);
-        List<Node> workers4 = Stream.concat(Stream.of(newWorker),
+        List<Node> workers4 = Stream.concat(
+                        Stream.of(newWorker),
                         workers3.stream())
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers4);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap4 = getNodeToPathsMap(dispatcherSplits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap4 = getNodeToPathsMap(
+                dispatcherSplits,
                 connectorTransformer,
                 workers4);
 
@@ -166,7 +172,8 @@ public class TestDispatcherProxiedConnectorTransformer
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers5);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap5 = getNodeToPathsMap(dispatcherSplits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap5 = getNodeToPathsMap(
+                dispatcherSplits,
                 connectorTransformer,
                 workers5);
 
@@ -187,7 +194,8 @@ public class TestDispatcherProxiedConnectorTransformer
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers6);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap6 = getNodeToPathsMap(dispatcherSplits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap6 = getNodeToPathsMap(
+                dispatcherSplits,
                 connectorTransformer,
                 workers6);
 
@@ -226,7 +234,8 @@ public class TestDispatcherProxiedConnectorTransformer
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers1);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap1 = getNodeToPathsMap(splits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap1 = getNodeToPathsMap(
+                splits,
                 connectorTransformer,
                 workers1);
 
@@ -240,7 +249,8 @@ public class TestDispatcherProxiedConnectorTransformer
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers2);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap2 = getNodeToPathsMap(splits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap2 = getNodeToPathsMap(
+                splits,
                 connectorTransformer,
                 workers2);
 
@@ -257,14 +267,16 @@ public class TestDispatcherProxiedConnectorTransformer
 
         // 3 nodes
         Node newWorker = getInternalNode(14);
-        List<Node> workers3 = Stream.concat(Stream.of(newWorker),
+        List<Node> workers3 = Stream.concat(
+                        Stream.of(newWorker),
                         workers2.stream())
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers3);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap3 = getNodeToPathsMap(splits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap3 = getNodeToPathsMap(
+                splits,
                 connectorTransformer,
                 workers3);
 
@@ -272,7 +284,7 @@ public class TestDispatcherProxiedConnectorTransformer
 
         validateNodeMap(splits, workers3, nodeToHiveSplitsMap3);
         List<Node> worker3AsList = Lists.newArrayList(workers3);
-        //make sure "old" nodes don't exchange splits between them
+        // make sure "old" nodes don't exchange splits between them
         assertThat(nodeToHiveSplitsMap3.get(worker3AsList.get(1))).hasSizeGreaterThan(10)
                 .doesNotContainAnyElementsOf(nodeToHiveSplitsMap3.get(worker3AsList.get(2)));
         assertThat(nodeToHiveSplitsMap3.get(worker3AsList.get(2))).hasSizeGreaterThan(10)
@@ -281,14 +293,16 @@ public class TestDispatcherProxiedConnectorTransformer
 
         // 4 nodes
         newWorker = getInternalNode(15);
-        List<Node> workers4 = Stream.concat(Stream.of(newWorker),
+        List<Node> workers4 = Stream.concat(
+                        Stream.of(newWorker),
                         workers3.stream())
                 .collect(Collectors.toList());
 
         when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers4);
         connectorSplitNodeDistributor = new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager);
 
-        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap4 = getNodeToPathsMap(splits,
+        Map<Node, Set<DispatcherSplit>> nodeToHiveSplitsMap4 = getNodeToPathsMap(
+                splits,
                 connectorTransformer,
                 workers4);
 
@@ -304,7 +318,8 @@ public class TestDispatcherProxiedConnectorTransformer
         });
     }
 
-    private Map<Node, Set<DispatcherSplit>> getNodeToPathsMap(List<DispatcherSplit> splits,
+    private Map<Node, Set<DispatcherSplit>> getNodeToPathsMap(
+            List<DispatcherSplit> splits,
             DispatcherProxiedConnectorTransformer connectorTransformer,
             List<Node> nodes)
     {
@@ -322,7 +337,8 @@ public class TestDispatcherProxiedConnectorTransformer
                 }, Collectors.toSet()));
     }
 
-    private void log(List<Node> workers,
+    private void log(
+            List<Node> workers,
             Map<Node, Set<DispatcherSplit>> nodeHiveSplitMap)
     {
         logger.info("%s", workers);
@@ -336,7 +352,8 @@ public class TestDispatcherProxiedConnectorTransformer
         return NodeUtils.node(i, true);
     }
 
-    private void validateNodeMap(List<DispatcherSplit> splits,
+    private void validateNodeMap(
+            List<DispatcherSplit> splits,
             List<Node> nodes,
             Map<Node, Set<DispatcherSplit>> nodeToSplitsMap)
     {

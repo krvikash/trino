@@ -56,7 +56,8 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
+        return DispatcherQueryRunner.createQueryRunner(
+                new WarpStubsStorageEngineModule(),
                 Optional.of(binder -> {
                     MapBinder<String, TransactionLogSynchronizer> logSynchronizerMapBinder = newMapBinder(binder, String.class, TransactionLogSynchronizer.class);
                     logSynchronizerMapBinder.addBinding("file").to(FileTestingTransactionLogSynchronizer.class).in(Scopes.SINGLETON);
@@ -69,7 +70,8 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
                 }),
                 numNodes,
                 Collections.emptyMap(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, DELTA_LAKE_CONNECTOR_NAME,

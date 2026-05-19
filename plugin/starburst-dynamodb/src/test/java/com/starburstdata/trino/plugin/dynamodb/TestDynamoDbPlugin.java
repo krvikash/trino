@@ -28,14 +28,14 @@ public class TestDynamoDbPlugin
         Plugin plugin = new TestingDynamoDbPlugin(false);
         ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
         factory.create(
-                "test",
-                ImmutableMap.<String, String>builder()
-                        .put("dynamodb.aws-access-key", "accesskey")
-                        .put("dynamodb.aws-secret-key", "secretkey")
-                        .put("dynamodb.aws-region", "us-east-2")
-                        .put("dynamodb.schema-directory", tempDir.toFile().getAbsolutePath())
-                        .buildOrThrow(),
-                new TestingConnectorContext())
+                        "test",
+                        ImmutableMap.<String, String>builder()
+                                .put("dynamodb.aws-access-key", "accesskey")
+                                .put("dynamodb.aws-secret-key", "secretkey")
+                                .put("dynamodb.aws-region", "us-east-2")
+                                .put("dynamodb.schema-directory", tempDir.toFile().getAbsolutePath())
+                                .buildOrThrow(),
+                        new TestingConnectorContext())
                 .shutdown();
     }
 

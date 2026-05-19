@@ -33,7 +33,8 @@ public class ClusterHealthTaskTest
             throws JsonProcessingException
     {
         HealthNode healthNode = new HealthNode(System.currentTimeMillis(), "nodeIdentifier", "http://test.com", "UP");
-        HealthResult result = new HealthResult(true,
+        HealthResult result = new HealthResult(
+                true,
                 URI.create("http://test.com"),
                 Instant.now().toEpochMilli(),
                 ImmutableList.of(healthNode),

@@ -29,7 +29,5 @@ public class NullType
         return isNullType(type) ? STRING_TYPE : type;
     }
 
-    private NullType()
-    {
-    }
+    private NullType() {}
 }

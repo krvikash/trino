@@ -26,8 +26,8 @@ public interface CacheManager
 {
     /**
      * @return {@link SplitCache} for a given {@link PlanSignature}.
-     * Matching of {@link PlanSignature} per split could be expensive,
-     * therefore {@link SplitCache} is used to load or store data per split.
+     *         Matching of {@link PlanSignature} per split could be expensive,
+     *         therefore {@link SplitCache} is used to load or store data per split.
      */
     SplitCache getSplitCache(PlanSignature signature);
 
@@ -51,16 +51,16 @@ public interface CacheManager
     {
         /**
          * @param predicate Predicate that should be enforced on cached rows.
-         * Output of `cachedSplitA` can be used to derive output of matching `cachedSplitB`
-         * (with corresponding {@link PlanSignature}) as long as `cachedSplitB.predicate` is a strict
-         * subset of `cachedSplitA.predicate`. To do so, `cachedSplitB.predicate` must be
-         * applied on output of `cachedSplitA`. Before serialization as a cache key, predicate
-         * needs to be normalized using {@code io.trino.plugin.base.cache.CacheUtils#normalizeTupleDomain(TupleDomain)}.
+         *         Output of `cachedSplitA` can be used to derive output of matching `cachedSplitB`
+         *         (with corresponding {@link PlanSignature}) as long as `cachedSplitB.predicate` is a strict
+         *         subset of `cachedSplitA.predicate`. To do so, `cachedSplitB.predicate` must be
+         *         applied on output of `cachedSplitA`. Before serialization as a cache key, predicate
+         *         needs to be normalized using {@code io.trino.plugin.base.cache.CacheUtils#normalizeTupleDomain(TupleDomain)}.
          * @param unenforcedPredicate Unenforced (best-effort) predicate that should be applied on cached rows.
-         * Output of `cachedSplitA` can be used to derive output of matching `cachedSplitB`
-         * (with corresponding {@link PlanSignature}) as long as `cachedSplitB.unenforcedPredicate`
-         * is a subset of `cachedSplitA.unenforcedPredicate`. Before serialization as a cache key, predicate
-         * needs to be normalized using {@code io.trino.plugin.base.cache.CacheUtils#normalizeTupleDomain(TupleDomain)}.
+         *         Output of `cachedSplitA` can be used to derive output of matching `cachedSplitB`
+         *         (with corresponding {@link PlanSignature}) as long as `cachedSplitB.unenforcedPredicate`
+         *         is a subset of `cachedSplitA.unenforcedPredicate`. Before serialization as a cache key, predicate
+         *         needs to be normalized using {@code io.trino.plugin.base.cache.CacheUtils#normalizeTupleDomain(TupleDomain)}.
          * @return cached pages for a given split.
          */
         Optional<ConnectorPageSource> loadPages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate);
@@ -69,8 +69,8 @@ public interface CacheManager
          * @param predicate Predicate that was enforced on cached rows.
          * @param unenforcedPredicate Best-effort predicate that was applied on cached rows.
          * @return {@link ConnectorPageSink} for caching pages for a given split.
-         * Might be empty if there isn't sufficient memory or split data is
-         * already cached.
+         *         Might be empty if there isn't sufficient memory or split data is
+         *         already cached.
          */
         Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate);
     }

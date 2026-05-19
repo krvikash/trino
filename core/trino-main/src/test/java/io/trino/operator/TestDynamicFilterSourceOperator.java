@@ -427,8 +427,7 @@ public class TestDynamicFilterSourceOperator
                 ImmutableList.of(BIGINT),
                 ImmutableList.of(largePage),
                 ImmutableList.of(DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(
-                        new DynamicFilterId("0"),
-                        DynamicFilterDomain.fromBloomFilter(
+                        new DynamicFilterId("0"), DynamicFilterDomain.fromBloomFilter(
                                 new BloomFilterWithRange(
                                         createBloomFilter(0, maxDistinctValues),
                                         ValueSet.ofRanges(range(BIGINT, 0L, true, (long) maxDistinctValues, true)),
@@ -537,8 +536,7 @@ public class TestDynamicFilterSourceOperator
                 ImmutableList.of(BIGINT),
                 ImmutableList.of(largePage),
                 ImmutableList.of(DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(
-                        new DynamicFilterId("0"),
-                        DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(
+                        new DynamicFilterId("0"), DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(
                                 createBloomFilter(0, 200),
                                 ValueSet.ofRanges(range(BIGINT, 0L, true, 200L, true)),
                                 BIGINT,
@@ -586,8 +584,7 @@ public class TestDynamicFilterSourceOperator
                 ImmutableList.of(BIGINT),
                 ImmutableList.of(page1, page2, page3),
                 ImmutableList.of(DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(
-                        new DynamicFilterId("0"),
-                        DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(
+                        new DynamicFilterId("0"), DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(
                                 createBloomFilter(0, 200),
                                 ValueSet.ofRanges(range(BIGINT, 0L, true, 200L, true)),
                                 BIGINT,
@@ -685,8 +682,7 @@ public class TestDynamicFilterSourceOperator
         bloomFilter.insert(200);
         assertThat(partitions.build()).isEqualTo(ImmutableList.of(
                 DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(
-                        new DynamicFilterId("1"),
-                        DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(
+                        new DynamicFilterId("1"), DynamicFilterDomain.fromBloomFilter(new BloomFilterWithRange(
                                 bloomFilter,
                                 ValueSet.ofRanges(range(BIGINT, 0L, true, 200L, true)),
                                 BIGINT,

@@ -54,7 +54,8 @@ public class WarpReadIndexInput
     private int currentPageIndex;
     private int bufferLength;
 
-    WarpReadIndexInput(LuceneIndexReader luceneIndexReader,
+    WarpReadIndexInput(
+            LuceneIndexReader luceneIndexReader,
             StorageEngineConstants storageEngineConstants,
             LucenePageCacheStats lucenePageCacheStats,
             ByteBuffer[] smallFilePageCache,
@@ -90,9 +91,7 @@ public class WarpReadIndexInput
     }
 
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 
     @Override
     public long length()
@@ -207,7 +206,8 @@ public class WarpReadIndexInput
     @Override
     public IndexInput slice(String sliceDescription, final long offset, final long sliceLength)
     {
-        return new WarpReadIndexInput(luceneIndexReader,
+        return new WarpReadIndexInput(
+                luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 smallFilePageCache,
@@ -222,7 +222,8 @@ public class WarpReadIndexInput
     @Override
     public IndexInput clone()
     {
-        IndexInput ret = new WarpReadIndexInput(luceneIndexReader,
+        IndexInput ret = new WarpReadIndexInput(
+                luceneIndexReader,
                 storageEngineConstants,
                 lucenePageCacheStats,
                 smallFilePageCache,

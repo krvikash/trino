@@ -707,7 +707,8 @@ public class WarmUpElement
 
         public WarmUpElement build()
         {
-            WarmUpElement warmUpElement = new WarmUpElement(warpColumn,
+            WarmUpElement warmUpElement = new WarmUpElement(
+                    warpColumn,
                     warmUpType,
                     recTypeCode,
                     recTypeLength,

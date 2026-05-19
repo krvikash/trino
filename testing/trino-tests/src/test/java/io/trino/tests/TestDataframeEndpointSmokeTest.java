@@ -19,5 +19,4 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
 public class TestDataframeEndpointSmokeTest
-        extends AbstractTestDataframe
-{}
+        extends AbstractTestDataframe {}

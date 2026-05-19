@@ -275,7 +275,9 @@ public class TestKafkaJsonReadsSmokeTest
         {
             Schema schema = jsonSchema.rawSchema();
             checkArgument(schema instanceof ObjectSchema objectSchema && objectSchema.getPropertySchemas().keySet().containsAll(record.keys()),
-                    "Expected an object schema contains record all columns, but got type: %s, schema: %s", schema.getClass().getSimpleName(), schema.toString());
+                    "Expected an object schema contains record all columns, but got type: %s, schema: %s",
+                    schema.getClass().getSimpleName(),
+                    schema.toString());
 
             try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                 // write magic byte
@@ -312,8 +314,7 @@ public class TestKafkaJsonReadsSmokeTest
 
     private record NestedDataTypeRecord(
             @JsonProperty("arr_int") List<Integer> arrInt,
-            @JsonProperty("ns") String ns)
-    {}
+            @JsonProperty("ns") String ns) {}
 
     private record PrimitiveDataTypeRecord(
             @JsonProperty("a_varchar") String varchar,

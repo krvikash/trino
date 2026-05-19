@@ -45,7 +45,7 @@ import static io.trino.metastore.type.TypeInfoFactory.getStructTypeInfo;
 
 public class Util
 {
-    public static final ParquetDataSourceFactory parquetDataSourceFactory = (inputFile) -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
+    public static final ParquetDataSourceFactory parquetDataSourceFactory = inputFile -> new TrinoParquetDataSource(inputFile, ParquetReaderOptions.defaultOptions(), new FileFormatDataSourceStats());
     public static final OrcDataSourceFactory orcDataSourceFactory = (id, size, options, inputFile) -> new HdfsOrcDataSource(id, size, options, inputFile, new FileFormatDataSourceStats());
     public static final ParquetSchemaDiscovery parquetSchemaDiscovery = new ParquetSchemaDiscovery(parquetDataSourceFactory);
     public static final OrcSchemaDiscovery orcSchemaDiscovery = new OrcSchemaDiscovery(orcDataSourceFactory);
@@ -142,7 +142,5 @@ public class Util
         return HiveTypes.toColumn(name, typeInfo).orElseThrow();
     }
 
-    private Util()
-    {
-    }
+    private Util() {}
 }

@@ -1840,7 +1840,7 @@ public class TestDeltaLakeBasic
      */
     @Test
     public void testVariant()
-        throws Exception
+            throws Exception
     {
         String tableName = "test_variant_" + randomNameSuffix();
         Path tableLocation = catalogDir.resolve(tableName);
@@ -1878,11 +1878,11 @@ public class TestDeltaLakeBasic
         assertThat(query("SELECT * FROM \"" + tableName + "$properties\""))
                 .skippingTypesCheck()
                 .matches("VALUES " +
-                         "('delta.enableDeletionVectors', 'true')," +
-                         "('delta.minReaderVersion', '3')," +
-                         "('delta.minWriterVersion', '7')," +
-                         "('delta.feature.deletionVectors', 'supported')," +
-                         "('delta.feature.variantType-preview', 'supported')");
+                        "('delta.enableDeletionVectors', 'true')," +
+                        "('delta.minReaderVersion', '3')," +
+                        "('delta.minWriterVersion', '7')," +
+                        "('delta.feature.deletionVectors', 'supported')," +
+                        "('delta.feature.variantType-preview', 'supported')");
 
         // generate a checkpoint
         for (int i = 0; i < 5; i++) {
@@ -1935,7 +1935,7 @@ public class TestDeltaLakeBasic
     {
         try (TestTable table = newTrinoTable("test_variant_statistics_null_count_", "(variant json)")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES JSON '{\"a\":\"abc\"}', NULL, JSON 'null'", 3);
-            assertThat(query("TABLE " +  table.getName()))
+            assertThat(query("TABLE " + table.getName()))
                     .matches("VALUES JSON '{\"a\":\"abc\"}', CAST(NULL AS JSON), JSON 'null'");
             String tableLocation = getTableLocation(table.getName());
             List<DeltaLakeTransactionLogEntry> transactionLogs = getEntriesFromJson(1L, tableLocation + "/_delta_log");
@@ -2853,6 +2853,7 @@ public class TestDeltaLakeBasic
     /**
      *  The connector allows 'generatedColumns' writer feature if the table does not contain any generated columns.
      *  TestDeltaLakeInsertCompatibility ensures that write operations fail if generated columns are present.
+     *
      * @see deltalake.generated_columns
      */
     @Test

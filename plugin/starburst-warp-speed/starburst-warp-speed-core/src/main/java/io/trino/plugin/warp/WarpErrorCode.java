@@ -72,7 +72,7 @@ public enum WarpErrorCode
     WARP_INDEX_WARMUP_RULE_IS_NOT_ALLOWED(611, INTERNAL_ERROR),
     WARP_WARMUP_OPEN_ERROR(612, INTERNAL_ERROR),
 
-    //dictionary
+    // dictionary
     WARP_DICTIONARY_ERROR(800, INTERNAL_ERROR);
 
     private final ErrorType type;

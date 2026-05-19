@@ -34,13 +34,13 @@ import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
 
 public class WarmColumnDataTestUtil
 {
-    private WarmColumnDataTestUtil()
-    {}
+    private WarmColumnDataTestUtil() {}
 
     public static WarmupElementWriteMetadata createWarmUpElementWithDictionary(RecordData recordData, WarmUpType warmUpType)
     {
         NodeManager nodeManager = mockNodeManager();
-        DictionaryKey dictionaryKey = new DictionaryKey(recordData.schemaTableColumn(),
+        DictionaryKey dictionaryKey = new DictionaryKey(
+                recordData.schemaTableColumn(),
                 nodeManager.getCurrentNode().getNodeIdentifier(),
                 DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
         DictionaryInfo dictionaryInfo = new DictionaryInfo(dictionaryKey, DictionaryState.DICTIONARY_NOT_EXIST, recordData.recTypeLength(), DictionaryInfo.NO_OFFSET);

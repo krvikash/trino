@@ -21,7 +21,5 @@ public enum RecordIndexListType
     RECORD_INDEX_LIST_TYPE_VALUES,
     RECORD_INDEX_LIST_TYPE_NUM_OF;
 
-    RecordIndexListType()
-    {
-    }
+    RecordIndexListType() {}
 }

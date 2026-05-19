@@ -93,7 +93,8 @@ class SinkMappingScaler
 
     public synchronized Result process(SinkDataPool dataPool, BufferExchangeSink.ActiveMapping activeMapping)
     {
-        return process(new SinkStateProvider() {
+        return process(new SinkStateProvider()
+        {
             @Override
             public Set<Long> getActiveBufferNodesForPartition(Integer partition)
             {

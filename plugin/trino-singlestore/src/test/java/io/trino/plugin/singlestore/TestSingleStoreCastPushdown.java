@@ -328,16 +328,14 @@ final class TestSingleStoreCastPushdown
                                 spaces(255),
                                 spaces(10000),
                                 spaces(10000),
-                                spaces(10000))
-                ))) {
+                                spaces(10000))))) {
             for (String columnName : List.of(
                     "c_varchar_5",
                     "c_varchar_10000",
                     "c_tinytext",
                     "c_text",
                     "c_mediumtext",
-                    "c_longtext"
-            )) {
+                    "c_longtext")) {
                 assertThat(query("SELECT CAST(%s AS VARCHAR(5)) FROM %s".formatted(columnName, table.getName()))).isFullyPushedDown();
                 assertThat(query("SELECT CAST(%s AS VARCHAR(8192)) FROM %s".formatted(columnName, table.getName()))).isFullyPushedDown();
                 assertThat(query("SELECT CAST(%s AS VARCHAR(8193)) FROM %s".formatted(columnName, table.getName()))).isFullyPushedDown();
@@ -374,8 +372,7 @@ final class TestSingleStoreCastPushdown
                 """,
                 List.of(
                         "'%s', '%s', '%s', '%s', '%s'".formatted("😂".repeat(12000), "😂".repeat(50), "😂".repeat(12000), "😂".repeat(12000), "😂".repeat(12000)), // emoji 😂 is 4 bytes long
-                        "'こんにちは世界', 'こんにちは世界', 'こんにちは世界', 'こんにちは世界', 'こんにちは世界'"
-                ))) {
+                        "'こんにちは世界', 'こんにちは世界', 'こんにちは世界', 'こんにちは世界', 'こんにちは世界'"))) {
             assertThat(query("SELECT CAST(%s AS VARCHAR(5)) FROM %s".formatted("c_tinytext", table.getName())))
                     .matches("VALUES '😂😂😂😂😂', 'こんにちは'")
                     .isFullyPushedDown();
@@ -422,8 +419,7 @@ final class TestSingleStoreCastPushdown
                 )
                 """,
                 List.of(
-                        "'', '', '', '', ''"
-                ))) {
+                        "'', '', '', '', ''"))) {
             for (String columnName : List.of("c_varchar", "c_tinytext", "c_text", "c_mediumtext", "c_longtext")) {
                 assertThat(query("SELECT CAST(%s AS VARCHAR(50)) FROM %s".formatted(columnName, table.getName())))
                         .matches("VALUES CAST('' AS VARCHAR(50))")
@@ -456,8 +452,7 @@ final class TestSingleStoreCastPushdown
                         "'abc', 'abc', 'abc', 'abc'",
                         "'😂', '😂', '😂', '😂'",
                         "'', '', '', ''",
-                        "null, null, null, null"
-                ))) {
+                        "null, null, null, null"))) {
             assertThat(query("SELECT CAST(c_varchar_5 AS varchar(10)) FROM %s".formatted(testTable.getName())))
                     .matches("VALUES CAST('abc' AS VARCHAR(10)), CAST('😂' AS VARCHAR(10)), CAST('' AS VARCHAR(10)), CAST(null AS VARCHAR(10))")
                     .isFullyPushedDown();
@@ -504,8 +499,7 @@ final class TestSingleStoreCastPushdown
                         "DATE '9999-12-31', TIMESTAMP '9999-12-31 23:59:59', TIMESTAMP '9999-12-31 23:59:59.999', TIMESTAMP '9999-12-31 23:59:59.999', TIMESTAMP '9999-12-31 23:59:59.999999'",
                         "DATE '2019-08-15', TIMESTAMP '2019-08-15 09:45:12', TIMESTAMP '2019-08-15 09:45:12.987', TIMESTAMP '2019-08-15 09:45:12.987', TIMESTAMP '2019-08-15 09:45:12.987654'",
                         "DATE '1000-01-01', TIMESTAMP '1000-01-01 00:00:00', TIMESTAMP '1000-01-01 00:00:00.000', TIMESTAMP '1000-01-01 00:00:00.000', TIMESTAMP '1000-01-01 00:00:00.000000'",
-                        "null, null, null, null, null"
-                ))) {
+                        "null, null, null, null, null"))) {
             assertThat(query("SELECT CAST(c_date AS date) FROM %s".formatted(testTable.getName())))
                     .matches("VALUES DATE '9999-12-31', DATE '2019-08-15', DATE '1000-01-01', CAST(null AS DATE)")
                     .isFullyPushedDown();
@@ -579,8 +573,7 @@ final class TestSingleStoreCastPushdown
                 """,
                 List.of(
                         "'9999-12-31', '9999-12-31 23:59:59', '9999-12-31 23:59:59', '9999-12-31 23:59:59.999999', '2038-01-19 03:14:07', '2038-01-19 03:14:07', '2038-01-19 03:14:07.999999'",
-                        "'1000-01-01', '1000-01-01 00:00:00', '1000-01-01 00:00:00', '1000-01-01 00:00:00.000000', '1970-01-01 00:00:01', '1970-01-01 00:00:01', '1970-01-01 00:00:01.000000'"
-                ))) {
+                        "'1000-01-01', '1000-01-01 00:00:00', '1000-01-01 00:00:00', '1000-01-01 00:00:00.000000', '1970-01-01 00:00:01', '1970-01-01 00:00:01', '1970-01-01 00:00:01.000000'"))) {
             assertThat(query("SELECT CAST(c_timestamp AS date) FROM %s".formatted(table.getName())))
                     .matches("VALUES DATE '2038-01-19', DATE '1970-01-01'")
                     .isFullyPushedDown();
@@ -664,8 +657,7 @@ final class TestSingleStoreCastPushdown
                         "'2024-09-09', '2024-09-09 00:00:00', '2024-09-09 00:00:00', '2024-09-09 00:00:00.123456', '2024-09-09 00:00:00', '2024-09-09 00:00:00', '2024-09-09 00:00:00.123456'",
                         "'2024-09-09', '2024-09-09 14:18:03', '2024-09-09 14:18:03', '2024-09-09 14:18:03.123456', '2024-09-09 14:18:03', '2024-09-09 14:18:03', '2024-09-09 14:18:03.123456'",
                         "'9999-12-31', '9999-12-31 23:59:59', '9999-12-31 23:59:59', '9999-12-31 23:59:59.999999', '2038-01-19 03:14:07', '2038-01-19 03:14:07', '2038-01-19 03:14:07.999999'",
-                        "'1000-01-01', '1000-01-01 00:00:00', '1000-01-01 00:00:00', '1000-01-01 00:00:00.000000', '1970-01-01 00:00:01', '1970-01-01 00:00:01', '1970-01-01 00:00:01.000000'"
-                ))) {
+                        "'1000-01-01', '1000-01-01 00:00:00', '1000-01-01 00:00:00', '1000-01-01 00:00:00.000000', '1970-01-01 00:00:01', '1970-01-01 00:00:01', '1970-01-01 00:00:01.000000'"))) {
             assertThat(query("SELECT DATE(c_date), count(*) FROM %s GROUP BY DATE(c_date)".formatted(table.getName())))
                     .matches("VALUES (DATE '1000-01-01', bigint '1'), (DATE '2024-09-08', bigint '2'), (DATE '2024-09-09', bigint '2'), (DATE '9999-12-31', bigint '1'), (DATE(null), bigint '1')")
                     .isFullyPushedDown();
@@ -705,8 +697,7 @@ final class TestSingleStoreCastPushdown
                 List.of(
                         "'2024-09-08 12:15:23.500000', '2024-09-08 12:15:23.500000'",
                         "'2024-09-08 12:15:23.499999', '2024-09-08 12:15:23.499999'",
-                        "'9999-12-31 23:59:59.999999', '2038-01-19 03:14:07.999999'"
-                ))) {
+                        "'9999-12-31 23:59:59.999999', '2038-01-19 03:14:07.999999'"))) {
             // This test show why we don't pushdown timestamp/datetime downcasts (at least for now).
             // Trino rounds when downcasting: .500000 rounds up to 12:15:24, .499999 rounds down to 12:15:23
             // SingleStore during casting would truncate both to 12:15:23
@@ -725,5 +716,4 @@ final class TestSingleStoreCastPushdown
                     .isNotFullyPushedDown(ProjectNode.class);
         }
     }
-
 }

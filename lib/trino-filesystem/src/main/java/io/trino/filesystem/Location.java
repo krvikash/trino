@@ -76,7 +76,8 @@ public final class Location
         if (multiRegionAccessPoint.isPresent()) {
             String resourceName = multiRegionAccessPoint.get().resourceName();
             String path = multiRegionAccessPoint.get().path();
-            return new Location("%s://%s/%s".formatted(scheme, resourceName, path),
+            return new Location(
+                    "%s://%s/%s".formatted(scheme, resourceName, path),
                     Optional.of(scheme),
                     Optional.empty(),
                     Optional.of(resourceName),

@@ -50,7 +50,8 @@ public class HealthTask
     private final StorageEngineConstants storageEngineConstants;
 
     @Inject
-    public HealthTask(WorkerNodeManager workerNodeManager,
+    public HealthTask(
+            WorkerNodeManager workerNodeManager,
             WorkerCapacityManager workerCapacityManager,
             StorageEngineConstants storageEngineConstants)
     {
@@ -62,10 +63,11 @@ public class HealthTask
     @GET
     @Path(TASK_NAME)
     @Produces(MediaType.APPLICATION_JSON)
-    //@ApiOperation(value = "node health", nickname = "getNodeHealth", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
+    // @ApiOperation(value = "node health", nickname = "getNodeHealth", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public HealthResult get()
     {
-        return new HealthResult(workerNodeManager.isReady(),
+        return new HealthResult(
+                workerNodeManager.isReady(),
                 workerNodeManager.getCurrentNodeHttpUri(),
                 ManagementFactory.getRuntimeMXBean().getStartTime(),
                 (workerCapacityManager.getTotalCapacity() * storageEngineConstants.getPageSize()) / MEGABYTE);

@@ -21,12 +21,8 @@ public class StubExceptionThrower
         implements ExceptionThrower
 {
     @Override
-    public void throwException(int code, String msg)
-    {
-    }
+    public void throwException(int code, String msg) {}
 
     @Override
-    public void addExceptionConsumer(Consumer<ErrorCodes> errorCodesConsumer)
-    {
-    }
+    public void addExceptionConsumer(Consumer<ErrorCodes> errorCodesConsumer) {}
 }

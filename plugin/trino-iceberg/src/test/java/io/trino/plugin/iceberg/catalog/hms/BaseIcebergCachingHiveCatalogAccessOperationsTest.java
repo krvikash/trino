@@ -45,12 +45,14 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Second select is served from cache
-            assertMetastoreInvocations("SELECT * FROM test_select_from",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Insert repopulates cache after commit
             assertUpdate("INSERT INTO test_select_from VALUES ('Alice', 30)", 1);
-            assertMetastoreInvocations("SELECT * FROM test_select_from",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Alter table invalidates cache without repopulating it
@@ -61,7 +63,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertMetastoreInvocations("SELECT * FROM test_select_from",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Comment on table invalidates cache
@@ -72,7 +75,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertMetastoreInvocations("SELECT * FROM test_select_from",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_from",
                     ImmutableMultiset.of());
 
             // Rename table invalidates cache
@@ -84,7 +88,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertMetastoreInvocations("SELECT * FROM test_select_from_renamed",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_from_renamed",
                     ImmutableMultiset.of());
         }
         finally {
@@ -107,12 +112,14 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Second select is served from cache
-            assertMetastoreInvocations("SELECT * FROM test_select_view_view",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_view_view",
                     ImmutableMultiset.of());
 
             // Insert into underlying table repopulates cache after commit
             assertUpdate("INSERT INTO test_select_view_table VALUES ('Alice', 30)", 1);
-            assertMetastoreInvocations("SELECT * FROM test_select_view_view",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_view_view",
                     ImmutableMultiset.of());
 
             // Comment on view invalidates its cache entry
@@ -123,7 +130,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertMetastoreInvocations("SELECT * FROM test_select_view_view",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_view_view",
                     ImmutableMultiset.of());
         }
         finally {
@@ -147,7 +155,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Select is served from cache (source table and MV cached by refresh, storage table location in query-scope cache)
-            assertMetastoreInvocations("SELECT * FROM test_select_mview_view",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_mview_view",
                     ImmutableMultiset.of());
 
             // Insert into source table invalidates its cache entry and makes MV stale
@@ -161,7 +170,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Select after refresh is served from cache
-            assertMetastoreInvocations("SELECT * FROM test_select_mview_view",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_mview_view",
                     ImmutableMultiset.of());
 
             // Rename MV invalidates cache
@@ -173,7 +183,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertMetastoreInvocations("SELECT * FROM test_select_mview_view_renamed",
+            assertMetastoreInvocations(
+                    "SELECT * FROM test_select_mview_view_renamed",
                     ImmutableMultiset.of());
         }
         finally {
@@ -196,14 +207,17 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Other system tables are served from cache
-            assertMetastoreInvocations("SELECT * FROM \"test_select_snapshots$snapshots\"",
+            assertMetastoreInvocations(
+                    "SELECT * FROM \"test_select_snapshots$snapshots\"",
                     ImmutableMultiset.of());
 
             // Insert repopulates cache after commit
             assertUpdate("INSERT INTO test_select_snapshots VALUES (3)", 1);
-            assertMetastoreInvocations("SELECT * FROM \"test_select_snapshots$history\"",
+            assertMetastoreInvocations(
+                    "SELECT * FROM \"test_select_snapshots$history\"",
                     ImmutableMultiset.of());
-            assertMetastoreInvocations("SELECT * FROM \"test_select_snapshots$snapshots\"",
+            assertMetastoreInvocations(
+                    "SELECT * FROM \"test_select_snapshots$snapshots\"",
                     ImmutableMultiset.of());
 
             // Rename table invalidates cache
@@ -215,7 +229,8 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
                             .build());
 
             // Cache is populated again
-            assertMetastoreInvocations("SELECT * FROM \"test_select_snapshots_renamed$snapshots\"",
+            assertMetastoreInvocations(
+                    "SELECT * FROM \"test_select_snapshots_renamed$snapshots\"",
                     ImmutableMultiset.of());
         }
         finally {

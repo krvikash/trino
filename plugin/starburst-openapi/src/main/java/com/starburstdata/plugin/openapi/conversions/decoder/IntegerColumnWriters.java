@@ -81,7 +81,5 @@ public final class IntegerColumnWriters
         return node.bigIntegerValue();
     }
 
-    private IntegerColumnWriters()
-    {
-    }
+    private IntegerColumnWriters() {}
 }

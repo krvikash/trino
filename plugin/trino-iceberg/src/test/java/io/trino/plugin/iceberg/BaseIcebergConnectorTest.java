@@ -9583,7 +9583,7 @@ public abstract class BaseIcebergConnectorTest
         builder.add(new TypeCoercionTestSetup("MAP(ARRAY[SMALLINT '1'], ARRAY[SMALLINT '10'])", "map(integer, integer)", "MAP(ARRAY[1], ARRAY[10])"));
         builder.add(new TypeCoercionTestSetup("MAP(ARRAY[SMALLINT '1'], ARRAY[ARRAY[SMALLINT '10']])", "map(integer, array(integer))", "MAP(ARRAY[1], ARRAY[ARRAY[10]])"));
         builder.add(new TypeCoercionTestSetup("CAST(ROW(32767) AS ROW(x SMALLINT))", "row(\"x\" integer)", "CAST(ROW(32767) AS ROW(x INTEGER))"));
-        builder.add(new TypeCoercionTestSetup("CAST(ROW(ROW(32767)) AS ROW(x ROW(y SMALLINT)))", "row(\"x\" row(\"y\" integer))", "CAST(ROW(ROW(32767)) AS ROW(x ROW(y INTEGER)))"));// TODO Add test case for MAP type with ARRAY keys once https://github.com/trinodb/trino/issues/1146 is resolved
+        builder.add(new TypeCoercionTestSetup("CAST(ROW(ROW(32767)) AS ROW(x ROW(y SMALLINT)))", "row(\"x\" row(\"y\" integer))", "CAST(ROW(ROW(32767)) AS ROW(x ROW(y INTEGER)))")); // TODO Add test case for MAP type with ARRAY keys once https://github.com/trinodb/trino/issues/1146 is resolved
         return builder.build();
     }
 

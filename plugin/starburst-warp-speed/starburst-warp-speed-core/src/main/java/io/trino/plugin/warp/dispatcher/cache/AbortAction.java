@@ -47,7 +47,8 @@ public class AbortAction
     private final DictionaryCacheService dictionaryCacheService;
 
     @Inject
-    public AbortAction(RowGroupDataService rowGroupDataService,
+    public AbortAction(
+            RowGroupDataService rowGroupDataService,
             StorageWarmerService storageWarmerService,
             WarpCacheFilesMerger warpCacheFilesMerger,
             DictionaryCacheService dictionaryCacheService)
@@ -72,7 +73,8 @@ public class AbortAction
                         false,
                         warmingCandidate.fileOffset(),
                         warmingCandidate.fileCookie());
-                rowGroupDataService.updateTmpRowGroupData(tmpRowGroupData,
+                rowGroupDataService.updateTmpRowGroupData(
+                        tmpRowGroupData,
                         warmSinkResult.warmUpElement(),
                         warmSinkResult.offset(),
                         totalRecords);
@@ -99,8 +101,8 @@ public class AbortAction
                     if (warmingCandidate.isFailedCandidate()) {
                         for (WarmUpElement we : tmpRowGroupData.getWarmUpElements()) {
                             if (!we.isValid()) {
-                                //we only mark failed the candidate who caused the failure.
-                                //note that warmup from tmpRowGroupData holds the updated warmup state
+                                // we only mark failed the candidate who caused the failure.
+                                // note that warmup from tmpRowGroupData holds the updated warmup state
                                 actualFailedWarmupElements.add(we);
                             }
                         }

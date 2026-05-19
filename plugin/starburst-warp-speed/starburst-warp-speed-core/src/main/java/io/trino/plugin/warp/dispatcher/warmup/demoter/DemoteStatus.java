@@ -20,5 +20,5 @@ public enum DemoteStatus
     UNKNOWN,
     NOT_COMPLETED,
     REACHED_THRESHOLD,
-    NO_ELEMENTS_TO_DEMOTE
+    NO_ELEMENTS_TO_DEMOTE,
 }

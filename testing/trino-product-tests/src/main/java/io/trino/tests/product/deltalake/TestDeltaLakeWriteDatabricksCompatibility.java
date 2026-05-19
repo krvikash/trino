@@ -446,7 +446,7 @@ public class TestDeltaLakeWriteDatabricksCompatibility
         String tableName = "test_variant_type_" + randomNameSuffix();
 
         onTrino().executeQuery("CREATE TABLE delta.default." + tableName + "(a INT, v JSON) " +
-                               "WITH (location = 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "')");
+                "WITH (location = 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "')");
 
         List<QueryAssert.Row> expectedRows = List.of(
                 QueryAssert.Row.row(1, "{\"key\":\"value\"}"),

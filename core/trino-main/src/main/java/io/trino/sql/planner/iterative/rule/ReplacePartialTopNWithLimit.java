@@ -202,10 +202,10 @@ public class ReplacePartialTopNWithLimit
             }
 
             return metadata.applyPartialTopN(
-                    session,
-                    node.getTable(),
-                    sortProperties,
-                    count)
+                            session,
+                            node.getTable(),
+                            sortProperties,
+                            count)
                     .map(result -> new RewriteResult(
                             new TableScanNode(
                                     idAllocator.getNextId(),

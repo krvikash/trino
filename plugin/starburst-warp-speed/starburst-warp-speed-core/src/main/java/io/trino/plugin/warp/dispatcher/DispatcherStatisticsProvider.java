@@ -43,9 +43,10 @@ public class DispatcherStatisticsProvider
     private final int dictionaryMaxSize;
 
     @Inject
-    public DispatcherStatisticsProvider(DispatcherProxiedConnectorTransformer transformer,
-                                        GlobalConfig globalConfig,
-                                        DictionaryConfig dictionaryConfig)
+    public DispatcherStatisticsProvider(
+            DispatcherProxiedConnectorTransformer transformer,
+            GlobalConfig globalConfig,
+            DictionaryConfig dictionaryConfig)
     {
         String cardinalityBucketConfig = requireNonNull(globalConfig).getCardinalityBuckets();
         cardinalityMap = parseCardinalityConfig(cardinalityBucketConfig);
@@ -93,8 +94,9 @@ public class DispatcherStatisticsProvider
         return notFitForDictionary.get(schemaTableName);
     }
 
-    public Set<String> putColumnsNotFitForDictionary(SchemaTableName schemaTableName,
-                                                     Map<ColumnHandle, ColumnStatistics> columnStatistics)
+    public Set<String> putColumnsNotFitForDictionary(
+            SchemaTableName schemaTableName,
+            Map<ColumnHandle, ColumnStatistics> columnStatistics)
     {
         Set<String> columnsNotFitForDictionary = transformer.calculateColumnsNotFitForDictionary(columnStatistics, dictionaryMaxSize);
 

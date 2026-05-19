@@ -152,7 +152,8 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 modelName,
-                () -> client.converse(request -> initializeConverseRequestBuilder(request,
+                () -> client.converse(request -> initializeConverseRequestBuilder(
+                        request,
                         systemContentBlocks,
                         modelName,
                         messages,
@@ -184,7 +185,8 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 modelName,
-                () -> client.converse(request -> initializeConverseRequestBuilder(request,
+                () -> client.converse(request -> initializeConverseRequestBuilder(
+                        request,
                         systemContentBlocks,
                         modelName,
                         messages,

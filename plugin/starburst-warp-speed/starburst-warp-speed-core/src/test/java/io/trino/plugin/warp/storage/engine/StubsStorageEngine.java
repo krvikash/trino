@@ -22,9 +22,7 @@ import java.lang.foreign.ValueLayout;
 public class StubsStorageEngine
         implements StorageEngine
 {
-    public StubsStorageEngine()
-    {
-    }
+    public StubsStorageEngine() {}
 
     @Override
     public int getWarmupRecordBufferSize(int recTypeLength)
@@ -87,24 +85,16 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void fileClose(int fileDescriptor)
-    {
-    }
+    public void fileClose(int fileDescriptor) {}
 
     @Override
-    public void fileTruncate(int fileDescriptor, int offset)
-    {
-    }
+    public void fileTruncate(int fileDescriptor, int offset) {}
 
     @Override
-    public void filePunchHole(String fileName, int startOffset, int endOffset)
-    {
-    }
+    public void filePunchHole(String fileName, int startOffset, int endOffset) {}
 
     @Override
-    public void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages)
-    {
-    }
+    public void fileIsAboutToBeDeleted(long fileHash, long fileModTime, int fileSizeInPages) {}
 
     @Override
     public void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
@@ -120,9 +110,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupVerifyQueryOffset(MemorySegment warmUpState)
-    {
-    }
+    public void warmupVerifyQueryOffset(MemorySegment warmUpState) {}
 
     @Override
     public void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
@@ -141,9 +129,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void matchOpen(MemorySegment matchState)
-    {
-    }
+    public void matchOpen(MemorySegment matchState) {}
 
     @Override
     public int matchAgg(MemorySegment matchState, int startChunkIndex)
@@ -158,9 +144,7 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void matchLuceneCompleted(MemorySegment matchState, int weIx, int chunkIndex, int numMatchedRecords)
-    {
-    }
+    public void matchLuceneCompleted(MemorySegment matchState, int weIx, int chunkIndex, int numMatchedRecords) {}
 
     @Override
     public boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
@@ -169,14 +153,10 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void matchClose(MemorySegment matchState)
-    {
-    }
+    public void matchClose(MemorySegment matchState) {}
 
     @Override
-    public void collectOpen(MemorySegment collectState)
-    {
-    }
+    public void collectOpen(MemorySegment collectState) {}
 
     @Override
     public boolean openChunk(MemorySegment collectState, int chunkIndex)
@@ -185,14 +165,10 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void collectChunk(MemorySegment collectState, MemorySegment outQueryResultTypes)
-    {
-    }
+    public void collectChunk(MemorySegment collectState, MemorySegment outQueryResultTypes) {}
 
     @Override
-    public void collectClose(MemorySegment collectState, MemorySegment readStats)
-    {
-    }
+    public void collectClose(MemorySegment collectState, MemorySegment readStats) {}
 
     @Override
     public boolean isLoaded()

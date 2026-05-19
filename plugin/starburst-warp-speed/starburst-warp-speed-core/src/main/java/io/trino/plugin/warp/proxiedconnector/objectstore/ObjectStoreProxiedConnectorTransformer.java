@@ -105,7 +105,8 @@ public class ObjectStoreProxiedConnectorTransformer
             ConnectorSession session)
     {
         return transformerMap.get(getTransformerKey(proxyConnectorSplit))
-                .createDispatcherSplit(proxyConnectorSplit,
+                .createDispatcherSplit(
+                        proxyConnectorSplit,
                         dispatcherTableHandle,
                         connectorSplitNodeDistributor,
                         session);

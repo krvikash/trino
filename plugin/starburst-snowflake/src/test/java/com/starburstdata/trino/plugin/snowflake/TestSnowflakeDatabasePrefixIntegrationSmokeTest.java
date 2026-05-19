@@ -35,8 +35,8 @@ public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
     private TestDatabase testDatabase2;
     private String normalizedDatabaseName;
     private String normalizedDatabaseName2;
-    private final SqlExecutor snowflakeExecutor = (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql);
-    private final SqlExecutor snowflakeExecutor2 = (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase2.getName(), sql);
+    private final SqlExecutor snowflakeExecutor = sql -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql);
+    private final SqlExecutor snowflakeExecutor2 = sql -> SnowflakeServer.safeExecuteOnDatabase(testDatabase2.getName(), sql);
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -334,10 +334,11 @@ public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
         try (TestTable table = new TestTable(snowflakeExecutor, "public.test_table_for_show_create", "(a VARCHAR(3))")) {
             String tableName = table.getName().split("\\.")[1];
             assertThat((String) computeActual("SHOW CREATE TABLE " + databaseSchemaTableName(normalizedDatabaseName, "public", tableName)).getOnlyValue())
-                    .isEqualTo(format("""
-                                    CREATE TABLE snowflake."%s.public".%s (
-                                       a varchar(3)
-                                    )""",
+                    .isEqualTo(format(
+                            """
+                            CREATE TABLE snowflake."%s.public".%s (
+                               a varchar(3)
+                            )""",
                             normalizedDatabaseName,
                             tableName));
         }

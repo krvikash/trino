@@ -442,7 +442,8 @@ public class TestStarburstIcebergV3
 
             // no _row_id in data files at this point, row_lineage fields calculated on the fly
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('bob', 1, 2),
                                    ('carol', 2, 3),
@@ -455,7 +456,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
             // we keep original row_id $last_updated_sequence_number
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('BOB', 1, 4),
                                    ('carol', 2, 3),
@@ -465,7 +467,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 5 as from snapshot, who actually updates BOB1
             assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB1' WHERE name = 'BOB'", 1);
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('BOB1', 1, 5),
                                    ('carol', 2, 3),
@@ -476,7 +479,8 @@ public class TestStarburstIcebergV3
             assertUpdate(format("COMMENT ON TABLE %s is 'my-table-comment'", table.getName()));
             // lineage values should remain the same
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('BOB1', 1, 5),
                                    ('carol', 2, 3),
@@ -487,7 +491,8 @@ public class TestStarburstIcebergV3
 
             // lineage values should remain the same
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('BOB1', 1, 5),
                                    ('carol', 2, 3),
@@ -495,7 +500,8 @@ public class TestStarburstIcebergV3
                             """);
             assertUpdate("UPDATE " + table.getName() + " SET info = 'info' WHERE name = 'BOB1'", 1);
             assertThat(query("SELECT name, info, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', CAST(NULL AS varchar), BIGINT '0', BIGINT '2'),
                                    ('BOB1', 'info', 1, 6),
                                    ('carol', NULL, 2, 3),
@@ -516,7 +522,8 @@ public class TestStarburstIcebergV3
         try (TestTable table = newTrinoTable("test_row_direct_update_", "(name varchar)")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES 'alice', 'bob'", 2);
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('bob', 1, 2)
                             """);
@@ -549,7 +556,8 @@ public class TestStarburstIcebergV3
 
             // no _row_id in data files at this point, row_lineage fields calculated on the fly
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('bob', 1, 2),
                                    ('carol', 2, 3),
@@ -562,7 +570,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
             // we keep original row_id $last_updated_sequence_number
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('BOB', 1, 4),
                                    ('carol', 2, 3),
@@ -573,7 +582,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
             // we keep original row_id $last_updated_sequence_number
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('carol', 2, 3),
                                    ('david', 3, 3)
@@ -598,7 +608,8 @@ public class TestStarburstIcebergV3
 
             // no _row_id in data files at this point, row_lineage fields calculated on the fly
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('bob', 1, 2),
                                    ('carol', 2, 3),
@@ -611,7 +622,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
             // we keep original row_id $last_updated_sequence_number
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('BOB', 1, 4),
                                    ('carol', 2, 3),
@@ -622,7 +634,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
             // we keep original row_id $last_updated_sequence_number
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
                                    ('carol', 2, 3),
                                    ('david', 3, 3)
@@ -631,7 +644,8 @@ public class TestStarburstIcebergV3
             assertUpdate("UPDATE " + table.getName() + " SET name = 'ALICE' WHERE \"$last_updated_sequence_number\" = 2", 1);
 
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'ALICE', BIGINT '0', BIGINT '6'),
                                    ('carol', 2, 3),
                                    ('david', 3, 3)
@@ -640,7 +654,8 @@ public class TestStarburstIcebergV3
             assertUpdate("DELETE FROM " + table.getName() + " WHERE \"$last_updated_sequence_number\" = 6", 1);
 
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'carol', BIGINT '2', BIGINT '3'),
                                    ('david', 3, 3)
                             """);
@@ -664,7 +679,8 @@ public class TestStarburstIcebergV3
 
             // no _row_id in data files at this point, row_lineage fields calculated on the fly
             assertThat(query("SELECT name, \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '2'),
                                    ('bob', 2),
                                    ('carol', 3),
@@ -673,7 +689,8 @@ public class TestStarburstIcebergV3
 
             // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3
             assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice'),
                                    ('bob'),
                                    ('carol'),
@@ -686,7 +703,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
             // we keep original row_id $last_updated_sequence_number
             assertThat(query("SELECT name, \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '2'),
                                    ('BOB', 4),
                                    ('carol', 3),
@@ -695,7 +713,8 @@ public class TestStarburstIcebergV3
 
             // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
             assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice'),
                                    ('BOB'),
                                    ('carol'),
@@ -705,7 +724,8 @@ public class TestStarburstIcebergV3
             // expect BOB $last_updated_sequence_number - 5 as from snapshot, who actually updates BOB1
             assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB1' WHERE name = 'BOB'", 1);
             assertThat(query("SELECT name, \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice', BIGINT '2'),
                                    ('BOB1', 5),
                                    ('carol', 3),
@@ -714,7 +734,8 @@ public class TestStarburstIcebergV3
 
             // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
             assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (VARCHAR 'alice'),
                                    ('BOB1'),
                                    ('carol'),
@@ -774,7 +795,8 @@ public class TestStarburstIcebergV3
             assertUpdate("CREATE VIEW " + viewName + " AS SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName());
 
             assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + viewName))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (1, VARCHAR 'Alice', BIGINT '0', BIGINT '2'),
                                    (2, 'Bob', BIGINT '1', BIGINT '2')
                             """);
@@ -782,7 +804,8 @@ public class TestStarburstIcebergV3
             assertUpdate("UPDATE " + table.getName() + " SET name = 'Alice Updated' WHERE id = 1", 1);
 
             assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + viewName))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (1, VARCHAR 'Alice Updated', BIGINT '0', BIGINT '3'),
                                    (2, 'Bob', BIGINT '1', BIGINT '2')
                             """);
@@ -803,7 +826,8 @@ public class TestStarburstIcebergV3
             assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
 
             assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (1, VARCHAR 'Alice', BIGINT '0', BIGINT '2'),
                                    (2, 'Bob', BIGINT '1', BIGINT '2')
                             """);
@@ -813,7 +837,8 @@ public class TestStarburstIcebergV3
             assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
 
             assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (1, VARCHAR 'Alice Updated', BIGINT '0', BIGINT '3'),
                                    (2, 'Bob', BIGINT '1', BIGINT '2')
                             """);
@@ -997,7 +1022,8 @@ public class TestStarburstIcebergV3
                 .hasSizeGreaterThan(workerCount);
 
         assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + tableName))
-                .matches("""
+                .matches(
+                        """
                         VALUES (BIGINT '0', BIGINT '2', 0, VARCHAR 'zero'),
                                (1, 2, 1, 'one'),
                                (2, 3, 2, 'two'),
@@ -1009,7 +1035,8 @@ public class TestStarburstIcebergV3
         assertUpdate("UPDATE " + tableName + " SET value = 'four update' WHERE key = 4", 1);
 
         assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + tableName))
-                .matches("""
+                .matches(
+                        """
                         VALUES (BIGINT '0', BIGINT '6', 0, VARCHAR 'zero update'),
                                (1, 2, 1, 'one'),
                                (2, 3, 2, 'two'),
@@ -1025,7 +1052,8 @@ public class TestStarburstIcebergV3
                 .hasSize(1);
 
         assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + tableName))
-                .matches("""
+                .matches(
+                        """
                         VALUES (BIGINT '0', BIGINT '6', 0, VARCHAR 'zero update'),
                                (1, 2, 1, 'one'),
                                (2, 3, 2, 'two'),
@@ -1049,36 +1077,39 @@ public class TestStarburstIcebergV3
         String targetTable = "merge_multiple_" + randomNameSuffix();
         assertUpdate(format("CREATE TABLE %s (customer VARCHAR, zipcode INT, purchase INT)", targetTable));
 
-        assertUpdate(format("""
+        assertUpdate(format(
+                """
                 INSERT INTO %s (customer, zipcode, purchase)
                         VALUES ('joe_0', 91000, 0),
                                ('joe_1', 91000, 1),
                                ('joe_2', 92000, 2),
                                ('joe_3', 92000, 3)
-                """, targetTable), 4);
+                """,
+                targetTable), 4);
 
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_0', 91000, 0, 0, 2),
-                               ('joe_1', 91000, 1, 1, 2),
-                               ('joe_2', 92000, 2, 2, 2),
-                               ('joe_3', 92000, 3, 3, 2)
-                        """);
+                VALUES ('joe_0', 91000, 0, 0, 2),
+                       ('joe_1', 91000, 1, 1, 2),
+                       ('joe_2', 92000, 2, 2, 2),
+                       ('joe_3', 92000, 3, 3, 2)
+                """);
 
-        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s(customer, zipcode, purchase)", targetTable) +
-                     "    ON t.customer = s.customer" +
-                     "    WHEN MATCHED THEN UPDATE SET purchase = s.purchase, zipcode = s.zipcode",
+        assertUpdate(
+                format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s(customer, zipcode, purchase)", targetTable) +
+                        "    ON t.customer = s.customer" +
+                        "    WHEN MATCHED THEN UPDATE SET purchase = s.purchase, zipcode = s.zipcode",
                 2);
 
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_0', 91000, 0, 0, 2),
-                               ('joe_1', 91000, 1, 1, 2),
-                               ('joe_2', 83000, 2, 2, 3),
-                               ('joe_3', 83000, 3, 3, 3)
-                        """);
+                VALUES ('joe_0', 91000, 0, 0, 2),
+                       ('joe_1', 91000, 1, 1, 2),
+                       ('joe_2', 83000, 2, 2, 3),
+                       ('joe_3', 83000, 3, 3, 3)
+                """);
 
         assertUpdate(format("INSERT INTO %s (customer, zipcode, purchase) VALUES ('joe_4', 74000, 4), ('joe_5', 74000, 5)", targetTable), 2);
 
@@ -1086,30 +1117,31 @@ public class TestStarburstIcebergV3
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_0', 91000, 0, 0, 2),
-                               ('joe_1', 91000, 1, 1, 2),
-                               ('joe_2', 83000, 2, 2, 3),
-                               ('joe_3', 83000, 3, 3, 3),
-                               ('joe_4', 74000, 4, 6, 4),
-                               ('joe_5', 74000, 5, 7, 4)
-                        """);
+                VALUES ('joe_0', 91000, 0, 0, 2),
+                       ('joe_1', 91000, 1, 1, 2),
+                       ('joe_2', 83000, 2, 2, 3),
+                       ('joe_3', 83000, 3, 3, 3),
+                       ('joe_4', 74000, 4, 6, 4),
+                       ('joe_5', 74000, 5, 7, 4)
+                """);
 
-        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", targetTable) +
-                     "    ON t.customer = s.customer" +
-                     "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
-                     "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
-                     "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
-                     "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)",
+        assertUpdate(
+                format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", targetTable) +
+                        "    ON t.customer = s.customer" +
+                        "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
+                        "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
+                        "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
+                        "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)",
                 6);
         // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory sequential
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable + " WHERE \"$row_id\" < 8",
                 """
-                        VALUES ('joe_2', 60000, 2, 2, 5),
-                               ('joe_3', 60000, 3, 3, 5),
-                               ('joe_4', 60000, 4, 6, 5),
-                               ('joe_5', 74000, 5, 7, 4)
-                        """);
+                VALUES ('joe_2', 60000, 2, 2, 5),
+                       ('joe_3', 60000, 3, 3, 5),
+                       ('joe_4', 60000, 4, 6, 5),
+                       ('joe_5', 74000, 5, 7, 4)
+                """);
 
         // The new added row we just know the _row_id is greater than 7, but we don't know the exact value
         assertThat(query("SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable + " WHERE \"$row_id\" >= 8"))
@@ -1125,49 +1157,54 @@ public class TestStarburstIcebergV3
         assertUpdate(format("CREATE TABLE %s (customer VARCHAR, zipcode INT, purchase INT) WITH (partitioning = ARRAY['purchase'])", targetTable));
 
         // joe_0 and joe_1 goes to the same partition
-        assertUpdate(format("""
+        assertUpdate(format(
+                """
                 INSERT INTO %s (customer, zipcode, purchase)
                         VALUES ('joe_0', 91000, 0),
                                ('joe_1', 91000, 0),
                                ('joe_2', 92000, 2),
                                ('joe_3', 92000, 3)
-                """, targetTable), 4);
+                """,
+                targetTable), 4);
 
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_0', 91000, 0, 2),
-                               ('joe_1', 91000, 0, 2),
-                               ('joe_2', 92000, 2, 2),
-                               ('joe_3', 92000, 3, 2)
-                        """);
+                VALUES ('joe_0', 91000, 0, 2),
+                       ('joe_1', 91000, 0, 2),
+                       ('joe_2', 92000, 2, 2),
+                       ('joe_3', 92000, 3, 2)
+                """);
 
         // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3
         assertThat(query("SELECT customer FROM " + targetTable + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
-                .matches("""
+                .matches(
+                        """
                         VALUES (VARCHAR 'joe_0'),
                                ('joe_1'),
                                ('joe_2'),
                                ('joe_3')
                         """);
 
-        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s(customer, zipcode, purchase)", targetTable) +
-                     "    ON t.customer = s.customer" +
-                     "    WHEN MATCHED THEN UPDATE SET purchase = s.purchase, zipcode = s.zipcode",
+        assertUpdate(
+                format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s(customer, zipcode, purchase)", targetTable) +
+                        "    ON t.customer = s.customer" +
+                        "    WHEN MATCHED THEN UPDATE SET purchase = s.purchase, zipcode = s.zipcode",
                 2);
 
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_0', 91000, 0, 2),
-                               ('joe_1', 91000, 0, 2),
-                               ('joe_2', 83000, 2, 3),
-                               ('joe_3', 83000, 3, 3)
-                        """);
+                VALUES ('joe_0', 91000, 0, 2),
+                       ('joe_1', 91000, 0, 2),
+                       ('joe_2', 83000, 2, 3),
+                       ('joe_3', 83000, 3, 3)
+                """);
 
         // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
         assertThat(query("SELECT customer FROM " + targetTable + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
-                .matches("""
+                .matches(
+                        """
                         VALUES (VARCHAR 'joe_0'),
                                ('joe_1'),
                                ('joe_2'),
@@ -1180,17 +1217,18 @@ public class TestStarburstIcebergV3
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_0', 91000, 0, 2),
-                               ('joe_1', 91000, 0, 2),
-                               ('joe_2', 83000, 2, 3),
-                               ('joe_3', 83000, 3, 3),
-                               ('joe_4', 74000, 4, 4),
-                               ('joe_5', 74000, 5, 4)
-                        """);
+                VALUES ('joe_0', 91000, 0, 2),
+                       ('joe_1', 91000, 0, 2),
+                       ('joe_2', 83000, 2, 3),
+                       ('joe_3', 83000, 3, 3),
+                       ('joe_4', 74000, 4, 4),
+                       ('joe_5', 74000, 5, 4)
+                """);
 
         // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
         assertThat(query("SELECT customer FROM " + targetTable + " WHERE \"$row_id\" IN (0, 1, 2, 3, 6, 7)"))
-                .matches("""
+                .matches(
+                        """
                         VALUES (VARCHAR 'joe_0'),
                                ('joe_1'),
                                ('joe_2'),
@@ -1199,23 +1237,24 @@ public class TestStarburstIcebergV3
                                ('joe_5')
                         """);
 
-        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", targetTable) +
-                     "    ON t.customer = s.customer" +
-                     "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
-                     "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
-                     "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
-                     "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)",
+        assertUpdate(
+                format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", targetTable) +
+                        "    ON t.customer = s.customer" +
+                        "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
+                        "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
+                        "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
+                        "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)",
                 6);
         // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory sequential
         assertQuery(
                 "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
                 """
-                        VALUES ('joe_2', 60000, 2, 5),
-                               ('joe_3', 60000, 3, 5),
-                               ('joe_4', 60000, 4, 5),
-                               ('joe_5', 74000, 5, 4),
-                               ('joe_6', 85000, 6, 5)
-                        """);
+                VALUES ('joe_2', 60000, 2, 5),
+                       ('joe_3', 60000, 3, 5),
+                       ('joe_4', 60000, 4, 5),
+                       ('joe_5', 74000, 5, 4),
+                       ('joe_6', 85000, 6, 5)
+                """);
 
         // The new added row we just know the _row_id is greater than 7, but we don't know the exact value
         assertThat(query("SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable + " WHERE \"$row_id\" >= 8"))
@@ -1266,7 +1305,8 @@ public class TestStarburstIcebergV3
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (3, 'c'), (2, 'b')", 3);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " ORDER BY x"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 1, VARCHAR 'a'),
                                    (1, 2, 2, 'b'),
                                    (2, 2, 3, 'c')
@@ -1274,7 +1314,8 @@ public class TestStarburstIcebergV3
             assertUpdate(format("UPDATE %s SET id = 11 WHERE id = 1", table.getName()), 1);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " ORDER BY x"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '3', 11, VARCHAR 'a'),
                                    (1, 2, 2, 'b'),
                                    (2, 2, 3, 'c')
@@ -1291,7 +1332,8 @@ public class TestStarburstIcebergV3
             assertUpdate(format("UPDATE %s SET regionkey = 333 WHERE regionkey = 1", table.getName()), 5);
             assertUpdate(format("UPDATE %s SET comment = 'some comment' WHERE regionkey = 2", table.getName()), 5);
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", name FROM " + table.getName() + " WHERE regionkey = 2"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '12', BIGINT '3', VARCHAR 'JAPAN'),
                                    (9, 3, 'INDONESIA'),
                                    (8, 3, 'INDIA'),
@@ -1305,7 +1347,8 @@ public class TestStarburstIcebergV3
                     .skippingTypesCheck()
                     .matches("SELECT name, regionkey FROM tpch.tiny.nation WHERE regionkey != 1");
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", name FROM " + table.getName() + " WHERE regionkey = 2"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '12', BIGINT '3', VARCHAR 'JAPAN'),
                                    (9, 3, 'INDONESIA'),
                                    (8, 3, 'INDIA'),
@@ -1323,7 +1366,8 @@ public class TestStarburstIcebergV3
             assertUpdate("INSERT INTO " + table.getName() + " VALUES 2", 1);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 1),
                                    (1, 3, 2)
                             """);
@@ -1337,7 +1381,8 @@ public class TestStarburstIcebergV3
                     .doesNotContainAnyElementsOf(manifestFiles);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 1),
                                    (1, 3, 2)
                             """);
@@ -1353,7 +1398,8 @@ public class TestStarburstIcebergV3
             assertUpdate(format("UPDATE %s SET x = 3 WHERE x = 2", table.getName()), 1);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 1),
                                    (1, 4, 3)
                             """);
@@ -1366,7 +1412,8 @@ public class TestStarburstIcebergV3
                     .hasSize(2);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 1),
                                    (1, 4, 3)
                             """);
@@ -1379,14 +1426,16 @@ public class TestStarburstIcebergV3
         try (TestTable table = newTrinoTable("test_update_branch", "(x int)")) {
             assertUpdate("INSERT INTO " + table.getName() + " VALUES 0", 1);
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 0)
                             """);
             assertUpdate("CREATE BRANCH \"" + "dev" + "\" IN TABLE " + table.getName());
             assertUpdate("INSERT INTO " + table.getName() + " @ dev VALUES 1, 2, 3", 3);
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " FOR VERSION AS OF 'dev'"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 0),
                                    (1, 3, 1),
                                    (2, 3, 2),
@@ -1395,11 +1444,13 @@ public class TestStarburstIcebergV3
 
             assertUpdate("UPDATE " + table.getName() + " @ dev SET x = x * 2", 4);
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '2', 0)
                             """);
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " FOR VERSION AS OF 'dev'"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '4', 0),
                                    (1, 4, 2),
                                    (2, 4, 4),
@@ -1409,7 +1460,8 @@ public class TestStarburstIcebergV3
             assertUpdate("ALTER BRANCH main IN TABLE " + table.getName() + " FAST FORWARD TO dev");
 
             assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES (BIGINT '0', BIGINT '4', 0),
                                    (1, 4, 2),
                                    (2, 4, 4),
@@ -2163,7 +2215,8 @@ public class TestStarburstIcebergV3
     {
         try (TestTable table = newTrinoTable("test_stats_row_lineage", "AS SELECT * FROM tpch.tiny.nation")) {
             assertThat(query("SHOW STATS FOR " + table.getName()))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES
                             (varchar 'nationkey', cast(null AS double), cast(25.0 AS double), cast(0.0 AS double), cast(null AS double), varchar '0', varchar '24'),
                             ('name', 583.0, 25.0, 0.0, null, null, null),
@@ -2174,7 +2227,8 @@ public class TestStarburstIcebergV3
 
             // show stats with row lineage column $row_id, returns null for all stats
             assertThat(query("SHOW STATS FOR (SELECT * FROM " + table.getName() + " WHERE \"$row_id\" = 1)"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES
                             (varchar 'nationkey', cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS varchar), cast(null AS varchar)),
                             ('regionkey', null, null, null, null, null, null),
@@ -2185,7 +2239,8 @@ public class TestStarburstIcebergV3
 
             // show stats with row lineage column $last_updated_sequence_number, returns null for all stats
             assertThat(query("SHOW STATS FOR (SELECT * FROM " + table.getName() + " WHERE \"$last_updated_sequence_number\" = 1)"))
-                    .matches("""
+                    .matches(
+                            """
                             VALUES
                             (varchar 'nationkey', cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS varchar), cast(null AS varchar)),
                             ('regionkey', null, null, null, null, null, null),

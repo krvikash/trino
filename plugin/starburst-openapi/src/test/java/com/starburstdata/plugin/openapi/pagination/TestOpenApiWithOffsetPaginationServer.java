@@ -75,7 +75,8 @@ public class TestOpenApiWithOffsetPaginationServer
     public void testOffsetPaginationFetchesAllData()
     {
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(per_page => 2))"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -91,7 +92,8 @@ public class TestOpenApiWithOffsetPaginationServer
     public void testOffsetPaginationWithLimit()
     {
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(per_page => 2)) LIMIT 3"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -103,14 +105,16 @@ public class TestOpenApiWithOffsetPaginationServer
     public void testOffsetExplicitPagination()
     {
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(offset => 0, per_page => 3))"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
                             (BIGINT '3', CAST('item-3' AS VARCHAR))
                         """);
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(offset => 3, per_page => 3))"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '4', CAST('item-4' AS VARCHAR)),
                             (BIGINT '5', CAST('item-5' AS VARCHAR)),
@@ -126,7 +130,8 @@ public class TestOpenApiWithOffsetPaginationServer
         // The /items/all endpoint has no offset/limit parameters in the spec — the OFFSET strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),

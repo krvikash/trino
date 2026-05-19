@@ -50,7 +50,8 @@ public class AttachDictionaryService
     private final DictionaryWriterFactory dictionaryWriterFactory;
 
     @Inject
-    public AttachDictionaryService(WorkerCapacityManager workerCapacityManager,
+    public AttachDictionaryService(
+            WorkerCapacityManager workerCapacityManager,
             StorageEngineConstants storageEngineConstants,
             DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
@@ -100,8 +101,12 @@ public class AttachDictionaryService
             }
 
             dictionarySizeInPages = length / storageEngineConstants.getPageSize();
-            logger.debug("save dictionary rowGroupFilePath %s recTypeCode %s dictionaryOffset %d dictionarySizeInPages %d",
-                    rowGroupFilePath, recTypeCode, dictionaryOffset, dictionarySizeInPages);
+            logger.debug(
+                    "save dictionary rowGroupFilePath %s recTypeCode %s dictionaryOffset %d dictionarySizeInPages %d",
+                    rowGroupFilePath,
+                    recTypeCode,
+                    dictionaryOffset,
+                    dictionarySizeInPages);
         }
         catch (IOException e) {
             shapingLogger.error(e, "save dictionary failed rowGroupFilePath %s, usage= %d", rowGroupFilePath, workerCapacityManager.getCurrentUsage());
@@ -120,7 +125,8 @@ public class AttachDictionaryService
     {
         int fixedRecTypeLength = TypeUtils.isVarlenStr(recTypeCode) ? 0 : recTypeLength;
 
-        DataValueDictionary dataValuesDictionary = new DataValueDictionary(dictionaryConfig,
+        DataValueDictionary dataValuesDictionary = new DataValueDictionary(
+                dictionaryConfig,
                 dictionaryKey,
                 fixedRecTypeLength,
                 recTypeLength,
@@ -136,8 +142,12 @@ public class AttachDictionaryService
             long length = randomAccessFile.readLong();
 
             if (length == 0) {
-                shapingLogger.error("load dictionary failed dictionaryKey %s rowGroupFilePath %s dictionaryOffset %d length %d",
-                        dictionaryKey, rowGroupFilePath, dictionaryOffset, length);
+                shapingLogger.error(
+                        "load dictionary failed dictionaryKey %s rowGroupFilePath %s dictionaryOffset %d length %d",
+                        dictionaryKey,
+                        rowGroupFilePath,
+                        dictionaryOffset,
+                        length);
                 throw new RuntimeException("end of file reached");
             }
 

@@ -86,7 +86,7 @@ public class PredicateHashCalculator
             throws Throwable
     {
         Type type = sortedRangeSet.getType();
-        MethodHandle hashCodeOperator = hashCodeOperatorsMap.computeIfAbsent(type, (_) -> TUPLE_DOMAIN_TYPE_OPERATORS.getHashCodeOperator(type, simpleConvention(FAIL_ON_NULL, BLOCK_POSITION_NOT_NULL)));
+        MethodHandle hashCodeOperator = hashCodeOperatorsMap.computeIfAbsent(type, _ -> TUPLE_DOMAIN_TYPE_OPERATORS.getHashCodeOperator(type, simpleConvention(FAIL_ON_NULL, BLOCK_POSITION_NOT_NULL)));
         boolean[] inclusive = sortedRangeSet.getInclusive();
         Block sortedRanges = sortedRangeSet.getSortedRanges();
         long hash = Objects.hash(type, Arrays.hashCode(inclusive));

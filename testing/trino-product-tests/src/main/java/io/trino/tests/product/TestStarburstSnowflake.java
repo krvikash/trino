@@ -41,10 +41,13 @@ public class TestStarburstSnowflake
         onTrino().executeQuery(format("DROP TABLE IF EXISTS %s.test_schema.nation_%s", catalog, suffix));
 
         assertThat(onTrino().executeQuery(
-                format("""
+                format(
+                        """
                         CREATE TABLE %s.test_schema.nation_%s
                         AS SELECT * FROM tpch.tiny.nation
-                        """, catalog, suffix)))
+                        """,
+                        catalog,
+                        suffix)))
                 .containsOnly(row(25));
 
         try {

@@ -101,8 +101,8 @@ public class StargateParallelSplitManager
                 .collect(toImmutableList());
 
         return """
-                EXECUTE IMMEDIATE '%s' USING %s
-                """.formatted(finalQuery.replace("'", "''"), Joiner.on(",").join(binds));
+               EXECUTE IMMEDIATE '%s' USING %s
+               """.formatted(finalQuery.replace("'", "''"), Joiner.on(",").join(binds));
     }
 
     private String bindParameter(ConnectorSession session, Type type, Object value)

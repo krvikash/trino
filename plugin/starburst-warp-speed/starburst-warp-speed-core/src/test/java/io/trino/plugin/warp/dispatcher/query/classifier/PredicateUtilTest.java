@@ -103,7 +103,8 @@ public class PredicateUtilTest
     @Test
     public void testPredicateTypeString()
     {
-        Domain domain = Domain.create(ValueSet.ofRanges(Range.range(VarcharType.VARCHAR, Slices.utf8Slice("bla"), true, Slices.utf8Slice("bla2"), true),
+        Domain domain = Domain.create(ValueSet.ofRanges(
+                        Range.range(VarcharType.VARCHAR, Slices.utf8Slice("bla"), true, Slices.utf8Slice("bla2"), true),
                         Range.range(VarcharType.VARCHAR, Slices.utf8Slice("kla"), true, Slices.utf8Slice("kla2"), true)),
                 false);
         assertThat(TypeUtils.isStrType(domain.getType())).isTrue();
@@ -113,7 +114,8 @@ public class PredicateUtilTest
     @Test
     public void testPredicateTypeStringRangeOfSingleValue()
     {
-        Domain domain = Domain.create(ValueSet.ofRanges(Range.range(VarcharType.VARCHAR, Slices.utf8Slice("bla"), true, Slices.utf8Slice("bla"), true)),
+        Domain domain = Domain.create(
+                ValueSet.ofRanges(Range.range(VarcharType.VARCHAR, Slices.utf8Slice("bla"), true, Slices.utf8Slice("bla"), true)),
                 false);
         assertThat(TypeUtils.isStrType(domain.getType())).isTrue();
         validatePredicateType(domain, PREDICATE_TYPE_STRING_VALUES, false);

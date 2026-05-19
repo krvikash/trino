@@ -52,7 +52,8 @@ public class CoordinatorDispatcherConnector
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
 
     @Inject
-    public CoordinatorDispatcherConnector(@ForWarp Connector proxiedConnector,
+    public CoordinatorDispatcherConnector(
+            @ForWarp Connector proxiedConnector,
             GlobalConfig globalConfig,
             DispatcherMetadataFactory dispatcherMetadataFactory,
             DispatcherCacheMetadata dispatcherCacheMetadata,

@@ -20,7 +20,7 @@ import java.lang.foreign.MemorySegment;
  */
 public interface StorageEngine
 {
-    //----------------------- initialization ----------------------------------------
+    // ----------------------- initialization ----------------------------------------
     default int getWarmupRecordBufferSize(int recTypeLength)
     {
         throw new UnsupportedOperationException();
@@ -66,7 +66,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    //----------------------- file ----------------------------------------
+    // ----------------------- file ----------------------------------------
     default int fileOpen(String fileName)
     {
         throw new UnsupportedOperationException();
@@ -92,7 +92,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    //----------------------- warmup ----------------------------------------
+    // ----------------------- warmup ----------------------------------------
 
     default void warmupElementOpen(MemorySegment warmUpState, MemorySegment context)
     {
@@ -119,7 +119,7 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    //----------------------- query ----------------------------------------
+    // ----------------------- query ----------------------------------------
     default void matchOpen(MemorySegment matchState)
     {
         throw new UnsupportedOperationException();
@@ -130,7 +130,6 @@ public interface StorageEngine
      *
      * @param matchState - match state
      * @param startChunkIndex - chunk to start match from
-     *
      * @return 0 for no more chunks, >0 for success giving the number of chunks in range, -1 for error
      */
     default int matchAgg(MemorySegment matchState, int startChunkIndex)
@@ -144,7 +143,6 @@ public interface StorageEngine
      * @param matchState - match state
      * @param weIx - wearm up element index
      * @param chunkIndex - chunk index
-     *
      * @return TRUE for success, FALSE for error (to throw exception)
      */
     default boolean matchLucenePrepare(MemorySegment matchState, int weIx, int chunkIndex)
@@ -171,7 +169,6 @@ public interface StorageEngine
      * @param matchState - match state
      * @param startChunkIndex - chunk to start match from
      * @param numChunks - number of chunks to match
-     *
      * @return TRUE if there were no errors (even if no match), FALSE if there was an error
      */
     default boolean match(MemorySegment matchState, int startChunkIndex, int numChunks)
@@ -197,7 +194,6 @@ public interface StorageEngine
      *
      * @param collectState - collect state
      * @param chunkIndex - chunk to collect from
-     *
      * @return TRUE for success, FALSE for error
      */
     default boolean openChunk(MemorySegment collectState, int chunkIndex)
@@ -231,7 +227,5 @@ public interface StorageEngine
         return true;
     }
 
-    default void shutdown()
-    {
-    }
+    default void shutdown() {}
 }

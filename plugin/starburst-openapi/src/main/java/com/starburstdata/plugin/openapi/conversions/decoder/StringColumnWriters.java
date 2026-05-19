@@ -210,7 +210,5 @@ public final class StringColumnWriters
             .withResolverStyle(ResolverStyle.STRICT)
             .withChronology(IsoChronology.INSTANCE);
 
-    private StringColumnWriters()
-    {
-    }
+    private StringColumnWriters() {}
 }

@@ -95,19 +95,24 @@ class NativeExpressionRulesHandlerTest
     static Stream<Arguments> ceilWithOperators()
     {
         return Stream.of(
-                arguments(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
+                arguments(
+                        StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME,
                         Range.equal(DoubleType.DOUBLE, 5d),
                         PREDICATE_TYPE_VALUES),
-                arguments(LESS_THAN_OPERATOR_FUNCTION_NAME,
+                arguments(
+                        LESS_THAN_OPERATOR_FUNCTION_NAME,
                         Range.lessThan(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES),
-                arguments(LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
+                arguments(
+                        LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
                         Range.lessThanOrEqual(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES),
-                arguments(StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME,
+                arguments(
+                        StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME,
                         Range.greaterThan(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES),
-                arguments(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
+                arguments(
+                        GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME,
                         Range.greaterThanOrEqual(DoubleType.DOUBLE, 5d),
                         PredicateType.PREDICATE_TYPE_RANGES));
     }
@@ -178,10 +183,14 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testWarpExpressionIsNanWithEqual()
     {
-        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new WarpCall(IS_NAN.getName(),
-                                List.of(createExpectedVariable(doubleVariable1)), BOOLEAN),
-                        WarpPrimitiveConstant.FALSE), BOOLEAN);
+        WarpExpression warpExpression = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(
+                                IS_NAN.getName(),
+                                List.of(createExpectedVariable(doubleVariable1)),
+                                BOOLEAN),
+                        WarpPrimitiveConstant.FALSE),
+                BOOLEAN);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.empty());
         assertPushdownStatsSum(1);
@@ -198,12 +207,14 @@ class NativeExpressionRulesHandlerTest
         WarpExpression warpExpression = new WarpCall(IS_NAN.getName(), List.of(createExpectedVariable(doubleVariable1)), BOOLEAN);
         Range range = Range.equal(BOOLEAN, true);
         Domain domain = Domain.create(ValueSet.ofRanges(range), false);
-        NativeExpression expectedResult = new NativeExpression(PREDICATE_TYPE_VALUES,
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
                 FunctionType.FUNCTION_TYPE_IS_NAN,
                 domain,
                 false,
                 false,
-                Collections.emptyList(), TransformFunction.NONE);
+                Collections.emptyList(),
+                TransformFunction.NONE);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
@@ -219,19 +230,23 @@ class NativeExpressionRulesHandlerTest
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(mapType, "mapColumn");
         WarpVariable warpVariable = new WarpVariable(columnHandle, mapType);
         WarpSliceConstant sliceConstant = new WarpSliceConstant(Slices.utf8Slice("val1"), VarcharType.VARCHAR);
-        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new WarpCall(ELEMENT_AT.getName(),
+        WarpExpression warpExpression = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(
+                                ELEMENT_AT.getName(),
                                 List.of(warpVariable, new WarpSliceConstant(Slices.utf8Slice("key1"), mapType)),
                                 BOOLEAN),
                         sliceConstant),
                 BOOLEAN);
-        NativeExpression expectedResult = new NativeExpression(PREDICATE_TYPE_STRING_VALUES,
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_STRING_VALUES,
                 FunctionType.FUNCTION_TYPE_TRANSFORMED,
                 Domain.create(ValueSet.ofRanges(Range.equal(sliceConstant.getType(), sliceConstant.getValue())), false),
                 false,
                 true,
                 Collections.emptyList(),
-                new TransformFunction(TransformFunction.TransformType.ELEMENT_AT,
+                new TransformFunction(
+                        TransformFunction.TransformType.ELEMENT_AT,
                         List.of(new WarpSliceConstant(Slices.utf8Slice("key1"), mapType))));
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, mapType, Collections.emptySet(), customStats);
         assertThat(result.orElseThrow()).isEqualTo(expectedResult);
@@ -246,19 +261,23 @@ class NativeExpressionRulesHandlerTest
         TestingConnectorColumnHandle columnHandle = new TestingConnectorColumnHandle(VarcharType.VARCHAR, "varcharCol");
         WarpVariable warpVariable = new WarpVariable(columnHandle, VarcharType.VARCHAR);
         WarpSliceConstant sliceConstant = new WarpSliceConstant(Slices.utf8Slice("12.345678"), VarcharType.VARCHAR);
-        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new WarpCall(SupportedFunctions.JSON_EXTRACT_SCALAR.getName(),
+        WarpExpression warpExpression = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(
+                                SupportedFunctions.JSON_EXTRACT_SCALAR.getName(),
                                 List.of(warpVariable, new WarpSliceConstant(Slices.utf8Slice("$.number"), VarcharType.VARCHAR)),
                                 BOOLEAN),
                         sliceConstant),
                 BOOLEAN);
-        NativeExpression expectedResult = new NativeExpression(PREDICATE_TYPE_STRING_VALUES,
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_STRING_VALUES,
                 FunctionType.FUNCTION_TYPE_TRANSFORMED,
                 Domain.create(ValueSet.ofRanges(Range.equal(sliceConstant.getType(), sliceConstant.getValue())), false),
                 false,
                 true,
                 Collections.emptyList(),
-                new TransformFunction(TransformFunction.TransformType.JSON_EXTRACT_SCALAR,
+                new TransformFunction(
+                        TransformFunction.TransformType.JSON_EXTRACT_SCALAR,
                         List.of(new WarpPrimitiveConstant("$.number", VarcharType.VARCHAR))));
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, VarcharType.VARCHAR, Collections.emptySet(), customStats);
         assertThat(result.orElseThrow()).isEqualTo(expectedResult);
@@ -270,10 +289,14 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testUnsupportedExpression()
     {
-        WarpExpression warpExpression = new WarpCall(StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new WarpCall("unsupported",
-                                List.of(createExpectedVariable(doubleVariable1)), BOOLEAN),
-                        WarpPrimitiveConstant.FALSE), BOOLEAN);
+        WarpExpression warpExpression = new WarpCall(
+                StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(
+                                "unsupported",
+                                List.of(createExpectedVariable(doubleVariable1)),
+                                BOOLEAN),
+                        WarpPrimitiveConstant.FALSE),
+                BOOLEAN);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         assertPushdownStatsSum(1);
@@ -283,23 +306,29 @@ class NativeExpressionRulesHandlerTest
 
     @ParameterizedTest
     @MethodSource("ceilWithOperators")
-    public void testCeilWithOperators(FunctionName functionName,
+    public void testCeilWithOperators(
+            FunctionName functionName,
             Range expectedRange,
             PredicateType expectedPredicateType)
     {
-        WarpExpression warpExpression = new WarpCall(functionName.getName(),
-                List.of(new WarpCall(CEIL.getName(),
+        WarpExpression warpExpression = new WarpCall(
+                functionName.getName(),
+                List.of(new WarpCall(
+                                CEIL.getName(),
                                 List.of(createExpectedVariable(doubleVariable1)),
                                 BOOLEAN),
-                        new WarpPrimitiveConstant(5d, DoubleType.DOUBLE)), BOOLEAN);
+                        new WarpPrimitiveConstant(5d, DoubleType.DOUBLE)),
+                BOOLEAN);
         ValueSet valueSet = ValueSet.ofRanges(expectedRange);
         Domain domain = Domain.create(valueSet, false);
-        NativeExpression expectedResult = new NativeExpression(expectedPredicateType,
+        NativeExpression expectedResult = new NativeExpression(
+                expectedPredicateType,
                 FunctionType.FUNCTION_TYPE_CEIL,
                 domain,
                 false,
                 false,
-                Collections.emptyList(), TransformFunction.NONE);
+                Collections.emptyList(),
+                TransformFunction.NONE);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
@@ -311,12 +340,18 @@ class NativeExpressionRulesHandlerTest
     @Test
     public void testDomainAlreadySet()
     {
-        WarpExpression warpExpression = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-                List.of(new WarpCall(GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
-                                List.of(new WarpCall(CEIL.getName(),
-                                                List.of(createExpectedVariable(doubleVariable1)), BOOLEAN),
-                                        new WarpPrimitiveConstant(5L, IntegerType.INTEGER)), BOOLEAN),
-                        new WarpPrimitiveConstant(false, BOOLEAN)), BOOLEAN);
+        WarpExpression warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(new WarpCall(
+                                GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
+                                List.of(new WarpCall(
+                                                CEIL.getName(),
+                                                List.of(createExpectedVariable(doubleVariable1)),
+                                                BOOLEAN),
+                                        new WarpPrimitiveConstant(5L, IntegerType.INTEGER)),
+                                BOOLEAN),
+                        new WarpPrimitiveConstant(false, BOOLEAN)),
+                BOOLEAN);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEmpty();
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
@@ -335,10 +370,12 @@ class NativeExpressionRulesHandlerTest
         Slice slice = Slices.utf8Slice(stringValue);
         Variable columnType = realVariable;
         ColumnHandle realColumn = assignments.get(columnType.getName());
-        WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(realColumn, columnType.getType())),
                 VarcharType.VARCHAR);
-        WarpCall warpExpression = new WarpCall(operator.getName(),
+        WarpCall warpExpression = new WarpCall(
+                operator.getName(),
                 List.of(expectedCastCall, new WarpSliceConstant(slice, VarcharType.VARCHAR)),
                 BOOLEAN);
 
@@ -361,21 +398,25 @@ class NativeExpressionRulesHandlerTest
         Slice slice = RealOperators.castToVarchar(varcharType.getLength().orElse(VarcharType.UNBOUNDED_LENGTH), intBits);
         Variable columnType = realVariable;
         ColumnHandle realColumn = assignments.get(columnType.getName());
-        WarpCall castCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
+        WarpCall castCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(realColumn, columnType.getType())),
                 varcharType);
-        WarpCall warpExpression = new WarpCall(EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(castCall, new WarpSliceConstant(slice, varcharType)),
                 BOOLEAN);
 
         Domain domain = Domain.singleValue(RealType.REAL, intBits);
 
-        NativeExpression expectedResult = new NativeExpression(PREDICATE_TYPE_VALUES,
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
                 FunctionType.FUNCTION_TYPE_NONE,
                 domain,
                 false,
                 false,
-                Collections.emptyList(), TransformFunction.NONE);
+                Collections.emptyList(),
+                TransformFunction.NONE);
 
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, columnType.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
@@ -390,10 +431,12 @@ class NativeExpressionRulesHandlerTest
     public void testCastDoubleToReal(FunctionName functionName, Domain domain)
     {
         ColumnHandle doubleColumn = assignments.get(doubleVariable1.getName());
-        WarpCall expectedCastCall = new WarpCall(CAST_FUNCTION_NAME.getName(),
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(doubleColumn, doubleVariable1.getType())),
                 RealType.REAL);
-        WarpCall warpExpression = new WarpCall(functionName.getName(),
+        WarpCall warpExpression = new WarpCall(
+                functionName.getName(),
                 List.of(expectedCastCall, new WarpPrimitiveConstant(5L, RealType.REAL)),
                 BOOLEAN);
 
@@ -404,12 +447,14 @@ class NativeExpressionRulesHandlerTest
         else {
             expectedPredicateType = PREDICATE_TYPE_RANGES;
         }
-        NativeExpression expectedResult = new NativeExpression(expectedPredicateType,
+        NativeExpression expectedResult = new NativeExpression(
+                expectedPredicateType,
                 FunctionType.FUNCTION_TYPE_CAST,
                 domain,
                 false,
                 false,
-                List.of(RecTypeCode.REC_TYPE_REAL.ordinal()), TransformFunction.NONE);
+                List.of(RecTypeCode.REC_TYPE_REAL.ordinal()),
+                TransformFunction.NONE);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);

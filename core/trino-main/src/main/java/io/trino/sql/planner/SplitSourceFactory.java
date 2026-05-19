@@ -401,8 +401,7 @@ public class SplitSourceFactory
                 LoadCachedDataPlanNode loadCachedDataNode = getLoadCachedDataPlanNode(node);
                 PlanSignature signature = loadCachedDataNode.getPlanSignature().signature();
                 return ImmutableMap.of(
-                        node.getId(),
-                        splitManager.getCacheSplitSource(
+                        node.getId(), splitManager.getCacheSplitSource(
                                 signature,
                                 originalTableScan,
                                 splitSource,

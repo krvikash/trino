@@ -59,7 +59,8 @@ public class WarmingResource
     private final WarpClient warpClient;
 
     @Inject
-    public WarmingResource(CoordinatorNodeManager coordinatorNodeManager,
+    public WarmingResource(
+            CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
@@ -68,7 +69,7 @@ public class WarmingResource
 
     @GET
     @Path(WARMING_STATUS)
-    //@ApiOperation(value = "get nodes warming status", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
+    // @ApiOperation(value = "get nodes warming status", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public WarmingStatusData getNodesStatus()
     {
         Map<String, HttpClient.HttpResponseFuture<FullJsonResponseHandler.JsonResponse<WorkerWarmingStatusData>>> allFutures = new HashMap<>();

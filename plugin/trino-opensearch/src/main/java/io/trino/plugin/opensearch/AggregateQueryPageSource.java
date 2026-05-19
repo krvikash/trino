@@ -126,9 +126,7 @@ public class AggregateQueryPageSource
     }
 
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 
     @Override
     public SourcePage getNextSourcePage()

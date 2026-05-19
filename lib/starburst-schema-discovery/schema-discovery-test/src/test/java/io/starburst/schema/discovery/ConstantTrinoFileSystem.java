@@ -41,7 +41,8 @@ public class ConstantTrinoFileSystem
     @Override
     public FileIterator listFiles(Location location)
     {
-        return new FileIterator() {
+        return new FileIterator()
+        {
             private boolean used;
 
             @Override

@@ -63,7 +63,8 @@ public class WorkerCapacityManager
     private long reservationUsageForSingleTx;
 
     @Inject
-    WorkerCapacityManager(GlobalConfig globalConfig,
+    WorkerCapacityManager(
+            GlobalConfig globalConfig,
             WarmupDemoterConfig warmupDemoterConfig,
             StorageEngineConstants storageEngineConstants,
             NativeStorageStateHandler nativeStorageStateHandler,
@@ -241,12 +242,16 @@ public class WorkerCapacityManager
                 if (isEmptyDir(localStore)) {
                     nativeStorageStateHandler.enableTemporarily();
                     nativeStorageStateHandler.enablePermanently();
-                    logger.info("cleanLocalStorage job finished successfully for [%s]. took %d nano sec",
-                            localStorePath, stopWatch.getNanoTime());
+                    logger.info(
+                            "cleanLocalStorage job finished successfully for [%s]. took %d nano sec",
+                            localStorePath,
+                            stopWatch.getNanoTime());
                 }
                 else {
-                    logger.error("cleanLocalStorage job failed to clean [%s]. took %d nano sec",
-                            localStorePath, stopWatch.getNanoTime());
+                    logger.error(
+                            "cleanLocalStorage job failed to clean [%s]. took %d nano sec",
+                            localStorePath,
+                            stopWatch.getNanoTime());
                     nativeStorageStateHandler.handleErrorCode(ENV_EXCEPTION_STORAGE_PERMANENT_ERROR);
                 }
             }

@@ -117,7 +117,8 @@ public class WorkerWarmingService
     private final int batchSize;
 
     @Inject
-    public WorkerWarmingService(MetricsManager metricsManager,
+    public WorkerWarmingService(
+            MetricsManager metricsManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
@@ -146,7 +147,8 @@ public class WorkerWarmingService
     }
 
     @VisibleForTesting
-    public WorkerWarmingService(MetricsManager metricsManager,
+    public WorkerWarmingService(
+            MetricsManager metricsManager,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             WorkerTaskExecutorService workerTaskExecutorService,
             WarmExecutionTaskFactory warmExecutionTaskFactory,
@@ -178,7 +180,8 @@ public class WorkerWarmingService
         eventBus.register(this);
     }
 
-    public void warm(ConnectorPageSourceProvider connectorPageSourceProvider,
+    public void warm(
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
@@ -189,14 +192,16 @@ public class WorkerWarmingService
             int iterationCount)
     {
         try {
-            RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
+            RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(
+                    dispatcherSplit.getSchemaName(),
                     dispatcherSplit.getTableName(),
                     dispatcherSplit.getPath(),
                     dispatcherSplit.getStart(),
                     dispatcherSplit.getLength(),
                     dispatcherSplit.getFileModifiedTime(),
                     dispatcherSplit.getDeletedFilesHash());
-            WorkerSubmittableTask prioritizeTask = warmExecutionTaskFactory.createExecutionTask(connectorPageSourceProvider,
+            WorkerSubmittableTask prioritizeTask = warmExecutionTaskFactory.createExecutionTask(
+                    connectorPageSourceProvider,
                     transactionHandle,
                     session,
                     dispatcherSplit,
@@ -237,7 +242,8 @@ public class WorkerWarmingService
         workerTaskExecutorService.taskFinished(rowGroupKey);
     }
 
-    WarmData getWarmData(List<ColumnHandle> columns,
+    WarmData getWarmData(
+            List<ColumnHandle> columns,
             RowGroupKey rowGroupKey,
             DispatcherSplit dispatcherSplit,
             ConnectorSession session,
@@ -297,7 +303,8 @@ public class WorkerWarmingService
         return new WarmData(dispatcherColumnsToWarm, requiredWarmUpTypeMap, warmExecutionState, true, queryContext, warmDataState.warmWarmUpElements);
     }
 
-    private WarmDataState getWarmDataState(RowGroupData rowGroupData,
+    private WarmDataState getWarmDataState(
+            RowGroupData rowGroupData,
             Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredlWarmupMap)
     {
         SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap = HashMultimap.create();
@@ -312,7 +319,8 @@ public class WorkerWarmingService
                 // Map<WarmUpType, WarmUpElement> existingWarmUpTypeToElement = warmedWarmupTypes.is(warpColumn, Map.of());
 
                 if (warmedWarmupTypes.isNewColumn(warpColumn)) {
-                    logger.debug("new column to warm%s. newColumn=%s, warmUpTypes=%s",
+                    logger.debug(
+                            "new column to warm%s. newColumn=%s, warmUpTypes=%s",
                             warmedWarmupTypes.getWarmedColumns().isEmpty() ? "" : " in an existing row group",
                             warpColumn,
                             requiredWarmUpTypeToProperties.keySet());
@@ -356,7 +364,8 @@ public class WorkerWarmingService
 
     // Limit the amount of WarmupProperties to warm in a single time.
     // In addition - retry to warm failed warmup elements one by one and only after warming all new warmup elements.
-    private SetMultimap<WarpColumn, WarmupProperties> warmInBatches(SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap,
+    private SetMultimap<WarpColumn, WarmupProperties> warmInBatches(
+            SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap,
             WarmedWarmupTypes existingWarmupMap)
     {
         int originalSize = newRequiredWarmUpTypeMap.size();
@@ -378,8 +387,7 @@ public class WorkerWarmingService
                 .collect(Multimaps.toMultimap(Map.Entry::getKey, Map.Entry::getValue, HashMultimap::create));
         if (actualProxiedElementsToWarm.isEmpty()) {
             actualProxiedElementsToWarm = newRequiredWarmUpTypeMap.entries().stream()
-                    .sorted(Comparator.comparingInt(entry ->
-                    {
+                    .sorted(Comparator.comparingInt(entry -> {
                         Optional<WarmUpElement> warmUpElement = existingWarmupMap.getByTypeAndColumn(entry.getValue().warmUpType(), entry.getKey(), entry.getValue().transformFunction());
                         return warmUpElement.map(element -> element.getState().temporaryFailureCount()).orElse(0);
                     }))
@@ -388,7 +396,8 @@ public class WorkerWarmingService
 
         if (logger.isDebugEnabled() && originalSize != actualProxiedElementsToWarm.size()) {
             SetMultimap<WarpColumn, WarmupProperties> finalActualProxiedElementsToWarm = actualProxiedElementsToWarm;
-            logger.debug("Splitting warmup into batches. Current batch: %s. Remaining: %s",
+            logger.debug(
+                    "Splitting warmup into batches. Current batch: %s. Remaining: %s",
                     actualProxiedElementsToWarm.entries().stream()
                             .map(entry -> entry.getKey() + ":" + entry.getValue().warmUpType())
                             .collect(Collectors.joining(", ")),
@@ -437,12 +446,19 @@ public class WorkerWarmingService
         boolean backoffElapsed = System.currentTimeMillis() > nextAttemptTime;
 
         if (backoffElapsed) {
-            logger.debug("will retry to warm a failed warmUpElement (failed %d / %d times). columnKey=%s, warmUpType=%s",
-                    temporaryFailureCount, globalConfig.getMaxWarmRetries(), warmUpElement.getWarpColumn().getName(), warmUpElement.getWarmUpType());
+            logger.debug(
+                    "will retry to warm a failed warmUpElement (failed %d / %d times). columnKey=%s, warmUpType=%s",
+                    temporaryFailureCount,
+                    globalConfig.getMaxWarmRetries(),
+                    warmUpElement.getWarpColumn().getName(),
+                    warmUpElement.getWarmUpType());
         }
         else {
-            logger.debug("won't retry to warm a temporary failed warmUpElement, backoff is until timestamp %f. columnKey=%s, warmUpType=%s",
-                    nextAttemptTime, warmUpElement.getWarpColumn().getName(), warmUpElement.getWarmUpType());
+            logger.debug(
+                    "won't retry to warm a temporary failed warmUpElement, backoff is until timestamp %f. columnKey=%s, warmUpType=%s",
+                    nextAttemptTime,
+                    warmUpElement.getWarpColumn().getName(),
+                    warmUpElement.getWarmUpType());
             statsWarmingService.incwarm_skip_temporary_failed_warmup_element();
         }
 
@@ -464,7 +480,8 @@ public class WorkerWarmingService
         return warmupDemoterService.canAllowWarmup(warmupDemoterConfig.getDefaultRulePriority());
     }
 
-    private Map<WarpColumn, Set<WarmupProperties>> getDefaultPropertiesRules(List<ColumnHandle> columns,
+    private Map<WarpColumn, Set<WarmupProperties>> getDefaultPropertiesRules(
+            List<ColumnHandle> columns,
             QueryContext queryContext,
             ConnectorSession session)
     {
@@ -502,7 +519,7 @@ public class WorkerWarmingService
                     if (isWarmBasicSupported(type)) {
                         List<PredicateContext> remainingPredicatesByColumn = queryContext.getPredicateContextData().getRemainingPredicatesByColumn((RegularColumn) warpColumn);
                         if (remainingPredicatesByColumn.isEmpty()) {
-                            //in case of default warming + default index, we will warm default column with basic
+                            // in case of default warming + default index, we will warm default column with basic
                             properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_BASIC));
                         }
                         else {
@@ -536,7 +553,8 @@ public class WorkerWarmingService
         return result;
     }
 
-    private Map<WarpColumn, Map<WarmUpType, WarmupProperties>> getMatchingRules(DispatcherSplit dispatcherSplit,
+    private Map<WarpColumn, Map<WarmUpType, WarmupProperties>> getMatchingRules(
+            DispatcherSplit dispatcherSplit,
             Map<RegularColumn, ColumnHandle> warpColumnToColumnHandle)
     {
         Map<RegularColumn, String> partitionKeysMap = dispatcherSplit.getPartitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
@@ -587,7 +605,8 @@ public class WorkerWarmingService
                         Map<WarmUpType, WarmupProperties> warmUpTypeToProperties = matchingRules.computeIfAbsent(warpColumn, _ -> new HashMap<>());
                         TransformFunction transformFunction = (warpColumn instanceof TransformedColumn transformedColumn) ?
                                 transformedColumn.getTransformFunction() : TransformFunction.NONE;
-                        warmUpTypeToProperties.put(warmupRule.getWarmUpType(),
+                        warmUpTypeToProperties.put(
+                                warmupRule.getWarmUpType(),
                                 new WarmupProperties(warmupRule.getWarmUpType(), warmupRule.getPriority(), warmupRule.getTtl(), transformFunction));
                     });
         }
@@ -631,17 +650,20 @@ public class WorkerWarmingService
     {
         defaultRules = ImmutableMap.<WarmUpType, WarmupProperties>builder()
                 .put(WarmUpType.WARM_UP_TYPE_DATA,
-                        new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA,
+                        new WarmupProperties(
+                                WarmUpType.WARM_UP_TYPE_DATA,
                                 warmupDemoterConfig.getDefaultRulePriority(),
                                 warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
                                 TransformFunction.NONE))
                 .put(WarmUpType.WARM_UP_TYPE_BASIC,
-                        new WarmupProperties(WarmUpType.WARM_UP_TYPE_BASIC,
+                        new WarmupProperties(
+                                WarmUpType.WARM_UP_TYPE_BASIC,
                                 warmupDemoterConfig.getDefaultRulePriority(),
                                 warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
                                 TransformFunction.NONE))
                 .put(WarmUpType.WARM_UP_TYPE_LUCENE,
-                        new WarmupProperties(WarmUpType.WARM_UP_TYPE_LUCENE,
+                        new WarmupProperties(
+                                WarmUpType.WARM_UP_TYPE_LUCENE,
                                 warmupDemoterConfig.getDefaultRulePriority(),
                                 warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
                                 TransformFunction.NONE))
@@ -666,7 +688,8 @@ public class WorkerWarmingService
         SetMultimap<WarpColumn, WarmupProperties> newRequiredWarmUpTypeMap =
                 getRequiredWarmUpTypeMap(warmData.requiredWarmUpTypeMap(), rowGroupData.getWarmUpElements());
 
-        return new WarmData(getColumnHandleList(warmData.columnHandleList(), newRequiredWarmUpTypeMap.keySet()),
+        return new WarmData(
+                getColumnHandleList(warmData.columnHandleList(), newRequiredWarmUpTypeMap.keySet()),
                 newRequiredWarmUpTypeMap,
                 warmData.warmExecutionState(),
                 warmData.txMemoryReserved(),
@@ -674,7 +697,8 @@ public class WorkerWarmingService
                 null);
     }
 
-    private SetMultimap<WarpColumn, WarmupProperties> getRequiredWarmUpTypeMap(SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
+    private SetMultimap<WarpColumn, WarmupProperties> getRequiredWarmUpTypeMap(
+            SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             Collection<WarmUpElement> warmUpElements)
     {
         Map<WarpColumn, Map<WarmUpType, WarmupProperties>> requiredWarmupMap = new HashMap<>();

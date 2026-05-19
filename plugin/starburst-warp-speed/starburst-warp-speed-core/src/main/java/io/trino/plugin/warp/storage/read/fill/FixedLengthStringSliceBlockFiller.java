@@ -45,7 +45,8 @@ public class FixedLengthStringSliceBlockFiller
     }
 
     @Override
-    protected int copyFromJufferOneRecord(ByteBuffer recordBuff,
+    protected int copyFromJufferOneRecord(
+            ByteBuffer recordBuff,
             ShortBuffer lenBuff,
             int currPos,
             int recLength,
@@ -61,7 +62,8 @@ public class FixedLengthStringSliceBlockFiller
     }
 
     @Override
-    protected void copyFromJufferMultipleRecords(ByteBuffer recordBuff,
+    protected void copyFromJufferMultipleRecords(
+            ByteBuffer recordBuff,
             ShortBuffer lenBuff,
             int recLength,
             int numRecords,
@@ -81,7 +83,8 @@ public class FixedLengthStringSliceBlockFiller
     }
 
     @Override
-    protected void copyFromDictionary(ShortBuffer buff,
+    protected void copyFromDictionary(
+            ShortBuffer buff,
             ReadDictionary readDictionary,
             int currPos,
             Slice outputSlice,

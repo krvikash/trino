@@ -54,7 +54,8 @@ public class NativeCollectClassifier
 
     // collectRecordBufferMaxMemory is the maximal memory we can use from the bundle memory for all collect columns record buffers
     // collectTxMaxMemory is the maximal memory we can use for native tx for all collect colulmns
-    NativeCollectClassifier(int matchCollectBufferSize,
+    NativeCollectClassifier(
+            int matchCollectBufferSize,
             int matchCollectRecSizeFactor,
             int collectTxMaxMemory,
             int matchTxSize,
@@ -112,7 +113,8 @@ public class NativeCollectClassifier
         }
 
         return queryContext.asBuilder()
-                .nativeQueryCollectDataList(createMemoryLimitedNativeQueryCollectDataList(queryContext,
+                .nativeQueryCollectDataList(createMemoryLimitedNativeQueryCollectDataList(
+                        queryContext,
                         nativeQueryCollectDataListsByCategory,
                         remainingCollectColumnByBlockIndex,
                         collectTxMaxMemory))
@@ -140,7 +142,8 @@ public class NativeCollectClassifier
     // note that we have two types of memory to check here:
     // 1. collect memory coming from the bundle that is used to pass the collected records and nulls to java from native
     // 2. match collect memory which is a native intermediate buffer used for collecting the data while traversing the index
-    private Optional<NativeQueryCollectData> createMatchCollect(ClassifyArgs classifyArgs,
+    private Optional<NativeQueryCollectData> createMatchCollect(
+            ClassifyArgs classifyArgs,
             NativeCollectState state,
             QueryMatchData queryMatchData)
     {
@@ -266,7 +269,7 @@ public class NativeCollectClassifier
     {
         MATCH_COLLECT,
         FIXED_SIZE, // without chars that are covered by string
-        STRING
+        STRING,
     }
 
     private class NativeCollectState
@@ -339,7 +342,8 @@ public class NativeCollectClassifier
         boolean updateCollectMemoryIfAvailable(int collectBufferUpdate, int collectTxUpdate)
         {
             final boolean isStr = TypeUtils.isStrType(getCurrentColumnType());
-            return updateCollectMemoryIfAvailable(collectBufferUpdate,
+            return updateCollectMemoryIfAvailable(
+                    collectBufferUpdate,
                     collectTxUpdate,
                     0,
                     isStr ? CollectCategory.STRING : CollectCategory.FIXED_SIZE);
@@ -347,13 +351,15 @@ public class NativeCollectClassifier
 
         boolean updateCollectMemoryIfAvailable(int collectBufferUpdate, int collectTxUpdate, int matchCollectBufferUpdate)
         {
-            return updateCollectMemoryIfAvailable(collectBufferUpdate,
+            return updateCollectMemoryIfAvailable(
+                    collectBufferUpdate,
                     collectTxUpdate,
                     matchCollectBufferUpdate,
                     CollectCategory.MATCH_COLLECT);
         }
 
-        private boolean updateCollectMemoryIfAvailable(int collectBufferUpdate,
+        private boolean updateCollectMemoryIfAvailable(
+                int collectBufferUpdate,
                 int collectTxUpdate,
                 int matchCollectBufferUpdate,
                 CollectCategory collectCategory)

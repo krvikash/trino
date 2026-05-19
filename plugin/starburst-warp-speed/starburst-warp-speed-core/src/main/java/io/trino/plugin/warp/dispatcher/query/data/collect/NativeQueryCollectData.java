@@ -29,7 +29,8 @@ public class NativeQueryCollectData
     protected final MatchCollectType matchCollectType;
     protected final int matchCollectId;
 
-    private NativeQueryCollectData(WarmUpElement warmUpElement,
+    private NativeQueryCollectData(
+            WarmUpElement warmUpElement,
             Type type,
             int blockIndex,
             MatchCollectType matchCollectType,
@@ -125,7 +126,8 @@ public class NativeQueryCollectData
         @Override
         public NativeQueryCollectData build()
         {
-            return new NativeQueryCollectData(warmUpElementOptional.orElseThrow(),
+            return new NativeQueryCollectData(
+                    warmUpElementOptional.orElseThrow(),
                     type,
                     blockIndex,
                     matchCollectType,

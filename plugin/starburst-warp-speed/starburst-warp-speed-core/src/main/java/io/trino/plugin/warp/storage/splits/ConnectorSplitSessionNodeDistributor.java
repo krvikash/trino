@@ -76,7 +76,5 @@ public class ConnectorSplitSessionNodeDistributor
     }
 
     @Override
-    public void updateNodeBucketsIfNeeded()
-    {
-    }
+    public void updateNodeBucketsIfNeeded() {}
 }

@@ -82,8 +82,7 @@ public class TestCoordinatorDynamicFilteringWithPlanAlternatives
                 Set.of(SUPP_KEY_HANDLE),
                 collectedDomain -> {
                     TupleDomain<ColumnHandle> expectedRange = TupleDomain.withColumnDomains(ImmutableMap.of(
-                            SUPP_KEY_HANDLE,
-                            singleValue(BIGINT, 1L)));
+                            SUPP_KEY_HANDLE, singleValue(BIGINT, 1L)));
                     assertThat(collectedDomain).isEqualTo(expectedRange);
                 });
     }

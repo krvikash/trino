@@ -66,8 +66,7 @@ public final class SemiJoin
             Map<AttributeKey, Object> sourceAttributes,
             Map<AttributeKey, Object> filteringSourceAttributes)
     {
-        this(
-                resultName,
+        this(resultName,
                 source,
                 filteringSource,
                 sourceFieldSelector,

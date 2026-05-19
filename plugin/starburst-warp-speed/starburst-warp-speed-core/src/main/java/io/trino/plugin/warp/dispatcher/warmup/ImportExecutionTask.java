@@ -39,7 +39,8 @@ public class ImportExecutionTask
 {
     private final int executionTaskPriority;
 
-    public ImportExecutionTask(WarmExecutionTaskFactory warmExecutionTaskFactory,
+    public ImportExecutionTask(
+            WarmExecutionTaskFactory warmExecutionTaskFactory,
             WarmingServiceStats statsWarmingService,
             WorkerWarmingService workerWarmingService,
             ShapingLoggerFactory shapingLoggerFactory,
@@ -49,7 +50,8 @@ public class ImportExecutionTask
             DispatcherTableHandle dispatcherTableHandle,
             Optional<ConnectorTableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
-            List<ColumnHandle> columns, DispatcherSplit dispatcherSplit,
+            List<ColumnHandle> columns,
+            DispatcherSplit dispatcherSplit,
             DynamicFilter dynamicFilter,
             RowGroupDataService rowGroupDataService,
             QueryClassifier queryClassifier,
@@ -60,8 +62,7 @@ public class ImportExecutionTask
             int iterationCount,
             int executionTaskPriority)
     {
-        super(
-                warmExecutionTaskFactory,
+        super(warmExecutionTaskFactory,
                 workerTaskExecutorService,
                 statsWarmingService,
                 warmingManager,

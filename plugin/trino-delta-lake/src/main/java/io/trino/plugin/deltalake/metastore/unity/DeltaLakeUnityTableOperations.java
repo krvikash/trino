@@ -73,7 +73,8 @@ public class DeltaLakeUnityTableOperations
                 entry.getDescription(),
                 entry.getOriginalPartitionColumns(),
                 Instant.ofEpochMilli(entry.getCreatedTime()).atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
-        Optional<Protocol> protocol = protocolEntry.map(entry -> new Protocol(entry.minReaderVersion(),
+        Optional<Protocol> protocol = protocolEntry.map(entry -> new Protocol(
+                entry.minReaderVersion(),
                 entry.minWriterVersion(),
                 entry.readerFeatures().map(ImmutableList::copyOf).orElse(ImmutableList.of()),
                 entry.writerFeatures().map(ImmutableList::copyOf).orElse(ImmutableList.of())));

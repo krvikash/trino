@@ -82,9 +82,11 @@ public class TestPageProcessorCompiler
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(BIGINT, "$col_0"), 3,
                 new Symbol(VARCHAR, "$col_1"), 1);
-        PageProcessor processor = compiler.compilePageProcessor(Optional.empty(),
+        PageProcessor processor = compiler.compilePageProcessor(
+                        Optional.empty(),
                         ImmutableList.of(new Reference(BIGINT, "$col_0"), new Reference(VARCHAR, "$col_1")),
-                        layout, MAX_BATCH_SIZE)
+                        layout,
+                        MAX_BATCH_SIZE)
                 .get();
 
         Slice varcharValue = Slices.utf8Slice("hello");
@@ -123,8 +125,11 @@ public class TestPageProcessorCompiler
         ResolvedFunction lessThan = functionResolution.resolveOperator(LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
         Call filter = call(lessThan, lengthVarchar, new Constant(BIGINT, 10L));
 
-        PageProcessor processor = compiler.compilePageProcessor(Optional.of(filter),
-                        ImmutableList.of(col0), layout, MAX_BATCH_SIZE)
+        PageProcessor processor = compiler.compilePageProcessor(
+                        Optional.of(filter),
+                        ImmutableList.of(col0),
+                        layout,
+                        MAX_BATCH_SIZE)
                 .get();
 
         Block inputDictionaryBlock = createDictionaryBlock(createExpectedValues(10), 100);
@@ -166,8 +171,11 @@ public class TestPageProcessorCompiler
         ResolvedFunction lessThan = functionResolution.resolveOperator(LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
         Call filter = call(lessThan, col0, new Constant(BIGINT, 10L));
 
-        PageProcessor processor = compiler.compilePageProcessor(Optional.of(filter),
-                        ImmutableList.of(col0), layout, MAX_BATCH_SIZE)
+        PageProcessor processor = compiler.compilePageProcessor(
+                        Optional.of(filter),
+                        ImmutableList.of(col0),
+                        layout,
+                        MAX_BATCH_SIZE)
                 .get();
 
         Page page = new Page(createRepeatedValuesBlock(0L, 100), createRepeatedValuesBlock(0L, 100), createRepeatedValuesBlock(5L, 100));
@@ -190,8 +198,11 @@ public class TestPageProcessorCompiler
     public void testSanityColumnarDictionary()
     {
         Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(VARCHAR, "$col_0"), 2);
-        PageProcessor processor = compiler.compilePageProcessor(Optional.empty(),
-                        ImmutableList.of(new Reference(VARCHAR, "$col_0")), layout, MAX_BATCH_SIZE)
+        PageProcessor processor = compiler.compilePageProcessor(
+                        Optional.empty(),
+                        ImmutableList.of(new Reference(VARCHAR, "$col_0")),
+                        layout,
+                        MAX_BATCH_SIZE)
                 .get();
 
         Block inputDictionaryBlock = createDictionaryBlock(createExpectedValues(10), 100);
@@ -222,8 +233,11 @@ public class TestPageProcessorCompiler
                 new Constant(BIGINT, 10L));
         Call lessThanRandomExpression = call(lessThan, col0, random);
 
-        PageProcessor processor = compiler.compilePageProcessor(Optional.empty(),
-                        ImmutableList.of(lessThanRandomExpression), layout, MAX_BATCH_SIZE)
+        PageProcessor processor = compiler.compilePageProcessor(
+                        Optional.empty(),
+                        ImmutableList.of(lessThanRandomExpression),
+                        layout,
+                        MAX_BATCH_SIZE)
                 .get();
 
         assertThat(isDeterministic(lessThanRandomExpression)).isFalse();

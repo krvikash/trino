@@ -19,9 +19,7 @@ import com.google.inject.Singleton;
 public class StubsRangeFillerService
         implements RangeFillerService
 {
-    public StubsRangeFillerService()
-    {
-    }
+    public StubsRangeFillerService() {}
 
     // return the number of rows collected in this round
     @Override

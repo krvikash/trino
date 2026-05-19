@@ -74,7 +74,8 @@ public class WarmupDemoterTask
     private final WarpClient warpClient;
 
     @Inject
-    public WarmupDemoterTask(CoordinatorNodeManager coordinatorNodeManager,
+    public WarmupDemoterTask(
+            CoordinatorNodeManager coordinatorNodeManager,
             WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
@@ -83,7 +84,7 @@ public class WarmupDemoterTask
 
     @POST
     @Path(WARMUP_DEMOTER_START_TASK_NAME)
-    //@ApiOperation(value = "start", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "start", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     @Audit
     public Map<String, Object> start(WarmupDemoterData warmupDemoterData)
     {

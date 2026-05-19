@@ -23,7 +23,5 @@ public enum MatchCollectOp
     MATCH_COLLECT_OP_MAPPING,
     MATCH_COLLECT_OP_NUM_OF;
 
-    MatchCollectOp()
-    {
-    }
+    MatchCollectOp() {}
 }

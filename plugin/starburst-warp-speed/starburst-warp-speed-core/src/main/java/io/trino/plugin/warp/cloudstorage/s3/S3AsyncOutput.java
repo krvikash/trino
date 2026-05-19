@@ -119,7 +119,9 @@ final class S3AsyncOutput
                 .key(destination.key())
                 .applyMutation(builder -> {
                     switch (config.getSseType()) {
-                        case NONE -> { /* ignored */ }
+                        case NONE -> {
+                            /* ignored */
+                        }
                         case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
                         case CUSTOMER -> {
                             S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");

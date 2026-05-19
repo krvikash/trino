@@ -81,8 +81,8 @@ public class TestDispatcherWarmCloudFetcherIT
 
     private void cleanModel()
     {
-        createdTables.forEach((tableName) -> assertUpdate("DROP TABLE IF EXISTS " + tableName));
-        createdSchemas.forEach((schemaName) -> assertUpdate("DROP SCHEMA IF EXISTS " + schemaName));
+        createdTables.forEach(tableName -> assertUpdate("DROP TABLE IF EXISTS " + tableName));
+        createdSchemas.forEach(schemaName -> assertUpdate("DROP SCHEMA IF EXISTS " + schemaName));
     }
 
     @Override
@@ -91,11 +91,13 @@ public class TestDispatcherWarmCloudFetcherIT
     {
         warmRulesStorePath = Files.createTempDirectory("store_path");
 
-        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
+                new WarpStubsStorageEngineModule(),
                 Optional.empty(),
                 2,
                 Map.of(),
-                Map.of("http-server.log.enabled", "false",
+                Map.of(
+                        "http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         "iceberg.catalog.type", "TESTING_FILE_METASTORE",
@@ -120,7 +122,8 @@ public class TestDispatcherWarmCloudFetcherIT
         assertThat(getWarmupRules()).isEmpty();
         createSchemaAndTable("s1", "t1", format("(%s integer, %s varchar(20))", "col1", "col2"));
 
-        executeRestCommand(WarmupRuleService.WARMUP_PATH,
+        executeRestCommand(
+                WarmupRuleService.WARMUP_PATH,
                 WarmupTask.TASK_NAME_SET,
                 getRules(WarmUpType.WARM_UP_TYPE_BASIC),
                 HttpMethod.POST,
@@ -142,7 +145,8 @@ public class TestDispatcherWarmCloudFetcherIT
         workerWarmupColRuleDatasMap.forEach((_, value) -> {
             assertThat(value
                     .stream()
-                    .map(warmupColRuleData -> new WarmupColRuleData(0,
+                    .map(warmupColRuleData -> new WarmupColRuleData(
+                            0,
                             warmupColRuleData.getSchema(),
                             warmupColRuleData.getTable(),
                             warmupColRuleData.getColumn(),
@@ -165,7 +169,8 @@ public class TestDispatcherWarmCloudFetcherIT
         List<WarmupColRuleData> warmupColRuleDataList = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                 .readValue(restStrResult);
         assertThat(warmupColRuleDataList.stream()
-                .map(warmupColRuleData -> new WarmupColRuleData(0,
+                .map(warmupColRuleData -> new WarmupColRuleData(
+                        0,
                         warmupColRuleData.getSchema(),
                         warmupColRuleData.getTable(),
                         warmupColRuleData.getColumn(),
@@ -190,14 +195,16 @@ public class TestDispatcherWarmCloudFetcherIT
         if (!warmRulesFilePath.toFile().createNewFile()) {
             throw new RuntimeException("failed creating file " + warmRulesFilePath);
         }
-        Files.write(warmRulesFilePath,
+        Files.write(
+                warmRulesFilePath,
                 CompressionUtil.compressGzip(jsonMapper.writeValueAsString(getRules(types))));
     }
 
     private List<WarmupColRuleData> getRules(WarmUpType... types)
     {
         return Stream.of(types).map(type ->
-                        new WarmupColRuleData(0,
+                        new WarmupColRuleData(
+                                0,
                                 "s1",
                                 "t1",
                                 new RegularColumnData("col2"),

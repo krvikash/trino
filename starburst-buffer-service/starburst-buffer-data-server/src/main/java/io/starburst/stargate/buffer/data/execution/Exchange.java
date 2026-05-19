@@ -502,7 +502,8 @@ public class Exchange
         // is this a repeated request for the last chunk list
         if (pagingId == lastPagingId) {
             if (lastChunkList == null) {
-                return Optional.of(immediateFailedFuture(new DataServerException(USER_ERROR,
+                return Optional.of(immediateFailedFuture(new DataServerException(
+                        USER_ERROR,
                         "Provided pagingId %d, which is equal to lastPagingId, but lastChunkList is null".formatted(pagingId))));
             }
             return Optional.of(immediateFuture(lastChunkList));
@@ -510,20 +511,23 @@ public class Exchange
 
         // if this is a chunk list before the lastChunkList, the data is gone
         if (pagingId < lastPagingId) {
-            return Optional.of(immediateFailedFuture(new DataApiException(USER_ERROR,
+            return Optional.of(immediateFailedFuture(new DataApiException(
+                    USER_ERROR,
                     "Provided pagingId %d but lastPagingId is %d".formatted(pagingId, lastPagingId))));
         }
 
         // if this is a request for a chunk list after the end of the stream, return not found
         if (nextPagingId.isEmpty()) {
-            return Optional.of(immediateFailedFuture(new DataApiException(USER_ERROR,
+            return Optional.of(immediateFailedFuture(new DataApiException(
+                    USER_ERROR,
                     "Unexpected request pagingId %d after exchange %s finished and all chunk handles got acknowledged".formatted(pagingId, exchangeId))));
         }
 
         // if this is not a request for the next chunk list, return not found
         if (pagingId != nextPagingId.getAsLong()) {
             // unknown pagingId
-            return Optional.of(immediateFailedFuture(new DataServerException(USER_ERROR,
+            return Optional.of(immediateFailedFuture(new DataServerException(
+                    USER_ERROR,
                     "pagingId %d does not equal nextPagingId %d".formatted(pagingId, nextPagingId.getAsLong()))));
         }
 
@@ -590,9 +594,7 @@ public class Exchange
         int partialChunks;
         long partialChunkBytes;
 
-        public ExchangeResourceUsage()
-        {
-        }
+        public ExchangeResourceUsage() {}
 
         public ExchangeResourceUsage(int partitionCount, int spooledChunks, long spooledBytes)
         {

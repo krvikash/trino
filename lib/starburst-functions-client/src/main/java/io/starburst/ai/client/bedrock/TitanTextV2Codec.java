@@ -33,7 +33,8 @@ public final class TitanTextV2Codec
 {
     public static final String MODEL_NAME = "amazon.titan-embed-text-v2:0";
 
-    private static final String TITAN_REQUEST_TEMPLATE = """
+    private static final String TITAN_REQUEST_TEMPLATE =
+            """
             {
                 "inputText": "%s",
                 "dimensions": %d,
@@ -41,7 +42,8 @@ public final class TitanTextV2Codec
                 "embeddingTypes": ["%s"]
             }
             """;
-    private static final String TITAN_DEFAULT_DIMENSIONALITY_REQUEST_TEMPLATE = """
+    private static final String TITAN_DEFAULT_DIMENSIONALITY_REQUEST_TEMPLATE =
+            """
             {
                 "inputText": "%s",
                 "normalize": true,

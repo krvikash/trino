@@ -730,12 +730,13 @@ final class TestDeltaLakeTimeZone
                             .add("'updated-row', TIMESTAMP '2024-08-01 12:00:00.987 America/New_York'")
                             .add("'inserted-row', TIMESTAMP '2023-08-01 12:00:00.987 America/New_York'")
                             .build())) {
-                assertUpdate("""
-                            MERGE INTO %s t USING %s s ON (t.timestamp_tz = s.timestamp_tz)
-                            WHEN MATCHED AND t.key = 'update-this-row' THEN UPDATE SET key = 'updated-row', timestamp_tz = TIMESTAMP '1970-08-01 12:00:00.987 UTC'
-                            WHEN MATCHED THEN DELETE
-                            WHEN NOT MATCHED THEN INSERT (key, timestamp_tz) VALUES(s.key, s.timestamp_tz)
-                            """.formatted(targetTable.getName(), sourceTable.getName()),
+                assertUpdate(
+                        """
+                        MERGE INTO %s t USING %s s ON (t.timestamp_tz = s.timestamp_tz)
+                        WHEN MATCHED AND t.key = 'update-this-row' THEN UPDATE SET key = 'updated-row', timestamp_tz = TIMESTAMP '1970-08-01 12:00:00.987 UTC'
+                        WHEN MATCHED THEN DELETE
+                        WHEN NOT MATCHED THEN INSERT (key, timestamp_tz) VALUES(s.key, s.timestamp_tz)
+                        """.formatted(targetTable.getName(), sourceTable.getName()),
                         3);
                 assertThat(query("SELECT * FROM " + targetTable.getName()))
                         .skippingTypesCheck()
@@ -809,12 +810,14 @@ final class TestDeltaLakeTimeZone
         try (TestTable testTable = newTrinoTable(
                 "test_basic_operations_on_table_with_cdf_enabled_",
                 "(page_url VARCHAR, ts TIMESTAMP WITH TIME ZONE, views INTEGER) WITH (change_data_feed_enabled = true)")) {
-            assertUpdate("INSERT INTO " + testTable.getName() + " VALUES" +
-                    "('url1', TIMESTAMP '2024-08-01 03:00:00.987 UTC', 1)," +
-                    "('url2', TIMESTAMP '2024-07-31 23:59:59.987 America/New_York', 2)," +
-                    "('url3', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 3)",
+            assertUpdate(
+                    "INSERT INTO " + testTable.getName() + " VALUES" +
+                            "('url1', TIMESTAMP '2024-08-01 03:00:00.987 UTC', 1)," +
+                            "('url2', TIMESTAMP '2024-07-31 23:59:59.987 America/New_York', 2)," +
+                            "('url3', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 3)",
                     3);
-            assertUpdate("INSERT INTO " + testTable.getName() + " VALUES" +
+            assertUpdate(
+                    "INSERT INTO " + testTable.getName() + " VALUES" +
                             "('url4', TIMESTAMP '2024-08-01 03:00:00.987 UTC', 4)," +
                             "('url5', TIMESTAMP '2024-07-31 23:59:59.987 America/New_York', 2)," +
                             "('url6', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 6)",
@@ -823,42 +826,42 @@ final class TestDeltaLakeTimeZone
 
             assertTableChangesQuery("SELECT * FROM TABLE(system.table_changes(CURRENT_SCHEMA, '" + testTable.getName() + "'))",
                     """
-                            VALUES
-                                ('url1', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 1, 'insert', BIGINT '1'),
-                                ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '1'),
-                                ('url3', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 3, 'insert', BIGINT '1'),
-                                ('url4', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 4, 'insert', BIGINT '2'),
-                                ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '2'),
-                                ('url6', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 6, 'insert', BIGINT '2'),
-                                ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
-                                ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3'),
-                                ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
-                                ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3')
-                            """);
+                    VALUES
+                        ('url1', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 1, 'insert', BIGINT '1'),
+                        ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '1'),
+                        ('url3', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 3, 'insert', BIGINT '1'),
+                        ('url4', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 4, 'insert', BIGINT '2'),
+                        ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '2'),
+                        ('url6', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 6, 'insert', BIGINT '2'),
+                        ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3'),
+                        ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3')
+                    """);
             assertUpdate("DELETE FROM " + testTable.getName() + " WHERE views = 2", 2);
             assertTableChangesQuery("SELECT * FROM TABLE(system.table_changes(CURRENT_SCHEMA, '" + testTable.getName() + "', 3))",
-                """
-                        VALUES
-                            ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4'),
-                            ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4')
-                        """);
+                    """
+                    VALUES
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4')
+                    """);
 
             assertTableChangesQuery("SELECT * FROM TABLE(system.table_changes(CURRENT_SCHEMA, '" + testTable.getName() + "')) ORDER BY _commit_version, _change_type, ts",
                     """
-                            VALUES
-                                ('url1', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 1, 'insert', BIGINT '1'),
-                                ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '1'),
-                                ('url3', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 3, 'insert', BIGINT '1'),
-                                ('url4', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 4, 'insert', BIGINT '2'),
-                                ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '2'),
-                                ('url6', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 6, 'insert', BIGINT '2'),
-                                ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
-                                ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3'),
-                                ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3'),
-                                ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
-                                ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4'),
-                                ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4')
-                            """);
+                    VALUES
+                        ('url1', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 1, 'insert', BIGINT '1'),
+                        ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '1'),
+                        ('url3', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 3, 'insert', BIGINT '1'),
+                        ('url4', TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata', 4, 'insert', BIGINT '2'),
+                        ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'insert', BIGINT '2'),
+                        ('url6', TIMESTAMP '2025-07-03 04:00:00.000 Asia/Kolkata', 6, 'insert', BIGINT '2'),
+                        ('url2', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_postimage', BIGINT '3'),
+                        ('url5', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'update_preimage', BIGINT '3'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4'),
+                        ('url22', TIMESTAMP '2024-08-01 09:29:59.987 Asia/Kolkata', 2, 'delete', BIGINT '4')
+                    """);
         }
     }
 

@@ -66,18 +66,23 @@ public class WarmupElementBlocks
         logger.debug("Dropping %d blocks. Setting startOffsetInNextBlock=%d", blocksToDrop, startOffsetInNextBlock);
         checkArgument(blocksToDrop >= 0 && startOffsetInNextBlock >= 0,
                 format("blocksToDrop and startOffsetInNextBlock can't be negative numbers. blocksToDrop=%d, startOffsetInNextBlock=%d",
-                        blocksToDrop, startOffsetInNextBlock));
+                        blocksToDrop,
+                        startOffsetInNextBlock));
         int affectedBlocks = startOffsetInNextBlock > 0 ? blocksToDrop + 1 : blocksToDrop;
         checkArgument(affectedBlocks <= blocks.size(),
                 format("Can't drop more blocks than existing / set start offset in a non existing block. block.size=%d, blocksToDrop=%d, startOffsetInNextBlock=%d",
-                        blocks.size(), blocksToDrop, startOffsetInNextBlock));
+                        blocks.size(),
+                        blocksToDrop,
+                        startOffsetInNextBlock));
         checkArgument(blocksToDrop > 0 || startOffsetInNextBlock >= startOffsetInFirstBlock,
                 format("Can't drop 0 blocks while decreasing the offset. startOffsetInNextBlock=%d, startOffsetInFirstBlock=%d",
-                        startOffsetInNextBlock, startOffsetInFirstBlock));
+                        startOffsetInNextBlock,
+                        startOffsetInFirstBlock));
         if (startOffsetInNextBlock > 0) { // can't be part of the condition of checkArgument because blocks.get(blocksToDrop) will throw if blocksToDrop == blocks.size()
             checkArgument(startOffsetInNextBlock < blocks.get(blocksToDrop).getPositionCount(),
                     format("startOffsetInNextBlock must be smaller than positionCount. startOffsetInNextBlock=%d, positionCount=%d",
-                            startOffsetInNextBlock, blocks.get(blocksToDrop).getPositionCount()));
+                            startOffsetInNextBlock,
+                            blocks.get(blocksToDrop).getPositionCount()));
         }
 
         for (int i = 0; i < blocksToDrop; i++) {

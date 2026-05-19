@@ -99,12 +99,20 @@ public class ChunkStateHandler
             }
         }
         catch (IOException e) {
-            logger.error("save failed rowGroupFilePath %s matchOffset %d chunkStates.size %d message %s",
-                    rowGroupFilePath, matchOffset, chunkStates.size(), e.getMessage());
+            logger.error(
+                    "save failed rowGroupFilePath %s matchOffset %d chunkStates.size %d message %s",
+                    rowGroupFilePath,
+                    matchOffset,
+                    chunkStates.size(),
+                    e.getMessage());
             throw new RuntimeException(e);
         }
-        logger.debug("save rowGroupFilePath %s matchOffset %d chunkStates.size %d sizeInPages %d",
-                rowGroupFilePath, matchOffset, chunkStates.size(), sizeInPages);
+        logger.debug(
+                "save rowGroupFilePath %s matchOffset %d chunkStates.size %d sizeInPages %d",
+                rowGroupFilePath,
+                matchOffset,
+                chunkStates.size(),
+                sizeInPages);
         return sizeInPages;
     }
 
@@ -122,8 +130,12 @@ public class ChunkStateHandler
             int readBytes = randomAccessFile.read(bytes);
 
             if (readBytes <= 0) {
-                logger.error("load failed rowGroupFilePath %s matchOffset %d pageIndex %d readBytes %d",
-                        rowGroupFilePath, matchOffset, pageIndex, readBytes);
+                logger.error(
+                        "load failed rowGroupFilePath %s matchOffset %d pageIndex %d readBytes %d",
+                        rowGroupFilePath,
+                        matchOffset,
+                        pageIndex,
+                        readBytes);
                 throw new RuntimeException("end of file reached");
             }
 
@@ -136,12 +148,20 @@ public class ChunkStateHandler
             }
         }
         catch (IOException e) {
-            logger.error("load failed rowGroupFilePath %s matchOffset %d chunkStates.size %d message %s",
-                    rowGroupFilePath, matchOffset, chunkStates.size(), e.getMessage());
+            logger.error(
+                    "load failed rowGroupFilePath %s matchOffset %d chunkStates.size %d message %s",
+                    rowGroupFilePath,
+                    matchOffset,
+                    chunkStates.size(),
+                    e.getMessage());
             throw new RuntimeException(e);
         }
-        logger.debug("load rowGroupFilePath %s matchOffset %d pageIndex %d chunkStates.size %d",
-                rowGroupFilePath, matchOffset, pageIndex, chunkStates.size());
+        logger.debug(
+                "load rowGroupFilePath %s matchOffset %d pageIndex %d chunkStates.size %d",
+                rowGroupFilePath,
+                matchOffset,
+                pageIndex,
+                chunkStates.size());
         return chunkStates;
     }
 

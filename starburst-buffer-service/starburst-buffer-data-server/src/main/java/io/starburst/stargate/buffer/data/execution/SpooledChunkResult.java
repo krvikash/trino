@@ -16,7 +16,8 @@ import static java.util.Objects.requireNonNull;
 public record SpooledChunkResult(SpooledChunk spooledChunk)
         implements ChunkDataResult
 {
-    public SpooledChunkResult {
+    public SpooledChunkResult
+    {
         requireNonNull(spooledChunk, "spooledChunk is null");
     }
 }

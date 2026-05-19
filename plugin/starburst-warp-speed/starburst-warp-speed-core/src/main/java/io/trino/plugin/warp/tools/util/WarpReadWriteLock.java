@@ -24,9 +24,7 @@ public class WarpReadWriteLock
     /* Number of read threads */
     private final AtomicInteger count = new AtomicInteger();
 
-    public WarpReadWriteLock()
-    {
-    }
+    public WarpReadWriteLock() {}
 
     /**
      * Get read lock

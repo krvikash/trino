@@ -46,7 +46,8 @@ public class SingleDispatcherConnector
     private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
-    public SingleDispatcherConnector(@ForWarp Connector proxiedConnector,
+    public SingleDispatcherConnector(
+            @ForWarp Connector proxiedConnector,
             GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             LifeCycleManager lifeCycleManager,

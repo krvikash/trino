@@ -188,9 +188,7 @@ public class WarmupRule
         private int ttl;
         private Set<WarmupPredicateRule> predicates;
 
-        private Builder()
-        {
-        }
+        private Builder() {}
 
         @JsonProperty(ID)
         public Builder id(int id)

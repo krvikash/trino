@@ -99,7 +99,8 @@ public class TroubleshootingContextManager
     {
         TroubleshootingContext context;
         try {
-            context = contexts.get(queryId, () -> new TroubleshootingContext(queryId,
+            context = contexts.get(queryId, () -> new TroubleshootingContext(
+                    queryId,
                     new StateMachine<>("troubleshooting-" + queryId.id(), executorService, INITIALIZED, Set.of(REMOVED))));
         }
         catch (ExecutionException e) {

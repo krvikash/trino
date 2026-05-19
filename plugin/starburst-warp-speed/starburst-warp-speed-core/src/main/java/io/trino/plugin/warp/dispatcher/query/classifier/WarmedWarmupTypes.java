@@ -77,8 +77,8 @@ public final class WarmedWarmupTypes
                     .filter(x ->
                             ((x.getWarpColumn() instanceof TransformedColumn transformedColumn) &&
                                     Objects.equals(transformedColumn.getTransformFunction(), transformFunction)) ||
-                            (!x.getWarpColumn().isTransformedColumn() &&
-                                    Objects.equals(transformFunction, TransformFunction.NONE)))
+                                    (!x.getWarpColumn().isTransformedColumn() &&
+                                            Objects.equals(transformFunction, TransformFunction.NONE)))
                     .findFirst();
             case WARM_UP_TYPE_NUM_OF -> throw new RuntimeException();
         };

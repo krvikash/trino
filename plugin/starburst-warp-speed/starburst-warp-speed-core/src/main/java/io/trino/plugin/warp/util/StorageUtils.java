@@ -19,9 +19,7 @@ import static com.google.common.hash.Hashing.farmHashFingerprint64;
 
 public class StorageUtils
 {
-    private StorageUtils()
-    {
-    }
+    private StorageUtils() {}
 
     public static long fileHash64(String rowGroupFilePath)
     {

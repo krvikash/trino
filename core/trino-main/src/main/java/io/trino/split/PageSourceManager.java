@@ -93,13 +93,13 @@ public class PageSourceManager
                 dynamicFilter = DynamicFilter.EMPTY;
             }
             return pageSourceProvider.createGpuPageSource(
-                    table.transaction(),
-                    session.toConnectorSession(table.catalogHandle()),
-                    split.getConnectorSplit(),
-                    table.connectorHandle(),
-                    tableCredentials,
-                    columns,
-                    dynamicFilter)
+                            table.transaction(),
+                            session.toConnectorSession(table.catalogHandle()),
+                            split.getConnectorSplit(),
+                            table.connectorHandle(),
+                            tableCredentials,
+                            columns,
+                            dynamicFilter)
                     .orElseThrow(() -> new IllegalStateException("No ConnectorGpuPageSource created"));
         }
 

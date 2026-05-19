@@ -67,7 +67,9 @@ public class PetStoreServer
                     specFile.toPath(),
                     contents.replaceAll("\"authorizationUrl\":\".*?\"", "\"authorizationUrl\":\"%s\"".formatted(keycloakServer.getTokenUrl())),
                     UTF_8,
-                    CREATE, WRITE, APPEND);
+                    CREATE,
+                    WRITE,
+                    APPEND);
             // TODO change the implicit flow to client_credentials
         }
         catch (IOException e) {

@@ -88,7 +88,8 @@ public class AzureCloudStorageModule
 
     @Provides
     @Singleton
-    public AzureCloudStorage provideAzureCloudStorage(AzureFileSystemFactory fileSystemFactory,
+    public AzureCloudStorage provideAzureCloudStorage(
+            AzureFileSystemFactory fileSystemFactory,
             OpenTelemetry openTelemetry,
             AzureAuth azureAuth)
     {

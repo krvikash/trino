@@ -77,7 +77,7 @@ public class CallAllHomesResource
 
     @POST
     @Audit
-    //@ApiOperation(value = "call-all-homes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
+    // @ApiOperation(value = "call-all-homes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public void executeCallAllHomes(CallHomeData callHomeData)
     {
         List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();

@@ -191,9 +191,10 @@ public class QueryClassifierTest
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(any(RowGroupData.class), any(), any())).thenReturn(Optional.empty());
         nativeConfig = mock(NativeConfig.class);
         when(nativeConfig.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
-        //when(globalConfig.getEnableMatchCollect()).thenReturn(true);
+        // when(globalConfig.getEnableMatchCollect()).thenReturn(true);
         // in each test we will set the correct record data (int/varchar) as return value from getType
-        ClassifierFactory classifierFactory = new ClassifierFactory(storageEngineConstants,
+        ClassifierFactory classifierFactory = new ClassifierFactory(
+                storageEngineConstants,
                 predicatesCacheService,
                 bufferAllocator,
                 nativeConfig,
@@ -206,7 +207,7 @@ public class QueryClassifierTest
         testingConnectorColumnHandles.add(mockColumnHandle("h0", IntegerType.INTEGER, dispatcherProxiedConnectorTransformer));
         testingConnectorColumnHandles.add(mockColumnHandle("h1", IntegerType.INTEGER, dispatcherProxiedConnectorTransformer));
 
-        testingConnectorColumnHandles.forEach((ch) -> {
+        testingConnectorColumnHandles.forEach(ch -> {
             String name = ch.name();
             Type type = ch.type();
             when(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(eq(ch))).thenReturn(new RegularColumn(name));
@@ -234,7 +235,8 @@ public class QueryClassifierTest
         rowGroupDataWithPartitionKeys = RowGroupData.builder()
                 .rowGroupKey(rowGroupKey)
                 .warmUpElements(warmUpElements)
-                .partitionKeys(Map.of(new RegularColumn("v-int-data"), "1",
+                .partitionKeys(Map.of(
+                        new RegularColumn("v-int-data"), "1",
                         new RegularColumn("v-varchar-data-basic"), "str"))
                 .build();
         predicateContextFactory = new PredicateContextFactory(globalConfig, dispatcherProxiedConnectorTransformer);
@@ -256,12 +258,14 @@ public class QueryClassifierTest
     public void testProxiedCollect()
     {
         PredicateContextData predicateContextData = new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE);
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.copyOf(testingConnectorColumnHandles), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.copyOf(testingConnectorColumnHandles), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
 
-        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, testingConnectorColumnHandles.get(0),
+        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(
+                0, testingConnectorColumnHandles.get(0),
                 1, testingConnectorColumnHandles.get(1)));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
         assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
@@ -279,12 +283,14 @@ public class QueryClassifierTest
                 TupleDomain.withColumnDomains(Map.of(testingConnectorColumnHandles.getFirst(), Domain.singleValue(testingConnectorColumnHandles.getFirst().type(), 1L)));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(testingConnectorColumnHandles.get(0), testingConnectorColumnHandles.get(1)), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(testingConnectorColumnHandles.get(0), testingConnectorColumnHandles.get(1)), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
 
-        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, testingConnectorColumnHandles.get(0),
+        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(
+                0, testingConnectorColumnHandles.get(0),
                 1, testingConnectorColumnHandles.get(1)));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEqualTo(predicateContextData.getRemainingColumns());
         assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
@@ -292,7 +298,7 @@ public class QueryClassifierTest
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
     }
 
-   /**
+    /**
      * `SELECT count(v-varchar-lucene)
      * FROM T
      * WHERE v-varchar-lucene like 'str%' AND v-varchar-lucene > 'str1'
@@ -318,7 +324,8 @@ public class QueryClassifierTest
 
         LuceneQueryMatchData expectedLuceneQueryMatchData = createLuceneQueryMatchData(warmupElement, false, Set.of(range), Set.of(likePattern), rangeDomain, false);
 
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -353,7 +360,8 @@ public class QueryClassifierTest
 
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.withColumnDomains(Map.of(matchOnlyLuceneColumn, rangeDomain)));
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -385,7 +393,8 @@ public class QueryClassifierTest
         DynamicFilter completedDynamicFilter = new CompletedDynamicFilter(TupleDomain.all());
         PredicateContextData predicateContextData = predicateContextFactory.create(session, completedDynamicFilter, dispatcherTableHandle);
 
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -415,7 +424,8 @@ public class QueryClassifierTest
 
         when(dispatcherProxiedConnectorTransformer.proxyHasPushedDownFilter(any())).thenReturn(true);
         QueryContext baseQueryContext = new QueryContext(predicateContextData, ImmutableList.of(testingConnectorColumnHandles.getFirst(), dataIntColumn), true, "query-id");
-        QueryContext queryContext = queryClassifier.classify(baseQueryContext,
+        QueryContext queryContext = queryClassifier.classify(
+                baseQueryContext,
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -439,7 +449,8 @@ public class QueryClassifierTest
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn, matchCollectIntColumn2), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn, matchCollectIntColumn2), true, "query-id"),
                 rowGroupData,
                 mockDispatcherTableHandle(schemaTableName),
                 Optional.of(session));
@@ -477,7 +488,8 @@ public class QueryClassifierTest
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(matchOnlyBasicColumn, matchDomain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchOnlyBasicColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchOnlyBasicColumn), true, "query-id"),
                 rowGroupData,
                 mockDispatcherTableHandle(schemaTableName),
                 Optional.of(session));
@@ -516,7 +528,8 @@ public class QueryClassifierTest
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 mockDispatcherTableHandle(schemaTableName),
                 Optional.of(session));
@@ -553,7 +566,8 @@ public class QueryClassifierTest
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(columnHandle), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(columnHandle), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -630,7 +644,8 @@ public class QueryClassifierTest
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(anyString(), any(), any(Optional.class)))
                 .thenReturn(1L)
                 .thenReturn(Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(intPartitionColumn, varcharPartitionColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(intPartitionColumn, varcharPartitionColumn), true, "query-id"),
                 rowGroupDataWithPartitionKeys,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -665,7 +680,8 @@ public class QueryClassifierTest
                 .thenReturn(1L)
                 .thenReturn(Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
         ImmutableList<ColumnHandle> remainingCollectColumns = ImmutableList.of(intPartitionColumn, varcharPartitionColumn, column1);
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, remainingCollectColumns, true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, remainingCollectColumns, true, "query-id"),
                 rowGroupDataWithPartitionKeys,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -706,7 +722,8 @@ public class QueryClassifierTest
         when(dispatcherProxiedConnectorTransformer.getConvertedPartitionValue(anyString(), any(), any(Optional.class)))
                 .thenReturn(1L)
                 .thenReturn(Slices.wrappedBuffer("str".getBytes(Charset.defaultCharset())));
-        QueryContext queryContext = queryClassifier.classify(new QueryContext(predicateContextData, ImmutableList.of(intPartitionColumn, varcharPartitionColumn), true, "query-id"),
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(intPartitionColumn, varcharPartitionColumn), true, "query-id"),
                 rowGroupDataWithPartitionKeys,
                 dispatcherTableHandle,
                 Optional.of(session));
@@ -743,13 +760,14 @@ public class QueryClassifierTest
         RegularColumn regularColumn = new RegularColumn(onlyDataColumnHandle.name());
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of(regularColumn)));
         Domain domain = Domain.singleValue(IntegerType.INTEGER, 2L);
-        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(onlyDataColumnHandle,
-                domain));
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(
+                onlyDataColumnHandle, domain));
         DynamicFilter dynamicFilter = new CompletedDynamicFilter(tupleDomain);
 
         QueryContext basicQueryContext = queryClassifier.getBasicQueryContext(ImmutableList.of(onlyDataColumnHandle, dataBasicIntColumn), dispatcherTableHandle, dynamicFilter, session);
 
-        assertThat(basicQueryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(ImmutableMap.of(0, onlyDataColumnHandle,
+        assertThat(basicQueryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(ImmutableMap.of(
+                0, onlyDataColumnHandle,
                 1, dataBasicIntColumn));
         assertThat(basicQueryContext.getPredicateContextData().getRemainingColumns().contains(regularColumn)).isTrue();
     }
@@ -765,7 +783,8 @@ public class QueryClassifierTest
         when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(predicateThreshold);
         TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
-        Domain domain = Domain.create(SortedRangeSet.copyOf(IntegerType.INTEGER,
+        Domain domain = Domain.create(SortedRangeSet.copyOf(
+                        IntegerType.INTEGER,
                         List.of(Range.lessThan(IntegerType.INTEGER, 3L), Range.greaterThan(IntegerType.INTEGER, 9L))),
                 false);
         TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(onlyDataColumnHandle, domain));
@@ -794,7 +813,8 @@ public class QueryClassifierTest
         WarmUpElement matchWarmUpElement = weHandleToWarmUpElementByType.get(matchCollectIntColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
 
         TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
-        Domain dynamicFilterDomain = Domain.create(SortedRangeSet.copyOf(intType,
+        Domain dynamicFilterDomain = Domain.create(SortedRangeSet.copyOf(
+                        intType,
                         List.of(Range.lessThan(intType, 3L), Range.greaterThan(intType, 9L))),
                 false);
         TupleDomain<ColumnHandle> dynamicFilterTupleDomain = TupleDomain.withColumnDomains(Map.of(onlyDataColumnHandle, dynamicFilterDomain));
@@ -853,19 +873,23 @@ public class QueryClassifierTest
     {
         Type variableType = columnHandle.type();
 
-        return new WarpCall(LIKE_FUNCTION_NAME.getName(),
+        return new WarpCall(
+                LIKE_FUNCTION_NAME.getName(),
                 List.of(new WarpVariable(columnHandle, variableType),
-                        new WarpSliceConstant(likePattern, VarcharType.VARCHAR)), BOOLEAN);
+                        new WarpSliceConstant(likePattern, VarcharType.VARCHAR)),
+                BOOLEAN);
     }
 
-    private NativeQueryCollectData createNativeQueryCollectData(WarmUpElement warmUpElement,
+    private NativeQueryCollectData createNativeQueryCollectData(
+            WarmUpElement warmUpElement,
             int blockIndex,
             boolean isMatchCollect)
     {
         return createNativeQueryCollectData(warmUpElement, blockIndex, isMatchCollect, warmupElementToType(warmUpElement));
     }
 
-    private NativeQueryCollectData createNativeQueryCollectData(WarmUpElement warmUpElement,
+    private NativeQueryCollectData createNativeQueryCollectData(
+            WarmUpElement warmUpElement,
             int blockIndex,
             boolean isMatchCollect,
             Type type)
@@ -891,7 +915,8 @@ public class QueryClassifierTest
 
     private PrefilledQueryCollectData createPrefilledQueryCollectData(WarmUpElement warmUpElement, int blockIndex, Domain singleValueDomain)
     {
-        return createPrefilledQueryCollectData(warmUpElement,
+        return createPrefilledQueryCollectData(
+                warmUpElement,
                 blockIndex,
                 SingleValue.create(warmupElementToType(warmUpElement), singleValueDomain.getSingleValue()));
     }

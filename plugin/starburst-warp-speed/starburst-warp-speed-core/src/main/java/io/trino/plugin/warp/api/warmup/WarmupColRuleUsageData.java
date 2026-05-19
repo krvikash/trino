@@ -27,7 +27,8 @@ public class WarmupColRuleUsageData
     private final long usedStorageKB;
 
     @JsonCreator
-    public WarmupColRuleUsageData(@JsonProperty("id") int id,
+    public WarmupColRuleUsageData(
+            @JsonProperty("id") int id,
             @JsonProperty("schema") String schema,
             @JsonProperty("table") String table,
             @JsonProperty("column") WarpColumnData column,
@@ -106,9 +107,7 @@ public class WarmupColRuleUsageData
         private Duration ttl;
         private long usedStorageKB;
 
-        private Builder()
-        {
-        }
+        private Builder() {}
 
         public Builder id(int id)
         {

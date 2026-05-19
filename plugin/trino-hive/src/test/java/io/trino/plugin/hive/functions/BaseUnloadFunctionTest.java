@@ -217,7 +217,8 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getRowCount()).isEqualTo(1);
 
         assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         iddata
                         1a
                         2b
@@ -245,7 +246,8 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getRowCount()).isEqualTo(1);
 
         assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         1a
                         2b
                         """);
@@ -317,7 +319,8 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getRowCount()).isEqualTo(1);
 
         assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         "id","data"
                         "1","a"
                         "2","b"
@@ -345,7 +348,8 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getRowCount()).isEqualTo(1);
 
         assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         "1","a"
                         "2","b"
                         """);
@@ -581,7 +585,7 @@ abstract class BaseUnloadFunctionTest
         assertUpdate("DROP TABLE " + tableName);
     }
 
-    abstract protected int minFilesCreated();
+    protected abstract int minFilesCreated();
 
     @Test
     void testUnloadPartitionLargeResult()
@@ -627,7 +631,7 @@ abstract class BaseUnloadFunctionTest
 
     @ParameterizedTest
     @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX", "ESRI", "ESRI_GEO_JSON", "SEQUENCEFILE_PROTOBUF"})
-        // see testUnloadAvro
+    // see testUnloadAvro
     void testUnloadTinyInt(HiveStorageFormat format)
             throws Exception
     {
@@ -638,7 +642,7 @@ abstract class BaseUnloadFunctionTest
 
     @ParameterizedTest
     @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX", "ESRI", "ESRI_GEO_JSON", "SEQUENCEFILE_PROTOBUF"})
-        // see testUnloadAvro
+    // see testUnloadAvro
     void testUnloadSmallInt(HiveStorageFormat format)
             throws Exception
     {
@@ -906,7 +910,8 @@ abstract class BaseUnloadFunctionTest
         testUnloadColumnType(format, "array(varchar)", "ARRAY['test']");
         if (format == TEXTFILE || format == RCTEXT || format == SEQUENCEFILE) {
             assertThatThrownBy(() -> testUnloadColumnType(format, "array(varchar)", "ARRAY[NULL]"))
-                    .hasMessageContaining("""
+                    .hasMessageContaining(
+                            """
                             Expecting actual:
                               (null)
                             to contain exactly in any order:
@@ -1091,7 +1096,8 @@ abstract class BaseUnloadFunctionTest
 
         assertThat(result.getRowCount()).isEqualTo(1);
         assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         1
                         """);
 
@@ -1242,15 +1248,15 @@ abstract class BaseUnloadFunctionTest
         String partition = partitioned ? "PARTITION BY part " : "";
         MaterializedResult result = computeActual(
                 """
-                        SELECT * FROM
-                        TABLE (
-                            hive.system.unload(
-                                input => TABLE(
-                                VALUES ('1', 'val1', 'part1'), ('5', 'val2', 'part1'), ('4', 'val3', 'part2'), ('3', 'val4', 'part2'), ('2', 'val5', 'part3')
-                                ) t(sort_key, val, part) %s ORDER BY sort_key,
-                                location => '%s',
-                                format => '%s'))
-                        """.formatted(partition, location, format.name()));
+                SELECT * FROM
+                TABLE (
+                    hive.system.unload(
+                        input => TABLE(
+                        VALUES ('1', 'val1', 'part1'), ('5', 'val2', 'part1'), ('4', 'val3', 'part2'), ('3', 'val4', 'part2'), ('2', 'val5', 'part3')
+                        ) t(sort_key, val, part) %s ORDER BY sort_key,
+                        location => '%s',
+                        format => '%s'))
+                """.formatted(partition, location, format.name()));
         List<String> expectedColumnNames = partitioned ? ImmutableList.of("path", "count", "part") : ImmutableList.of("path", "count");
         int rowCount = partitioned ? 3 : 1;
         assertThat(result.getColumnNames()).containsExactly(expectedColumnNames.toArray(new String[0]));

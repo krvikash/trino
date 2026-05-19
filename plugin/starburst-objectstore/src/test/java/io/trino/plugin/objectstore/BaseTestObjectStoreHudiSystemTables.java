@@ -42,10 +42,12 @@ public abstract class BaseTestObjectStoreHudiSystemTables
                         "('state', 'varchar', '', '')");
 
         // timestamp column isn't static
-        assertQuery("SELECT action, state FROM tpch.\"nation$timeline\"",
+        assertQuery(
+                "SELECT action, state FROM tpch.\"nation$timeline\"",
                 "VALUES ('commit', 'COMPLETED')");
 
-        assertQueryFails("SELECT timestamp, action, state FROM tpch.\"orders$timeline\"",
+        assertQueryFails(
+                "SELECT timestamp, action, state FROM tpch.\"orders$timeline\"",
                 ".*Table 'objectstore.tpch.\"orders\\$timeline\"' does not exist");
     }
 }

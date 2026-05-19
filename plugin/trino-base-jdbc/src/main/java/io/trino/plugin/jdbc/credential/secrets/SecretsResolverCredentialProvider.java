@@ -63,7 +63,7 @@ public class SecretsResolverCredentialProvider
     private String getResolvedSecrets(String credentialKey)
     {
         return secretsResolver.getResolvedConfiguration(
-                ImmutableMap.of("key", "${%s:%s}".formatted(secretsProviderName, credentialKey)),
+                        ImmutableMap.of("key", "${%s:%s}".formatted(secretsProviderName, credentialKey)),
                         (value, throwable) -> log.error(throwable, "Unable to resolve secret for key '%s'", value))
                 .get("key");
     }

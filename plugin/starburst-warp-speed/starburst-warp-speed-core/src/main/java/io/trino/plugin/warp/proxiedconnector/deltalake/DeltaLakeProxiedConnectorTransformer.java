@@ -138,7 +138,8 @@ public class DeltaLakeProxiedConnectorTransformer
         String deletedFileHash = deltaLakeSplit.deletionVector().isPresent() ?
                 Hashing.sha256().hashString(deltaLakeSplit.deletionVector().get().toString(), StandardCharsets.UTF_8).toString() : "";
 
-        return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
+        return new DispatcherSplit(
+                dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
                 deltaLakeSplit.path(),
                 deltaLakeSplit.start(),
@@ -184,7 +185,8 @@ public class DeltaLakeProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         DeltaLakeSplit originSplit = (DeltaLakeSplit) connectorSplit;
-        return new DeltaLakeSplit(originSplit.path(),
+        return new DeltaLakeSplit(
+                originSplit.path(),
                 originSplit.start(),
                 originSplit.length(),
                 originSplit.fileSize(),

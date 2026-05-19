@@ -26,9 +26,7 @@ import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 
 public class TestUtils
 {
-    private TestUtils()
-    {
-    }
+    private TestUtils() {}
 
     public static int countMethodsWithAnnotation(Class<?> clazz, Class<? extends Annotation> annotation)
     {

@@ -68,8 +68,7 @@ public final class TestingConnectorContext
 
     public TestingConnectorContext()
     {
-        this(
-                DEFAULT_CONTEXT.getNodeManager(),
+        this(DEFAULT_CONTEXT.getNodeManager(),
                 DEFAULT_CONTEXT.getVersionEmbedder(),
                 DEFAULT_CONTEXT.getTypeManager(),
                 DEFAULT_CONTEXT.getPageSorter(),
@@ -171,9 +170,7 @@ public final class TestingConnectorContext
         private PageSorter pageSorter = new PagesIndexPageSorter(new PagesIndex.TestingFactory(false));
         private PageIndexerFactory pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
 
-        private Builder()
-        {
-        }
+        private Builder() {}
 
         public Builder withNodeManager(NodeManager nodeManager)
         {

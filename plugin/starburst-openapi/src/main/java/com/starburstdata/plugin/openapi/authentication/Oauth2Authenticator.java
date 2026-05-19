@@ -156,16 +156,12 @@ public class Oauth2Authenticator
             @JsonProperty("token_type")
             String tokenType,
             @JsonProperty("expires_in")
-            Optional<Long> expiresInSeconds)
-    {
-    }
+            Optional<Long> expiresInSeconds) {}
 
     // https://datatracker.ietf.org/doc/html/rfc6749#section-5.2
     public record Oauth2ErrorResponse(
             @JsonProperty("error")
-            String error)
-    {
-    }
+            String error) {}
 
     private static class Oauth2ResponseHandler
             implements ResponseHandler<OAuth2AccessTokenResponse, TrinoException>

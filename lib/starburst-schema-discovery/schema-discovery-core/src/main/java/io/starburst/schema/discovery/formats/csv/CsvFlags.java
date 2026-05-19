@@ -13,7 +13,5 @@ public class CsvFlags
 {
     public static final String HAS_QUOTED_FIELDS = "QUOTED_FIELDS";
 
-    private CsvFlags()
-    {
-    }
+    private CsvFlags() {}
 }

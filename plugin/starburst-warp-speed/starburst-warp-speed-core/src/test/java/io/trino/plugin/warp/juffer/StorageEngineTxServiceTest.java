@@ -105,6 +105,6 @@ public class StorageEngineTxServiceTest
 
     private void runPageSource(int count, boolean start)
     {
-        IntStream.range(0, count).forEach((_) -> storageEngineTxService.updateRunningPageSourcesCount(start));
+        IntStream.range(0, count).forEach(_ -> storageEngineTxService.updateRunningPageSourcesCount(start));
     }
 }

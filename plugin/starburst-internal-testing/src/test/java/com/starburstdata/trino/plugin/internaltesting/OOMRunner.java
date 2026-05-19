@@ -25,9 +25,7 @@ public final class OOMRunner
     static final String OOM_SCHEMA_NAME = "oom";
     private static final Logger log = Logger.get(OOMRunner.class);
 
-    private OOMRunner()
-    {
-    }
+    private OOMRunner() {}
 
     @SuppressWarnings("CallToSystemExit")
     static void main(String[] args)

@@ -56,20 +56,20 @@ public class WarmupElementStatsService
                             maxSlice.length() <= STAT_MAX_SLICE_LENGTH &&
                             warmupElementStats.getNullsCount() == 0 &&
                             minSlice.equals(maxSlice);
-                    //if type is Slice we want to save the first 8 bytes for min/max values, for max value we add 1 to last position
-                    //need to convert them to byte array in order to preserve the original values
+                    // if type is Slice we want to save the first 8 bytes for min/max values, for max value we add 1 to last position
+                    // need to convert them to byte array in order to preserve the original values
                     byte[] maxSliceValue;
                     if (maxSlice.length() > STAT_MAX_SLICE_LENGTH) {
                         maxSliceValue = maxSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
                         if (maxSliceValue[STAT_MAX_SLICE_LENGTH - 1] == Byte.MAX_VALUE) {
-                            //protect from overflow
+                            // protect from overflow
                             maxValue = null;
                         }
                         else {
-                            //need to increase value by 1 in order to make sure ranges will overlaps (see @RangeMatcher.java)
+                            // need to increase value by 1 in order to make sure ranges will overlaps (see @RangeMatcher.java)
                             maxSliceValue[STAT_MAX_SLICE_LENGTH - 1]++;
                             if (isCharType(type) && maxSliceValue[STAT_MAX_SLICE_LENGTH - 1] == 32) {
-                                //last value in charType can't be a space ' ' [32] value . see CharType::writeSlice
+                                // last value in charType can't be a space ' ' [32] value . see CharType::writeSlice
                                 maxSliceValue[STAT_MAX_SLICE_LENGTH - 1]++;
                             }
                             maxValue = Slices.wrappedBuffer(maxSliceValue).toStringUtf8();
@@ -82,7 +82,7 @@ public class WarmupElementStatsService
                     if (minSlice.length() > STAT_MAX_SLICE_LENGTH) {
                         byte[] minSliceValue = minSlice.getBytes(0, STAT_MAX_SLICE_LENGTH);
                         if (isCharType(type) && minSliceValue[minSliceValue.length - 1] == 32) {
-                            //last value in charType can't be a space ' ' [32] value . see CharType::writeSlice
+                            // last value in charType can't be a space ' ' [32] value . see CharType::writeSlice
                             minSliceValue[minSliceValue.length - 1] = 31;
                         }
                         minValue = Slices.wrappedBuffer(minSliceValue).toStringUtf8();

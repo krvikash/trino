@@ -97,7 +97,8 @@ public class WarpNativeStorageEngineModule
             logger.info("Loading native Warp-Speed lib from path: %s, readable: %s, executable: %s", archSpecificPath, Files.isReadable(archSpecificPath), Files.isExecutable(archSpecificPath));
             return archSpecificPath;
         }
-        logger.warn("Failed to find specific architecture: %s lib. Loading native Warp-Speed without specific architecture",
+        logger.warn(
+                "Failed to find specific architecture: %s lib. Loading native Warp-Speed without specific architecture",
                 currentArchitecture);
         return Path.of(pluginDirectory).toAbsolutePath();
     }

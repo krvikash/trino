@@ -74,11 +74,13 @@ public class TestOpenApiWithPagePaginationServer
     @Test
     public void testPagePaginationFetchesAllData()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -93,12 +95,14 @@ public class TestOpenApiWithPagePaginationServer
     @Test
     public void testPagePaginationWithLimit()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 LIMIT 3
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -109,27 +113,32 @@ public class TestOpenApiWithPagePaginationServer
     @Test
     public void testPageExplicitPagination()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(page => 1, per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
                             (BIGINT '3', CAST('item-3' AS VARCHAR))
                         """);
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(page => 2, per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '4', CAST('item-4' AS VARCHAR)),
                             (BIGINT '5', CAST('item-5' AS VARCHAR)),
                             (BIGINT '6', CAST('item-6' AS VARCHAR))
                         """);
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_paged(page => 3, per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
@@ -142,7 +151,8 @@ public class TestOpenApiWithPagePaginationServer
         // The /items/all endpoint has no page parameter in the spec — the PAGE_NUMBER strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),

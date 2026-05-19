@@ -105,8 +105,7 @@ public class AnalyzeLogicalPlan
 
         public AnalyzeLogicalPlanFunction(TestingTrinoMetadataFactory testingTrinoMetadataFactory, AnalyzerFactory analyzerFactory)
         {
-            super(
-                    BUILTIN_SCHEMA,
+            super(BUILTIN_SCHEMA,
                     NAME,
                     List.of(ScalarArgumentSpecification.builder()
                             .name(LOGICAL_PLAN_INPUT_NAME)

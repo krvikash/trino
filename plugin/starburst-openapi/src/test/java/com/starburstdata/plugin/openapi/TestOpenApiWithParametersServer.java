@@ -86,7 +86,8 @@ public class TestOpenApiWithParametersServer
     @Test
     public void testUnexplodedQueryParameterSerialization()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT value
                 FROM TABLE(openapi.default.repeat_query_params(list_string_explode => ARRAY['H,e,l,l,o', 'T,h,e,r,e!']))"""))
                 .matches("VALUES CAST('H,e,l,l,o' AS VARCHAR), CAST('T,h,e,r,e!' AS VARCHAR)");
@@ -95,7 +96,8 @@ public class TestOpenApiWithParametersServer
     @Test
     public void testExplodedQueryParameterSerialization()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT value
                 FROM TABLE(openapi.default.repeat_query_params(list_string_explode => ARRAY['Hello', 'There!']))"""))
                 .matches("VALUES CAST('Hello' AS VARCHAR), CAST('There!' AS VARCHAR)");
@@ -104,7 +106,8 @@ public class TestOpenApiWithParametersServer
     @Test
     public void testMultiPathParameterSerialization()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT paramOne, paramTwo FROM TABLE(openapi.default.repeat_path_param_one_param_two(
                         param_one => 'TEST',
                         param_two => 'ING'))"""))

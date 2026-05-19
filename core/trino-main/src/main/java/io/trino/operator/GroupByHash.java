@@ -43,27 +43,27 @@ public interface GroupByHash
 {
     NonEvictableLoadingCache<Type, Class<? extends GroupByHash>> specializedGroupByHashClasses = buildNonEvictableCache(
             CacheBuilder.newBuilder()
-                .maximumSize(256),
+                    .maximumSize(256),
             CacheLoader.from(_ -> isolateGroupByHashClass()));
 
     static Class<? extends GroupByHash> isolateGroupByHashClass()
     {
         return IsolatedClass.isolateClass(
-                    new DynamicClassLoader(GroupByHash.class.getClassLoader()),
-                    GroupByHash.class,
-                    BigintGroupByHash.class,
-                    BigintGroupByHash.AddPageWork.class,
-                    BigintGroupByHash.AddDictionaryPageWork.class,
-                    BigintGroupByHash.AddRunLengthEncodedPageWork.class,
-                    BigintGroupByHash.GetGroupIdsWork.class,
-                    BigintGroupByHash.GetDictionaryGroupIdsWork.class,
-                    BigintGroupByHash.GetRunLengthEncodedGroupIdsWork.class,
-                    BigintGroupByHash.DictionaryLookBack.class,
-                    ValuesArray.class,
-                    BigintGroupByHash.LongValuesArray.class,
-                    BigintGroupByHash.IntegerValuesArray.class,
-                    BigintGroupByHash.ShortValuesArray.class,
-                    BigintGroupByHash.ByteValuesArray.class);
+                new DynamicClassLoader(GroupByHash.class.getClassLoader()),
+                GroupByHash.class,
+                BigintGroupByHash.class,
+                BigintGroupByHash.AddPageWork.class,
+                BigintGroupByHash.AddDictionaryPageWork.class,
+                BigintGroupByHash.AddRunLengthEncodedPageWork.class,
+                BigintGroupByHash.GetGroupIdsWork.class,
+                BigintGroupByHash.GetDictionaryGroupIdsWork.class,
+                BigintGroupByHash.GetRunLengthEncodedGroupIdsWork.class,
+                BigintGroupByHash.DictionaryLookBack.class,
+                ValuesArray.class,
+                BigintGroupByHash.LongValuesArray.class,
+                BigintGroupByHash.IntegerValuesArray.class,
+                BigintGroupByHash.ShortValuesArray.class,
+                BigintGroupByHash.ByteValuesArray.class);
     }
 
     static GroupByHash createGroupByHash(

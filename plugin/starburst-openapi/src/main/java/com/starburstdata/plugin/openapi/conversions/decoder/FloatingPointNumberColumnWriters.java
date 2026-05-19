@@ -76,7 +76,5 @@ public final class FloatingPointNumberColumnWriters
         }
     };
 
-    private FloatingPointNumberColumnWriters()
-    {
-    }
+    private FloatingPointNumberColumnWriters() {}
 }

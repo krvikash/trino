@@ -40,7 +40,7 @@ public class DebugLogTask
     public DebugLogTask() {}
 
     @POST
-    //@ApiOperation(value = "debug-log", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "debug-log", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public void debugLog(DebugLogData debugLogData)
     {
         logger.info(debugLogData.getLogLine());

@@ -31,7 +31,8 @@ public final class DataServerApplicationModules
 
     public static Module getSpoolingConfigurationModule(String configPrefix)
     {
-        return new AbstractConfigurationAwareModule() {
+        return new AbstractConfigurationAwareModule()
+        {
             @Override
             protected void setup(Binder binder)
             {
@@ -42,7 +43,8 @@ public final class DataServerApplicationModules
 
     private static Module getDataServerApplicationModule(Optional<String> configPrefix, boolean bindStandaloneDiscoveryApiModule, boolean useStaticMemoryConfig)
     {
-        return new AbstractConfigurationAwareModule() {
+        return new AbstractConfigurationAwareModule()
+        {
             @Override
             protected void setup(Binder binder)
             {

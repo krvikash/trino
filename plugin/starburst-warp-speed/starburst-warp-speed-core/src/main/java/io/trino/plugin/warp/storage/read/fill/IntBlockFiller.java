@@ -53,7 +53,8 @@ public class IntBlockFiller
     }
 
     @Override
-    protected Block fillRawBlock(ReadJuffersWarmUpElement juffersWE,
+    protected Block fillRawBlock(
+            ReadJuffersWarmUpElement juffersWE,
             RecTypeCode recTypeCode,
             int recLength,
             int rowsToFill,
@@ -80,8 +81,13 @@ public class IntBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock,
-            RecTypeCode recTypeCode, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(
+            ReadJuffersWarmUpElement juffersWE,
+            int mapKey,
+            int rowsToFill,
+            Block mapBlock,
+            RecTypeCode recTypeCode,
+            boolean collectNulls)
     {
         int singleVal = ((IntArrayBlock) mapBlock).getInt(mapKey);
         Block retBlock;
@@ -98,7 +104,8 @@ public class IntBlockFiller
     }
 
     @Override
-    public Block fillRawBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,
+    public Block fillRawBlockWithDictionary(
+            ReadJuffersWarmUpElement juffersWE,
             int rowsToFill,
             RecTypeCode recTypeCode,
             int recTypeLength,

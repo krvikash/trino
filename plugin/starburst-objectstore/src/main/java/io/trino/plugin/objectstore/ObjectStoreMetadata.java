@@ -1941,7 +1941,9 @@ public class ObjectStoreMetadata
                 }
                 properties.put("format", decodeProperty(icebergFormatProperty, value));
             });
-            case DELTA, HUDI -> { /* ignore 'format' property */ }
+            case DELTA, HUDI -> {
+                /* ignore 'format' property */
+            }
             default -> throw new VerifyException("Unhandled type: " + tableType);
         }
         properties.entrySet().removeIf(entry ->

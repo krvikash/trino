@@ -39,7 +39,8 @@ class CallAndConstantRewriter
             .with(argument(0).matching(x -> x instanceof WarpCall))
             .with(argument(1).matching(x -> x instanceof WarpConstant));
 
-    CallAndConstantRewriter(NativeExpressionRulesHandler nativeExpressionRulesHandler,
+    CallAndConstantRewriter(
+            NativeExpressionRulesHandler nativeExpressionRulesHandler,
             PushdownPredicatesStats pushdownPredicatesStats)
     {
         super(nativeExpressionRulesHandler, pushdownPredicatesStats);
@@ -52,13 +53,14 @@ class CallAndConstantRewriter
     }
 
     @Override
-    boolean convert(WarpExpression warpExpression,
+    boolean convert(
+            WarpExpression warpExpression,
             RewriteContext rewriteContext,
             BiFunction<Type, Object, Range> rangeBiFunction)
     {
         if (rewriteContext.nativeExpressionBuilder().getDomain() != null) {
             pushdownPredicatesStats.incunsupported_functions_composite();
-            //currently, not supported complex expression. etc: where (ceil(c1) > 5) = false
+            // currently, not supported complex expression. etc: where (ceil(c1) > 5) = false
             return false;
         }
         WarpConstant warpConstant = ((WarpConstant) warpExpression.getChildren().get(1));

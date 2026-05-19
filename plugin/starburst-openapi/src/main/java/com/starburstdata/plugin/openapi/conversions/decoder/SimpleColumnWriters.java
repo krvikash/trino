@@ -48,7 +48,5 @@ public final class SimpleColumnWriters
         }
     };
 
-    private SimpleColumnWriters()
-    {
-    }
+    private SimpleColumnWriters() {}
 }

@@ -155,8 +155,7 @@ public class Unload
 
         public UnloadFunction(String schema, LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory, boolean useRowSemantics)
         {
-            super(
-                    schema,
+            super(schema,
                     "unload",
                     ImmutableList.of(
                             tableArgumentSpecification(useRowSemantics),

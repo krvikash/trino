@@ -149,7 +149,7 @@ public class RangeMatcher
     private Optional<Range> createRange(Type type, Object minValue, Object maxValue)
     {
         Optional<Range> res;
-        //values of smallInt and TinyInt converted to int during import
+        // values of smallInt and TinyInt converted to int during import
         if ((isIntType(type) || isSmallIntType(type) || isTinyIntType(type)) && minValue instanceof Integer intMinValue && maxValue instanceof Integer intMaxValue) {
             res = Optional.of(Range.range(type, intMinValue.longValue(), true, intMaxValue.longValue(), true));
         }
@@ -161,7 +161,7 @@ public class RangeMatcher
                         minValue instanceof Long ||
                         maxValue instanceof Integer ||
                         maxValue instanceof Long)) {
-            //values may be converted to int during import
+            // values may be converted to int during import
             Object minVal = minValue instanceof Integer minInteger ? minInteger.longValue() : minValue;
             Object maxVal = maxValue instanceof Integer maxInteger ? maxInteger.longValue() : maxValue;
             res = Optional.of(Range.range(type, minVal, true, maxVal, true));
@@ -180,7 +180,7 @@ public class RangeMatcher
                 res = Optional.of(Range.range(type, minVal, true, maxVal, true));
             }
             else if (minValue instanceof String minVal && maxValue instanceof String maxVal) {
-                //todo:in fast warming byte array converted to String, need to check
+                // todo:in fast warming byte array converted to String, need to check
                 Slice min = Slices.utf8Slice(minVal);
                 Slice max = Slices.utf8Slice(maxVal);
                 res = Optional.of(Range.range(type, min, true, max, true));

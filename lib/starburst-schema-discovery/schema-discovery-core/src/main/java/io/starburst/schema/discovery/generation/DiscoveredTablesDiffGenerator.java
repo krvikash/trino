@@ -59,7 +59,7 @@ public class DiscoveredTablesDiffGenerator
             @JsonSubTypes.Type(name = "CHANGE", value = UpdatedTable.class),
             @JsonSubTypes.Type(name = "DROP", value = DroppedTable.class),
             @JsonSubTypes.Type(name = "NOT_MODIFIED", value = UnchangedTable.class),
-            @JsonSubTypes.Type(name = "RECREATE", value = RecreatedTable.class)
+            @JsonSubTypes.Type(name = "RECREATE", value = RecreatedTable.class),
     })
     public sealed interface DiffTable
     {
@@ -88,8 +88,14 @@ public class DiscoveredTablesDiffGenerator
         List<ColumnPartitionProjection> partitionProjections();
     }
 
-    public record NewTable(TableName tableName, TablePath path, TableFormat format, List<NewColumn> columns, List<NewColumn> partitionColumns,
-                           List<NewPartitionValue> partitionValues, List<ColumnPartitionProjection> partitionProjections)
+    public record NewTable(
+            TableName tableName,
+            TablePath path,
+            TableFormat format,
+            List<NewColumn> columns,
+            List<NewColumn> partitionColumns,
+            List<NewPartitionValue> partitionValues,
+            List<ColumnPartitionProjection> partitionProjections)
             implements DiffTable
     {
         @Override
@@ -99,8 +105,14 @@ public class DiscoveredTablesDiffGenerator
         }
     }
 
-    public record UpdatedTable(TableName tableName, TablePath path, TableFormat format, List<DiffColumn> columns, List<DiffColumn> partitionColumns,
-                               List<DiffPartitionValue> partitionValues, List<ColumnPartitionProjection> partitionProjections)
+    public record UpdatedTable(
+            TableName tableName,
+            TablePath path,
+            TableFormat format,
+            List<DiffColumn> columns,
+            List<DiffColumn> partitionColumns,
+            List<DiffPartitionValue> partitionValues,
+            List<ColumnPartitionProjection> partitionProjections)
             implements DiffTable
     {
         @Override
@@ -110,8 +122,14 @@ public class DiscoveredTablesDiffGenerator
         }
     }
 
-    public record DroppedTable(TableName tableName, TablePath path, TableFormat format, List<DroppedColumn> columns, List<DroppedColumn> partitionColumns,
-                               List<DroppedPartitionValue> partitionValues, List<ColumnPartitionProjection> partitionProjections)
+    public record DroppedTable(
+            TableName tableName,
+            TablePath path,
+            TableFormat format,
+            List<DroppedColumn> columns,
+            List<DroppedColumn> partitionColumns,
+            List<DroppedPartitionValue> partitionValues,
+            List<ColumnPartitionProjection> partitionProjections)
             implements DiffTable
     {
         @Override
@@ -121,8 +139,14 @@ public class DiscoveredTablesDiffGenerator
         }
     }
 
-    public record RecreatedTable(TableName tableName, TablePath path, TableFormat format, List<DiffColumn> columns, List<DiffColumn> partitionColumns,
-                                 List<DiffPartitionValue> partitionValues, List<ColumnPartitionProjection> partitionProjections)
+    public record RecreatedTable(
+            TableName tableName,
+            TablePath path,
+            TableFormat format,
+            List<DiffColumn> columns,
+            List<DiffColumn> partitionColumns,
+            List<DiffPartitionValue> partitionValues,
+            List<ColumnPartitionProjection> partitionProjections)
             implements DiffTable
     {
         @Override
@@ -132,8 +156,14 @@ public class DiscoveredTablesDiffGenerator
         }
     }
 
-    public record UnchangedTable(TableName tableName, TablePath path, TableFormat format, List<UnchangedColumn> columns, List<UnchangedColumn> partitionColumns,
-                                 List<UnchangedPartitionValue> partitionValues, List<ColumnPartitionProjection> partitionProjections)
+    public record UnchangedTable(
+            TableName tableName,
+            TablePath path,
+            TableFormat format,
+            List<UnchangedColumn> columns,
+            List<UnchangedColumn> partitionColumns,
+            List<UnchangedPartitionValue> partitionValues,
+            List<ColumnPartitionProjection> partitionProjections)
             implements DiffTable
     {
         @Override
@@ -148,7 +178,7 @@ public class DiscoveredTablesDiffGenerator
             @JsonSubTypes.Type(name = "CREATE", value = NewColumn.class),
             @JsonSubTypes.Type(name = "CHANGE", value = UpdatedColumn.class),
             @JsonSubTypes.Type(name = "DROP", value = DroppedColumn.class),
-            @JsonSubTypes.Type(name = "NOT_MODIFIED", value = UnchangedColumn.class)
+            @JsonSubTypes.Type(name = "NOT_MODIFIED", value = UnchangedColumn.class),
     })
     public sealed interface DiffColumn
     {
@@ -214,7 +244,7 @@ public class DiscoveredTablesDiffGenerator
     @JsonSubTypes({
             @JsonSubTypes.Type(name = "CREATE", value = NewPartitionValue.class),
             @JsonSubTypes.Type(name = "DROP", value = DroppedPartitionValue.class),
-            @JsonSubTypes.Type(name = "NOT_MODIFIED", value = UnchangedPartitionValue.class)
+            @JsonSubTypes.Type(name = "NOT_MODIFIED", value = UnchangedPartitionValue.class),
     })
     public sealed interface DiffPartitionValue
     {
@@ -263,8 +293,7 @@ public class DiscoveredTablesDiffGenerator
         }
     }
 
-    public record ColumnPartitionProjection(LowerCaseString columnName, InferredPartitionProjection partitionProjection)
-    {}
+    public record ColumnPartitionProjection(LowerCaseString columnName, InferredPartitionProjection partitionProjection) {}
 
     public static List<DiffTable> generateDiff(String rootPath, List<DiscoveredTable> previousTables, List<DiscoveredTable> currentTables)
     {
@@ -343,7 +372,8 @@ public class DiscoveredTablesDiffGenerator
                     List<DiffColumn> diffColumns = buildModifiedTableColumns(columnChanges, modifiedTable, previousTable, table -> table.columns().columns());
                     List<DiffColumn> diffPartitionColumns = buildModifiedTableColumns(partitionColumnChanges, modifiedTable, previousTable, table -> table.discoveredPartitions().columns());
                     List<DiffPartitionValue> diffPartitionValues = buildModifiedPartitionValues(partitionValueChanges, modifiedTable, previousTable);
-                    results.add(new UpdatedTable(modifiedTable.tableName(),
+                    results.add(new UpdatedTable(
+                            modifiedTable.tableName(),
                             modifiedTable.path(),
                             modifiedTable.format(),
                             diffColumns,
@@ -414,9 +444,9 @@ public class DiscoveredTablesDiffGenerator
     private static boolean isUnchanged(TableColumnChanges columnChanges, TableColumnChanges partitionColumnChanges, BucketChanges bucketChanges, PartitionValueChanges partitionValueChanges)
     {
         return columnChanges.addedColumns().isEmpty() && columnChanges.droppedColumns().isEmpty() && columnChanges.columnRenames().isEmpty() &&
-               partitionColumnChanges.addedColumns().isEmpty() && partitionColumnChanges.droppedColumns().isEmpty() && partitionColumnChanges.columnRenames().isEmpty() &&
-               bucketChanges.addedBuckets().isEmpty() && bucketChanges.droppedBuckets().isEmpty() &&
-               partitionValueChanges.addedPartitionValues().isEmpty() && partitionValueChanges.droppedPartitionValues().isEmpty();
+                partitionColumnChanges.addedColumns().isEmpty() && partitionColumnChanges.droppedColumns().isEmpty() && partitionColumnChanges.columnRenames().isEmpty() &&
+                bucketChanges.addedBuckets().isEmpty() && bucketChanges.droppedBuckets().isEmpty() &&
+                partitionValueChanges.addedPartitionValues().isEmpty() && partitionValueChanges.droppedPartitionValues().isEmpty();
     }
 
     private static void buildDroppedTablesDiff(List<DiscoveredTable> previousTables, TableChanges tableChanges, ImmutableList.Builder<DiffTable> results)

@@ -53,9 +53,7 @@ public class QueryUtils
     @Inject
     private RuleUtils ruleUtils;
 
-    public QueryUtils()
-    {
-    }
+    public QueryUtils() {}
 
     public void runQueries(String catalogName, TestFormat test)
     {
@@ -73,7 +71,7 @@ public class QueryUtils
             onTrino().executeQuery("set session use_sub_plan_alternatives = true");
             queryAndValidate(catalogName, query, true, softAssertions);
             onTrino().executeQuery("set session use_sub_plan_alternatives = false");
-            //we assert on correctness without sub_plan_alternatives session, counters according to default config
+            // we assert on correctness without sub_plan_alternatives session, counters according to default config
             queryAndValidate(catalogName, query, false, softAssertions);
         }
 
@@ -120,7 +118,8 @@ public class QueryUtils
         }
     }
 
-    public static void verifyQueryCountersJson(List<String> countersList,
+    public static void verifyQueryCountersJson(
+            List<String> countersList,
             Map<String, Long> expectedCounters,
             Map<String, Long> actualValues,
             String testName,
@@ -286,17 +285,17 @@ public class QueryUtils
     @SuppressWarnings("unchecked")
     private List<List<ValueNode>> convertExpectedValues(List<Object> expectedValues)
     {
-        //ArrayNode arrayNode = (ArrayNode) expectedValues; // Assuming the JSON object is an array of objects
+        // ArrayNode arrayNode = (ArrayNode) expectedValues; // Assuming the JSON object is an array of objects
         List<List<ValueNode>> arrayOfArrays = new ArrayList<>(); // The resulting array of arrays
         if (expectedValues.getFirst() instanceof List) {
-            //array of arrays
+            // array of arrays
             for (Object rowValue : expectedValues) {
                 List<ValueNode> values = convertRowToValues((List<Object>) rowValue);
                 arrayOfArrays.add(values); // Add the array to the list of arrays
             }
         }
         else {
-            //single line
+            // single line
             List<ValueNode> values = convertRowToValues(expectedValues);
             arrayOfArrays.add(values);
         }
@@ -335,6 +334,6 @@ public class QueryUtils
         EXTERNAL_ONLY,
         ACCORDING_TO_COUNTERS,
         MIXED_WARP_AND_EXTERNAL_NO_COUNTERS,
-        CUSTOM_METRICS_COUNTERS
+        CUSTOM_METRICS_COUNTERS,
     }
 }

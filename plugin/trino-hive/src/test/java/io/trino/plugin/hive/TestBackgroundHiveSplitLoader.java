@@ -358,9 +358,9 @@ public class TestBackgroundHiveSplitLoader
 
                         @Override
                         public OptionalLong getPreferredDynamicFilterTimeout()
-                    {
-                        return OptionalLong.of(0L);
-                    }
+                        {
+                            return OptionalLong.of(0L);
+                        }
                     },
                     new Duration(1, SECONDS));
             HiveSplitSource hiveSplitSource = hiveSplitSource(backgroundHiveSplitLoader);

@@ -29,7 +29,8 @@ public class TransformedColumn
     private final TransformFunction transformFunction;
 
     @JsonCreator
-    public TransformedColumn(@JsonProperty(COLUMN_NAME) String columnName,
+    public TransformedColumn(
+            @JsonProperty(COLUMN_NAME) String columnName,
             @JsonProperty(COLUMN_ID) String columnId,
             @JsonProperty(TRANSFORM_FUNCTION) TransformFunction transformFunction)
     {

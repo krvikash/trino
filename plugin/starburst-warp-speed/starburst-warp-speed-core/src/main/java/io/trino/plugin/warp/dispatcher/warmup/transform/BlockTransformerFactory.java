@@ -31,22 +31,14 @@ public class BlockTransformerFactory
     {
         ArrayBlockToVarcharBlockTransformer arrayBlockToVarcharBlockTransformer = new ArrayBlockToVarcharBlockTransformer();
         this.typeBlockTransformerMap = Map.of(
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_INT),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_BIGINT),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_VARCHAR),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_CHAR),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_BOOLEAN),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_TIMESTAMP),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_DATE),
-                arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_DOUBLE),
-                arrayBlockToVarcharBlockTransformer);
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_INT), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_BIGINT), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_VARCHAR), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_CHAR), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_BOOLEAN), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_TIMESTAMP), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_DATE), arrayBlockToVarcharBlockTransformer,
+                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_DOUBLE), arrayBlockToVarcharBlockTransformer);
     }
 
     public Optional<BlockTransformer> getBlockTransformer(WarmUpType sourceWarmupType, RecTypeCode recTypeCode)

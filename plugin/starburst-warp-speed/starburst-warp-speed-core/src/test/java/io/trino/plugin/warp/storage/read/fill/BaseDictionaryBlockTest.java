@@ -91,13 +91,13 @@ public abstract class BaseDictionaryBlockTest
                 arguments(dictionarySize, false, dictionarySize * dictionarySize, QueryResultType.QUERY_RESULT_TYPE_SINGLE),
                 arguments(dictionarySize, false, dictionarySize * dictionarySize, QueryResultType.QUERY_RESULT_TYPE_RAW),
                 arguments(dictionarySize, false, dictionarySize * dictionarySize, QueryResultType.QUERY_RESULT_TYPE_RAW_NO_NULL),
-                arguments(dictionarySize, false, dictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW), //without dictionaryBlock
+                arguments(dictionarySize, false, dictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW), // without dictionaryBlock
                 arguments(dictionarySize, true, dictionarySize * dictionarySize, QueryResultType.QUERY_RESULT_TYPE_RAW),
-                arguments(dictionarySize, true, dictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW), //without dictionaryBlock
+                arguments(dictionarySize, true, dictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW), // without dictionaryBlock
                 arguments(doubleDictionarySize, false, doubleDictionarySize * doubleDictionarySize, QueryResultType.QUERY_RESULT_TYPE_RAW),
-                arguments(doubleDictionarySize, false, doubleDictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW), //without dictionaryBlock
+                arguments(doubleDictionarySize, false, doubleDictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW), // without dictionaryBlock
                 arguments(doubleDictionarySize, true, doubleDictionarySize * doubleDictionarySize, QueryResultType.QUERY_RESULT_TYPE_RAW),
-                arguments(doubleDictionarySize, true, doubleDictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW)); //without dictionaryBlock
+                arguments(doubleDictionarySize, true, doubleDictionarySize / 2 - 1, QueryResultType.QUERY_RESULT_TYPE_RAW)); // without dictionaryBlock
     }
 
     @BeforeAll
@@ -110,15 +110,18 @@ public abstract class BaseDictionaryBlockTest
         createConversionFunction();
         createValueFunction();
         NodeManager nodeManager = mockNodeManager();
-        dictionaryKey = new DictionaryKey(new SchemaTableColumn(new SchemaTableName("schema", "table"), new RegularColumn("c1")),
-                nodeManager.getCurrentNode().getNodeIdentifier(), DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
+        dictionaryKey = new DictionaryKey(
+                new SchemaTableColumn(new SchemaTableName("schema", "table"), new RegularColumn("c1")),
+                nodeManager.getCurrentNode().getNodeIdentifier(),
+                DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
     }
 
     @BeforeEach
     public void before()
     {
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
-        dictionaryCacheService = new DictionaryCacheService(dictionaryConfig,
+        dictionaryCacheService = new DictionaryCacheService(
+                dictionaryConfig,
                 metricsManager,
                 mock(AttachDictionaryService.class));
         blockFiller = createBlockFiller();
@@ -145,7 +148,8 @@ public abstract class BaseDictionaryBlockTest
         dictionaryKey = writeDictionary.getDictionaryKey();
     }
 
-    <T> void act(int rowsToFill,
+    <T> void act(
+            int rowsToFill,
             boolean collectNulls,
             int dictionarySize,
             BiFunction<ReadDictionary, Integer, T> getValueFunction,
@@ -173,8 +177,7 @@ public abstract class BaseDictionaryBlockTest
         if (queryResultTypeRaw != QueryResultType.QUERY_RESULT_TYPE_ALL_NULL) {
             recTypeLength = switch (recTypeCode) {
                 case REC_TYPE_BIGINT, REC_TYPE_DOUBLE -> Long.BYTES;
-                case REC_TYPE_VARCHAR ->
-                        ((Slice) readDictionary.get(maxIndexValue)).toStringUtf8().length(); // max length value will be at  the end of the dictionary
+                case REC_TYPE_VARCHAR -> ((Slice) readDictionary.get(maxIndexValue)).toStringUtf8().length(); // max length value will be at  the end of the dictionary
                 default -> {
                     Assertions.fail("unknown recTypeCode " + recTypeCode);
                     throw new UnsupportedOperationException();
@@ -182,7 +185,8 @@ public abstract class BaseDictionaryBlockTest
             };
         }
 
-        Block block = blockFiller.fillBlockWithDictionary(juffersWE,
+        Block block = blockFiller.fillBlockWithDictionary(
+                juffersWE,
                 queryResultTypeRaw,
                 rowsToFill,
                 recTypeCode,
@@ -239,7 +243,8 @@ public abstract class BaseDictionaryBlockTest
      * @param getValueFunction - read value from dictionary function
      * @return - expectedValues list - will compare this with actual result
      */
-    private <T> List<T> createBuffersToReadFrom(ReadDictionary readDictionary,
+    private <T> List<T> createBuffersToReadFrom(
+            ReadDictionary readDictionary,
             int rowsToFill,
             int maxIndexValue,
             JuffersWarmUpElementBase juffersWE,
@@ -303,7 +308,8 @@ public abstract class BaseDictionaryBlockTest
         return expectedOutput;
     }
 
-    private <T> int buildReadWriteDictionary(int dictionarySize,
+    private <T> int buildReadWriteDictionary(
+            int dictionarySize,
             WriteDictionary writeDictionary,
             RecTypeCode recTypeCode)
     {
@@ -319,12 +325,13 @@ public abstract class BaseDictionaryBlockTest
         DataValueDictionary dictionary = (DataValueDictionary) writeDictionary;
         assertThat(dictionary.getWriteSize()).isEqualTo(dictionaryAsList.size());
 
-        //need to mock dictionaryBlock
+        // need to mock dictionaryBlock
         Block prePrepareDictionaryBlock = generateDictionaryBlock(dictionaryAsList);
         dictionary.setDictionaryPreBlock(prePrepareDictionaryBlock);
 
         Block block = dictionary.getPreBlockDictionaryIfExists(prePrepareDictionaryBlock.getPositionCount(), dictionaryCacheService, recTypeCode);
-        logger.info("created dictionary of size=%s, prePrepareDictionaryBlock=%s ,maxIndexValue=%s",
+        logger.info(
+                "created dictionary of size=%s, prePrepareDictionaryBlock=%s ,maxIndexValue=%s",
                 dictionary.getReadSize(),
                 block == null ? null : block.getPositionCount(),
                 maxIndexValue);

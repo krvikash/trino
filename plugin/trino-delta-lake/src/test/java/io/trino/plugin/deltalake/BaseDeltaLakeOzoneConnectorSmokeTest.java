@@ -71,11 +71,11 @@ public abstract class BaseDeltaLakeOzoneConnectorSmokeTest
         return switch (connectorBehavior) {
             case SUPPORTS_CREATE_VIEW -> true;
             case SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_RENAME_SCHEMA -> false;
+                 SUPPORTS_RENAME_SCHEMA -> false;
             case SUPPORTS_DELETE,
-                    SUPPORTS_UPDATE,
-                    SUPPORTS_MERGE,
-                    SUPPORTS_TRUNCATE -> true;
+                 SUPPORTS_UPDATE,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_TRUNCATE -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
@@ -109,7 +109,8 @@ public abstract class BaseDeltaLakeOzoneConnectorSmokeTest
     public void testShowCreateTable()
     {
         assertThat((String) computeScalar("SHOW CREATE TABLE region"))
-                .isEqualTo("""
+                .isEqualTo(
+                        """
                         CREATE TABLE %s.ozone.region (
                            regionkey bigint,
                            name varchar,

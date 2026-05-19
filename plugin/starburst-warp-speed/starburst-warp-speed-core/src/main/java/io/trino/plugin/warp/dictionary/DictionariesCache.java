@@ -51,7 +51,7 @@ import static java.util.Objects.requireNonNull;
 public class DictionariesCache
 {
     private static final Logger logger = Logger.get(DictionariesCache.class);
-    //number of times we allow exceeding number of max elements before marking the dictionary invalid for write
+    // number of times we allow exceeding number of max elements before marking the dictionary invalid for write
     public static final int MAX_FAILED_SPLITS = 10;
 
     private final DictionaryConfig dictionaryConfig;
@@ -67,7 +67,8 @@ public class DictionariesCache
     private Cache<DictionaryKey, DataValueDictionary> cache;
     private DictionaryCacheConfig activeConfig;
 
-    DictionariesCache(DictionaryConfig dictionaryConfig,
+    DictionariesCache(
+            DictionaryConfig dictionaryConfig,
             MetricsManager metricsManager,
             AttachDictionaryService attachDictionaryService)
     {
@@ -90,11 +91,11 @@ public class DictionariesCache
                 (_, dataValueDictionary) -> dataValueDictionary.getDictionaryWeight();
         activeConfig = dictionaryConfig;
         RemovalListener<DictionaryKey, DataValueDictionary> listener = removalNotification -> {
-            if (!removalNotification.wasEvicted()) { //do nothing
+            if (!removalNotification.wasEvicted()) { // do nothing
                 return;
             }
             DataValueDictionary dataValueDictionary = removalNotification.getValue();
-            if (dataValueDictionary == null) { //do nothing
+            if (dataValueDictionary == null) { // do nothing
                 return;
             }
             if (dataValueDictionary.getUsingTransactions() > 0) {
@@ -158,10 +159,10 @@ public class DictionariesCache
     {
         DictionaryId dictionaryId = DictionaryId.of(dictionaryKey);
         DictionaryMetadata dictionaryMetadata = dictionaryMetadataMap.get(dictionaryId);
-        //if (dictionaryMetadata == null) {
+        // if (dictionaryMetadata == null) {
         //    setLastCreatedTimestamp(dictionaryId, DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
         //    dictionaryMetadata = dictionaryMetadataMap.get(dictionaryId);
-        //}
+        // }
         dictionaryMetadata.incFailedWriteCount();
         globalDictionaryStats.incdictionary_max_exception_count();
     }
@@ -173,9 +174,10 @@ public class DictionariesCache
      *
      * @param dictionaryKey - key for cache
      * @param recTypeCode - original rec type code
-     * will add entry to cache that may be evicted from cache by lru algorithm
+     *         will add entry to cache that may be evicted from cache by lru algorithm
      */
-    ReadDictionary getReadDictionary(DictionaryKey dictionaryKey,
+    ReadDictionary getReadDictionary(
+            DictionaryKey dictionaryKey,
             int usedDictionarySize,
             RecTypeCode recTypeCode,
             int recTypeLength,
@@ -207,15 +209,15 @@ public class DictionariesCache
      *
      * @param dictionaryKey - key for cache
      * @param recTypeCode - original rec type code
-     * will add entry to cache that wont be evicted until calling releaseDictionary method
-     * must call releaseDictionary method after tx is closed
-     * <p>
-     * we must first go to the active list under the list lock since the dictionary might be there and not in the guava cache anymore.
-     * if we found it in the active list we do not update the guava cache again since it means it was recently updated by the thread
-     * that added it to the active list.
-     * if it was not found in the active list we go to the guava cache and potentially create/load a new dictionary but this is all done
-     * under the list concurrent lock (via computeIfAbsent) so we are protected against a race between two threads reaching this state in
-     * parallel and creating/loading two instances of the same dictionary
+     *         will add entry to cache that wont be evicted until calling releaseDictionary method
+     *         must call releaseDictionary method after tx is closed
+     *         <p>
+     *         we must first go to the active list under the list lock since the dictionary might be there and not in the guava cache anymore.
+     *         if we found it in the active list we do not update the guava cache again since it means it was recently updated by the thread
+     *         that added it to the active list.
+     *         if it was not found in the active list we go to the guava cache and potentially create/load a new dictionary but this is all done
+     *         under the list concurrent lock (via computeIfAbsent) so we are protected against a race between two threads reaching this state in
+     *         parallel and creating/loading two instances of the same dictionary
      */
     WriteDictionary getWriteDictionary(DictionaryKey dictionaryKey, RecTypeCode recTypeCode)
     {
@@ -270,7 +272,8 @@ public class DictionariesCache
                     int fixedRecTypeLength = calculateFixedRecTypeLength(recTypeCode);
 
                     // configuring max rec type length same as the fixed one for new dictionary. in vase of varchar it will be zero.
-                    dataValueDictionary = new DataValueDictionary(dictionaryConfig,
+                    dataValueDictionary = new DataValueDictionary(
+                            dictionaryConfig,
                             createdDictionaryKey,
                             fixedRecTypeLength,
                             fixedRecTypeLength,
@@ -340,11 +343,13 @@ public class DictionariesCache
     Map<DebugDictionaryKey, DebugDictionaryMetadata> getWriteDictionaryMetadata()
     {
         return cache.asMap().values().stream().collect(Collectors.toMap(
-                x -> new DebugDictionaryKey(x.getDictionaryKey().schemaTableColumn().schemaTableName(),
+                x -> new DebugDictionaryKey(
+                        x.getDictionaryKey().schemaTableColumn().schemaTableName(),
                         x.getDictionaryKey().schemaTableColumn().warpColumn().getName(),
                         x.getDictionaryKey().nodeIdentifier()),
                 x ->
-                        new DebugDictionaryMetadata(new DebugDictionaryKey(x.getDictionaryKey().schemaTableColumn().schemaTableName(),
+                        new DebugDictionaryMetadata(new DebugDictionaryKey(
+                                x.getDictionaryKey().schemaTableColumn().schemaTableName(),
                                 x.getDictionaryKey().schemaTableColumn().warpColumn().getName(),
                                 x.getDictionaryKey().nodeIdentifier()),
                                 x.getWriteSize(),
@@ -407,7 +412,7 @@ public class DictionariesCache
         switch (recTypeCode) {
             case REC_TYPE_CHAR:
                 shouldTrim = true; // override default false for fixed length string
-                // fall through
+            // fall through
             case REC_TYPE_VARCHAR: {
                 int finalLength = 0;
                 for (int i = 0; i < rowsToFill; i++) {
@@ -467,7 +472,8 @@ public class DictionariesCache
     protected Map<String, Integer> getDictionaryCachedKeys()
     {
         return cache.asMap().entrySet().stream()
-                .collect(Collectors.toMap(e -> format("%s.%s",
+                .collect(Collectors.toMap(e -> format(
+                        "%s.%s",
                         e.getKey().schemaTableColumn().schemaTableName(),
                         e.getKey().schemaTableColumn().warpColumn().getName()), e -> e.getValue().getDictionaryWeight()));
     }

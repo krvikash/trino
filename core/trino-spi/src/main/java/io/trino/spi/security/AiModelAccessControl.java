@@ -23,7 +23,8 @@ import static java.util.Objects.requireNonNull;
 
 public interface AiModelAccessControl
 {
-    AiModelAccessControl ALLOW_ALL = new AiModelAccessControl() {
+    AiModelAccessControl ALLOW_ALL = new AiModelAccessControl()
+    {
         @Override
         public void checkCanExecuteModel(Context context, String modelId) {}
     };

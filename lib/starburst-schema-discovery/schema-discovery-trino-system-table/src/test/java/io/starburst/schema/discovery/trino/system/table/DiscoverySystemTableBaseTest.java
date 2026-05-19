@@ -28,54 +28,70 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class DiscoverySystemTableBaseTest
 {
-    static final String OPTIONS_WITHOUT_DELIMITER = """
+    static final String OPTIONS_WITHOUT_DELIMITER =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\"""";
 
-    static final String OPTIONS_WITH_COMMA_DELIMITER_START = """
+    static final String OPTIONS_WITH_COMMA_DELIMITER_START =
+            """
             delimiter=,,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_COMMA_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_COMMA_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],delimiter=,,headers=true,quote=\"""";
 
-    static final String OPTIONS_WITH_COMMA_DELIMITER_LAST = """
+    static final String OPTIONS_WITH_COMMA_DELIMITER_LAST =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=",delimiter=,""";
 
-    static final String OPTIONS_WITH_SPACE_DELIMITER_START = """
+    static final String OPTIONS_WITH_SPACE_DELIMITER_START =
+            """
             delimiter= ,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_SPACE_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_SPACE_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",delimiter= ,headers=true""";
 
     static final String OPTIONS_WITH_SPACE_DELIMITER_LAST = "dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\",delimiter= ";
 
-    static final String OPTIONS_WITH_TAB_DELIMITER_START = """
+    static final String OPTIONS_WITH_TAB_DELIMITER_START =
+            """
             delimiter=\t,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_TAB_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_TAB_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",delimiter=\t,headers=true""";
 
     static final String OPTIONS_WITH_TAB_DELIMITER_LAST = "dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\",delimiter=\t";
 
-    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_START = """
+    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_START =
+            """
             delimiter=|,dateFormat=yyyy-MM-dd,quote=",timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true""";
 
-    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",delimiter=|,headers=true""";
 
     static final String OPTIONS_WITH_HORIZONTAL_DELIMITER_LAST = "dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=\",delimiter=|";
 
-    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_START = """
+    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_START =
+            """
             s1.t1.delimiter=,,dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],quote=",headers=true""";
 
-    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_LAST = """
+    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_LAST =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],headers=true,quote=",s1.t1.delimiter=,""";
-    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_MIDDLE = """
+    static final String OPTIONS_WITH_TABLE_COMMA_DELIMITER_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true""";
-    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_MIDDLE = """
+    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_MIDDLE =
+            """
             dateFormat=yyyy-MM-dd,excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true""";
-    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_START = """
+    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_START =
+            """
             excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*,dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true""";
-    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_LAST = """
+    static final String OPTIONS_WITH_PATTERNS_INCLUDING_COMMA_LAST =
+            """
             dateFormat=yyyy-MM-dd,timestampFormat=yyyy-MM-dd HH:mm:ss[.SSSSSSS],s1.t1.delimiter=,,quote=",headers=true,excludePatterns=**/csv/{coalesce,coalesce-mismatch}/*""";
 
     static final Map<String, String> SHARED_OPTIONS = ImmutableMap.of(
@@ -132,7 +148,7 @@ public class DiscoverySystemTableBaseTest
         expected.putAll(expectedMap);
 
         SchemaExplorer schemaExplorer = new SchemaExplorer(
-                new SchemaDiscoveryController(__ -> null, __ -> null, (ignore1, ignore2, ignore3, ignore4) -> null, TRINO),
+                new SchemaDiscoveryController(_ -> null, _ -> null, (_, _, _, _) -> null, TRINO),
                 new ObjectMapper(),
                 new CommaDelimitedOptionsParser(ImmutableList.of(GeneralOptions.class, CsvOptions.class)));
         Map<String, String> actual = schemaExplorer.buildOptions(optionsString);

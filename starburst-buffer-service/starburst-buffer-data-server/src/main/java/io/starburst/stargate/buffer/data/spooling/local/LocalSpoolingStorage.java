@@ -169,6 +169,5 @@ public class LocalSpoolingStorage
     @Override
     public void close()
             throws Exception
-    {
-    }
+    {}
 }

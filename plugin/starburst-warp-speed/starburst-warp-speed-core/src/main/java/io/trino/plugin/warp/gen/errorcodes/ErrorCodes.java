@@ -15,7 +15,8 @@
 
 package io.trino.plugin.warp.gen.errorcodes;
 
-public enum ErrorCodes {
+public enum ErrorCodes
+{
     ENV_EXCEPTION_UNRECOVERABLE(0, "native storage engine unrecoverable error", true),
     ENV_EXCEPTION_INITIALIZATION(1, "native storage engine failed to initialize", false),
     ENV_EXCEPTION_WRITE_FLOW_ERROR(2, "native storage engine: failure in data write flow", false),

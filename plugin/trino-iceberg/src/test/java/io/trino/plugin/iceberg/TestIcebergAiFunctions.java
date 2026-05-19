@@ -40,41 +40,42 @@ public class TestIcebergAiFunctions
     private static final String DENY_ACCESS_MODEL = "deny_access_model";
     private static final String DENY_ACCESS_ROLE = "deny_access_role";
     private static final String ALLOW_ACCESS_ROLE = "allow_access_role";
-    private static final String MODEL_PROVIDERS = """
-        {
-            "models": [
-                {
-                  "id": "cohere",
-                  "modelName": "cohere.embed-multilingual-v3",
-                  "kind": "EMBED",
-                  "connectionInfo": {
-                    "provider": "AWS_BEDROCK",
-                    "region": "us-east-1"
-                  }
-                },
-                {
-                    "id": "openai",
-                    "modelName": "text-embedding-3-small",
-                    "kind": "EMBED",
-                    "connectionInfo": {
-                        "provider": "OPENAI",
-                        "endpoint": "https://api.openai.com/v1",
-                        "apiKey": "${ENV:OPEN_AI_API_KEY}"
+    private static final String MODEL_PROVIDERS =
+            """
+            {
+                "models": [
+                    {
+                      "id": "cohere",
+                      "modelName": "cohere.embed-multilingual-v3",
+                      "kind": "EMBED",
+                      "connectionInfo": {
+                        "provider": "AWS_BEDROCK",
+                        "region": "us-east-1"
+                      }
+                    },
+                    {
+                        "id": "openai",
+                        "modelName": "text-embedding-3-small",
+                        "kind": "EMBED",
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                        }
+                    },
+                    {
+                        "id": "%s",
+                        "modelName": "text-embedding-3-small",
+                        "kind": "EMBED",
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                        }
                     }
-                },
-                {
-                    "id": "%s",
-                    "modelName": "text-embedding-3-small",
-                    "kind": "EMBED",
-                    "connectionInfo": {
-                        "provider": "OPENAI",
-                        "endpoint": "https://api.openai.com/v1",
-                        "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                    }
-                }
-            ]
-        }
-        """.formatted(DENY_ACCESS_MODEL);
+                ]
+            }
+            """.formatted(DENY_ACCESS_MODEL);
 
     @Override
     protected QueryRunner createQueryRunner()

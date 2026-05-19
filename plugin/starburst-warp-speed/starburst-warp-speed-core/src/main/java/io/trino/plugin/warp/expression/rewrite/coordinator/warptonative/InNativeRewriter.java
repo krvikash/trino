@@ -48,7 +48,6 @@ import static java.util.Objects.requireNonNull;
 
 class InNativeRewriter
         implements ExpressionRewriter<WarpCall>
-
 {
     private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(ExpressionPatterns.functionName().equalTo(IN_PREDICATE_FUNCTION_NAME.getName()))

@@ -45,5 +45,4 @@ public record SecurityAccrual(
         @JsonProperty("accrualId") String accrualId,
         @JsonProperty("submarket") String submarket,
         @JsonProperty("tradeIdentifier") long tradeIdentifier,
-        @JsonProperty("valuationCurrency") String valuationCurrency)
-{}
+        @JsonProperty("valuationCurrency") String valuationCurrency) {}

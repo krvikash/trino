@@ -94,7 +94,8 @@ public class BufferAllocator
     private int warmupIndexTxSize;
 
     @Inject
-    public BufferAllocator(StorageEngine storageEngine,
+    public BufferAllocator(
+            StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig,
             WorkerMemoryManager workerMemoryManager,
@@ -225,7 +226,8 @@ public class BufferAllocator
             this.warmContextBufferSize = storageEngineConstants.getMaxWeContextSize() * 1024;
 
             long predicateCacheSizeInBytes = initPredicateBundle();
-            logger.info("catalog %s warmBufferSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateCacheSizeInBytes %dMB",
+            logger.info(
+                    "catalog %s warmBufferSize %d warmWriteBufferSize %d warmContextBufferSize %d predicateCacheSizeInBytes %dMB",
                     catalogName,
                     warmBufferSize,
                     warmWriteBufferSize,
@@ -435,7 +437,8 @@ public class BufferAllocator
         int recTypeLength = warmUpElement.getRecTypeLength();
 
         boolean isRecBufferNeeded = isRecordBufferNeeded(warmUpElement.getWarmUpType(), recTypeCode);
-        return new WarmUpElementAllocationParams(recTypeCode,
+        return new WarmUpElementAllocationParams(
+                recTypeCode,
                 recTypeLength,
                 isRecBufferNeeded ? getWarmupRecordBufferSize(recTypeLength) : 0,
                 isCrcBufferNeeded(warmUpElement.getWarmUpType(), recTypeCode) ? calculateCrcBufferSize(recTypeCode, recTypeLength) : 0,

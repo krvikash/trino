@@ -105,7 +105,7 @@ public class AggregateCall
             boolean distinct,
             AggregationStep step, // needed to verify argument count and validate output type
             Map<AttributeKey, Object> enforcedAttributes)
-    // we don't pass input attributes because the argument is always a Block Parameter
+// we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");

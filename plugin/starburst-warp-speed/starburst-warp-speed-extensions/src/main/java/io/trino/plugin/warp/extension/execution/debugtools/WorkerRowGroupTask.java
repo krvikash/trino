@@ -55,7 +55,8 @@ public class WorkerRowGroupTask
     private final DictionaryCacheService dictionaryCacheService;
 
     @Inject
-    public WorkerRowGroupTask(RowGroupDataService rowGroupDataService,
+    public WorkerRowGroupTask(
+            RowGroupDataService rowGroupDataService,
             DictionaryCacheService dictionaryCacheService)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
@@ -111,7 +112,7 @@ public class WorkerRowGroupTask
 
     @POST
     @Path(WORKER_ROW_GROUP_RESET_TASK_NAME)
-    //HACK HACK HACK
+    // HACK HACK HACK
     public void reset()
     {
         rowGroupDataService.deleteAll();
@@ -120,7 +121,7 @@ public class WorkerRowGroupTask
 
     @POST
     @Path(WORKER_ROW_GROUP_INVALIDATE_TASK_NAME)
-    //HACK HACK HACK
+    // HACK HACK HACK
     public void invalidate()
     {
         rowGroupDataService.invalidateAll();

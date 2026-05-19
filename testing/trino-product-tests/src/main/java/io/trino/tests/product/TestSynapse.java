@@ -34,11 +34,13 @@ public class TestSynapse
         String tableName = "nation_" + randomNameSuffix();
 
         QueryResult queryResult = onTrino().executeQuery(
-                format("""
+                format(
+                        """
                         CREATE TABLE synapse.dbo.%s
                         AS SELECT *
                         FROM tpch.tiny.nation
-                        """, tableName));
+                        """,
+                        tableName));
         try {
             assertThat(queryResult).containsOnly(row(25));
 
@@ -46,25 +48,31 @@ public class TestSynapse
                     .hasRowsCount(25);
 
             assertThat(onTrino().executeQuery(
-                    format("""
+                    format(
+                            """
                             ALTER TABLE synapse.dbo.%s
                             ADD COLUMN extra_column VARCHAR
-                            """, tableName)))
+                            """,
+                            tableName)))
                     .containsOnly(row(0));
 
             assertThat(onTrino().executeQuery(
-                    format("""
+                    format(
+                            """
                             INSERT INTO synapse.dbo.%s (nationkey, name, extra_column)
                             VALUES (100, 'invalid', 'extra value')
-                            """, tableName)))
+                            """,
+                            tableName)))
                     .containsOnly(row(1));
 
             assertThat(onTrino().executeQuery(
-                    format("""
+                    format(
+                            """
                             SELECT nationkey, name, extra_column, regionkey, comment
                             FROM synapse.dbo.%s
                             WHERE extra_column = 'extra value'
-                            """, tableName)))
+                            """,
+                            tableName)))
                     .containsOnly(row(100, "invalid", "extra value", null, null));
         }
         finally {

@@ -230,7 +230,8 @@ final class TestBatchProjection
         //     batch_add(cast(#2), cast(#0)),
         //     batch_add(add(#1, #5), #4)),
         //   constant)
-        batchAdd = call(SCALAR_ADD_BIGINT,
+        batchAdd = call(
+                SCALAR_ADD_BIGINT,
                 call(
                         SCALAR_ADD_BIGINT,
                         call(

@@ -139,8 +139,7 @@ public abstract class GpuOperator
                 DynamicFilter dynamicFilter,
                 List<Type> columnTypes)
         {
-            this(
-                    operatorId,
+            this(operatorId,
                     planNodeId,
                     ImmutableList.of(),
                     () -> {
@@ -214,8 +213,7 @@ public abstract class GpuOperator
     {
         public Factory(int operatorId, PlanNodeId planNodeId, List<Type> inputTypes, List<GpuOperation.Factory> operations, List<Type> outputTypes)
         {
-            this(
-                    operatorId,
+            this(operatorId,
                     planNodeId,
                     ImmutableList.of(),
                     () -> {

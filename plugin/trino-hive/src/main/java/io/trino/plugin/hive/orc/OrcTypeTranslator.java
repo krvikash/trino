@@ -199,8 +199,8 @@ public final class OrcTypeTranslator
                 case VarcharType varcharType -> Optional.of(new LongTimestampToVarcharCoercer(TIMESTAMP_NANOS, varcharType));
                 case TimestampType timestampType -> convertDateToProleptic
                         ? Optional.of(timestampType.isShort()
-                            ? new TimestampCoercer.ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
-                            : new TimestampCoercer.LongTimestampHybridToProlepticGregorianCoercer(timestampType))
+                                              ? new TimestampCoercer.ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
+                                              : new TimestampCoercer.LongTimestampHybridToProlepticGregorianCoercer(timestampType))
                         : Optional.empty();
                 default -> Optional.empty();
             };

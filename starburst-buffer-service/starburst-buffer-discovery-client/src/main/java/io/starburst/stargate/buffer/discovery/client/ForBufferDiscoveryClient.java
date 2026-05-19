@@ -22,6 +22,4 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 @Target({FIELD, PARAMETER, METHOD})
 @BindingAnnotation
-public @interface ForBufferDiscoveryClient
-{
-}
+public @interface ForBufferDiscoveryClient {}

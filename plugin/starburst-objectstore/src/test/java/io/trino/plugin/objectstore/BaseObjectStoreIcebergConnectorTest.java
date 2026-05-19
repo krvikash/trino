@@ -143,16 +143,16 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
             case "row(x integer) -> row(\"y\" integer)" -> Optional.of(setup.withNewValueLiteral("NULL"));
             case "tinyint -> smallint",
-                    "bigint -> integer",
-                    "bigint -> smallint",
-                    "bigint -> tinyint",
-                    "decimal(5,3) -> decimal(5,2)",
-                    "char(25) -> char(20)",
-                    "varchar -> char(20)",
-                    "time(6) -> time(3)",
-                    "timestamp(6) -> timestamp(3)",
-                    // Iceberg cannot update map keys
-                    "map(integer, varchar) -> map(bigint, varchar)" -> Optional.of(setup.asUnsupported());
+                 "bigint -> integer",
+                 "bigint -> smallint",
+                 "bigint -> tinyint",
+                 "decimal(5,3) -> decimal(5,2)",
+                 "char(25) -> char(20)",
+                 "varchar -> char(20)",
+                 "time(6) -> time(3)",
+                 "timestamp(6) -> timestamp(3)",
+                 // Iceberg cannot update map keys
+                 "map(integer, varchar) -> map(bigint, varchar)" -> Optional.of(setup.asUnsupported());
             // Iceberg connector ignores the varchar length
             case "varchar(100) -> varchar(50)" -> Optional.empty();
             default -> Optional.of(setup);
@@ -366,7 +366,8 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Override
     public void testHiveSpecificColumnProperty()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 CREATE TABLE test_hive_specific_column_property(
                    xyz bigint,
                    abc bigint WITH (partition_projection_type = 'INTEGER', partition_projection_range = ARRAY['0', '10'])
@@ -465,9 +466,9 @@ public abstract class BaseObjectStoreIcebergConnectorTest
         assertQuery(
                 "SHOW STATS FOR test_analyze",
                 """
-                        VALUES
-                          ('x', 0, 0, 1, null, null, null),
-                          (null, null, null, null, 0, null, null)""");
+                VALUES
+                  ('x', 0, 0, 1, null, null, null),
+                  (null, null, null, null, 0, null, null)""");
 
         assertUpdate("DROP TABLE test_analyze");
     }
@@ -485,7 +486,8 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Test
     public void testSelectTableWithEndShortTimestampWithTimezone()
     {
-        assertQueryFails("SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF TIMESTAMP '1970-01-01 00:00:00.001000000 Z'",
+        assertQueryFails(
+                "SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF TIMESTAMP '1970-01-01 00:00:00.001000000 Z'",
                 "\\QNo version history table tpch.\"test_iceberg_read_versioned_table\" at or before 1970-01-01T00:00:00.001Z");
         assertQuery("SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF " + timestampLiteral(v1EpochMillis, 9), "VALUES ('a', 1)");
         assertQuery("SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF " + timestampLiteral(v2EpochMillis, 9), "VALUES ('a', 1), ('b', 2)");
@@ -494,7 +496,8 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Test
     public void testSelectTableWithEndLongTimestampWithTimezone()
     {
-        assertQueryFails("SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF TIMESTAMP '1970-01-01 00:00:00.001000000 Z'",
+        assertQueryFails(
+                "SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF TIMESTAMP '1970-01-01 00:00:00.001000000 Z'",
                 "\\QNo version history table tpch.\"test_iceberg_read_versioned_table\" at or before 1970-01-01T00:00:00.001Z");
         assertQuery("SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF " + timestampLiteral(v1EpochMillis, 9), "VALUES ('a', 1)");
         assertQuery("SELECT * FROM test_iceberg_read_versioned_table FOR TIMESTAMP AS OF " + timestampLiteral(v2EpochMillis, 9), "VALUES ('a', 1), ('b', 2)");
@@ -635,7 +638,8 @@ public abstract class BaseObjectStoreIcebergConnectorTest
         assertThat(computeActual("SHOW TABLES FROM system").getOnlyColumnAsSet())
                 .containsExactlyInAnyOrder("iceberg_tables");
 
-        assertQuery("SELECT * FROM information_schema.tables WHERE table_schema = 'system'",
+        assertQuery(
+                "SELECT * FROM information_schema.tables WHERE table_schema = 'system'",
                 "VALUES ('objectstore', 'system', 'iceberg_tables', 'BASE TABLE')");
     }
 

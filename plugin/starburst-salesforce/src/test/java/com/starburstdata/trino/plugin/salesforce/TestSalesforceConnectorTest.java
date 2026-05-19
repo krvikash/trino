@@ -165,7 +165,7 @@ public class TestSalesforceConnectorTest
     {
         // Salesforce sandbox is shared across multiple repositories'(starburst-trino-plugins, galaxy-trino, stargate) CI jobs.
         // Tables names are suffixed with repository identifier to uniquely identify tables from respective repository through `getRepositorySpecificTableName`.
-        Map<String, TpchTable<?>> tableNameMapper = TpchTable.getTables().stream().collect(toMap((table) -> getRepositorySpecificTableName(table.getTableName()), Function.identity()));
+        Map<String, TpchTable<?>> tableNameMapper = TpchTable.getTables().stream().collect(toMap(table -> getRepositorySpecificTableName(table.getTableName()), Function.identity()));
         return SalesforceQueryRunner.builder()
                 .setTableNameMapper(tableNameMapper)
                 .build();
@@ -339,7 +339,8 @@ public class TestSalesforceConnectorTest
         assertQuery("SELECT COUNT(*) FROM (SELECT DISTINCT orderstatus__c, custkey__c FROM " + salesforceOrdersTableName + " LIMIT 10)");
         assertQuery("SELECT DISTINCT custkey__c, orderstatus__c FROM " + salesforceOrdersTableName + " WHERE custkey__c = 1268 LIMIT 2");
 
-        assertQuery("" +
+        assertQuery(
+                "" +
                         "SELECT DISTINCT x " +
                         "FROM (VALUES 1) t(x) JOIN (VALUES 10, 20) u(a) ON t.x < u.a " +
                         "LIMIT 100",
@@ -631,7 +632,8 @@ public class TestSalesforceConnectorTest
     @Test
     public void testPredicate()
     {
-        assertQuery("""
+        assertQuery(
+                """
                 SELECT *
                 FROM (
                   SELECT orderkey__c+1 AS a FROM %s WHERE orderstatus__c = 'F' UNION ALL
@@ -1229,15 +1231,15 @@ public class TestSalesforceConnectorTest
                         "WHERE orderkey__c IN (SELECT orderkey__c FROM " + salesforceOrdersTableName + " WHERE orderstatus__c = 'F')\n" +
                         "  AND orderkey__c IN (SELECT orderkey__c FROM " + salesforceOrdersTableName + " WHERE custkey__c % 5 = 0)\n",
                 """
-                        SELECT count(*) FROM %s
-                        WHERE orderkey__c IN (SELECT orderkey__c FROM %s WHERE orderstatus__c = 'F')
-                          AND orderkey__c IN (SELECT orderkey__c FROM %s WHERE custkey__c %% 5 = 0)""".formatted(salesforceLineitemTableName, salesforceOrdersTableName, salesforceOrdersTableName));
+                SELECT count(*) FROM %s
+                WHERE orderkey__c IN (SELECT orderkey__c FROM %s WHERE orderstatus__c = 'F')
+                  AND orderkey__c IN (SELECT orderkey__c FROM %s WHERE custkey__c %% 5 = 0)""".formatted(salesforceLineitemTableName, salesforceOrdersTableName, salesforceOrdersTableName));
         assertQuery(
                 "SELECT * FROM " + tableName,
                 """
-                        SELECT * FROM %s
-                        WHERE orderkey__c IN (SELECT orderkey__c FROM %s WHERE orderstatus__c <> 'F')
-                          OR orderkey__c IN (SELECT orderkey__c FROM %s WHERE custkey__c %% 5 <> 0)""".formatted(salesforceLineitemTableName, salesforceOrdersTableName, salesforceOrdersTableName));
+                SELECT * FROM %s
+                WHERE orderkey__c IN (SELECT orderkey__c FROM %s WHERE orderstatus__c <> 'F')
+                  OR orderkey__c IN (SELECT orderkey__c FROM %s WHERE custkey__c %% 5 <> 0)""".formatted(salesforceLineitemTableName, salesforceOrdersTableName, salesforceOrdersTableName));
 
         assertUpdate("DROP TABLE " + tableName);
 
@@ -1249,15 +1251,15 @@ public class TestSalesforceConnectorTest
                 "DELETE FROM " + tableName + "\n" +
                         "WHERE (orderkey__c IN (SELECT CASE WHEN orderkey__c %% 3 = 0 THEN NULL ELSE orderkey__c END FROM %s)) IS NULL\n".formatted(salesforceLineitemTableName),
                 """
-                        SELECT count(*) FROM %s
-                        WHERE (orderkey__c IN (SELECT CASE WHEN orderkey__c %% 3 = 0 THEN NULL ELSE orderkey__c END FROM %s)) IS NULL
-                        """.formatted(salesforceOrdersTableName, salesforceLineitemTableName));
+                SELECT count(*) FROM %s
+                WHERE (orderkey__c IN (SELECT CASE WHEN orderkey__c %% 3 = 0 THEN NULL ELSE orderkey__c END FROM %s)) IS NULL
+                """.formatted(salesforceOrdersTableName, salesforceLineitemTableName));
         assertQuery(
                 "SELECT * FROM " + tableName,
                 """
-                        SELECT * FROM %s
-                        WHERE (orderkey__c IN (SELECT CASE WHEN orderkey__c %% 3 = 0 THEN NULL ELSE orderkey__c END FROM %s)) IS NOT NULL
-                        """.formatted(salesforceOrdersTableName, salesforceLineitemTableName));
+                SELECT * FROM %s
+                WHERE (orderkey__c IN (SELECT CASE WHEN orderkey__c %% 3 = 0 THEN NULL ELSE orderkey__c END FROM %s)) IS NOT NULL
+                """.formatted(salesforceOrdersTableName, salesforceLineitemTableName));
 
         assertUpdate("DROP TABLE " + tableName);
 
@@ -1485,13 +1487,13 @@ public class TestSalesforceConnectorTest
         assertUpdate("DROP VIEW IF EXISTS " + viewName);
         String ddl = format(
                 """
-                        CREATE VIEW %s.%s.%s SECURITY DEFINER AS
-                        SELECT *
-                        FROM
-                          (
-                         VALUES
-                             ROW (1, 'one')
-                           , ROW (2, 't')\n)  t (col1, col2)""",
+                CREATE VIEW %s.%s.%s SECURITY DEFINER AS
+                SELECT *
+                FROM
+                  (
+                 VALUES
+                     ROW (1, 'one')
+                   , ROW (2, 't')\n)  t (col1, col2)""",
                 getSession().getCatalog().get(),
                 getSession().getSchema().get(),
                 viewName);
@@ -2311,29 +2313,32 @@ public class TestSalesforceConnectorTest
         String schema = getSession().getSchema().orElseThrow();
         assertThat(computeScalar("SHOW CREATE TABLE " + salesforceOrdersTableName))
                 // If the connector reports additional column properties, the expected value needs to be adjusted in the test subclass
-                .isEqualTo(format("""
-                                 CREATE TABLE %s.%s.%s (
-                                    id varchar(18) NOT NULL COMMENT 'Label Record ID corresponds to this field.',
-                                    ownerid varchar(18) NOT NULL COMMENT 'Label Owner ID corresponds to this field.',
-                                    isdeleted boolean NOT NULL COMMENT 'Label Deleted corresponds to this field.',
-                                    name varchar(80) COMMENT 'Label Name corresponds to this field.',
-                                    createddate timestamp(0) NOT NULL COMMENT 'Label Created Date corresponds to this field.',
-                                    createdbyid varchar(18) NOT NULL COMMENT 'Label Created By ID corresponds to this field.',
-                                    lastmodifieddate timestamp(0) COMMENT 'Label Last Modified Date corresponds to this field.',
-                                    lastmodifiedbyid varchar(18) COMMENT 'Label Last Modified By ID corresponds to this field.',
-                                    systemmodstamp timestamp(0) NOT NULL COMMENT 'Label System Modstamp corresponds to this field.',
-                                    lastactivitydate date COMMENT 'Label Last Activity Date corresponds to this field.',
-                                    orderkey__c double COMMENT 'Label orderkey corresponds to this field.',
-                                    custkey__c double COMMENT 'Label custkey corresponds to this field.',
-                                    shippriority__c double COMMENT 'Label shippriority corresponds to this field.',
-                                    comment__c varchar(79) COMMENT 'Label comment corresponds to this field.',
-                                    orderstatus__c varchar(1) COMMENT 'Label orderstatus corresponds to this field.',
-                                    orderpriority__c varchar(15) COMMENT 'Label orderpriority corresponds to this field.',
-                                    clerk__c varchar(15) COMMENT 'Label clerk corresponds to this field.',
-                                    totalprice__c double COMMENT 'Label totalprice corresponds to this field.',
-                                    orderdate__c date COMMENT 'Label orderdate corresponds to this field.'
-                                 )""",
-                        catalog, schema, salesforceOrdersTableName));
+                .isEqualTo(format(
+                        """
+                        CREATE TABLE %s.%s.%s (
+                           id varchar(18) NOT NULL COMMENT 'Label Record ID corresponds to this field.',
+                           ownerid varchar(18) NOT NULL COMMENT 'Label Owner ID corresponds to this field.',
+                           isdeleted boolean NOT NULL COMMENT 'Label Deleted corresponds to this field.',
+                           name varchar(80) COMMENT 'Label Name corresponds to this field.',
+                           createddate timestamp(0) NOT NULL COMMENT 'Label Created Date corresponds to this field.',
+                           createdbyid varchar(18) NOT NULL COMMENT 'Label Created By ID corresponds to this field.',
+                           lastmodifieddate timestamp(0) COMMENT 'Label Last Modified Date corresponds to this field.',
+                           lastmodifiedbyid varchar(18) COMMENT 'Label Last Modified By ID corresponds to this field.',
+                           systemmodstamp timestamp(0) NOT NULL COMMENT 'Label System Modstamp corresponds to this field.',
+                           lastactivitydate date COMMENT 'Label Last Activity Date corresponds to this field.',
+                           orderkey__c double COMMENT 'Label orderkey corresponds to this field.',
+                           custkey__c double COMMENT 'Label custkey corresponds to this field.',
+                           shippriority__c double COMMENT 'Label shippriority corresponds to this field.',
+                           comment__c varchar(79) COMMENT 'Label comment corresponds to this field.',
+                           orderstatus__c varchar(1) COMMENT 'Label orderstatus corresponds to this field.',
+                           orderpriority__c varchar(15) COMMENT 'Label orderpriority corresponds to this field.',
+                           clerk__c varchar(15) COMMENT 'Label clerk corresponds to this field.',
+                           totalprice__c double COMMENT 'Label totalprice corresponds to this field.',
+                           orderdate__c date COMMENT 'Label orderdate corresponds to this field.'
+                        )""",
+                        catalog,
+                        schema,
+                        salesforceOrdersTableName));
     }
 
     @Test
@@ -2647,7 +2652,8 @@ public class TestSalesforceConnectorTest
                 node(JoinNode.class,
                         node(TableScanNode.class),
                         exchange(ExchangeNode.Scope.LOCAL, ExchangeNode.Type.GATHER,
-                                exchange(ExchangeNode.Scope.REMOTE, ExchangeNode.Type.REPLICATE,
+                                exchange(ExchangeNode.Scope.REMOTE,
+                                        ExchangeNode.Type.REPLICATE,
                                         node(TableScanNode.class))));
 
         if (!hasBehavior(SUPPORTS_JOIN_PUSHDOWN)) {
@@ -2664,10 +2670,10 @@ public class TestSalesforceConnectorTest
                 .build();
 
         List<String> nonEqualities = Stream.concat(
-                Stream.of(JoinCondition.Operator.values())
-                        .filter(operator -> operator != JoinCondition.Operator.EQUAL)
-                        .map(JoinCondition.Operator::getValue),
-                Stream.of("IS DISTINCT FROM", "IS NOT DISTINCT FROM"))
+                        Stream.of(JoinCondition.Operator.values())
+                                .filter(operator -> operator != JoinCondition.Operator.EQUAL)
+                                .map(JoinCondition.Operator::getValue),
+                        Stream.of("IS DISTINCT FROM", "IS NOT DISTINCT FROM"))
                 .collect(toImmutableList());
 
         try (TestTable nationLowercaseTable = new TestTable(
@@ -3055,7 +3061,7 @@ public class TestSalesforceConnectorTest
 
     private static String getSalesforceObjectName(String objectName)
     {
-        return  objectName + "__c";
+        return objectName + "__c";
     }
 
     // Salesforce sandbox is shared across multiple repositories'(starburst-trino-plugins, galaxy-trino, stargate) CI jobs.

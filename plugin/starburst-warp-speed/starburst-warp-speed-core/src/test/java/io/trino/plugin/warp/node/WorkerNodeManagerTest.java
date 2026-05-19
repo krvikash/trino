@@ -41,7 +41,8 @@ public class WorkerNodeManagerTest
         nodeManager = mock(NodeManager.class);
         Node node = NodeUtils.node(nodeId, true);
         when(nodeManager.getCurrentNode()).thenReturn(node);
-        workerNodeManager = new WorkerNodeManager(nodeManager,
+        workerNodeManager = new WorkerNodeManager(
+                nodeManager,
                 mock(WarpInitializedServiceRegistry.class),
                 mock(WorkerCapacityManager.class));
         nodeId = 0;

@@ -36,7 +36,7 @@ public final class Version
     private static String loadVersion(Class clazz, boolean impl)
     {
         Package objPackage = clazz.getPackage();
-        //some jars may use 'Implementation Version' entries in the manifest instead
+        // some jars may use 'Implementation Version' entries in the manifest instead
         String version = objPackage.getSpecificationVersion();
         if (impl && StringUtils.isNotEmpty(objPackage.getImplementationVersion())) {
             version = objPackage.getImplementationVersion();

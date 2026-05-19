@@ -84,13 +84,12 @@ public class TrinoFsSpooledChunkReader
             catch (IOException | RuntimeException e) {
                 throw new SpooledChunkReaderException(
                         "unexpected exception reading spooled chunk %s/%s/%s".formatted(
-                                spooledChunk.location(), spooledChunk.offset(), spooledChunk.length()), e);
+                                spooledChunk.location(), spooledChunk.offset(), spooledChunk.length()),
+                        e);
             }
         });
     }
 
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 }

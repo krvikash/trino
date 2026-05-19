@@ -68,7 +68,8 @@ public abstract class DispatcherAbstractTestQueryFramework
                 else {
                     column = new TransformedColumnData(warmups.getKey(), warmupPropertiesData.transformFunction());
                 }
-                rules.add(new WarmupColRuleData(0,
+                rules.add(new WarmupColRuleData(
+                        0,
                         schema,
                         table,
                         column,

@@ -52,7 +52,8 @@ public class DispatcherTableHandle
     private final FilteringStats filteringStats;
 
     @JsonCreator
-    public DispatcherTableHandle(@JsonProperty("schemaName") String schemaName,
+    public DispatcherTableHandle(
+            @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("limit") OptionalLong limit,
             @JsonProperty("fullPredicate") TupleDomain<ColumnHandle> fullPredicate,
@@ -63,8 +64,7 @@ public class DispatcherTableHandle
             @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
             @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary)
     {
-        this(
-                schemaName,
+        this(schemaName,
                 tableName,
                 limit,
                 fullPredicate,

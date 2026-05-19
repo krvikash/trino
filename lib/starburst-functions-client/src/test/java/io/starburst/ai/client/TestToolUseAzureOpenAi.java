@@ -27,6 +27,7 @@ public class TestToolUseAzureOpenAi
     {
         return new Object[][] {
                 {LANGUAGE_MODEL_ID},
-                {LANGUAGE_MODEL_ID_NON_STREAMING}};
+                {LANGUAGE_MODEL_ID_NON_STREAMING},
+        };
     }
 }

@@ -33,8 +33,7 @@ class S3Assert
 
     public S3Assert(S3Client s3, String path)
     {
-        this(
-                s3,
+        this(s3,
                 regexpExtract(path, "s3://([^/]+)/(.+)", 1),
                 regexpExtract(path, "s3://([^/]+)/(.+)", 2));
     }

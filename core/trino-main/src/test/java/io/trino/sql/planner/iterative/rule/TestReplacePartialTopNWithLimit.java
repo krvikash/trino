@@ -139,9 +139,14 @@ final class TestReplacePartialTopNWithLimit
         assertPlan(
                 optimized,
                 chooseAlternativeNode(
-                        topN(10, orderBy, PARTIAL,
+                        topN(10,
+                                orderBy,
+                                PARTIAL,
                                 PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A))),
-                        limit(10, ImmutableList.of(), true, ImmutableList.of("col_a"),
+                        limit(10,
+                                ImmutableList.of(),
+                                true,
+                                ImmutableList.of("col_a"),
                                 PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A)))));
     }
 
@@ -166,7 +171,9 @@ final class TestReplacePartialTopNWithLimit
         List<PlanMatchPattern.Ordering> orderBy = ImmutableList.of(PlanMatchPattern.sort("col_a", ASCENDING, FIRST));
         assertPlan(
                 optimized,
-                topN(10, orderBy, PARTIAL,
+                topN(10,
+                        orderBy,
+                        PARTIAL,
                         PlanMatchPattern.tableScan(UNSORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A))));
     }
 
@@ -192,7 +199,9 @@ final class TestReplacePartialTopNWithLimit
         List<PlanMatchPattern.Ordering> orderBy = ImmutableList.of(PlanMatchPattern.sort("col_b", ASCENDING, FIRST));
         assertPlan(
                 optimized,
-                topN(10, orderBy, PARTIAL,
+                topN(10,
+                        orderBy,
+                        PARTIAL,
                         PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A, "col_b", COLUMN_B))));
     }
 
@@ -221,10 +230,12 @@ final class TestReplacePartialTopNWithLimit
                 optimized,
                 chooseAlternativeNode(
                         topN(10, orderBy, PARTIAL,
-                                PlanMatchPattern.filter(TRUE,
+                                PlanMatchPattern.filter(
+                                        TRUE,
                                         PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A)))),
                         limit(10, ImmutableList.of(), true, ImmutableList.of("col_a"),
-                                PlanMatchPattern.filter(TRUE,
+                                PlanMatchPattern.filter(
+                                        TRUE,
                                         PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A))))));
     }
 
@@ -309,7 +320,9 @@ final class TestReplacePartialTopNWithLimit
         List<PlanMatchPattern.Ordering> orderBy = ImmutableList.of(PlanMatchPattern.sort("col_a", ASCENDING, FIRST));
         assertPlan(
                 optimized,
-                topN(10, orderBy, FINAL,
+                topN(10,
+                        orderBy,
+                        FINAL,
                         PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A))));
     }
 
@@ -362,7 +375,10 @@ final class TestReplacePartialTopNWithLimit
             assertPlan(
                     planTester,
                     optimized,
-                    limit(10, ImmutableList.of(), true, ImmutableList.of("col_a"),
+                    limit(10,
+                            ImmutableList.of(),
+                            true,
+                            ImmutableList.of("col_a"),
                             PlanMatchPattern.tableScan(SORTED_TABLE.getTableName(), ImmutableMap.of("col_a", COLUMN_A))));
         }
     }

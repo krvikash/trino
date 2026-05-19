@@ -64,7 +64,8 @@ public class BufferAllocatorTest
         StorageEngine storageEngine = mock(StorageEngine.class);
 
         CatalogName catalogName = new CatalogName("f");
-        bufferAllocator = new BufferAllocator(storageEngine,
+        bufferAllocator = new BufferAllocator(
+                storageEngine,
                 storageEngineConstants,
                 nativeConfig,
                 new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
@@ -104,7 +105,8 @@ public class BufferAllocatorTest
     {
         StorageEngine storageEngine = mock(StorageEngine.class);
         CatalogName catalogName = new CatalogName("f");
-        BufferAllocator bufferAllocator = new BufferAllocator(storageEngine,
+        BufferAllocator bufferAllocator = new BufferAllocator(
+                storageEngine,
                 storageEngineConstants,
                 nativeConfig,
                 new WorkerMemoryManager(catalogName, new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),

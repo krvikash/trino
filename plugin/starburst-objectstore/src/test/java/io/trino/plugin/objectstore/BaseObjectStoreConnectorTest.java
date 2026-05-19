@@ -561,7 +561,8 @@ public abstract class BaseObjectStoreConnectorTest
     private void assertHudiTableFormat()
     {
         // Use same table name in all assert*TableFormat methods to verify potential metastore caching doesn't affect table loading after table type changed
-        assertQueryFails("CREATE TABLE test_type_format (abc bigint) WITH (type = 'HUDI')\n",
+        assertQueryFails(
+                "CREATE TABLE test_type_format (abc bigint) WITH (type = 'HUDI')\n",
                 "Table creation is not supported for Hudi");
     }
 
@@ -1044,7 +1045,8 @@ public abstract class BaseObjectStoreConnectorTest
         }
         else {
             assertThatThrownBy(super::testSetColumnType)
-                    .hasMessageMatching("""
+                    .hasMessageMatching(
+                            """
 
                             Expecting message:
                               "Setting column type on .{4,10} tables is not supported"
@@ -1066,7 +1068,8 @@ public abstract class BaseObjectStoreConnectorTest
         }
         else {
             assertThatThrownBy(super::testAddRowField)
-                    .hasMessageMatching("""
+                    .hasMessageMatching(
+                            """
 
                             Expecting message:
                               "Adding fields to .{4,10} tables is not supported"
@@ -1105,7 +1108,8 @@ public abstract class BaseObjectStoreConnectorTest
         // GalaxyAccessControl.checkCanCreateView maybe should throw "Schema xxxx not found"?
         assertThatThrownBy(super::testCreateViewSchemaNotFound)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageFindingMatch("""
+                .hasMessageFindingMatch(
+                        """
 
                         Expecting message:
                           "Access Denied: Cannot create view objectstore.test_schema_\\S*.test_view_create_no_schema_\\S*: Role accountadmin does not have the privilege CREATE_TABLE on the schema objectstore.test_schema_\\S*"
@@ -1133,7 +1137,8 @@ public abstract class BaseObjectStoreConnectorTest
         // GalaxyAccessControl.checkCanCreateTable maybe should throw "Schema xxxx not found"?
         assertThatThrownBy(super::testCreateTableSchemaNotFound)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageFindingMatch("""
+                .hasMessageFindingMatch(
+                        """
 
                         Expecting message:
                           "Access Denied: Cannot create table objectstore.test_schema_\\S*.test_create_no_schema_\\S*: Role accountadmin does not have the privilege CREATE_TABLE on the schema objectstore.test_schema_\\S*"
@@ -1161,7 +1166,8 @@ public abstract class BaseObjectStoreConnectorTest
         // GalaxyAccessControl.checkCanCreateTable maybe should throw "Schema xxxx not found"?
         assertThatThrownBy(super::testCreateTableAsSelectSchemaNotFound)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageFindingMatch("""
+                .hasMessageFindingMatch(
+                        """
 
                         Expecting message:
                           "Access Denied: Cannot create table objectstore.test_schema_\\S*.test_ctas_no_schema_\\S*: Role accountadmin does not have the privilege CREATE_TABLE on the schema objectstore.test_schema_\\S*"
@@ -1214,9 +1220,9 @@ public abstract class BaseObjectStoreConnectorTest
 
         assertQueryFails(
                 "SELECT * FROM TABLE(system.unload(" +
-                "input => TABLE(VALUES 'test unload denied') t(col)," +
-                "location => '" + location + "'," +
-                "format => 'TEXTFILE'))",
+                        "input => TABLE(VALUES 'test unload denied') t(col)," +
+                        "location => '" + location + "'," +
+                        "format => 'TEXTFILE'))",
                 "Access Denied: Role accountadmin is not allowed to use location: " + location);
     }
 

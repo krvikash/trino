@@ -45,7 +45,8 @@ public class VariableLengthStringBlockAppender
     private final int warmDataVarcharMaxLengthWithDictionary;
     private final int warmDataVarcharMaxLength;
 
-    public VariableLengthStringBlockAppender(WriteJuffersWarmUpElement juffersWE,
+    public VariableLengthStringBlockAppender(
+            WriteJuffersWarmUpElement juffersWE,
             StorageEngineConstants storageEngineConstants,
             int weRecTypeLength,
             Type filterType,
@@ -112,7 +113,8 @@ public class VariableLengthStringBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(int jufferPos,
+    public AppendResult appendWithoutDictionary(
+            int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
@@ -262,9 +264,9 @@ public class VariableLengthStringBlockAppender
         if (currPage != endPage) {
             int paddingSize = storageEngineConstants.getPageSize() - (currPos & storageEngineConstants.getPageOffsetMask());
 
-            //put the markEnd byte
+            // put the markEnd byte
             recordBuff.put((byte) storageEngineConstants.getVarlenMarkEnd());
-            //pad the rest - paddingSize was calculated with the markEnd included that's why the (-1)
+            // pad the rest - paddingSize was calculated with the markEnd included that's why the (-1)
             padBuffer(recordBuff, paddingSize - 1);
         }
     }

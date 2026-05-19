@@ -148,7 +148,5 @@ class CheckCsvFormat
         };
     }
 
-    private CheckCsvFormat()
-    {
-    }
+    private CheckCsvFormat() {}
 }

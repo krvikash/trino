@@ -63,8 +63,8 @@ public class OracleConnectionFactoryModule
                         oracleConnectionProvider,
                         oracleConfig) :
                 DriverConnectionFactory.builder(new OracleDriver(), config.getConnectionUrl(), credentialProvider)
-                        .setConnectionProperties(getConnectionProperties(oracleConfig))
-                        .build();
+                .setConnectionProperties(getConnectionProperties(oracleConfig))
+                .build();
         if (starburstOracleConfig.isKeepAliveEnabled()) {
             return new StarburstOracleKeepAliveConnectionFactory(
                     connectionFactory,

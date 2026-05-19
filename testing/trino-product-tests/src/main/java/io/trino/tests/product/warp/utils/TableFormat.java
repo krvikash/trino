@@ -15,6 +15,4 @@ package io.trino.tests.product.warp.utils;
 
 import java.util.List;
 
-public record TableFormat(String tableName, List<TestFormat.Column> structure)
-{
-}
+public record TableFormat(String tableName, List<TestFormat.Column> structure) {}

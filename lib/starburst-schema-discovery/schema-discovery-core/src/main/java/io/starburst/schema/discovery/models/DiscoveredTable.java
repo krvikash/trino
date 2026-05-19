@@ -80,8 +80,7 @@ public record DiscoveredTable(
             DiscoveredPartitions discoveredPartitions,
             Collection<LowerCaseString> buckets)
     {
-        this(
-                valid,
+        this(valid,
                 path,
                 tableName,
                 tableFormat,

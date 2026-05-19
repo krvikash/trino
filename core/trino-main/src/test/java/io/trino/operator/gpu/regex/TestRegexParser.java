@@ -108,7 +108,9 @@ class TestRegexParser
     {
         assertThat(parse("()")).isEqualTo(new CapturingGroup(1, Optional.empty(), emptySequence));
         assertThat(parse("(a)")).isEqualTo(new CapturingGroup(1, Optional.empty(), new Literal('a')));
-        assertThat(parse("(ab)")).isEqualTo(new CapturingGroup(1, Optional.empty(),
+        assertThat(parse("(ab)")).isEqualTo(new CapturingGroup(
+                1,
+                Optional.empty(),
                 new Sequence(List.of(new Literal('a'), new Literal('b')))));
         assertThat(parse("(a)(b)")).isEqualTo(new Sequence(List.of(
                 new CapturingGroup(1, Optional.empty(), new Literal('a')),

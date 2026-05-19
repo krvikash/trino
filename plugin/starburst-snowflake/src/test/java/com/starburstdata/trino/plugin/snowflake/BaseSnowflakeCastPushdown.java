@@ -337,7 +337,8 @@ public abstract class BaseSnowflakeCastPushdown
                 getSession().getSchema().orElseThrow() + ".semi_structured_types",
                 "(id INT, c_variant VARIANT, c_object OBJECT, c_array ARRAY)")) {
             // these types must be inserted as CTAS
-            onRemoteDatabase().execute("""
+            onRemoteDatabase().execute(
+                    """
                     INSERT INTO %s (id, c_variant, c_object, c_array)
                     SELECT 1,
                     to_variant(OBJECT_CONSTRUCT('key1', 42, 'key2', 54)),
@@ -473,8 +474,7 @@ public abstract class BaseSnowflakeCastPushdown
                 new CastTestCase("c_decimal_38_0", "tinyint", "c_tinyint"),
                 new CastTestCase("c_date", "date", "c_date"),
                 new CastTestCase("c_timestamp_3", "timestamp(6)", "c_timestamp_6"),
-                new CastTestCase("c_timestamp_6", "timestamp(9)", "c_timestamp_9")
-                );
+                new CastTestCase("c_timestamp_6", "timestamp(9)", "c_timestamp_9"));
     }
 
     @Override
@@ -501,8 +501,7 @@ public abstract class BaseSnowflakeCastPushdown
                 new CastTestCase("c_timestamp_9", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_timestamp_6", "timestamp(3)", "c_timestamp_3"),
                 new CastTestCase("c_timestamp_9", "timestamp(3)", "c_timestamp_3"),
-                new CastTestCase("c_timestamp_9", "timestamp(6)", "c_timestamp_6")
-        );
+                new CastTestCase("c_timestamp_9", "timestamp(6)", "c_timestamp_6"));
     }
 
     @Override

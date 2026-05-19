@@ -28,11 +28,10 @@ public class DispatcherCacheManagerFactory
 {
     public static final String DISPATCHER_CACHE_MANAGER_NAME = "warp_cache";
 
-    public DispatcherCacheManagerFactory()
-    {
-    }
+    public DispatcherCacheManagerFactory() {}
 
-    public CacheManager create(Map<String, String> config,
+    public CacheManager create(
+            Map<String, String> config,
             CacheManagerContext context,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext,
             Class<? extends InitializationModule> optionalModules)
@@ -43,7 +42,8 @@ public class DispatcherCacheManagerFactory
             Supplier<Module> optionalModule;
             try {
                 Class<?> initModuleClass = classLoader.loadClass(optionalModules.getName());
-                optionalModule = InitializationModule.invokeCreateModule(initModuleClass,
+                optionalModule = InitializationModule.invokeCreateModule(
+                        initModuleClass,
                         config,
                         warpCacheMgrConnectorContext,
                         DISPATCHER_CACHE_MANAGER_NAME);
@@ -53,7 +53,8 @@ public class DispatcherCacheManagerFactory
             }
 
             return (CacheManager) classLoader.loadClass(InternalDispatcherCacheManagerFactory.class.getName())
-                    .getMethod("createCacheManager",
+                    .getMethod(
+                            "createCacheManager",
                             String.class,
                             Map.class,
                             Supplier.class,

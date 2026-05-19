@@ -51,7 +51,8 @@ public class BooleanBlockFiller
     }
 
     @Override
-    protected Block fillRawBlock(ReadJuffersWarmUpElement juffersWE,
+    protected Block fillRawBlock(
+            ReadJuffersWarmUpElement juffersWE,
             RecTypeCode recTypeCode,
             int recLength,
             int rowsToFill,

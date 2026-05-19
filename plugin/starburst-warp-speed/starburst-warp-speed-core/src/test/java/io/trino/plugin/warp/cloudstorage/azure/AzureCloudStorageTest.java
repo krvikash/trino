@@ -44,7 +44,8 @@ public class AzureCloudStorageTest
         AzureFileSystemConfig azureFileSystemConfig = new AzureFileSystemConfig()
                 .setAuthType(AzureFileSystemConfig.AuthType.ACCESS_KEY);
 
-        AzureFileSystemFactory fileSystemFactory = new AzureFileSystemFactory(openTelemetry,
+        AzureFileSystemFactory fileSystemFactory = new AzureFileSystemFactory(
+                openTelemetry,
                 azureAuth,
                 azureFileSystemConfig);
 

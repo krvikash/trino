@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNull;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = PartitionValueWarmupPredicateRule.class, name = "PartitionValue"),
         @JsonSubTypes.Type(value = DateRangeSlidingWindowWarmupPredicateRule.class, name = "DateRangeSlidingWindow"),
-        @JsonSubTypes.Type(value = DateSlidingWindowWarmupPredicateRule.class, name = "DateSlidingWindow")
+        @JsonSubTypes.Type(value = DateSlidingWindowWarmupPredicateRule.class, name = "DateSlidingWindow"),
 })
 public abstract class WarmupPredicateRule
 {

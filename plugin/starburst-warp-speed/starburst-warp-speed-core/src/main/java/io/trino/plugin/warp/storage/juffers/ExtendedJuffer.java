@@ -33,7 +33,8 @@ public class ExtendedJuffer
     private int extRecFirstOffset;                  // offset of the first extended entry we encountered
     private int extRecLastPos;                      // extended records last entry address
 
-    public ExtendedJuffer(BufferAllocator bufferAllocator,
+    public ExtendedJuffer(
+            BufferAllocator bufferAllocator,
             WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             MemorySegment warmUpState,

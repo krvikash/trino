@@ -93,7 +93,11 @@ public abstract class AbstractLanguageModelClient
     @Override
     public List<String> analyzeSentimentBatch(List<String> texts)
     {
-        return batchInvocation(texts, MAX_BATCH_SIZE, MAX_BATCH_TEXT_LENGTH, NUMBERED_LIST_CODEC,
+        return batchInvocation(
+                texts,
+                MAX_BATCH_SIZE,
+                MAX_BATCH_TEXT_LENGTH,
+                NUMBERED_LIST_CODEC,
                 input -> fixedCompletion(analyzeSentimentModelAndPromptBatch, analyzeSentimentModelAndPromptBatch.prompt().formatted(input)));
     }
 
@@ -106,7 +110,11 @@ public abstract class AbstractLanguageModelClient
     @Override
     public List<String> classifyBatch(List<String> texts, List<String> labels)
     {
-        return batchInvocation(texts, MAX_BATCH_SIZE, MAX_BATCH_TEXT_LENGTH, NUMBERED_LIST_CODEC,
+        return batchInvocation(
+                texts,
+                MAX_BATCH_SIZE,
+                MAX_BATCH_TEXT_LENGTH,
+                NUMBERED_LIST_CODEC,
                 input -> fixedCompletion(classifyModelAndPromptBatch, classifyModelAndPromptBatch.prompt().formatted(LIST_CODEC.toJson(labels), input)));
     }
 
@@ -119,7 +127,11 @@ public abstract class AbstractLanguageModelClient
     @Override
     public List<String> fixGrammarBatch(List<String> texts)
     {
-        return batchInvocation(texts, MAX_BATCH_SIZE, MAX_BATCH_TEXT_LENGTH, XML_TAGS_CODEC,
+        return batchInvocation(
+                texts,
+                MAX_BATCH_SIZE,
+                MAX_BATCH_TEXT_LENGTH,
+                XML_TAGS_CODEC,
                 input -> fixedCompletion(fixGrammarModelAndPromptBatch, fixGrammarModelAndPromptBatch.prompt().formatted(input)));
     }
 
@@ -182,7 +194,11 @@ public abstract class AbstractLanguageModelClient
     @Override
     public List<String> maskBatch(List<String> texts, List<String> labels)
     {
-        return batchInvocation(texts, MAX_BATCH_SIZE, MAX_BATCH_TEXT_LENGTH, XML_TAGS_CODEC,
+        return batchInvocation(
+                texts,
+                MAX_BATCH_SIZE,
+                MAX_BATCH_TEXT_LENGTH,
+                XML_TAGS_CODEC,
                 input -> fixedCompletion(maskModelAndPromptBatch, maskModelAndPromptBatch.prompt().formatted(LIST_CODEC.toJson(labels), input)));
     }
 
@@ -195,7 +211,11 @@ public abstract class AbstractLanguageModelClient
     @Override
     public List<String> translateBatch(List<String> texts, String language)
     {
-        return batchInvocation(texts, MAX_BATCH_SIZE, MAX_BATCH_TEXT_LENGTH, XML_TAGS_CODEC,
+        return batchInvocation(
+                texts,
+                MAX_BATCH_SIZE,
+                MAX_BATCH_TEXT_LENGTH,
+                XML_TAGS_CODEC,
                 input -> fixedCompletion(translateModelAndPromptBatch, translateModelAndPromptBatch.prompt().formatted(STRING_CODEC.toJson(language), input)));
     }
 
@@ -208,7 +228,11 @@ public abstract class AbstractLanguageModelClient
     @Override
     public List<String> summarizeBatch(List<String> texts)
     {
-        return batchInvocation(texts, MAX_BATCH_SIZE, MAX_BATCH_TEXT_LENGTH, XML_TAGS_CODEC,
+        return batchInvocation(
+                texts,
+                MAX_BATCH_SIZE,
+                MAX_BATCH_TEXT_LENGTH,
+                XML_TAGS_CODEC,
                 input -> fixedCompletion(summarizeModelAndPromptBatch, summarizeModelAndPromptBatch.prompt().formatted(input)));
     }
 

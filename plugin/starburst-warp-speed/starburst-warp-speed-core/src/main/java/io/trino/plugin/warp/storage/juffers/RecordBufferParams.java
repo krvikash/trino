@@ -63,7 +63,8 @@ public class RecordBufferParams
         return recordBufferParams;
     }
 
-    public void setParams(long min,
+    public void setParams(
+            long min,
             long max,
             int numRecords,
             int numNulls,

@@ -396,8 +396,7 @@ public class TestGpuExpressions
                 }
                 else {
                     // Might not be covered by explicit tests; expect this only for decimal coercions
-                    verify(
-                            type instanceof DecimalType,
+                    verify(type instanceof DecimalType,
                             "Unexpected coercion for unary %s on %s: argument types %s",
                             operator,
                             type,
@@ -500,10 +499,11 @@ public class TestGpuExpressions
                         case EQUAL, COMPARISON_UNORDERED_LAST, COMPARISON_UNORDERED_FIRST, LESS_THAN, LESS_THAN_OR_EQUAL, IDENTICAL -> {
                             // Covered by testComparison
                             assertThat(Set.copyOf(function.signature().getArgumentTypes()))
-                                    .as("""
-                                        Expect comparison operators to require pre-coerced inputs. If this is the case, comparisons have test coverage in testComparison.
-                                        Otherwise test coverage needs to be revisited.
-                                        """)
+                                    .as(
+                                            """
+                                            Expect comparison operators to require pre-coerced inputs. If this is the case, comparisons have test coverage in testComparison.
+                                            Otherwise test coverage needs to be revisited.
+                                            """)
                                     .hasSize(1);
                         }
                         case CAST, SATURATED_FLOOR_CAST, HASH_CODE, XX_HASH_64, INDETERMINATE, READ_VALUE -> throw new AssertionError("Unreachable, not a binary operator");
@@ -600,11 +600,16 @@ public class TestGpuExpressions
     {
         List<Long> initial = List.of(
                 0L,
-                -1L, 1L,
-                (long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE,
-                (long) Short.MIN_VALUE, (long) Short.MAX_VALUE,
-                (long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE,
-                Long.MIN_VALUE, Long.MAX_VALUE);
+                -1L,
+                1L,
+                (long) Byte.MIN_VALUE,
+                (long) Byte.MAX_VALUE,
+                (long) Short.MIN_VALUE,
+                (long) Short.MAX_VALUE,
+                (long) Integer.MIN_VALUE,
+                (long) Integer.MAX_VALUE,
+                Long.MIN_VALUE,
+                Long.MAX_VALUE);
         List<BigDecimal> offsets = Stream.of("0", "1", "-1", "0.33", "0.5", "0.66", "-0.33", "-0.5", "-0.66")
                 .map(BigDecimal::new)
                 .toList();
@@ -766,7 +771,8 @@ public class TestGpuExpressions
         int channelB = 1;
         List<Type> inputTypes = List.of(leftType, rightType);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBlock(leftType, positionsCount, nullsProvider),
                 createBlock(rightType, positionsCount, nullsProvider)));
 
@@ -795,7 +801,8 @@ public class TestGpuExpressions
         Set<Integer> inputChannels = Set.of(channelA, channelB);
 
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBlock(type, positionsCount, nullsProvider),
                 createBlock(type, positionsCount, nullsProvider)));
 
@@ -840,7 +847,8 @@ public class TestGpuExpressions
         int channelB = 1;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100),
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
@@ -866,7 +874,8 @@ public class TestGpuExpressions
         int channelB = 1;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100),
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
@@ -891,7 +900,8 @@ public class TestGpuExpressions
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // NOT of a comparison: NOT(a < 50)
@@ -913,7 +923,8 @@ public class TestGpuExpressions
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         Expression expression = new IsNull(field(channelA, BIGINT));
@@ -928,7 +939,8 @@ public class TestGpuExpressions
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // a BETWEEN 10 AND 50
@@ -948,7 +960,8 @@ public class TestGpuExpressions
         int channelB = 1;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100),
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
@@ -965,7 +978,8 @@ public class TestGpuExpressions
         int channelB = 1;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100),
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
@@ -1102,7 +1116,8 @@ public class TestGpuExpressions
         int channelA = 0;
         int positionsCount = 64;
         List<Type> inputTypes = List.of(type);
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createInRangeDateTimeBlock(type, positionsCount, nullsProvider)));
 
         Expression expression = new Call(
@@ -1169,7 +1184,8 @@ public class TestGpuExpressions
         int channelA = 0;
         List<Type> inputTypes = List.of(timestampType);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBlock(timestampType, positionsCount, nullsProvider)));
 
         Expression expression = new Call(
@@ -1195,7 +1211,8 @@ public class TestGpuExpressions
         int channelA = 0;
         List<Type> inputTypes = List.of(timestampType);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBlock(timestampType, positionsCount, nullsProvider)));
 
         Type unitType = createVarcharType(unit.length());
@@ -1231,7 +1248,8 @@ public class TestGpuExpressions
         List<Type> inputTypes = List.of(VARCHAR, BIGINT);
 
         List<Page> inputPages = new ArrayList<>();
-        inputPages.add(new Page(positionsCount,
+        inputPages.add(new Page(
+                positionsCount,
                 createBlock(VARCHAR, positionsCount, nullsProvider),
                 createBigintBlock(positionsCount, nullsProvider, -20, 20)));
         // Edge cases that random data may not cover: start=0 (empty), negative start beyond string length, start past end
@@ -1259,7 +1277,8 @@ public class TestGpuExpressions
         List<Type> inputTypes = List.of(VARCHAR, BIGINT, BIGINT);
 
         List<Page> inputPages = new ArrayList<>();
-        inputPages.add(new Page(positionsCount,
+        inputPages.add(new Page(
+                positionsCount,
                 createBlock(VARCHAR, positionsCount, nullsProvider),
                 createBigintBlock(positionsCount, nullsProvider, -20, 20),
                 createBigintBlock(positionsCount, nullsProvider, -5, 20)));
@@ -1314,7 +1333,8 @@ public class TestGpuExpressions
         int channelA = 0;
         List<Type> inputTypes = List.of(type);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBlock(type, positionsCount, nullsProvider)));
 
         ImmutableList.Builder<Expression> valueListBuilder = ImmutableList.builder();
@@ -1333,7 +1353,8 @@ public class TestGpuExpressions
         int channelB = 1;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -1000, 1000),
                 createBigintBlock(positionsCount, nullsProvider, 1, 100)));  // non-zero to avoid division by zero
 
@@ -1348,7 +1369,8 @@ public class TestGpuExpressions
     {
         List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount,
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
 
         CompiledExpression gpuExpression = gpuCompiler.compileExpression(constantExpression, layoutFor(List.of()))

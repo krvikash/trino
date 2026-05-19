@@ -33,7 +33,6 @@ public record ElasticsearchColumnHandle(
         DecoderDescriptor decoderDescriptor,
         boolean supportsPredicates,
         boolean mappingConflict)
-
         implements ColumnHandle
 {
     public ElasticsearchColumnHandle(

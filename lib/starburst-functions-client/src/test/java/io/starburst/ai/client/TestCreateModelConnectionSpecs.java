@@ -23,22 +23,23 @@ public class TestCreateModelConnectionSpecs
     @Test
     public void testShouldMaskSecretsWhenParsingFails()
     {
-        String json = """
-              {
-                 "models": [
-                     {
-                         "id": "embed1",
-                         "modelName": "cohere.embed-multilingual-v3",
-                         "kind": "EMBED",
-                         "dimensions": 768,
-                         "connectionInfo": {
-                             "provider": "AWS_BEDROCK",
-                             "awsAccessKey": MYSECRET
-                             "region": "us-east-1"
-                         }
-                     }
-                 ]
-              }""";
+        String json =
+                """
+                {
+                   "models": [
+                       {
+                           "id": "embed1",
+                           "modelName": "cohere.embed-multilingual-v3",
+                           "kind": "EMBED",
+                           "dimensions": 768,
+                           "connectionInfo": {
+                               "provider": "AWS_BEDROCK",
+                               "awsAccessKey": MYSECRET
+                               "region": "us-east-1"
+                           }
+                       }
+                   ]
+                }""";
 
         File file = createModelConnectionSpecsFile(json);
 

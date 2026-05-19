@@ -28,8 +28,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public class StructuralEquivalenceUtils
 {
-    private StructuralEquivalenceUtils()
-    {}
+    private StructuralEquivalenceUtils() {}
 
     public static boolean blocksStructurallyEquivalent(List<Block> leftBlocks, List<Block> rightBlocks)
     {

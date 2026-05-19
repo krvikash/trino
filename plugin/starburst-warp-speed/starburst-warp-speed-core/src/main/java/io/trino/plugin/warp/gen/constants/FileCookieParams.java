@@ -22,7 +22,5 @@ public enum FileCookieParams
     FILE_COOKIE_PARAMS_FILE_MOD_TIME,
     FILE_COOKIE_PARAMS_NUM_OF;
 
-    FileCookieParams()
-    {
-    }
+    FileCookieParams() {}
 }

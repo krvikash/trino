@@ -85,7 +85,9 @@ public class TestJdbcSnowflakeWarehouseSwitching
                 .build();
 
         // TODO: https://starburstdata.atlassian.net/browse/SEP-6500
-        assertQueryFails(sessionWithoutStatisticsPrecalculation, "SELECT COUNT(1) FROM nation WHERE name = 'ALGERIA'",
+        assertQueryFails(
+                sessionWithoutStatisticsPrecalculation,
+                "SELECT COUNT(1) FROM nation WHERE name = 'ALGERIA'",
                 "No active warehouse selected in the current session.  Select an active warehouse with the 'use warehouse' command.\n");
     }
 }

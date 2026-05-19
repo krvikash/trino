@@ -53,8 +53,7 @@ public class InputPageProjection
         if (selectedPositions.isList()) {
             switch (block) {
                 // Avoids unnecessary copying
-                case DictionaryBlock _, RunLengthEncodedBlock _ ->
-                        block = block.getPositions(selectedPositions.getPositions(), selectedPositions.getOffset(), selectedPositions.size());
+                case DictionaryBlock _, RunLengthEncodedBlock _ -> block = block.getPositions(selectedPositions.getPositions(), selectedPositions.getOffset(), selectedPositions.size());
                 // Avoids creating a masking dictionary block out of a non-dictionary block
                 case ValueBlock _ -> block = block.copyPositions(selectedPositions.getPositions(), selectedPositions.getOffset(), selectedPositions.size());
             }

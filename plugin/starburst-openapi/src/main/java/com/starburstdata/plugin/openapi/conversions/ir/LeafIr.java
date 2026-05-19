@@ -15,7 +15,5 @@ package com.starburstdata.plugin.openapi.conversions.ir;
 public sealed interface LeafIr
         extends SchemaIr
         permits BooleanIr,
-        StringIr,
-        NumberIr
-{
-}
+                NumberIr,
+                StringIr {}

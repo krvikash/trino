@@ -186,7 +186,7 @@ public class RowGroupDataDaoTest
 
         assertThat(rowGroupDataDao.getAll()).hasSize(1).containsExactlyElementsOf(List.of(rowGroupData));
 
-        //test merge
+        // test merge
         Collection<RowGroupData> updateRowGroupDataList = rowGroupDataDao.save(List.of(RowGroupData.builder(rowGroupData)
                 .partitionKeys(Map.of(new RegularColumn("key"), "val"))
                 .build()));
@@ -316,7 +316,7 @@ public class RowGroupDataDaoTest
 
         assertThat(rowGroupDataDao.get(rowGroupData.getRowGroupKey())).isEqualTo(rowGroupData);
 
-        //read from another dao
+        // read from another dao
         RowGroupDataDao rowGroupDataDao2 = new RowGroupDataDao(
                 globalConfig,
                 storageEngineConstants,
@@ -338,7 +338,7 @@ public class RowGroupDataDaoTest
                 WarpColumn.class, new WarpColumnJsonKeyDeserializer()));
         ObjectMapper objectMapper = provider.get();
 
-        //DictionaryKey
+        // DictionaryKey
         DictionaryKey dictionaryKey = new DictionaryKey(
                 new SchemaTableColumn(
                         new SchemaTableName("schema1", "table1"),
@@ -349,7 +349,7 @@ public class RowGroupDataDaoTest
         assertThat(dictionaryKey)
                 .isEqualTo(objectMapper.readValue(str, dictionaryKey.getClass()));
 
-        //WarpColumn
+        // WarpColumn
         List<WarpColumn> warpColumns = List.of(
                 new RegularColumn("aaa"),
                 new WildcardColumn(),
@@ -391,7 +391,7 @@ public class RowGroupDataDaoTest
         str = objectMapper.writeValueAsString(warmUpElement);
         assertThat(objectMapper.readValue(str, WarmUpElement.class)).isEqualTo(warmUpElement);
 
-        //RowGroupData
+        // RowGroupData
         RowGroupData rowGroupData = RowGroupData.builder()
                 .rowGroupKey(new RowGroupKey(
                         "schema",
@@ -468,7 +468,7 @@ public class RowGroupDataDaoTest
             Thread.sleep(i);
         }
         catch (InterruptedException e) {
-            //do nothing
+            // do nothing
         }
         runnable.run();
     }

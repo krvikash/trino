@@ -51,7 +51,8 @@ public class QueryParamsConverterTest
         LuceneQueryMatchData luceneQueryMatchData1 = createLuceneQueryMatchData("lucene1", 1);
         LuceneQueryMatchData luceneQueryMatchData2 = createLuceneQueryMatchData("lucene2", 2);
 
-        MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND,
+        MatchData matchData = new LogicalMatchData(
+                LogicalMatchData.Operator.AND,
                 List.of(luceneQueryMatchData0, new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(luceneQueryMatchData1, luceneQueryMatchData2))));
 
         QueryContext queryContext = mock(QueryContext.class);
@@ -65,19 +66,23 @@ public class QueryParamsConverterTest
                 0x40302010,
                 false,
                 "test-query-id");
-        List<MatchNode> es = List.of(new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND,
+        List<MatchNode> es = List.of(new LogicalMatchNode(
+                MatchNodeType.MATCH_NODE_TYPE_AND,
                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
-                        new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_OR,
+                        new LogicalMatchNode(
+                                MatchNodeType.MATCH_NODE_TYPE_OR,
                                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData1, 1),
                                         convertLuceneMatchDataToMatchParams(luceneQueryMatchData2, 2)),
-                                MemorySegment.ofArray(new byte[10]))), MemorySegment.ofArray(new byte[10])));
+                                MemorySegment.ofArray(new byte[10]))),
+                MemorySegment.ofArray(new byte[10])));
         assertThat(queryParams.getRootMatchNode().orElseThrow()).isEqualTo(es.getFirst());
         assertThat(queryParams.getNumLucene()).isEqualTo(3);
     }
 
     private WarmupElementMatchParams convertLuceneMatchDataToMatchParams(LuceneQueryMatchData luceneQueryMatchData, int luceneIx)
     {
-        return new WarmupElementMatchParams(Arena.ofAuto().allocate(96, 8), // large enough size aligned to size 8 to hold match parameters
+        return new WarmupElementMatchParams(
+                Arena.ofAuto().allocate(96, 8), // large enough size aligned to size 8 to hold match parameters
                 luceneQueryMatchData.getPredicateCacheData().getPredicateBufferInfo().buff(),
                 luceneQueryMatchData.getWarmUpElement().getQueryOffset(),
                 luceneQueryMatchData.getWarmUpElement().getRecTypeCode(),

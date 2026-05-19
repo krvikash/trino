@@ -197,13 +197,9 @@ public class WorkerTaskExecutorServiceTest
         }
 
         @Override
-        public void taskScheduled()
-        {
-        }
+        public void taskScheduled() {}
 
         @Override
-        public void run()
-        {
-        }
+        public void run() {}
     }
 }

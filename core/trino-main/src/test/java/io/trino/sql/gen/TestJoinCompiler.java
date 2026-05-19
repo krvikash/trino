@@ -297,7 +297,8 @@ public class TestJoinCompiler
                     varcharChannel.get(blockIndex),
                     longChannel.get(blockIndex),
                     doubleChannel.get(blockIndex),
-                    booleanChannel.get(blockIndex)};
+                    booleanChannel.get(blockIndex),
+            };
             int positionCount = joinBlocks[0].getPositionCount();
             Page page = new Page(joinBlocks);
 

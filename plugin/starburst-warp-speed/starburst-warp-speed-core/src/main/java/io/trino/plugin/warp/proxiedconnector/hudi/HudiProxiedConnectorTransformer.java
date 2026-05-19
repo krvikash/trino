@@ -102,7 +102,8 @@ public class HudiProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         HudiSplit originalSplit = (HudiSplit) connectorSplit;
-        return new HudiSplit(originalSplit.location(),
+        return new HudiSplit(
+                originalSplit.location(),
                 originalSplit.start(),
                 originalSplit.length(),
                 originalSplit.fileSize(),
@@ -138,7 +139,8 @@ public class HudiProxiedConnectorTransformer
             partitionKeys.add(new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()));
         }
 
-        return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
+        return new DispatcherSplit(
+                dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
                 hudiSplit.location(),
                 hudiSplit.start(),
@@ -170,7 +172,8 @@ public class HudiProxiedConnectorTransformer
     }
 
     @Override
-    public Optional<ConnectorBucketNodeMap> getBucketNodeMapping(ConnectorTransactionHandle transactionHandle,
+    public Optional<ConnectorBucketNodeMap> getBucketNodeMapping(
+            ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorPartitioningHandle partitioningHandle,
             ConnectorNodePartitioningProvider nodePartitionProvider,

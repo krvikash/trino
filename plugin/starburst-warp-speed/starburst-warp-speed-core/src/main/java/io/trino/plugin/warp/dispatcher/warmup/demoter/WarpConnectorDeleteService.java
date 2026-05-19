@@ -173,26 +173,35 @@ public class WarpConnectorDeleteService
                 TupleRank tupleRank = new TupleRank(warmupProperties, warmUpElement, rowGroupKey);
 
                 if (forceDeleteFailedObjects && !warmUpElement.isValid()) {
-                    logger.debug("add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
-                            warmUpElement.getWarpColumn(), warmupProperties.warmUpType());
+                    logger.debug(
+                            "add failed warmupElement to failedObjects: warpColumn = %s, warmupType = %s",
+                            warmUpElement.getWarpColumn(),
+                            warmupProperties.warmUpType());
                     failedObjects.add(tupleRank);
                 }
                 else if (isDeleteImmediatelyObject(tupleRank, now, tupleFilters)) {
-                    logger.debug("add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
-                            warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.ttl());
+                    logger.debug(
+                            "add warmupElement to ImmediateObject: warpColumn = %s, warmupType = %s, ttl = %s",
+                            warmUpElement.getWarpColumn(),
+                            warmupProperties.warmUpType(),
+                            warmupProperties.ttl());
                     immediateObjects.add(tupleRank);
                 }
                 else {
                     tupleRankList.add(tupleRank);
-                    logger.debug("add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
-                            warmUpElement.getWarpColumn(), warmupProperties.warmUpType(), warmupProperties.priority());
+                    logger.debug(
+                            "add warmupElement to tupleRank: warpColumn = %s, warmupType = %s, priority = %s",
+                            warmUpElement.getWarpColumn(),
+                            warmupProperties.warmUpType(),
+                            warmupProperties.priority());
                 }
             }
         }
 
         TupleRankResult tupleRankResult = new TupleRankResult(tupleRankList, immediateObjects, failedObjects);
 
-        logger.debug("buildTupleRank warmupRules.size=%d rowGroupDataList.size=%d tupleFilters.size=%d %s",
+        logger.debug(
+                "buildTupleRank warmupRules.size=%d rowGroupDataList.size=%d tupleFilters.size=%d %s",
                 warmupRules.size(),
                 rowGroupDataList.size(),
                 (tupleFilters != null) ? tupleFilters.size() : -1,
@@ -274,8 +283,11 @@ public class WarpConnectorDeleteService
             }
             else {
                 if (demoteContext.isDeleteEmptyRowGroups()) {
-                    logger.debug("empty rowGropData %s, delete partial elementsToDelete = %d, left = %d",
-                            rowGroupData.getRowGroupKey(), elementsToDelete.size(), rowGroupData.getWarmUpElements().size());
+                    logger.debug(
+                            "empty rowGropData %s, delete partial elementsToDelete = %d, left = %d",
+                            rowGroupData.getRowGroupKey(),
+                            elementsToDelete.size(),
+                            rowGroupData.getWarmUpElements().size());
                     rowGroupDataService.updateEmptyRowGroup(rowGroupData, Collections.emptyList(), elementsToDelete);
                 }
                 else {
@@ -316,14 +328,17 @@ public class WarpConnectorDeleteService
 
     private boolean coolRowGroupData(RowGroupData rowGroupData, List<WarmUpElement> elementsToDelete, DemoteContext demoteContext)
     {
-        logger.debug("coolRowGroupData rowGroup key %s - going to delete warmupElements size = %d",
-                rowGroupData.getRowGroupKey(), elementsToDelete.size());
+        logger.debug(
+                "coolRowGroupData rowGroup key %s - going to delete warmupElements size = %d",
+                rowGroupData.getRowGroupKey(),
+                elementsToDelete.size());
         boolean success = true;
         try {
             demote(rowGroupData, elementsToDelete);
         }
         catch (Exception e) {
-            logger.error(e,
+            logger.error(
+                    e,
                     "failed to demote rowGroupData: %s, row grop will be deleted",
                     rowGroupData.getRowGroupKey());
             handleFailDeleteRowGroup(rowGroupData, demoteContext);

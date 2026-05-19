@@ -58,7 +58,8 @@ public class QueryParamsConverter
 
     private QueryParamsConverter() {}
 
-    public static QueryParams createQueryParams(WorkerMemoryManager workerMemoryManager,
+    public static QueryParams createQueryParams(
+            WorkerMemoryManager workerMemoryManager,
             QueryContext queryContext,
             String filePath,
             long fileModTime,
@@ -92,7 +93,8 @@ public class QueryParamsConverter
         Optional<MemorySegment> warmUpElementCollectParams = (numCollectElements > 0) ? Optional.of(allocateWarmUpElementCollectParamsMemory(arena, numCollectElements)) : Optional.empty();
         ArrayDeque<MemorySegment> warmUpElementCollectParamsQueue = sliceWarmUpElementCollectParamsMemory(warmUpElementCollectParams, numCollectElements);
         // collect create paramters
-        CollectAndMatchCollectParams collectAndMatchCollectParams = getCollectAndMatchCollectParams(queryMatchDataLeaves,
+        CollectAndMatchCollectParams collectAndMatchCollectParams = getCollectAndMatchCollectParams(
+                queryMatchDataLeaves,
                 queryContext.getNativeQueryCollectDataList(),
                 warmUpElementCollectParamsQueue,
                 lastUsedTimestamp,
@@ -107,7 +109,8 @@ public class QueryParamsConverter
         Optional<MemorySegment> rootMatchNodeAtt = onlyLeaves ? Optional.of(matchNodeAttsQueue.remove()) : Optional.empty();
 
         // match recursively create tree nodes
-        MatchNodes matchNodes = matchData.map(data -> convertToMatchNodes(List.of(data),
+        MatchNodes matchNodes = matchData.map(data -> convertToMatchNodes(
+                List.of(data),
                 collectAndMatchCollectParams.matchCollectElements(),
                 lastUsedTimestamp,
                 0,
@@ -119,9 +122,14 @@ public class QueryParamsConverter
         // calculate the root
         Optional<MatchNode> rootMatchNode = createRootMatchNode(matchNodes.terms(), rootMatchNodeAtt);
 
-        logger.debug("numLeaves %d subtreeSize %d height %d onlyLeaves %b",
-                 numLeaves, subtreeSize, rootMatchNode.map(node -> node.getHeight()).orElse(0), onlyLeaves);
-        return new QueryParams(rootMatchNode,
+        logger.debug(
+                "numLeaves %d subtreeSize %d height %d onlyLeaves %b",
+                numLeaves,
+                subtreeSize,
+                rootMatchNode.map(node -> node.getHeight()).orElse(0),
+                onlyLeaves);
+        return new QueryParams(
+                rootMatchNode,
                 warmUpElementMatchParams,
                 matchNodeAtts,
                 warmUpElementCollectParams,
@@ -190,7 +198,8 @@ public class QueryParamsConverter
         return Optional.of(rootMatchNodeAtt.map(m -> (MatchNode) new LogicalMatchNode(MatchNodeType.MATCH_NODE_TYPE_AND, matchNodes, m)).orElse(matchNodes.getFirst()));
     }
 
-    private static MatchNodes convertToMatchNodes(List<MatchData> matchDataList,
+    private static MatchNodes convertToMatchNodes(
+            List<MatchData> matchDataList,
             List<MatchCollectElement> matchCollectElements,
             long lastUsedTimestamp,
             int currentNumLeaves,
@@ -226,7 +235,8 @@ public class QueryParamsConverter
                 MatchCollectOp matchCollectOp = matchCollectElement.map(MatchCollectElement::getMatchCollectOp).orElse(MatchCollectOp.MATCH_COLLECT_OP_INVALID);
 
                 convertedList.add(
-                        new WarmupElementMatchParams(warmUpElementMatchParamsQueue.remove(),
+                        new WarmupElementMatchParams(
+                                warmUpElementMatchParamsQueue.remove(),
                                 queryMatchData.getPredicateCacheData().getPredicateBufferInfo().buff(),
                                 matchDataWarmUpElement.getQueryOffset(),
                                 matchDataWarmUpElement.getRecTypeCode(),
@@ -247,7 +257,8 @@ public class QueryParamsConverter
             }
             else if (matchData instanceof LogicalMatchData logicalMatchData) {
                 MemorySegment matchNodeAtt = matchNodeAttsQueue.remove();
-                MatchNodes matchNodes = convertToMatchNodes(logicalMatchData.getTerms(),
+                MatchNodes matchNodes = convertToMatchNodes(
+                        logicalMatchData.getTerms(),
                         matchCollectElements,
                         lastUsedTimestamp,
                         currentNumLeaves,
@@ -268,7 +279,8 @@ public class QueryParamsConverter
         return new MatchNodes(convertedList, currentNumLeaves, currentNumLucene);
     }
 
-    private static CollectAndMatchCollectParams getCollectAndMatchCollectParams(List<QueryMatchData> queryMatchDataLeaves,
+    private static CollectAndMatchCollectParams getCollectAndMatchCollectParams(
+            List<QueryMatchData> queryMatchDataLeaves,
             ImmutableList<NativeQueryCollectData> nativeQueryCollectDataList,
             ArrayDeque<MemorySegment> warmUpElementCollectParamsQueue,
             long lastUsedTimestamp,
@@ -319,7 +331,8 @@ public class QueryParamsConverter
                         collectDataWarmUpElement.getDictionaryInfo().dataValuesRecTypeLength(),
                         collectDataWarmUpElement.getDictionaryInfo().dictionaryOffset());
                 collectParamsList.add(
-                        new WarmupElementCollectParams(warmUpElementCollectParamsQueue.remove(),
+                        new WarmupElementCollectParams(
+                                warmUpElementCollectParamsQueue.remove(),
                                 collectDataWarmUpElement.getQueryOffset(),
                                 DICTIONARY_REC_TYPE_CODE,   // native should keep this warm up element with the dictionary code
                                 DICTIONARY_REC_TYPE_LENGTH, // native should keep this warm up element with the dictionary length
@@ -339,7 +352,8 @@ public class QueryParamsConverter
             }
             else {
                 collectParamsList.add(
-                        new WarmupElementCollectParams(warmUpElementCollectParamsQueue.remove(),
+                        new WarmupElementCollectParams(
+                                warmUpElementCollectParamsQueue.remove(),
                                 collectDataWarmUpElement.getQueryOffset(),
                                 collectDataWarmUpElement.getRecTypeCode(),   // native will use the original code
                                 collectDataWarmUpElement.getRecTypeLength(), // native will use the original length
@@ -361,15 +375,13 @@ public class QueryParamsConverter
         return new CollectAndMatchCollectParams(collectParamsList, matchCollectElements, matchCollectId);
     }
 
-    private record CollectAndMatchCollectParams(List<WarmupElementCollectParams> collectParamsList,
+    private record CollectAndMatchCollectParams(
+            List<WarmupElementCollectParams> collectParamsList,
             List<MatchCollectElement> matchCollectElements,
-            int matchCollectId)
-    {
-    }
+            int matchCollectId) {}
 
-    private record MatchNodes(List<MatchNode> terms,
+    private record MatchNodes(
+            List<MatchNode> terms,
             int numLeaves,
-            int numLucene)
-    {
-    }
+            int numLucene) {}
 }

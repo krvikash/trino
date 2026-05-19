@@ -19,7 +19,5 @@ import com.google.common.collect.ImmutableSet;
 public record WarmupColRuleRejectionData(WarmupColRuleData warmupColRuleData, ImmutableSet<String> errors)
 {
     @JsonCreator
-    public WarmupColRuleRejectionData
-    {
-    }
+    public WarmupColRuleRejectionData {}
 }

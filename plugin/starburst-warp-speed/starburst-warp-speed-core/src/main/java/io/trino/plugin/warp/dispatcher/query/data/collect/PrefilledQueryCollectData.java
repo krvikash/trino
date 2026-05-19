@@ -24,7 +24,8 @@ public class PrefilledQueryCollectData
 {
     private final SingleValue singleValue;
 
-    private PrefilledQueryCollectData(WarpColumn warpColumn,
+    private PrefilledQueryCollectData(
+            WarpColumn warpColumn,
             Type type,
             int blockIndex,
             SingleValue singleValue)

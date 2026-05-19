@@ -45,7 +45,8 @@ public class WeGroupCloudExporterTask
     private final WarmupExportServiceStats statsWarmupExportService;
     private final ShapingLogger shapingLogger;
 
-    public WeGroupCloudExporterTask(RowGroupKey rowGroupKey,
+    public WeGroupCloudExporterTask(
+            RowGroupKey rowGroupKey,
             String cloudImportExportPath,
             WorkerTaskExecutorService workerTaskExecutorService,
             RowGroupDataService rowGroupDataService,
@@ -137,8 +138,12 @@ public class WeGroupCloudExporterTask
             WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                     warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
             if (exportFileResults.isExportDone()) {
-                logger.debug("exported rowGroupKey %s next-offset %d next-export-offset %d dataValidation %s",
-                        rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset(), exportFileResults.dataValidation());
+                logger.debug(
+                        "exported rowGroupKey %s next-offset %d next-export-offset %d dataValidation %s",
+                        rowGroupKey,
+                        rowGroupData.getNextOffset(),
+                        rowGroupData.getNextExportOffset(),
+                        exportFileResults.dataValidation());
                 // update row group with new export state
                 rowGroupDataService.save(RowGroupData.builder(rowGroupData)
                         .nextExportOffset(rowGroupData.getNextOffset())

@@ -93,7 +93,5 @@ class InferComplexHadoop
         return Character.toString(BASE_MAP_DELIMETER + (2 * level));
     }
 
-    private InferComplexHadoop()
-    {
-    }
+    private InferComplexHadoop() {}
 }

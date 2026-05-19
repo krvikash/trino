@@ -84,8 +84,7 @@ public class BufferServiceModule
             extends AbstractConfigurationAwareModule
     {
         @Override
-        protected void setup(Binder binder)
-        {}
+        protected void setup(Binder binder) {}
 
         @ProvidesIntoOptional(ACTUAL)
         @NodeStateManager.PreShutdownAction

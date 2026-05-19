@@ -35,7 +35,8 @@ public class RangesPredicateFiller
     private final RangesConverter rangesConverter;
     private final StorageEngineConstants storageEngineConstants;
 
-    public RangesPredicateFiller(BufferAllocator bufferAllocator,
+    public RangesPredicateFiller(
+            BufferAllocator bufferAllocator,
             StorageEngineConstants storageEngineConstants)
     {
         super(bufferAllocator);

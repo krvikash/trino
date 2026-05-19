@@ -113,7 +113,7 @@ public class WarpCacheManagerDeleteService
                 logger.info("TupleFilter is not supported in cacheManager");
             }
             CacheManagerRule rule = warmupRules.get(rowGroupData.getRowGroupKey().table());
-            //Warmup Type is not supported in cacheManager
+            // Warmup Type is not supported in cacheManager
             WarmupProperties warmupProperties = rule == null ? defaultWarmupProperties :
                     new WarmupProperties(WarmUpType.WARM_UP_TYPE_DATA, rule.priority(), (int) rule.ttl().toSeconds(), TransformFunction.NONE);
 
@@ -160,7 +160,7 @@ public class WarpCacheManagerDeleteService
                                     RowGroupData rowGroupData = rowGroupDataService.get(tupleRank.rowGroupKey());
                                     long sizeInBytes = ((long) rowGroupData.getNextOffset()) << pageSizeShift;
                                     rowGroupDataService.deleteData(rowGroupData, true);
-                                    //there's some issue with this calculation since it returns the correct number X 2
+                                    // there's some issue with this calculation since it returns the correct number X 2
 //                                    return rowGroupData.getWarmUpElements().size();
                                     return sizeInBytes;
                                 },

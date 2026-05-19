@@ -339,9 +339,7 @@ public class OpenApiSpec
             OpenApiDecoder decoder,
             Map<String, OpenApiParameterHandle> identifierToParameterHandle,
             OpenApiPaginationStrategy<?> paginationStrategy,
-            OpenApiAuthenticator authenticator)
-    {
-    }
+            OpenApiAuthenticator authenticator) {}
 
     private record IndexedParameter(int index, Parameter parameter, List<String> refPath) {}
 
@@ -450,9 +448,7 @@ public class OpenApiSpec
             String apiPath,
             Optional<String> description,
             Map<String, OpenApiParameterHandle> inputParameters,
-            List<OpenApiColumnHandle> outputColumns)
-    {
-    }
+            List<OpenApiColumnHandle> outputColumns) {}
 
     public List<TableFunctionDetail> getTableFunctionDetails()
     {

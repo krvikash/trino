@@ -38,8 +38,7 @@ public class CacheMgrWarmupRuleServiceTest
         assertThat(service.getAll())
                 .isEqualTo(
                         Map.of(
-                                service.hash(cacheManagerRule1.signatureKey()),
-                                new CacheManagerRule(service.hash(
+                                service.hash(cacheManagerRule1.signatureKey()), new CacheManagerRule(service.hash(
                                         cacheManagerRule1.signatureKey()),
                                         cacheManagerRule1.priority(),
                                         cacheManagerRule1.ttl())));
@@ -49,8 +48,7 @@ public class CacheMgrWarmupRuleServiceTest
         assertThat(service.getAll())
                 .isEqualTo(
                         Map.of(
-                                service.hash(cacheManagerRule2.signatureKey()),
-                                new CacheManagerRule(
+                                service.hash(cacheManagerRule2.signatureKey()), new CacheManagerRule(
                                         service.hash(cacheManagerRule2.signatureKey()),
                                         cacheManagerRule1.priority(),
                                         cacheManagerRule1.ttl())));

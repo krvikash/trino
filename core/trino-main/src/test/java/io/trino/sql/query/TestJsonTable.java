@@ -1040,16 +1040,18 @@ public class TestJsonTable
     @Test
     public void testFilterOnPassThroughColumn()
     {
-        assertThat(assertions.query("""
-                                    SELECT *
-                                    FROM (VALUES (1, CAST('[10, 20]' AS VARCHAR)), (2, CAST('[30, 40]' AS VARCHAR))) t(key, json_col),
-                                    JSON_TABLE(json_col, 'lax $[*]' AS root COLUMNS(num BIGINT PATH 'lax $'))
-                                    WHERE key = 1
-                                    """))
-                .matches("""
-                         VALUES
-                             (INTEGER '1', VARCHAR '[10, 20]', BIGINT '10'),
-                             (INTEGER '1', VARCHAR '[10, 20]', BIGINT '20')
-                         """);
+        assertThat(assertions.query(
+                """
+                SELECT *
+                FROM (VALUES (1, CAST('[10, 20]' AS VARCHAR)), (2, CAST('[30, 40]' AS VARCHAR))) t(key, json_col),
+                JSON_TABLE(json_col, 'lax $[*]' AS root COLUMNS(num BIGINT PATH 'lax $'))
+                WHERE key = 1
+                """))
+                .matches(
+                        """
+                        VALUES
+                            (INTEGER '1', VARCHAR '[10, 20]', BIGINT '10'),
+                            (INTEGER '1', VARCHAR '[10, 20]', BIGINT '20')
+                        """);
     }
 }

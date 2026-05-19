@@ -203,8 +203,10 @@ public class KdbClient
             throw e;
         }
         catch (Exception e) {
-            throw new TrinoException(GENERIC_USER_ERROR,
-                    "Failed to get metadata for table: %s".formatted(tableName), e);
+            throw new TrinoException(
+                    GENERIC_USER_ERROR,
+                    "Failed to get metadata for table: %s".formatted(tableName),
+                    e);
         }
     }
 

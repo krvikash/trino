@@ -65,18 +65,18 @@ public abstract class BaseObjectStoreHiveConnectorTest
             }
             // GetHiveConnectorTestBehavior sets false because Hive connector doesn't support updates on non-ACID tables
             case SUPPORTS_UPDATE,
-                    SUPPORTS_ROW_LEVEL_UPDATE -> true;
+                 SUPPORTS_ROW_LEVEL_UPDATE -> true;
             // Declared to be had since MERGE-related test cases are overridden
             case SUPPORTS_MERGE -> true;
             case SUPPORTS_DROP_SCHEMA_CASCADE -> true;
             // ObjectStore adds support for materialized views using Iceberg
             // SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS is not supported by Iceberg
             case SUPPORTS_CREATE_MATERIALIZED_VIEW,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
-                    SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
-                    SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
-                    SUPPORTS_RENAME_MATERIALIZED_VIEW,
-                    SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD,
+                 SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE,
+                 SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW,
+                 SUPPORTS_RENAME_MATERIALIZED_VIEW,
+                 SUPPORTS_COMMENT_ON_MATERIALIZED_VIEW_COLUMN -> {
                 // when this fails remove the `case` for given flag
                 verify(!connectorHasBehavior, "Unexpected support for: %s", connectorBehavior);
                 yield true;
@@ -200,7 +200,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
     {
         // Override because Hive connector can access old data after dropping and adding a column with same name
         assertThatThrownBy(super::testDropAndAddColumnWithSameName)
-                .hasMessageContaining("""
+                .hasMessageContaining(
+                        """
                         Actual rows (up to 100 of 1 extra rows shown, 1 rows in total):
                             [1, 2]""");
     }
@@ -212,7 +213,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Dropping row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testDropRowFieldInArray)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Dropping fields from Hive tables is not supported"
@@ -249,7 +251,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Adding row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testAddRowFieldInArray)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Adding fields to Hive tables is not supported"
@@ -973,7 +976,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
                         "    (false, BIGINT '6', DOUBLE '6.7', TIMESTAMP '1977-07-07 07:06:00.000', 'efa2', X'efa2', NULL, NULL), " +
                         "    (false, BIGINT '5', DOUBLE '5.7', TIMESTAMP '1977-07-07 07:05:00.000', 'efa3', X'efa3', NULL, NULL), " +
                         "    (false, BIGINT '4', DOUBLE '4.7', TIMESTAMP '1977-07-07 07:04:00.000', 'efa4', X'efa4', NULL, NULL) " +
-                        ") AS x (c_boolean, c_bigint, c_double, c_timestamp, c_varchar, c_varbinary, p_varchar, p_bigint)", 16);
+                        ") AS x (c_boolean, c_bigint, c_double, c_timestamp, c_varchar, c_varbinary, p_varchar, p_bigint)",
+                16);
 
         if (partitioned) {
             // Create empty partitions
@@ -989,7 +993,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Renaming row field is not supported, but a non-standard exception message is thrown.
         assertThatThrownBy(super::testRenameRowField)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Renaming fields in Hive tables is not supported"
@@ -1005,7 +1010,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Setting row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldType)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Hive tables is not supported"
@@ -1021,7 +1027,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Setting row field type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldTypeInArray)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Hive tables is not supported"
@@ -1037,7 +1044,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Setting map key type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldMapKeyType)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Hive tables is not supported"
@@ -1053,7 +1061,8 @@ public abstract class BaseObjectStoreHiveConnectorTest
         // Setting map value type is not supported, but a non standard exception message is thrown.
         assertThatThrownBy(super::testSetFieldMapValueType)
                 .isInstanceOf(AssertionError.class)
-                .hasMessageStartingWith("""
+                .hasMessageStartingWith(
+                        """
 
                         Expecting message:
                           "Setting field type in Hive tables is not supported"

@@ -55,7 +55,8 @@ public class BlockAppenderFactory
     private final BlockTransformerFactory blockTransformerFactory;
 
     @Inject
-    public BlockAppenderFactory(StorageEngineConstants storageEngineConstants,
+    public BlockAppenderFactory(
+            StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
             GlobalConfig globalConfig,
             BlockTransformerFactory blockTransformerFactory)
@@ -66,14 +67,16 @@ public class BlockAppenderFactory
         this.blockTransformerFactory = requireNonNull(blockTransformerFactory);
     }
 
-    public BlockAppender createBlockAppender(WarmUpElement warmUpElement,
+    public BlockAppender createBlockAppender(
+            WarmUpElement warmUpElement,
             Type type,
             WriteJuffersWarmUpElement juffersWE,
             Optional<LuceneIndexer> luceneIndexerOpt)
     {
         BlockAppender blockAppender = switch (warmUpElement.getWarmUpType()) {
             case WARM_UP_TYPE_DATA -> createDataAppender(warmUpElement.getRecTypeCode(), juffersWE, warmUpElement, type);
-            case WARM_UP_TYPE_BASIC -> createBasicAppender(warmUpElement,
+            case WARM_UP_TYPE_BASIC -> createBasicAppender(
+                    warmUpElement,
                     type,
                     juffersWE);
             case WARM_UP_TYPE_LUCENE -> createLuceneAppender(warmUpElement.getRecTypeCode(), luceneIndexerOpt, juffersWE);
@@ -83,7 +86,8 @@ public class BlockAppenderFactory
         return blockAppender;
     }
 
-    private BlockAppender createLuceneAppender(RecTypeCode recTypeCode,
+    private BlockAppender createLuceneAppender(
+            RecTypeCode recTypeCode,
             Optional<LuceneIndexer> luceneIndexerOpt,
             WriteJuffersWarmUpElement juffersWE)
     {
@@ -93,15 +97,14 @@ public class BlockAppenderFactory
                     WarmUpElementState.State.FAILED_PERMANENTLY);
         }
         return switch (recTypeCode) {
-            case REC_TYPE_BOOLEAN, REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT, REC_TYPE_INTEGER, REC_TYPE_DATE, REC_TYPE_REAL, REC_TYPE_SMALLINT, REC_TYPE_TINYINT, REC_TYPE_DOUBLE, REC_TYPE_DECIMAL_LONG, REC_TYPE_CHAR, REC_TYPE_VARCHAR ->
-                    new LuceneBlockAppender(juffersWE, luceneIndexerOpt.get());
-            case REC_TYPE_ARRAY_INT, REC_TYPE_ARRAY_BIGINT, REC_TYPE_ARRAY_VARCHAR, REC_TYPE_ARRAY_BOOLEAN, REC_TYPE_ARRAY_DOUBLE, REC_TYPE_ARRAY_CHAR ->
-                    new LuceneArrayBlockAppender(juffersWE, luceneIndexerOpt.get());
+            case REC_TYPE_BOOLEAN, REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT, REC_TYPE_INTEGER, REC_TYPE_DATE, REC_TYPE_REAL, REC_TYPE_SMALLINT, REC_TYPE_TINYINT, REC_TYPE_DOUBLE, REC_TYPE_DECIMAL_LONG, REC_TYPE_CHAR, REC_TYPE_VARCHAR -> new LuceneBlockAppender(juffersWE, luceneIndexerOpt.get());
+            case REC_TYPE_ARRAY_INT, REC_TYPE_ARRAY_BIGINT, REC_TYPE_ARRAY_VARCHAR, REC_TYPE_ARRAY_BOOLEAN, REC_TYPE_ARRAY_DOUBLE, REC_TYPE_ARRAY_CHAR -> new LuceneArrayBlockAppender(juffersWE, luceneIndexerOpt.get());
             default -> throw new RuntimeException("unknown rec type code " + recTypeCode);
         };
     }
 
-    private BlockAppender createBasicAppender(WarmUpElement warmUpElement,
+    private BlockAppender createBasicAppender(
+            WarmUpElement warmUpElement,
             Type type,
             WriteJuffersWarmUpElement juffersWE)
     {
@@ -111,15 +114,15 @@ public class BlockAppenderFactory
             TransformFunction transformFunction = transformedColumn.getTransformFunction();
 
             if (Objects.equals(transformFunction, TransformFunction.LOWER) && warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR) {
-                Function<Slice, Slice> transformedLowerFunction = (slice) -> Slices.utf8Slice(slice.toStringUtf8().toLowerCase(Locale.ROOT));
+                Function<Slice, Slice> transformedLowerFunction = slice -> Slices.utf8Slice(slice.toStringUtf8().toLowerCase(Locale.ROOT));
                 res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, transformedLowerFunction);
             }
             else if (Objects.equals(transformFunction, TransformFunction.UPPER) && warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR) {
-                Function<Slice, Slice> transformedUpperFunction = (slice) -> Slices.utf8Slice(slice.toStringUtf8().toUpperCase(Locale.ROOT));
+                Function<Slice, Slice> transformedUpperFunction = slice -> Slices.utf8Slice(slice.toStringUtf8().toUpperCase(Locale.ROOT));
                 res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, transformedUpperFunction);
             }
             else if (Objects.equals(transformFunction, TransformFunction.DATE) && TypeUtils.isVarcharType(type)) {
-                Function<BlockPosHolder, Integer> transformedDateFunction = (blockPosHolder) -> {
+                Function<BlockPosHolder, Integer> transformedDateFunction = blockPosHolder -> {
                     String val = blockPosHolder.getSlice().toStringUtf8();
                     return DateTimeUtils.parseDate(val);
                 };
@@ -134,7 +137,8 @@ public class BlockAppenderFactory
                     JsonPath jsonPath = new JsonPath(pattern);
                     return JsonExtract.extract(slice, jsonPath.getScalarExtractor());
                 };
-                res = new TransformedCrcBiFunctionAppender(juffersWE,
+                res = new TransformedCrcBiFunctionAppender(
+                        juffersWE,
                         storageEngineConstants,
                         bufferAllocator,
                         type,

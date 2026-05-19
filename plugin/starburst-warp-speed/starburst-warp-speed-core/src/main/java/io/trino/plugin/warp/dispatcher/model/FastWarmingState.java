@@ -18,7 +18,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record FastWarmingState(
         @JsonProperty("state") FastWarmingState.State state,
-        @JsonProperty("temporary_failure_count") int temporaryFailureCount, @JsonProperty("last_temporary_failure") long lastTemporaryFailure)
+        @JsonProperty("temporary_failure_count") int temporaryFailureCount,
+        @JsonProperty("last_temporary_failure") long lastTemporaryFailure)
 {
     public static final FastWarmingState NOT_EXPORTED = new FastWarmingState(State.NOT_EXPORTED, 0, 0);
     public static final FastWarmingState EXPORTED = new FastWarmingState(State.EXPORTED, 0, 0);
@@ -32,6 +33,6 @@ public record FastWarmingState(
         NOT_EXPORTED,
         EXPORTED, // nothing to export
         FAILED_PERMANENTLY,
-        FAILED_TEMPORARILY
+        FAILED_TEMPORARILY,
     }
 }

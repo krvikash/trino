@@ -47,8 +47,7 @@ public class SnowflakeParallelConnector
             StarburstResultStreamProvider streamProvider,
             JdbcClient jdbcClient)
     {
-        super(
-                lifeCycleManager,
+        super(lifeCycleManager,
                 jdbcSplitManager,
                 jdbcPageSourceProvider,
                 jdbcPageSinkProvider,

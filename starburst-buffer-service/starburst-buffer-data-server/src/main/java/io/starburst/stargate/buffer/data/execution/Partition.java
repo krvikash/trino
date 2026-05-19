@@ -197,7 +197,8 @@ public class Partition
             if (spooledChunk.isPresent()) {
                 return new SpooledChunkResult(spooledChunk.get());
             }
-            throw new DataServerException(CHUNK_NOT_FOUND,
+            throw new DataServerException(
+                    CHUNK_NOT_FOUND,
                     "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
         return new ChunkContentResult(chunkDataLease);
@@ -351,7 +352,8 @@ public class Partition
             int taskId,
             int attemptId)
     {
-        public TaskAttemptId {
+        public TaskAttemptId
+        {
             validateTaskId(taskId);
             validateAttemptId(attemptId);
         }

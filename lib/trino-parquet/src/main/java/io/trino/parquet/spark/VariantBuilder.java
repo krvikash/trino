@@ -72,7 +72,7 @@ public class VariantBuilder
      * Parse a JSON string as a Variant value.
      *
      * @throws VariantSizeLimitException if the resulting variant value or metadata would exceed
-     * the SIZE_LIMIT (for example, this could be a maximum of 16 MiB).
+     *         the SIZE_LIMIT (for example, this could be a maximum of 16 MiB).
      * @throws IOException if any JSON parsing error happens.
      */
     public static Variant parseJson(String json)

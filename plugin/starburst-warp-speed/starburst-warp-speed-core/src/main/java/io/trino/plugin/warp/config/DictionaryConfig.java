@@ -37,6 +37,7 @@ public class DictionaryConfig
     //     In case the general rule is Enable, the exceptional list will contain Disabled record types
     //     In case the general rule is Disable, the exceptional list will contain Enabled record types
     // With this approach field engineers can very easily disable/enable fully or partially any supported feature
+
     ///////////////////////////////////////////////////////////////////////////////////
     private boolean enableDictionary = true;
     private Set<RecTypeCode> exceptionalListDictionary;

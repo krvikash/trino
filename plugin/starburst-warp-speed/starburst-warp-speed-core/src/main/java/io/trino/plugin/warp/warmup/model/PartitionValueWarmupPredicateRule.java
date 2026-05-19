@@ -31,7 +31,8 @@ public class PartitionValueWarmupPredicateRule
     private final String value;
 
     @JsonCreator
-    public PartitionValueWarmupPredicateRule(@JsonProperty(COLUMN_ID) String columnId,
+    public PartitionValueWarmupPredicateRule(
+            @JsonProperty(COLUMN_ID) String columnId,
             @JsonProperty(VALUE) String value)
     {
         super(columnId);

@@ -48,7 +48,8 @@ public class TestingConnectorProxiedConnectorTransformer
     }
 
     @Override
-    public DispatcherSplit createDispatcherSplit(ConnectorSplit proxyConnectorSplit,
+    public DispatcherSplit createDispatcherSplit(
+            ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
             ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session)
@@ -62,7 +63,8 @@ public class TestingConnectorProxiedConnectorTransformer
                     connectorSplitNodeDistributor);
         }
 
-        return new DispatcherSplit(dispatcherSplit.getSchemaName(),
+        return new DispatcherSplit(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -97,7 +99,8 @@ public class TestingConnectorProxiedConnectorTransformer
     public SchemaTableName getSchemaTableName(ConnectorTableHandle connectorTableHandle)
     {
         TestingConnectorTableHandle tableHandle = (TestingConnectorTableHandle) connectorTableHandle;
-        return new SchemaTableName(tableHandle.getSchemaName(),
+        return new SchemaTableName(
+                tableHandle.getSchemaName(),
                 tableHandle.getTableName());
     }
 

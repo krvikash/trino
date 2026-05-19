@@ -75,11 +75,13 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     @Test
     public void testNextFieldCursorFetchesAllData()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_cursor(per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -92,12 +94,14 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     @Test
     public void testNextFieldCursorRespectsLimit()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_cursor(per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 LIMIT 4
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -110,7 +114,8 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     public void testExplicitCursorParameterDisablesPagination()
     {
         assertThat(query("SELECT * FROM TABLE(openapi.default.items_cursor(cursor => 'cursor-2', per_page => 3))"))
-                .matches("""
+                .matches(
+                        """
                         VALUES (
                             ARRAY[
                                 CAST(ROW(BIGINT '2', CAST('item-2' AS VARCHAR)) AS row("id" bigint, "name" varchar)),
@@ -128,7 +133,8 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
         // The /items/all endpoint has no cursor/limit parameters in the spec — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),

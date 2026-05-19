@@ -66,9 +66,15 @@ public class TestOracleParallelQueries
             insertIntoTable(tableName,
                     "a, b, c",
                     ImmutableList.of(
-                            1, 2, 3,
-                            4, 5, 6,
-                            7, 6, 8));
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            6,
+                            8));
 
             verifyTableSplitCount(tableName, "b", "GPhxvpcxVrk=", NO_PARALLELISM, Optional.empty(), 1);
             verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.empty(), 4);
@@ -84,9 +90,15 @@ public class TestOracleParallelQueries
             insertIntoTable(tableName,
                     "a, b, c",
                     ImmutableList.of(
-                            1, 2, 3,
-                            4, 5, 6,
-                            7, 6, 8));
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            6,
+                            8));
 
             verifyTableSplitCount(tableName, "b", "GPhxvpcxVrk=", NO_PARALLELISM, Optional.empty(), 1);
             verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", PARTITIONS, Optional.of(2), 2);
@@ -100,7 +112,8 @@ public class TestOracleParallelQueries
     {
         String tableName = randomTableName("partitioned_big");
         try (AutoCloseable ignore = createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 100)) {
-            insertIntoTable(tableName,
+            insertIntoTable(
+                    tableName,
                     "a, b, c",
                     IntStream.range(0, 99999).boxed().collect(toImmutableList()));
 

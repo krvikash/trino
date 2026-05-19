@@ -407,8 +407,7 @@ public class ExchangeMerger
                 .collect(toImmutableList());
     }
 
-    private record GroupAndBranch(int hangingGroupId, int branch)
-    {}
+    private record GroupAndBranch(int hangingGroupId, int branch) {}
 
     private static TraversalState getBranch(GroupAndBranch groupAndBranch, UnifiedStates newGroup, Map<Integer, MultiGroupMerger.HangingGroup> hangingGroups)
     {

@@ -27,7 +27,8 @@ public record DictionaryKey(
 {
     public static final int CREATED_TIMESTAMP_UNKNOWN = -1;
 
-    @Serial private static final long serialVersionUID = 4226795133991077154L;
+    @Serial
+    private static final long serialVersionUID = 4226795133991077154L;
 
     @JsonCreator
     public DictionaryKey(

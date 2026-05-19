@@ -182,8 +182,7 @@ public class TestDeltaLakeCacheIds
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(
                 createMetadataEntry("id", schema),
                 ImmutableSet.of(partitionColumn),
-                true))
-        ).isEqualTo(Optional.empty());
+                true))).isEqualTo(Optional.empty());
 
         // `managed` shouldn't be part of table id
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle("schema", "table", false, "location", 0)))
@@ -201,8 +200,7 @@ public class TestDeltaLakeCacheIds
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(
                 createMetadataEntry("id1", schema),
                 ImmutableSet.of(),
-                false))
-        ).isNotEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id2", schema), ImmutableSet.of(), false)));
+                false))).isNotEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id2", schema), ImmutableSet.of(), false)));
 
         // projectedColumns shouldn't be part of table id
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(partitionColumn), false)))

@@ -158,7 +158,8 @@ public class DispatcherTableHandleBuilderProvider
 
         public DispatcherTableHandle build()
         {
-            return new DispatcherTableHandle(schemaName,
+            return new DispatcherTableHandle(
+                    schemaName,
                     tableName,
                     limit,
                     fullPredicate,

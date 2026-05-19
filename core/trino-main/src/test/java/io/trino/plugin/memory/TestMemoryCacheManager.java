@@ -197,7 +197,9 @@ public class TestMemoryCacheManager
 
         // entire tuple domain must much
         assertThat(cache.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all())).isEmpty();
-        assertThat(cache.loadPages(SPLIT1, TupleDomain.withColumnDomains(ImmutableMap.of(
+        assertThat(cache.loadPages(
+                SPLIT1,
+                TupleDomain.withColumnDomains(ImmutableMap.of(
                         COLUMN1, domain,
                         COLUMN2, Domain.singleValue(INTEGER, 43L))),
                 TupleDomain.all())).isEmpty();

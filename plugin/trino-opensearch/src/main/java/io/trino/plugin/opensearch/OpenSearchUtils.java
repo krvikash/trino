@@ -23,9 +23,7 @@ public final class OpenSearchUtils
 {
     public static final Logger LOG = Logger.get(OpenSearchUtils.class);
 
-    private OpenSearchUtils()
-    {
-    }
+    private OpenSearchUtils() {}
 
     public static boolean isScrollable(ObjectMapper objectMapper, String query)
     {

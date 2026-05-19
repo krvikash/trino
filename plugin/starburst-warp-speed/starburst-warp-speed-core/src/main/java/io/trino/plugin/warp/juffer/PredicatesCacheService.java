@@ -84,11 +84,12 @@ public class PredicatesCacheService
         IN_USE,
         CACHE_HIT,
         CACHE_MISS,
-        CACHE_MAX
+        CACHE_MAX,
     }
 
     @Inject
-    public PredicatesCacheService(BufferAllocator bufferAllocator,
+    public PredicatesCacheService(
+            BufferAllocator bufferAllocator,
             StorageEngineConstants storageEngineConstants,
             MetricsManager metricsManager,
             DomainToMapBlockConvertor domainToMapBlockConvertor,
@@ -147,7 +148,8 @@ public class PredicatesCacheService
             return false;
         }
 
-        return PredicateUtil.canMapMatchCollect(domain.getType(),
+        return PredicateUtil.canMapMatchCollect(
+                domain.getType(),
                 predicateData.getPredicateInfo().predicateType(),
                 predicateData.getPredicateInfo().functionType(),
                 domain.getValues().getRanges().getRangeCount());
@@ -401,7 +403,8 @@ public class PredicatesCacheService
         }
     }
 
-    private Optional<PredicateCacheData> createPredicate(PredicateData predicateData,
+    private Optional<PredicateCacheData> createPredicate(
+            PredicateData predicateData,
             Domain domain,
             PredicateBufferPoolType predicateBufferPoolType)
     {
@@ -414,8 +417,10 @@ public class PredicatesCacheService
                 // free cache if needed
                 if (predicateCachePool.get(predicateBufferPoolType).size() == bufferAllocator.getPoolSize(predicateBufferPoolType)) {
                     if (!freeCache(predicateCachePool.get(predicateBufferPoolType), predicateBufferPoolType)) {
-                        shapingLogger.warn("predicate cache for %s is full and could not be freed. maxSize=%d.",
-                                predicateBufferPoolType, bufferAllocator.getPoolSize(predicateBufferPoolType));
+                        shapingLogger.warn(
+                                "predicate cache for %s is full and could not be freed. maxSize=%d.",
+                                predicateBufferPoolType,
+                                bufferAllocator.getPoolSize(predicateBufferPoolType));
                         return Optional.empty();
                     }
                 }
@@ -425,7 +430,8 @@ public class PredicatesCacheService
                     predicateCacheData = predicateCacheDataOpt.get();
                     // put in cache
                     predicateCachePool.get(predicateBufferPoolType).put(predicateData.getPredicateHashCode(), predicateCacheData);
-                    logger.debug("create new %s, key=%d, cacheSize=%d",
+                    logger.debug(
+                            "create new %s, key=%d, cacheSize=%d",
                             predicateCacheData,
                             predicateData.getPredicateHashCode(),
                             predicateCachePool.get(predicateBufferPoolType).size());

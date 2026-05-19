@@ -41,7 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestOpenApiParseOptions
 {
     // Like in this example ... https://docs.starburst.io/latest/security/password-file.html
-    private static final String SECRET_JSON = """
+    private static final String SECRET_JSON =
+            """
             { "my_super_secret": "access_key" }""";
     private static LifeCycleManager lifeCycleManager;
     private static String exfiltrationSpecificationLocation;

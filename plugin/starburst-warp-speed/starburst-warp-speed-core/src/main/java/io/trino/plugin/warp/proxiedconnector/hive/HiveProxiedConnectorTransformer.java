@@ -67,7 +67,8 @@ public class HiveProxiedConnectorTransformer
     public ConnectorTableHandle createProxyTableHandleForWarming(DispatcherTableHandle dispatcherTableHandle)
     {
         HiveTableHandle hiveTableHandle = (HiveTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle();
-        return new HiveTableHandle(hiveTableHandle.getSchemaName(),
+        return new HiveTableHandle(
+                hiveTableHandle.getSchemaName(),
                 hiveTableHandle.getTableName(),
                 hiveTableHandle.getTableParameters(),
                 hiveTableHandle.getPartitionColumns(),
@@ -121,7 +122,8 @@ public class HiveProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         HiveSplit originalSplit = (HiveSplit) connectorSplit;
-        return new HiveSplit(originalSplit.getPartitionName(),
+        return new HiveSplit(
+                originalSplit.getPartitionName(),
                 originalSplit.getPath(),
                 originalSplit.getStart(),
                 originalSplit.getLength(),
@@ -190,7 +192,8 @@ public class HiveProxiedConnectorTransformer
             partitionKeys.add(new PartitionKey(new RegularColumn(hivePartitionKey.name()), hivePartitionKey.value()));
         }
 
-        return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
+        return new DispatcherSplit(
+                dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
                 hiveSplit.getPath(),
                 hiveSplit.getStart(),
@@ -209,7 +212,8 @@ public class HiveProxiedConnectorTransformer
     }
 
     @Override
-    public Optional<ConnectorBucketNodeMap> getBucketNodeMapping(ConnectorTransactionHandle transactionHandle,
+    public Optional<ConnectorBucketNodeMap> getBucketNodeMapping(
+            ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorPartitioningHandle partitioningHandle,
             ConnectorNodePartitioningProvider nodePartitionProvider,

@@ -16,5 +16,5 @@ package io.trino.plugin.warp.metrics;
 public enum WarpStatType
 {
     Coordinator,
-    Worker
+    Worker,
 }

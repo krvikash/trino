@@ -24,6 +24,4 @@ public record TestCacheFormat(
         boolean default_warming,
         String warm_query,
         int expected_row_group,
-        int expected_warmup_elements)
-{
-}
+        int expected_warmup_elements) {}

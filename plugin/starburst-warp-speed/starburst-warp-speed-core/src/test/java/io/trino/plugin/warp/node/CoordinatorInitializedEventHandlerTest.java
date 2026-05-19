@@ -29,7 +29,8 @@ public class CoordinatorInitializedEventHandlerTest
         CoordinatorInitializedEvent event = new CoordinatorInitializedEvent(mock(Node.class));
 
         GlobalConfig globalConfig = new GlobalConfig();
-        CoordinatorInitializedEventHandler handler = new CoordinatorInitializedEventHandler(mock(EventBus.class),
+        CoordinatorInitializedEventHandler handler = new CoordinatorInitializedEventHandler(
+                mock(EventBus.class),
                 globalConfig);
 
         handler.handleEvent(event);

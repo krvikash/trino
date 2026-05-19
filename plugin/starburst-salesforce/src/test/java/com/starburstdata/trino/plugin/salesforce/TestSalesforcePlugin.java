@@ -25,14 +25,14 @@ public class TestSalesforcePlugin
         Plugin plugin = new TestingSalesforcePlugin(false);
         ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
         factory.create(
-                "test",
-                ImmutableMap.<String, String>builder()
-                        .put("salesforce.user", "user")
-                        .put("salesforce.password", "password")
-                        .put("salesforce.security-token", "token")
-                        .put("salesforce.enable-sandbox", "true")
-                        .buildOrThrow(),
-                new TestingConnectorContext())
+                        "test",
+                        ImmutableMap.<String, String>builder()
+                                .put("salesforce.user", "user")
+                                .put("salesforce.password", "password")
+                                .put("salesforce.security-token", "token")
+                                .put("salesforce.enable-sandbox", "true")
+                                .buildOrThrow(),
+                        new TestingConnectorContext())
                 .shutdown();
     }
 }

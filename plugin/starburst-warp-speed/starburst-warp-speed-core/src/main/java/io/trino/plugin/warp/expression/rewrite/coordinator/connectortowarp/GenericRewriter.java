@@ -49,7 +49,8 @@ class GenericRewriter
     private final boolean allowCompositeExpression;
     private final PushdownPredicatesStats pushdownPredicatesStats;
 
-    GenericRewriter(Map<String, Set<String>> typeClasses,
+    GenericRewriter(
+            Map<String, Set<String>> typeClasses,
             String expressionPattern,
             boolean allowCompositeExpression,
             PushdownPredicatesStats pushdownPredicatesStats)
@@ -73,13 +74,13 @@ class GenericRewriter
         if (call.getArguments().size() == 2 &&
                 isArrayType(call.getArguments().get(0)) &&
                 isArrayType(call.getArguments().get(1))) {
-            //handle case of arrayColumn = ARRAY['a', 'b'], currently not supported. see SIC-1645
+            // handle case of arrayColumn = ARRAY['a', 'b'], currently not supported. see SIC-1645
             return Optional.empty();
         }
         if (call.getArguments().size() == 2 &&
                 call.getArguments().get(0) instanceof Variable &&
                 call.getArguments().get(1) instanceof Call) {
-            //Call must contain Variable, and we don't support 2 Variables in a single predicate
+            // Call must contain Variable, and we don't support 2 Variables in a single predicate
             return Optional.empty();
         }
         MatchContext matchContext = new MatchContext();

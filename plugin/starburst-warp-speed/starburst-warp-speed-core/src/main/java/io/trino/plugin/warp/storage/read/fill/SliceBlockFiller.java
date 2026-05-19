@@ -63,13 +63,14 @@ public abstract class SliceBlockFiller
         byte[] valuesByteArray = allocateValuesByteArray(1, recLength);
         Slice outputSlice = Slices.wrappedBuffer(valuesByteArray);
 
-        int actualSize = copyFromJufferOneRecord(recordBuff,
-                                lenBuff,
-                                currPos,
-                                recLength,
-                                0,
-                                outputSlice,
-                                0);
+        int actualSize = copyFromJufferOneRecord(
+                recordBuff,
+                lenBuff,
+                currPos,
+                recLength,
+                0,
+                outputSlice,
+                0);
         outputSlice = outputSlice.slice(0, actualSize);
         return outputSlice;
     }
@@ -107,7 +108,8 @@ public abstract class SliceBlockFiller
     }
 
     @Override
-    protected Block fillRawBlock(ReadJuffersWarmUpElement juffersWE,
+    protected Block fillRawBlock(
+            ReadJuffersWarmUpElement juffersWE,
             RecTypeCode recTypeCode,
             int recLength,
             int rowsToFill,
@@ -136,13 +138,14 @@ public abstract class SliceBlockFiller
                     offsets[currRow + 1] = offsets[currRow];
                 }
                 else {
-                    int size = copyFromJufferOneRecord(recordBuff,
-                                                       lenBuff,
-                                                       currRow,
-                                                       recLength,
-                                                       jufferOffset,
-                                                       outputSlice,
-                                                       offsets[currRow]);
+                    int size = copyFromJufferOneRecord(
+                            recordBuff,
+                            lenBuff,
+                            currRow,
+                            recLength,
+                            jufferOffset,
+                            outputSlice,
+                            offsets[currRow]);
                     jufferOffset += size;
                     offsets[currRow + 1] = offsets[currRow] + size;
                 }
@@ -150,18 +153,20 @@ public abstract class SliceBlockFiller
             valueIsNullOptional = Optional.of(valueIsNull);
         }
         else {
-            copyFromJufferMultipleRecords(recordBuff,
-                                          lenBuff,
-                                          recLength,
-                                          rowsToFill,
-                                          outputSlice,
-                                          offsets);
+            copyFromJufferMultipleRecords(
+                    recordBuff,
+                    lenBuff,
+                    recLength,
+                    rowsToFill,
+                    outputSlice,
+                    offsets);
             valueIsNullOptional = Optional.empty();
         }
         return new VariableWidthBlock(rowsToFill, outputSlice, offsets, valueIsNullOptional);
     }
 
-    protected abstract int copyFromJufferOneRecord(ByteBuffer recordBuff,
+    protected abstract int copyFromJufferOneRecord(
+            ByteBuffer recordBuff,
             ShortBuffer lenBuff,
             int currPos,
             int recLength,
@@ -170,7 +175,8 @@ public abstract class SliceBlockFiller
             int outputSliceOffset)
             throws IOException;
 
-    protected abstract void copyFromJufferMultipleRecords(ByteBuffer recordBuff,
+    protected abstract void copyFromJufferMultipleRecords(
+            ByteBuffer recordBuff,
             ShortBuffer lenBuff,
             int recLength,
             int numRecords,
@@ -179,7 +185,8 @@ public abstract class SliceBlockFiller
             throws IOException;
 
     @Override
-    public Block fillRawBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,
+    public Block fillRawBlockWithDictionary(
+            ReadJuffersWarmUpElement juffersWE,
             int rowsToFill,
             RecTypeCode recTypeCode,
             int recTypeLength,
@@ -241,7 +248,8 @@ public abstract class SliceBlockFiller
         return resultBlock;
     }
 
-    protected abstract void copyFromDictionary(ShortBuffer buff,
+    protected abstract void copyFromDictionary(
+            ShortBuffer buff,
             ReadDictionary readDictionary,
             int currPos,
             Slice outputSlice,
@@ -289,8 +297,13 @@ public abstract class SliceBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill, Block mapBlock,
-            RecTypeCode recTypeCode, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(
+            ReadJuffersWarmUpElement juffersWE,
+            int mapKey,
+            int rowsToFill,
+            Block mapBlock,
+            RecTypeCode recTypeCode,
+            boolean collectNulls)
     {
         Slice singleVal = ((VariableWidthBlock) mapBlock).getSlice(mapKey);
         Block retBlock;

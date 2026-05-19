@@ -71,7 +71,8 @@ public class LocalPriorityPartitionNodeMapper
     @Override
     public ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId, Optional<Node> taskNode)
     {
-        return Futures.transform(getBufferNodeStateWithActiveNodes(),
+        return Futures.transform(
+                getBufferNodeStateWithActiveNodes(),
                 nodes -> {
                     Optional<BufferNodeInfo> localBufferNode = findLocalBufferNode(nodes.getActiveBufferNodes().values(), taskNode);
                     if (localBufferNode.isEmpty()) {

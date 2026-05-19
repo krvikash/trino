@@ -108,7 +108,8 @@ public class SqlServerSplitManager
         try (Handle handle = Jdbi.open(() -> connectionFactory.openConnection(session))) {
             RemoteTableName remoteTableName = tableHandle.getRequiredNamedRelation().getRemoteTableName();
 
-            return handle.createQuery("""
+            return handle.createQuery(
+                            """
                             SELECT TOP 1
                                sys_columns.name AS column_name,
                                sys_functions.name AS function_name,
@@ -133,7 +134,7 @@ public class SqlServerSplitManager
                     // sys_index_columns.partition_ordinal >= 1 is a partitioning column?
                     // Ordinal within set of partitioning columns.
                     .bind("name", remoteTableName.getTableName())
-                    .map((rs, ctx) -> PartitionSplitBuilder.builder()
+                    .map((rs, _) -> PartitionSplitBuilder.builder()
                             .withColumnName(rs.getString("column_name"))
                             .withFunctionName(rs.getString("function_name"))
                             .withPartitionFanout(rs.getInt("partition_fanout"))
@@ -154,8 +155,7 @@ public class SqlServerSplitManager
         final int maxAttemptCount = 3;
         RetryPolicy<List<JdbcSplit>> retryPolicy = RetryPolicy.<List<JdbcSplit>>builder()
                 .withMaxAttempts(maxAttemptCount)
-                .handleIf(throwable ->
-                {
+                .handleIf(throwable -> {
                     final int deadlockErrorCode = 1205;
                     Throwable rootCause = Throwables.getRootCause(throwable);
                     return rootCause instanceof SQLServerException sqlServerException &&

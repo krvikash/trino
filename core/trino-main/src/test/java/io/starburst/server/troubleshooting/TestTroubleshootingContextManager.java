@@ -207,7 +207,8 @@ public class TestTroubleshootingContextManager
         @Override
         public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
         {
-            return ImmutableMap.of("happy", toInputStream("path"),
+            return ImmutableMap.of(
+                    "happy", toInputStream("path"),
                     "throwWhileReading.txt", new InputStream()
                     {
                         @Override

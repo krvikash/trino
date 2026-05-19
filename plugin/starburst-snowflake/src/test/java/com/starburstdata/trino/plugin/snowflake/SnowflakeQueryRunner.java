@@ -260,9 +260,7 @@ public class SnowflakeQueryRunner
         }
     }
 
-    protected SnowflakeQueryRunner()
-    {
-    }
+    protected SnowflakeQueryRunner() {}
 
     static void main()
             throws Exception

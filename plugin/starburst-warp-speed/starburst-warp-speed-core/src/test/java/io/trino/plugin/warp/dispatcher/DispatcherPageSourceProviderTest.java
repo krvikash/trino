@@ -133,18 +133,21 @@ public class DispatcherPageSourceProviderTest
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         when(dispatcherProxiedConnectorTransformer.isValidForAcceleration(any())).thenReturn(true);
 
-        columnHandles = mockColumns(dispatcherProxiedConnectorTransformer,
+        columnHandles = mockColumns(
+                dispatcherProxiedConnectorTransformer,
                 List.of(Pair.of("C1", VarcharType.VARCHAR)));
         Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = WarmupTestDataUtil.mockConnectorSplit();
         dispatcherSplit = dispatcherSplitRowGroupKeyPair.getLeft();
         rowGroupKey = dispatcherSplitRowGroupKeyPair.getRight();
-        rowGroupDataService = spy(new RowGroupDataService(mock(RowGroupDataDao.class),
+        rowGroupDataService = spy(new RowGroupDataService(
+                mock(RowGroupDataDao.class),
                 storageEngine,
                 globalConfig,
                 metricsManager,
                 mockNodeManager(),
                 new CatalogNameProvider("catalog-name")));
-        rowGroupKey = rowGroupDataService.createRowGroupKey(dispatcherSplit.getSchemaName(),
+        rowGroupKey = rowGroupDataService.createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -177,7 +180,8 @@ public class DispatcherPageSourceProviderTest
         when(queryClassifier.getBasicQueryContext(anyList(), eq(dispatcherTableHandle), any(DynamicFilter.class), any(ConnectorSession.class)))
                 .thenReturn(queryContext);
 
-        when(proxiedPageSourceProvider.createPageSource(eq(connectorTransactionHandle),
+        when(proxiedPageSourceProvider.createPageSource(
+                eq(connectorTransactionHandle),
                 eq(connectorSession),
                 any(ConnectorSplit.class),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
@@ -188,7 +192,8 @@ public class DispatcherPageSourceProviderTest
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
 
-        try (ConnectorPageSource wrapperPageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
+        try (ConnectorPageSource wrapperPageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
@@ -207,7 +212,8 @@ public class DispatcherPageSourceProviderTest
 
         mockQueryClassifier(true, false, false);
 
-        when(proxiedPageSourceProvider.createPageSource(eq(connectorTransactionHandle),
+        when(proxiedPageSourceProvider.createPageSource(
+                eq(connectorTransactionHandle),
                 eq(connectorSession),
                 any(ConnectorSplit.class),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
@@ -241,7 +247,8 @@ public class DispatcherPageSourceProviderTest
         when(queryClassifier.getBasicQueryContext(anyList(), eq(dispatcherTableHandle), any(DynamicFilter.class), any(ConnectorSession.class)))
                 .thenReturn(queryContext);
 
-        when(proxiedPageSourceProvider.createPageSource(eq(connectorTransactionHandle),
+        when(proxiedPageSourceProvider.createPageSource(
+                eq(connectorTransactionHandle),
                 eq(connectorSession),
                 any(ConnectorSplit.class),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
@@ -272,7 +279,7 @@ public class DispatcherPageSourceProviderTest
             throws IOException
     {
         List<String> columnsStr = List.of("C0");
-        List<Pair<String, Type>> columnsMetadata = columnsStr.stream().map((colName) -> Pair.of(colName, (Type) IntegerType.INTEGER)).collect(Collectors.toList());
+        List<Pair<String, Type>> columnsMetadata = columnsStr.stream().map(colName -> Pair.of(colName, (Type) IntegerType.INTEGER)).collect(Collectors.toList());
 
         List<ColumnHandle> allColumns = mockColumns(dispatcherProxiedConnectorTransformer, columnsMetadata);
 
@@ -307,7 +314,8 @@ public class DispatcherPageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
         when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
 
-        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
@@ -329,7 +337,8 @@ public class DispatcherPageSourceProviderTest
         TupleDomain<ColumnHandle> proxiedPredicate = TupleDomain.withColumnDomains(Map.of(columnHandle, Domain.singleValue(columnType, 3L)));
         TupleDomain<ColumnHandle> predicate = proxiedPredicate.transformKeys(ColumnHandle.class::cast);
 
-        dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName.getSchemaName(),
+        dispatcherTableHandle = mockDispatcherTableHandle(
+                schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 predicate);
         dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
@@ -341,7 +350,8 @@ public class DispatcherPageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
         when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
 
-        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
@@ -357,18 +367,20 @@ public class DispatcherPageSourceProviderTest
     @Test
     public void testReadFlow_FileExist_mixedWithoutPredicate()
     {
-        List<Pair<String, Type>> columnsMetadata = List.of(Pair.of("c1", VarcharType.VARCHAR),
+        List<Pair<String, Type>> columnsMetadata = List.of(
+                Pair.of("c1", VarcharType.VARCHAR),
                 Pair.of("c2", IntegerType.INTEGER));
         Type columnType = columnsMetadata.getFirst().getRight();
         List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, columnsMetadata);
 
         ColumnHandle connectorColumnHandle = columns.getFirst();
         TupleDomain<ColumnHandle> proxiedPredicate = TupleDomain.withColumnDomains(
-                Map.of(connectorColumnHandle,
-                        Domain.singleValue(columnType, Slices.wrappedBuffer("value".getBytes(Charset.defaultCharset())))));
+                Map.of(
+                        connectorColumnHandle, Domain.singleValue(columnType, Slices.wrappedBuffer("value".getBytes(Charset.defaultCharset())))));
         TupleDomain<ColumnHandle> predicate = proxiedPredicate.transformKeys(ColumnHandle.class::cast);
 
-        dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName.getSchemaName(),
+        dispatcherTableHandle = mockDispatcherTableHandle(
+                schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 predicate);
         dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
@@ -379,7 +391,8 @@ public class DispatcherPageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
         when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
 
-        when(proxiedPageSourceProvider.createPageSource(eq(connectorTransactionHandle),
+        when(proxiedPageSourceProvider.createPageSource(
+                eq(connectorTransactionHandle),
                 eq(connectorSession),
                 any(DispatcherSplit.class),
                 isA(TestingMetadata.TestingTableHandle.class),
@@ -388,7 +401,8 @@ public class DispatcherPageSourceProviderTest
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
-        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
@@ -414,7 +428,8 @@ public class DispatcherPageSourceProviderTest
 
         mockQueryClassifier(false, false, false);
 
-        when(proxiedPageSourceProvider.createPageSource(eq(connectorTransactionHandle),
+        when(proxiedPageSourceProvider.createPageSource(
+                eq(connectorTransactionHandle),
                 eq(connectorSession),
                 eq(dispatcherSplit.getProxyConnectorSplit()),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
@@ -423,7 +438,8 @@ public class DispatcherPageSourceProviderTest
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
-        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
@@ -454,7 +470,8 @@ public class DispatcherPageSourceProviderTest
 
         mockQueryClassifier(false, false, false);
 
-        when(proxiedPageSourceProvider.createPageSource(eq(connectorTransactionHandle),
+        when(proxiedPageSourceProvider.createPageSource(
+                eq(connectorTransactionHandle),
                 eq(connectorSession),
                 eq(dispatcherSplit.getProxyConnectorSplit()),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
@@ -463,7 +480,8 @@ public class DispatcherPageSourceProviderTest
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
-        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
@@ -506,7 +524,8 @@ public class DispatcherPageSourceProviderTest
                 nativeStorageStateHandler,
                 new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig()));
 
-        return new DispatcherPageSourceProvider(connectorPageSourceProviderFactory,
+        return new DispatcherPageSourceProvider(
+                connectorPageSourceProviderFactory,
                 pageSourceFactory,
                 txService,
                 metricsManager,
@@ -517,7 +536,8 @@ public class DispatcherPageSourceProviderTest
     {
         QueryContext basicQueryContext = mock(QueryContext.class);
         when(basicQueryContext.getPredicateContextData()).thenReturn(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE));
-        when(queryClassifier.getBasicQueryContext(anyList(),
+        when(queryClassifier.getBasicQueryContext(
+                anyList(),
                 eq(dispatcherTableHandle),
                 any(DynamicFilter.class),
                 any(ConnectorSession.class)))
@@ -532,7 +552,8 @@ public class DispatcherPageSourceProviderTest
         when(queryContext.isProxyOnly()).thenReturn(isProxyOnly);
         when(queryContext.isWarpOnly()).thenReturn(isWarpOnly);
         when(queryContext.isPrefilledOnly()).thenReturn(isPrefilledOnly);
-        when(queryClassifier.classify(eq(basicQueryContext),
+        when(queryClassifier.classify(
+                eq(basicQueryContext),
                 any(),
                 eq(dispatcherTableHandle),
                 eq(Optional.of(connectorSession))))

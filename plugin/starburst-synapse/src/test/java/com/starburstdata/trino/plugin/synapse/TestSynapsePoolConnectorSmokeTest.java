@@ -38,16 +38,16 @@ public final class TestSynapsePoolConnectorSmokeTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY,
-                    SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY -> false;
+                 SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY -> false;
             case SUPPORTS_JOIN_PUSHDOWN -> true;
             case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM -> false;
             case SUPPORTS_COMMENT_ON_TABLE,
-                    SUPPORTS_COMMENT_ON_COLUMN -> false;
+                 SUPPORTS_COMMENT_ON_COLUMN -> false;
             case SUPPORTS_RENAME_SCHEMA -> false;
             case SUPPORTS_ARRAY -> false;
             case SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS -> false;
             case SUPPORTS_MERGE,
-                    SUPPORTS_ROW_LEVEL_UPDATE -> false;
+                 SUPPORTS_ROW_LEVEL_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }

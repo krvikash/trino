@@ -24,9 +24,7 @@ public class InternalTestingSplitSource
         implements ConnectorSplitSource
 {
     @Override
-    public void close()
-    {
-    }
+    public void close() {}
 
     @Override
     public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)

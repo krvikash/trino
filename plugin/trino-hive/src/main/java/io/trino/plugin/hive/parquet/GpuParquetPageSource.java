@@ -138,9 +138,8 @@ public class GpuParquetPageSource
                 ColumnMapping mapping = columnMappings.get(i);
 
                 columns[i] = switch (mapping.getKind()) {
-                    case REGULAR ->
-                        // This should never happen since gpuColumns is empty
-                            throw new IllegalStateException("Found REGULAR column when gpuColumns is empty");
+                    // This should never happen since gpuColumns is empty
+                    case REGULAR -> throw new IllegalStateException("Found REGULAR column when gpuColumns is empty");
 
                     case PREFILLED -> {
                         // Partition key or other prefilled value: create RLE block
@@ -259,16 +258,22 @@ public class GpuParquetPageSource
             BaseDeviceMemoryBuffer dataBuffer = cudfColumn.getData();
             long childRowCount = dataBuffer == null ? 0 : dataBuffer.getLength();
             try (ColumnView childView = new ColumnView(DType.UINT8, childRowCount, Optional.of(0L), dataBuffer, null);
-                    ColumnView listView = new ColumnView(DType.LIST, cudfColumn.getRowCount(),
+                    ColumnView listView = new ColumnView(
+                            DType.LIST,
+                            cudfColumn.getRowCount(),
                             Optional.of(cudfColumn.getNullCount()),
-                            cudfColumn.getValid(), cudfColumn.getOffsets(), new ColumnView[] {childView})) {
+                            cudfColumn.getValid(),
+                            cudfColumn.getOffsets(),
+                            new ColumnView[] {childView})) {
                 return listView.copyToColumnVector();
             }
         }
         throw new TrinoException(
                 HIVE_UNSUPPORTED_FORMAT,
                 format("Column %s: cannot evolve cuDF type %s to expected type %s",
-                        columnName, actualDType, expectedDType));
+                        columnName,
+                        actualDType,
+                        expectedDType));
     }
 
     private static boolean isIntegerType(DType dtype)

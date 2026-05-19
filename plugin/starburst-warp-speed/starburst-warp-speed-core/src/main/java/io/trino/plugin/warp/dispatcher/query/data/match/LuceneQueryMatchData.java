@@ -34,9 +34,7 @@ public class LuceneQueryMatchData
         IndexSearcher.setDefaultQueryCachingPolicy(new QueryCachingPolicy()
         {
             @Override
-            public void onUse(Query query)
-            {
-            }
+            public void onUse(Query query) {}
 
             @SuppressWarnings("CheckedExceptionNotThrown")
             @Override
@@ -50,7 +48,8 @@ public class LuceneQueryMatchData
 
     private final BooleanQuery query;
 
-    private LuceneQueryMatchData(WarmUpElement warmUpElement,
+    private LuceneQueryMatchData(
+            WarmUpElement warmUpElement,
             Type type,
             BooleanQuery query,
             PredicateCacheData predicateCacheData,
@@ -145,7 +144,8 @@ public class LuceneQueryMatchData
         @Override
         public LuceneQueryMatchData build()
         {
-            return new LuceneQueryMatchData(warmUpElementOptional.orElseThrow(),
+            return new LuceneQueryMatchData(
+                    warmUpElementOptional.orElseThrow(),
                     type,
                     query,
                     predicateCacheData,

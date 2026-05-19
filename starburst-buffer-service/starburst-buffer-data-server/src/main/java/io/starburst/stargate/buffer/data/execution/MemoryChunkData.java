@@ -64,7 +64,9 @@ public final class MemoryChunkData
             boolean calculateDataPagesChecksum)
     {
         checkArgument(chunkSizeInBytes >= chunkSliceSizeInBytes && chunkSizeInBytes % chunkSliceSizeInBytes == 0,
-                "chunkSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkSizeInBytes, chunkSliceSizeInBytes);
+                "chunkSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s",
+                chunkSizeInBytes,
+                chunkSliceSizeInBytes);
         this.memoryAllocator = requireNonNull(memoryAllocator, "memoryAllocator is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.chunkSizeInBytes = chunkSizeInBytes;

@@ -58,8 +58,10 @@ public class FilteringStats
             // don't count empty splits as processed splits
             return;
         }
-        checkArgument(totalRows >= rowsAfterFiltering, "Total rows %s is expected to be greater or equals to the number of rows after filtering %s",
-                totalRows, rowsAfterFiltering);
+        checkArgument(totalRows >= rowsAfterFiltering,
+                "Total rows %s is expected to be greater or equals to the number of rows after filtering %s",
+                totalRows,
+                rowsAfterFiltering);
 
         this.totalRows += totalRows;
         this.rowsAfterFiltering += rowsAfterFiltering;

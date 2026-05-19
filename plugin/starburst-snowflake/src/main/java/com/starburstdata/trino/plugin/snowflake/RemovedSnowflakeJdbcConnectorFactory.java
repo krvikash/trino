@@ -27,11 +27,12 @@ class RemovedSnowflakeJdbcConnectorFactory
     @Override
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
-        throw new RuntimeException("""
-                                   The snowflake_jdbc connector is DEPRECATED.
-                                   It will be removed in a future release.
-                                   Please migrate to the snowflake_parallel connector.
-                                   If you need to continue using the JDBC connector temporarily, set connector.name=deprecated_snowflake_jdbc.
-                                   """);
+        throw new RuntimeException(
+                """
+                The snowflake_jdbc connector is DEPRECATED.
+                It will be removed in a future release.
+                Please migrate to the snowflake_parallel connector.
+                If you need to continue using the JDBC connector temporarily, set connector.name=deprecated_snowflake_jdbc.
+                """);
     }
 }

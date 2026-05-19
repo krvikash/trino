@@ -20,5 +20,5 @@ public enum PageSourceDecision
     WARP,
     PROXY,
     MIXED,
-    PREFILL
+    PREFILL,
 }

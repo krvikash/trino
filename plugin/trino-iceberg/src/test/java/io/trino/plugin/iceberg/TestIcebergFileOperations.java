@@ -1077,17 +1077,16 @@ public class TestIcebergFileOperations
                         .add(new FileOperationUtils.FileOperation(PUFFIN, "InputFile.newInput"))
                         .build());
 
-
         assertFileSystemAccesses(
                 "ALTER TABLE " + tableName + " EXECUTE OPTIMIZE",
                 ImmutableMultiset.<FileOperationUtils.FileOperation>builder()
                         .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.length"), 3)
                         .add(new FileOperation(STATS, "InputFile.newStream"))
-                        .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"),4)
+                        .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"), 4)
                         .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
                         .add(new FileOperationUtils.FileOperation(SNAPSHOT, "OutputFile.create"))
                         .add(new FileOperationUtils.FileOperation(PUFFIN, "InputFile.newInput"))
-                        .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.newStream"),3)
+                        .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.newStream"), 3)
                         .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "OutputFile.create"), 1)
                         .add(new FileOperation(STATS, "OutputFile.create"))
                         .addCopies(new FileOperation(MANIFEST, "OutputFile.create"), 3)

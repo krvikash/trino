@@ -40,7 +40,6 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 public class InRewriter
         implements ExpressionRewriter<WarpCall>
-
 {
     private static final Pattern<WarpCall> PATTERN = ExpressionPatterns.call()
             .with(ExpressionPatterns.functionName().equalTo(IN_PREDICATE_FUNCTION_NAME.getName()))

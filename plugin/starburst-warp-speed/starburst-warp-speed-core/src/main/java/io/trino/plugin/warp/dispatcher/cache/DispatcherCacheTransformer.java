@@ -40,9 +40,7 @@ public class DispatcherCacheTransformer
     private static final SchemaTableName SCHEMA_TABLE_NAME = new SchemaTableName(SCHEMA, TABLE);
 
     @Inject
-    public DispatcherCacheTransformer()
-    {
-    }
+    public DispatcherCacheTransformer() {}
 
     @Override
     public DispatcherSplit createDispatcherSplit(ConnectorSplit proxyConnectorSplit, DispatcherTableHandle dispatcherTableHandle, ConnectorSplitNodeDistributor connectorSplitNodeDistributor, ConnectorSession session)

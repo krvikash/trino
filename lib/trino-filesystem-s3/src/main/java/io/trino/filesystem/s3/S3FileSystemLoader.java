@@ -305,7 +305,7 @@ public final class S3FileSystemLoader
             checkArgument(AwsCredentialsProvider.class.isAssignableFrom(awsCredentialProvider), "%s is not a subclass of %s", providerClass, AwsCredentialsProvider.class);
             return awsCredentialProvider
                     .asSubclass(AwsCredentialsProvider.class)
-                    .getConstructor(new TypeToken<Map<String, String>>(){}.getRawType())
+                    .getConstructor(new TypeToken<Map<String, String>>() {}.getRawType())
                     .newInstance(customCredentialProviderArguments);
         }
         catch (ClassNotFoundException e) {

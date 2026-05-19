@@ -17,9 +17,9 @@ interface SignatureVerifier
      * @param license the license bytes to verify.
      * @param signature the signature bytes to verify with.
      * @throws VerificationException if the signature is invalid,
-     * the signature object is not initialized properly, the passed-in signature is improperly
-     * encoded or of the wrong type, if this signature algorithm is unable to
-     * process the input data provided, etc.
+     *         the signature object is not initialized properly, the passed-in signature is improperly
+     *         encoded or of the wrong type, if this signature algorithm is unable to
+     *         process the input data provided, etc.
      */
     void verify(byte[] license, byte[] signature)
             throws VerificationException;

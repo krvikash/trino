@@ -17,7 +17,7 @@ public interface MemoryAllocator
 {
     /**
      * @return true if the bytes tracked by this {@link MemoryAllocator} can be set to {@code bytes}.
-     * This method can return false when there is not enough memory available to satisfy a positive delta allocation.
+     *         This method can return false when there is not enough memory available to satisfy a positive delta allocation.
      */
     boolean trySetBytes(long bytes);
 }

@@ -220,12 +220,12 @@ public class TestVerticaTypeMapping
                 .addRoundTrip("timestamp(6)", "TIMESTAMP '4276-12-31 23:59:59.999999'", createTimestampType(6), "TIMESTAMP '4276-12-31 23:59:59.999999'")
 
                 // Trino can not handle BC timestamp, because it converts string date -> LocalDataTime -> long, LocalDataTime don't support BC timestamp
-                //.addRoundTrip("timestamp(6)", "TIMESTAMP '-1000-12-31 23:59:59.999999'", createTimestampType(6), "TIMESTAMP '1000-12-31 23:59:59.999999'")
+                // .addRoundTrip("timestamp(6)", "TIMESTAMP '-1000-12-31 23:59:59.999999'", createTimestampType(6), "TIMESTAMP '1000-12-31 23:59:59.999999'")
 
                 // julian->gregorian switch
                 .addRoundTrip("timestamp(6)", "TIMESTAMP '1582-10-04 00:00:00.000000'", createTimestampType(6), "TIMESTAMP '1582-10-04 00:00:00.000000'")
-                 //.addRoundTrip("timestamp(6)", "TIMESTAMP '1582-10-05 00:00:00.000000'", createTimestampType(6), "TIMESTAMP '1582-10-05 00:00:00.000000'") // Vertica plus 10 days
-                 //.addRoundTrip("timestamp(6)", "TIMESTAMP '1582-10-14 00:00:00.000000'", createTimestampType(6), "TIMESTAMP '1582-10-14 00:00:00.000000'") // Vertica plus 10 days
+                // .addRoundTrip("timestamp(6)", "TIMESTAMP '1582-10-05 00:00:00.000000'", createTimestampType(6), "TIMESTAMP '1582-10-05 00:00:00.000000'") // Vertica plus 10 days
+                // .addRoundTrip("timestamp(6)", "TIMESTAMP '1582-10-14 00:00:00.000000'", createTimestampType(6), "TIMESTAMP '1582-10-14 00:00:00.000000'") // Vertica plus 10 days
                 .addRoundTrip("timestamp(6)", "TIMESTAMP '1582-10-15 00:00:00.000000'", createTimestampType(6), "TIMESTAMP '1582-10-15 00:00:00.000000'")
 
                 // null
@@ -570,7 +570,7 @@ public class TestVerticaTypeMapping
                 // winter on northern hemisphere
                 // (possible DST on southern hemisphere)
                 .addRoundTrip("DATE", "DATE '2017-01-01'", DATE, "DATE '2017-01-01'")
-                //.addRoundTrip("DATE", "DATE '1983-04-01'", DATE, "DATE '1983-04-01'")
+                // .addRoundTrip("DATE", "DATE '1983-04-01'", DATE, "DATE '1983-04-01'")
                 .addRoundTrip("DATE", "DATE '1983-10-01'", DATE, "DATE '1983-10-01'")
                 // some large dates
                 .addRoundTrip("DATE", "DATE '9999-12-31'", DATE, "DATE '9999-12-31'")

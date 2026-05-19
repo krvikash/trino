@@ -98,10 +98,10 @@ public class TestRedshiftExternalTables
         // Create Redshift external schema backed by an AWS Glue catalog database
         executeInRedshiftWithRetry(
                 """
-                        CREATE EXTERNAL SCHEMA %s
-                        FROM DATA CATALOG DATABASE '%s'
-                        IAM_ROLE '%s'
-                        CREATE EXTERNAL DATABASE IF NOT EXISTS""".formatted(schemaName, schemaName, IAM_ROLE));
+                CREATE EXTERNAL SCHEMA %s
+                FROM DATA CATALOG DATABASE '%s'
+                IAM_ROLE '%s'
+                CREATE EXTERNAL DATABASE IF NOT EXISTS""".formatted(schemaName, schemaName, IAM_ROLE));
 
         return runner;
     }
@@ -243,10 +243,10 @@ public class TestRedshiftExternalTables
 
             assertQuery(
                     """
-                            SELECT c_boolean, c_smallint, c_int, c_bigint, c_real, c_double,
-                            c_decimal_10_0, c_decimal_10_2, c_decimal_38_5,
-                            c_varchar_10, c_varchar, c_varbinary, c_date
-                            FROM redshift.%s.%s""".formatted(schemaName, tableName),
+                    SELECT c_boolean, c_smallint, c_int, c_bigint, c_real, c_double,
+                    c_decimal_10_0, c_decimal_10_2, c_decimal_38_5,
+                    c_varchar_10, c_varchar, c_varbinary, c_date
+                    FROM redshift.%s.%s""".formatted(schemaName, tableName),
                     "VALUES (" +
                             "  true," +
                             "  CAST(32767 AS SMALLINT)," +
@@ -317,7 +317,9 @@ public class TestRedshiftExternalTables
         try {
             assertUpdate(format(
                     "CREATE TABLE iceberg.%s.%s (id BIGINT, name VARCHAR(50)) WITH (location = '%s')",
-                    schemaName, tableName, s3Location));
+                    schemaName,
+                    tableName,
+                    s3Location));
 
             assertUpdate(format("INSERT INTO iceberg.%s.%s VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')", schemaName, tableName), 3);
             assertQuery(
@@ -347,10 +349,10 @@ public class TestRedshiftExternalTables
         try {
             executeInRedshiftWithRetry(
                     """
-                            CREATE EXTERNAL SCHEMA %s
-                            FROM DATA CATALOG DATABASE '%s'
-                            IAM_ROLE '%s'
-                            CREATE EXTERNAL DATABASE IF NOT EXISTS""".formatted(externalSchemaName, externalSchemaName, IAM_ROLE));
+                    CREATE EXTERNAL SCHEMA %s
+                    FROM DATA CATALOG DATABASE '%s'
+                    IAM_ROLE '%s'
+                    CREATE EXTERNAL DATABASE IF NOT EXISTS""".formatted(externalSchemaName, externalSchemaName, IAM_ROLE));
 
             // Verify the schema is visible through Trino
             assertThat(computeActual("SHOW SCHEMAS FROM redshift").getOnlyColumnAsSet())
@@ -378,8 +380,8 @@ public class TestRedshiftExternalTables
             // Create an external table directly in Redshift (no S3 data required for DDL)
             executeInRedshiftWithRetry(
                     """
-                            CREATE EXTERNAL TABLE %s.%s (id BIGINT, name VARCHAR(50))
-                            STORED AS PARQUET LOCATION '%s'""".formatted(schemaName, tableName, s3Location(schemaName, tableName)));
+                    CREATE EXTERNAL TABLE %s.%s (id BIGINT, name VARCHAR(50))
+                    STORED AS PARQUET LOCATION '%s'""".formatted(schemaName, tableName, s3Location(schemaName, tableName)));
 
             assertThat(computeActual(format("SHOW TABLES FROM redshift.%s", schemaName)).getOnlyColumnAsSet())
                     .contains(tableName);
@@ -422,7 +424,6 @@ public class TestRedshiftExternalTables
                 new TrinoSqlExecutorWithRetries(getQueryRunner()),
                 "comment_regular_",
                 "(id BIGINT)")) {
-
             assertUpdate(format("COMMENT ON TABLE %s IS '%s'", table.getName(), tableComment));
             assertUpdate(format("COMMENT ON COLUMN %s.id IS '%s'", table.getName(), columnComment));
 
@@ -431,7 +432,8 @@ public class TestRedshiftExternalTables
             assertThat((String) computeScalar(format(
                     "SELECT comment FROM redshift.information_schema.columns" +
                             " WHERE table_schema = '%s' AND table_name = '%s' AND column_name = 'id'",
-                    TEST_SCHEMA, table.getName())))
+                    TEST_SCHEMA,
+                    table.getName())))
                     .isEqualTo(columnComment);
         }
     }

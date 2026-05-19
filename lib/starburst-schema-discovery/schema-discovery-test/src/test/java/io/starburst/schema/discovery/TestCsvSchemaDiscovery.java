@@ -44,7 +44,8 @@ public class TestCsvSchemaDiscovery
     {
         ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/decimal.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("decimal", new DecimalTypeInfo(20, 0)),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("decimal", new DecimalTypeInfo(20, 0)),
                 toColumn("long", HIVE_LONG),
                 toColumn("double", HIVE_DOUBLE));
         assertThat(schemaColumns.flags()).isEmpty();
@@ -53,13 +54,15 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testNumbers()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.NULL_VALUE, "--",
                 CsvOptions.NAN_VALUE, "NAN",
                 CsvOptions.POSITIVE_INF, "INF",
                 CsvOptions.NEGATIVE_INF, "-INF");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/numbers.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("int", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("int", HIVE_INT),
                 toColumn("long", HIVE_INT),  // this shows as long in the Spark source but I don't see how
                 toColumn("float", HIVE_DOUBLE),
                 toColumn("double", HIVE_DOUBLE));
@@ -70,7 +73,8 @@ public class TestCsvSchemaDiscovery
     {
         ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/cars.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("year", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("year", HIVE_INT),
                 toColumn("make", HIVE_STRING),
                 toColumn("model", HIVE_STRING),
                 toColumn("comment", HIVE_STRING),
@@ -81,11 +85,13 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testCars8859()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.CHARSET, "ISO-8859-1",
                 CsvOptions.DELIMITER, "þ");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/cars-iso-8859-1.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("year", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("year", HIVE_INT),
                 toColumn("make", HIVE_STRING),
                 toColumn("model", HIVE_STRING),
                 toColumn("comment", HIVE_STRING),
@@ -96,11 +102,13 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testCarsAlt()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.QUOTE, "'",
                 CsvOptions.DELIMITER, "|");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/cars-alternative.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("year", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("year", HIVE_INT),
                 toColumn("make", HIVE_STRING),
                 toColumn("model", HIVE_STRING),
                 toColumn("comment", HIVE_STRING),
@@ -110,10 +118,12 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testCarsTabs()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.DELIMITER, "\t");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/cars.tsv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("year", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("year", HIVE_INT),
                 toColumn("make", HIVE_STRING),
                 toColumn("model", HIVE_STRING),
                 toColumn("price", HIVE_DOUBLE),
@@ -127,7 +137,8 @@ public class TestCsvSchemaDiscovery
     {
         ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/cars-blank-column-name.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("_", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("_", HIVE_INT),
                 toColumn("_", HIVE_STRING),
                 toColumn("make", HIVE_STRING),
                 toColumn("customer", HIVE_STRING),
@@ -154,7 +165,8 @@ public class TestCsvSchemaDiscovery
     {
         ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/malformed-row.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("fruit", HIVE_STRING),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("fruit", HIVE_STRING),
                 toColumn("color", HIVE_STRING),
                 toColumn("price", HIVE_INT),
                 toColumn("quantity", HIVE_INT));
@@ -194,7 +206,8 @@ public class TestCsvSchemaDiscovery
     {
         ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/simple-sparse.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("A", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("A", HIVE_INT),
                 toColumn("B", HIVE_INT),
                 toColumn("C", HIVE_INT),
                 toColumn("D", HIVE_INT));
@@ -205,7 +218,8 @@ public class TestCsvSchemaDiscovery
     {
         ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/with_empty_quoted_values.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("dispatching_base", HIVE_STRING),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("dispatching_base", HIVE_STRING),
                 toColumn("pickup_date", HIVE_TIMESTAMP),
                 toColumn("affiliated_base_num", HIVE_STRING),
                 toColumn("location_id", HIVE_INT),
@@ -215,10 +229,12 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testNoHeaders()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.FIRST_LINE_IS_HEADERS, "false");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/no-headers.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("COL1", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("COL1", HIVE_INT),
                 toColumn("COL2", HIVE_INT),
                 toColumn("COL3", HIVE_INT),
                 toColumn("COL4", HIVE_INT));
@@ -227,12 +243,14 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testComments()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.FIRST_LINE_IS_HEADERS, "false",
                 CsvOptions.COMMENT, "~",
                 CsvOptions.TIMESTAMP_FORMAT, "yyyy-MM-dd HH:mm:ss");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/comments.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("COL1", HIVE_INT),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("COL1", HIVE_INT),
                 toColumn("COL2", HIVE_INT),
                 toColumn("COL3", HIVE_INT),
                 toColumn("COL4", HIVE_INT),
@@ -244,7 +262,8 @@ public class TestCsvSchemaDiscovery
     @Test
     public void testCommentsWhitespaces()
     {
-        ImmutableMap<String, String> options = ImmutableMap.of(CsvOptions.SAMPLE_LINES_MODULO, "1",
+        ImmutableMap<String, String> options = ImmutableMap.of(
+                CsvOptions.SAMPLE_LINES_MODULO, "1",
                 CsvOptions.IGNORE_LEADING_WHITE_SPACE, "true",
                 CsvOptions.IGNORE_TRAILING_WHITE_SPACE, "true");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/comments-whitespaces.csv"), options);
@@ -259,7 +278,8 @@ public class TestCsvSchemaDiscovery
         options.put(CsvOptions.SAMPLE_LINES_MODULO, "1");
         options.put(CsvOptions.FIRST_LINE_IS_HEADERS, "false");
         DiscoveredColumns schemaColumns = CsvSchemaDiscovery.INSTANCE.discoverColumns(Util.testFile("csv/ctrl-a.csv"), options);
-        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(toColumn("COL1", HIVE_STRING),
+        assertThat(withoutSamples(schemaColumns.columns())).containsExactly(
+                toColumn("COL1", HIVE_STRING),
                 toColumn("COL2", HIVE_INT),
                 toColumn("COL3", HIVE_INT),
                 toColumn("COL4", HIVE_INT),

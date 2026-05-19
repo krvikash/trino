@@ -73,7 +73,8 @@ public abstract class BlockFiller<V>
         Block block;
         try {
             if (collectParams.hasDictionary()) {
-                block = fillBlockWithDictionary(readJuffersWarmUpElement,
+                block = fillBlockWithDictionary(
+                        readJuffersWarmUpElement,
                         queryResultType,
                         rowsToFill,
                         collectParams.getBlockRecTypeCode(),
@@ -86,7 +87,8 @@ public abstract class BlockFiller<V>
             }
             else if (collectParams.mappedMatchCollect()) {
                 Block valuesDict = collectParams.getValuesDictBlock().get();
-                block = fillBlockWithMapping(readJuffersWarmUpElement,
+                block = fillBlockWithMapping(
+                        readJuffersWarmUpElement,
                         queryResultType,
                         rowsToFill,
                         collectParams.getBlockRecTypeCode(),
@@ -94,7 +96,8 @@ public abstract class BlockFiller<V>
                         valuesDict);
             }
             else {
-                block = fillBlock(readJuffersWarmUpElement,
+                block = fillBlock(
+                        readJuffersWarmUpElement,
                         queryResultType,
                         rowsToFill,
                         collectParams.getBlockRecTypeCode(),
@@ -103,8 +106,13 @@ public abstract class BlockFiller<V>
             }
         }
         catch (Exception e) {
-            logger.error(e, "fill block failed queryResultType=%s, rowsToFill=%d, blockFiller=%s, collectParams=%s",
-                    queryResultType, rowsToFill, this, collectParams);
+            logger.error(
+                    e,
+                    "fill block failed queryResultType=%s, rowsToFill=%d, blockFiller=%s, collectParams=%s",
+                    queryResultType,
+                    rowsToFill,
+                    this,
+                    collectParams);
             throw new RuntimeException(e);
         }
         finally {
@@ -114,7 +122,8 @@ public abstract class BlockFiller<V>
     }
 
     @VisibleForTesting
-    public Block fillBlock(ReadJuffersWarmUpElement juffersWE,
+    public Block fillBlock(
+            ReadJuffersWarmUpElement juffersWE,
             QueryResultType queryResultType,
             int rowsToFill,
             RecTypeCode recTypeCode,
@@ -138,14 +147,16 @@ public abstract class BlockFiller<V>
     protected abstract Block createSingleWithNullBlock(ReadJuffersWarmUpElement juffersWE, RecTypeCode recTypeCode, int recLength, int rowsToFill)
             throws IOException;
 
-    protected abstract Block fillRawBlock(ReadJuffersWarmUpElement juffersWE,
+    protected abstract Block fillRawBlock(
+            ReadJuffersWarmUpElement juffersWE,
             RecTypeCode recTypeCode,
             int recLength,
             int rowsToFill,
             boolean collectNulls)
             throws IOException;
 
-    public Block fillBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,
+    public Block fillBlockWithDictionary(
+            ReadJuffersWarmUpElement juffersWE,
             QueryResultType queryResultType,
             int rowsToFill,
             RecTypeCode recTypeCode,
@@ -174,12 +185,13 @@ public abstract class BlockFiller<V>
         };
     }
 
-    public Block fillBlockWithMapping(ReadJuffersWarmUpElement juffersWE,
-                                      QueryResultType queryResultType,
-                                      int rowsToFill,
-                                      RecTypeCode recTypeCode,
-                                      boolean collectNulls,
-                                      Block mapBlock)
+    public Block fillBlockWithMapping(
+            ReadJuffersWarmUpElement juffersWE,
+            QueryResultType queryResultType,
+            int rowsToFill,
+            RecTypeCode recTypeCode,
+            boolean collectNulls,
+            Block mapBlock)
     {
         ByteBuffer byteBuff;
         int mapKey;
@@ -202,17 +214,23 @@ public abstract class BlockFiller<V>
         };
     }
 
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill,
-            Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(
+            ReadJuffersWarmUpElement juffersWE,
+            int mapKey,
+            int rowsToFill,
+            Block mapBlock,
+            RecTypeCode recTypeCode,
+            boolean collectNulls)
     {
         throw new UnsupportedOperationException();
     }
 
-    protected Block fillRawBlockWithMapping(ReadJuffersWarmUpElement juffersWE,
-                                            int rowsToFill,
-                                            RecTypeCode recTypeCode,
-                                            boolean collectNulls,
-                                            Block mapBlock)
+    protected Block fillRawBlockWithMapping(
+            ReadJuffersWarmUpElement juffersWE,
+            int rowsToFill,
+            RecTypeCode recTypeCode,
+            boolean collectNulls,
+            Block mapBlock)
     {
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
         int[] ids = new int[rowsToFill];
@@ -237,7 +255,8 @@ public abstract class BlockFiller<V>
         return DictionaryBlock.create(ids.length, mapBlock, ids);
     }
 
-    protected Block fillRawBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,
+    protected Block fillRawBlockWithDictionary(
+            ReadJuffersWarmUpElement juffersWE,
             int rowsToFill,
             RecTypeCode recTypeCode,
             int recTypeLength,

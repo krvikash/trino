@@ -21,7 +21,8 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 
-public record QueryArgs(QueryParams queryParams,
+public record QueryArgs(
+        QueryParams queryParams,
         DispatcherPageSourceStats dispatcherPageSourceStats,
         NativeStats nativeStats,
         long[] fileCookie,

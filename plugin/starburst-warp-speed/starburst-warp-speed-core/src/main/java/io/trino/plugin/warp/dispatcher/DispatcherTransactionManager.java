@@ -42,9 +42,7 @@ public class DispatcherTransactionManager
     private final ConcurrentMap<ConnectorTransactionHandle, DispatcherMetadata> transactions = new ConcurrentHashMap<>();
 
     @Inject
-    public DispatcherTransactionManager()
-    {
-    }
+    public DispatcherTransactionManager() {}
 
     public DispatcherMetadata get(ConnectorTransactionHandle transactionHandle)
     {

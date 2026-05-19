@@ -251,17 +251,17 @@ public class VerticaClient
 
         Optional<ColumnMapping> mapping = switch (typeHandle.jdbcType()) {
             case Types.BIT,
-                    Types.BOOLEAN -> Optional.of(booleanColumnMapping());
+                 Types.BOOLEAN -> Optional.of(booleanColumnMapping());
             // Vertica's integer type is a 64-bit type for all tiny/small/int/bigint data
             // Vertica does not support the JDBC TINYINT/SMALLINT/INTEGER types, only BIGINT
             case Types.TINYINT,
-                    Types.SMALLINT,
-                    Types.INTEGER,
-                    Types.BIGINT -> Optional.of(bigintColumnMapping());
+                 Types.SMALLINT,
+                 Types.INTEGER,
+                 Types.BIGINT -> Optional.of(bigintColumnMapping());
             // Disabling pushdown - Vertica is dropping/rounding precision for these types
             case Types.DOUBLE,
-                    Types.FLOAT,
-                    Types.REAL -> Optional.of(doubleMapping(DOUBLE, ResultSet::getDouble, doubleWriteFunction(), DISABLE_PUSHDOWN));
+                 Types.FLOAT,
+                 Types.REAL -> Optional.of(doubleMapping(DOUBLE, ResultSet::getDouble, doubleWriteFunction(), DISABLE_PUSHDOWN));
             case Types.NUMERIC -> {
                 int decimalDigits = typeHandle.requiredDecimalDigits();
                 int precision = typeHandle.requiredColumnSize() + max(-decimalDigits, 0);
@@ -276,9 +276,9 @@ public class VerticaClient
             }
             case Types.CHAR -> Optional.of(charColumnMapping(createCharType(typeHandle.requiredColumnSize()), true));
             case Types.VARCHAR,
-                    Types.LONGVARCHAR -> Optional.of(varcharColumnMapping(createVarcharType(typeHandle.requiredColumnSize()), true));
+                 Types.LONGVARCHAR -> Optional.of(varcharColumnMapping(createVarcharType(typeHandle.requiredColumnSize()), true));
             case Types.VARBINARY,
-                    Types.LONGVARBINARY -> Optional.of(varbinaryColumnMapping());
+                 Types.LONGVARBINARY -> Optional.of(varbinaryColumnMapping());
             case Types.DATE -> Optional.of(ColumnMapping.longMapping(
                     DATE,
                     (resultSet, index) -> LocalDate.parse(resultSet.getString(index), DATE_READ_FORMATTER).toEpochDay(),

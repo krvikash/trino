@@ -23,9 +23,7 @@ public class MergedFileNameGenerator
     private final AtomicLong idSequence = new AtomicLong();
 
     @Inject
-    public MergedFileNameGenerator()
-    {
-    }
+    public MergedFileNameGenerator() {}
 
     public String getNextMergedFileName(long bufferNodeId, String exchangeId)
     {

@@ -21,16 +21,15 @@ import java.lang.foreign.SegmentAllocator;
 import java.util.Optional;
 
 /* all memory resources are allocated once and are held in this record for all elements to use */
-public record StorageWriterSplitConfig(String nodeIdentifier,
+public record StorageWriterSplitConfig(
+        String nodeIdentifier,
         String rowGroupFilePath,
-        SegmentAllocator warmMemoryAllocator,   // refernce to the warm memory slicer to be kept until it should be released
-        MemorySegment buff,                     // segment buffer to allocate different juffers
-        MemorySegment writeBuff,                // native buffer to use for compression and write to disk
-        SegmentAllocator contextAllocator,      // allocator for slicing the context buffer
-        Optional<WarmUpState> warmUpStateOpt,   // warm state used during a single element warming, if not present will be allocated per WE
-        RecordBufferParams recordBufferParams,  // record buffer parameters used for every commit call
+        SegmentAllocator warmMemoryAllocator, // refernce to the warm memory slicer to be kept until it should be released
+        MemorySegment buff, // segment buffer to allocate different juffers
+        MemorySegment writeBuff, // native buffer to use for compression and write to disk
+        SegmentAllocator contextAllocator, // allocator for slicing the context buffer
+        Optional<WarmUpState> warmUpStateOpt, // warm state used during a single element warming, if not present will be allocated per WE
+        RecordBufferParams recordBufferParams, // record buffer parameters used for every commit call
         Optional<CompressionState> compressionStateOpt, // compression state used during a single element warming, if not present will be allocated per WE
         Boolean dictionaryEnabled,
-        ThreadArena arena)
-{
-}
+        ThreadArena arena) {}

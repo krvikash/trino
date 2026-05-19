@@ -53,20 +53,21 @@ public class TestBigExpressions
                     random.nextInt(8) + 1));
         }
         String mappingCase = mappingCaseBuilder.append(" ELSE -1 END").toString();
-        String query = """
-                       select *
-                       from (select 'V' as COL1, nationkey * 20 as COL2 from nation limit 10) t
-                       WHERE CASE
-                           WHEN %s = 1 THEN 'MATCH'
-                           WHEN %s = 2 THEN 'MATCH'
-                           WHEN %s = 3 THEN 'MATCH'
-                           WHEN %s = 4 THEN 'MATCH'
-                           WHEN %s = 5 THEN 'MATCH'
-                           WHEN %s = 6 THEN 'MATCH'
-                           WHEN %s = 7 THEN 'MATCH'
-                           WHEN %s = 8 THEN 'MATCH'
-                           ELSE 'NO MATCH' END = 'MATCH'
-                       """.formatted(mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase);
+        String query =
+                """
+                select *
+                from (select 'V' as COL1, nationkey * 20 as COL2 from nation limit 10) t
+                WHERE CASE
+                    WHEN %s = 1 THEN 'MATCH'
+                    WHEN %s = 2 THEN 'MATCH'
+                    WHEN %s = 3 THEN 'MATCH'
+                    WHEN %s = 4 THEN 'MATCH'
+                    WHEN %s = 5 THEN 'MATCH'
+                    WHEN %s = 6 THEN 'MATCH'
+                    WHEN %s = 7 THEN 'MATCH'
+                    WHEN %s = 8 THEN 'MATCH'
+                    ELSE 'NO MATCH' END = 'MATCH'
+                """.formatted(mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase);
         assertQuery(query);
     }
 
@@ -76,7 +77,7 @@ public class TestBigExpressions
         StringJoiner joiner = new StringJoiner(", ");
         for (int i = 0; i < 1000; i++) {
             joiner.add("COALESCE(POWER(nationkey * 2, %d) + POWER(nationkey * 2, 1), POWER(nationkey * 2, 0), POWER(nationkey * 2, 1))".formatted(i));
-        };
+        }
         assertQuery("SELECT COALESCE(%s, %s) FROM nation".formatted(joiner, joiner));
     }
 
@@ -93,7 +94,8 @@ public class TestBigExpressions
         }
         StringJoiner subExpressions = new StringJoiner(" || ");
         for (int i = 0; i < inputColumnCount / 2; i++) {
-            subExpressions.add("""
+            subExpressions.add(
+                    """
                     CASE
                         WHEN NOT m.column_%s IS NULL
                             THEN '%s:' || m.column_%s || ':' || CAST(m.column_%s AS varchar(50))|| ';'
@@ -101,12 +103,14 @@ public class TestBigExpressions
                     END
                     """.formatted(i, UUID.randomUUID(), i + 1, i));
         }
-        assertQuery("""
-                    WITH
-                    inputs AS (SELECT * FROM (VALUES (%s, 'natural values hash')) AS t(%s, natural_values_hash))
-                    ,hashes as (SELECT natural_values_hash, (%s) AS hash_string FROM inputs m)
-                    SELECT natural_values_hash FROM hashes WHERE natural_values_hash <> to_base64(md5(CAST(hash_string AS varbinary)))
-                """.formatted(values, columnNames, subExpressions), "VALUES 'natural values hash'");
+        assertQuery(
+                """
+                WITH
+                inputs AS (SELECT * FROM (VALUES (%s, 'natural values hash')) AS t(%s, natural_values_hash))
+                ,hashes as (SELECT natural_values_hash, (%s) AS hash_string FROM inputs m)
+                SELECT natural_values_hash FROM hashes WHERE natural_values_hash <> to_base64(md5(CAST(hash_string AS varbinary)))
+                """.formatted(values, columnNames, subExpressions),
+                "VALUES 'natural values hash'");
     }
 
     private static String generateCase(String column, int whenCases, int depth)

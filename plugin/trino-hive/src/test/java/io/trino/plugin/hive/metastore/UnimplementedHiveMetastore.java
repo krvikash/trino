@@ -78,7 +78,8 @@ public class UnimplementedHiveMetastore
     }
 
     @Override
-    public void updateTableStatistics(String databaseName,
+    public void updateTableStatistics(
+            String databaseName,
             String tableName,
             OptionalLong acidWriteId,
             StatisticsUpdateMode mode,
@@ -202,7 +203,8 @@ public class UnimplementedHiveMetastore
     }
 
     @Override
-    public Optional<List<String>> getPartitionNamesByFilter(String databaseName,
+    public Optional<List<String>> getPartitionNamesByFilter(
+            String databaseName,
             String tableName,
             List<String> columnNames,
             TupleDomain<String> partitionKeysFilter)

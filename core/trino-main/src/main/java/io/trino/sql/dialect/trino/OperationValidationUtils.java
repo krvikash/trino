@@ -26,8 +26,7 @@ import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 
 public class OperationValidationUtils
 {
-    private OperationValidationUtils()
-    {}
+    private OperationValidationUtils() {}
 
     public static void validateRowSelector(Block block, Type inputType, String errorMessage)
     {

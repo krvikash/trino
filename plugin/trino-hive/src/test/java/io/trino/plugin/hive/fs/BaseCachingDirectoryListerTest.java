@@ -427,7 +427,7 @@ public abstract class BaseCachingDirectoryListerTest
         assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema11", "bb"))).isTrue();
         assertThat(cachingDirectoryLister.isCacheEnabledFor(schemaTableName("schema11", "b11b"))).isTrue();
 
-        //excluded has higher priority
+        // excluded has higher priority
         cachingDirectoryLister = new CachingDirectoryLister(new HiveConfig()
                 .setFileStatusCacheTables(ImmutableList.of("tpch.aa", "tpch.ab"))
                 .setFileStatusCacheExcludedTables(ImmutableList.of("*")));

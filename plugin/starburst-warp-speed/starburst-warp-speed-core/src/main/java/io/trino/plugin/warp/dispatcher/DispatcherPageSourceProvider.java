@@ -78,8 +78,13 @@ public class DispatcherPageSourceProvider
     {
         try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
             if (logger.isDebugEnabled()) {
-                logger.debug("createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
-                        transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString());
+                logger.debug(
+                        "createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
+                        transactionHandle,
+                        split,
+                        table,
+                        columns,
+                        dynamicFilter.getCurrentPredicate().toString());
             }
 
             if (!(split instanceof DispatcherSplit) && !(table instanceof DispatcherTableHandle)) {
@@ -150,7 +155,8 @@ public class DispatcherPageSourceProvider
             TupleDomain<ColumnHandle> predicate)
     {
         return connectorPageSourceProviderFactory.createPageSourceProvider()
-                .prunePredicate(session,
+                .prunePredicate(
+                        session,
                         ((DispatcherSplit) split).getProxyConnectorSplit(),
                         ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
                         predicate);

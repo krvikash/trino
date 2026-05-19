@@ -127,7 +127,8 @@ public abstract class AbstractTestSapHanaTableStatistics
     {
         String tableName = "test_stats_table_with_nulls_" + randomNameSuffix();
         assertUpdate("DROP TABLE IF EXISTS " + tableName);
-        assertUpdate("" +
+        assertUpdate(
+                "" +
                         "CREATE TABLE " + tableName + " AS " +
                         "SELECT " +
                         "    orderkey, " +
@@ -238,12 +239,12 @@ public abstract class AbstractTestSapHanaTableStatistics
                 getQueryRunner()::execute,
                 "test_numeric_corner_cases_",
                 ImmutableMap.<String, List<String>>builder()
-                        //TODO SAP Hana does not support infinity
+                        // TODO SAP Hana does not support infinity
 //                        .put("only_negative_infinity double", List.of("-infinity()", "-infinity()", "-infinity()", "-infinity()"))
 //                        .put("only_positive_infinity double", List.of("infinity()", "infinity()", "infinity()", "infinity()"))
 //                        .put("mixed_infinities double", List.of("-infinity()", "infinity()", "-infinity()", "infinity()"))
 //                        .put("mixed_infinities_and_numbers double", List.of("-infinity()", "infinity()", "-5.0", "7.0"))
-                        //TODO SAP Hana does not support NaN
+                        // TODO SAP Hana does not support NaN
 //                        .put("nans_only double", List.of("nan()", "nan()"))
 //                        .put("nans_and_numbers double", List.of("nan()", "nan()", "-5.0", "7.0"))
                         .put("large_doubles double", List.of("CAST(-50371909150609548946090.0 AS DOUBLE)", "CAST(50371909150609548946090.0 AS DOUBLE)")) // 2^77 DIV 3
@@ -258,12 +259,12 @@ public abstract class AbstractTestSapHanaTableStatistics
             assertQuery(
                     "SHOW STATS FOR " + table.getName(),
                     "VALUES " +
-                            //TODO SAP Hana does not support infinity
+                            // TODO SAP Hana does not support infinity
 //                            "('only_negative_infinity', null, 1, 0, null, null, null)," +
 //                            "('only_positive_infinity', null, 1, 0, null, null, null)," +
 //                            "('mixed_infinities', null, 2, 0, null, null, null)," +
 //                            "('mixed_infinities_and_numbers', null, 4.0, 0.0, null, null, null)," +
-                            //TODO SAP Hana does not support NaN
+                            // TODO SAP Hana does not support NaN
 //                            "('nans_only', null, 1.0, 0.5, null, null, null)," +
 //                            "('nans_and_numbers', null, 3.0, 0.0, null, null, null)," +
                             // Min/Max are represented as double values for decimals by SAP Hana

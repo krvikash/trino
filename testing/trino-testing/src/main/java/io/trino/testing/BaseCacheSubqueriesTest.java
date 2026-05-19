@@ -148,7 +148,8 @@ public abstract class BaseCacheSubqueriesTest
     @Test
     public void testUnionWithJoinQuery()
     {
-        @Language("SQL") String selectQuery = """
+        @Language("SQL") String selectQuery =
+                """
                 select c.custkey from (
                   select custkey, nationkey from (select c.custkey, c.nationkey from customer c, nation n where c.nationkey = n.nationkey)
                   union all
@@ -228,10 +229,10 @@ public abstract class BaseCacheSubqueriesTest
         MaterializedResultWithPlan resultWithCache = executeWithPlan(
                 withCacheEnabled(),
                 """
-                        SELECT partkey FROM lineitem l JOIN
-                         (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, 60000)) t(suppkey, orderkey)) o
-                        ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
-                        """);
+                SELECT partkey FROM lineitem l JOIN
+                 (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, 60000)) t(suppkey, orderkey)) o
+                ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
+                """);
         // make sure data was cached
         assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
         assertThat(getScanSplitsWithDynamicFiltersApplied(resultWithCache.queryId())).isPositive();
@@ -239,10 +240,10 @@ public abstract class BaseCacheSubqueriesTest
         resultWithCache = executeWithPlan(
                 withCacheEnabled(),
                 """
-                        SELECT partkey FROM lineitem l JOIN
-                         (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, 60001)) t(suppkey, orderkey)) o
-                        ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
-                        """);
+                SELECT partkey FROM lineitem l JOIN
+                 (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, 60001)) t(suppkey, orderkey)) o
+                ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
+                """);
         // make sure data was read from cache because dynamic filters for "l.orderkey < o.orderkey"
         // should evaluate to TRUE for both queries since the highest lineitem "orderkey" value is 60000
         assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
@@ -252,10 +253,10 @@ public abstract class BaseCacheSubqueriesTest
         resultWithCache = executeWithPlan(
                 withCacheEnabled(),
                 """
-                        SELECT partkey FROM lineitem l JOIN
-                         (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 59999), (4, 59999)) t(suppkey, orderkey)) o
-                        ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
-                        """);
+                SELECT partkey FROM lineitem l JOIN
+                 (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 59999), (4, 59999)) t(suppkey, orderkey)) o
+                ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
+                """);
         assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isZero();
         assertThat(getScanSplitsWithDynamicFiltersApplied(resultWithCache.queryId())).isPositive();
     }
@@ -267,17 +268,20 @@ public abstract class BaseCacheSubqueriesTest
         String tableName = "orders_part" + randomNameSuffix();
         createPartitionedTableAsSelect(tableName, ImmutableList.of("custkey"), "select orderkey, orderdate, orderpriority, mod(custkey, 10) as custkey from orders");
         @Language("SQL") String totalScanOrdersQuery = "select count(orderkey) from " + tableName;
-        @Language("SQL") String firstJoinQuery = """
+        @Language("SQL") String firstJoinQuery =
+                """
                 select count(orderkey) from %1$s o join (select * from (values 0, 1, 2) t(custkey)) t on o.custkey = t.custkey
                 union all
                 select count(orderkey) from %1$s o join (select * from (values 0, 1, 2) t(custkey)) t on o.custkey = t.custkey
                 """.formatted(tableName);
-        @Language("SQL") String secondJoinQuery = """
+        @Language("SQL") String secondJoinQuery =
+                """
                 select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, 4) t(custkey)) t on o.custkey = t.custkey
                 union all
                 select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, 3) t(custkey)) t on o.custkey = t.custkey
                 """.formatted(tableName);
-        @Language("SQL") String thirdJoinQuery = """
+        @Language("SQL") String thirdJoinQuery =
+                """
                 select count(orderkey) from %1$s o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
                 union all
                 select count(orderkey) from %1$s o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
@@ -318,14 +322,14 @@ public abstract class BaseCacheSubqueriesTest
         MaterializedResultWithPlan resultWithCache = executeWithPlan(
                 withCacheEnabled(),
                 """
-                        SELECT l.partkey
-                        FROM
-                            (SELECT * FROM orders WHERE random(shippriority + 1) > 20) o
-                        JOIN
-                            (SELECT * FROM lineitem WHERE random(CAST(quantity AS INTEGER)) > 5) l
-                        ON
-                            l.ORDERKEY = o.ORDERKEY
-                        """);
+                SELECT l.partkey
+                FROM
+                    (SELECT * FROM orders WHERE random(shippriority + 1) > 20) o
+                JOIN
+                    (SELECT * FROM lineitem WHERE random(CAST(quantity AS INTEGER)) > 5) l
+                ON
+                    l.ORDERKEY = o.ORDERKEY
+                """);
 
         // make sure only one side was cached (the one without dynamic filter)
         assertThat(getOperatorStats(resultWithCache.queryId(), CacheDataOperator.class.getSimpleName()).count()).isEqualTo(1L);
@@ -486,8 +490,7 @@ public abstract class BaseCacheSubqueriesTest
                                 Span.current(),
                                 handle,
                                 getDynamicFilter(TupleDomain.withColumnDomains(ImmutableMap.of(
-                                        dataColumn,
-                                        Domain.create(ValueSet.ofRanges(Range.lessThan(BIGINT, 1_000_000L)), false)))),
+                                        dataColumn, Domain.create(ValueSet.ofRanges(Range.lessThan(BIGINT, 1_000_000L)), false)))),
                                 alwaysTrue());
                         ConnectorSplit splitWithDfOnDataColumn = getFutureValue(splitSourceWithDfOnDataColumn.getNextBatch(1000)).getSplits().get(0).getConnectorSplit();
                         // getUnenforcedPredicate and prunePredicate should prune data column if there is dynamic filter on that column
@@ -741,7 +744,7 @@ public abstract class BaseCacheSubqueriesTest
                 .orElse(handle);
     }
 
-    abstract protected void createPartitionedTableAsSelect(String tableName, List<String> partitionColumns, String asSelect);
+    protected abstract void createPartitionedTableAsSelect(String tableName, List<String> partitionColumns, String asSelect);
 
     protected Session withProjectionPushdownEnabled(Session session, boolean projectionPushdownEnabled)
     {

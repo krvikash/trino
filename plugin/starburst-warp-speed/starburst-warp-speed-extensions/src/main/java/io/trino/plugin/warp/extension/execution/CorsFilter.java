@@ -23,7 +23,8 @@ public class CorsFilter
         implements ContainerResponseFilter
 {
     @Override
-    public void filter(ContainerRequestContext requestContext,
+    public void filter(
+            ContainerRequestContext requestContext,
             ContainerResponseContext responseContext)
     {
         responseContext.getHeaders().add(

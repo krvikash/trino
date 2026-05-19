@@ -68,16 +68,17 @@ public class ShapingLoggerFactory
         return instances.computeIfAbsent(clazz, _ -> {
             Logger logger = Logger.get(clazz);
             return new ShapingLogger(
-                catalogName.toString(),
-                logger,
-                threshold,
-                duration,
-                numberOfSamplings,
-                mode);
+                    catalogName.toString(),
+                    logger,
+                    threshold,
+                    duration,
+                    numberOfSamplings,
+                    mode);
         });
     }
 
-    public ShapingLogger getInstance(Class clazz,
+    public ShapingLogger getInstance(
+            Class clazz,
             Logger logger,
             int threshold,
             Duration duration,
@@ -85,11 +86,11 @@ public class ShapingLoggerFactory
             ShapingLogger.MODE mode)
     {
         return instances.computeIfAbsent(clazz, _ -> new ShapingLogger(
-            catalogName.toString(),
-            logger,
-            threshold,
-            duration,
-            numberOfSamplings,
-            mode));
+                catalogName.toString(),
+                logger,
+                threshold,
+                duration,
+                numberOfSamplings,
+                mode));
     }
 }

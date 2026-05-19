@@ -373,9 +373,11 @@ public class TestChunkManager
         assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 33, 0, 0, 3, 33));
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
-                new DataPage(0, 0, utf8Slice("chunk")), new DataPage(0, 0, utf8Slice("manager")));
+                new DataPage(0, 0, utf8Slice("chunk")),
+                new DataPage(0, 0, utf8Slice("manager")));
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
-                new DataPage(0, 0, utf8Slice("data")), new DataPage(0, 0, utf8Slice("page")));
+                new DataPage(0, 0, utf8Slice("data")),
+                new DataPage(0, 0, utf8Slice("page")));
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 0, utf8Slice("deduplication")));
 
@@ -652,20 +654,23 @@ public class TestChunkManager
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 16);
         ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 8);
 
-        verifySpooledChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
+        verifySpooledChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 1, utf8Slice("data for chunk 2")));
         assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessageStartingWith("No closed chunk found");
 
-        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
+        verifyInMemoryChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("data for chunk 0")));
         assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessageStartingWith("No closed chunk found");
 
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
-        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
+        verifyInMemoryChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("partial1")));
     }
 
@@ -727,13 +732,15 @@ public class TestChunkManager
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 16);
         ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 8);
 
-        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
+        verifyInMemoryChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("data for chunk 0")));
         assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessageStartingWith("No closed chunk found");
 
-        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
+        verifyInMemoryChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 1, utf8Slice("data for chunk 2")));
         assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()))
                 .isInstanceOf(DataServerException.class)
@@ -741,9 +748,11 @@ public class TestChunkManager
 
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
-        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
+        verifyInMemoryChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()),
                 new DataPage(0, 0, utf8Slice("partial1")));
-        verifyInMemoryChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()),
+        verifyInMemoryChunkDataResult(
+                chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()),
                 new DataPage(1, 1, utf8Slice("partial3")));
     }
 
@@ -1163,7 +1172,8 @@ public class TestChunkManager
                 Optional.empty(),
                 chunkDataFactory,
                 new DataServerStats(),
-                new Tracer() {
+                new Tracer()
+                {
                     @Override
                     public SpanBuilder spanBuilder(String spanName)
                     {

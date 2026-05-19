@@ -75,7 +75,7 @@ public class TestStarburstObjectStoreHiveOnDataLake
                     // Required for tests
                     .put("hive.insert-existing-partitions-behavior", "OVERWRITE")
                     .put("hive.hive-views.enabled", "true")
-                     .put("hive.non-managed-table-writes-enabled", "true")
+                    .put("hive.non-managed-table-writes-enabled", "true")
                     // Below are required to enable caching on metastore (as enabled by the superclass)
                     .put("hive.metastore-cache-ttl", "1d")
                     .put("hive.metastore-refresh-interval", "1d")

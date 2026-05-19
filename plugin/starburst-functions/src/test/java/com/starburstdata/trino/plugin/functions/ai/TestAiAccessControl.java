@@ -55,53 +55,54 @@ public class TestAiAccessControl
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        String modelSpecs = """
-                {
-                 "models": [
-                     {
-                       "id": "%s",
-                       "modelName": "amazon.titan-embed-text-v2:0",
-                       "kind": "EMBED",
-                       "connectionInfo": {
-                         "provider": "AWS_BEDROCK",
-                         "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
-                         "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
-                         "region": "us-east-2"
-                       }
-                     },
-                     {
-                       "id": "%s",
-                       "modelName": "text-embedding-3-small",
-                       "kind": "EMBED",
-                       "connectionInfo": {
-                         "provider": "OPENAI",
-                         "endpoint": "https://api.openai.com/v1",
-                         "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                       }
-                     },
-                     {
-                         "id": "%s",
-                         "modelName": "gpt-4o-mini",
-                         "kind": "GENERATE",
-                         "connectionInfo": {
-                             "provider": "OPENAI",
-                             "endpoint": "https://api.openai.com/v1",
-                             "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                         }
-                     },
-                     {
-                         "id": "%s",
-                         "modelName": "gpt-4o-mini",
-                         "kind": "GENERATE",
-                         "connectionInfo": {
-                             "provider": "OPENAI",
-                             "endpoint": "https://api.openai.com/v1",
-                             "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                         }
-                     }
-                 ]
-             }
-        """.formatted(EMBED_ALLOW_MODEL, EMBED_DENY_MODEL, LANGUAGE_ALLOW_MODEL, LANGUAGE_DENY_MODEL);
+        String modelSpecs =
+                """
+                   {
+                    "models": [
+                        {
+                          "id": "%s",
+                          "modelName": "amazon.titan-embed-text-v2:0",
+                          "kind": "EMBED",
+                          "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-2"
+                          }
+                        },
+                        {
+                          "id": "%s",
+                          "modelName": "text-embedding-3-small",
+                          "kind": "EMBED",
+                          "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                          }
+                        },
+                        {
+                            "id": "%s",
+                            "modelName": "gpt-4o-mini",
+                            "kind": "GENERATE",
+                            "connectionInfo": {
+                                "provider": "OPENAI",
+                                "endpoint": "https://api.openai.com/v1",
+                                "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                            }
+                        },
+                        {
+                            "id": "%s",
+                            "modelName": "gpt-4o-mini",
+                            "kind": "GENERATE",
+                            "connectionInfo": {
+                                "provider": "OPENAI",
+                                "endpoint": "https://api.openai.com/v1",
+                                "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                            }
+                        }
+                    ]
+                }
+                """.formatted(EMBED_ALLOW_MODEL, EMBED_DENY_MODEL, LANGUAGE_ALLOW_MODEL, LANGUAGE_DENY_MODEL);
 
         return MemoryQueryRunner.builder()
                 .setAdditionalModule(binder -> {
@@ -138,7 +139,8 @@ public class TestAiAccessControl
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
                 "SELECT ai.prompt('%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
-                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);    }
+                AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);
+    }
 
     @Test
     public void testPromptSystem()
@@ -263,14 +265,14 @@ public class TestAiAccessControl
     private static String updateWithModel(String tableName, String modelId)
     {
         return """
-                    INSERT INTO %s (data, embedding)
-                    SELECT data, embedding
-                    FROM TABLE(starburst.ai.generate_embeddings(
-                      embedding_column => DESCRIPTOR(embedding),
-                      data_column => DESCRIPTOR(data),
-                      source => TABLE(SELECT * FROM (VALUES 'apple', 'orange', null, '', 'cat', 'dog', 'shirt', 'pants') AS t (data)),
-                      model_id => '%s'))
-                    """.formatted(tableName, modelId);
+               INSERT INTO %s (data, embedding)
+               SELECT data, embedding
+               FROM TABLE(starburst.ai.generate_embeddings(
+                 embedding_column => DESCRIPTOR(embedding),
+                 data_column => DESCRIPTOR(data),
+                 source => TABLE(SELECT * FROM (VALUES 'apple', 'orange', null, '', 'cat', 'dog', 'shirt', 'pants') AS t (data)),
+                 model_id => '%s'))
+               """.formatted(tableName, modelId);
     }
 
     public static class TestingAiModelAccessControl

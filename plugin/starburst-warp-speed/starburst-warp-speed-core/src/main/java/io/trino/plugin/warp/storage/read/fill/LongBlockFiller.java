@@ -55,7 +55,8 @@ public class LongBlockFiller
     }
 
     @Override
-    protected Block fillRawBlock(ReadJuffersWarmUpElement juffersWE,
+    protected Block fillRawBlock(
+            ReadJuffersWarmUpElement juffersWE,
             RecTypeCode recTypeCode,
             int recLength,
             int rowsToFill,
@@ -82,8 +83,13 @@ public class LongBlockFiller
     }
 
     @Override
-    protected Block createSingleBlockWithMapping(ReadJuffersWarmUpElement juffersWE, int mapKey, int rowsToFill,
-            Block mapBlock, RecTypeCode recTypeCode, boolean collectNulls)
+    protected Block createSingleBlockWithMapping(
+            ReadJuffersWarmUpElement juffersWE,
+            int mapKey,
+            int rowsToFill,
+            Block mapBlock,
+            RecTypeCode recTypeCode,
+            boolean collectNulls)
     {
         long singleVal = ((LongArrayBlock) mapBlock).getLong(mapKey);
         Block retBlock;
@@ -100,7 +106,8 @@ public class LongBlockFiller
     }
 
     @Override
-    public Block fillRawBlockWithDictionary(ReadJuffersWarmUpElement juffersWE,
+    public Block fillRawBlockWithDictionary(
+            ReadJuffersWarmUpElement juffersWE,
             int rowsToFill,
             RecTypeCode recTypeCode,
             int recTypeLength,

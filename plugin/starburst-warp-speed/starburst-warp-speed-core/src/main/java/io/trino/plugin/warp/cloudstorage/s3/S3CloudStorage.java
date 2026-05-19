@@ -77,19 +77,21 @@ public class S3CloudStorage
         UploadFileRequest request = UploadFileRequest.builder()
                 .putObjectRequest(req -> req.bucket(s3Location.bucket())
                         .key(s3Location.key())
-                .applyMutation(builder -> {
-                    switch (config.getSseType()) {
-                        case NONE -> { /* ignored */ }
-                        case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
-                        case CUSTOMER -> {
-                            S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");
-                            builder.sseCustomerAlgorithm(aes256.algorithm())
-                                    .sseCustomerKey(aes256.key())
-                                    .sseCustomerKeyMD5(aes256.md5());
-                        }
-                        default -> builder.serverSideEncryption(AES256);
-                    }
-                }))
+                        .applyMutation(builder -> {
+                            switch (config.getSseType()) {
+                                case NONE -> {
+                                    /* ignored */
+                                }
+                                case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
+                                case CUSTOMER -> {
+                                    S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");
+                                    builder.sseCustomerAlgorithm(aes256.algorithm())
+                                            .sseCustomerKey(aes256.key())
+                                            .sseCustomerKeyMD5(aes256.md5());
+                                }
+                                default -> builder.serverSideEncryption(AES256);
+                            }
+                        }))
                 .source(new File(source.toString()))
                 .build();
 
@@ -147,7 +149,9 @@ public class S3CloudStorage
                         .destinationKey(targetLocation.key())
                         .applyMutation(builder -> {
                             switch (config.getSseType()) {
-                                case NONE -> { /* ignored */ }
+                                case NONE -> {
+                                    /* ignored */
+                                }
                                 case KMS -> builder.serverSideEncryption(AWS_KMS).ssekmsKeyId(config.getSseKmsKeyId());
                                 case CUSTOMER -> {
                                     S3SseCustomerKey aes256 = new S3SseCustomerKey(config.getSseCustomerKey(), md5AsBase64(fromBase64(config.getSseCustomerKey())), "AES256");
@@ -187,8 +191,13 @@ public class S3CloudStorage
         catch (IOException e) {
             AwsServiceException exception = getAwsServiceException(e);
             if ((exception != null) && (exception.statusCode() == 412)) {
-                logger.debug("copyFileReplaceTail [%s] => [%s] metadata %s position %d exception: %s",
-                        source, destination, metadata, position, e);
+                logger.debug(
+                        "copyFileReplaceTail [%s] => [%s] metadata %s position %d exception: %s",
+                        source,
+                        destination,
+                        metadata,
+                        position,
+                        e);
                 return false;
             }
             throw new IOException("copyFileReplaceTail failed exception: %s cause: %s".formatted(e, e.getCause()), e);

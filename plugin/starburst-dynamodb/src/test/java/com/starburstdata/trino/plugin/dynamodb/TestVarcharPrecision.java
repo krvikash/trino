@@ -42,7 +42,8 @@ public class TestVarcharPrecision
                 .setAwsAccessKey("accesskey")
                 .setTables(List.of()) // None of the tpch tables are required in the tests of this class.
                 .addConnectorProperties(
-                        Map.of("dynamodb.generate-schema-files", "ON_START", // Set it to the same value as that of set in Galaxy config.
+                        Map.of(
+                                "dynamodb.generate-schema-files", "ON_START", // Set it to the same value as that of set in Galaxy config.
                                 "dynamodb.extra-jdbc-properties", "SchemaCacheDuration=0")) // Don't cache table metadata. Required for created test table to show up.
                 .enablePredicatePushdown()
                 .enableWrites()
@@ -62,31 +63,31 @@ public class TestVarcharPrecision
         int col1MaxPrecision = (400 * 1024) - 11; // Based on the 400KB max DynamoDB item size. https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html#limits-items
         String col1MaxPrecisionValue = "a".repeat(col1MaxPrecision);
 
-        try (DynamoDbTemporaryTable table
-                = new DynamoDbTemporaryTable(
-                        server.getEndpointUrl(),
+        try (DynamoDbTemporaryTable table = new DynamoDbTemporaryTable(
+                server.getEndpointUrl(),
                 "test_varchar_precision" + randomNameSuffix(),
-                        primaryKey,
-                        primaryType,
-                        primaryKeyDataType,
-                        Optional.empty(),
-                        Optional.empty(),
+                primaryKey,
+                primaryType,
+                primaryKeyDataType,
                 Optional.empty(),
-                        List.of(
-                                ImmutableMap.of(
-                                        primaryKey, AttributeValue.builder().s("a").build(),
-                                        col1, AttributeValue.builder().s(col1RandomPrecisionValue).build()),
-                                ImmutableMap.of(
-                                        primaryKey, AttributeValue.builder().s("b").build(),
-                                        col1, AttributeValue.builder().s(col1MaxPrecisionValue).build())))) {
+                Optional.empty(),
+                Optional.empty(),
+                List.of(
+                        ImmutableMap.of(
+                                primaryKey, AttributeValue.builder().s("a").build(),
+                                col1, AttributeValue.builder().s(col1RandomPrecisionValue).build()),
+                        ImmutableMap.of(
+                                primaryKey, AttributeValue.builder().s("b").build(),
+                                col1, AttributeValue.builder().s(col1MaxPrecisionValue).build())))) {
             String tableName = table.getName();
             assertThat((String) computeActual(
                     "SHOW CREATE TABLE " + tableName).getOnlyValue())
-                    .isEqualTo("""
-                        CREATE TABLE dynamodb.amazondynamodb.%s (
-                           %s varchar NOT NULL COMMENT 'Dynamic Column.',
-                           %s varchar COMMENT 'Dynamic Column.'
-                        )""".formatted(tableName, primaryKey, col1));
+                    .isEqualTo(
+                            """
+                            CREATE TABLE dynamodb.amazondynamodb.%s (
+                               %s varchar NOT NULL COMMENT 'Dynamic Column.',
+                               %s varchar COMMENT 'Dynamic Column.'
+                            )""".formatted(tableName, primaryKey, col1));
 
             assertQuery("SELECT row_id, col1 FROM " + tableName, "VALUES ('a', '%s'), ('b', '%s')".formatted(col1RandomPrecisionValue, col1MaxPrecisionValue));
         }
@@ -117,7 +118,7 @@ public class TestVarcharPrecision
         String primaryKeyRow2 = "b".repeat(primaryKeyMaxPrecision);
 
         try (DynamoDbTemporaryTable table
-                = new DynamoDbTemporaryTable(
+        = new DynamoDbTemporaryTable(
                 server.getEndpointUrl(),
                 "test_varchar_precision" + randomNameSuffix(),
                 primaryKey,
@@ -138,12 +139,13 @@ public class TestVarcharPrecision
             String tableName = table.getName();
             assertThat((String) computeActual(
                     "SHOW CREATE TABLE " + tableName).getOnlyValue())
-                    .isEqualTo("""
-                        CREATE TABLE dynamodb.amazondynamodb.%s (
-                           %s varchar NOT NULL COMMENT 'Dynamic Column.',
-                           %s varchar NOT NULL COMMENT 'Dynamic Column.',
-                           %s varchar COMMENT 'Dynamic Column.'
-                        )""".formatted(tableName, sortKey, primaryKey, col1));
+                    .isEqualTo(
+                            """
+                            CREATE TABLE dynamodb.amazondynamodb.%s (
+                               %s varchar NOT NULL COMMENT 'Dynamic Column.',
+                               %s varchar NOT NULL COMMENT 'Dynamic Column.',
+                               %s varchar COMMENT 'Dynamic Column.'
+                            )""".formatted(tableName, sortKey, primaryKey, col1));
 
             assertQuery("SELECT %s, %s, %s FROM %s".formatted(primaryKey, sortKey, col1, tableName),
                     "VALUES ('%s', '%s', '%s'), ('%s', '%s', '%s')".formatted(primaryKeyRow1, sortKeyRow1, col1RandomPrecisionValue, primaryKeyRow2, sortKey1Row2, col1RandomPrecisionValue));

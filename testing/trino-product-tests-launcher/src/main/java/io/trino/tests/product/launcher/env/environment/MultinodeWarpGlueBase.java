@@ -30,7 +30,8 @@ public abstract class MultinodeWarpGlueBase
 {
     private static final Logger logger = Logger.get(MultinodeWarpGlueBase.class);
 
-    public MultinodeWarpGlueBase(String dockerFilesHostDirectory,
+    public MultinodeWarpGlueBase(
+            String dockerFilesHostDirectory,
             DockerFiles dockerFiles,
             PortBinder portBinder,
             EnvironmentExtender... bases)

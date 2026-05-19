@@ -85,7 +85,8 @@ public class PredicatesCacheServiceTest
         when(bufferAllocator.getPoolSize(isA(PredicateBufferPoolType.class))).thenReturn(2);
         MetricsManager metricsManager = mock(MetricsManager.class);
         when(metricsManager.registerMetric(any())).thenReturn(cachePredicatesStats);
-        predicatesCacheService = new PredicatesCacheService(bufferAllocator,
+        predicatesCacheService = new PredicatesCacheService(
+                bufferAllocator,
                 storageEngineConstants,
                 metricsManager,
                 domainToMapBlockConvertor,

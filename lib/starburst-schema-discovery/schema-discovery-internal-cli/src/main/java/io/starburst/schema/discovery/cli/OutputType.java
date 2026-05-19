@@ -13,5 +13,5 @@ public enum OutputType
 {
     JSON,
     SQL,
-    METADATA
+    METADATA,
 }

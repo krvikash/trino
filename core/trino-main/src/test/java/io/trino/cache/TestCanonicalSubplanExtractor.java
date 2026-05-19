@@ -147,7 +147,8 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testAggregationWithMultipleGroupByColumnsAndPredicate()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT sum(nationkey), sum(nationkey) filter(where nationkey > 10)
                 FROM nation
                 WHERE regionkey > BIGINT '10'
@@ -214,7 +215,8 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testAggregationWithMultipleGroupByColumns()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT sum(nationkey + 1)
                 FROM nation
                 GROUP BY name, regionkey""");
@@ -265,7 +267,8 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testNestedProjections()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT regionkey
                 FROM (SELECT nationkey * 2 as nationkey_mul, regionkey FROM nation)
                 WHERE nationkey_mul + nationkey_mul > BIGINT '10' AND regionkey > BIGINT '10'""");
@@ -348,7 +351,8 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testBigintAggregation()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT sum(nationkey)
                 FROM nation
                 GROUP BY regionkey""");
@@ -378,7 +382,8 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testGlobalAggregation()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT sum(nationkey)
                 FROM nation""");
         assertThat(subplans).hasSize(2);
@@ -402,7 +407,8 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testNestedAggregations()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT sum(sum_nationkey)
                 FROM (SELECT sum(nationkey) sum_nationkey, name
                       FROM nation
@@ -455,10 +461,12 @@ public class TestCanonicalSubplanExtractor
     @Test
     public void testTopNRankingRowNumber()
     {
-        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("""
+        List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery(
+                """
                 SELECT *
                 FROM (SELECT nationkey, ROW_NUMBER () OVER (PARTITION BY name, nationkey ORDER BY regionkey DESC) update_rank FROM nation) AS t
-                WHERE t.update_rank = 1""", false);
+                WHERE t.update_rank = 1""",
+                false);
         assertThat(subplans).hasSize(2);
         CanonicalSubplan scanSubplan = subplans.get(0);
         assertThat(scanSubplan.getAssignments()).containsExactly(
@@ -558,7 +566,7 @@ public class TestCanonicalSubplanExtractor
         // unsupported final aggregation and exchanges between two topN
         List<CanonicalSubplan> subplans = extractCanonicalSubplansForQuery("SELECT max(nationkey) FROM nation GROUP BY name ORDER BY name LIMIT 1");
         assertThat(subplans).hasSize(2);
-        assertThat(subplans).noneMatch((subplan) -> subplan.getKey() instanceof TopNKey);
+        assertThat(subplans).noneMatch(subplan -> subplan.getKey() instanceof TopNKey);
     }
 
     @Test
@@ -702,7 +710,7 @@ public class TestCanonicalSubplanExtractor
         // no column id, therefore no canonical plan
         assertThat(extractCanonicalSubplans(
                 MOCK_METADATA,
-                new TestCacheMetadata(Optional.of(CACHE_TABLE_ID), handle -> Optional.empty()),
+                new TestCacheMetadata(Optional.of(CACHE_TABLE_ID), _ -> Optional.empty()),
                 TEST_SESSION,
                 tableScanNode))
                 .isEmpty();
@@ -815,8 +823,8 @@ public class TestCanonicalSubplanExtractor
                 MOCK_METADATA,
                 new TestCacheMetadata(
                         handle -> Optional.of(new CacheColumnId(handle.getName())),
-                        (tableHandle) -> canonicalTableHandle,
-                        (tableHandle) -> Optional.of(new CacheTableId(tableHandle.connectorHandle().toString()))),
+                        _ -> canonicalTableHandle,
+                        tableHandle -> Optional.of(new CacheTableId(tableHandle.connectorHandle().toString()))),
                 TEST_SESSION,
                 root).stream()
                 .map(subplan -> subplan.getTableScan().orElseThrow())
@@ -833,7 +841,7 @@ public class TestCanonicalSubplanExtractor
                 MOCK_METADATA,
                 new TestCacheMetadata(
                         handle -> Optional.of(new CacheColumnId(handle.getName())),
-                        (tableHandle) -> {
+                        tableHandle -> {
                             TestingMetadata.TestingTableHandle handle = (TestingMetadata.TestingTableHandle) tableHandle.connectorHandle();
                             if (handle.getTableName().getTableName().equals("table1")) {
                                 return TestingHandles.createTestTableHandle(SchemaTableName.schemaTableName("schema", "common1"));
@@ -842,7 +850,7 @@ public class TestCanonicalSubplanExtractor
                                 return TestingHandles.createTestTableHandle(SchemaTableName.schemaTableName("schema", "common2"));
                             }
                         },
-                        (tableHandle) -> Optional.of(new CacheTableId(tableHandle.connectorHandle().toString()))),
+                        tableHandle -> Optional.of(new CacheTableId(tableHandle.connectorHandle().toString()))),
                 TEST_SESSION,
                 root).stream()
                 .map(subplan -> subplan.getTableScan().orElseThrow().getTableId())
@@ -947,14 +955,14 @@ public class TestCanonicalSubplanExtractor
 
         private TestCacheMetadata()
         {
-            this(handle -> Optional.of(new CacheColumnId("cache_" + handle.getName())), Functions.identity(), (any) -> Optional.of(CACHE_TABLE_ID));
+            this(handle -> Optional.of(new CacheColumnId("cache_" + handle.getName())), Functions.identity(), _ -> Optional.of(CACHE_TABLE_ID));
         }
 
         private TestCacheMetadata(
                 Optional<CacheTableId> cacheTableId,
                 Function<TestingColumnHandle, Optional<CacheColumnId>> cacheColumnIdMapper)
         {
-            this(cacheColumnIdMapper, Function.identity(), (any) -> cacheTableId);
+            this(cacheColumnIdMapper, Function.identity(), _ -> cacheTableId);
         }
 
         private TestCacheMetadata(
@@ -962,7 +970,7 @@ public class TestCanonicalSubplanExtractor
                 Function<TableHandle, TableHandle> canonicalizeTableHande,
                 Function<TableHandle, Optional<CacheTableId>> tableHandleCacheTableIdMapper)
         {
-            super(catalogHandle -> Optional.empty());
+            super(_ -> Optional.empty());
             this.cacheColumnIdMapper = cacheColumnIdMapper;
             this.canonicalizeTableHande = canonicalizeTableHande;
             this.tableHandleCacheTableIdMapper = tableHandleCacheTableIdMapper;
@@ -999,7 +1007,8 @@ public class TestCanonicalSubplanExtractor
                     new ConnectorTableProperties(
                             TupleDomain.all(),
                             Optional.empty(),
-                            Optional.empty(), ImmutableList.of()));
+                            Optional.empty(),
+                            ImmutableList.of()));
         }
     }
 }

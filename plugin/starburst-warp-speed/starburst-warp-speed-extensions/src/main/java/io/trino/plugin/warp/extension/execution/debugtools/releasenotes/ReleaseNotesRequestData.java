@@ -28,6 +28,6 @@ public record ReleaseNotesRequestData(io.trino.plugin.warp.extension.execution.d
     {
         LATEST,
         RELEASE,
-        ALL
+        ALL,
     }
 }

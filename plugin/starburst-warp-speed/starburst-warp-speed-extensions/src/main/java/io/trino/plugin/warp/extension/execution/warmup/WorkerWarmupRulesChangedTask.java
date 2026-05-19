@@ -37,14 +37,12 @@ public class WorkerWarmupRulesChangedTask
     public static final String TASK_NAME = "worker-warmup-rules-changed";
 
     @Inject
-    public WorkerWarmupRulesChangedTask()
-    {
-    }
+    public WorkerWarmupRulesChangedTask() {}
 
     @POST
     @Path(TASK_NAME)
     @Audit
-    //@ApiOperation(value = "rules changed", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
+    // @ApiOperation(value = "rules changed", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public void rulesChanged()
     {
         // do nothing since rules are not supported

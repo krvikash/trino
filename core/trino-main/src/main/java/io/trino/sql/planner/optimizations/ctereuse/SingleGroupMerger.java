@@ -32,8 +32,7 @@ public class SingleGroupMerger
 {
     private static final List<SingleGroupProcessor> SINGLE_GROUP_PROCESSORS = ImmutableList.of(new ExchangeMerger(), new ProjectMerger(), new AggregationMerger(), new DynamicFilterSourceMerger(), new EnforceSingleRowMerger());
 
-    private SingleGroupMerger()
-    {}
+    private SingleGroupMerger() {}
 
     public static SingleGroupMergeDecomposition identifySingleGroupSubgroupsToMerge(CteReuse.UnifiedStates group, ProgramBuilder.ValueNameAllocator nameAllocator)
     {

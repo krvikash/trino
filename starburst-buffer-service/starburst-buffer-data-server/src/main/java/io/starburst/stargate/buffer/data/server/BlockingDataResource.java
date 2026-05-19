@@ -209,13 +209,19 @@ public class BlockingDataResource
                         Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
             }
 
-            //Overload protection. Reject requests if we have too many in-progress addDataPages requests (backpressure)
+            // Overload protection. Reject requests if we have too many in-progress addDataPages requests (backpressure)
             if (inProgressLatch.currentRequestsCount() > maxInProgressAddDataPagesRequests) {
                 inProgressLatch.release();
                 stats.getOverloadedAddDataPagesCount().update(1);
                 addDataPagesThrottlingCalculator.recordThrottlingEvent();
-                logger.debug("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
-                        exchangeId, taskId, attemptId, dataPagesId, inProgressLatch.currentRequestsCount(), maxInProgressAddDataPagesRequests);
+                logger.debug(
+                        "rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
+                        exchangeId,
+                        taskId,
+                        attemptId,
+                        dataPagesId,
+                        inProgressLatch.currentRequestsCount(),
+                        maxInProgressAddDataPagesRequests);
                 return consumeRequestAndBuildResponse(
                         clientId,
                         inputStream,
@@ -270,7 +276,9 @@ public class BlockingDataResource
             checkState(eofMarker == -1, "expected EOF but read %s", eofMarker);
 
             verify(bytesRead == contentLength,
-                    "Actual number of bytes read %s not equal to contentLength %s", bytesRead, contentLength);
+                    "Actual number of bytes read %s not equal to contentLength %s",
+                    bytesRead,
+                    contentLength);
 
             // Parse pages and validate checksum
             SliceInput sliceInput = slice.getInput();
@@ -427,10 +435,8 @@ public class BlockingDataResource
 
         return switch (chunkDataResult) {
             case SpooledChunkResult result -> spooledChunkResponse(result);
-            case ChunkContentResult(MemoryChunkDataLease lease) ->
-                    streamMemoryChunk(lease, bufferNodeId, exchangeId, partitionId, chunkId);
-            case ChunkContentResult(DiskChunkDataLease lease) ->
-                    streamDiskChunk(lease, bufferNodeId, exchangeId, partitionId, chunkId);
+            case ChunkContentResult(MemoryChunkDataLease lease) -> streamMemoryChunk(lease, bufferNodeId, exchangeId, partitionId, chunkId);
+            case ChunkContentResult(DiskChunkDataLease lease) -> streamDiskChunk(lease, bufferNodeId, exchangeId, partitionId, chunkId);
         };
     }
 

@@ -46,9 +46,7 @@ public class WarpStatsBase
         return Map.of();
     }
 
-    public void reset()
-    {
-    }
+    public void reset() {}
 
     public void mergeStats(WarpStatsBase warpStatsBase)
     {

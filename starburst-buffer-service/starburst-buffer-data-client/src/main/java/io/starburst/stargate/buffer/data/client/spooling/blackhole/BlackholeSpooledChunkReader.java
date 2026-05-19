@@ -29,5 +29,6 @@ public class BlackholeSpooledChunkReader
 
     @Override
     public void close()
-            throws Exception {}
+            throws Exception
+    {}
 }

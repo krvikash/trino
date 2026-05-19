@@ -94,7 +94,7 @@ public class TestDrain
     }
 
     @Test
-    @Disabled// too slow for automation
+    @Disabled // too slow for automation
     public void testDrainStress()
             throws Exception
     {
@@ -116,7 +116,7 @@ public class TestDrain
                                 .setConfigProperty("testing.enable-stats-logging", "false")
                                 .setConfigProperty("memory.heap-headroom", DataSize.succinctBytes(memoryHeadroom).toString())
                                 .setConfigProperty("draining.min-duration", "10s")
-                                .setConfigProperty("exchange.staleness-threshold", "2h")) //tmp
+                                .setConfigProperty("exchange.staleness-threshold", "2h")) // tmp
                 .setDataServersCount(3)
                 .build();
 
@@ -185,7 +185,8 @@ public class TestDrain
             try {
                 while (firstQuery || testInProgress.get()) {
                     firstQuery = false;
-                    MaterializedResult result = queryRunner.execute("""
+                    MaterializedResult result = queryRunner.execute(
+                            """
                             WITH big        AS (SELECT custkey k FROM tpch.sf50.orders),
                                  single_row AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal = 2237.64)
                             SELECT count(*) FROM single_row,big WHERE single_row.k = big.k""");

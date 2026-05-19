@@ -17,6 +17,4 @@ import java.io.Closeable;
 import java.util.Iterator;
 
 public interface PageStreamReader
-        extends Iterator<Page>, Closeable
-{
-}
+        extends Iterator<Page>, Closeable {}

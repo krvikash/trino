@@ -51,8 +51,7 @@ public class ObjectStoreUnloadFunction
 
     public ObjectStoreUnloadFunction(Connector hiveConnector)
     {
-        super(
-                "system",
+        super("system",
                 "unload",
                 ImmutableList.of(
                         TableArgumentSpecification.builder()

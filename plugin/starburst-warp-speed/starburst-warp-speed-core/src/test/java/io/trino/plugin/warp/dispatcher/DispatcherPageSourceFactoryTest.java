@@ -124,7 +124,8 @@ public class DispatcherPageSourceFactoryTest
     @BeforeEach
     public void before()
     {
-        dispatcherSplit = new DispatcherSplit("database",
+        dispatcherSplit = new DispatcherSplit(
+                "database",
                 "table",
                 "path",
                 0L,
@@ -148,7 +149,8 @@ public class DispatcherPageSourceFactoryTest
                 TupleDomain.all(),
                 TupleDomain.all(),
                 Optional.empty());
-        dispatcherTableHandle = new DispatcherTableHandle(dispatcherSplit.getSchemaName(),
+        dispatcherTableHandle = new DispatcherTableHandle(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 OptionalLong.of(0),
                 TupleDomain.all(),
@@ -191,7 +193,8 @@ public class DispatcherPageSourceFactoryTest
         PredicateContextFactory predicateContextFactory = new PredicateContextFactory(globalConfig, new TestingConnectorProxiedConnectorTransformer());
         when(predicatesCacheService.predicateDataToBuffer(isA(PredicateData.class), any())).thenReturn(Optional.of(new PredicateCacheData(new PredicateBufferInfo(null, PredicateBufferPoolType.INVALID), Optional.empty())));
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();
-        ClassifierFactory classifierFactory = new ClassifierFactory(storageEngineConstants,
+        ClassifierFactory classifierFactory = new ClassifierFactory(
+                storageEngineConstants,
                 predicatesCacheService,
                 bufferAllocator,
                 nativeConfig,
@@ -199,7 +202,8 @@ public class DispatcherPageSourceFactoryTest
                 matchCollectIdService,
                 globalConfig,
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
-        QueryClassifier queryClassifier = new QueryClassifier(classifierFactory,
+        QueryClassifier queryClassifier = new QueryClassifier(
+                classifierFactory,
                 matchCollectIdService,
                 predicateContextFactory,
                 dispatcherProxiedConnectorTransformer,
@@ -240,7 +244,8 @@ public class DispatcherPageSourceFactoryTest
         when(rowGroupDataDao.get(any(RowGroupKey.class))).thenReturn(null);
         when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(null);
 
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -249,7 +254,8 @@ public class DispatcherPageSourceFactoryTest
                 columnHandleList,
                 DynamicFilter.EMPTY,
                 customStatsContext);
-        verifyWarmCalled(connectorPageSourceProvider,
+        verifyWarmCalled(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -262,7 +268,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
-        assertThat(pageSource).isNull(); //not mocked but not DispatcherPageSource
+        assertThat(pageSource).isNull(); // not mocked but not DispatcherPageSource
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         assertThat(stats.getcached_proxied_files()).isEqualTo(1);
@@ -294,7 +300,8 @@ public class DispatcherPageSourceFactoryTest
 
         when(rowGroupDataDao.get(any(RowGroupKey.class))).thenReturn(rowGroupData);
         when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(rowGroupData);
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -305,9 +312,11 @@ public class DispatcherPageSourceFactoryTest
                 customStatsContext);
         assertThat(rowGroupData.getWarmUpElements().stream().findAny().orElseThrow().getLastUsedTimestamp()).isGreaterThanOrEqualTo(now);
 
-        verifyWarmCalled(connectorPageSourceProvider,
+        verifyWarmCalled(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
-                connectorSession, dispatcherSplit,
+                connectorSession,
+                dispatcherSplit,
                 dispatcherTableHandle);
 
         verify(connectorPageSourceProvider, never())
@@ -349,7 +358,8 @@ public class DispatcherPageSourceFactoryTest
         when(rowGroupDataDao.get(any(RowGroupKey.class))).thenReturn(rowGroupData);
         when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(rowGroupData);
 
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -367,7 +377,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
-        verifyWarmCalled(connectorPageSourceProvider,
+        verifyWarmCalled(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -388,7 +399,8 @@ public class DispatcherPageSourceFactoryTest
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
-        pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -405,7 +417,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
-        verifyWarmCalled(connectorPageSourceProvider,
+        verifyWarmCalled(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -429,7 +442,8 @@ public class DispatcherPageSourceFactoryTest
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -448,7 +462,8 @@ public class DispatcherPageSourceFactoryTest
                 .build();
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
         TestingConnectorPageSource proxiedPageSource = mock(TestingConnectorPageSource.class);
-        when(connectorPageSourceProvider.createPageSource(eq(proxiedTransactionHandle),
+        when(connectorPageSourceProvider.createPageSource(
+                eq(proxiedTransactionHandle),
                 eq(connectorSession),
                 any(DispatcherSplit.class),
                 isA(ConnectorTableHandle.class),
@@ -457,7 +472,8 @@ public class DispatcherPageSourceFactoryTest
                 any(DynamicFilter.class)))
                 .thenReturn(proxiedPageSource);
         List<ColumnHandle> columnHandles = Stream.concat(columnHandleList.stream(), warmedColumnHandleList.stream()).collect(Collectors.toList());
-        pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -488,7 +504,8 @@ public class DispatcherPageSourceFactoryTest
         List<ColumnHandle> columnHandleList = List.of();
         List<ColumnHandle> existingColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -499,7 +516,8 @@ public class DispatcherPageSourceFactoryTest
         RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, existingColumnHandleList);
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
         when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(rowGroupDataToWarm);
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -523,7 +541,8 @@ public class DispatcherPageSourceFactoryTest
     {
         List<ColumnHandle> partitionColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
 
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -536,7 +555,8 @@ public class DispatcherPageSourceFactoryTest
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
         when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(rowGroupDataToWarm);
 
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -563,7 +583,8 @@ public class DispatcherPageSourceFactoryTest
     public void testPartitionNullValue()
     {
         List<ColumnHandle> partitionColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -576,7 +597,8 @@ public class DispatcherPageSourceFactoryTest
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
         when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(rowGroupDataToWarm);
 
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -597,7 +619,8 @@ public class DispatcherPageSourceFactoryTest
         List<ColumnHandle> partitionColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
         List<ColumnHandle> regularColumnList = mockColumns(List.of(Pair.of("c2", IntegerType.INTEGER)));
 
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
+        RowGroupKey rowGroupKey = createRowGroupKey(
+                dispatcherSplit.getSchemaName(),
                 dispatcherSplit.getTableName(),
                 dispatcherSplit.getPath(),
                 dispatcherSplit.getStart(),
@@ -609,7 +632,8 @@ public class DispatcherPageSourceFactoryTest
         rowGroupDataToWarm = RowGroupData.builder(rowGroupDataToWarm).partitionKeys(Map.of(new RegularColumn("c1"), "\\N")).build();
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
 
-        pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 proxiedTransactionHandle,
                 connectorSession,
                 dispatcherSplit,
@@ -623,7 +647,8 @@ public class DispatcherPageSourceFactoryTest
         verify(workerWarmingService, never()).warm(any(), any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), anyInt());
     }
 
-    private void verifyWarmCalled(ConnectorPageSourceProvider connectorPageSourceProvider,
+    private void verifyWarmCalled(
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             TestingConnectorTransactionHandle proxiedTransactionHandle,
             ConnectorSession connectorSession,
             DispatcherSplit dispatcherSplit,
@@ -652,7 +677,8 @@ public class DispatcherPageSourceFactoryTest
         assertThat(dispatcherTableHandle).isEqualTo(dispatcherTableHandleArgumentCaptor.getValue());
     }
 
-    private RowGroupKey createRowGroupKey(String schema,
+    private RowGroupKey createRowGroupKey(
+            String schema,
             String table,
             String path,
             long start,
@@ -660,7 +686,8 @@ public class DispatcherPageSourceFactoryTest
             long fileModifiedTime,
             String deletedFilesHash)
     {
-        return new RowGroupKey(schema,
+        return new RowGroupKey(
+                schema,
                 table,
                 path,
                 start,

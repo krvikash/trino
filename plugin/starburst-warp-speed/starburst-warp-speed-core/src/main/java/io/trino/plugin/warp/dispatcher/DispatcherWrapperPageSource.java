@@ -62,7 +62,8 @@ public class DispatcherWrapperPageSource
 
     private boolean closed;
 
-    public DispatcherWrapperPageSource(ConnectorPageSourceProvider pageSourceProvider,
+    public DispatcherWrapperPageSource(
+            ConnectorPageSourceProvider pageSourceProvider,
             WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             CustomStatsContext customStatsContext,
@@ -93,7 +94,8 @@ public class DispatcherWrapperPageSource
     {
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
         customStatsContext.getOrRegister(new DictionaryStats());
-        return pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
+        return pageSourceFactory.createConnectorPageSource(
+                connectorPageSourceProvider,
                 transactionHandle,
                 session,
                 dispatcherSplit,

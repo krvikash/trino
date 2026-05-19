@@ -223,19 +223,19 @@ public class IcebergProxiedConnectorTransformerTest
                 TableType.DATA,
                 OptionalLong.of(SNAPSHOT_ID),
                 """
-                        {
-                          "type": "struct",
-                          "schema-id": 0,
-                          "fields": [
-                            {
-                              "id": 1,
-                              "name": "id",
-                              "required": true,
-                              "type": "long"
-                            }
-                          ]
-                        }
-                        """,
+                {
+                  "type": "struct",
+                  "schema-id": 0,
+                  "fields": [
+                    {
+                      "id": 1,
+                      "name": "id",
+                      "required": true,
+                      "type": "long"
+                    }
+                  ]
+                }
+                """,
                 OptionalInt.of(0),
                 ImmutableMap.of(0, PartitionSpecParser.toJson(PartitionSpec.unpartitioned())),
                 1,
@@ -282,8 +282,7 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 ImmutableList.of(),
                 false,
-                Set.of()
-        );
+                Set.of());
         Node node1 = NodeUtils.node(0, true);
         when(splitDistributor.getNode(anyString())).thenReturn(node1);
 

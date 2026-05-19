@@ -45,7 +45,8 @@ public class TestToolUse
         return new Object[][] {
                 {"gpt4o_mini"},
                 {"haiku35"},
-                {"mistral_large_non_streaming"}};
+                {"mistral_large_non_streaming"},
+        };
     }
 
     @Override

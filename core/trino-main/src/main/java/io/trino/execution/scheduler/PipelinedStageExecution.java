@@ -570,7 +570,7 @@ public class PipelinedStageExecution
                     newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.taskId());
                 }
             }
-                default -> {}
+            default -> {}
         }
 
         // Only allow stage state to transition to RUNNING, FLUSHING or FINISHED state
@@ -744,7 +744,8 @@ public class PipelinedStageExecution
         sourceOutputSelector.setFinal();
 
         return new Split(REMOTE_CATALOG_HANDLE,
-                new RemoteSplit(new SpoolingExchangeInput(ImmutableList.of(),
+                new RemoteSplit(new SpoolingExchangeInput(
+                        ImmutableList.of(),
                         Optional.of(sourceOutputSelector.build()))));
     }
 

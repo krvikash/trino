@@ -356,8 +356,7 @@ public class TestHttpRemoteTask
         RemoteTask remoteTask = createRemoteTask(httpRemoteTaskFactory, ImmutableSet.of());
 
         Map<DynamicFilterId, DynamicFilterDomain> initialDomain = ImmutableMap.of(
-                filterId1,
-                DynamicFilterDomain.singleValue(BIGINT, 1L));
+                filterId1, DynamicFilterDomain.singleValue(BIGINT, 1L));
         testingTaskResource.setInitialTaskInfo(remoteTask.getTaskInfo());
         testingTaskResource.setDynamicFilterDomains(new VersionedDynamicFilterDomains(1L, initialDomain));
         dynamicFilterService.registerQuery(

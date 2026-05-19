@@ -16,6 +16,4 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 import io.trino.spi.connector.ConnectorTableHandle;
 
 public class WarpCacheTableHandle
-        implements ConnectorTableHandle
-{
-}
+        implements ConnectorTableHandle {}

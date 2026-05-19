@@ -121,14 +121,16 @@ public class NativeExpressionRulesHandler
         functionToRewriteRules.put(JSON_EXTRACT_SCALAR.getName(), new RewriteRule(variableAndConstantRewriter.getPattern(), variableAndConstantRewriter::jsonExtractScalar));
     }
 
-    public Optional<NativeExpression> rewrite(WarpExpression warpExpression,
+    public Optional<NativeExpression> rewrite(
+            WarpExpression warpExpression,
             Type columnType,
             Set<String> unsupportedNativeFunctions,
             Map<String, Long> customStats)
     {
         Optional<NativeExpression> res = Optional.empty();
         try {
-            RewriteContext context = new RewriteContext(NativeExpression.builder(),
+            RewriteContext context = new RewriteContext(
+                    NativeExpression.builder(),
                     columnType,
                     unsupportedNativeFunctions,
                     customStats);
@@ -144,7 +146,8 @@ public class NativeExpressionRulesHandler
         return res;
     }
 
-    boolean rewrite(WarpExpression warpExpression,
+    boolean rewrite(
+            WarpExpression warpExpression,
             RewriteContext context)
     {
         if (warpExpression instanceof WarpCall warpCall) {

@@ -280,23 +280,23 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         assertThat(
                 onTrino().executeQuery("SHOW COLUMNS IN " + deltaTableName))
                 .containsOnly(
-                    row("int_col", "integer", "", ""),
-                    row("string_col", "varchar", "", ""),
-                    row("tinyint_col", "tinyint", "", ""),
-                    row("smallint_col", "smallint", "", ""),
-                    row("bigint_col", "bigint", "", ""),
-                    row("decimal_col", "decimal(10,0)", "", ""),
-                    row("decimal_prec_short_col", "decimal(4,2)", "", ""),
-                    row("decimal_prec_long_col", "decimal(19,9)", "", ""),
-                    row("float_col", "real", "", ""),
-                    row("double_col", "double", "", ""),
-                    row("date_col", "date", "", ""),
-                    row("timestamp_col", "timestamp(3) with time zone", "", ""),
-                    row("binary_col", "varbinary", "", ""),
-                    row("bool_col", "boolean", "", ""),
-                    row("array_int_col", "array(integer)", "", ""),
-                    row("map_col", "map(timestamp(3) with time zone, integer)", "", ""),
-                    row("struct_col", "row(\"a\" bigint, \"b\" varchar)", "", ""));
+                        row("int_col", "integer", "", ""),
+                        row("string_col", "varchar", "", ""),
+                        row("tinyint_col", "tinyint", "", ""),
+                        row("smallint_col", "smallint", "", ""),
+                        row("bigint_col", "bigint", "", ""),
+                        row("decimal_col", "decimal(10,0)", "", ""),
+                        row("decimal_prec_short_col", "decimal(4,2)", "", ""),
+                        row("decimal_prec_long_col", "decimal(19,9)", "", ""),
+                        row("float_col", "real", "", ""),
+                        row("double_col", "double", "", ""),
+                        row("date_col", "date", "", ""),
+                        row("timestamp_col", "timestamp(3) with time zone", "", ""),
+                        row("binary_col", "varbinary", "", ""),
+                        row("bool_col", "boolean", "", ""),
+                        row("array_int_col", "array(integer)", "", ""),
+                        row("map_col", "map(timestamp(3) with time zone, integer)", "", ""),
+                        row("struct_col", "row(\"a\" bigint, \"b\" varchar)", "", ""));
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})

@@ -29,8 +29,7 @@ public class DictionaryWriterFactory
 
         for (RecTypeCode recTypeCode : RecTypeCode.values()) {
             recTypeCodeToDictionaryWriter[recTypeCode.ordinal()] = switch (recTypeCode) {
-                case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT ->
-                        new LongDictionaryWriter();
+                case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT -> new LongDictionaryWriter();
                 case REC_TYPE_INTEGER, REC_TYPE_REAL, REC_TYPE_DATE -> new IntDictionaryWriter();
                 case REC_TYPE_CHAR -> new FixedLengthStringDictionaryWriter();
                 case REC_TYPE_VARCHAR -> new VariableLengthStringDictionaryWriter();

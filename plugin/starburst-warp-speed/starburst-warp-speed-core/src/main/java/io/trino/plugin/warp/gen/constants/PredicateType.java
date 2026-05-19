@@ -29,7 +29,5 @@ public enum PredicateType
     PREDICATE_TYPE_LUCENE,
     PREDICATE_TYPE_NUM_OF;
 
-    PredicateType()
-    {
-    }
+    PredicateType() {}
 }

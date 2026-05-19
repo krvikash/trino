@@ -93,8 +93,7 @@ public class ExchangeOperationMetadata
 
     public ExchangeOperationMetadata(JsonCodec<PartitioningHandle> partitioningHandleCodec, JsonCodec<ConstantValue[]> constantValueArrayCodec)
     {
-        this(
-                partitioningHandleCodec::fromJson,
+        this(partitioningHandleCodec::fromJson,
                 partitioningHandleCodec::toJson,
                 string -> new ConstantValues(constantValueArrayCodec.fromJson(string)),
                 constantValues -> constantValueArrayCodec.toJson(constantValues.constantValues()));

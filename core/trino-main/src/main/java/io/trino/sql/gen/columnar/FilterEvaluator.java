@@ -68,11 +68,11 @@ public sealed interface FilterEvaluator
         permits AndFilterEvaluator,
                 ColumnarFilterEvaluator,
                 ColumnarFilterEvaluatorWithProjectedArguments,
+                DynamicFilterEvaluator,
                 OrFilterEvaluator,
                 PageFilterEvaluator,
                 SelectAllEvaluator,
-                SelectNoneEvaluator,
-                DynamicFilterEvaluator
+                SelectNoneEvaluator
 {
     Logger log = Logger.get(FilterEvaluator.class);
 

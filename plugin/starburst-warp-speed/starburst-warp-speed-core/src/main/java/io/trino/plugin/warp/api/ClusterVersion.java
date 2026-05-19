@@ -19,7 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ClusterVersion(String prestoVersion, String varadaVersion, int fastWarmingVersion)
 {
     @JsonCreator
-    public ClusterVersion(@JsonProperty("prestoVersion") String prestoVersion,
+    public ClusterVersion(
+            @JsonProperty("prestoVersion") String prestoVersion,
             @JsonProperty("varadaVersion") String varadaVersion,
             @JsonProperty("fastWarmingVersion") int fastWarmingVersion)
     {

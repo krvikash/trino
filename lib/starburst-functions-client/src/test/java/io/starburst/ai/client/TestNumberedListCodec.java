@@ -21,7 +21,8 @@ public class TestNumberedListCodec
     void testDecode()
             throws Exception
     {
-        String response = """
+        String response =
+                """
                 Some junk before
                 1. Sentence 1.
                 2. Sentence 2.
@@ -36,7 +37,8 @@ public class TestNumberedListCodec
     void testDecodeFromIndex()
             throws Exception
     {
-        String response = """
+        String response =
+                """
                 8. Sentence 1.
                 9. Sentence 2.
                 10. Sentence 3.

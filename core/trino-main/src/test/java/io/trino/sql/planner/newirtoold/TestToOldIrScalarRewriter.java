@@ -183,7 +183,8 @@ class TestToOldIrScalarRewriter
         Return returnOperation1 = new Return("%7", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
                 "%2",
-                new Block(Optional.of("^lambda"),
+                new Block(
+                        Optional.of("^lambda"),
                         ImmutableList.of(lambdaParameter),
                         ImmutableList.of(
                                 fieldReferenceOperation2,
@@ -230,7 +231,8 @@ class TestToOldIrScalarRewriter
         Return returnOperation1 = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
                 "%0",
-                new Block(Optional.of("^lambda"),
+                new Block(
+                        Optional.of("^lambda"),
                         ImmutableList.of(lambdaParameter),
                         ImmutableList.of(
                                 fieldReferenceOperation1,

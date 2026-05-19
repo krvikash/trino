@@ -30,16 +30,17 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
-public record TableChanges(SlashEndedPath rootPath,
-                           Collection<DiscoveredIdentifier> addedSchema,
-                           Collection<DiscoveredTable> droppedTables,
-                           List<DiscoveredTable> addedTables,
-                           List<DiscoveredTable> tablesToRecreateForProjectionChanges,
-                           Map<TablePathName, TableColumnChanges> columnChanges,
-                           Map<TablePathName, TableColumnChanges> partitionColumnChanges,
-                           Map<TablePathName, PartitionValueChanges> partitionValueChanges,
-                           Map<TablePathName, BucketChanges> bucketChanges,
-                           Map<String, List<String>> errorsPerPath)
+public record TableChanges(
+        SlashEndedPath rootPath,
+        Collection<DiscoveredIdentifier> addedSchema,
+        Collection<DiscoveredTable> droppedTables,
+        List<DiscoveredTable> addedTables,
+        List<DiscoveredTable> tablesToRecreateForProjectionChanges,
+        Map<TablePathName, TableColumnChanges> columnChanges,
+        Map<TablePathName, TableColumnChanges> partitionColumnChanges,
+        Map<TablePathName, PartitionValueChanges> partitionValueChanges,
+        Map<TablePathName, BucketChanges> bucketChanges,
+        Map<String, List<String>> errorsPerPath)
 {
     public TableChanges
     {
@@ -108,15 +109,18 @@ public record TableChanges(SlashEndedPath rootPath,
         }
     }
 
-    public record TableColumnChanges(List<ColumnRename> columnRenames,
-                                     List<Column> addedColumns, Collection<LowerCaseString> droppedColumns) {}
+    public record TableColumnChanges(
+            List<ColumnRename> columnRenames,
+            List<Column> addedColumns,
+            Collection<LowerCaseString> droppedColumns) {}
 
     public record BucketChanges(Collection<LowerCaseString> droppedBuckets, Collection<LowerCaseString> addedBuckets) {}
 
-    public record PartitionValueChanges(List<Column> oldPartitionColumns,
-                                        List<Column> newPartitionColumns,
-                                        List<DiscoveredPartitionValues> droppedPartitionValues,
-                                        List<DiscoveredPartitionValues> addedPartitionValues) {}
+    public record PartitionValueChanges(
+            List<Column> oldPartitionColumns,
+            List<Column> newPartitionColumns,
+            List<DiscoveredPartitionValues> droppedPartitionValues,
+            List<DiscoveredPartitionValues> addedPartitionValues) {}
 
     public record TablePathName(TablePath tablePath, TableName tableName)
     {

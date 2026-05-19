@@ -129,7 +129,7 @@ public class TroubleshootingContext
         STARTED,
         FINISHED,
         REMOVED,
-        INVALID
+        INVALID,
     }
 
     @Override

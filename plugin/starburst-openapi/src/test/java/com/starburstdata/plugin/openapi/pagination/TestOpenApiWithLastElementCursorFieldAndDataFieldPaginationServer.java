@@ -75,11 +75,13 @@ public class TestOpenApiWithLastElementCursorFieldAndDataFieldPaginationServer
     @Test
     public void testLastElementFieldCursorFetchesAllData()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_after(per_page => 2))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
@@ -94,11 +96,13 @@ public class TestOpenApiWithLastElementCursorFieldAndDataFieldPaginationServer
     {
         // When the user explicitly provides the cursor parameter, the pagination strategy falls back
         // to ReadOnce — only the single page starting after that cursor position is returned.
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT id, name FROM TABLE(openapi.default.items_after(starting_after => '1', per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
                             (BIGINT '3', CAST('item-3' AS VARCHAR)),
@@ -112,7 +116,8 @@ public class TestOpenApiWithLastElementCursorFieldAndDataFieldPaginationServer
         // The /items/all endpoint has no starting_after/per_page parameters in the spec — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                             (BIGINT '1', CAST('item-1' AS VARCHAR)),
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),

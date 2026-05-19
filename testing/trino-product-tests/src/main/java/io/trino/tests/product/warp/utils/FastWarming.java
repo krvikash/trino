@@ -17,5 +17,5 @@ public enum FastWarming
 {
     NONE,
     EXPORT,
-    IMPORT
+    IMPORT,
 }

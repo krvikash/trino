@@ -57,7 +57,8 @@ public class RowGroupDataService
     private final CatalogNameProvider catalogNameProvider;
 
     @Inject
-    public RowGroupDataService(RowGroupDataDao rowGroupDataDao,
+    public RowGroupDataService(
+            RowGroupDataDao rowGroupDataDao,
             StorageEngine storageEngine,
             GlobalConfig globalConfig,
             MetricsManager metricsManager,
@@ -72,7 +73,8 @@ public class RowGroupDataService
         this.catalogNameProvider = requireNonNull(catalogNameProvider);
     }
 
-    public RowGroupKey createRowGroupKey(String schema,
+    public RowGroupKey createRowGroupKey(
+            String schema,
             String table,
             String path,
             long start,
@@ -80,7 +82,8 @@ public class RowGroupDataService
             long fileModifiedTime,
             String deletedFilesHash)
     {
-        return new RowGroupKey(schema,
+        return new RowGroupKey(
+                schema,
                 table,
                 path,
                 start,
@@ -100,7 +103,8 @@ public class RowGroupDataService
         rowGroupDataDao.flush(rowGroupKey);
     }
 
-    public void updateEmptyRowGroup(RowGroupData rowGroupData,
+    public void updateEmptyRowGroup(
+            RowGroupData rowGroupData,
             List<WarmUpElement> newWarmUpElements,
             List<WarmUpElement> warmUpElementsToDelete)
     {
@@ -169,8 +173,11 @@ public class RowGroupDataService
         long fileModTime = rowGroupKey.fileModifiedTime();
         storageEngine.fileIsAboutToBeDeleted(fileHash, fileModTime, rowGroupData.getNextOffset());
         rowGroupDataDao.delete(rowGroupKey, deleteFromCache);
-        logger.debug("deleted rowGroupKey %s offset %d next-export-offset %d",
-                rowGroupKey, rowGroupData.getNextOffset(), rowGroupData.getNextExportOffset());
+        logger.debug(
+                "deleted rowGroupKey %s offset %d next-export-offset %d",
+                rowGroupKey,
+                rowGroupData.getNextOffset(),
+                rowGroupData.getNextExportOffset());
         warmingServiceStats.incdeleted_row_group_count();
     }
 
@@ -179,7 +186,8 @@ public class RowGroupDataService
         rowGroupDataDao.invalidate(rowGroupData.getRowGroupKey());
     }
 
-    public synchronized RowGroupData getOrCreateRowGroupData(RowGroupKey rowGroupKey,
+    public synchronized RowGroupData getOrCreateRowGroupData(
+            RowGroupKey rowGroupKey,
             Map<WarpColumn, String> partitionKeys)
     {
         RowGroupData rowGroupData = get(rowGroupKey);
@@ -213,7 +221,8 @@ public class RowGroupDataService
         return rowGroupData;
     }
 
-    public void updateTmpRowGroupData(RowGroupData rowGroupData,
+    public void updateTmpRowGroupData(
+            RowGroupData rowGroupData,
             WarmUpElement warmUpElement,
             int nextOffset,
             int totalRecords)
@@ -242,7 +251,8 @@ public class RowGroupDataService
         save(updatedRowGroupData);
     }
 
-    public synchronized RowGroupData updateRowGroupData(RowGroupData rowGroupData,
+    public synchronized RowGroupData updateRowGroupData(
+            RowGroupData rowGroupData,
             WarmUpElement warmUpElement,
             int nextOffset,
             int totalRecords)
@@ -305,7 +315,8 @@ public class RowGroupDataService
         return updatedRowGroupData;
     }
 
-    public void markAsFailed(RowGroupKey rowGroupKey,
+    public void markAsFailed(
+            RowGroupKey rowGroupKey,
             Collection<WarmUpElement> proxiedWarmUpElements,
             Map<WarpColumn, String> partitionKeys)
     {
@@ -322,7 +333,7 @@ public class RowGroupDataService
         }
         for (WarmUpElement failedElement : proxiedWarmUpElements) {
             if (failedElement.isValid()) {
-                //should not happen. added in order to protect from unfamiliar error flow
+                // should not happen. added in order to protect from unfamiliar error flow
                 failedElement = WarmUpElement.builder(failedElement).state(new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY)).build();
             }
             updateRowGroupData(rowGroupData, failedElement, rowGroupData.getNextOffset(), -1);

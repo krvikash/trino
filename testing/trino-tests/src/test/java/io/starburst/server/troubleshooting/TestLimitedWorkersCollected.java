@@ -116,7 +116,8 @@ public class TestLimitedWorkersCollected
                         .setSystemProperty(TROUBLESHOOTING_TRACE_MAX_COLLECTED_WORKERS, String.valueOf(maxTraceCollectedWorkers))
                         .build(),
                 min(maxJfrCollectedWorkers, WORKER_COUNT),
-                min(maxTraceCollectedWorkers, WORKER_COUNT), tmpDir);
+                min(maxTraceCollectedWorkers, WORKER_COUNT),
+                tmpDir);
     }
 
     private void assertTroubleshootingDataCollected(DistributedQueryRunner queryRunner, Session session, int expectedJfrWorkersCollected, int expectedTraceWorkersCollected, Path tmpDir)

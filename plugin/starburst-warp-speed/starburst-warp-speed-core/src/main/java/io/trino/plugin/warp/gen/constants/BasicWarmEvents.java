@@ -28,7 +28,5 @@ public enum BasicWarmEvents
     BASIC_WARM_EVENTS_SINGLE_CHUNK,
     BASIC_WARM_EVENTS_NUM_OF;
 
-    BasicWarmEvents()
-    {
-    }
+    BasicWarmEvents() {}
 }

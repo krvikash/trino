@@ -54,7 +54,8 @@ public class LuceneMatcher
     private final ShapingLogger shapingLogger;
     private int currChunkInRange;
 
-    public LuceneMatcher(StorageEngine storageEngine,
+    public LuceneMatcher(
+            StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             ReadJuffersWarmUpElement juffersWE,
             LuceneQueryMatchData luceneQueryMatchData,
@@ -86,8 +87,12 @@ public class LuceneMatcher
         int loadedPageIndex = -1;
         MemorySegment luceneState = matchState.getMatchLuceneState();
 
-        logger.debug("match rowGroupFilePath %s matchOffset %d startChunkIndex %d numChunks %d",
-                rowGroupFilePath, matchOffset, startChunkIndex, numChunks);
+        logger.debug(
+                "match rowGroupFilePath %s matchOffset %d startChunkIndex %d numChunks %d",
+                rowGroupFilePath,
+                matchOffset,
+                startChunkIndex,
+                numChunks);
 
         // loop to perform the match chunk by chunk
         currChunkInRange = 0;
@@ -127,14 +132,20 @@ public class LuceneMatcher
         long startTime = System.currentTimeMillis();
         int resultBufferOffset = (int) (currChunkInRange * storageEngineConstants.getPageSize());
         if (logger.isDebugEnabled()) {
-            logger.debug("luceneMatch currChunkInRange %d indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
-                    currChunkInRange, indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
+            logger.debug(
+                    "luceneMatch currChunkInRange %d indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
+                    currChunkInRange,
+                    indexUniqueIdInRowGroup,
+                    docsToFind,
+                    resultBufferOffset,
+                    chunkState);
         }
 
         try {
             LuceneIndexReader luceneIndexReader = new LuceneIndexReader(storageEngineConstants, rowGroupFilePath, chunkState);
 
-            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(luceneIndexReader,
+            WarpInputDirectory warpInputDirectory = new WarpInputDirectory(
+                    luceneIndexReader,
                     storageEngineConstants,
                     lucenePageCacheStats,
                     indexUniqueIdInRowGroup,
@@ -151,8 +162,13 @@ public class LuceneMatcher
             throw (InterruptedException) threadInterruptedException.getCause();
         }
         catch (Exception e) {
-            shapingLogger.error(e, "error in lucene search indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
-                    indexUniqueIdInRowGroup, docsToFind, resultBufferOffset, chunkState);
+            shapingLogger.error(
+                    e,
+                    "error in lucene search indexUniqueIdInRowGroup %d docsToFind %d resultBufferOffset %d chunkState %s",
+                    indexUniqueIdInRowGroup,
+                    docsToFind,
+                    resultBufferOffset,
+                    chunkState);
             throw new TrinoException(WARP_MATCH_LUCENE_FAILED, e.getMessage(), e);
         }
         finally {

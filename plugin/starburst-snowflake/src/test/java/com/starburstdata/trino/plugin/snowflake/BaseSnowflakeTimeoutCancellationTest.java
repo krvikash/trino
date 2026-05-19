@@ -163,7 +163,8 @@ public abstract class BaseSnowflakeTimeoutCancellationTest
                 "SELECT %s FROM TABLE(information_schema.query_history()) " +
                         // Don't include history queries in the results
                         "WHERE %s AND NOT QUERY_TEXT ILIKE '%%information_schema.query_history%%'",
-                columnName, condition);
+                columnName,
+                condition);
 
         ImmutableList.Builder<Optional<String>> results = ImmutableList.builder();
         try {

@@ -16,6 +16,4 @@ package com.starburstdata.trino.plugin.internaltesting;
 import io.trino.spi.connector.ConnectorTableHandle;
 
 public record InternalTestingTableHandle(String schemaName, String tableName)
-        implements ConnectorTableHandle
-{
-}
+        implements ConnectorTableHandle {}

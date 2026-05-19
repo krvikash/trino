@@ -37,7 +37,8 @@ public abstract class QueryMatchData
     protected final boolean simplifiedDomain;
     protected final boolean isPartOfLogicalOr;
 
-    protected QueryMatchData(WarmUpElement warmUpElement,
+    protected QueryMatchData(
+            WarmUpElement warmUpElement,
             boolean collectNulls,
             PredicateCacheData predicateCacheData,
             Type type,

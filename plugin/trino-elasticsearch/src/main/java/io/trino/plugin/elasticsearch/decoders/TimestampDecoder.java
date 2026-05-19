@@ -105,7 +105,9 @@ public class TimestampDecoder
                     long epochMicros = (instant.getEpochSecond() * MICROSECONDS_PER_SECOND) + (instant.getNano() / NANOSECONDS_PER_MICROSECOND);
                     int picosOfMicro = (instant.getNano() % NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
                     verify(picosOfMicro == round(picosOfMicro, TimestampType.MAX_PRECISION - precision),
-                            "Invalid value of picosOfMicro for precision %s: %s", precision, picosOfMicro);
+                            "Invalid value of picosOfMicro for precision %s: %s",
+                            precision,
+                            picosOfMicro);
                     TIMESTAMP_NANOS.writeObject(output, new LongTimestamp(epochMicros, picosOfMicro));
                 }
             }

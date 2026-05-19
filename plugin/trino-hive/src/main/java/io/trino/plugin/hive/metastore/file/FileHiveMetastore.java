@@ -429,9 +429,7 @@ public class FileHiveMetastore
     }
 
     @Override
-    public void flushTableCache(String databaseName, String tableName)
-    {
-    }
+    public void flushTableCache(String databaseName, String tableName) {}
 
     @Override
     public synchronized Map<String, HiveColumnStatistics> getTableColumnStatistics(String databaseName, String tableName, Set<String> columnNames)

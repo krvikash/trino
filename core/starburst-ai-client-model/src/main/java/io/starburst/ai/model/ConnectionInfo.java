@@ -27,7 +27,7 @@ import static java.util.Objects.requireNonNullElse;
         property = "provider")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = OpenAiConnectionInfo.class, name = "OPENAI"),
-        @JsonSubTypes.Type(value = AwsBedrockConnectionInfo.class, name = "AWS_BEDROCK")
+        @JsonSubTypes.Type(value = AwsBedrockConnectionInfo.class, name = "AWS_BEDROCK"),
 })
 public sealed interface ConnectionInfo
         permits OpenAiConnectionInfo, AwsBedrockConnectionInfo

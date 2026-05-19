@@ -52,12 +52,13 @@ public class ConnectorSplitConsistentHashNodeDistributor
     private final CoordinatorNodeManager coordinatorNodeManager;
     private volatile long lastRefreshTime;
 
-    //key = bucket hash, value = node
+    // key = bucket hash, value = node
     private TreeMap<Integer, Node> nodeBucketsTreeMap;
     private int workerNodesHash;
 
     @Inject
-    public ConnectorSplitConsistentHashNodeDistributor(GlobalConfig globalConfig,
+    public ConnectorSplitConsistentHashNodeDistributor(
+            GlobalConfig globalConfig,
             CoordinatorNodeManager coordinatorNodeManager)
     {
         this.globalConfig = requireNonNull(globalConfig);
@@ -103,8 +104,9 @@ public class ConnectorSplitConsistentHashNodeDistributor
                         nodeBucketsTreeMapTmp.put(bucket, node);
                     }
                     else {
-                        //ignore conflicting keys
-                        logger.debug(format("nodeIdentifier[%s] key %d already exists for nodeIdentifier[%s]",
+                        // ignore conflicting keys
+                        logger.debug(format(
+                                "nodeIdentifier[%s] key %d already exists for nodeIdentifier[%s]",
                                 nodeIdentifier,
                                 bucket,
                                 nodeBucketsTreeMapTmp.get(bucket)));
@@ -155,7 +157,7 @@ public class ConnectorSplitConsistentHashNodeDistributor
         }
 
         if (Objects.isNull(entry)) {
-            //If there is no one larger than the hash value of the key,
+            // If there is no one larger than the hash value of the key,
             // start with the first/last bucket according to the bucket %
             if (bucket % 2 == 0) {
                 node = nodeBucketsTreeMap.get(nodeBucketsTreeMap.firstKey());
@@ -165,7 +167,7 @@ public class ConnectorSplitConsistentHashNodeDistributor
             }
         }
         else {
-            //The first Key is the nearest bucket clockwise past the bucket.
+            // The first Key is the nearest bucket clockwise past the bucket.
             node = entry.getValue();
         }
         return node;

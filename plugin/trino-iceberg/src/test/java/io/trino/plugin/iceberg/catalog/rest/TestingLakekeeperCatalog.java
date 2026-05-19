@@ -196,7 +196,8 @@ public final class TestingLakekeeperCatalog
 
     private static String postgreSqlJdbcUrl(PostgreSQLContainer<?> postgreSql)
     {
-        return format("postgresql://%s:%s@%s:%d/%s",
+        return format(
+                "postgresql://%s:%s@%s:%d/%s",
                 postgreSql.getUsername(),
                 postgreSql.getPassword(),
                 postgreSql.getContainerName().substring(1),

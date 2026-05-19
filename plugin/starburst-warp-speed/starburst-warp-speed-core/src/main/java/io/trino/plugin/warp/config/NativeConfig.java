@@ -375,7 +375,8 @@ public class NativeConfig
     @Override
     public int hashCode()
     {
-        return Objects.hash(maxRecJufferSize,
+        return Objects.hash(
+                maxRecJufferSize,
                 lz4HcPercent,
                 collectTxSize,
                 storageCacheSizeInPages,

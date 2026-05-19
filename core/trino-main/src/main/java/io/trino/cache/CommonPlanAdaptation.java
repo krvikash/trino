@@ -87,8 +87,7 @@ public class CommonPlanAdaptation
             Map<CacheColumnId, Symbol> columnIdMapping,
             List<Expression> canonicalAdaptationConjuncts)
     {
-        this(
-                commonSubplan,
+        this(commonSubplan,
                 commonSubplanSignature,
                 childAdaptation.getCommonSubplanFilteredTableScan(),
                 childAdaptation.getCommonColumnHandles(),

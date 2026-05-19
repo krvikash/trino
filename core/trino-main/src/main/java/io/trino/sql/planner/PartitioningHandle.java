@@ -39,8 +39,8 @@ public class PartitioningHandle
         // an explicit check in addition to the catalogHandle.isPresent() condition
         return partitioning.isScaleWriters()
                 && (partitioning.equals(SCALED_WRITER_HASH_DISTRIBUTION)
-                        || partitioning.getCatalogHandle().isPresent()
-                        || partitioning.getConnectorHandle() instanceof MergePartitioningHandle);
+                || partitioning.getCatalogHandle().isPresent()
+                || partitioning.getConnectorHandle() instanceof MergePartitioningHandle);
     }
 
     public PartitioningHandle(

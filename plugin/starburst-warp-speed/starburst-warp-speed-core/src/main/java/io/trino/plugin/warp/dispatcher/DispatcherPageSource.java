@@ -95,7 +95,8 @@ public class DispatcherPageSource
     private int emptyPagesCounter;
     private boolean forceFinish;
 
-    public DispatcherPageSource(Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
+    public DispatcherPageSource(
+            Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
             QueryClassifier queryClassifier,
             List<Type> warpWithoutPrefilledAndProxiedCollectTypes,
             WarpStoragePageSource warpPageSource,
@@ -144,7 +145,9 @@ public class DispatcherPageSource
         boolean finishedOnPractice = warpPageRanges.isEmpty() && warpPageSource.isFinished();
 
         if (emptyPagesCounter == maxEmptyPageSourceIterations) {
-            String info = String.format(Locale.US, "queryId=%s, finishedOnPractice=%b, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
+            String info = String.format(
+                    Locale.US,
+                    "queryId=%s, finishedOnPractice=%b, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
                             "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
                             "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
                     queryContext.getQueryId(),
@@ -215,7 +218,12 @@ public class DispatcherPageSource
                 RowRange proxiedCurrentRange = proxiedPageRanges.peek();
                 logger.debug(
                         "Going to merge results for a mixed query with predicate. warpCurrentRange=%s, proxiedCurrentRange=%s, currentWarpPagePosition=%d, currentProxiedPagePositions=%d, currentWarpPagePositions=%d, currentProxiedPagePositions=%d",
-                        warpCurrentRange, proxiedCurrentRange, currentWarpPagePosition, currentProxiedPagePosition, currentWarpSourcePage.getPositionCount(), currentProxiedPage.getPositionCount());
+                        warpCurrentRange,
+                        proxiedCurrentRange,
+                        currentWarpPagePosition,
+                        currentProxiedPagePosition,
+                        currentWarpSourcePage.getPositionCount(),
+                        currentProxiedPage.getPositionCount());
 
                 if (warpCurrentRange.isFullyBefore(proxiedCurrentRange)) {
                     warpPageRanges.removeFirst();
@@ -266,16 +274,22 @@ public class DispatcherPageSource
         catch (Throwable e) {
             stats.inccached_warp_failed_pages();
             if (!Thread.currentThread().isInterrupted()) {
-                shapingLogger.error(e,
+                shapingLogger.error(
+                        e,
                         "Failed to read cache file %s from warp. queryContext=%s, rowGroupData=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, dispatcherTableHandle=%s",
-                        rowGroupData.getRowGroupKey(), queryContext, rowGroupData, warpWithoutPrefilledAndProxiedCollectTypes, dispatcherTableHandle);
+                        rowGroupData.getRowGroupKey(),
+                        queryContext,
+                        rowGroupData,
+                        warpWithoutPrefilledAndProxiedCollectTypes,
+                        dispatcherTableHandle);
             }
             readErrorHandler.handle(e, rowGroupData, queryContext);
             throw e;
         }
     }
 
-    private SourcePage mergeWarpPrefilled(SourcePage currentWarpSourcePage,
+    private SourcePage mergeWarpPrefilled(
+            SourcePage currentWarpSourcePage,
             PrefilledPageSource prefilledPageSource)
     {
         Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
@@ -307,12 +321,16 @@ public class DispatcherPageSource
         checkState(
                 currentWarpPagePosition <= currentWarpSourcePage.getPositionCount(),
                 "currentWarpPagePosition %s, currentWarpPage positions %s, warpPageRanges %s",
-                currentWarpPagePosition, currentWarpSourcePage.getPositionCount(), warpPageRanges);
+                currentWarpPagePosition,
+                currentWarpSourcePage.getPositionCount(),
+                warpPageRanges);
         if (currentWarpPagePosition == currentWarpSourcePage.getPositionCount()) {
             checkState(
                     warpPageRanges.isEmpty(),
                     "currentWarpPagePosition %s, currentWarpPage positions %s, warpPageRanges %s",
-                    currentWarpPagePosition, currentWarpSourcePage.getPositionCount(), warpPageRanges);
+                    currentWarpPagePosition,
+                    currentWarpSourcePage.getPositionCount(),
+                    warpPageRanges);
             getNextWarpSourcePage();
         }
     }
@@ -461,7 +479,7 @@ public class DispatcherPageSource
     public void close()
             throws IOException
     {
-        //don't call prefilledPageSource.close since it is not used as a ConnectorPageSource here
+        // don't call prefilledPageSource.close since it is not used as a ConnectorPageSource here
         try {
             boolean success = true;
             StringJoiner errorMsg = new StringJoiner(",");
@@ -617,13 +635,13 @@ public class DispatcherPageSource
     {
         switch (block) {
             case RunLengthEncodedBlock rleBlock -> blockBuilder.appendRepeated(rleBlock.getValue(), 0, length);
-            case DictionaryBlock dictionaryBlock ->
-                    blockBuilder.appendPositions(dictionaryBlock.getDictionary(), dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset() + offset, length);
+            case DictionaryBlock dictionaryBlock -> blockBuilder.appendPositions(dictionaryBlock.getDictionary(), dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset() + offset, length);
             case ValueBlock valueBlock -> blockBuilder.appendRange(valueBlock, offset, length);
         }
     }
 
-    private void addColumnsToBuilder(PageBuilder resultPageBuilder,
+    private void addColumnsToBuilder(
+            PageBuilder resultPageBuilder,
             int numberOfRowsToAdd,
             SourcePage sourcePage,
             int currentRowInPage,
@@ -638,7 +656,10 @@ public class DispatcherPageSource
                 throw new TrinoException(
                         WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER,
                         format("Failed to add column %d to builder. numberOfRowsToAdd=%d, currentRowInPage=%d, columnInBuilder=%d",
-                                column, numberOfRowsToAdd, currentRowInPage, columnInBuilder),
+                                column,
+                                numberOfRowsToAdd,
+                                currentRowInPage,
+                                columnInBuilder),
                         e);
             }
             columnInBuilder++;
@@ -675,7 +696,7 @@ public class DispatcherPageSource
 
     // TODO add @FormatMethod after implementing ConnectorPageSource.RowRanges#toString
     @SuppressWarnings("AnnotateFormatMethod")
-    //@FormatMethod
+    // @FormatMethod
     private static void validateRanges(boolean condition, String formatString, Object... args)
     {
         if (!condition) {
@@ -690,7 +711,8 @@ public class DispatcherPageSource
         private final SourcePage warpSourcePage;
         private final Map<Integer, Integer> warpIxMap;
 
-        DispatcherSourcePage(Block[] blocks,
+        DispatcherSourcePage(
+                Block[] blocks,
                 SourcePage warpSourcePage,
                 Map<Integer, Integer> warpIxMap)
         {

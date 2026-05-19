@@ -65,7 +65,8 @@ public class WarmupDemoterService
     private List<TupleFilter> tupleFilters;
 
     @Inject
-    public WarmupDemoterService(WorkerCapacityManager workerCapacityManager,
+    public WarmupDemoterService(
+            WorkerCapacityManager workerCapacityManager,
             WarmupDemoterConfig warmupDemoterConfig,
             MetricsManager metricsManager,
             DemoterSync demoterSync,
@@ -99,7 +100,7 @@ public class WarmupDemoterService
         demoterSync.unregisterCatalog(demoteKey);
     }
 
-    //called from warmup - async
+    // called from warmup - async
     public boolean tryDemoteStart()
     {
         return tryDemoteStart(null);
@@ -152,7 +153,8 @@ public class WarmupDemoterService
 
         logger.debug("catalog[%s]: call start demote", catalogName);
 
-        if (!demoterSync.tryStartDemoteProcess(demoteKey,
+        if (!demoterSync.tryStartDemoteProcess(
+                demoteKey,
                 warmupDemoterConfig.getMaxUsageThresholdPercentage(),
                 warmupDemoterConfig.getCleanupUsageThresholdPercentage(),
                 warmupDemoterConfig.getBatchSize(),
@@ -234,12 +236,17 @@ public class WarmupDemoterService
 
     void connectorSyncDemoteEnd(double highestPriorityDemoted, boolean isFireEvent)
     {
-        logger.debug("catalog[%s]: connectorSyncDemoteEnd(highestPriorityDemoted = %f)",
-                catalogName, highestPriorityDemoted);
+        logger.debug(
+                "catalog[%s]: connectorSyncDemoteEnd(highestPriorityDemoted = %f)",
+                catalogName,
+                highestPriorityDemoted);
         demoteContext.get().highestPriorityDemoted().set(highestPriorityDemoted);
 
-        logger.debug("catalog[%s]: connectorSyncDemoteEnd(isResetHighestPriority=%s, current highestPriorityDemoted = %f)",
-                catalogName, demoteContext.get().isResetHighestPriority(), highestPriorityDemoted);
+        logger.debug(
+                "catalog[%s]: connectorSyncDemoteEnd(isResetHighestPriority=%s, current highestPriorityDemoted = %f)",
+                catalogName,
+                demoteContext.get().isResetHighestPriority(),
+                highestPriorityDemoted);
 
         if (isExecuting()) {
             globalStatsDemoter.mergeStats(demoteContext.get().statsWarmupDemoter());
@@ -248,7 +255,8 @@ public class WarmupDemoterService
                 fireEventDemoteEnd();
             }
             else {
-                logger.debug("catalog[%s]: skip firing event since demote was initiated by another process",
+                logger.debug(
+                        "catalog[%s]: skip firing event since demote was initiated by another process",
                         catalogName);
             }
 
@@ -302,7 +310,8 @@ public class WarmupDemoterService
         DemoteStatus demoteStatus = getDemoteStatus(
                 !aboveThreshold(demoteContext.get().cleanupUsageThresholdPercentage()));
 
-        logger.debug("catalog[%s]: demoteCycleEnd::finish demoteCycleEnd: call demoterSync.syncDemoteCycleEnd " +
+        logger.debug(
+                "catalog[%s]: demoteCycleEnd::finish demoteCycleEnd: call demoterSync.syncDemoteCycleEnd " +
                         "(lowestPriorityExist = %f, highestPriorityDemoted = %f, demoteStatus = %s)",
                 catalogName,
                 demoteContext.get().tupleRankResult().getLowestPriority(),
@@ -318,8 +327,12 @@ public class WarmupDemoterService
 
     void connectorSyncStartDemoteCycle(double maxPriorityToDemote, boolean isSingleConnector)
     {
-        logger.debug("catalog[%s]: connectorSyncStartDemoteCycle (maxPriorityToDemote = %f, isSingleConnector = %b) tupleRankList.size %d",
-                catalogName, maxPriorityToDemote, isSingleConnector, demoteContext.get().tupleRankResult().tupleRankList().size());
+        logger.debug(
+                "catalog[%s]: connectorSyncStartDemoteCycle (maxPriorityToDemote = %f, isSingleConnector = %b) tupleRankList.size %d",
+                catalogName,
+                maxPriorityToDemote,
+                isSingleConnector,
+                demoteContext.get().tupleRankResult().tupleRankList().size());
         try {
             maxPriorityToDemote = isSingleConnector ? Integer.MAX_VALUE : maxPriorityToDemote;
 
@@ -357,7 +370,8 @@ public class WarmupDemoterService
             elementsDeleted += deletionStats.objectCount();
             bytesDeleted += deletionStats.sizeInBytes();
         }
-        logger.debug("catalog[%s]: demoteCycle: tupleRankListSize = %d, elementsDeleted = %d, bytesDeleted = %d, maxElementsToDemote = %d, maxPriorityToDemote = %f, lowestPriorityLeft = %f",
+        logger.debug(
+                "catalog[%s]: demoteCycle: tupleRankListSize = %d, elementsDeleted = %d, bytesDeleted = %d, maxElementsToDemote = %d, maxPriorityToDemote = %f, lowestPriorityLeft = %f",
                 catalogName,
                 demoteContext.get().tupleRankResult().tupleRankList().size(),
                 elementsDeleted,
@@ -452,8 +466,10 @@ public class WarmupDemoterService
             demotedBytes += deletionStats.sizeInBytes();
         }
 
-        logger.debug("catalog[%s]: deleteImmediateObjects -> deleted %d elements",
-                catalogName, numElementsDemoted);
+        logger.debug(
+                "catalog[%s]: deleteImmediateObjects -> deleted %d elements",
+                catalogName,
+                numElementsDemoted);
         demoteContext.get().statsWarmupDemoter().adddead_objects_deleted(numElementsDemoted);
         demoteContext.get().statsWarmupDemoter().adddeleted_bytes(demotedBytes);
     }
@@ -469,7 +485,8 @@ public class WarmupDemoterService
         demoteContext.get().statsWarmupDemoter().adddeleted_by_low_priority(deletionStats.objectCount());
         demoteContext.get().statsWarmupDemoter().adddeleted_bytes(deletionStats.sizeInBytes());
 
-        logger.debug("catalog[%s]: deleteByTupleRank -> deleted %d elements of total size %d bytes, highestPriorityDeleted=%s, maxPriorityToDemote=%s",
+        logger.debug(
+                "catalog[%s]: deleteByTupleRank -> deleted %d elements of total size %d bytes, highestPriorityDeleted=%s, maxPriorityToDemote=%s",
                 catalogName,
                 deletionStats.objectCount(),
                 deletionStats.sizeInBytes(),

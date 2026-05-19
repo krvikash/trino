@@ -45,7 +45,8 @@ class FixedLengthStringBlockAppenderTest
     public void beforeEach()
     {
         super.beforeEach();
-        blockAppender = new FixedLengthStringBlockAppender(writeJuffersWarmUpElement,
+        blockAppender = new FixedLengthStringBlockAppender(
+                writeJuffersWarmUpElement,
                 new StubsStorageEngineConstants(),
                 5,
                 VARCHAR_TYPE);

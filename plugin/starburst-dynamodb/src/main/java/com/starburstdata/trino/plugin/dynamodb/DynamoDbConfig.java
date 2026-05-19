@@ -316,8 +316,8 @@ public class DynamoDbConfig
         checkState(getAwsAccessKey().isPresent() == getAwsSecretKey().isPresent(), "dynamodb.aws-access-key and dynamodb.aws-secret-key must both be either set or not set");
         checkState(
                 !isUseDefaultAwsChainProvider() ||
-                getAwsAccessKey().isEmpty() ||
-                getAwsSecretKey().isEmpty(),
+                        getAwsAccessKey().isEmpty() ||
+                        getAwsSecretKey().isEmpty(),
                 "dynamodb.use-default-aws-chain-provider cannot be set when dynamodb.aws-access-key or dynamodb.aws-secret-key are set");
     }
 }

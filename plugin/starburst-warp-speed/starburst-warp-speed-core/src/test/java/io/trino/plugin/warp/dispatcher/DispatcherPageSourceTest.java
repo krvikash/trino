@@ -142,7 +142,7 @@ public class DispatcherPageSourceTest
                 Lists.newArrayList(firstProxiedPage));
 
         DispatcherPageSource mixQueryWithPredicate = getDispatcherPageSource(2, Map.of(1, BIGINT));
-        SourcePage resultPage = mixQueryWithPredicate.getNextSourcePage(); //act
+        SourcePage resultPage = mixQueryWithPredicate.getNextSourcePage(); // act
         int positionCount = resultPage.getPositionCount();
         assertThat(positionCount).isEqualTo(warpMatches.length);
         assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), 0)).isEqualTo(warpMatches[0]);
@@ -543,8 +543,15 @@ public class DispatcherPageSourceTest
         List<TestPage> warpPages = Lists.newArrayList(testPage1, testPage2);
         prepareMock(
                 warpPages,
-                Lists.newArrayList(firstProxiedPage, secondProxiedPage, thirdProxiedPage, fiveProxiedPage,
-                        sixProxiedPage, sevenProxiedPage, eightProxiedPage, nineProxiedPage));
+                Lists.newArrayList(
+                        firstProxiedPage,
+                        secondProxiedPage,
+                        thirdProxiedPage,
+                        fiveProxiedPage,
+                        sixProxiedPage,
+                        sevenProxiedPage,
+                        eightProxiedPage,
+                        nineProxiedPage));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
 
@@ -756,7 +763,8 @@ public class DispatcherPageSourceTest
     }
 
     // NativeQueryCollectData is created for each block index that isn't in proxied \ prefilled maps
-    private DispatcherPageSource getDispatcherPageSource(int totalCollectColumns,
+    private DispatcherPageSource getDispatcherPageSource(
+            int totalCollectColumns,
             Map<Integer, Type> proxiedCollectTypeByBlockIndex,
             Map<Integer, PrefilledQueryCollectData> prefilledQueryCollectDataByBlockIndex)
     {
@@ -788,8 +796,10 @@ public class DispatcherPageSourceTest
             }
         }
 
-        QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
-                ImmutableMap.copyOf(remainingCollectColumnByBlockIndex), "query-id")
+        QueryContext queryContext = new QueryContext(
+                new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE),
+                ImmutableMap.copyOf(remainingCollectColumnByBlockIndex),
+                "query-id")
                 .asBuilder()
                 .nativeQueryCollectDataList(nativeQueryCollectDataList)
                 .prefilledQueryCollectDataByBlockIndex(prefilledQueryCollectDataByBlockIndex)
@@ -800,7 +810,8 @@ public class DispatcherPageSourceTest
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
 
-        return new DispatcherPageSource(() -> proxiedConnectorPageSource,
+        return new DispatcherPageSource(
+                () -> proxiedConnectorPageSource,
                 mock(QueryClassifier.class),
                 warpWithoutPrefilledAndProxiedCollectTypes,
                 warpPageSource,
@@ -835,14 +846,15 @@ public class DispatcherPageSourceTest
         actAndAssert(warpMatches, Optional.of(proxiedMatches), dispatcherPageSource, Optional.empty());
     }
 
-    private void actAndAssert(long[] warpMatches,
+    private void actAndAssert(
+            long[] warpMatches,
             Optional<long[]> proxiedMatches,
             DispatcherPageSource dispatcherPageSource,
             Optional<Long> prefilled)
     {
         int totalMatchesPosition = 0;
         while (!dispatcherPageSource.isFinished() && totalMatchesPosition < warpMatches.length) {
-            SourcePage resultPage = dispatcherPageSource.getNextSourcePage(); //act
+            SourcePage resultPage = dispatcherPageSource.getNextSourcePage(); // act
             int positionCount = resultPage.getPositionCount();
             for (int i = 0; i < positionCount; i++) {
                 assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(0), i)).isEqualTo(warpMatches[totalMatchesPosition + i]);

@@ -20,6 +20,4 @@ public record RecordData(
         SchemaTableColumn schemaTableColumn,
         Type type,
         RecTypeCode recTypeCode,
-        int recTypeLength)
-{
-}
+        int recTypeLength) {}

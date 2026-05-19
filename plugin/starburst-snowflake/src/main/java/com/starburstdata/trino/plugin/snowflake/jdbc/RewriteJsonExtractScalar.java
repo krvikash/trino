@@ -30,14 +30,17 @@ public class RewriteJsonExtractScalar
     {
         // For non-scalar types Trino's json_extract_scalar returns NULL while Snowflake's JSON_EXTRACT_PATH_TEXT returns the JSON at given path as a string
         return new ParameterizedExpression(
-                format("""
-                                CASE TYPEOF(GET_PATH((%s), (%s)))
-                                    WHEN 'ARRAY' THEN NULL
-                                    WHEN 'OBJECT' THEN NULL
-                                    ELSE JSON_EXTRACT_PATH_TEXT((%s), (%s))
-                                END""",
-                        valueExpression.expression(), jsonExpression.expression(),
-                        valueExpression.expression(), jsonExpression.expression()),
+                format(
+                        """
+                        CASE TYPEOF(GET_PATH((%s), (%s)))
+                            WHEN 'ARRAY' THEN NULL
+                            WHEN 'OBJECT' THEN NULL
+                            ELSE JSON_EXTRACT_PATH_TEXT((%s), (%s))
+                        END""",
+                        valueExpression.expression(),
+                        jsonExpression.expression(),
+                        valueExpression.expression(),
+                        jsonExpression.expression()),
                 ImmutableList.<QueryParameter>builder()
                         .addAll(valueExpression.parameters())
                         .addAll(rewriteJsonPath(jsonExpression.parameters()))

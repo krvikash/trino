@@ -357,16 +357,14 @@ final class TestProgramBuilderAndPrinter
                                                         .put(new Symbol(BIGINT, "c"), new Constant(BIGINT, 5L))
                                                         .build()),
                                         ImmutableMap.of(
-                                                new Symbol(BIGINT, "count"),
-                                                new AggregationNode.Aggregation(
+                                                new Symbol(BIGINT, "count"), new AggregationNode.Aggregation(
                                                         countFunction,
                                                         ImmutableList.of(),
                                                         true,
                                                         Optional.of(new Symbol(BOOLEAN, "b")),
                                                         Optional.empty(),
                                                         Optional.empty()),
-                                                new Symbol(BIGINT, "sum"),
-                                                new AggregationNode.Aggregation(
+                                                new Symbol(BIGINT, "sum"), new AggregationNode.Aggregation(
                                                         sumFunction,
                                                         ImmutableList.of(new Reference(BIGINT, "c")),
                                                         false,
@@ -521,10 +519,8 @@ final class TestProgramBuilderAndPrinter
                                                 TestingTransactionHandle.create()),
                                         ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
                                         ImmutableMap.of(
-                                                new Symbol(BOOLEAN, "b"),
-                                                new TestingColumnHandle("b_handle"),
-                                                new Symbol(BIGINT, "a"),
-                                                new TestingColumnHandle("a_handle")),
+                                                new Symbol(BOOLEAN, "b"), new TestingColumnHandle("b_handle"),
+                                                new Symbol(BIGINT, "a"), new TestingColumnHandle("a_handle")),
                                         TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
                                         Optional.of(PlanNodeStatsEstimate.unknown()),
                                         false,
@@ -590,8 +586,7 @@ final class TestProgramBuilderAndPrinter
                                         ImmutableList.of(
                                                 ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
                                                 ImmutableList.of(new Symbol(BIGINT, "d"), new Symbol(BOOLEAN, "e"))),
-                                        Optional.empty()
-                                ),
+                                        Optional.empty()),
                                 ImmutableList.of("col_a", "col_b"),
                                 ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g"))))
                 .print(TESTING_PRINT_OPTIONS))

@@ -85,8 +85,8 @@ public class JmxTroubleshootingProvider
                 mBeanServer.getAttributes(objectName, Arrays.stream(mBeanServer.getMBeanInfo(objectName).getAttributes())
                                 .map(MBeanAttributeInfo::getName)
                                 .toArray(String[]::new))
-                            .asList()
-                            .forEach(att -> mapper.accept(objectName.getCanonicalName(), att.getName(), attributeToType(att.getValue())));
+                        .asList()
+                        .forEach(att -> mapper.accept(objectName.getCanonicalName(), att.getName(), attributeToType(att.getValue())));
             }
             catch (InstanceNotFoundException e) {
                 // Mbean was removed after call to the queryNames, let's ignore it.

@@ -260,7 +260,8 @@ public class DynamoDbJdbcClient
             sql.append(format("SortKeyName = '%s', SortKeyType = '%s', ", attribute, getDynamoDbTypeFromSql(sortKeyMetadata.get().getType().getDisplayName())));
         });
 
-        sql.append(format("ProvisionedThroughput_ReadCapacityUnits = '%s', ProvisionedThroughput_WriteCapacityUnits = '%s'",
+        sql.append(format(
+                "ProvisionedThroughput_ReadCapacityUnits = '%s', ProvisionedThroughput_WriteCapacityUnits = '%s'",
                 getReadCapacityUnits(tableProperties),
                 getWriteCapacityUnits(tableProperties)));
 
@@ -446,10 +447,9 @@ public class DynamoDbJdbcClient
         // Therefore all predicates are pushed down for specific datatype except non-equality operator and datatype specific unsupported operators.
         // For some of the types, it was tricky to create a test table in DynamoDB which returns as a specific type in Trino.
         Optional<ColumnMapping> mapping = switch (typeHandle.jdbcType()) {
-            case Types.BIT, Types.BOOLEAN ->
-                    // Error if pushdown is enabled (besides the null issue):
-                    // Invalid FilterExpression: Incorrect operand type for operator or function; operator or function: <=, operand type: BOOL.
-                    Optional.of(booleanMapping(BOOLEAN, ResultSet::getBoolean, booleanWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_BOOLEAN_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
+            // Error if pushdown is enabled (besides the null issue):
+            // Invalid FilterExpression: Incorrect operand type for operator or function; operator or function: <=, operand type: BOOL.
+            case Types.BIT, Types.BOOLEAN -> Optional.of(booleanMapping(BOOLEAN, ResultSet::getBoolean, booleanWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_BOOLEAN_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
             case Types.TINYINT -> Optional.of(longMapping(TINYINT, ResultSet::getByte, tinyintWriteFunction(), DISABLE_PUSHDOWN));
             case Types.SMALLINT -> Optional.of(longMapping(SMALLINT, ResultSet::getShort, smallintWriteFunction(), DISABLE_PUSHDOWN));
             case Types.INTEGER -> Optional.of(longMapping(INTEGER, ResultSet::getInt, integerWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN));
@@ -740,6 +740,7 @@ public class DynamoDbJdbcClient
     }
 
     // Copied from `getDynamoDbTypeFromSql` method and modified. This conversion may not be accurate as it relies on Trino type instead of rsd type.
+
     /**
      * This conversion is based on the below information received from the CData support. It indicates that how the value of `other:supportedoperators` rsd field is derived from
      * the value of `xs:type` rsd field. This conversion relies on the Trino type instead of rsd type as we use the Trino type to populate the value of `xs:type` rsd field while
