@@ -223,6 +223,19 @@ public class KdbClient
 
     public KdbQueryResult fetchData(SchemaTableName tableName, List<KdbColumnHandle> columns)
     {
+        String query = buildQuery(tableName, columns);
+
+        Object result = execute(query);
+
+        if (!(result instanceof Flip flip)) {
+            throw new TrinoException(GENERIC_USER_ERROR, "Expected table result from KDB query");
+        }
+
+        return new KdbQueryResult(flip);
+    }
+
+    private static String buildQuery(SchemaTableName tableName, List<KdbColumnHandle> columns)
+    {
         validateIdentifier(tableName.getSchemaName(), "schema");
         validateIdentifier(tableName.getTableName(), "table");
         String fullTableName = getFullTableName(tableName);
@@ -245,15 +258,7 @@ public class KdbClient
         }
 
         String columnClause = columnList.isEmpty() ? "" : " " + columnList;
-        String query = "select%s from %s".formatted(columnClause, fullTableName);
-
-        Object result = execute(query);
-
-        if (!(result instanceof Flip flip)) {
-            throw new TrinoException(GENERIC_USER_ERROR, "Expected table result from KDB query");
-        }
-
-        return new KdbQueryResult(flip);
+        return "select%s from %s".formatted(columnClause, fullTableName);
     }
 
     public static boolean isValidIdentifier(String name)
