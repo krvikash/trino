@@ -56,7 +56,6 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
-import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -604,12 +603,12 @@ public final class GpuTestUtils
                         Block actualBlock = actualPos.page.getBlock(channel);
                         Block expectedBlock = expectedPos.page.getBlock(channel);
                         if (!equivalence.isIdentical(actualBlock, actualPos.position, expectedBlock, expectedPos.position)) {
-                            throw new AssertionError("row %d channel %d (type %s): actual=%s expected=%s".formatted(
+                            throw new AssertionError("row %d channel %d (type %s): actual=«%s» expected=«%s»".formatted(
                                     actualPos.position,
                                     channel,
                                     types.get(channel),
-                                    readNativeValue(types.get(channel), actualBlock, actualPos.position),
-                                    readNativeValue(types.get(channel), expectedBlock, expectedPos.position)));
+                                    types.get(channel).getObjectValue(actualBlock, actualPos.position),
+                                    types.get(channel).getObjectValue(expectedBlock, expectedPos.position)));
                         }
                     }
                 });
