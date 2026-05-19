@@ -241,6 +241,7 @@ public class KdbClient
         String fullTableName = getFullTableName(tableName);
 
         if (columns.isEmpty()) {
+            // Columns can be empty for aggregation queries like SELECT COUNT(*)
             return "select from %s".formatted(fullTableName);
         }
 
