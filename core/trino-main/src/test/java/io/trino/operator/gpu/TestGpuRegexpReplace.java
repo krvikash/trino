@@ -634,12 +634,12 @@ final class TestGpuRegexpReplace
 
     private AssertProvider<RegexpReplaceAssert> regexpReplace(String pattern, String replacement)
     {
-        return () -> new RegexpReplaceAssert(regexpReplaceExpression(pattern, replacement), pattern, replacement);
+        return () -> new RegexpReplaceAssert(regexpReplaceExpression(pattern, replacement), pattern, Optional.of(replacement));
     }
 
     private AssertProvider<RegexpReplaceAssert> regexpReplace(String pattern)
     {
-        return () -> new RegexpReplaceAssert(regexpReplaceExpression(pattern), pattern, null);
+        return () -> new RegexpReplaceAssert(regexpReplaceExpression(pattern), pattern, Optional.empty());
     }
 
     private Expression regexpReplaceExpression(String pattern, String replacement)
@@ -668,11 +668,11 @@ final class TestGpuRegexpReplace
         private final String expressionString;
         private final Expression expression;
 
-        RegexpReplaceAssert(Expression expression, String pattern, String replacement)
+        RegexpReplaceAssert(Expression expression, String pattern, Optional<String> replacement)
         {
-            this.expressionString = replacement == null
-                            ? "regexp_replace('%s')".formatted(pattern)
-                    : "regexp_replace('%s', '%s')".formatted(pattern, replacement);
+            this.expressionString = replacement
+                    .map(s -> "regexp_replace('%s', '%s')".formatted(pattern, s))
+                    .orElseGet(() -> "regexp_replace('%s')".formatted(pattern));
             this.expression = requireNonNull(expression, "expression is null");
         }
 
