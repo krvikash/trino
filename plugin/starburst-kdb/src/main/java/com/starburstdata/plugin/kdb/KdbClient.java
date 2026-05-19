@@ -240,25 +240,23 @@ public class KdbClient
         validateIdentifier(tableName.getTableName(), "table");
         String fullTableName = getFullTableName(tableName);
 
-        String columnList;
         if (columns.isEmpty()) {
-            columnList = "";
-        }
-        else {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < columns.size(); i++) {
-                if (i > 0) {
-                    sb.append(", ");
-                }
-                String columnName = columns.get(i).columnName();
-                validateIdentifier(columnName, "column");
-                sb.append(columnName);
-            }
-            columnList = sb.toString();
+            return "select from %s".formatted(fullTableName);
         }
 
-        String columnClause = columnList.isEmpty() ? "" : " " + columnList;
-        return "select%s from %s".formatted(columnClause, fullTableName);
+        // Use functional select form to safely handle reserved column names
+        // ?[table; (); 0b; cols!cols] projects named columns
+        StringBuilder cols = new StringBuilder();
+        for (int i = 0; i < columns.size(); i++) {
+            if (i > 0) {
+                cols.append("`");
+            }
+            String columnName = columns.get(i).columnName();
+            validateIdentifier(columnName, "column");
+            cols.append(columnName);
+        }
+        String colList = columns.size() == 1 ? "enlist[`" + cols + "]" : "`" + cols;
+        return "?[%s; (); 0b; %s!%s]".formatted(fullTableName, colList, colList);
     }
 
     public static boolean isValidIdentifier(String name)

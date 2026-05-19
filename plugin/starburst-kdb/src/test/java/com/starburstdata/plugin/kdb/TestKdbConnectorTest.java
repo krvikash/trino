@@ -168,6 +168,30 @@ class TestKdbConnectorTest
     }
 
     @Test
+    void testReservedColumnName()
+    {
+        try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_reserved_column_name")) {
+            client.execute("%s: flip (enlist `key) ! enlist `long$()".formatted(table.getName()));
+            client.execute("`%s insert 1".formatted(table.getName()));
+
+            assertThat(query("TABLE test_reserved_column_name"))
+                    .matches("VALUES BIGINT '1'");
+        }
+    }
+
+    @Test
+    void testReservedColumnNames()
+    {
+        try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_reserved_column_names")) {
+            client.execute("%s: flip `key`value ! (`long$(); `long$())".formatted(table.getName()));
+            client.execute("`%s insert 1, 100".formatted(table.getName()));
+
+            assertThat(query("TABLE test_reserved_column_names"))
+                    .matches("VALUES (BIGINT '1', BIGINT '100')");
+        }
+    }
+
+    @Test
     void testUnsupportedColumnType()
     {
         try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_unsupported_column_type")) {
