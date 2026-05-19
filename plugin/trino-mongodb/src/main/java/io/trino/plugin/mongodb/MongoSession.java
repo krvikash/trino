@@ -945,13 +945,14 @@ public class MongoSession
             Map<String, Document> fields = new LinkedHashMap<>();
             while (cursor.hasNext()) {
                 Document doc = cursor.next();
-                for (String key : doc.keySet()) {
-                    Object value = doc.get(key);
+                for (Entry<String, Object> entry : doc.entrySet()) {
+                    String key = entry.getKey();
+                    Object value = entry.getValue();
                     Optional<Type> fieldType = guessFieldType(value);
                     if (fieldType.isPresent()) {
                         Type type = fieldType.get();
                         if (fields.containsKey(key) && !type.getDisplayName().equals(fields.get(key).getString(FIELDS_TYPE_KEY))) {
-                            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Conflicting types for column '%s': %s and %s".formatted(key, type.getDisplayName(), fields.get(key).getString(FIELDS_TYPE_KEY)));
+                            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Conflicting types for column '%s': %s and %s".formatted(key, fields.get(key).getString(FIELDS_TYPE_KEY), type.getDisplayName()));
                         }
 
                         Document metadata = new Document();

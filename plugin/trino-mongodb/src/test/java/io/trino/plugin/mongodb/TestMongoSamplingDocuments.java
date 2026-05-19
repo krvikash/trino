@@ -53,6 +53,24 @@ final class TestMongoSamplingDocuments
     }
 
     @Test
+    void testSamplingCountWithoutOrder()
+    {
+        Session samplingCountTwo = Session.builder(getSession())
+                .setCatalogSessionProperty("mongodb", "sampling_count", "2")
+                .build();
+
+        try (MongoTable table = new MongoTable(client, "test_sampling_default" + randomNameSuffix())) {
+            table.insert("{\"id\":1}");
+            table.insert("{\"id\":2, \"data\":true}");
+            table.insert("{\"id\":3, \"data\":false}");
+
+            // The first document has no "data" field; the second document (within sampling_count=2) introduces data:boolean
+            assertThat(query(samplingCountTwo, "SELECT * FROM " + table.name()))
+                    .matches("VALUES (BIGINT '1', CAST(null AS boolean)), (2, true), (3, false)");
+        }
+    }
+
+    @Test
     void testSamplingOrderFirst()
     {
         Session samplingOrderFirst = Session.builder(getSession())
@@ -61,8 +79,8 @@ final class TestMongoSamplingDocuments
 
         try (MongoTable table = new MongoTable(client, "test_sampling_order_first")) {
             table.insert("{\"id\":1, \"data\":true}");
-            table.insert("{\"id\":2, \"data\":null}");
-            table.insert("{\"id\":3, \"data\":null}");
+            table.insert("{\"id\":2}");
+            table.insert("{\"id\":3}");
 
             assertThat(query(samplingOrderFirst, "SELECT * FROM " + table.name()))
                     .matches("VALUES (BIGINT '1', true), (2, NULL), (3, NULL)");
@@ -77,8 +95,8 @@ final class TestMongoSamplingDocuments
                 .build();
 
         try (MongoTable table = new MongoTable(client, "test_sampling_order_last")) {
-            table.insert("{\"id\":1, \"data\":null}");
-            table.insert("{\"id\":2, \"data\":null}");
+            table.insert("{\"id\":1}");
+            table.insert("{\"id\":2}");
             table.insert("{\"id\":3, \"data\":true}");
 
             assertThat(query(samplingOrderLast, "SELECT * FROM " + table.name()))
@@ -98,7 +116,7 @@ final class TestMongoSamplingDocuments
             table.insert("{\"id\":2, \"data\":true}");
 
             assertThat(query(samplingCount, "SELECT * FROM " + table.name())).failure()
-                    .hasMessage("Conflicting types for column 'data': boolean and bigint");
+                    .hasMessage("Conflicting types for column 'data': bigint and boolean");
         }
     }
 
@@ -114,7 +132,7 @@ final class TestMongoSamplingDocuments
             table.insert("{\"id\":2, \"data\":{\"f2\":2}}");
 
             assertThat(query(samplingCount, "SELECT * FROM " + table.name())).failure()
-                    .hasMessage("Conflicting types for column 'data': row(\"f2\" bigint) and row(\"f1\" bigint)");
+                    .hasMessage("Conflicting types for column 'data': row(\"f1\" bigint) and row(\"f2\" bigint)");
         }
     }
 
