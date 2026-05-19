@@ -35,6 +35,7 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.TestingSession;
+import jakarta.annotation.Nullable;
 import org.assertj.core.api.AssertProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -470,7 +471,7 @@ final class TestGpuRegexpReplace
     void testNullPropagation()
     {
         assertThat(regexpReplace("abc", "X"))
-                .executesCorrectlyWithNulls(null, "hello", null, "abc");
+                .executesCorrectly(null, "hello", null, "abc");
     }
 
     @Test
@@ -683,12 +684,7 @@ final class TestGpuRegexpReplace
                     .isEmpty();
         }
 
-        void executesCorrectly(String... inputs)
-        {
-            assertGpuMatchesCpu(List.of(createVarcharPage(inputs)));
-        }
-
-        void executesCorrectlyWithNulls(String... inputs)
+        void executesCorrectly(@Nullable String... inputs)
         {
             assertGpuMatchesCpu(List.of(createNullableVarcharPage(inputs)));
         }
@@ -742,15 +738,6 @@ final class TestGpuRegexpReplace
                     .forEachOrdered(outputPages::add);
         }
         return outputPages.build();
-    }
-
-    private static Page createVarcharPage(String... values)
-    {
-        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.length, values.length * 32);
-        for (String value : values) {
-            builder.writeEntry(utf8Slice(value));
-        }
-        return new Page(values.length, builder.build());
     }
 
     private static Page createNullableVarcharPage(String... values)
