@@ -37,6 +37,7 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
 import io.starburst.stargate.buffer.data.client.spooling.blackhole.BlackholeSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
+import io.starburst.stargate.buffer.data.execution.ChunkAllocationStats;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
 import org.junit.jupiter.api.AfterEach;
@@ -90,6 +91,7 @@ abstract class BaseDataServerTest
     private static final DataSize DATA_SERVER_AVAILABLE_MEMORY = DataSize.of(130, MEGABYTE);
 
     private final boolean useBlockingResource;
+    private final Map<String, String> extraProperties;
 
     private TestingDataServer dataServer;
     private HttpClient httpClient;
@@ -101,7 +103,13 @@ abstract class BaseDataServerTest
 
     BaseDataServerTest(boolean useBlockingResource)
     {
+        this(useBlockingResource, Map.of());
+    }
+
+    BaseDataServerTest(boolean useBlockingResource, Map<String, String> extraProperties)
+    {
         this.useBlockingResource = useBlockingResource;
+        this.extraProperties = Map.copyOf(extraProperties);
     }
 
     @BeforeEach
@@ -116,8 +124,8 @@ abstract class BaseDataServerTest
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage-" + UUID.randomUUID())
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .setConfigProperty("memory.heap-headroom", succinctBytes(Runtime.getRuntime().maxMemory() - DATA_SERVER_AVAILABLE_MEMORY.toBytes()).toString())
-                .setConfigProperty("memory.allocation-low-watermark", "0.99")
-                .setConfigProperty("memory.allocation-high-watermark", "0.99")
+                .setConfigProperty("memory.spooling-low-watermark", "0.99")
+                .setConfigProperty("memory.spooling-high-watermark", "0.99")
                 .setConfigProperty("draining.min-duration", "2s")
                 .setConfigProperty("chunk.max-size", "32MB");
         if (useBlockingResource) {
@@ -126,6 +134,7 @@ abstract class BaseDataServerTest
                     .setConfigProperty("virtual-threads.http-server.http.port", "0") //random port
                     .withBlockingResource();
         }
+        extraProperties.forEach(builder::setConfigProperty);
         dataServer = builder.build();
 
         dataServerUri = useBlockingResource ? dataServer.getVirtualThreadsBaseUri().orElse(dataServer.getBaseUri()) : dataServer.getBaseUri();
@@ -199,21 +208,18 @@ abstract class BaseDataServerTest
 
         assertNodeStats(2, 4, 0, 1);
 
-        ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 11);
-        ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 1, 1L, 7);
-        ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 0, 2L, 10);
-        ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, largePage1.length());
-        ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, largePage2.length());
-
         // Finish EXCHANGE_0 and validate metrics
         finishExchange(EXCHANGE_0);
         assertNodeStats(2, 2, 0, 3);
 
         ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 2);
-        assertThat(chunkList0.chunks()).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1);
+        assertThat(chunkList0.chunks()).hasSize(2);
+        ChunkHandle chunkHandle0 = getChunkHandleOrThrow(chunkList0.chunks(), 0, 11);
+        ChunkHandle chunkHandle1 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 7);
         assertThat(chunkList0.nextPagingId()).isEmpty();
         ChunkList chunkList1 = listClosedChunks(EXCHANGE_1, OptionalLong.empty(), 1);
-        assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
+        assertThat(chunkList1.chunks()).hasSize(1);
+        ChunkHandle chunkHandle3 = getChunkHandleOrThrow(chunkList1.chunks(), 1, largePage1.length());
         assertThat(chunkList1.nextPagingId()).isPresent();
 
         // Validate EXCHANGE_0 metrics after finish
@@ -226,7 +232,9 @@ abstract class BaseDataServerTest
         assertNodeStats(2, 0, 0, 5);
 
         chunkList1 = listClosedChunks(EXCHANGE_1, chunkList1.nextPagingId(), 2);
-        assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2, chunkHandle4);
+        assertThat(chunkList1.chunks()).hasSize(2);
+        ChunkHandle chunkHandle2 = getChunkHandleOrThrow(chunkList1.chunks(), 0, 10);
+        ChunkHandle chunkHandle4 = getChunkHandleOrThrow(chunkList1.chunks(), 1, largePage2.length());
         assertThat(chunkList1.nextPagingId()).isEmpty();
 
         // Validate EXCHANGE_1 metrics after finish
@@ -398,9 +406,9 @@ abstract class BaseDataServerTest
 
         assertEventually(new Duration(1, SECONDS), () -> assertThat(chunkListFuture.isDone()).isTrue());
         BufferNodeExchangeMetrics exchangeMetrics = pingExchange(EXCHANGE_0);
-        ChunkHandle chunkHandle = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
         ChunkList chunkList = getFutureValue(chunkListFuture);
-        assertThat(chunkList.chunks()).containsExactly(chunkHandle);
+        assertThat(chunkList.chunks()).hasSize(1);
+        getChunkHandleOrThrow(chunkList.chunks(), 0, 5);
         assertThat(chunkList.nextPagingId()).isEmpty();
         assertThat(exchangeMetrics).isEqualTo(
                 new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5));
@@ -472,7 +480,14 @@ abstract class BaseDataServerTest
         finishExchange(EXCHANGE_0);
 
         List<ChunkHandle> chunkHandles = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 10).chunks();
-        assertNodeStats(1, 0, 3, 7);
+        // Verify all 10 chunks are accounted for and some spooling occurred; exact split depends on chunk size.
+        assertEventually(new Duration(2, SECONDS), () -> {
+            BufferNodeStats stats = dataClient.getInfo().stats().get();
+            assertThat(stats.trackedExchanges()).isEqualTo(1);
+            assertThat(stats.openChunks()).isEqualTo(0);
+            assertThat(stats.spooledChunks()).isGreaterThan(0);
+            assertThat(stats.spooledChunks() + stats.closedChunks()).isEqualTo(10);
+        });
 
         for (ChunkHandle chunkHandle : chunkHandles) {
             int index = chunkHandle.partitionId();
@@ -482,17 +497,17 @@ abstract class BaseDataServerTest
         removeExchange(EXCHANGE_0);
     }
 
-    private void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Slice data)
+    protected void addDataPage(String exchangeId, int partitionId, int taskId, int attemptId, long dataPagesId, Slice data)
     {
         getFutureValue(dataClient.addDataPages(exchangeId, taskId, attemptId, dataPagesId, ImmutableListMultimap.of(partitionId, data)));
     }
 
-    private void addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    protected void addDataPages(String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         getFutureValue(dataClient.addDataPages(exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition));
     }
 
-    private void finishExchange(String exchangeId)
+    protected void finishExchange(String exchangeId)
     {
         getFutureValue(dataClient.finishExchange(exchangeId));
     }
@@ -532,14 +547,19 @@ abstract class BaseDataServerTest
         return getFutureValue(dataClient.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId)).pages();
     }
 
-    private void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
+    protected void registerExchange(String exchangeId, ChunkDeliveryMode chunkDeliveryMode)
     {
         getFutureValue(dataClient.registerExchange(exchangeId, chunkDeliveryMode, Span.getInvalid()));
     }
 
-    private void removeExchange(String exchangeId)
+    protected void removeExchange(String exchangeId)
     {
         getFutureValue(dataClient.removeExchange(exchangeId));
+    }
+
+    protected ChunkAllocationStats getChunkAllocationStats()
+    {
+        return dataServer.getChunkAllocationStats();
     }
 
     private BufferNodeExchangeMetrics pingExchange(String exchangeId)

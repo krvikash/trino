@@ -23,6 +23,8 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracing.TracingModule;
+import io.starburst.stargate.buffer.data.execution.ChunkAllocationStats;
+import io.starburst.stargate.buffer.data.execution.ChunkDataFactory;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerMainModule;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
@@ -61,12 +63,14 @@ public class TestingDataServer
     private final Closer closer = Closer.create();
     private final Optional<DiscoveryApi> discovery;
     private final long nodeId;
+    private final ChunkDataFactory chunkDataFactory;
 
     private TestingDataServer(long nodeId,
             Supplier<Optional<Module>> discoveryApiModule,
             Map<String, String> configProperties,
             boolean useBlackholeStorage,
-            boolean useBlockingResource)
+            boolean useBlockingResource,
+            boolean useStaticMemoryConfig)
     {
         this.nodeId = nodeId;
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
@@ -84,6 +88,7 @@ public class TestingDataServer
                 DataServerMainModule.builder()
                         .withBufferNodeId(nodeId)
                         .withDiscoveryBroadcast(discoveryApiModule.get().isPresent())
+                        .withUseStaticMemoryConfig(useStaticMemoryConfig)
                         .build(),
                 useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty(), false),
                 getVirtualThreadsServerModule()));
@@ -103,6 +108,7 @@ public class TestingDataServer
             stateManager.transitionState(ACTIVE);
         }
         this.statusProvider = injector.getInstance(DataServerStatusProvider.class);
+        this.chunkDataFactory = injector.getInstance(ChunkDataFactory.class);
 
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
         closer.register(lifeCycleManager::stop);
@@ -138,6 +144,11 @@ public class TestingDataServer
         return this.statusProvider;
     }
 
+    public ChunkAllocationStats getChunkAllocationStats()
+    {
+        return chunkDataFactory.getChunkAllocationStats();
+    }
+
     public Optional<DiscoveryApi> getDiscovery()
     {
         return discovery;
@@ -154,6 +165,7 @@ public class TestingDataServer
         private Map<String, String> configProperties = new HashMap<>();
         private boolean useBlackholeStorage;
         private boolean useBlockingResource;
+        private boolean useStaticMemoryConfig;
 
         public Builder withDefaultDiscoveryApiModule()
         {
@@ -192,6 +204,12 @@ public class TestingDataServer
             return this;
         }
 
+        public Builder withStaticMemoryConfig()
+        {
+            this.useStaticMemoryConfig = true;
+            return this;
+        }
+
         public TestingDataServer build()
         {
             return build(0);
@@ -205,7 +223,7 @@ public class TestingDataServer
             if (!useBlackholeStorage) {
                 configProperties.putIfAbsent("testing.allow-local-spooling", "true");
             }
-            return new TestingDataServer(nodeId, discoveryApiModule, configProperties, useBlackholeStorage, useBlockingResource);
+            return new TestingDataServer(nodeId, discoveryApiModule, configProperties, useBlackholeStorage, useBlockingResource, useStaticMemoryConfig);
         }
     }
 
