@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -25,11 +26,14 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class ChunkDataFactory
 {
+    private static final Logger log = Logger.get(ChunkDataFactory.class);
+
     private final Optional<LocalDiskTier> localDiskTier;
     private final MemoryAllocator memoryAllocator;
     private final ExecutorService executor;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
+    private final ChunkAllocationStats chunkAllocationStats = new ChunkAllocationStats();
 
     @Inject
     public ChunkDataFactory(
@@ -55,10 +59,20 @@ public class ChunkDataFactory
                     exchangeId, partitionId, chunkId, chunkSizeInBytes, exchangeCumulativeClosedBytes);
             if (slot.isPresent()) {
                 DiskChunkSlot diskChunkSlot = slot.get();
-                return new DiskChunkData(chunkId, chunkSizeInBytes, calculateDataPagesChecksum, diskChunkSlot);
+                log.debug("Chunk %s for exchange %s partition %s allocated to disk: %s", chunkId, exchangeId, partitionId, diskChunkSlot.file());
+                DiskChunkData diskChunkData = new DiskChunkData(chunkId, chunkSizeInBytes, calculateDataPagesChecksum, diskChunkSlot);
+                chunkAllocationStats.recordDiskChunk();
+                return diskChunkData;
             }
-            // Disk slot unavailable (threshold not yet reached, or disk capacity exhausted) fall back to memory rather than failing the chunk.
+            log.debug("Chunk %s for exchange %s partition %s falling back to memory", chunkId, exchangeId, partitionId);
         }
-        return new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
+        MemoryChunkData memoryChunkData = new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
+        chunkAllocationStats.recordMemoryChunk();
+        return memoryChunkData;
+    }
+
+    public ChunkAllocationStats getChunkAllocationStats()
+    {
+        return chunkAllocationStats;
     }
 }

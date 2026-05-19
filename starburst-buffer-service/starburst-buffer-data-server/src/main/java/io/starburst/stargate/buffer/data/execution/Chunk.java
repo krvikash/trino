@@ -13,12 +13,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.slice.Slice;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
+import io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement;
+
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-// Note on thread-safety: only release(), getChunkDataLease(), getReclaimableHeapBytes() and chunkDataInMemory()
-// may be concurrently called after Chunk is closed
+// Note on thread-safety: only release(), getChunkDataLease(), getReclaimableBytes(), chunkPlacement(), and chunkDataInMemory()
+// may be concurrently called after Chunk is closed; all are synchronized on Chunk
 // This class is not thread safe
 public class Chunk
 {
@@ -64,6 +67,14 @@ public class Chunk
     public long getChunkId()
     {
         return chunkId;
+    }
+
+    public synchronized Optional<ChunkPlacement> chunkPlacement()
+    {
+        if (chunkData == null) {
+            return Optional.empty();
+        }
+        return Optional.of(chunkData.chunkPlacement());
     }
 
     public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)

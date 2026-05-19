@@ -38,6 +38,7 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
@@ -73,8 +74,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
+import java.util.function.DoubleSupplier;
 import java.util.function.Function;
-import java.util.function.ToIntFunction;
+import java.util.function.LongSupplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -98,6 +101,8 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.LOCAL_DISK;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.MEMORY;
 import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.ABANDONED;
 import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.EXPLICIT;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
@@ -142,6 +147,7 @@ public class ChunkManager
     private final DataServerStats dataServerStats;
     private final Tracer tracer;
     private final ExecutorService executor;
+    private final Optional<LocalDiskAllocator> localDiskAllocator;
     private final ChunkDataFactory chunkDataFactory;
 
     enum ExchangeRemovalReason {
@@ -179,6 +185,7 @@ public class ChunkManager
             SpoolingStorage spoolingStorage,
             @ForChunkManager Ticker ticker,
             SpooledChunksByExchange spooledChunksByExchange,
+            Optional<LocalDiskAllocator> localDiskAllocator,
             ChunkDataFactory chunkDataFactory,
             DataServerStats dataServerStats,
             Tracer tracer,
@@ -212,6 +219,7 @@ public class ChunkManager
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.executor = requireNonNull(executor, "executor is null");
+        this.localDiskAllocator = requireNonNull(localDiskAllocator, "localDiskAllocator is null");
         this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
         this.drainedSpooledChunkMap = buildNonEvictableCache(
                 CacheBuilder.newBuilder().softValues(),
@@ -670,67 +678,77 @@ public class ChunkManager
     @VisibleForTesting
     synchronized void spoolIfNecessary()
     {
-        if (startedDraining || memoryAllocator.belowHighWatermark()) {
+        if (startedDraining) {
             return;
         }
 
-        do {
-            Map<String, Integer> exchangeSizes = exchanges.entrySet().stream()
-                    .collect(toImmutableMap(
-                            Map.Entry::getKey,
-                            entry -> entry.getValue().getClosedChunksCount()));
-            ToIntFunction<Exchange> exchangeSizeFunction = exchange -> exchangeSizes.getOrDefault(exchange.getExchangeId(), 0);
+        if (!memoryAllocator.belowHighWatermark()) {
+            spoolIfNecessary(
+                    memoryAllocator::getRequiredMemoryToRelease,
+                    memoryAllocator::getAllocationPercentage,
+                    memoryAllocator::aboveLowWatermark,
+                    MEMORY);
+        }
+        if (!localDiskAllocator.map(LocalDiskAllocator::belowHighWatermark).orElse(true)) {
+            spoolIfNecessary(
+                    () -> localDiskAllocator.map(LocalDiskAllocator::getRequiredBytesToRelease).orElse(0L),
+                    () -> localDiskAllocator.map(LocalDiskAllocator::getAllocationPercentage).orElse(0.0),
+                    () -> localDiskAllocator.map(LocalDiskAllocator::aboveLowWatermark).orElse(false),
+                    LOCAL_DISK);
+        }
+    }
 
-            List<Exchange> exchangesSortedBySizeDesc = exchanges.values().stream()
-                    .sorted(Comparator.comparingInt(exchangeSizeFunction).reversed())
-                    .collect(toImmutableList());
-            long requiredMemory = memoryAllocator.getRequiredMemoryToRelease();
-            long nominatedMemory = 0L;
+    private void spoolIfNecessary(LongSupplier requiredBytesToRelease, DoubleSupplier allocationPercentage, BooleanSupplier aboveLowWatermark, ChunkData.ChunkPlacement storageType)
+    {
+        do {
+            List<Exchange> sortedExchanges = sortExchangesBySizeDesc();
             ImmutableList.Builder<Chunk> chunks = ImmutableList.builder();
-            for (Exchange exchange : exchangesSortedBySizeDesc) {
+            long nominatedBytes = 0L;
+            long required = requiredBytesToRelease.getAsLong();
+            for (Exchange exchange : sortedExchanges) {
                 for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
                     for (Chunk chunk : partition.getClosedChunks()) {
-                        int reclaimableHeapBytes = chunk.getReclaimableBytes();
-                        if (reclaimableHeapBytes > 0) {
-                            chunks.add(chunk);
+                        int reclaimableBytes = chunk.getReclaimableBytes();
+                        if (reclaimableBytes <= 0 || !chunk.chunkPlacement().map(storageType::equals).orElse(false)) {
+                            continue;
                         }
-                        nominatedMemory += reclaimableHeapBytes;
-                        if (nominatedMemory >= requiredMemory) {
+                        chunks.add(chunk);
+                        nominatedBytes += reclaimableBytes;
+                        if (nominatedBytes >= required) {
                             break;
                         }
                     }
-                    if (nominatedMemory >= requiredMemory) {
+                    if (nominatedBytes >= required) {
                         break;
                     }
                 }
-                if (nominatedMemory >= requiredMemory) {
+                if (nominatedBytes >= required) {
                     break;
                 }
             }
 
             List<Chunk> spoolCandidates = chunks.build();
             if (spoolCandidates.isEmpty()) {
-                log.info("Memory allocation ratio %.2f%%, starting to close open chunks",
-                        memoryAllocator.getAllocationPercentage());
-
-                requiredMemory = memoryAllocator.getRequiredMemoryToRelease();
-                nominatedMemory = 0L;
-                for (Exchange exchange : exchangesSortedBySizeDesc) {
+                log.info("Allocation ratio %.2f%% (%s), starting to close open chunks", allocationPercentage.getAsDouble(), storageType);
+                nominatedBytes = 0L;
+                for (Exchange exchange : sortedExchanges) {
                     for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
+                        if (!partition.getOpenChunkPlacement().map(storageType::equals).orElse(false)) {
+                            continue;
+                        }
                         Optional<Chunk> candidate = partition.closeOpenChunkAndGet();
                         if (candidate.isPresent()) {
-                            nominatedMemory += candidate.get().getReclaimableBytes();
+                            nominatedBytes += candidate.get().getReclaimableBytes();
                         }
-                        if (nominatedMemory >= requiredMemory) {
+                        if (nominatedBytes >= required) {
                             break;
                         }
                     }
-                    if (nominatedMemory >= requiredMemory) {
+                    if (nominatedBytes >= required) {
                         break;
                     }
                 }
-
-                if (nominatedMemory == 0) {
+                if (nominatedBytes == 0) {
                     // No more chunks can be spooled at this point.
                     // It's possible for us to reach here, since we fulfill memory requests as soon as we release new
                     // memory. It's totally fine as long as we don't deadlock.
@@ -738,18 +756,27 @@ public class ChunkManager
                 }
             }
             else {
-                log.debug("Memory allocation ratio %.2f%%, starting to spool closed chunks",
-                        memoryAllocator.getAllocationPercentage());
-
+                log.debug("Allocation ratio %.2f%% (%s), starting to spool closed chunks", allocationPercentage.getAsDouble(), storageType);
                 // blocking call here to make sure:
                 // 1. No duplicate spooling
                 // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
                 if (!spoolChunksSync(spoolCandidates)) {
-                    // If any spool tasks fail break the loop and try again in the next time interval.
                     return;
                 }
             }
-        } while (memoryAllocator.aboveLowWatermark());
+        }
+        while (aboveLowWatermark.getAsBoolean());
+    }
+
+    private List<Exchange> sortExchangesBySizeDesc()
+    {
+        Map<String, Integer> exchangeSizes = exchanges.entrySet().stream()
+                .collect(toImmutableMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().getClosedChunksCount()));
+        return exchanges.values().stream()
+                .sorted(Comparator.comparingInt((Exchange exchange) -> exchangeSizes.getOrDefault(exchange.getExchangeId(), 0)).reversed())
+                .collect(toImmutableList());
     }
 
     @VisibleForTesting

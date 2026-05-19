@@ -262,6 +262,14 @@ public class Partition
         closedChunks.values().forEach(Chunk::release);
     }
 
+    public synchronized Optional<ChunkData.ChunkPlacement> getOpenChunkPlacement()
+    {
+        if (openChunk == null || openChunk.isEmpty()) {
+            return Optional.empty();
+        }
+        return openChunk.chunkPlacement();
+    }
+
     public synchronized Optional<Chunk> closeOpenChunkAndGet()
     {
         if (openChunk == null) {

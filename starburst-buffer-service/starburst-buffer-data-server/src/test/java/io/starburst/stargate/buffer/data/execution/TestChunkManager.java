@@ -1160,6 +1160,7 @@ public class TestChunkManager
                 spoolingStorage,
                 ticker,
                 new SpooledChunksByExchange(),
+                Optional.empty(),
                 chunkDataFactory,
                 new DataServerStats(),
                 new Tracer() {
