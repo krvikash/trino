@@ -297,18 +297,18 @@ final class TestGpuRegexpReplace
         assertThat(regexpReplace("a{b", "x")).doesNotCompile();
         assertThat(regexpReplace("|", "x")).doesNotCompile();
 
-        assertInvalidPattern("(abc", "x");
-        assertInvalidPattern("abc)", "x");
-        assertInvalidPattern("[abc", "x");
+        assertInvalidPattern("(abc");
+        assertInvalidPattern("abc)");
+        assertInvalidPattern("[abc");
 
         assertThat(regexpReplace("()", "x")).doesNotCompile();
-        assertInvalidPattern("[]", "x");
+        assertInvalidPattern("[]");
         assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
 
-        assertInvalidPattern("*a", "x");
-        assertInvalidPattern("+a", "x");
-        assertInvalidPattern("?a", "x");
-        assertInvalidPattern("(+)", "x");
+        assertInvalidPattern("*a");
+        assertInvalidPattern("+a");
+        assertInvalidPattern("?a");
+        assertInvalidPattern("(+)");
     }
 
     @Test
@@ -629,9 +629,11 @@ final class TestGpuRegexpReplace
         assertThat(gpuCompiler.compileExpression(expression, layout)).isEmpty();
     }
 
-    private void assertInvalidPattern(String pattern, String replacement)
+    private void assertInvalidPattern(String pattern)
     {
-        assertThatThrownBy(() -> regexpReplaceExpression(pattern, replacement))
+        assertThatThrownBy(() -> regexpReplaceExpression(pattern))
+                .isInstanceOf(TrinoException.class);
+        assertThatThrownBy(() -> regexpReplaceExpression(pattern, "x"))
                 .isInstanceOf(TrinoException.class);
     }
 
