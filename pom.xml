@@ -177,6 +177,8 @@
     </scm>
 
     <properties>
+        <!-- todo: remove when airbase version matches this one -->
+        <dep.plugin.airstyle.version>7</dep.plugin.airstyle.version>
         <revision>481-cork-20260517-SNAPSHOT</revision>
         <project.build.targetJdk>25</project.build.targetJdk>
         <!-- for reproducible build support, updated by release plugin -->
