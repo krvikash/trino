@@ -594,9 +594,12 @@ final class TestGpuRegexpReplace
     }
 
     @Test
-    void testDoesNotCompileTrailingDollarInReplacement()
+    void testDoesNotCompileInvalidDollarInReplacement()
     {
         assertThat(regexpReplace("x", "abc$")).doesNotCompile();
+        assertThat(regexpReplace("x", "$x")).doesNotCompile();
+        assertThat(regexpReplace("x", "a$ b")).doesNotCompile();
+        assertThat(regexpReplace("x", "$$")).doesNotCompile();
     }
 
     @Test
