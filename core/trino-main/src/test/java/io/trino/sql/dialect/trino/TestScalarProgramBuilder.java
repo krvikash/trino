@@ -19,6 +19,7 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder.ValueNameAllocator;
@@ -46,7 +47,6 @@ import io.trino.sql.ir.WhenClause;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.planner.Symbol;
-import io.trino.type.FunctionType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

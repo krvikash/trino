@@ -28,6 +28,7 @@ import io.trino.spi.function.OperatorType;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
@@ -86,7 +87,6 @@ import io.trino.sql.newir.Type;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.TestingConnectorTransactionHandle;
-import io.trino.type.FunctionType;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
