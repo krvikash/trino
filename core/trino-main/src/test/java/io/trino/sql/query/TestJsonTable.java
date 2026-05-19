@@ -257,6 +257,24 @@ public class TestJsonTable
                             ('[4, 5, 6, 7, 8]', 8)
                         """);
 
+        // LEFT join with filter on a pass-through column. For a null-completed row, the pass-through
+        // columns still carry the original input values, so filtering on them is valid to push below.
+        assertThat(assertions.query(
+                """
+                 SELECT key, json_col, a
+                 FROM (VALUES
+                        (1, '[1, 2, 3]'),
+                        (2, '[4, 5, 6, 7, 8]')) t(key, json_col)
+                 LEFT JOIN
+                 JSON_TABLE(
+                     json_col,
+                     'lax $[4]'
+                     COLUMNS(a integer PATH 'lax $'))
+                ON TRUE
+                WHERE key = 1
+                """))
+                .matches("VALUES (1, CAST('[1, 2, 3]' AS varchar(15)), CAST(null AS integer))");
+
         // RIGHT join is effectively INNER. Correlation is not allowed in RIGHT join
         assertThat(assertions.query(
                 """
@@ -1017,5 +1035,21 @@ public class TestJsonTable
                             ('[["g", "h"], ["i", "j"], ["k", "l"]]',         1,         null,      null,                    'i',                    1,        null,      null),
                             ('[["g", "h"], ["i", "j"], ["k", "l"]]',         1,         null,      null,                    'j',                    2,        null,      null)
                         """);
+    }
+
+    @Test
+    public void testFilterOnPassThroughColumn()
+    {
+        assertThat(assertions.query("""
+                                    SELECT *
+                                    FROM (VALUES (1, CAST('[10, 20]' AS VARCHAR)), (2, CAST('[30, 40]' AS VARCHAR))) t(key, json_col),
+                                    JSON_TABLE(json_col, 'lax $[*]' AS root COLUMNS(num BIGINT PATH 'lax $'))
+                                    WHERE key = 1
+                                    """))
+                .matches("""
+                         VALUES
+                             (INTEGER '1', VARCHAR '[10, 20]', BIGINT '10'),
+                             (INTEGER '1', VARCHAR '[10, 20]', BIGINT '20')
+                         """);
     }
 }

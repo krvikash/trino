@@ -23,6 +23,7 @@ import com.google.common.collect.Streams;
 import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.metadata.Metadata;
+import io.trino.operator.table.json.JsonTable.JsonTableFunctionHandle;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.ir.Between;
@@ -59,6 +60,9 @@ import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.SimplePlanRewriter;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.SpatialJoinNode;
+import io.trino.sql.planner.plan.TableFunctionNode.PassThroughColumn;
+import io.trino.sql.planner.plan.TableFunctionNode.PassThroughSpecification;
+import io.trino.sql.planner.plan.TableFunctionProcessorNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNRankingNode;
 import io.trino.sql.planner.plan.UnionNode;
@@ -273,6 +277,42 @@ public class PredicatePushDown
                             partitionSymbols.containsAll(extractUnique(conjunct));
 
             Map<Boolean, List<Expression>> conjuncts = extractConjuncts(context.get()).stream().collect(Collectors.partitioningBy(isSupported));
+
+            PlanNode rewrittenNode = context.defaultRewrite(node, combineConjuncts(conjuncts.get(true)));
+
+            if (!conjuncts.get(false).isEmpty()) {
+                rewrittenNode = new FilterNode(idAllocator.getNextId(), rewrittenNode, combineConjuncts(conjuncts.get(false)));
+            }
+
+            return rewrittenNode;
+        }
+
+        @Override
+        public PlanNode visitTableFunctionProcessor(TableFunctionProcessorNode node, RewriteContext<Expression> context)
+        {
+            if (node.getSources().isEmpty()) {
+                return visitPlan(node, context);
+            }
+
+            // For an arbitrary table function, only partitioning columns are safe for predicate push down:
+            // all output rows in the same partition share the same partitioning column values.
+            // For JsonTable, all pass-through symbols are safe for predicate pushdown: this function has row semantics,
+            // so every output row maps to exactly one input row and pass-through values are copied unchanged.
+            boolean isJsonTable = node.getHandle().functionHandle() instanceof JsonTableFunctionHandle;
+
+            Set<Symbol> pushableSymbols = node.getPassThroughSpecifications().stream()
+                    .map(PassThroughSpecification::columns)
+                    .flatMap(Collection::stream)
+                    .filter(column -> isJsonTable || column.isPartitioningColumn())
+                    .map(PassThroughColumn::symbol)
+                    .collect(toImmutableSet());
+
+            Predicate<Expression> isSupported = conjunct ->
+                    isDeterministic(conjunct) &&
+                            pushableSymbols.containsAll(extractUnique(conjunct));
+
+            Map<Boolean, List<Expression>> conjuncts = extractConjuncts(context.get()).stream()
+                    .collect(Collectors.partitioningBy(isSupported));
 
             PlanNode rewrittenNode = context.defaultRewrite(node, combineConjuncts(conjuncts.get(true)));
 
