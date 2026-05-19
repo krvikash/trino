@@ -15,7 +15,6 @@ package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
@@ -50,6 +49,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 import static com.google.common.collect.Streams.stream;
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
@@ -605,7 +605,7 @@ final class TestGpuRegexpReplace
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
                         new Reference(JONI_REGEXP, "ref1"),
-                        new Constant(VARCHAR, Slices.utf8Slice("X"))));
+                        new Constant(VARCHAR, utf8Slice("X"))));
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(VARCHAR, "ref0"), 0,
                 new Symbol(JONI_REGEXP, "ref1"), 1);
@@ -619,7 +619,7 @@ final class TestGpuRegexpReplace
                 functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
-                        new Constant(JONI_REGEXP, joniRegexp(Slices.utf8Slice("x"))),
+                        new Constant(JONI_REGEXP, joniRegexp(utf8Slice("x"))),
                         new Reference(VARCHAR, "ref1")));
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(VARCHAR, "ref0"), 0,
@@ -649,8 +649,8 @@ final class TestGpuRegexpReplace
                 functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
-                        new Constant(JONI_REGEXP, joniRegexp(Slices.utf8Slice(pattern))),
-                        new Constant(VARCHAR, Slices.utf8Slice(replacement))));
+                        new Constant(JONI_REGEXP, joniRegexp(utf8Slice(pattern))),
+                        new Constant(VARCHAR, utf8Slice(replacement))));
     }
 
     private Expression regexpReplaceExpression(String pattern)
@@ -659,7 +659,7 @@ final class TestGpuRegexpReplace
                 functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
-                        new Constant(JONI_REGEXP, joniRegexp(Slices.utf8Slice(pattern)))));
+                        new Constant(JONI_REGEXP, joniRegexp(utf8Slice(pattern)))));
     }
 
     private class RegexpReplaceAssert
@@ -750,7 +750,7 @@ final class TestGpuRegexpReplace
     {
         VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.length, values.length * 32);
         for (String value : values) {
-            builder.writeEntry(Slices.utf8Slice(value));
+            builder.writeEntry(utf8Slice(value));
         }
         return new Page(values.length, builder.build());
     }
@@ -763,7 +763,7 @@ final class TestGpuRegexpReplace
                 builder.appendNull();
             }
             else {
-                builder.writeEntry(Slices.utf8Slice(value));
+                builder.writeEntry(utf8Slice(value));
             }
         }
         return new Page(values.length, builder.build());
