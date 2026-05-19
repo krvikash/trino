@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,7 @@ import static io.trino.operator.scalar.JoniRegexpCasts.joniRegexp;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
+import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -666,11 +668,15 @@ final class TestGpuRegexpReplace
     {
         private static final Map<Symbol, Integer> LAYOUT = ImmutableMap.of(new Symbol(VARCHAR, "ref0"), 0);
 
+        private final String pattern;
+        private final Optional<String> replacement;
         private final String expressionString;
         private final Expression expression;
 
         RegexpReplaceAssert(Expression expression, String pattern, Optional<String> replacement)
         {
+            this.pattern = requireNonNull(pattern, "pattern is null");
+            this.replacement = requireNonNull(replacement, "replacement is null");
             this.expressionString = replacement
                     .map(s -> "regexp_replace('%s', '%s')".formatted(pattern, s))
                     .orElseGet(() -> "regexp_replace('%s')".formatted(pattern));
@@ -686,7 +692,16 @@ final class TestGpuRegexpReplace
 
         void executesCorrectly(@Nullable String... inputs)
         {
-            assertGpuMatchesCpu(List.of(createNullableVarcharPage(inputs)));
+            List<String> list = new ArrayList<>();
+            list.addAll(asList(inputs));
+            // These test cases are always good to have
+            list.add(null);
+            list.add(pattern);
+            list.add(pattern + pattern);
+            replacement.ifPresent(list::add);
+            list.add(null);
+
+            assertGpuMatchesCpu(List.of(createNullableVarcharPage(list)));
         }
 
         private void assertGpuMatchesCpu(List<Page> inputPages)
@@ -740,9 +755,9 @@ final class TestGpuRegexpReplace
         return outputPages.build();
     }
 
-    private static Page createNullableVarcharPage(String... values)
+    private static Page createNullableVarcharPage(List</* nullable */ String> values)
     {
-        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.length, values.length * 32);
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 32);
         for (String value : values) {
             if (value == null) {
                 builder.appendNull();
@@ -751,6 +766,6 @@ final class TestGpuRegexpReplace
                 builder.writeEntry(utf8Slice(value));
             }
         }
-        return new Page(values.length, builder.build());
+        return new Page(values.size(), builder.build());
     }
 }
