@@ -189,3 +189,6 @@ runs:
         if: ${{ inputs.java-version != '' }}
         shell: bash
         run: echo "::add-matcher::.github/problem-matcher.json"
+      - name: Display disk usage
+        shell: bash
+        run: df -h .
