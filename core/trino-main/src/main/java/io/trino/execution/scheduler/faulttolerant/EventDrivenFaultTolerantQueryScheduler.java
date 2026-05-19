@@ -156,6 +156,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
+import java.util.function.Predicate;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -1259,15 +1260,16 @@ public class EventDrivenFaultTolerantQueryScheduler
                     }
                 }
 
+                Predicate<StageId> isParentStageDone = parentStageId -> {
+                    StageExecution parentStage = stageExecutions.get(parentStageId);
+                    return parentStage != null && parentStage.getState().isDone();
+                };
                 if (stageExecution != null
                         && stageExecution.getState().isDone()
                         && !stageExecution.isExchangeClosed()
                         && !stageExecution.getStageId().equals(getStageId(rootFragmentId))
                         // check if all current consumers and future consumers based on current plan are already done with reading exchange data
-                        && Sets.union(stageConsumers.get(stageId), parents.get(stageId)).stream().allMatch(parentStageId -> {
-                            StageExecution parentStage = stageExecutions.get(parentStageId);
-                            return parentStage != null && parentStage.getState().isDone();
-                        })) {
+                        && Sets.union(stageConsumers.get(stageId), parents.get(stageId)).stream().allMatch(isParentStageDone)) {
                     // close source exchange if source stage writing to it is already done and all consumers are done.
                     // Situation when source is running and all consumers are done is valid in case of e.g. early limit termination
                     // E.g. this may happen in case of early limit termination.
