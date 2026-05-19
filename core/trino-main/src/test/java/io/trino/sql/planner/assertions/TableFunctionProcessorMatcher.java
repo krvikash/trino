@@ -39,29 +39,29 @@ import static java.util.Objects.requireNonNull;
 public class TableFunctionProcessorMatcher
         implements Matcher
 {
-    private final String name;
-    private final List<String> properOutputs;
-    private final List<List<String>> passThroughSymbols;
-    private final List<List<String>> requiredSymbols;
+    private final Optional<String> name;
+    private final Optional<List<String>> properOutputs;
+    private final Optional<List<List<String>>> passThroughSymbols;
+    private final Optional<List<List<String>>> requiredSymbols;
     private final Optional<Map<String, String>> markerSymbols;
     private final Optional<ExpectedValueProvider<DataOrganizationSpecification>> specification;
 
     private TableFunctionProcessorMatcher(
-            String name,
-            List<String> properOutputs,
-            List<List<String>> passThroughSymbols,
-            List<List<String>> requiredSymbols,
+            Optional<String> name,
+            Optional<List<String>> properOutputs,
+            Optional<List<List<String>>> passThroughSymbols,
+            Optional<List<List<String>>> requiredSymbols,
             Optional<Map<String, String>> markerSymbols,
             Optional<ExpectedValueProvider<DataOrganizationSpecification>> specification)
     {
         this.name = requireNonNull(name, "name is null");
-        this.properOutputs = ImmutableList.copyOf(properOutputs);
-        this.passThroughSymbols = passThroughSymbols.stream()
+        this.properOutputs = properOutputs.map(ImmutableList::copyOf);
+        this.passThroughSymbols = passThroughSymbols.map(lists -> lists.stream()
                 .map(ImmutableList::copyOf)
-                .collect(toImmutableList());
-        this.requiredSymbols = requiredSymbols.stream()
+                .collect(toImmutableList()));
+        this.requiredSymbols = requiredSymbols.map(lists -> lists.stream()
                 .map(ImmutableList::copyOf)
-                .collect(toImmutableList());
+                .collect(toImmutableList()));
         this.markerSymbols = markerSymbols.map(ImmutableMap::copyOf);
         this.specification = requireNonNull(specification, "specification is null");
     }
@@ -79,48 +79,48 @@ public class TableFunctionProcessorMatcher
 
         TableFunctionProcessorNode tableFunctionProcessorNode = (TableFunctionProcessorNode) node;
 
-        if (!name.equals(tableFunctionProcessorNode.getName())) {
+        if (name.isPresent() && !name.get().equals(tableFunctionProcessorNode.getName())) {
             return NO_MATCH;
         }
 
-        if (properOutputs.size() != tableFunctionProcessorNode.getProperOutputs().size()) {
-            return NO_MATCH;
+        if (passThroughSymbols.isPresent()) {
+            List<List<Reference>> expectedPassThrough = passThroughSymbols.get().stream()
+                    .map(list -> list.stream()
+                            .map(context.symbolAliases()::get)
+                            .collect(toImmutableList()))
+                    .collect(toImmutableList());
+            List<List<Reference>> actualPassThrough = tableFunctionProcessorNode.getPassThroughSpecifications().stream()
+                    .map(PassThroughSpecification::columns)
+                    .map(list -> list.stream()
+                            .map(PassThroughColumn::symbol)
+                            .map(Symbol::toSymbolReference)
+                            .collect(toImmutableList()))
+                    .collect(toImmutableList());
+            if (!expectedPassThrough.equals(actualPassThrough)) {
+                return NO_MATCH;
+            }
         }
 
-        List<List<Reference>> expectedPassThrough = passThroughSymbols.stream()
-                .map(list -> list.stream()
-                        .map(context.symbolAliases()::get)
-                        .collect(toImmutableList()))
-                .collect(toImmutableList());
-        List<List<Reference>> actualPassThrough = tableFunctionProcessorNode.getPassThroughSpecifications().stream()
-                .map(PassThroughSpecification::columns)
-                .map(list -> list.stream()
-                        .map(PassThroughColumn::symbol)
-                        .map(Symbol::toSymbolReference)
-                        .collect(toImmutableList()))
-                .collect(toImmutableList());
-        if (!expectedPassThrough.equals(actualPassThrough)) {
-            return NO_MATCH;
+        if (requiredSymbols.isPresent()) {
+            List<List<Reference>> expectedRequired = requiredSymbols.get().stream()
+                    .map(list -> list.stream()
+                            .map(context.symbolAliases()::get)
+                            .collect(toImmutableList()))
+                    .collect(toImmutableList());
+            List<List<Reference>> actualRequired = tableFunctionProcessorNode.getRequiredSymbols().stream()
+                    .map(list -> list.stream()
+                            .map(Symbol::toSymbolReference)
+                            .collect(toImmutableList()))
+                    .collect(toImmutableList());
+            if (!expectedRequired.equals(actualRequired)) {
+                return NO_MATCH;
+            }
         }
 
-        List<List<Reference>> expectedRequired = requiredSymbols.stream()
-                .map(list -> list.stream()
-                        .map(context.symbolAliases()::get)
-                        .collect(toImmutableList()))
-                .collect(toImmutableList());
-        List<List<Reference>> actualRequired = tableFunctionProcessorNode.getRequiredSymbols().stream()
-                .map(list -> list.stream()
-                        .map(Symbol::toSymbolReference)
-                        .collect(toImmutableList()))
-                .collect(toImmutableList());
-        if (!expectedRequired.equals(actualRequired)) {
-            return NO_MATCH;
-        }
-
-        if (markerSymbols.isPresent() != tableFunctionProcessorNode.getMarkerSymbols().isPresent()) {
-            return NO_MATCH;
-        }
         if (markerSymbols.isPresent()) {
+            if (tableFunctionProcessorNode.getMarkerSymbols().isEmpty()) {
+                return NO_MATCH;
+            }
             Map<Reference, Reference> expectedMapping = markerSymbols.get().entrySet().stream()
                     .collect(toImmutableMap(entry -> context.symbolAliases().get(entry.getKey()), entry -> context.symbolAliases().get(entry.getValue())));
             Map<Reference, Reference> actualMapping = tableFunctionProcessorNode.getMarkerSymbols().orElseThrow().entrySet().stream()
@@ -130,31 +130,36 @@ public class TableFunctionProcessorMatcher
             }
         }
 
-        if (specification.isPresent() != tableFunctionProcessorNode.getSpecification().isPresent()) {
-            return NO_MATCH;
-        }
         if (specification.isPresent()) {
+            if (tableFunctionProcessorNode.getSpecification().isEmpty()) {
+                return NO_MATCH;
+            }
             if (!specification.get().getExpectedValue(context.symbolAliases()).equals(tableFunctionProcessorNode.getSpecification().orElseThrow())) {
                 return NO_MATCH;
             }
         }
 
-        ImmutableMap.Builder<String, Reference> properOutputsMapping = ImmutableMap.builder();
-        for (int i = 0; i < properOutputs.size(); i++) {
-            properOutputsMapping.put(properOutputs.get(i), tableFunctionProcessorNode.getProperOutputs().get(i).toSymbolReference());
+        if (properOutputs.isPresent()) {
+            if (properOutputs.get().size() != tableFunctionProcessorNode.getProperOutputs().size()) {
+                return NO_MATCH;
+            }
+            ImmutableMap.Builder<String, Reference> properOutputsMapping = ImmutableMap.builder();
+            for (int i = 0; i < properOutputs.get().size(); i++) {
+                properOutputsMapping.put(properOutputs.get().get(i), tableFunctionProcessorNode.getProperOutputs().get(i).toSymbolReference());
+            }
+            return match(SymbolAliases.builder()
+                    .putAll(context.symbolAliases())
+                    .putAll(properOutputsMapping.buildOrThrow())
+                    .build());
         }
 
-        return match(SymbolAliases.builder()
-                .putAll(context.symbolAliases())
-                .putAll(properOutputsMapping.buildOrThrow())
-                .build());
+        return match();
     }
 
     @Override
     public String toString()
     {
         return toStringHelper(this)
-                .omitNullValues()
                 .add("name", name)
                 .add("properOutputs", properOutputs)
                 .add("passThroughSymbols", passThroughSymbols)
@@ -167,10 +172,10 @@ public class TableFunctionProcessorMatcher
     public static class Builder
     {
         private final Optional<PlanMatchPattern> source;
-        private String name;
-        private List<String> properOutputs = ImmutableList.of();
-        private List<List<String>> passThroughSymbols = ImmutableList.of();
-        private List<List<String>> requiredSymbols = ImmutableList.of();
+        private Optional<String> name = Optional.empty();
+        private Optional<List<String>> properOutputs = Optional.empty();
+        private Optional<List<List<String>>> passThroughSymbols = Optional.empty();
+        private Optional<List<List<String>>> requiredSymbols = Optional.empty();
         private Optional<Map<String, String>> markerSymbols = Optional.empty();
         private Optional<ExpectedValueProvider<DataOrganizationSpecification>> specification = Optional.empty();
 
@@ -186,25 +191,25 @@ public class TableFunctionProcessorMatcher
 
         public Builder name(String name)
         {
-            this.name = name;
+            this.name = Optional.of(name);
             return this;
         }
 
         public Builder properOutputs(List<String> properOutputs)
         {
-            this.properOutputs = properOutputs;
+            this.properOutputs = Optional.of(properOutputs);
             return this;
         }
 
         public Builder passThroughSymbols(List<List<String>> passThroughSymbols)
         {
-            this.passThroughSymbols = passThroughSymbols;
+            this.passThroughSymbols = Optional.of(passThroughSymbols);
             return this;
         }
 
         public Builder requiredSymbols(List<List<String>> requiredSymbols)
         {
-            this.requiredSymbols = requiredSymbols;
+            this.requiredSymbols = Optional.of(requiredSymbols);
             return this;
         }
 
