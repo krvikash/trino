@@ -35,7 +35,6 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.TestingSession;
-import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AssertProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -663,25 +662,24 @@ final class TestGpuRegexpReplace
     }
 
     private class RegexpReplaceAssert
-            extends AbstractAssert<RegexpReplaceAssert, String>
     {
         private static final Map<Symbol, Integer> LAYOUT = ImmutableMap.of(new Symbol(VARCHAR, "ref0"), 0);
 
+        private final String expressionString;
         private final Expression expression;
 
         RegexpReplaceAssert(Expression expression, String pattern, String replacement)
         {
-            super(replacement == null
+            this.expressionString = replacement == null
                             ? "regexp_replace('%s')".formatted(pattern)
-                            : "regexp_replace('%s', '%s')".formatted(pattern, replacement),
-                    RegexpReplaceAssert.class);
+                    : "regexp_replace('%s', '%s')".formatted(pattern, replacement);
             this.expression = requireNonNull(expression, "expression is null");
         }
 
         void doesNotCompile()
         {
             assertThat(gpuCompiler.compileExpression(expression, LAYOUT))
-                    .describedAs("Expected GPU compilation to fail for %s", actual)
+                    .describedAs("Expected GPU compilation to fail for %s", expressionString)
                     .isEmpty();
         }
 
@@ -700,7 +698,7 @@ final class TestGpuRegexpReplace
             List<Type> inputTypes = List.of(VARCHAR);
 
             CompiledExpression gpuExpression = gpuCompiler.compileExpression(expression, LAYOUT)
-                    .orElseThrow(() -> new AssertionError("GPU compilation failed for " + actual));
+                    .orElseThrow(() -> new AssertionError("GPU compilation failed for " + expressionString));
 
             assertThat(gpuExpression.inputChannels().getInputChannels())
                     .containsExactly(0);
