@@ -19,7 +19,10 @@ import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSinkId;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+
+import java.util.Optional;
 
 /*
  * The OEM key requires a com.starburstdata.* class to be on the stack trace when making calls to Salesforce.
@@ -35,14 +38,24 @@ public class SalesforceJdbcPageSinkProvider
     }
 
     @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
+    public ConnectorPageSink createPageSink(
+            ConnectorTransactionHandle transactionHandle,
+            ConnectorSession session,
+            ConnectorInsertTableHandle tableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            ConnectorPageSinkId pageSinkId)
     {
-        return super.createPageSink(transactionHandle, session, tableHandle, pageSinkId);
+        return super.createPageSink(transactionHandle, session, tableHandle, tableCredentials, pageSinkId);
     }
 
     @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
+    public ConnectorPageSink createPageSink(
+            ConnectorTransactionHandle transactionHandle,
+            ConnectorSession session,
+            ConnectorOutputTableHandle tableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            ConnectorPageSinkId pageSinkId)
     {
-        return super.createPageSink(transactionHandle, session, tableHandle, pageSinkId);
+        return super.createPageSink(transactionHandle, session, tableHandle, tableCredentials, pageSinkId);
     }
 }
