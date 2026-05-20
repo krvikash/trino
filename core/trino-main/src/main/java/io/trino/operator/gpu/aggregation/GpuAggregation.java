@@ -60,12 +60,12 @@ public abstract class GpuAggregation
             this.groupByChannels = groupByChannels.clone();
             this.inputRaw = inputRaw;
 
-            ImmutableList.Builder<Type> outputTypesBuilder = ImmutableList.builder();
-            outputTypesBuilder.addAll(groupByTypes);
+            ImmutableList.Builder<Type> outputTypes = ImmutableList.builder();
+            outputTypes.addAll(groupByTypes);
             for (GpuAggregateFunction aggregate : aggregates) {
-                outputTypesBuilder.add(aggregate.outputType());
+                outputTypes.add(aggregate.outputType());
             }
-            this.outputTypes = outputTypesBuilder.build();
+            this.outputTypes = outputTypes.build();
         }
 
         @Override
