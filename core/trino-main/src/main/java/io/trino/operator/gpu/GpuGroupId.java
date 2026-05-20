@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.operator.GroupIdOperator;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.operator.gpu.GpuUtils.closeColumns;
 import static java.util.Objects.requireNonNull;
 
@@ -40,27 +42,38 @@ public class GpuGroupId
     public static class Factory
             implements GpuOperation.Factory
     {
-        private final int[][] groupingSetInputs;
+        private final List<Map<Integer, Integer>> groupingSetMappings;
         private final List<DType> outputTypes;
 
         public Factory(List<Map<Integer, Integer>> groupingSetMappings, List<DType> outputTypes)
         {
-            requireNonNull(groupingSetMappings, "groupingSetMappings is null");
+            this.groupingSetMappings = groupingSetMappings.stream()
+                    .map(ImmutableMap::copyOf)
+                    .collect(toImmutableList());
             this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
-            this.groupingSetInputs = new int[groupingSetMappings.size()][this.outputTypes.size() - 1];
+        }
+
+        @Override
+        public Factory duplicate()
+        {
+            return new Factory(groupingSetMappings, outputTypes);
+        }
+
+        @Override
+        public GpuOperation create(GpuOperation source)
+        {
+            int[][] groupingSetInputs = new int[groupingSetMappings.size()][outputTypes.size() - 1];
             for (int s = 0; s < groupingSetInputs.length; s++) {
                 Arrays.fill(groupingSetInputs[s], -1);
                 for (Map.Entry<Integer, Integer> entry : groupingSetMappings.get(s).entrySet()) {
                     groupingSetInputs[s][entry.getKey()] = entry.getValue();
                 }
             }
+            return new GpuGroupId(source, groupingSetInputs, outputTypes);
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
-        {
-            return new GpuGroupId(source, groupingSetInputs, outputTypes);
-        }
+        public void noMoreOperators() {}
     }
 
     private final GpuOperation source;

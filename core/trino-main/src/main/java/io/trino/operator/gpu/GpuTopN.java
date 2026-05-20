@@ -55,10 +55,19 @@ public final class GpuTopN
         }
 
         @Override
+        public Factory duplicate()
+        {
+            return new Factory(limit, sortChannels, sortOrders);
+        }
+
+        @Override
         public GpuOperation create(GpuOperation source)
         {
             return new GpuTopN(source, limit, sortChannels, sortOrders);
         }
+
+        @Override
+        public void noMoreOperators() {}
     }
 
     private final GpuOperation source;

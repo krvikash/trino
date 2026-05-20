@@ -31,6 +31,7 @@ import io.trino.spi.gpu.borrow.Own;
 
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
@@ -46,10 +47,20 @@ public final class GpuSemiJoin
         private final GpuSemiJoinSetSupplier setSupplier;
         private final int probeKeyChannel;
 
+        private boolean closed;
+
         public Factory(GpuSemiJoinSetSupplier setSupplier, int probeKeyChannel)
         {
             this.setSupplier = requireNonNull(setSupplier, "setSupplier is null");
             this.probeKeyChannel = probeKeyChannel;
+        }
+
+        @Override
+        public Factory duplicate()
+        {
+            checkState(!closed, "Already closed");
+            setSupplier.probeOperatorFactoryDuplicated();
+            return new Factory(setSupplier, probeKeyChannel);
         }
 
         @Override
@@ -61,6 +72,8 @@ public final class GpuSemiJoin
         @Override
         public void noMoreOperators()
         {
+            checkState(!closed, "Already closed");
+            closed = true;
             setSupplier.probeOperatorFactoryClosed();
         }
     }

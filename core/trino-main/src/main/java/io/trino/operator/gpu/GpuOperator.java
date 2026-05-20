@@ -52,6 +52,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
@@ -286,8 +287,10 @@ public abstract class GpuOperator
                     operatorId,
                     planNodeId,
                     fusedPlanNodeIds,
-                    sourceFactory, // TODO duplicate?
-                    operations, // TODO duplicate?
+                    sourceFactory,
+                    operations.stream()
+                            .map(GpuOperation.Factory::duplicate)
+                            .collect(toImmutableList()),
                     outputTypes);
         }
     }

@@ -41,6 +41,11 @@ public final class GpuSemiJoinSetSupplier
     private final ReferenceCount referenceCount = new ReferenceCount(1 /* for probe operator factory */);
     private final SettableFuture<GpuSemiJoinSet> setFuture = SettableFuture.create();
 
+    public void probeOperatorFactoryDuplicated()
+    {
+        referenceCount.retain();
+    }
+
     public void probeOperatorFactoryClosed()
     {
         referenceCount.release();

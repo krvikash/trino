@@ -69,6 +69,8 @@ public final class GpuLookupJoin
         private final List<Type> buildOutputTypes;
         private final boolean filteredJoin;
 
+        private boolean closed;
+
         public Factory(
                 GpuJoinBridgeManager bridgeManager,
                 int[] probeKeyChannels,
@@ -83,6 +85,14 @@ public final class GpuLookupJoin
             this.joinType = requireNonNull(joinType, "joinType is null");
             this.buildOutputTypes = ImmutableList.copyOf(requireNonNull(buildOutputTypes, "buildOutputTypes is null"));
             this.filteredJoin = filteredJoin;
+        }
+
+        @Override
+        public Factory duplicate()
+        {
+            checkState(!closed, "Already closed");
+            bridgeManager.probeOperatorFactoryDuplicated();
+            return new Factory(bridgeManager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
         }
 
         @Override
@@ -101,6 +111,8 @@ public final class GpuLookupJoin
         @Override
         public void noMoreOperators()
         {
+            checkState(!closed, "Already closed");
+            closed = true;
             bridgeManager.probeOperatorFactoryClosed();
         }
     }

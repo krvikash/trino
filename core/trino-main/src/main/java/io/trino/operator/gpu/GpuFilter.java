@@ -51,10 +51,19 @@ public class GpuFilter
         }
 
         @Override
+        public Factory duplicate()
+        {
+            return new Factory(filter);
+        }
+
+        @Override
         public GpuOperation create(GpuOperation source)
         {
             return new GpuFilter(source, filter);
         }
+
+        @Override
+        public void noMoreOperators() {}
     }
 
     private final GpuOperation source;

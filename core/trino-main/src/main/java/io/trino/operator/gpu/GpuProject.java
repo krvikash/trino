@@ -46,10 +46,19 @@ public class GpuProject
         }
 
         @Override
+        public Factory duplicate()
+        {
+            return new Factory(projections);
+        }
+
+        @Override
         public GpuOperation create(GpuOperation source)
         {
             return new GpuProject(source, projections);
         }
+
+        @Override
+        public void noMoreOperators() {}
     }
 
     private final GpuOperation source;

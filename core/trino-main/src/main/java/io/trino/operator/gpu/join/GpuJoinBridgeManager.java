@@ -22,26 +22,15 @@ import static com.google.common.util.concurrent.Futures.nonCancellationPropagati
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
 
-/**
- * Lifecycle coordinator for the {@link GpuJoinBridge} shared between the build-side
- * {@link GpuJoinBuild} driver and probe-side {@link GpuLookupJoin} operators.
- * <p>
- * The build driver calls {@link #publishBridge} once it has assembled the
- * {@link GpuJoinBridge}. This class handles reference counting and completes
- * {@link #getBridgeFuture()} so probe operators can unblock.
- * <p>
- * Bridge lifetime is managed via per-operator references plus a seed reference:
- * <ul>
- *   <li>Each probe operator registers via {@link #getBridgeFuture()} when it is created.</li>
- *   <li>Each probe operator releases its reference by calling {@link #probeOperatorClosed}.</li>
- *   <li>The probe operator factory signals via {@link #probeOperatorFactoryClosed()} that
- *   there will not be any new probe operators created.</li>
- * </ul>
- */
 public final class GpuJoinBridgeManager
 {
     private final ReferenceCount referenceCount = new ReferenceCount(1 /* for probe operator factory */);
     private final SettableFuture<GpuJoinBridge> bridgeFuture = SettableFuture.create();
+
+    public void probeOperatorFactoryDuplicated()
+    {
+        referenceCount.retain();
+    }
 
     public void probeOperatorFactoryClosed()
     {

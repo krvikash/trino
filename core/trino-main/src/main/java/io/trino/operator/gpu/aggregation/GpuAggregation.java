@@ -48,16 +48,19 @@ public abstract class GpuAggregation
     {
         private final List<GpuAggregateFunction> aggregates;
         private final int[] groupByChannels;
-        private final List<Type> outputTypes;
+        private final List<Type> groupByTypes;
         /**
          * True if input is raw data (SINGLE/PARTIAL steps), false if input is intermediate state (FINAL/INTERMEDIATE steps).
          */
         private final boolean inputRaw;
+        // derived
+        private final List<Type> outputTypes;
 
         public Factory(List<GpuAggregateFunction> aggregates, int[] groupByChannels, List<Type> groupByTypes, boolean inputRaw)
         {
             this.aggregates = ImmutableList.copyOf(requireNonNull(aggregates, "aggregates is null"));
             this.groupByChannels = groupByChannels.clone();
+            this.groupByTypes = ImmutableList.copyOf(requireNonNull(groupByTypes, "groupByTypes is null"));
             this.inputRaw = inputRaw;
 
             ImmutableList.Builder<Type> outputTypes = ImmutableList.builder();
@@ -69,6 +72,12 @@ public abstract class GpuAggregation
         }
 
         @Override
+        public Factory duplicate()
+        {
+            return new Factory(aggregates, groupByChannels, groupByTypes, inputRaw);
+        }
+
+        @Override
         public GpuOperation create(GpuOperation source)
         {
             if (groupByChannels.length == 0) {
@@ -76,6 +85,9 @@ public abstract class GpuAggregation
             }
             return new GpuGroupByAggregation(source, aggregates, groupByChannels, inputRaw);
         }
+
+        @Override
+        public void noMoreOperators() {}
 
         public List<Type> getOutputTypes()
         {

@@ -69,10 +69,19 @@ public final class GpuJoinBuild
         }
 
         @Override
+        public Factory duplicate()
+        {
+            throw new UnsupportedOperationException("Build side factory cannot be duplicated");
+        }
+
+        @Override
         public GpuOperation create(GpuOperation source)
         {
             return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels, filter, dynamicFilter);
         }
+
+        @Override
+        public void noMoreOperators() {}
     }
 
     private final GpuOperation source;

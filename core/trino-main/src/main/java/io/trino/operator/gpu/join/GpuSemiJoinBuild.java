@@ -51,10 +51,19 @@ public final class GpuSemiJoinBuild
         }
 
         @Override
+        public Factory duplicate()
+        {
+            throw new UnsupportedOperationException("Build side factory cannot be duplicated");
+        }
+
+        @Override
         public GpuOperation create(GpuOperation source)
         {
             return new GpuSemiJoinBuild(source, setSupplier, buildKeyChannel);
         }
+
+        @Override
+        public void noMoreOperators() {}
     }
 
     private final GpuOperation source;
