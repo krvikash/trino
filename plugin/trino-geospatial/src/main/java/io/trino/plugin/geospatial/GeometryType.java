@@ -37,7 +37,7 @@ public class GeometryType
     public static final String NAME = "Geometry";
     public static final GeometryType GEOMETRY = new GeometryType();
 
-    private GeometryType()
+    public GeometryType()
     {
         super(new TypeSignature(NAME));
     }
