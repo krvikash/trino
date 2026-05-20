@@ -56,8 +56,9 @@ public final class BenchmarkTpchSf100
         }
 
         @Override
-        public void validateDataLocation(Path dataLocation)
+        public void validateDataLocation(String dataLocation)
         {
+            super.validateDataLocation(dataLocation);
             String expected = """
                               1067107265 lineitem/20260428_102244_00008_kgfxs_795ff063-4f05-4bb5-8100-551c6d38fe78
                               1067333024 lineitem/20260428_102244_00008_kgfxs_019ef8cf-b329-4835-bf91-5a2ac162274d
@@ -99,7 +100,7 @@ public final class BenchmarkTpchSf100
                               961515270 partsupp/20260428_102008_00006_kgfxs_5719b063-0178-4241-8821-d88d0fbb4321
                               975 region/20260428_101924_00001_kgfxs_1536a9ae-0ff5-4265-9927-f00764c4a445
                               """;
-            BenchmarkRunner.verifyDataListing(dataLocation, "Run `testing/benchmark-data/hydrate.sh tpch-sf100` first.", expected);
+            BenchmarkRunner.verifyDataListing(Path.of(dataLocation), "Run `testing/benchmark-data/hydrate.sh tpch-sf100` first.", expected);
         }
     }
 

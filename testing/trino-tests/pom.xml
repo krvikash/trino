@@ -545,6 +545,18 @@
         </dependency>
 
         <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sso</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ssooidc</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>tools.profiler</groupId>
             <artifactId>async-profiler</artifactId>
             <version>4.3</version>

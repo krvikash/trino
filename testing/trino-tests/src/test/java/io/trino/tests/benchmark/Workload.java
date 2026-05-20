@@ -43,7 +43,7 @@ public interface Workload
     /**
      * Default value for the {@code --data} flag when not passed on the command line.
      */
-    Path defaultDataLocation();
+    String defaultDataLocation();
 
     /**
      * JVM heap size for the forked benchmark process.
@@ -53,13 +53,13 @@ public interface Workload
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.
      */
-    DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
+    DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
             throws Exception;
 
     /**
      * Optional sanity check on the data directory before the runner starts.
      */
-    default void validateDataLocation(Path dataLocation) {}
+    default void validateDataLocation(String dataLocation) {}
 
     /**
      * async-profiler sampling interval. Below ~5 ms on macOS, SIGPROF delivery collapses

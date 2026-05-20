@@ -21,6 +21,7 @@ import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -87,20 +88,21 @@ public abstract class BaseTpchWorkload
     }
 
     @Override
-    public Path defaultDataLocation()
+    public String defaultDataLocation()
     {
-        return Path.of(System.getProperty("user.home"), "starburst-benchmark-data", name());
+        return Path.of(System.getProperty("user.home"), "starburst-benchmark-data", name()).toString();
     }
 
     @Override
-    public void validateDataLocation(Path dataLocation)
+    public void validateDataLocation(String dataLocation)
     {
-        if (!Files.isDirectory(dataLocation)) {
+        Path path = Path.of(dataLocation);
+        if (!Files.isDirectory(path)) {
             throw new IllegalStateException("Data location " + dataLocation
                     + " does not exist. Run the workload's Generator entry point to create it.");
         }
         for (String table : TABLES) {
-            Path tableDir = dataLocation.resolve(table);
+            Path tableDir = path.resolve(table);
             if (!Files.isDirectory(tableDir)) {
                 throw new IllegalStateException("Table directory " + tableDir
                         + " does not exist. Run the workload's Generator entry point to recreate the dataset.");
@@ -109,7 +111,7 @@ public abstract class BaseTpchWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
+    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
             throws Exception
     {
         // Persist the in-process FileHiveMetastore (and therefore ANALYZE-collected stats)
@@ -125,6 +127,7 @@ public abstract class BaseTpchWorkload
                 .addExtraProperty("memory.heap-headroom-per-node", "20%")
                 .setSkipTimezoneSetup(true)
                 .addHiveProperty("hive.parquet.time-zone", "UTC")
+                .addHiveProperty("fs.s3.enabled", "true")
                 .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL);
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
@@ -183,20 +186,10 @@ public abstract class BaseTpchWorkload
         return "sql/trino/tpch/sf%d/results/q%02d.ndjson".formatted(scaleFactor, queryNumber);
     }
 
-    /**
-     * LIKE (vs CTAS) keeps column types in sync with the tpch connector's
-     * {@link DecimalTypeMapping} and skips {@code HiveLocationService.forNewTableAsSelect},
-     * so the target directory may exist.
-     *
-     * <p>The Hive metastore is persisted across runs (see {@link #createRunner}), so a previously
-     * created table at a different {@code external_location} would be silently reused by a plain
-     * {@code CREATE TABLE IF NOT EXISTS}. Drop and recreate when the stored location no longer
-     * matches the requested one.
-     */
-    private void createExternalTable(DistributedQueryRunner runner, Path dataLocation, String table)
+    private void createExternalTable(DistributedQueryRunner runner, String dataLocation, String table)
     {
-        Path location = dataLocation.resolve(table).toAbsolutePath().normalize();
-        Optional<Path> existing = readExistingExternalLocation(runner, table);
+        String location = dataLocation + "/" + table;
+        Optional<String> existing = readExistingExternalLocation(runner, table);
         if (existing.isPresent() && existing.get().equals(location)) {
             log.info("Reusing existing hive.tpch.%s at %s", table, location);
             return;
@@ -214,7 +207,7 @@ public abstract class BaseTpchWorkload
                 """.formatted(table, scaleFactor, table, location));
     }
 
-    private static Optional<Path> readExistingExternalLocation(DistributedQueryRunner runner, String table)
+    private static Optional<String> readExistingExternalLocation(DistributedQueryRunner runner, String table)
     {
         if ((Long) runner.execute("SELECT count(*) FROM hive.information_schema.tables WHERE table_schema = 'tpch' AND table_name = '%s'".formatted(table)).getOnlyValue() == 0) {
             return Optional.empty();
@@ -225,7 +218,9 @@ public abstract class BaseTpchWorkload
             return Optional.empty();
         }
         String stored = matcher.group(1);
-        Path path = stored.startsWith("file:") ? Path.of(URI.create(stored)) : Path.of(stored);
-        return Optional.of(path.toAbsolutePath().normalize());
+        if (stored.startsWith("file:")) {
+            stored = new File(URI.create(stored)).getPath();
+        }
+        return Optional.of(stored);
     }
 }

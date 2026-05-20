@@ -269,8 +269,8 @@ public final class BenchmarkRunner
                 description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ExecutionMode mode = ExecutionMode.CPU;
 
-        @Option(names = "--data", description = "Data directory. Default: workload-specific.")
-        Path dataLocation;
+        @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
+        String dataLocation;
 
         @Option(names = "--debug", description = "Enable debug logging")
         boolean debug;
@@ -292,7 +292,7 @@ public final class BenchmarkRunner
                 enableDebugLogging();
             }
 
-            Path data = dataLocation != null ? dataLocation : workload.defaultDataLocation();
+            String data = canonicalize(dataLocation != null ? dataLocation : workload.defaultDataLocation());
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
@@ -588,7 +588,7 @@ public final class BenchmarkRunner
                 throws Exception
         {
             enableDebugLogging();
-            Path data = workload.defaultDataLocation();
+            String data = canonicalize(workload.defaultDataLocation());
             workload.validateDataLocation(data);
             try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true)) {
                 log.info("======== SERVER STARTED (%s) ========", mode);
@@ -624,7 +624,7 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            Path target = dataLocation != null ? dataLocation : workload.defaultDataLocation();
+            Path target = dataLocation != null ? dataLocation : Path.of(workload.defaultDataLocation());
             log.info("Generating %s data into %s", workload.name(), target);
             workload.generateData(target);
             log.info("Data generation complete.");
@@ -644,8 +644,8 @@ public final class BenchmarkRunner
         @Option(names = {"-q", "--query"}, description = "A specific query number (can be repeated)")
         List<Integer> queries = new ArrayList<>();
 
-        @Option(names = "--data", description = "Data directory. Default: workload-specific.")
-        Path dataLocation;
+        @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
+        String dataLocation;
 
         RecordCommand(Workload workload)
         {
@@ -656,7 +656,7 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            Path data = dataLocation != null ? dataLocation : workload.defaultDataLocation();
+            String data = canonicalize(dataLocation != null ? dataLocation : workload.defaultDataLocation());
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
@@ -1062,6 +1062,19 @@ public final class BenchmarkRunner
             }
         }
         return builder.toString();
+    }
+
+    public static boolean isRemote(String dataLocation)
+    {
+        return dataLocation.contains("://") && !dataLocation.startsWith("file:");
+    }
+
+    static String canonicalize(String dataLocation)
+    {
+        if (isRemote(dataLocation)) {
+            return dataLocation.replaceFirst("/$", "");
+        }
+        return Path.of(dataLocation).toAbsolutePath().normalize().toString();
     }
 
     /**

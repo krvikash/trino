@@ -194,13 +194,13 @@ public final class BenchmarkClickBench
         }
 
         @Override
-        public Path defaultDataLocation()
+        public String defaultDataLocation()
         {
-            return Path.of(System.getProperty("user.home"), "starburst-benchmark-data", name());
+            return Path.of(System.getProperty("user.home"), "starburst-benchmark-data", name()).toString();
         }
 
         @Override
-        public void validateDataLocation(Path dataLocation)
+        public void validateDataLocation(String dataLocation)
         {
             String expected = """
                               1014583318 20260416_150241_00003_a9apw_b591f863-9eda-4061-b7a8-89b18df8476d
@@ -220,11 +220,11 @@ public final class BenchmarkClickBench
                               1029638300 20260416_150241_00003_a9apw_327b7d9b-92ff-4a8a-80cd-a2f931f6981d
                               663112786 20260416_150241_00003_a9apw_28d665e2-325b-4bee-ad7c-4840739ffe5c
                               """;
-            BenchmarkRunner.verifyDataListing(dataLocation.resolve("hits"), "Run `testing/benchmark-data/hydrate.sh clickbench` first.", expected);
+            BenchmarkRunner.verifyDataListing(Path.of(dataLocation).resolve("hits"), "Run `testing/benchmark-data/hydrate.sh clickbench` first.", expected);
         }
 
         @Override
-        public DistributedQueryRunner createRunner(Path dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
+        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
                 throws Exception
         {
             return setup(mode, bind8080, dataLocation);
@@ -256,7 +256,7 @@ public final class BenchmarkClickBench
         public void generateData(Path target)
                 throws Exception
         {
-            Path source = defaultDataLocation();
+            Path source = Path.of(defaultDataLocation());
             Path sourceHits = source.resolve("hits");
             if (!Files.isDirectory(sourceHits)) {
                 throw new IllegalStateException("Source data not found at " + sourceHits + ". Run `testing/benchmark-data/hydrate.sh clickbench` first.");
@@ -282,14 +282,15 @@ public final class BenchmarkClickBench
         }
     }
 
-    static DistributedQueryRunner setup(BenchmarkRunner.ExecutionMode mode, boolean bind8080, Path dataLocation)
+    static DistributedQueryRunner setup(BenchmarkRunner.ExecutionMode mode, boolean bind8080, String dataLocation)
             throws Exception
     {
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
                 .setWorkerCount(0) // single-node
                 .addExtraProperty("query.max-memory-per-node", "6GB")
                 .setSkipTimezoneSetup(true)
-                .addHiveProperty("hive.parquet.time-zone", "UTC");
+                .addHiveProperty("hive.parquet.time-zone", "UTC")
+                .addHiveProperty("fs.s3.enabled", "true");
         BenchmarkRunner.applyExecutionMode(builder, mode);
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
@@ -297,7 +298,7 @@ public final class BenchmarkClickBench
         DistributedQueryRunner queryRunner = builder.build();
 
         queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
-        String hitsLocation = dataLocation.resolve("hits").toAbsolutePath().normalize().toString();
+        String hitsLocation = dataLocation + "/hits";
         log.info("Creating hive.clickbench.hits at %s", hitsLocation);
         queryRunner.execute(format(
                 "CREATE TABLE hive.clickbench.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",
@@ -311,7 +312,7 @@ public final class BenchmarkClickBench
      */
     public static Path dataLocation()
     {
-        return new ClickBenchWorkload().defaultDataLocation().resolve("hits");
+        return Path.of(new ClickBenchWorkload().defaultDataLocation(), "hits");
     }
 
     public static class CpuBenchmark
