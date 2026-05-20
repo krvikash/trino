@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import io.airlift.log.Logger;
 import io.trino.plugin.iceberg.CommitMetricsReporter;
+import io.trino.plugin.iceberg.catalog.rest.BaseTableWrapper;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenCustomHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrays;
@@ -89,7 +90,7 @@ public final class OptimizeManifests
         Types.StructType partitionType = table.spec().partitionType();
         Map<Integer, PartitionSpec> specs = table.specs();
         CommitMetricsReporter reporter = new CommitMetricsReporter();
-        table = new BaseTable(table.operations(), table.name(), MetricsReporters.combine(table.reporter(), reporter));
+        table = new BaseTableWrapper(table, table.name(), MetricsReporters.combine(table.reporter(), reporter));
         RewriteManifests rewriteManifests = table.rewriteManifests();
         // commit.manifest.target-size-bytes is enforced by RewriteManifests,
         // so we don't have to worry about any manifest file getting too big
