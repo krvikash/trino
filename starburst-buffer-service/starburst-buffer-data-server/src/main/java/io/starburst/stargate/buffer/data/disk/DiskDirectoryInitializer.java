@@ -24,8 +24,10 @@ import java.util.concurrent.Future;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static java.lang.String.format;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.delete;
+import static java.nio.file.Files.exists;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 
@@ -38,17 +40,17 @@ final class DiskDirectoryInitializer
 
     private DiskDirectoryInitializer() {}
 
-    static Future<?> initializeDirectories(Path rootDirectory, Path nodeDirectory, DiskDirectoryTracker directoryTracker)
+    static Future<?> initializeDirectories(Path rootDirectory, Path nodeDirectory, DiskDirectoryTracker directoryTracker, boolean allowDirectoryCreation)
     {
         checkArgument(
                 nodeDirectory.startsWith(rootDirectory) && !nodeDirectory.equals(rootDirectory),
                 "nodeDirectory %s must be a subdirectory of rootDirectory %s",
                 nodeDirectory,
                 rootDirectory);
-        checkIfRootDirectoryExists(rootDirectory);
+        checkIfRootDirectoryExists(rootDirectory, allowDirectoryCreation);
 
         Path marker = rootDirectory.resolve(OWNERSHIP_MARKER);
-        boolean cleanupNeeded = Files.exists(marker, NOFOLLOW_LINKS);
+        boolean cleanupNeeded = exists(marker, NOFOLLOW_LINKS);
         if (!cleanupNeeded) {
             claimEmptyDirectory(rootDirectory, marker);
         }
@@ -61,11 +63,26 @@ final class DiskDirectoryInitializer
         return directoryTracker.submitCleanup(() -> cleanStaleRootEntries(rootDirectory, marker, nodeDirectory));
     }
 
-    private static void checkIfRootDirectoryExists(Path rootDirectory)
+    private static void checkIfRootDirectoryExists(Path rootDirectory, boolean allowDirectoryCreation)
     {
-        if (!isDirectory(rootDirectory)) {
-            throw new IllegalArgumentException("Disk tier root directory does not exist or is not a directory: " + rootDirectory);
+        if (isDirectory(rootDirectory)) {
+            return;
         }
+
+        if (exists(rootDirectory)) {
+            throw new IllegalArgumentException(format("Disk tier root %s is not a directory", rootDirectory));
+        }
+
+        if (allowDirectoryCreation) {
+            try {
+                createDirectories(rootDirectory);
+                return;
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(format("Failed to create disk tier root %s", rootDirectory), e);
+            }
+        }
+        throw new IllegalArgumentException(format("Disk tier root %s directory does not exist", rootDirectory));
     }
 
     private static void createDirectoryIfNeeded(Path nodeDirectory)

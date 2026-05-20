@@ -32,7 +32,8 @@ public class TestLocalDiskTierConfig
                 .setCapacity(null)
                 .setMemorySkipThreshold(null)
                 .setSpoolingHighWatermark(0.8)
-                .setSpoolingLowWatermark(0.5));
+                .setSpoolingLowWatermark(0.5)
+                .setAllowDirectoryCreation(false));
     }
 
     @Test
@@ -44,6 +45,7 @@ public class TestLocalDiskTierConfig
                 .put("local-disk.memory-skip-threshold", "8GB")
                 .put("local-disk.spooling-high-watermark", "0.9")
                 .put("local-disk.spooling-low-watermark", "0.6")
+                .put("local-disk.testing.allow-directory-creation", "true")
                 .buildOrThrow();
 
         LocalDiskTierConfig expected = new LocalDiskTierConfig()
@@ -51,7 +53,8 @@ public class TestLocalDiskTierConfig
                 .setCapacity(DataSize.of(100, GIGABYTE))
                 .setMemorySkipThreshold(DataSize.of(8, GIGABYTE))
                 .setSpoolingHighWatermark(0.9)
-                .setSpoolingLowWatermark(0.6);
+                .setSpoolingLowWatermark(0.6)
+                .setAllowDirectoryCreation(true);
 
         assertFullMapping(properties, expected);
     }

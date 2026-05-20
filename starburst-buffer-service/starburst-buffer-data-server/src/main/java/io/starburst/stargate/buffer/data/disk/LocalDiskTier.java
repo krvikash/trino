@@ -46,7 +46,7 @@ public class LocalDiskTier
         this.memorySkipThreshold = config.getMemorySkipThreshold();
         this.allocator = requireNonNull(allocator, "allocator is null");
         this.directoryTracker = new DiskDirectoryTracker();
-        initializeDirectories(rootDirectory, this.directory, directoryTracker);
+        initializeDirectories(rootDirectory, this.directory, directoryTracker, config.isAllowDirectoryCreation());
     }
 
     public Optional<DiskChunkSlot> tryReserveChunkSlot(

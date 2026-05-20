@@ -12,7 +12,6 @@ package io.starburst.stargate.buffer.data.disk;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
-import io.airlift.configuration.validation.FileExists;
 import io.airlift.units.DataSize;
 import jakarta.validation.constraints.NotNull;
 
@@ -28,9 +27,9 @@ public class LocalDiskTierConfig
     private DataSize memorySkipThreshold;
     private double spoolingHighWatermark = 0.8;
     private double spoolingLowWatermark = 0.5;
+    private boolean allowDirectoryCreation;
 
     @NotNull
-    @FileExists
     public Path getDirectory()
     {
         return directory;
@@ -103,6 +102,20 @@ public class LocalDiskTierConfig
     {
         checkArgument(spoolingLowWatermark > 0 && spoolingLowWatermark < 1, "spoolingLowWatermark must be in (0, 1)");
         this.spoolingLowWatermark = spoolingLowWatermark;
+        return this;
+    }
+
+    public boolean isAllowDirectoryCreation()
+    {
+        return allowDirectoryCreation;
+    }
+
+    @Config("local-disk.testing.allow-directory-creation")
+    @ConfigHidden
+    @ConfigDescription("Create the disk tier root directory on startup if it does not exist. Intended for testing only.")
+    public LocalDiskTierConfig setAllowDirectoryCreation(boolean allowDirectoryCreation)
+    {
+        this.allowDirectoryCreation = allowDirectoryCreation;
         return this;
     }
 }

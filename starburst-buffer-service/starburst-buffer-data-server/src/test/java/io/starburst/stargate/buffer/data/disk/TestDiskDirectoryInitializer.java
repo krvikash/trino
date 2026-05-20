@@ -50,7 +50,7 @@ public class TestDiskDirectoryInitializer
         Path missingRoot = tempDir.resolve("non-existent");
         Path nodeDir = missingRoot.resolve("0");
 
-        assertThatThrownBy(() -> initializeDirectories(missingRoot, nodeDir, tracker))
+        assertThatThrownBy(() -> initializeDirectories(missingRoot, nodeDir, tracker, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("root directory does not exist or is not a directory");
     }
@@ -62,7 +62,7 @@ public class TestDiskDirectoryInitializer
         Path rootAsFile = Files.writeString(tempDir.resolve("not-a-dir.txt"), "data");
         Path nodeDir = rootAsFile.resolve("0");
 
-        assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, tracker))
+        assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, tracker, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("root directory does not exist or is not a directory");
     }
@@ -72,7 +72,7 @@ public class TestDiskDirectoryInitializer
     {
         Path unrelatedNodeDir = tempDir.getParent().resolve("elsewhere");
 
-        assertThatThrownBy(() -> initializeDirectories(tempDir, unrelatedNodeDir, tracker))
+        assertThatThrownBy(() -> initializeDirectories(tempDir, unrelatedNodeDir, tracker, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must be a subdirectory of");
     }
@@ -83,7 +83,7 @@ public class TestDiskDirectoryInitializer
     {
         Path nodeDir = tempDir.resolve("0");
 
-        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker);
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker, false);
         cleanupFuture.get();
 
         assertThat(tempDir.resolve(OWNERSHIP_MARKER)).isRegularFile();
@@ -97,7 +97,7 @@ public class TestDiskDirectoryInitializer
         Files.writeString(tempDir.resolve("foreign.dat"), "owned by something else");
         Path nodeDir = tempDir.resolve("0");
 
-        assertThatThrownBy(() -> initializeDirectories(tempDir, nodeDir, tracker))
+        assertThatThrownBy(() -> initializeDirectories(tempDir, nodeDir, tracker, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("missing ownership marker")
                 .hasMessageContaining(OWNERSHIP_MARKER);
@@ -117,7 +117,7 @@ public class TestDiskDirectoryInitializer
         Files.writeString(staleSubdir.resolve("chunk.dat"), "chunk data");
         Path nodeDir = tempDir.resolve("0");
 
-        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker);
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker, false);
         cleanupFuture.get();
 
         assertThat(tempDir.resolve(OWNERSHIP_MARKER)).isRegularFile();
@@ -135,11 +135,51 @@ public class TestDiskDirectoryInitializer
         Files.writeString(orphan.resolve("stale.dat"), "left over from a previous deployment");
         Path nodeDir = tempDir.resolve("0");
 
-        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker);
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker, false);
         cleanupFuture.get();
 
         assertThat(orphan).doesNotExist();
         assertThat(tempDir.resolve(OWNERSHIP_MARKER)).isRegularFile();
         assertThat(nodeDir).isDirectory();
+    }
+
+    @Test
+    public void testAllowDirectoryCreationCreatesNonExistentRoot()
+            throws ExecutionException, InterruptedException
+    {
+        Path missingRoot = tempDir.resolve("auto-created");
+        Path nodeDir = missingRoot.resolve("0");
+
+        Future<?> cleanupFuture = initializeDirectories(missingRoot, nodeDir, tracker, true);
+        cleanupFuture.get();
+
+        assertThat(missingRoot).isDirectory();
+        assertThat(missingRoot.resolve(OWNERSHIP_MARKER)).isRegularFile();
+        assertThat(nodeDir).isDirectory();
+    }
+
+    @Test
+    public void testAllowDirectoryCreationWorksWhenRootAlreadyExists()
+            throws ExecutionException, InterruptedException
+    {
+        Path nodeDir = tempDir.resolve("0");
+
+        Future<?> cleanupFuture = initializeDirectories(tempDir, nodeDir, tracker, true);
+        cleanupFuture.get();
+
+        assertThat(tempDir.resolve(OWNERSHIP_MARKER)).isRegularFile();
+        assertThat(nodeDir).isDirectory();
+    }
+
+    @Test
+    public void testAllowDirectoryCreationStillFailsForFilePath()
+            throws IOException
+    {
+        Path rootAsFile = Files.writeString(tempDir.resolve("not-a-dir.txt"), "data");
+        Path nodeDir = rootAsFile.resolve("0");
+
+        assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, tracker, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("root directory does not exist or is not a directory");
     }
 }
