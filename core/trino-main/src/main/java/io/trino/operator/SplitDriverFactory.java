@@ -40,8 +40,6 @@ public interface SplitDriverFactory
 
     boolean isNoMoreDrivers();
 
-    void localPlannerComplete();
-
     /**
      * return the sourceId of this DriverFactory.
      * A DriverFactory doesn't always have source node.

@@ -14,7 +14,6 @@
 package io.trino.sql.planner;
 
 import io.trino.operator.DriverContext;
-import io.trino.operator.LocalPlannerAware;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorFactory;
 
@@ -27,7 +26,7 @@ import static java.util.Objects.requireNonNull;
  * as some OperatorFactory implementations fail if noMoreOperators is called twice.
  */
 public class SharedOperatorFactory
-        implements OperatorFactory, LocalPlannerAware
+        implements OperatorFactory
 {
     private final OperatorFactory delegate;
     private boolean noMoreOperators;
@@ -57,13 +56,5 @@ public class SharedOperatorFactory
     public OperatorFactory duplicate()
     {
         return new SharedOperatorFactory(delegate.duplicate());
-    }
-
-    @Override
-    public void localPlannerComplete()
-    {
-        if (delegate instanceof LocalPlannerAware localPlannerAware) {
-            localPlannerAware.localPlannerComplete();
-        }
     }
 }

@@ -125,12 +125,6 @@ public class AlternativesAwareDriverFactory
     }
 
     @Override
-    public void localPlannerComplete()
-    {
-        alternatives.values().forEach(alternative -> alternative.driverFactory().localPlannerComplete());
-    }
-
-    @Override
     public Optional<PlanNodeId> getSourceId()
     {
         return Optional.of(chooseAlternativeNodeId);

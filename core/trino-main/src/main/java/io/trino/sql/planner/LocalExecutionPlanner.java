@@ -756,9 +756,6 @@ public class LocalExecutionPlanner
                         physicalOperation),
                 context);
 
-        // notify operator factories that planning has completed
-        context.getDriverFactories().forEach(SplitDriverFactory::localPlannerComplete);
-
         return new LocalExecutionPlan(context.getDriverFactories(), partitionedSourceOrder);
     }
 
