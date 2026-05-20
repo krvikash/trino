@@ -283,7 +283,7 @@ jobs:
   test-jdbc-compatibility:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
-    runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
     timeout-minutes: 30
     env:
       REPORT_TEST_SESSION_NAME: modules
@@ -1492,7 +1492,7 @@ jobs:
   test-other-modules:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
-    runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+    runs-on: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]
     timeout-minutes: 60
     env:
       REPORT_TEST_SESSION_NAME: modules
@@ -1628,7 +1628,7 @@ jobs:
         run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
   starburst-functions-ai-tests:
-    runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
     timeout-minutes: 60
     env:
       REPORT_TEST_SESSION_NAME: modules
@@ -1793,15 +1793,15 @@ jobs:
             - { modules: plugin/starburst-functions }
             - { modules: lib/starburst-functions-client }
             - { modules: plugin/starburst-kdb }
-            - { modules: plugin/starburst-objectstore, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-objectstore, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-objectstore, profile: iceberg-delta, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-objectstore, profile: cloud-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-objectstore, profile: cloud-tests, runners: [ self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest ] }
             - { modules: plugin/starburst-oracle }
             - { modules: plugin/starburst-sap-hana }
             - { modules: plugin/starburst-sqlserver }
             - { modules: plugin/starburst-stargate, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-stargate-parallel, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: plugin/starburst-stargate-parallel, runners: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ] }
             # - { modules: plugin/trino-bigquery }
             # - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
             - { modules: plugin/trino-cassandra }
