@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
+import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -267,7 +268,7 @@ public final class BenchmarkClickBench
             Files.createDirectories(target);
             try (DistributedQueryRunner runner = BenchmarkRunner.dataGenerationBuilder().build()) {
                 Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
-                String sourcePath = sourceHits.toAbsolutePath().normalize().toString();
+                String sourcePath = sourceHits.toAbsolutePath().normalize().toUri().toString();
                 runner.execute("CREATE SCHEMA hive.clickbench_src");
                 runner.execute(format(
                         "CREATE TABLE hive.clickbench_src.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",
@@ -289,8 +290,10 @@ public final class BenchmarkClickBench
                 .setWorkerCount(0) // single-node
                 .addExtraProperty("query.max-memory-per-node", "6GB")
                 .setSkipTimezoneSetup(true)
-                .addHiveProperty("hive.parquet.time-zone", "UTC")
-                .addHiveProperty("fs.s3.enabled", "true");
+                .addHiveProperty("hive.parquet.time-zone", "UTC");
+        if (isRemote(dataLocation)) {
+            builder.addHiveProperty("fs.s3.enabled", "true");
+        }
         BenchmarkRunner.applyExecutionMode(builder, mode);
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
@@ -298,7 +301,9 @@ public final class BenchmarkClickBench
         DistributedQueryRunner queryRunner = builder.build();
 
         queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
-        String hitsLocation = dataLocation + "/hits";
+        String hitsLocation = isRemote(dataLocation)
+                ? dataLocation + "/hits"
+                : Path.of(dataLocation, "hits").toUri().toString();
         log.info("Creating hive.clickbench.hits at %s", hitsLocation);
         queryRunner.execute(format(
                 "CREATE TABLE hive.clickbench.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",

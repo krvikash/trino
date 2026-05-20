@@ -21,10 +21,8 @@ import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -34,6 +32,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
+import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -127,8 +126,10 @@ public abstract class BaseTpchWorkload
                 .addExtraProperty("memory.heap-headroom-per-node", "20%")
                 .setSkipTimezoneSetup(true)
                 .addHiveProperty("hive.parquet.time-zone", "UTC")
-                .addHiveProperty("fs.s3.enabled", "true")
                 .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL);
+        if (isRemote(dataLocation)) {
+            builder.addHiveProperty("fs.s3.enabled", "true");
+        }
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
@@ -188,7 +189,9 @@ public abstract class BaseTpchWorkload
 
     private void createExternalTable(DistributedQueryRunner runner, String dataLocation, String table)
     {
-        String location = dataLocation + "/" + table;
+        String location = isRemote(dataLocation)
+                ? dataLocation + "/" + table
+                : Path.of(dataLocation, table).toUri().toString();
         Optional<String> existing = readExistingExternalLocation(runner, table);
         if (existing.isPresent() && existing.get().equals(location)) {
             log.info("Reusing existing hive.tpch.%s at %s", table, location);
@@ -217,10 +220,6 @@ public abstract class BaseTpchWorkload
         if (!matcher.find()) {
             return Optional.empty();
         }
-        String stored = matcher.group(1);
-        if (stored.startsWith("file:")) {
-            stored = new File(URI.create(stored)).getPath();
-        }
-        return Optional.of(stored);
+        return Optional.of(matcher.group(1));
     }
 }
