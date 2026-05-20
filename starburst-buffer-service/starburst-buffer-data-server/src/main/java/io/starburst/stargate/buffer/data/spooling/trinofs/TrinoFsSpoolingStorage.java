@@ -35,14 +35,17 @@ import io.trino.filesystem.TrinoInputStream;
 import io.trino.filesystem.TrinoOutputFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.MoreFutures.asVoid;
@@ -103,43 +106,95 @@ public class TrinoFsSpoolingStorage
         String location = getLocation(fileName);
         return translateFailures(executor.submit(() -> {
             ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
-            // One Slice per chunk header + one per backing chunk slice. The header is a fresh
-            // small allocation; the backing slices reference the existing chunk byte[]s.
-            List<Slice> segments = new ArrayList<>();
+            // Lazy stream suppliers, one per chunk header plus the chunk body. Memory chunks supply
+            // zero-copy views over their existing byte[]s; disk chunks stream straight from the file
+            // channel in bounded blocks so a large chunk is never re-buffered whole in heap.
+            List<Supplier<InputStream>> segmentSuppliers = new ArrayList<>();
             long offset = 0;
             for (Map.Entry<Chunk, ChunkDataLease> entry : chunkDataLeaseMap.entrySet()) {
                 Chunk chunk = entry.getKey();
                 ChunkDataLease lease = entry.getValue();
-                MemoryChunkDataLease memoryLease = switch (lease) {
-                    case MemoryChunkDataLease m -> m;
-                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
-                };
-                int length = memoryLease.serializedSizeInBytes();
-                spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
-                offset += length;
+                int serializedSize = lease.serializedSizeInBytes();
+                spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, serializedSize));
+                offset += serializedSize;
                 Slice header = Slices.allocate(CHUNK_FILE_HEADER_SIZE);
                 SliceOutput headerOutput = header.getOutput();
-                headerOutput.writeLong(memoryLease.getChecksum());
-                headerOutput.writeInt(memoryLease.getNumDataPages());
-                segments.add(header);
-                segments.addAll(memoryLease.getChunkSlices());
+                headerOutput.writeLong(lease.getChecksum());
+                headerOutput.writeInt(lease.getNumDataPages());
+                segmentSuppliers.add(sliceStreamSupplier(header));
+                switch (lease) {
+                    case MemoryChunkDataLease memoryLease -> {
+                        for (Slice slice : memoryLease.getChunkSlices()) {
+                            segmentSuppliers.add(sliceStreamSupplier(slice));
+                        }
+                    }
+                    case DiskChunkDataLease diskLease -> {
+                        segmentSuppliers.add(() -> new DiskChunkInputStream(diskLease));
+                    }
+                }
             }
             TrinoOutputFile output = fileSystem.newOutputFile(Location.of(location));
             // The supplier may be invoked more than once (e.g. AWS SDK retries); each call rebuilds
-            // fresh ByteArrayInputStream views over the same underlying chunk byte[]s — still zero-copy.
-            output.createOrOverwrite(() -> chunkBody(segments), contentLength);
+            // fresh streams over the same memory byte[]s / disk files.
+            output.createOrOverwrite(() -> chunkBody(segmentSuppliers), contentLength);
             return spooledChunkMap.buildOrThrow();
         }));
     }
 
-    private static InputStream chunkBody(List<Slice> segments)
+    private static Supplier<InputStream> sliceStreamSupplier(Slice slice)
     {
-        InputStream[] streams = new InputStream[segments.size()];
-        for (int i = 0; i < segments.size(); i++) {
-            Slice s = segments.get(i);
-            streams[i] = new ByteArrayInputStream(s.byteArray(), s.byteArrayOffset(), s.length());
+        return () -> new ByteArrayInputStream(slice.byteArray(), slice.byteArrayOffset(), slice.length());
+    }
+
+    private static InputStream chunkBody(List<Supplier<InputStream>> segmentSuppliers)
+    {
+        InputStream[] streams = new InputStream[segmentSuppliers.size()];
+        for (int i = 0; i < segmentSuppliers.size(); i++) {
+            streams[i] = segmentSuppliers.get(i).get();
         }
         return new SequenceInputStream(Collections.enumeration(Arrays.asList(streams)));
+    }
+
+    // Streams a disk chunk straight from its file channel in bounded blocks via positional reads,
+    // so spooling a large chunk never materializes the whole chunk in heap.
+    private static final class DiskChunkInputStream
+            extends InputStream
+    {
+        private final DiskChunkDataLease lease;
+        private final int length;
+        private long position;
+        private final byte[] single = new byte[1];
+
+        private DiskChunkInputStream(DiskChunkDataLease lease)
+        {
+            this.lease = requireNonNull(lease, "lease is null");
+            this.length = lease.length();
+        }
+
+        @Override
+        public int read()
+                throws IOException
+        {
+            int read = read(single, 0, 1);
+            return read < 0 ? -1 : single[0] & 0xFF;
+        }
+
+        @Override
+        public int read(byte[] destination, int offset, int len)
+                throws IOException
+        {
+            if (position >= length) {
+                return -1;
+            }
+            int toRead = (int) Math.min(len, length - position);
+            ByteBuffer buffer = ByteBuffer.wrap(destination, offset, toRead);
+            int read = lease.read(buffer, position);
+            if (read < 0) {
+                throw new IOException("unexpected EOF reading disk chunk at file position " + position);
+            }
+            position += read;
+            return read;
+        }
     }
 
     @Override

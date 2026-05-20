@@ -15,6 +15,12 @@ import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.DataPage;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Set;
 
@@ -64,6 +70,31 @@ public final class ChunkTestHelper
                 calculateChecksum(dataPages),
                 dataPages.size(),
                 () -> {});
+    }
+
+    public static DiskChunkDataLease diskChunkDataLease(List<DataPage> dataPages, Path file)
+    {
+        int length = dataPages.stream()
+                .mapToInt(dp -> DATA_PAGE_HEADER_SIZE + dp.data().length())
+                .sum();
+        Slice slice = Slices.allocate(length);
+        SliceOutput out = slice.getOutput();
+        for (DataPage pages : dataPages) {
+            out.writeShort(pages.taskId());
+            out.writeByte(pages.attemptId());
+            out.writeInt(pages.data().length());
+            out.writeBytes(pages.data());
+        }
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            ByteBuffer buffer = slice.toByteBuffer();
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("failed to write disk chunk to " + file, e);
+        }
+        return new DiskChunkDataLease(file, length, calculateChecksum(dataPages), dataPages.size(), () -> {});
     }
 
     public static ChunkDataLease toChunkDataLease(Set<List<DataPage>> slicesOfDataPages)
