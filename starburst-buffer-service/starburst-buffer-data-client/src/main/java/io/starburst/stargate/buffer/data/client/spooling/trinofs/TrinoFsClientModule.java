@@ -45,45 +45,51 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Provisions the single {@link TrinoFileSystem} and backing executor consumed by
- * {@link TrinoFsSpooledChunkReader}. All bindings are installed under the {@code dataApiName}
- * configuration prefix so they don't collide with other consumers of the same modules.
+ * {@link TrinoFsSpooledChunkReader}. The {@code dataApiName} prefix selects the
+ * {@link DataApiConfig} that drives storage-type selection; filesystem-library configs and
+ * {@link TrinoFsClientConfig} are namespace-agnostic, so they bind under
+ * {@code dataApiName + ".spooling"}. This keeps every spooling-related property under the
+ * same {@code .spooling.} namespace produced by {@code BufferExchangeManagerFactory}
+ * (see {@code EXCHANGE_SPOOLING_CONFIG_PREFIX}).
  */
 public class TrinoFsClientModule
         extends AbstractConfigurationAwareModule
 {
     private final String dataApiName;
+    private final String spoolingConfigPrefix;
 
     public TrinoFsClientModule(String dataApiName)
     {
         this.dataApiName = requireNonNull(dataApiName, "dataApiName is null");
+        this.spoolingConfigPrefix = dataApiName + ".spooling";
     }
 
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(TrinoFsClientConfig.class, dataApiName);
+        configBinder(binder).bindConfig(TrinoFsClientConfig.class, spoolingConfigPrefix);
         binder.bind(TrinoFsExecutorLifecycle.class).in(SINGLETON);
 
         SpoolingStorageType spoolingStorageType = buildConfigObject(DataApiConfig.class, dataApiName).getSpoolingStorageType();
         switch (spoolingStorageType) {
             case LOCAL -> {
-                configBinder(binder).bindConfig(LocalFileSystemConfig.class, dataApiName);
+                configBinder(binder).bindConfig(LocalFileSystemConfig.class, spoolingConfigPrefix);
                 binder.bind(TrinoFileSystemFactory.class).annotatedWith(ForTrinoFsSpooling.class)
                         .to(LocalFileSystemFactory.class).in(SINGLETON);
             }
             case S3 -> {
-                install(new S3FileSystemModule(Optional.of(dataApiName)));
+                install(new S3FileSystemModule(Optional.of(spoolingConfigPrefix)));
                 // S3FileSystemModule binds TrinoFileSystemFactory under @FileSystemS3; alias it.
                 binder.bind(TrinoFileSystemFactory.class).annotatedWith(ForTrinoFsSpooling.class)
                         .to(Key.get(TrinoFileSystemFactory.class, FileSystemS3.class));
             }
             case GCS -> {
-                install(new GcsFileSystemModule(Optional.of(dataApiName)));
+                install(new GcsFileSystemModule(Optional.of(spoolingConfigPrefix)));
                 binder.bind(TrinoFileSystemFactory.class).annotatedWith(ForTrinoFsSpooling.class)
                         .to(GcsFileSystemFactory.class).in(SINGLETON);
             }
             case AZURE -> {
-                install(new AzureFileSystemModule(Optional.of(dataApiName)));
+                install(new AzureFileSystemModule(Optional.of(spoolingConfigPrefix)));
                 binder.bind(TrinoFileSystemFactory.class).annotatedWith(ForTrinoFsSpooling.class)
                         .to(AzureFileSystemFactory.class).in(SINGLETON);
             }
