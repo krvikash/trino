@@ -18,6 +18,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -85,57 +86,58 @@ public class GpuFilter
             case Blocked blocked -> blocked;
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
-                try (page) {
-                    yield processPage(page)
-                            .<Result>map(Data::new)
-                            .orElseGet(Yielded::new);
-                }
-            }
+            case Data(GpuPage page) -> processPage(page)
+                    .<Result>map(Data::new)
+                    .orElseGet(Yielded::new);
         };
     }
 
-    private Optional<@Move GpuPage> processPage(@Borrow GpuPage input)
+    private Optional<@Move GpuPage> processPage(@Move GpuPage inputPage)
     {
-        List<Integer> inputChannels = filter.inputChannels().getInputChannels();
-        List<@Borrow ColumnVector> inputs = inputChannels.stream()
-                .map(input::column)
-                .map(DeviceMemory.class::cast)
-                .map(DeviceMemory::columnVector)
-                .collect(toImmutableList());
+        try (ClosingRef<GpuPage> input = ClosingRef.own(inputPage)) {
+            List<Integer> inputChannels = filter.inputChannels().getInputChannels();
+            List<@Borrow ColumnVector> inputs = inputChannels.stream()
+                    .map(input.borrow()::column)
+                    .map(DeviceMemory.class::cast)
+                    .map(DeviceMemory::columnVector)
+                    .collect(toImmutableList());
 
-        try (ColumnVector mask = filter.expression().evaluate(input.positionCount(), inputs)) {
-            try (Scalar sum = mask.sum(DType.INT32)) {
-                int retained = sum.isValid() ? sum.getInt() : 0;
-                if (retained == 0) {
-                    return Optional.empty();
-                }
+            try (ColumnVector mask = filter.expression().evaluate(input.borrow().positionCount(), inputs)) {
+                try (Scalar sum = mask.sum(DType.INT32)) {
+                    int retained = sum.isValid() ? sum.getInt() : 0;
+                    if (retained == 0) {
+                        return Optional.empty();
+                    }
+                    if (retained == input.borrow().positionCount()) {
+                        return Optional.of(input.take());
+                    }
 
-                @Borrow Column[] filteredColumns = new Column[input.columnCount()];
-                List<@Borrow ColumnVector> columnVectors = new ArrayList<>();
-                int[] columnVectorToIndex = new int[input.columnCount()];
-                for (int i = 0; i < input.columnCount(); i++) {
-                    switch (input.column(i)) {
-                        case DeviceMemory deviceMemory -> {
-                            columnVectorToIndex[columnVectors.size()] = i;
-                            columnVectors.add(deviceMemory.columnVector());
-                        }
-                        case Blocks _ -> {
-                            throw new UnsupportedOperationException("Implement filtering of in memory blocks");
+                    @Borrow Column[] filteredColumns = new Column[input.borrow().columnCount()];
+                    List<@Borrow ColumnVector> columnVectors = new ArrayList<>();
+                    int[] columnVectorToIndex = new int[input.borrow().columnCount()];
+                    for (int i = 0; i < input.borrow().columnCount(); i++) {
+                        switch (input.borrow().column(i)) {
+                            case DeviceMemory deviceMemory -> {
+                                columnVectorToIndex[columnVectors.size()] = i;
+                                columnVectors.add(deviceMemory.columnVector());
+                            }
+                            case Blocks _ -> {
+                                throw new UnsupportedOperationException("Implement filtering of in memory blocks");
+                            }
                         }
                     }
-                }
 
-                // This must hold, otherwise we would not be doing GPU evaluation
-                checkState(!columnVectors.isEmpty(), "No column vectors found");
+                    // This must hold, otherwise we would not be doing GPU evaluation
+                    checkState(!columnVectors.isEmpty(), "No column vectors found");
 
-                try (Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
-                        Table filtered = table.filter(mask)) {
-                    for (int i = 0; i < columnVectors.size(); i++) {
-                        int columnIndex = columnVectorToIndex[i];
-                        filteredColumns[columnIndex] = new DeviceMemory(filtered.getColumn(i));
+                    try (Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
+                            Table filtered = table.filter(mask)) {
+                        for (int i = 0; i < columnVectors.size(); i++) {
+                            int columnIndex = columnVectorToIndex[i];
+                            filteredColumns[columnIndex] = new DeviceMemory(filtered.getColumn(i));
+                        }
+                        return Optional.of(new GpuPage(retained, filteredColumns));
                     }
-                    return Optional.of(new GpuPage(retained, filteredColumns));
                 }
             }
         }
