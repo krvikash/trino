@@ -41,30 +41,6 @@ public class DynamoDbJdbcPageSinkProvider
     }
 
     @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
-    {
-        return super.createPageSink(transactionHandle, session, tableHandle, pageSinkId);
-    }
-
-    @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
-    {
-        return super.createPageSink(transactionHandle, session, tableHandle, pageSinkId);
-    }
-
-    @Override
-    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorPageSinkId pageSinkId)
-    {
-        return super.createPageSink(transactionHandle, session, tableExecuteHandle, pageSinkId);
-    }
-
-    @Override
-    public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle mergeHandle, ConnectorPageSinkId pageSinkId)
-    {
-        return super.createMergeSink(transactionHandle, session, mergeHandle, pageSinkId);
-    }
-
-    @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle outputTableHandle, Optional<ConnectorTableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
     {
         return super.createPageSink(transactionHandle, session, outputTableHandle, tableCredentials, pageSinkId);
