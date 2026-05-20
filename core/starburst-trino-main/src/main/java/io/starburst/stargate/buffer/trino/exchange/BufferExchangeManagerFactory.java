@@ -25,9 +25,11 @@ import io.airlift.json.JsonModule;
 import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingClientDriver;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.server.InternalCommunicationConfig;
@@ -214,6 +216,13 @@ public class BufferExchangeManagerFactory
             };
 
             extendedConfig.put("exchange.buffer-data.spooling-storage-type", spoolingStorageType.name());
+
+            SpoolingStorageDriver storageDriver = configs.spoolingDirectoryConfig().getStorageDriver();
+            SpoolingClientDriver clientDriver = switch (storageDriver) {
+                case NATIVE -> SpoolingClientDriver.NATIVE;
+                case TRINO_FS -> SpoolingClientDriver.TRINO_FS;
+            };
+            extendedConfig.put("exchange.buffer-data.spooling-client-driver", clientDriver.name());
 
             configs.spoolingProperties().forEach((relativeKey, value) ->
                     extendedConfig.put(EXCHANGE_SPOOLING_CONFIG_PREFIX + relativeKey, value));
