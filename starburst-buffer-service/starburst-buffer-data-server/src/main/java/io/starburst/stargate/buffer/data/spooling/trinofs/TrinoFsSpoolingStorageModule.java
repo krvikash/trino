@@ -69,11 +69,13 @@ public class TrinoFsSpoolingStorageModule
         extends AbstractConfigurationAwareModule
 {
     private final Optional<String> configPrefix;
+    private final String internalConfigPrefix;
     private final boolean bindConfigsOnly;
 
     public TrinoFsSpoolingStorageModule(Optional<String> configPrefix, boolean bindConfigsOnly)
     {
         this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+        this.internalConfigPrefix = configPrefix.map(prefix -> prefix + ".spooling").orElse("spooling");
         this.bindConfigsOnly = bindConfigsOnly;
     }
 
@@ -81,7 +83,6 @@ public class TrinoFsSpoolingStorageModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(TrinoFsSpoolingConfig.class, configPrefix.orElse(null));
-
         SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
         URI spoolingDirectory = spoolingDirectoryConfig.getSpoolingDirectory();
         String scheme = spoolingDirectory.getScheme();
@@ -96,17 +97,17 @@ public class TrinoFsSpoolingStorageModule
             // LocalFileSystemFactory is documented in trino-filesystem as "for testing"; it
             // caches a single LocalFileSystem instance and ignores ConnectorIdentity. Use behind
             // testing.allow-local-spooling=true only.
-            configBinder(binder).bindConfig(LocalFileSystemConfig.class, configPrefix.orElse(null));
+            configBinder(binder).bindConfig(LocalFileSystemConfig.class, internalConfigPrefix);
             if (!bindConfigsOnly) {
                 binder.bind(TrinoFileSystemFactory.class).to(LocalFileSystemFactory.class).in(SINGLETON);
             }
         }
         else if (scheme.equals("s3") || scheme.equals("s3a") || scheme.equals("s3n")) {
             if (bindConfigsOnly) {
-                configBinder(binder).bindConfig(S3FileSystemConfig.class, configPrefix.orElse(null));
+                configBinder(binder).bindConfig(S3FileSystemConfig.class, internalConfigPrefix);
             }
             else {
-                install(new S3FileSystemModule(configPrefix));
+                install(new S3FileSystemModule(Optional.of(internalConfigPrefix)));
                 // S3FileSystemModule binds TrinoFileSystemFactory under @FileSystemS3.
                 // Link the unannotated key to the annotated one so we share the singleton.
                 binder.bind(TrinoFileSystemFactory.class).to(Key.get(TrinoFileSystemFactory.class, FileSystemS3.class));
@@ -114,19 +115,19 @@ public class TrinoFsSpoolingStorageModule
         }
         else if (scheme.equals("gs")) {
             if (bindConfigsOnly) {
-                configBinder(binder).bindConfig(GcsFileSystemConfig.class, configPrefix.orElse(null));
+                configBinder(binder).bindConfig(GcsFileSystemConfig.class, internalConfigPrefix);
             }
             else {
-                install(new GcsFileSystemModule(configPrefix));
+                install(new GcsFileSystemModule(Optional.of(internalConfigPrefix)));
                 binder.bind(TrinoFileSystemFactory.class).to(GcsFileSystemFactory.class).in(SINGLETON);
             }
         }
         else if (scheme.equals("abfs") || scheme.equals("abfss") || scheme.equals("wasb") || scheme.equals("wasbs")) {
             if (bindConfigsOnly) {
-                configBinder(binder).bindConfig(AzureFileSystemConfig.class, configPrefix.orElse(null));
+                configBinder(binder).bindConfig(AzureFileSystemConfig.class, internalConfigPrefix);
             }
             else {
-                install(new AzureFileSystemModule(configPrefix));
+                install(new AzureFileSystemModule(Optional.of(internalConfigPrefix)));
                 binder.bind(TrinoFileSystemFactory.class).to(AzureFileSystemFactory.class).in(SINGLETON);
             }
         }

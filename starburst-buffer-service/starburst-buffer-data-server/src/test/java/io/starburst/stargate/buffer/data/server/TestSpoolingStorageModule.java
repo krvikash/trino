@@ -134,7 +134,7 @@ public class TestSpoolingStorageModule
                 "buffer.spooling.directory", "s3://bucket/spool",
                 "buffer.spooling.storage-driver", "TRINO_FS",
                 "buffer.spooling.trino-fs.executor-threads", "100",
-                "buffer.s3.region", "us-east-1"));
+                "buffer.spooling.s3.region", "us-east-1"));
     }
 
     @Test
@@ -144,7 +144,7 @@ public class TestSpoolingStorageModule
                 "buffer.spooling.directory", "gs://bucket/spool",
                 "buffer.spooling.storage-driver", "TRINO_FS",
                 "buffer.spooling.trino-fs.delete-executor-threads", "20",
-                "buffer.gcs.project-id", "my-project"));
+                "buffer.spooling.gcs.project-id", "my-project"));
     }
 
     @Test
@@ -153,7 +153,7 @@ public class TestSpoolingStorageModule
         createBootstrap(Optional.of("buffer"), Map.of(
                 "buffer.spooling.directory", "abfs://container@account.dfs.core.windows.net/spool",
                 "buffer.spooling.storage-driver", "TRINO_FS",
-                "buffer.azure.endpoint", "core.windows.net"));
+                "buffer.spooling.azure.endpoint", "core.windows.net"));
     }
 
     private static void createBootstrap(Map<String, String> properties)
