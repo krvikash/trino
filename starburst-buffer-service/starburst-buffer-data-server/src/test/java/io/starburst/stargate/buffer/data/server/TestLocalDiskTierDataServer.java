@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.server;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -21,15 +22,26 @@ import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
+import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createTrinoFsLocalSpooledChunkReader;
+import static io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver.TRINO_FS;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TestLocalDiskTierDataServer
         extends BaseDataServerTest
 {
+    private final Path diskTierDir;
+
     TestLocalDiskTierDataServer(@TempDir Path diskTierDir)
     {
         super(false, getLocalDiskProperties(diskTierDir));
+        this.diskTierDir = diskTierDir;
+    }
+
+    @Override
+    protected SpooledChunkReader createSpooledChunkReader()
+    {
+        return createTrinoFsLocalSpooledChunkReader(diskTierDir);
     }
 
     @Test
@@ -61,6 +73,10 @@ class TestLocalDiskTierDataServer
                 .put("local-disk.capacity", DataSize.of(100, MEGABYTE).toString())
                 // 1B threshold: as soon as any chunk closes, subsequent allocations land on disk.
                 .put("local-disk.memory-skip-threshold", "1B")
+                .put("spooling.local.location", diskTierDir.toString())
+                .put("spooling.directory", "file:///spooling/")
+                .put("spooling.storage-driver", TRINO_FS.toString())
+                .put("testing.allow-local-spooling", "true")
                 .buildOrThrow();
     }
 }

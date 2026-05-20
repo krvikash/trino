@@ -91,7 +91,7 @@ final class DiskDirectoryInitializer
             createDirectories(nodeDirectory);
         }
         catch (IOException e) {
-            throw new UncheckedIOException("failed to create buffer-node directory " + nodeDirectory, e);
+            throw new UncheckedIOException(format("Failed to create buffer-node directory %s", nodeDirectory), e);
         }
     }
 
@@ -133,13 +133,13 @@ final class DiskDirectoryInitializer
     {
         if (!isEmpty(directory)) {
             throw new IllegalStateException(
-                    "Refusing to clean disk tier directory: missing ownership marker '" + OWNERSHIP_MARKER + "' and directory is not empty: " + directory);
+                    format("Refusing to clean disk tier directory: missing ownership marker '%s' and directory is not empty: %s", OWNERSHIP_MARKER, directory));
         }
         try {
             Files.createFile(marker);
         }
         catch (IOException e) {
-            throw new UncheckedIOException("Failed to create disk tier ownership marker: " + marker, e);
+            throw new UncheckedIOException(format("Failed to create disk tier ownership marker: %s", marker), e);
         }
     }
 
@@ -149,7 +149,7 @@ final class DiskDirectoryInitializer
             return !entries.iterator().hasNext();
         }
         catch (IOException e) {
-            throw new UncheckedIOException("Failed to list disk tier directory: " + directory, e);
+            throw new UncheckedIOException(format("Failed to list disk tier directory: %s", directory), e);
         }
     }
 }

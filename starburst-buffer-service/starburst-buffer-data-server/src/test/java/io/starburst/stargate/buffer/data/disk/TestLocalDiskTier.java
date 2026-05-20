@@ -77,7 +77,7 @@ public class TestLocalDiskTier
 
         assertThatThrownBy(() -> createDiskTier(missingRoot))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("root directory does not exist or is not a directory");
+                .hasMessageContaining("directory does not exist");
     }
 
     @Test

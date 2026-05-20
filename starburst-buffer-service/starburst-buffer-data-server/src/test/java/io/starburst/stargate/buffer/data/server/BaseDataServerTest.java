@@ -31,12 +31,11 @@ import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
-import io.starburst.stargate.buffer.data.client.DataApiConfig;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.blackhole.BlackholeSpooledChunkReader;
-import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.execution.ChunkAllocationStats;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
@@ -73,6 +72,7 @@ import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
+import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createLocalSpooledChunkReader;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -144,13 +144,18 @@ abstract class BaseDataServerTest
                 BUFFER_NODE_ID,
                 httpClient,
                 succinctDuration(60, SECONDS),
-                new LocalSpooledChunkReader(new DataApiConfig()),
+                createSpooledChunkReader(),
                 true,
                 Optional.empty(),
                 spanJsonCodec);
 
         // Wait for Node to become ready
         assertEventually(new Duration(10, SECONDS), () -> assertThat(dataClient.getInfo().state()).isEqualTo(ACTIVE));
+    }
+
+    protected SpooledChunkReader createSpooledChunkReader()
+    {
+        return createLocalSpooledChunkReader();
     }
 
     @AfterEach

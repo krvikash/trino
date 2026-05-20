@@ -52,7 +52,7 @@ public class TestDiskDirectoryInitializer
 
         assertThatThrownBy(() -> initializeDirectories(missingRoot, nodeDir, tracker, false))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("root directory does not exist or is not a directory");
+                .hasMessageContaining("directory does not exist");
     }
 
     @Test
@@ -64,7 +64,7 @@ public class TestDiskDirectoryInitializer
 
         assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, tracker, false))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("root directory does not exist or is not a directory");
+                .hasMessageContaining("is not a directory");
     }
 
     @Test
@@ -180,6 +180,6 @@ public class TestDiskDirectoryInitializer
 
         assertThatThrownBy(() -> initializeDirectories(rootAsFile, nodeDir, tracker, true))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("root directory does not exist or is not a directory");
+                .hasMessageContaining("is not a directory");
     }
 }

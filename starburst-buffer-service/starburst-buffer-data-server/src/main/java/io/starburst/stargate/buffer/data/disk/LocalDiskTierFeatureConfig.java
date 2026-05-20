@@ -24,7 +24,7 @@ public class LocalDiskTierFeatureConfig
 
     @Config("local-disk.enabled")
     @ConfigHidden
-    @ConfigDescription("Enable local disk as intermediate tier between memory and remote storage")
+    @ConfigDescription("Enable local disk as intermediate tier between memory and remote storage. Requires spooling.storage-driver=TRINO_FS.")
     public LocalDiskTierFeatureConfig setEnabled(boolean enabled)
     {
         this.enabled = enabled;

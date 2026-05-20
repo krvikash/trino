@@ -31,12 +31,14 @@ import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.memory.FullHeapMemoryConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 import io.starburst.stargate.buffer.data.memory.StaticMemoryConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorageDriver;
 import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.security.SecureRandom;
@@ -129,6 +131,13 @@ public class DataServerMainModule
         newOptionalBinder(binder, LocalDiskAllocator.class);
         LocalDiskTierFeatureConfig diskTierFeatureConfig = buildConfigObject(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
         if (diskTierFeatureConfig.isEnabled()) {
+            SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
+            if (spoolingDirectoryConfig.getStorageDriver() != SpoolingStorageDriver.TRINO_FS) {
+                binder.addError(
+                        "Local disk tier requires spooling.storage-driver=TRINO_FS (got %s)",
+                        spoolingDirectoryConfig.getStorageDriver());
+                return;
+            }
             configBinder(binder).bindConfig(LocalDiskTierConfig.class, configPrefix.orElse(null));
             binder.bind(LocalDiskAllocator.class).in(SINGLETON);
             binder.bind(LocalDiskTier.class).asEagerSingleton();
