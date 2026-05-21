@@ -128,6 +128,7 @@ import io.trino.operator.exchange.LocalMergeSourceOperator.LocalMergeSourceOpera
 import io.trino.operator.exchange.PageChannelSelector;
 import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColumnSpecification;
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
+import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuDynamicFilterProvider;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuGroupId;
@@ -485,6 +486,7 @@ public class LocalExecutionPlanner
     private final DirectExchangeClientSupplier directExchangeClientSupplier;
     private final ExpressionCompiler expressionCompiler;
     private final boolean nodeGpuExecutionEnabled;
+    private final DataSize gpuAggregationCompactionThreshold;
     private final PageFunctionCompiler pageFunctionCompiler;
     private final JoinFilterFunctionCompiler joinFilterFunctionCompiler;
     private final DataSize maxIndexMemorySize;
@@ -542,6 +544,7 @@ public class LocalExecutionPlanner
             ExpressionCompiler expressionCompiler,
             PageFunctionCompiler pageFunctionCompiler,
             @NodeGpuExecutionEnabled boolean nodeGpuExecutionEnabled,
+            GpuConfig gpuConfig,
             JoinFilterFunctionCompiler joinFilterFunctionCompiler,
             IndexJoinLookupStats indexJoinLookupStats,
             CacheStats cacheStats,
@@ -578,6 +581,7 @@ public class LocalExecutionPlanner
         this.pageSinkManager = requireNonNull(pageSinkManager, "pageSinkManager is null");
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
         this.nodeGpuExecutionEnabled = nodeGpuExecutionEnabled;
+        this.gpuAggregationCompactionThreshold = gpuConfig.getAggregationCompactionThreshold();
         this.pageFunctionCompiler = requireNonNull(pageFunctionCompiler, "pageFunctionCompiler is null");
         this.joinFilterFunctionCompiler = requireNonNull(joinFilterFunctionCompiler, "joinFilterFunctionCompiler is null");
         this.indexJoinLookupStats = requireNonNull(indexJoinLookupStats, "indexJoinLookupStats is null");
@@ -4671,7 +4675,7 @@ public class LocalExecutionPlanner
             if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
             }
-            return GpuAggregationCompiler.compile(node, source.getLayout())
+            return GpuAggregationCompiler.compile(node, source.getLayout(), gpuAggregationCompactionThreshold)
                     .map(compileResult -> addGpuOperations(
                             compileResult.stages(),
                             compileResult.finalOutputTypes(),

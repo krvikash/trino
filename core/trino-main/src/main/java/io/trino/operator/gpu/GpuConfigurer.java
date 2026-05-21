@@ -52,6 +52,13 @@ public class GpuConfigurer
             long poolSize = poolSizeBytes(config);
             checkArgument(poolSize >= 0, "GPU pool size must not be negative, got %s bytes", poolSize);
 
+            long compactionThreshold = config.getAggregationCompactionThreshold().toBytes();
+            checkArgument(
+                    compactionThreshold <= poolSize,
+                    "gpu.aggregation.compaction-threshold (%s) must not exceed GPU pool size (%s)",
+                    succinctBytes(compactionThreshold),
+                    succinctBytes(poolSize));
+
             log.info("Initializing RMM: allocationMode=%s, poolSize=%s", config.getAllocationMode(), succinctBytes(poolSize));
             Rmm.initialize(allocationMode, null, poolSize);
         }

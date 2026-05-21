@@ -16,8 +16,10 @@ package io.trino.operator.gpu.aggregation;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
@@ -63,7 +65,13 @@ public final class GpuAggregationCompiler
 
     private static final Logger log = Logger.get(GpuAggregationCompiler.class);
 
-    public static Optional<CompileResult> compile(AggregationNode node, Map<Symbol, Integer> sourceLayout)
+    public static Optional<CompileResult> compile(AggregationNode node, Map<Symbol, Integer> sourceLayout, DataSize compactionThreshold)
+    {
+        return compile(node, sourceLayout, compactionThreshold.toBytes());
+    }
+
+    @VisibleForTesting
+    public static Optional<CompileResult> compile(AggregationNode node, Map<Symbol, Integer> sourceLayout, long compactionThresholdBytes)
     {
         Step step = node.getStep();
 
@@ -114,7 +122,7 @@ public final class GpuAggregationCompiler
             compilations.add(compiled.get());
         }
 
-        return Optional.of(buildPipeline(sourceLayout.size(), groupByChannels, groupByTypes, compilations, step));
+        return Optional.of(buildPipeline(sourceLayout.size(), groupByChannels, groupByTypes, compilations, step, compactionThresholdBytes));
     }
 
     /**
@@ -128,7 +136,8 @@ public final class GpuAggregationCompiler
             int[] groupByChannels,
             List<Type> groupByTypes,
             List<AggregateCompilation> compilations,
-            Step step)
+            Step step,
+            long compactionThresholdBytes)
     {
         boolean needsPipeline = compilations.stream().anyMatch(c -> !c.preProjection().isEmpty() || c.postProjection().isPresent());
 
@@ -143,7 +152,9 @@ public final class GpuAggregationCompiler
                     aggregates.build(),
                     groupByChannels,
                     groupByTypes,
-                    step.isInputRaw());
+                    step.isInputRaw(),
+                    compactionThresholdBytes,
+                    sourceColumnCount);
             return new CompileResult(List.of(aggregation), aggregation.getOutputTypes());
         }
 
@@ -203,7 +214,9 @@ public final class GpuAggregationCompiler
                 aggregates.build(),
                 groupByChannels,
                 groupByTypes,
-                step.isInputRaw()));
+                step.isInputRaw(),
+                compactionThresholdBytes,
+                currentDerivedChannel));
         stages.add(new GpuProject.Factory(postProjections.build()));
 
         return new CompileResult(stages, postProjectionTypes.build());

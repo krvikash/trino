@@ -38,7 +38,8 @@ public class TestGpuConfig
                 .setAllocationMode(AllocationMode.ASYNC)
                 .setPoolSize(null)
                 .setAllocFraction(1.0)
-                .setReserve(DataSize.of(640, MEGABYTE)));
+                .setReserve(DataSize.of(640, MEGABYTE))
+                .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE)));
     }
 
     @Test
@@ -49,13 +50,15 @@ public class TestGpuConfig
                 .put("gpu.memory.pool-size", "20GB")
                 .put("gpu.memory.alloc-fraction", "0.75")
                 .put("gpu.memory.reserve", "1GB")
+                .put("gpu.aggregation.compaction-threshold", "2GB")
                 .buildOrThrow();
 
         GpuConfig expected = new GpuConfig()
                 .setAllocationMode(AllocationMode.POOL)
                 .setPoolSize(DataSize.of(20, GIGABYTE))
                 .setAllocFraction(0.75)
-                .setReserve(DataSize.of(1, GIGABYTE));
+                .setReserve(DataSize.of(1, GIGABYTE))
+                .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE));
 
         assertFullMapping(properties, expected);
     }

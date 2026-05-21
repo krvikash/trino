@@ -303,13 +303,13 @@ public class ServerMainModule
         binder.bind(ExpressionCompiler.class).in(Scopes.SINGLETON);
         binder.bind(PageFunctionCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
+        configBinder(binder).bindConfig(GpuConfig.class);
         newOptionalBinder(binder, GpuConfigurer.class);
         // Disable GPU execution on coordinator. It's unlikely beneficial but may still cause coordinator instability.
         boolean gpuExecutionEnabled = (!serverConfig.isCoordinator() || buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) &&
                 buildConfigObject(TaskManagerConfig.class).isGpuExecutionEnabled();
         binder.bind(Key.get(boolean.class, NodeGpuExecutionEnabled.class)).toInstance(gpuExecutionEnabled);
         if (gpuExecutionEnabled) {
-            configBinder(binder).bindConfig(GpuConfig.class);
             binder.bind(GpuConfigurer.class).asEagerSingleton();
         }
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);

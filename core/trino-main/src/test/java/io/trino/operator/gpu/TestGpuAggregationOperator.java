@@ -63,6 +63,7 @@ import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
+import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
@@ -309,6 +310,196 @@ final class TestGpuAggregationOperator
     }
 
     @Test
+    void testGroupByMultipleBatchesCountAll()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGroupByMatchesCpu(inputPages, "count", List.of());
+    }
+
+    @Test
+    void testGroupByMultipleBatchesCountNonNull()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGroupByMatchesCpu(inputPages, "count", List.of(BIGINT));
+    }
+
+    @Test
+    void testGroupByMultipleBatchesSum()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
+        assertGroupByMatchesCpu(inputPages, "sum", List.of(BIGINT));
+    }
+
+    @Test
+    void testGroupByMultipleBatchesMin()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGroupByMatchesCpu(inputPages, "min", List.of(BIGINT));
+    }
+
+    @Test
+    void testGroupByMultipleBatchesMax()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGroupByMatchesCpu(inputPages, "max", List.of(BIGINT));
+    }
+
+    @Test
+    void testGlobalMultipleBatchesCountAll()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGlobalMatchesCpu(inputPages, "count", List.of());
+    }
+
+    @Test
+    void testGlobalMultipleBatchesCountNonNull()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGlobalMatchesCpu(inputPages, "count", List.of(BIGINT));
+    }
+
+    @Test
+    void testGlobalMultipleBatchesSum()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
+        assertGlobalMatchesCpu(inputPages, "sum", List.of(BIGINT));
+    }
+
+    @Test
+    void testGlobalMultipleBatchesMin()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGlobalMatchesCpu(inputPages, "min", List.of(BIGINT));
+    }
+
+    @Test
+    void testGlobalMultipleBatchesMax()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGlobalMatchesCpu(inputPages, "max", List.of(BIGINT));
+    }
+
+    @Test
+    void testGlobalMultipleBatchesCountAllPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGlobalMatchesCpu(inputPages, "count", List.of(), PARTIAL);
+    }
+
+    @Test
+    void testGlobalMultipleBatchesCountNonNullPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGlobalMatchesCpu(inputPages, "count", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
+    void testGlobalMultipleBatchesSumPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
+        assertGlobalMatchesCpu(inputPages, "sum", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
+    void testGlobalMultipleBatchesMinPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGlobalMatchesCpu(inputPages, "min", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
+    void testGlobalMultipleBatchesMaxPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGlobalMatchesCpu(inputPages, "max", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
+    void testGroupByMultipleBatchesCountAllPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
+        assertGroupByMatchesCpu(inputPages, "count", List.of(), PARTIAL);
+    }
+
+    @Test
+    void testGroupByMultipleBatchesSumPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
+        assertGroupByMatchesCpu(inputPages, "sum", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
+    void testGroupByMultipleBatchesMinPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGroupByMatchesCpu(inputPages, "min", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
+    void testGroupByMultipleBatchesMaxPartial()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
+        assertGroupByMatchesCpu(inputPages, "max", List.of(BIGINT), PARTIAL);
+    }
+
+    @Test
     void testBoolOrGlobalEmpty()
     {
         assertGlobalMatchesCpu(createEmptyPage(List.of(BOOLEAN)), "bool_or", List.of(BOOLEAN));
@@ -517,10 +708,20 @@ final class TestGpuAggregationOperator
 
     private void assertGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
     {
+        assertGlobalMatchesCpu(List.of(inputPage), functionName, argumentTypes, step);
+    }
+
+    private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes)
+    {
+        assertGlobalMatchesCpu(inputPages, functionName, argumentTypes, SINGLE);
+    }
+
+    private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
+    {
         CompileResult compiled = compileAggregation(functionName, argumentTypes, false, step);
         List<Type> inputTypes = argumentTypes.isEmpty() ? List.of(BIGINT) : List.copyOf(argumentTypes);
 
-        List<Page> results = runGpuPipeline(inputPage, inputTypes, compiled);
+        List<Page> results = runGpuPipeline(inputPages, inputTypes, compiled);
         checkState(results.size() == 1, "Expected single result page");
         Page resultPage = results.getFirst();
         checkState(resultPage.getPositionCount() == 1, "Expected single row");
@@ -533,15 +734,27 @@ final class TestGpuAggregationOperator
         else {
             gpuResult = getOnlyValue(resolvedFunction.signature().getReturnType(), resultPage.getBlock(0));
         }
+
+        Page inputPage = mergePages(inputPages, inputTypes);
         assertAggregation(FUNCTION_RESOLUTION, functionName, fromTypes(argumentTypes), gpuResult, inputPage);
     }
 
     private void assertGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
     {
-        assertGroupByMatchesCpu(inputPage, functionName, argumentTypes, SINGLE);
+        assertGroupByMatchesCpu(List.of(inputPage), functionName, argumentTypes, SINGLE);
+    }
+
+    private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes)
+    {
+        assertGroupByMatchesCpu(inputPages, functionName, argumentTypes, SINGLE);
     }
 
     private void assertGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
+    {
+        assertGroupByMatchesCpu(List.of(inputPage), functionName, argumentTypes, step);
+    }
+
+    private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
     {
         CompileResult compiled = compileAggregation(functionName, argumentTypes, true, step);
         List<Type> inputTypes = ImmutableList.<Type>builder()
@@ -549,7 +762,7 @@ final class TestGpuAggregationOperator
                 .addAll(argumentTypes.isEmpty() ? List.of(BIGINT) : argumentTypes)
                 .build();
 
-        List<Page> results = runGpuPipeline(inputPage, inputTypes, compiled);
+        List<Page> results = runGpuPipeline(inputPages, inputTypes, compiled);
 
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
         Type outputType = step.isOutputPartial() ? VARBINARY : resolvedFunction.signature().getReturnType();
@@ -570,6 +783,7 @@ final class TestGpuAggregationOperator
             }
         }
 
+        Page inputPage = mergePages(inputPages, inputTypes);
         Map<Object, Object> cpuResult = executeCpuGroupByAggregation(inputPage, BIGINT, functionName, argumentTypes);
 
         assertThat(gpuResult.keySet()).isEqualTo(cpuResult.keySet());
@@ -731,14 +945,19 @@ final class TestGpuAggregationOperator
             layoutBuilder.put(allSourceSymbols.get(i), i);
         }
 
-        return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow()).orElseThrow(
+        return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), /*compactionThresholdBytes=*/ 1).orElseThrow(
                 () -> new AssertionError("GpuAggregationCompiler failed to compile " + functionName));
     }
 
     private static List<Page> runGpuPipeline(Page inputPage, List<Type> inputTypes, CompileResult compiled)
     {
+        return runGpuPipeline(List.of(inputPage), inputTypes, compiled);
+    }
+
+    private static List<Page> runGpuPipeline(List<Page> inputPages, List<Type> inputTypes, CompileResult compiled)
+    {
         return executeGpuOperation(
-                List.of(inputPage),
+                inputPages,
                 inputTypes,
                 compiled.finalOutputTypes(),
                 copyToDevice -> {
@@ -850,7 +1069,7 @@ final class TestGpuAggregationOperator
                 inputTypes,
                 outputTypesBuilder.build(),
                 copyToDevice -> {
-                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw);
+                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw, /*compactionThresholdBytes=*/ 1, inputTypes.size());
                     return factory.create(copyToDevice);
                 });
     }
@@ -868,6 +1087,21 @@ final class TestGpuAggregationOperator
     private static Object runCpuFinal(String functionName, Type paramType, Block intermediate, int position)
     {
         return runCpuFinal(functionName, paramType, intermediate.getRegion(position, 1));
+    }
+
+    private static Page mergePages(List<Page> pages, List<Type> types)
+    {
+        int channelCount = types.size();
+        int totalPositions = pages.stream().mapToInt(Page::getPositionCount).sum();
+        Block[] mergedBlocks = new Block[channelCount];
+        for (int channel = 0; channel < channelCount; channel++) {
+            BlockBuilder builder = types.get(channel).createBlockBuilder(null, totalPositions);
+            for (Page page : pages) {
+                builder.appendBlockRange(page.getBlock(channel), 0, page.getPositionCount());
+            }
+            mergedBlocks[channel] = builder.build();
+        }
+        return new Page(totalPositions, mergedBlocks);
     }
 
     private static Block createMaskBlock(int positionCount)

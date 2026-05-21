@@ -24,6 +24,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
 
+import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 
 public class GpuConfig
@@ -60,6 +61,7 @@ public class GpuConfig
     private Optional<DataSize> poolSize = Optional.empty();
     private double allocFraction = 1.0;
     private DataSize reserve = DataSize.of(640, MEGABYTE);
+    private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
 
     @NotNull
     public AllocationMode getAllocationMode()
@@ -119,6 +121,21 @@ public class GpuConfig
     public GpuConfig setReserve(DataSize reserve)
     {
         this.reserve = reserve;
+        return this;
+    }
+
+    @NotNull
+    public DataSize getAggregationCompactionThreshold()
+    {
+        return aggregationCompactionThreshold;
+    }
+
+    @Config("gpu.aggregation.compaction-threshold")
+    @ConfigDescription("GPU memory threshold that triggers compaction in aggregation operators")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setAggregationCompactionThreshold(DataSize aggregationCompactionThreshold)
+    {
+        this.aggregationCompactionThreshold = aggregationCompactionThreshold;
         return this;
     }
 }
