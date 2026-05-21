@@ -29,7 +29,7 @@ az synapse sql pool create \
     --performance-level "DW300c" \
     --resource-group "$SYNAPSE_RESOURCE_GROUP" \
     --workspace-name "$SYNAPSE_WORKSPACE" \
-    --tags "expiration=$sql_pool_expiration" \
+    --tags "expiration=$sql_pool_expiration" "environment=test" "team=connectors-team" \
     --output none
 
 echo "$pool_name"
