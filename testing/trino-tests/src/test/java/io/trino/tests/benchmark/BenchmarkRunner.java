@@ -194,25 +194,26 @@ public final class BenchmarkRunner
             this.mainClass = requireNonNull(mainClass, "mainClass is null");
         }
 
-        boolean relaunchIfNeeded()
+        boolean relaunchIfNeeded(Optional<List<String>> launchWrapperCommand)
                 throws Exception
         {
             if (Boolean.getBoolean(LAUNCHED_MARKER) || Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
                 return false;
             }
-            int exitCode = launch(originalArgs, workload, mainClass);
+            int exitCode = launch(launchWrapperCommand, originalArgs, workload, mainClass);
             checkState(exitCode == 0, "Child process exited with %s", exitCode);
             return true;
         }
     }
 
-    private static int launch(String[] args, Workload workload, Class<?> mainClass)
+    private static int launch(Optional<List<String>> launchWrapperCommand, String[] args, Workload workload, Class<?> mainClass)
             throws Exception
     {
         long heapSizeMegabytes = workload.jvmHeapSize().toBytes() / (1024 * 1024);
         String minHeapFlag = "-Xms" + heapSizeMegabytes + "m";
         String maxHeapFlag = "-Xmx" + heapSizeMegabytes + "m";
         List<String> command = new ArrayList<>();
+        launchWrapperCommand.ifPresent(command::addAll);
         command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
         command.add(minHeapFlag);
         command.add(maxHeapFlag);
@@ -222,7 +223,12 @@ public final class BenchmarkRunner
         command.add(System.getProperty("java.class.path"));
         command.add(mainClass.getName());
         command.addAll(List.of(args));
-        log.info("Launching benchmark JVM with %s %s", minHeapFlag, maxHeapFlag);
+        if (launchWrapperCommand.isPresent()) {
+            log.info("Launching benchmark JVM under %s with %s %s", String.join(" ", launchWrapperCommand.get()), minHeapFlag, maxHeapFlag);
+        }
+        else {
+            log.info("Launching benchmark JVM with %s %s", minHeapFlag, maxHeapFlag);
+        }
         return new ProcessBuilder(command).inheritIO().start().waitFor();
     }
 
@@ -303,6 +309,24 @@ public final class BenchmarkRunner
         @Option(names = "--debug", description = "Enable debug logging")
         boolean debug;
 
+        /**
+         * Parameters for {@code compute-sanitizer}. Useful parameters include
+         * <ul>
+         *     <li>--tool memcheck</li>
+         *     <li>--report-api-errors no</li>
+         *     <li>--leak-check full (memcheck) — report leaks at app exit</li>
+         *     <li>--track-unused-memory yes (initcheck) — report device memory that was allocated but never read</li>
+         *     <li>--print-limit {@code <N>} — cap reported errors</li>
+         *     <li>--log-file {@code <path>} / --xml — redirect or format output</li>
+         * </ul>
+         */
+        @Option(names = "--gpu-sanitizer",
+                arity = "0..1",
+                fallbackValue = "--tool memcheck",
+                split = " ",
+                description = "Run the benchmark JVM under NVIDIA compute-sanitizer with the given arguments (e.g. \"--tool memcheck --leak-check full\"). Defaults to \"--tool memcheck\" when passed with no value. Requires --mode=gpu.")
+        List<String> gpuSanitizer;
+
         RunCommand(Launcher launcher, Workload workload)
         {
             this.launcher = requireNonNull(launcher, "launcher is null");
@@ -313,7 +337,24 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            if (launcher.relaunchIfNeeded()) {
+            Optional<List<String>> launchWrapperCommand;
+            if (gpuSanitizer.isEmpty()) {
+                launchWrapperCommand = Optional.empty();
+            }
+            else {
+                if (Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
+                    throw new IllegalArgumentException("--gpu-sanitizer cannot be used with -D%s=true: there is no child process to wrap with compute-sanitizer".formatted(
+                            NO_FORK_SYSTEM_PROPERTY));
+                }
+                if (mode != ExecutionMode.GPU) {
+                    throw new IllegalArgumentException("--gpu-sanitizer is not useful without --mode=GPU");
+                }
+                launchWrapperCommand = Optional.of(Stream.concat(
+                                Stream.of("compute-sanitizer"),
+                                gpuSanitizer.stream())
+                        .toList());
+            }
+            if (launcher.relaunchIfNeeded(launchWrapperCommand)) {
                 return 0;
             }
 
@@ -632,7 +673,8 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            if (launcher.relaunchIfNeeded()) {
+            // TODO support compute-sanitizer
+            if (launcher.relaunchIfNeeded(Optional.empty())) {
                 return 0;
             }
 
@@ -675,7 +717,7 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            if (launcher.relaunchIfNeeded()) {
+            if (launcher.relaunchIfNeeded(Optional.empty())) {
                 return 0;
             }
 
@@ -713,7 +755,7 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            if (launcher.relaunchIfNeeded()) {
+            if (launcher.relaunchIfNeeded(Optional.empty())) {
                 return 0;
             }
 
