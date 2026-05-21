@@ -21,7 +21,6 @@ import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Table;
 import com.google.common.base.Throwables;
-import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
@@ -132,13 +131,13 @@ public class GpuParquetPageSource
 
     private GpuPage createGpuPageFromPrefilledColumns(int rowCount)
     {
-        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+        @Own Column[] columns = new Column[columnMappings.size()];
+        try {
             // When there are no GPU columns, we only have PREFILLED columns (partition keys, etc.)
-            Column[] columns = new Column[columnMappings.size()];
             for (int i = 0; i < columnMappings.size(); i++) {
                 ColumnMapping mapping = columnMappings.get(i);
 
-                columns[i] = closer.register(switch (mapping.getKind()) {
+                columns[i] = switch (mapping.getKind()) {
                     case REGULAR ->
                         // This should never happen since gpuColumns is empty
                             throw new IllegalStateException("Found REGULAR column when gpuColumns is empty");
@@ -156,7 +155,7 @@ public class GpuParquetPageSource
                             HIVE_UNSUPPORTED_FORMAT,
                             format("GPU Parquet reader does not support column mapping kind: %s",
                                     mapping.getKind()));
-                });
+                };
             }
 
             return new GpuPage(rowCount, columns);
@@ -164,6 +163,9 @@ public class GpuParquetPageSource
         catch (Exception e) {
             Throwables.throwIfUnchecked(e);
             throw new RuntimeException(e);
+        }
+        finally {
+            closeColumns(columns);
         }
     }
 
@@ -175,15 +177,15 @@ public class GpuParquetPageSource
                     format("Expected %d columns from cuDF but got %d", gpuColumns.size(), table.getNumberOfColumns()));
         }
 
-        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
-            Column[] columns = new Column[columnMappings.size()];
+        @Own Column[] columns = new Column[columnMappings.size()];
+        try {
             int gpuColumnIndex = 0;
             int rowCount = toIntExact(table.getRowCount());
 
             for (int i = 0; i < columnMappings.size(); i++) {
                 ColumnMapping mapping = columnMappings.get(i);
 
-                columns[i] = closer.register(switch (mapping.getKind()) {
+                columns[i] = switch (mapping.getKind()) {
                     case REGULAR -> {
                         int index = gpuColumnIndex++;
                         HiveColumnHandle gpuColumn = gpuColumns.get(index);
@@ -210,7 +212,7 @@ public class GpuParquetPageSource
                             HIVE_UNSUPPORTED_FORMAT,
                             format("GPU Parquet reader does not support column mapping kind: %s",
                                     mapping.getKind()));
-                });
+                };
             }
 
             return new GpuPage(rowCount, columns);
@@ -218,6 +220,9 @@ public class GpuParquetPageSource
         catch (Exception e) {
             Throwables.throwIfUnchecked(e);
             throw new RuntimeException(e);
+        }
+        finally {
+            closeColumns(columns);
         }
     }
 
@@ -285,5 +290,15 @@ public class GpuParquetPageSource
             fabricatedParquet = null;
         }
         fabricator.close();
+    }
+
+    // TODO deduplicate with io.trino.operator.gpu.GpuUtils.closeColumns
+    private static void closeColumns(@Move Column[] columns)
+    {
+        for (Column column : columns) {
+            if (column != null) {
+                column.close();
+            }
+        }
     }
 }
