@@ -67,9 +67,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.units.DataSize.succinctBytes;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 /**
@@ -170,15 +172,38 @@ public final class BenchmarkRunner
     public static int run(String[] args, Workload workload, Class<?> mainClass)
             throws Exception
     {
-        if (!Boolean.getBoolean(LAUNCHED_MARKER) && !Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
-            return launch(args, workload, mainClass);
-        }
+        Launcher launcher = new Launcher(args, workload, mainClass);
         CommandLine cli = new CommandLine(new RootCommand());
-        cli.addSubcommand("run", new RunCommand(workload));
-        cli.addSubcommand("runner", new QueryRunnerCommand(workload));
-        cli.addSubcommand("generate", new GenerateCommand(workload));
-        cli.addSubcommand("record", new RecordCommand(workload));
+        cli.addSubcommand("run", new RunCommand(launcher, workload));
+        cli.addSubcommand("runner", new QueryRunnerCommand(launcher, workload));
+        cli.addSubcommand("generate", new GenerateCommand(launcher, workload));
+        cli.addSubcommand("record", new RecordCommand(launcher, workload));
         return cli.execute(args);
+    }
+
+    private static class Launcher
+    {
+        private final String[] originalArgs;
+        private final Workload workload;
+        private final Class<?> mainClass;
+
+        public Launcher(String[] originalArgs, Workload workload, Class<?> mainClass)
+        {
+            this.originalArgs = originalArgs.clone();
+            this.workload = requireNonNull(workload, "workload is null");
+            this.mainClass = requireNonNull(mainClass, "mainClass is null");
+        }
+
+        boolean relaunchIfNeeded()
+                throws Exception
+        {
+            if (Boolean.getBoolean(LAUNCHED_MARKER) || Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
+                return false;
+            }
+            int exitCode = launch(originalArgs, workload, mainClass);
+            checkState(exitCode == 0, "Child process exited with %s", exitCode);
+            return true;
+        }
     }
 
     private static int launch(String[] args, Workload workload, Class<?> mainClass)
@@ -245,6 +270,7 @@ public final class BenchmarkRunner
     static final class RunCommand
             implements Callable<Integer>
     {
+        private final Launcher launcher;
         private final Workload workload;
 
         @Option(names = {"-W", "--suite-warmup"},
@@ -277,15 +303,20 @@ public final class BenchmarkRunner
         @Option(names = "--debug", description = "Enable debug logging")
         boolean debug;
 
-        RunCommand(Workload workload)
+        RunCommand(Launcher launcher, Workload workload)
         {
-            this.workload = workload;
+            this.launcher = requireNonNull(launcher, "launcher is null");
+            this.workload = requireNonNull(workload, "workload is null");
         }
 
         @Override
         public Integer call()
                 throws Exception
         {
+            if (launcher.relaunchIfNeeded()) {
+                return 0;
+            }
+
             if (!queries.isEmpty() && !skipQueries.isEmpty()) {
                 throw new IllegalArgumentException("--query and --skip-query are mutually exclusive");
             }
@@ -584,21 +615,27 @@ public final class BenchmarkRunner
     static final class QueryRunnerCommand
             implements Callable<Integer>
     {
+        private final Launcher launcher;
         private final Workload workload;
 
         @Option(names = {"-m", "--mode"},
                 description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ExecutionMode mode = ExecutionMode.CPU;
 
-        QueryRunnerCommand(Workload workload)
+        QueryRunnerCommand(Launcher launcher, Workload workload)
         {
-            this.workload = workload;
+            this.launcher = requireNonNull(launcher, "launcher is null");
+            this.workload = requireNonNull(workload, "workload is null");
         }
 
         @Override
         public Integer call()
                 throws Exception
         {
+            if (launcher.relaunchIfNeeded()) {
+                return 0;
+            }
+
             enableDebugLogging();
             String data = canonicalize(workload.defaultDataLocation());
             workload.validateDataLocation(data);
@@ -622,20 +659,26 @@ public final class BenchmarkRunner
     static final class GenerateCommand
             implements Callable<Integer>
     {
+        private final Launcher launcher;
         private final Workload workload;
 
         @Option(names = "--data", description = "Target directory. Default: workload-specific.")
         Path dataLocation;
 
-        GenerateCommand(Workload workload)
+        GenerateCommand(Launcher launcher, Workload workload)
         {
-            this.workload = workload;
+            this.launcher = requireNonNull(launcher, "launcher is null");
+            this.workload = requireNonNull(workload, "workload is null");
         }
 
         @Override
         public Integer call()
                 throws Exception
         {
+            if (launcher.relaunchIfNeeded()) {
+                return 0;
+            }
+
             Path target = dataLocation != null ? dataLocation : Path.of(workload.defaultDataLocation());
             log.info("Generating %s data into %s", workload.name(), target);
             workload.generateData(target);
@@ -651,6 +694,7 @@ public final class BenchmarkRunner
     static final class RecordCommand
             implements Callable<Integer>
     {
+        private final Launcher launcher;
         private final Workload workload;
 
         @Option(names = {"-q", "--query"}, description = "A specific query number (can be repeated)")
@@ -659,15 +703,20 @@ public final class BenchmarkRunner
         @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
         String dataLocation;
 
-        RecordCommand(Workload workload)
+        RecordCommand(Launcher launcher, Workload workload)
         {
-            this.workload = workload;
+            this.launcher = requireNonNull(launcher, "launcher is null");
+            this.workload = requireNonNull(workload, "workload is null");
         }
 
         @Override
         public Integer call()
                 throws Exception
         {
+            if (launcher.relaunchIfNeeded()) {
+                return 0;
+            }
+
             String data = canonicalize(dataLocation != null ? dataLocation : workload.defaultDataLocation());
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
