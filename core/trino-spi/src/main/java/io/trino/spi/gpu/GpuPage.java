@@ -13,7 +13,9 @@
  */
 package io.trino.spi.gpu;
 
+import io.trino.spi.Unstable;
 import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
@@ -86,6 +88,15 @@ public final class GpuPage
     {
         checkState(!closed, "Already closed");
         return columns[index];
+    }
+
+    // TODO is this API right name?
+    @Unstable
+    @Move
+    public GpuPage shallowCopy()
+    {
+        checkState(!closed, "Already closed");
+        return new GpuPage(positionCount, columns);
     }
 
     @Override
