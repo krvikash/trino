@@ -958,7 +958,10 @@ jobs:
     runs-on: [ self-hosted, gha-fleet-ec2-2cpu-1gb-arm64, latest ]
     if: |
       github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))
+      (github.event_name == 'pull_request' && (
+        contains(github.event.pull_request.labels.*.name, 'synapse-smoke') ||
+        contains(github.event.pull_request.labels.*.name, 'synapse')
+      ))
     outputs:
       matrix: ${{ steps.build-synapse-matrix.outputs.MATRIX }}
       matrix-with-pt: ${{ steps.build-synapse-matrix.outputs.PT_MATRIX }}
@@ -967,15 +970,17 @@ jobs:
       - uses: actions/checkout@v6
       - name: Build matrix
         id: build-synapse-matrix
+        env:
+          IS_WEEKLY_SCHEDULE: ${{ github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6' }}
+          HAS_SYNAPSE_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse') }}
         run: |
-          matrix=$(jq -nc '{"include": [{"synapse-test": "nightly"}]}')
+          matrix=$(jq -nc '{"include": [{"synapse-test": "smoke"}]}')
           pt_matrix="$matrix"
-          if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6' }}" == "true" ]] ||
-             [[ "${{ github.event_name }}" == 'pull_request' ]]; then
+          if [[ "$IS_WEEKLY_SCHEDULE" == "true" || "$HAS_SYNAPSE_LABEL" == 'true' ]]; then
             matrix=$(echo "$matrix" | jq -c '.include += [
-              { "synapse-test": "weekly", "profile": "fte-tests" },
-              { "synapse-test": "weekly", "profile": "long-running-tests" },
-              { "synapse-test": "weekly", "profile": "type-mapping-tests" }
+              { "synapse-test": "full", "profile": "fte-tests" },
+              { "synapse-test": "full", "profile": "long-running-tests" },
+              { "synapse-test": "full", "profile": "type-mapping-tests" }
             ]')
             pt_matrix=$(echo "$matrix" | jq -c '.include += [{"synapse-test": "pt"}]')
           fi
