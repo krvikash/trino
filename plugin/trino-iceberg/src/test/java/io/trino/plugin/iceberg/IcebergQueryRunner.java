@@ -25,6 +25,7 @@ import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer;
+import io.trino.plugin.iceberg.catalog.rest.ServerScanPlanningRestCatalogAdapter;
 import io.trino.plugin.iceberg.catalog.rest.TestingLakekeeperCatalog;
 import io.trino.plugin.iceberg.catalog.rest.TestingPolarisCatalog;
 import io.trino.plugin.iceberg.containers.NessieContainer;
@@ -38,6 +39,7 @@ import io.trino.testing.containers.IcebergS3RestCatalogBackendContainer;
 import io.trino.testing.containers.Minio;
 import io.trino.tpch.TpchTable;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.rest.DelegatingRestSessionCatalog;
 import org.testcontainers.containers.Network;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -1008,6 +1010,37 @@ public final class IcebergQueryRunner
                     .addIcebergProperty("s3.path-style-access", "true")
                     .setInitialTables(TpchTable.getTables())
                     .build();
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class IcebergRestScanPlanningQueryRunnerMain
+    {
+        private IcebergRestScanPlanningQueryRunnerMain() {}
+
+        static void main()
+                throws Exception
+        {
+            Path warehouseLocation = Files.createTempDirectory(null);
+            warehouseLocation.toFile().deleteOnExit();
+
+            JdbcCatalog backend = ServerScanPlanningRestCatalogAdapter.buildBackendCatalog(warehouseLocation);
+            TestingHttpServer restServer = ServerScanPlanningRestCatalogAdapter.startTestServer(new ServerScanPlanningRestCatalogAdapter(backend));
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+                    .setBaseDataDir(Optional.of(warehouseLocation))
+                    .addIcebergProperty("iceberg.catalog.type", "rest")
+                    .addIcebergProperty("iceberg.rest-catalog.uri", restServer.getBaseUrl().toString())
+                    .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
+                    .setSchemaInitializer(SchemaInitializer.builder()
+                            .withClonedTpchTables(TpchTable.getTables())
+                            .withSchemaProperties(Map.of("location", "'file://" + warehouseLocation + "'"))
+                            .build())
+                    .build();
+
+            Logger log = Logger.get(IcebergRestScanPlanningQueryRunnerMain.class);
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }

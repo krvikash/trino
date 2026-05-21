@@ -55,6 +55,7 @@ import io.trino.plugin.iceberg.IcebergConfig.DropTableMode;
 import io.trino.plugin.iceberg.aggregation.DataSketchStateSerializer;
 import io.trino.plugin.iceberg.aggregation.IcebergThetaSketchForStats;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
+import io.trino.plugin.iceberg.catalog.rest.TrinoRestCatalog;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter.DeletionVectorInfo;
 import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
@@ -393,6 +394,7 @@ import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
 import static io.trino.plugin.iceberg.IcebergUtil.getSnapshotIdAsOfTime;
 import static io.trino.plugin.iceberg.IcebergUtil.getTopLevelColumns;
+import static io.trino.plugin.iceberg.IcebergUtil.isServerSideScanPlanning;
 import static io.trino.plugin.iceberg.IcebergUtil.loadDataManifestsFromSnapshot;
 import static io.trino.plugin.iceberg.IcebergUtil.newCreateTableTransaction;
 import static io.trino.plugin.iceberg.IcebergUtil.schemaFromMetadata;
@@ -4507,6 +4509,11 @@ public class IcebergMetadata
         }
 
         Snapshot snapshot = icebergTable.snapshot(snapshotId.getAsLong());
+        if (snapshot.manifestListLocation() == null || snapshot.manifestListLocation().isEmpty()) {
+            // Snapshot does not expose a client-accessible manifest list (e.g. for server-side scan planning).
+            // Return all known specs, as per-spec enforcement will happen during planning.
+            return specs.keySet();
+        }
         // Since we're primarily concerned about predicate pushdown on partitioning
         // of the data files, there's no need to consider delete manifests
         return loadDataManifestsFromSnapshot(icebergTable, snapshot).stream()
@@ -4802,6 +4809,11 @@ public class IcebergMetadata
                 currentStatistics -> currentStatistics.getColumnStatistics().keySet().containsAll(originalHandle.getProjectedColumns()),
                 projectedColumns -> {
                     Table icebergTable = catalog.loadTable(session, originalHandle.getSchemaTableName());
+                    if (isServerSideScanPlanning(icebergTable.io().properties())) {
+                        // Tables using server-side scan planning do not have accessible manifest lists, so stats cannot be read.
+                        return TableStatistics.empty();
+                    }
+
                     return tableStatisticsReader.getTableStatistics(
                             session,
                             originalHandle,
@@ -5370,6 +5382,11 @@ public class IcebergMetadata
     public void disableIncrementalRefresh()
     {
         fromSnapshotForRefresh = OptionalLong.empty();
+    }
+
+    protected boolean isUnityCatalog()
+    {
+        return this.catalog instanceof TrinoRestCatalog trinoRestCatalog && trinoRestCatalog.isUnityCatalog();
     }
 
     private static CollectedStatistics processComputedTableStatistics(Table table, Collection<ComputedStatistics> computedStatistics)

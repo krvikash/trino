@@ -579,7 +579,7 @@ public class TrinoRestCatalog
         return properties;
     }
 
-    private boolean isUnityCatalog()
+    public boolean isUnityCatalog()
     {
         String uri = restSessionCatalog.properties().get(CatalogProperties.URI);
         if (uri == null) {

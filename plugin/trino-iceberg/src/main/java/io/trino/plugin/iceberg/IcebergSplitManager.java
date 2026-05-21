@@ -42,6 +42,7 @@ import org.apache.iceberg.Scan;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableScan;
 import org.apache.iceberg.metrics.InMemoryMetricsReporter;
 import org.apache.iceberg.metrics.MetricsReporter;
 import org.apache.iceberg.types.TypeUtil;
@@ -117,6 +118,7 @@ public class IcebergSplitManager
         IcebergSplitSource splitSource = new IcebergSplitSource(
                 fileSystemFactory,
                 session,
+                icebergMetadata,
                 table,
                 icebergTable,
                 scan,
@@ -165,7 +167,10 @@ public class IcebergSplitManager
                 .filter(id -> schema.findField(id) != null) // Newly added column may not be found in current snapshot schema until new files are added
                 .collect(toImmutableSet());
 
-        return icebergTable.newScan()
+        TableScan scan = icebergMetadata.isUnityCatalog()
+                ? icebergTable.newScan().caseSensitive(false)
+                : icebergTable.newScan();
+        return scan
                 .useSnapshot(table.getSnapshotId().getAsLong())
                 .project(TypeUtil.select(schema, projectedIds)) // Using Scan.project method because Scan.select throws an exception for nested variant
                 .planWith(executor)

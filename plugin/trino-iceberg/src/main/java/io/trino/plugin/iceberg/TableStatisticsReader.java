@@ -70,6 +70,7 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -215,6 +216,13 @@ public final class TableStatisticsReader
             // Fallback to file-level statistics if no partition statistics file is available
         }
 
+        Snapshot icebergSnapshot = icebergTable.snapshot(snapshotId);
+        if (isNullOrEmpty(icebergSnapshot.manifestListLocation())) {
+            // Snapshot does not expose a client-accessible manifest list (e.g. for server-side scan planning).
+            // Manifest-based statistics cannot be computed without it.
+            return TableStatistics.empty();
+        }
+
         Set<Integer> columnIds = projectedColumns.stream()
                 .map(IcebergColumnHandle::getId)
                 .collect(toImmutableSet());
@@ -229,7 +237,7 @@ public final class TableStatisticsReader
                     PartitionSpec partitionSpec = icebergTable.specs().get(specId);
                     return ManifestEvaluator.forRowFilter(filter, partitionSpec, true);
                 }));
-        List<ManifestFile> filteredManifests = icebergTable.snapshot(snapshotId)
+        List<ManifestFile> filteredManifests = icebergSnapshot
                 // We only need to look at data files to estimate statistics
                 .dataManifests(icebergTable.io())
                 .stream()

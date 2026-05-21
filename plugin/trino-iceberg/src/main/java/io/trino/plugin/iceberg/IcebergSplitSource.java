@@ -36,6 +36,7 @@ import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.plugin.iceberg.util.DataFileWithDeleteFiles;
 import io.trino.spi.SplitWeight;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -67,6 +68,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
+import org.apache.iceberg.io.SupportsStorageCredentials;
 import org.apache.iceberg.metrics.InMemoryMetricsReporter;
 import org.apache.iceberg.metrics.ScanMetricsResult;
 import org.apache.iceberg.metrics.ScanReport;
@@ -114,10 +116,12 @@ import static io.trino.plugin.iceberg.IcebergUtil.getPartitionDomain;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionKeys;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.getPathDomain;
+import static io.trino.plugin.iceberg.IcebergUtil.isServerSideScanPlanning;
 import static io.trino.plugin.iceberg.IcebergUtil.primitiveFieldTypes;
 import static io.trino.plugin.iceberg.StructLikeWrapperWithFieldIdToIndex.createStructLikeWrapper;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergType;
 import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
@@ -164,6 +168,7 @@ public class IcebergSplitSource
     private final OptionalLong limit;
     private final Set<Integer> predicatedColumnIds;
     private final ListeningExecutorService executor;
+    private final IcebergMetadata icebergMetadata;
 
     @GuardedBy("this")
     private TupleDomain<IcebergColumnHandle> pushedDownDynamicFilterPredicate;
@@ -189,10 +194,13 @@ public class IcebergSplitSource
     private final SplitAffinityProvider splitAffinityProvider;
     private final InMemoryMetricsReporter metricsReporter;
     private volatile boolean finished;
+    private volatile long serverSideScanCount;
+    private volatile long clientSideScanCount;
 
     public IcebergSplitSource(
             IcebergFileSystemFactory fileSystemFactory,
             ConnectorSession session,
+            IcebergMetadata icebergMetadata,
             IcebergTableHandle tableHandle,
             Table icebergTable,
             Scan<?, FileScanTask, CombinedScanTask> tableScan,
@@ -209,6 +217,7 @@ public class IcebergSplitSource
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.session = requireNonNull(session, "session is null");
+        this.icebergMetadata = requireNonNull(icebergMetadata, "icebergMetadata is null");
         this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
         this.tableCredentials = IcebergTableCredentials.forFileIO(icebergTable.io());
         this.tableScan = requireNonNull(tableScan, "tableScan is null");
@@ -290,21 +299,19 @@ public class IcebergSplitSource
             }
 
             Expression filterExpression = toIcebergExpression(effectivePredicate);
-            Scan scan = (Scan) tableScan.filter(filterExpression);
-            // Use stats to populate fileStatisticsDomain if there are predicated columns. Otherwise, skip them.
-            if (!predicatedColumnIds.isEmpty()) {
-                Schema schema = tableScan.schema();
-                scan = (Scan) scan.includeColumnStats(
-                        predicatedColumnIds.stream()
-                                .map(schema::findColumnName)
-                                // Newly added column may not be found in current snapshot schema until new files are added
-                                .filter(Objects::nonNull)
-                                .collect(toImmutableList()));
-            }
-
             synchronized (closer) {
                 checkState(!closed, "split source is closed");
-                this.fileScanIterable = closer.register(scan.planFiles());
+
+                PlanResult planResult = planFiles(tableScan, filterExpression);
+                if (isServerSideScanPlanning(tableCredentials.fileIoProperties())) {
+                    serverSideScanCount++;
+                }
+                else {
+                    clientSideScanCount++;
+                }
+
+                updateScanCredentials(planResult.scan());
+                this.fileScanIterable = closer.register(planResult.iterable());
                 this.targetSplitSize = getSplitSize(session)
                         .map(DataSize::toBytes)
                         .orElseGet(tableScan::targetSplitSize);
@@ -343,6 +350,48 @@ public class IcebergSplitSource
             finish();
         }
         return new ConnectorSplitBatch(splits, isFinished());
+    }
+
+    @SuppressWarnings("unchecked")
+    private PlanResult planFiles(Scan<?, FileScanTask, CombinedScanTask> scan, Expression filterExpression)
+    {
+        Scan<?, FileScanTask, CombinedScanTask> filtered = (Scan<?, FileScanTask, CombinedScanTask>) scan.filter(filterExpression);
+        // Use stats to populate fileStatisticsDomain if there are predicated columns. Otherwise, skip them.
+        // Skip for server-side scans, as the server pre-computes file pruning, and some REST servers reject stats-fields.
+        if (!predicatedColumnIds.isEmpty() && !isServerSideScanPlanning(tableCredentials.fileIoProperties())) {
+            Schema schema = tableScan.schema();
+            filtered = (Scan<?, FileScanTask, CombinedScanTask>) filtered.includeColumnStats(
+                    predicatedColumnIds.stream()
+                            .map(schema::findColumnName)
+                            // Newly added column may not be found in current snapshot schema until new files are added
+                            .filter(Objects::nonNull)
+                            .collect(toImmutableList()));
+        }
+
+        return new PlanResult(filtered.planFiles(), filtered);
+    }
+
+    private record PlanResult(CloseableIterable<FileScanTask> iterable, Scan<?, FileScanTask, CombinedScanTask> scan) {}
+
+    private void updateScanCredentials(Scan<?, FileScanTask, CombinedScanTask> scan)
+    {
+        if (!isServerSideScanPlanning(tableCredentials.fileIoProperties())) {
+            return;
+        }
+
+        if (!(scan.fileIO().get() instanceof SupportsStorageCredentials supportsCredentials)) {
+            return;
+        }
+
+        if (supportsCredentials.credentials().size() > 1) {
+            throw new TrinoException(NOT_SUPPORTED, "Credential sets with multiple prefixes not supported by server-side planning");
+        }
+
+        icebergMetadata.updateScanCredentials(tableHandle, new IcebergTableCredentials(
+                tableCredentials.fileIoProperties(),
+                supportsCredentials.credentials().stream()
+                        .map(credential -> new IcebergStorageCredentials(credential.prefix(), credential.config()))
+                        .collect(toImmutableList())));
     }
 
     private synchronized Iterator<FileScanTaskWithDomain> prepareFileTasksIterator(List<FileScanTaskWithDomain> fileScanTasks)
@@ -536,25 +585,26 @@ public class IcebergSplitSource
     @Override
     public Metrics getMetrics()
     {
+        ImmutableMap.Builder<String, Metric<?>> metrics = ImmutableMap.<String, Metric<?>>builder()
+                .put("serverSideScanCount", new LongCount(serverSideScanCount))
+                .put("clientSideScanCount", new LongCount(clientSideScanCount));
         ScanReport scanReport = metricsReporter.scanReport();
-        if (scanReport == null) {
-            return Metrics.EMPTY;
+        if (scanReport != null) {
+            ScanMetricsResult scanMetrics = scanReport.scanMetrics();
+            metrics.put("scanPlanningDuration", new DurationTiming(Duration.succinctDuration(scanMetrics.totalPlanningDuration().totalDuration().toMillis(), MILLISECONDS)))
+                    .put("projectedFieldIds", new IntList(scanReport.projectedFieldIds()))
+                    .put("dataFiles", new LongCount(scanMetrics.resultDataFiles().value()))
+                    .put("dataFileSizeBytes", new LongCount(scanMetrics.totalFileSizeInBytes().value()))
+                    .put("deleteFileSizeBytes", new LongCount(scanMetrics.totalDeleteFileSizeInBytes().value()))
+                    .put("dataManifests", new LongCount(scanMetrics.scannedDataManifests().value()))
+                    .put("skippedDataManifests", new LongCount(scanMetrics.skippedDataManifests().value()))
+                    .put("deleteManifests", new LongCount(scanMetrics.scannedDeleteManifests().value()))
+                    .put("skippedDeleteManifests", new LongCount(scanMetrics.skippedDeleteManifests().value()))
+                    .put("equalityDeleteFiles", new LongCount(scanMetrics.equalityDeleteFiles().value()))
+                    .put("positionalDeleteFiles", new LongCount(scanMetrics.positionalDeleteFiles().value()))
+                    .put("deletionVectorFiles", new LongCount(scanMetrics.dvs().value()));
         }
-        ScanMetricsResult scanMetrics = scanReport.scanMetrics();
-        return new Metrics(ImmutableMap.<String, Metric<?>>builder()
-                .put("scanPlanningDuration", new DurationTiming(Duration.succinctDuration(scanMetrics.totalPlanningDuration().totalDuration().toMillis(), MILLISECONDS)))
-                .put("projectedFieldIds", new IntList(scanReport.projectedFieldIds()))
-                .put("dataFiles", new LongCount(scanMetrics.resultDataFiles().value()))
-                .put("dataFileSizeBytes", new LongCount(scanMetrics.totalFileSizeInBytes().value()))
-                .put("deleteFileSizeBytes", new LongCount(scanMetrics.totalDeleteFileSizeInBytes().value()))
-                .put("dataManifests", new LongCount(scanMetrics.scannedDataManifests().value()))
-                .put("skippedDataManifests", new LongCount(scanMetrics.skippedDataManifests().value()))
-                .put("deleteManifests", new LongCount(scanMetrics.scannedDeleteManifests().value()))
-                .put("skippedDeleteManifests", new LongCount(scanMetrics.skippedDeleteManifests().value()))
-                .put("equalityDeleteFiles", new LongCount(scanMetrics.equalityDeleteFiles().value()))
-                .put("positionalDeleteFiles", new LongCount(scanMetrics.positionalDeleteFiles().value()))
-                .put("deletionVectorFiles", new LongCount(scanMetrics.dvs().value()))
-                .buildOrThrow());
+        return new Metrics(metrics.buildOrThrow());
     }
 
     @Override

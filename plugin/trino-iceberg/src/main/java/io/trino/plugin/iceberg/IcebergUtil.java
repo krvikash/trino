@@ -226,6 +226,8 @@ import static org.apache.iceberg.TableProperties.WRITE_DATA_LOCATION;
 import static org.apache.iceberg.TableProperties.WRITE_LOCATION_PROVIDER_IMPL;
 import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.apache.iceberg.expressions.Expressions.lit;
+import static org.apache.iceberg.rest.RESTCatalogProperties.SCAN_PLANNING_MODE;
+import static org.apache.iceberg.rest.RESTCatalogProperties.ScanPlanningMode.SERVER;
 import static org.apache.iceberg.types.Type.TypeID.BINARY;
 import static org.apache.iceberg.types.Type.TypeID.FIXED;
 import static org.apache.iceberg.util.LocationUtil.stripTrailingSlash;
@@ -1431,5 +1433,11 @@ public final class IcebergUtil
         catch (NotFoundException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, "Error accessing manifest file for table %s".formatted(icebergTable.name()), e);
         }
+    }
+
+    public static boolean isServerSideScanPlanning(Map<String, String> fileIoProperties)
+    {
+        String scanPlanningMode = fileIoProperties.get(SCAN_PLANNING_MODE);
+        return scanPlanningMode != null && scanPlanningMode.equalsIgnoreCase(SERVER.name());
     }
 }
