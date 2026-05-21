@@ -188,7 +188,7 @@ public final class GpuRegexTranspiler
         {
             // cuDF regex matching is limited to BMP (U+0000 to U+FFFF)
             // https://docs.rapids.ai/api/cudf/stable/libcudf_docs/unicode_limitations/
-            return codePoint > 0xFFFF;
+            return codePoint == 0 || codePoint > 0xFFFF;
         }
     }
 

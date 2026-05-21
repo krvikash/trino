@@ -59,6 +59,11 @@ import static io.trino.operator.scalar.JoniRegexpCasts.joniRegexp;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
+import static java.lang.Character.MAX_CODE_POINT;
+import static java.lang.Character.MAX_SURROGATE;
+import static java.lang.Character.MIN_CODE_POINT;
+import static java.lang.Character.MIN_SURROGATE;
+import static java.lang.Character.isBmpCodePoint;
 import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,6 +106,7 @@ final class TestGpuRegexpReplace
     void testDoesNotCompileAlternation()
     {
         assertThat(regexpReplace("foo|bar", "X")).doesNotCompile();
+        assertThat(regexpReplace("|", "X")).doesNotCompile();
         assertThat(regexpReplace("a|", "X")).doesNotCompile();
         assertThat(regexpReplace("|a", "X")).doesNotCompile();
     }
@@ -152,6 +158,40 @@ final class TestGpuRegexpReplace
     {
         assertThat(regexpReplace(".", "X"))
                 .executesCorrectly("abc", "", "a");
+
+        // non-BMP
+        String nonBmp = "𝄞";
+        assertThat(nonBmp.codePoints().count()).isEqualTo(1);
+        assertThat(nonBmp.length()).isEqualTo(2);
+        assertThat(regexpReplace("a.a", "X"))
+                .executesCorrectly(nonBmp, "a" + nonBmp + "b", nonBmp + nonBmp);
+
+        List<String> inputs = new ArrayList<>();
+
+        inputs.add("");
+        inputs.add("abc");
+        inputs.add("\r\n");
+
+        // Every possible character
+        for (int codePoint = MIN_CODE_POINT; codePoint <= MAX_CODE_POINT; codePoint++) {
+            if (isSurrogate(codePoint)) {
+                // Unmatched surrogate character is not valid
+                continue;
+            }
+            inputs.add(Character.toString(codePoint));
+        }
+
+        assertThat(regexpReplace(".", "X"))
+                .executesCorrectly(inputs.toArray(new String[0]));
+        assertThat(regexpReplace("a.b", "X"))
+                .executesCorrectly(
+                        inputs.stream()
+                                .map(input -> "a" + input + "b")
+                                .toArray(String[]::new));
+
+        // dotall
+        assertThat(regexpReplace("(?s).", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?s)a.b", "X")).doesNotCompile();
     }
 
     @Test
@@ -170,19 +210,44 @@ final class TestGpuRegexpReplace
     }
 
     @Test
-    void testNonCapturingGroup()
-    {
-        assertThat(regexpReplace("(?:abc)+", "X"))
-                .executesCorrectly("abcabc", "abc", "xabcx");
-    }
-
-    @Test
     void testAnchors()
     {
         assertThat(regexpReplace("^a", "X"))
                 .executesCorrectly("abc", "bac", "aaa");
         assertThat(regexpReplace("z$", "X"))
                 .executesCorrectly("xyz", "zyx", "zzz");
+
+        String[] lineTerminators = {
+                "\n", "\r", "\r\n",
+                "\u0085", // <Next Line> (NEL)
+                "\u2028", // Line Separator
+                "\u2029", // Paragraph Separator
+        };
+
+        List<String> inputs = new ArrayList<>();
+        inputs.add("abc");
+        inputs.add("");
+        for (String terminator : lineTerminators) {
+            inputs.add(terminator);
+            inputs.add(terminator + terminator);
+            inputs.add("abc" + terminator);
+            inputs.add("abc" + terminator + terminator);
+            inputs.add(terminator + "abc");
+            inputs.add(terminator + terminator + "abc");
+            inputs.add("abc" + terminator + "abc" + terminator + "abc");
+        }
+        String[] inputArray = inputs.toArray(String[]::new);
+
+        assertThat(regexpReplace("^a", "X")).executesCorrectly(inputArray);
+        assertThat(regexpReplace("^abc", "X")).executesCorrectly(inputArray);
+        assertThat(regexpReplace("c$", "X")).executesCorrectly(inputArray);
+        assertThat(regexpReplace("abc$", "X")).executesCorrectly(inputArray);
+
+        // multiline
+        assertThat(regexpReplace("(?m)^a", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?m)^abc", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?m)c$", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?m)abc$", "X")).doesNotCompile();
     }
 
     @Test
@@ -301,9 +366,7 @@ final class TestGpuRegexpReplace
         assertInvalidPattern("abc)");
         assertInvalidPattern("[abc");
 
-        assertThat(regexpReplace("()", "x")).doesNotCompile();
         assertInvalidPattern("[]");
-        assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
 
         assertInvalidPattern("*a");
         assertInvalidPattern("+a");
@@ -332,7 +395,30 @@ final class TestGpuRegexpReplace
     }
 
     @Test
-    void testSingleGroupBackreference()
+    void testNonCapturingGroup()
+    {
+        assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
+
+        assertThat(regexpReplace("(?:abc)", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+        assertThat(regexpReplace("(?:abc)+", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+    }
+
+    @Test
+    void testCapturingGroup()
+    {
+        assertThat(regexpReplace("()", "x")).doesNotCompile();
+
+        assertThat(regexpReplace("(abc)", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+
+        assertThat(regexpReplace("(abc)+", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+    }
+
+    @Test
+    void testGroupReplaceBackreference()
     {
         assertThat(regexpReplace("(a)", "[$1]"))
                 .executesCorrectly("abc", "aaa", "xyz");
@@ -453,13 +539,6 @@ final class TestGpuRegexpReplace
         assertThat(regexpReplace("[𝄞]", "X")).doesNotCompile();
         assertThat(regexpReplace("[𝄞-𝄢]", "X")).doesNotCompile();
         assertThat(regexpReplace("[a-𝄞]", "X")).doesNotCompile();
-    }
-
-    @Test
-    void testDotMatchesSupplementaryUnicode()
-    {
-        assertThat(regexpReplace("a.a", "X"))
-                .executesCorrectly("a𝄞a", "a𝄞b", "𝄞𝄞");
     }
 
     @Test
@@ -632,6 +711,41 @@ final class TestGpuRegexpReplace
         assertThat(gpuCompiler.compileExpression(expression, layout)).isEmpty();
     }
 
+    @Test
+    void testAllCodePoints()
+    {
+        for (int codePoint = MIN_CODE_POINT; codePoint <= MAX_CODE_POINT; codePoint++) {
+            String pattern = Character.toString(codePoint);
+            try {
+                switch (codePoint) {
+                    case '[', '\\', '?', '*', '+', '(', ')' -> assertInvalidPattern(pattern);
+                    // currently not supported
+                    case '|', ']', '{', '}' -> assertThat(regexpReplace(pattern, "x")).doesNotCompile();
+                    // U+0000 not supported correctly in cudf patterns
+                    case 0 -> assertThat(regexpReplace(pattern, "x")).doesNotCompile();
+                    default -> {
+                        if (isSurrogate(codePoint)) {
+                            // Unmatched surrogate character is not supported (and not expected)
+                            assertInvalidPattern(pattern);
+                        }
+                        else if (!isBmpCodePoint(codePoint)) {
+                            // cuDF regex matching is limited to BMP https://docs.rapids.ai/api/cudf/stable/libcudf_docs/unicode_limitations/
+                            assertThat(regexpReplace(pattern, "x")).doesNotCompile();
+                        }
+                        else {
+                            assertThat(regexpReplace(pattern, "x"))
+                                    .executesCorrectly(pattern, "", "a", "x", "abc");
+                        }
+                    }
+                }
+            }
+            catch (Throwable e) {
+                e.addSuppressed(new Exception("codePoint: %s (0x%s), pattern '%s'".formatted(codePoint, Integer.toHexString(codePoint), pattern)));
+                throw e;
+            }
+        }
+    }
+
     private void assertInvalidPattern(String pattern)
     {
         assertThatThrownBy(() -> regexpReplaceExpression(pattern))
@@ -772,5 +886,10 @@ final class TestGpuRegexpReplace
             }
         }
         return new Page(values.size(), builder.build());
+    }
+
+    private static boolean isSurrogate(int codePoint)
+    {
+        return MIN_SURROGATE <= codePoint && codePoint <= MAX_SURROGATE;
     }
 }
