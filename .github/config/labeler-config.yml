@@ -149,6 +149,10 @@ sqlserver:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-sqlserver/**'
 
+synapse-smoke:
+  - changed-files:
+    - any-glob-to-any-file: ['plugin/trino-sqlserver/**', 'plugin/starburst-synapse/**']
+
 vertica:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-vertica/**'
