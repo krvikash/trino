@@ -54,6 +54,12 @@ public final class ClosingRef<T extends AutoCloseable>
         this.value = value;
     }
 
+    public boolean isEmpty()
+    {
+        checkState(!closed, "Already closed");
+        return value == null;
+    }
+
     public @Borrow T borrow()
     {
         checkState(!closed, "Already closed");

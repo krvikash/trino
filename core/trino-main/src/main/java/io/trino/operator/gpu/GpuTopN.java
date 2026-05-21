@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.OrderByArg;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -26,16 +27,18 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import jakarta.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.GpuUtils.closeColumns;
-import static io.trino.operator.gpu.GpuUtils.concatenateAndClose;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Accumulates input pages into a single cuDF Table, sorting and truncating to {@code limit}
+ * rows after each page so the buffered state never exceeds the final result size. Once the
+ * source is finished the truncated table is emitted as a single GpuPage.
+ */
 public final class GpuTopN
         implements GpuOperation
 {
@@ -75,8 +78,7 @@ public final class GpuTopN
     private final int[] sortChannels;
     private final List<SortOrder> sortOrders;
 
-    private final List<@Own Table> inputTables = new ArrayList<>();
-    private long totalBufferedRowCount;
+    private final ClosingRef<Table> accumulatedTable = ClosingRef.empty();
     private @Nullable @Own GpuPage result;
     private boolean finished;
 
@@ -91,9 +93,6 @@ public final class GpuTopN
     @Override
     public @Move Result execute()
     {
-        // TODO: Currently, we buffer input GpuPages until source is finished, then sort and return the top N rows.
-        //  This approach is suboptimal and should be improved: https://starburstdata.atlassian.net/browse/ENG-10569
-
         if (finished) {
             return new Finished();
         }
@@ -116,12 +115,13 @@ public final class GpuTopN
                 yield new Yielded();
             }
             case Finished() -> {
-                Optional<GpuPage> topNResult = computeTopN();
-                if (topNResult.isEmpty()) {
+                if (accumulatedTable.isEmpty()) {
                     finished = true;
                     yield new Finished();
                 }
-                result = topNResult.get();
+                try (Table table = accumulatedTable.take()) {
+                    result = toGpuPage(table);
+                }
                 yield new Yielded();
             }
         };
@@ -129,25 +129,32 @@ public final class GpuTopN
 
     private void bufferPage(GpuPage page)
     {
-        totalBufferedRowCount += page.positionCount();
-
         @Borrow ColumnVector[] columns = new ColumnVector[page.columnCount()];
         for (int i = 0; i < page.columnCount(); i++) {
             columns[i] = ((DeviceMemory) page.column(i)).columnVector();
         }
-        inputTables.add(new Table(columns));
+
+        try (Table concatenated = accumulate(columns)) {
+            accumulatedTable.set(sortAndTruncate(concatenated));
+        }
     }
 
-    private @Move Optional<GpuPage> computeTopN()
+    private @Move Table accumulate(@Borrow ColumnVector[] columns)
     {
-        if (totalBufferedRowCount == 0) {
-            return Optional.empty();
+        if (accumulatedTable.isEmpty()) {
+            return new Table(columns);
         }
 
-        try (Table concatenated = concatenateAndClose(inputTables)) {
-            try (Table sorted = concatenated.orderBy(toOrderByArgs())) {
-                return Optional.of(applyLimit(sorted, limit));
-            }
+        try (Table accumulated = accumulatedTable.take();
+                Table newTable = new Table(columns)) {
+            return Table.concatenate(accumulated, newTable);
+        }
+    }
+
+    private @Move Table sortAndTruncate(@Borrow Table table)
+    {
+        try (Table sorted = table.orderBy(toOrderByArgs())) {
+            return applyLimit(sorted, limit);
         }
     }
 
@@ -163,14 +170,33 @@ public final class GpuTopN
         return args;
     }
 
-    private static @Move GpuPage applyLimit(@Borrow Table sorted, int limit)
+    private static @Move Table applyLimit(@Borrow Table sorted, int limit)
     {
         int rowCount = Math.min(toIntExact(sorted.getRowCount()), limit);
-
-        @Own Column[] columns = new Column[sorted.getNumberOfColumns()];
+        @Own ColumnVector[] columns = new ColumnVector[sorted.getNumberOfColumns()];
         try {
             for (int i = 0; i < columns.length; i++) {
-                columns[i] = new DeviceMemory(sorted.getColumn(i).subVector(0, rowCount));
+                columns[i] = sorted.getColumn(i).subVector(0, rowCount);
+            }
+            return new Table(columns);
+        }
+        finally {
+            for (ColumnVector column : columns) {
+                if (column != null) {
+                    column.close();
+                }
+            }
+        }
+    }
+
+    private static @Move GpuPage toGpuPage(@Borrow Table table)
+    {
+        int rowCount = toIntExact(table.getRowCount());
+
+        @Own Column[] columns = new Column[table.getNumberOfColumns()];
+        try {
+            for (int i = 0; i < columns.length; i++) {
+                columns[i] = new DeviceMemory(table.getColumn(i).incRefCount());
             }
             return new GpuPage(rowCount, columns);
         }
@@ -183,8 +209,7 @@ public final class GpuTopN
     public void close()
     {
         source.close();
-        inputTables.forEach(Table::close);
-        inputTables.clear();
+        accumulatedTable.close();
         if (result != null) {
             result.close();
             result = null;

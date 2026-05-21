@@ -36,6 +36,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
@@ -102,6 +103,37 @@ final class TestGpuTopNOperator
                 List.of(firstSortOrder, secondSortOrder));
     }
 
+    @ParameterizedTest
+    @MethodSource("nullsAndSortOrders")
+    void testMultipleBatches(NullsProvider nullsProvider, SortOrder sortOrder)
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, nullsProvider)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, nullsProvider)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, nullsProvider)));
+        assertGpuTopNMatchesCpu(
+                inputPages,
+                List.of(BIGINT),
+                10,
+                new int[] {0},
+                List.of(sortOrder));
+    }
+
+    @Test
+    void testMultipleBatchesWithLimitGreaterThanBatchSize()
+    {
+        List<Page> inputPages = List.of(
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, NO_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, NO_NULLS)),
+                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, NO_NULLS)));
+        assertGpuTopNMatchesCpu(
+                inputPages,
+                List.of(BIGINT),
+                200,
+                new int[] {0},
+                List.of(ASC_NULLS_LAST));
+    }
+
     @Test
     void testSortBySecondColumn()
     {
@@ -144,8 +176,13 @@ final class TestGpuTopNOperator
 
     private static void assertGpuTopNMatchesCpu(Page inputPage, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
-        List<Page> gpuResults = executeGpuTopN(inputPage, types, limit, sortChannels, sortOrders);
-        List<Page> cpuResults = executeCpuTopN(inputPage, types, limit, sortChannels, sortOrders);
+        assertGpuTopNMatchesCpu(List.of(inputPage), types, limit, sortChannels, sortOrders);
+    }
+
+    private static void assertGpuTopNMatchesCpu(List<Page> inputPages, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
+    {
+        List<Page> gpuResults = executeGpuTopN(inputPages, types, limit, sortChannels, sortOrders);
+        List<Page> cpuResults = executeCpuTopN(inputPages, types, limit, sortChannels, sortOrders);
         assertSameDataInOrder(gpuResults, cpuResults, types);
     }
 
@@ -157,7 +194,7 @@ final class TestGpuTopNOperator
         return new Page(0, blocks);
     }
 
-    private static List<Page> executeCpuTopN(Page inputPage, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
+    private static List<Page> executeCpuTopN(List<Page> inputPages, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
         List<Type> sortTypes = IntStream.of(sortChannels)
                 .mapToObj(types::get)
@@ -175,7 +212,7 @@ final class TestGpuTopNOperator
                 limit,
                 comparator);
 
-        processor.addInput(inputPage);
+        inputPages.forEach(processor::addInput);
 
         ImmutableList.Builder<Page> results = ImmutableList.builder();
         while (!processor.noMoreOutput()) {
@@ -187,10 +224,10 @@ final class TestGpuTopNOperator
         return results.build();
     }
 
-    private static List<Page> executeGpuTopN(Page inputPage, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
+    private static List<Page> executeGpuTopN(List<Page> inputPages, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
         return executeGpuOperation(
-                List.of(inputPage),
+                inputPages,
                 types,
                 types,
                 copyToDevice -> {

@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.trino.metadata.Split;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.Column;
@@ -30,7 +31,8 @@ import static java.lang.Math.addExact;
 public class BufferPages
         implements GpuSourceOperation
 {
-    private static final int TARGET_ROW_COUNT = 100_000;
+    @VisibleForTesting
+    static final int TARGET_ROW_COUNT = 100_000;
 
     private final List<Page> bufferedPages = new ArrayList<>();
     private int bufferedPagesPositions;
