@@ -67,6 +67,7 @@ public final class TestGroups
     public static final String CASSANDRA = "cassandra";
     public static final String KDB = "kdb";
     public static final String POSTGRESQL = "postgresql";
+    public static final String POSTGRESQL_POSTGIS = "postgresql_postgis";
     public static final String SQLSERVER = "sqlserver";
     public static final String STARBURST_SNOWFLAKE = "starburst_snowflake";
     public static final String SYNAPSE = "synapse";
