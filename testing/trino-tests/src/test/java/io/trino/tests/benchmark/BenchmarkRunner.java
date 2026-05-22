@@ -15,6 +15,7 @@ package io.trino.tests.benchmark;
 
 import ai.rapids.cudf.Rmm;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
@@ -67,6 +68,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.units.DataSize.succinctBytes;
 import static java.lang.String.format;
@@ -323,9 +325,8 @@ public final class BenchmarkRunner
         @Option(names = "--gpu-sanitizer",
                 arity = "0..1",
                 fallbackValue = "--tool memcheck",
-                split = " ",
                 description = "Run the benchmark JVM under NVIDIA compute-sanitizer with the given arguments (e.g. \"--tool memcheck --leak-check full\"). Defaults to \"--tool memcheck\" when passed with no value. Requires --mode=gpu.")
-        List<String> gpuSanitizer;
+        Optional<String> gpuSanitizer;
 
         RunCommand(Launcher launcher, Workload workload)
         {
@@ -337,11 +338,7 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            Optional<List<String>> launchWrapperCommand;
-            if (gpuSanitizer.isEmpty()) {
-                launchWrapperCommand = Optional.empty();
-            }
-            else {
+            Optional<List<String>> launchWrapperCommand = gpuSanitizer.map(gpuSanitizer -> {
                 if (Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
                     throw new IllegalArgumentException("--gpu-sanitizer cannot be used with -D%s=true: there is no child process to wrap with compute-sanitizer".formatted(
                             NO_FORK_SYSTEM_PROPERTY));
@@ -349,11 +346,12 @@ public final class BenchmarkRunner
                 if (mode != ExecutionMode.GPU) {
                     throw new IllegalArgumentException("--gpu-sanitizer is not useful without --mode=GPU");
                 }
-                launchWrapperCommand = Optional.of(Stream.concat(
+                checkArgument(!gpuSanitizer.contains("\"") && !gpuSanitizer.contains("'"), "Quotes are not supported in --gpu-sanitizer: %s", gpuSanitizer);
+                return Stream.concat(
                                 Stream.of("compute-sanitizer"),
-                                gpuSanitizer.stream())
-                        .toList());
-            }
+                                Splitter.on(" ").omitEmptyStrings().splitToStream(gpuSanitizer))
+                        .toList();
+            });
             if (launcher.relaunchIfNeeded(launchWrapperCommand)) {
                 return 0;
             }
