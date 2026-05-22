@@ -17,9 +17,12 @@ package io.trino.filesystem;
 import io.trino.memory.context.AggregatedMemoryContext;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
+import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 
 public interface TrinoOutputFile
@@ -42,6 +45,30 @@ public interface TrinoOutputFile
      */
     void createOrOverwrite(byte[] data)
             throws IOException;
+
+    /**
+     * Create file from the bytes produced by {@code data}, atomically if possible. Each call to
+     * {@code data.get()} must return a fresh stream positioned at the start of the same
+     * {@code contentLength} bytes; implementations may invoke the supplier more than once to
+     * retry the transport on transient failures.
+     * <p>
+     * Note: The default implementation materializes data as byte[] array and should not be used in
+     * case memory efficiency/performace are important.
+     * <p>
+     * Streams obtained from the supplier are closed by this method.
+     */
+    default void createOrOverwrite(Supplier<InputStream> data, long contentLength)
+            throws IOException
+    {
+        checkArgument(contentLength < Integer.MAX_VALUE, "Files larger than %s bytes are not supported", Integer.MAX_VALUE);
+        try (InputStream stream = data.get()) {
+            byte[] buf = new byte[(int) contentLength];
+            int count = stream.readNBytes(buf, 0, (int) contentLength);
+            checkArgument(count == contentLength, "Expected to read %s bytes but got %s", contentLength, count);
+            checkArgument(stream.read() == -1, "Expected no more than %s bytes", contentLength);
+            createOrOverwrite(buf);
+        }
+    }
 
     /**
      * Create file exclusively and atomically with the specified content.

@@ -20,7 +20,9 @@ import io.trino.filesystem.TrinoOutputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.function.Supplier;
 
 import static io.trino.filesystem.tracing.Tracing.withTracing;
 import static java.util.Objects.requireNonNull;
@@ -55,6 +57,16 @@ final class TracingOutputFile
                 .setAttribute(FileSystemAttributes.FILE_LOCATION, location().toString())
                 .startSpan();
         withTracing(span, () -> delegate.createOrOverwrite(data));
+    }
+
+    @Override
+    public void createOrOverwrite(Supplier<InputStream> data, long contentLength)
+            throws IOException
+    {
+        Span span = tracer.spanBuilder("OutputFile.createOrOverwrite")
+                .setAttribute(FileSystemAttributes.FILE_LOCATION, location().toString())
+                .startSpan();
+        withTracing(span, () -> delegate.createOrOverwrite(data, contentLength));
     }
 
     @Override
