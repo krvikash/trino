@@ -228,9 +228,10 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Test
-    public void testPartitionsMetadataTableRejected()
+    public void testPartitionsMetadataTable()
     {
-        assertMetadataTableRejected("region$partitions");
+        assertThat((Long) computeScalar("SELECT count(*) FROM \"region$partitions\""))
+                .isGreaterThanOrEqualTo(1L);
     }
 
     @Test

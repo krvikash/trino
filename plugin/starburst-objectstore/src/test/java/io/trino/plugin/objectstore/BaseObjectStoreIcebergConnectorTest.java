@@ -599,7 +599,7 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     {
         // TODO https://github.com/trinodb/trino/issues/12920
         assertQueryFails("SELECT * FROM \"test_iceberg_read_versioned_table$partitions\" FOR VERSION AS OF " + v1SnapshotId,
-                "This connector does not support versioned tables");
+                ".*Views do not support versioning");
     }
 
     @Test

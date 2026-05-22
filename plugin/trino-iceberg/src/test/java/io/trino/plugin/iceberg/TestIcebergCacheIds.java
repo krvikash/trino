@@ -119,6 +119,7 @@ public class TestIcebergCacheIds
         IcebergMetadataFactory icebergMetadataFactory = new IcebergMetadataFactory(
                 LocationAccessControl.ALLOW_ALL,
                 AiModelAccessControl.ALLOW_ALL,
+                new CatalogName("iceberg"),
                 TESTING_TYPE_MANAGER,
                 createJsonCodec(CommitTaskData.class),
                 new TrinoHiveCatalogFactory(

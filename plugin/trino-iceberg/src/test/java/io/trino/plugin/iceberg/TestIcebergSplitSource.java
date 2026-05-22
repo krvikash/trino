@@ -150,6 +150,7 @@ public class TestIcebergSplitSource
         this.icebergMetadata = new IcebergMetadata(
                 LocationAccessControl.ALLOW_ALL,
                 AiModelAccessControl.ALLOW_ALL,
+                new CatalogName("iceberg"),
                 PLANNER_CONTEXT.getTypeManager(),
                 jsonCodec(CommitTaskData.class),
                 catalog,

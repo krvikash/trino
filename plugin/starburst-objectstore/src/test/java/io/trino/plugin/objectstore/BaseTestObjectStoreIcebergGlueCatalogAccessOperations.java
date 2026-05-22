@@ -411,8 +411,8 @@ public abstract class BaseTestObjectStoreIcebergGlueCatalogAccessOperations
                     // select from $partitions
                     assertGlueMetastoreApiInvocations("SELECT * FROM \"test_select_snapshots$partitions\"",
                             ImmutableMultiset.builder()
-                                    // TODO In pure Iceberg connector this is 1x GET_TABLE
-                                    .addCopies(GET_TABLE, 2)
+                                    // TODO In pure Iceberg connector this is 2x GET_TABLE
+                                    .addCopies(GET_TABLE, 4)
                                     .build());
 
                     // select from $files

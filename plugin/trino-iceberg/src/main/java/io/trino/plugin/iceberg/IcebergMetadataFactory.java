@@ -26,6 +26,7 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
 import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
@@ -45,6 +46,7 @@ public class IcebergMetadataFactory
 {
     private final LocationAccessControl locationAccessControl;
     private final AiModelAccessControl aiModelAccessControl;
+    private final CatalogName catalogName;
     private final TypeManager typeManager;
     private final JsonCodec<CommitTaskData> commitTaskCodec;
     private final TrinoCatalogFactory catalogFactory;
@@ -73,6 +75,7 @@ public class IcebergMetadataFactory
     public IcebergMetadataFactory(
             LocationAccessControl locationAccessControl,
             AiModelAccessControl aiModelAccessControl,
+            CatalogName catalogName,
             TypeManager typeManager,
             JsonCodec<CommitTaskData> commitTaskCodec,
             TrinoCatalogFactory catalogFactory,
@@ -94,6 +97,7 @@ public class IcebergMetadataFactory
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
+        this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.commitTaskCodec = requireNonNull(commitTaskCodec, "commitTaskCodec is null");
         this.catalogFactory = requireNonNull(catalogFactory, "catalogFactory is null");
@@ -135,6 +139,7 @@ public class IcebergMetadataFactory
         return new IcebergMetadata(
                 locationAccessControl,
                 aiModelAccessControl,
+                catalogName,
                 typeManager,
                 commitTaskCodec,
                 catalogFactory.create(identity),
