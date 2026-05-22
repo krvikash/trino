@@ -74,6 +74,7 @@ import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationM
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -115,10 +116,12 @@ import io.trino.sql.planner.plan.WindowFrameType;
 import io.trino.sql.planner.plan.WindowNode;
 import jakarta.annotation.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -623,11 +626,28 @@ public class ToOldIrRelationalRewriter
     {
         PlanNode source = getOnlyElement(sources);
 
-        // build project assignments
+        // build project assignments. For a direct reference to a source symbol, reuse the source symbol so the
+        // assignment is recognized as identity.
         List<Expression> assignmentExpressions = scalarRewriter.getExpressions(project.assignments(), source.getOutputSymbols());
+        Set<Symbol> sourceSymbols = ImmutableSet.copyOf(source.getOutputSymbols());
+        Set<Symbol> reused = new HashSet<>();
         Assignments.Builder assignmentsBuilder = Assignments.builder();
-        assignmentExpressions.stream()
-                .forEach(expression -> assignmentsBuilder.put(symbolAllocator.newSymbol(expression), expression));
+        for (Expression expression : assignmentExpressions) {
+            Symbol output;
+            if (expression instanceof Reference reference) {
+                Symbol direct = Symbol.from(reference);
+                if (sourceSymbols.contains(direct) && reused.add(direct)) {
+                    output = direct;
+                }
+                else {
+                    output = symbolAllocator.newSymbol(expression);
+                }
+            }
+            else {
+                output = symbolAllocator.newSymbol(expression);
+            }
+            assignmentsBuilder.put(output, expression);
+        }
 
         return new ProjectNode(
                 planNodeIdAllocator.getNextId(),

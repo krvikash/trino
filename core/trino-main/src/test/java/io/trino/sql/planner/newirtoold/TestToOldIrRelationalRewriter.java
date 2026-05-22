@@ -520,6 +520,22 @@ class TestToOldIrRelationalRewriter
     }
 
     @Test
+    public void testProjectWithDuplicateIdentityReferences()
+    {
+        ProjectNode duplicateReferenceProjection = new ProjectNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                Assignments.builder()
+                        .put(A, new Reference(BIGINT, "a"))
+                        .put(new Symbol(BIGINT, "a_0"), new Reference(BIGINT, "a"))
+                        .build());
+
+        // using a populated SymbolAllocator to prove that input symbol is passed onto output without rename,
+        // even though the allocator already knows this symbol
+        assertRoundtrip(duplicateReferenceProjection, new SymbolAllocator(VALUES_NODE.getOutputSymbols()));
+    }
+
+    @Test
     public void testSort()
     {
         SortNode sortNode = new SortNode(
@@ -664,19 +680,23 @@ class TestToOldIrRelationalRewriter
 
     private void assertRoundtrip(PlanNode originalPlanNode)
     {
-        PlanNode roundtripPlanNode = roundtripPlanNode(originalPlanNode);
+        assertRoundtrip(originalPlanNode, new SymbolAllocator());
+    }
+
+    private void assertRoundtrip(PlanNode originalPlanNode, SymbolAllocator symbolAllocator)
+    {
+        PlanNode roundtripPlanNode = roundtripPlanNode(originalPlanNode, symbolAllocator);
         assertThat(roundtripPlanNode)
                 .usingRecursiveComparison()
                 .isEqualTo(originalPlanNode);
     }
 
-    private PlanNode roundtripPlanNode(PlanNode planNode)
+    private PlanNode roundtripPlanNode(PlanNode planNode, SymbolAllocator symbolAllocator)
     {
         RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ProgramBuilder.ValueNameAllocator());
         Block.Builder block = new Block.Builder(Optional.empty(), ImmutableList.of());
         Operation rewrittenOperation = planNode.accept(relationalProgramBuilder, new Context(block)).operation();
 
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
         // rewrite of TableScan involves a metadata call to resolve column names. This test uses the test metadata manager, which does not support it, so we don't test TableScan rewrite.
         // TODO test TableScan rewrite
         ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator), testSession(), createTestingMetadataManager());
