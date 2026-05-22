@@ -281,7 +281,8 @@ public final class BenchmarkRunner
         private final Launcher launcher;
         private final Workload workload;
 
-        @Option(names = {"-W", "--suite-warmup"},
+        @Option(
+                names = {"-W", "--suite-warmup"},
                 description = "Number of full passes over the workload's default queries (in order, no validation) before per-query benchmarking. Always runs the entire workload — independent of --query.")
         int suiteWarmup = 1;
 
@@ -297,12 +298,10 @@ public final class BenchmarkRunner
         @Option(names = {"-s", "--skip-query"}, description = "A query number to skip; recorded as all-zero timings in the CSV (can be repeated)")
         List<Integer> skipQueries = new ArrayList<>();
 
-        @Option(names = {"-p", "--profile"},
-                description = "async-profiler event: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
+        @Option(names = {"-p", "--profile"}, description = "async-profiler event: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ProfileEvent profileEvent = ProfileEvent.NONE;
 
-        @Option(names = {"-m", "--mode"},
-                description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
+        @Option(names = {"-m", "--mode"}, description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ExecutionMode mode = ExecutionMode.CPU;
 
         @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
@@ -322,7 +321,8 @@ public final class BenchmarkRunner
          *     <li>--log-file {@code <path>} / --xml — redirect or format output</li>
          * </ul>
          */
-        @Option(names = "--gpu-sanitizer",
+        @Option(
+                names = "--gpu-sanitizer",
                 arity = "0..1",
                 fallbackValue = "--tool memcheck",
                 description = "Run the benchmark JVM under NVIDIA compute-sanitizer with the given arguments (e.g. \"--tool memcheck --leak-check full\"). Defaults to \"--tool memcheck\" when passed with no value. Requires --mode=gpu.")
