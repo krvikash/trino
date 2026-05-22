@@ -27,13 +27,16 @@ import io.trino.filesystem.encryption.EncryptionKey;
 import io.trino.memory.context.AggregatedMemoryContext;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.filesystem.gcs.GcsUtils.encodedKey;
 import static io.trino.filesystem.gcs.GcsUtils.handleGcsException;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static java.net.HttpURLConnection.HTTP_PRECON_FAILED;
 import static java.util.Objects.requireNonNull;
@@ -77,6 +80,26 @@ public class GcsOutputFile
         catch (RuntimeException e) {
             throwIfAlreadyExists(e);
             throw handleGcsException(e, "writing file", location);
+        }
+    }
+
+    @Override
+    public void createOrOverwrite(Supplier<InputStream> data, long contentLength)
+            throws IOException
+    {
+        Optional<WriteChannel> writeChannel = Optional.empty();
+        try {
+            writeChannel = Optional.of(storage.writer(blobInfo(), blobWriteOptions(false)));
+            try (OutputStream out = new GcsOutputStream(location, writeChannel.get(), newSimpleAggregatedMemoryContext(), writeBlockSizeBytes);
+                    InputStream stream = data.get()) {
+                writeChannel = Optional.empty(); // no manual closing required - will be closed by GcsOutputStream.close
+                stream.transferTo(out);
+            }
+        }
+        catch (RuntimeException e) {
+            IOException finalException = handleGcsException(e, "writing file", location);
+            writeChannel.ifPresent(channel -> closeAllSuppress(finalException, channel));
+            throw finalException;
         }
     }
 
