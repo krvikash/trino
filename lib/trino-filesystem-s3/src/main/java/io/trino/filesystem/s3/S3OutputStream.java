@@ -391,6 +391,26 @@ final class S3OutputStream
             DataStreamProvider dataStreamProvider)
             throws IOException
     {
+        putObject(
+                client,
+                context,
+                location,
+                key,
+                exclusiveCreate,
+                dataStreamProvider.size(),
+                RequestBody.fromContentProvider(dataStreamProvider::takeInputStream, dataStreamProvider.size(), MIMETYPE_OCTET_STREAM));
+    }
+
+    static void putObject(
+            S3Client client,
+            S3Context context,
+            S3Location location,
+            Optional<EncryptionKey> key,
+            boolean exclusiveCreate,
+            long contentLength,
+            RequestBody requestBody)
+            throws IOException
+    {
         PutObjectRequest request = PutObjectRequest.builder()
                 .overrideConfiguration(context::applyCredentialProviderOverride)
                 .acl(getCannedAcl(context.cannedAcl()))
@@ -398,7 +418,7 @@ final class S3OutputStream
                 .bucket(location.bucket())
                 .key(location.key())
                 .storageClass(toStorageClass(context.storageClass()))
-                .contentLength((long) dataStreamProvider.size())
+                .contentLength(contentLength)
                 .applyMutation(builder -> {
                     if (exclusiveCreate) {
                         builder.ifNoneMatch("*");
@@ -413,7 +433,7 @@ final class S3OutputStream
                 .build();
 
         try {
-            client.putObject(request, RequestBody.fromContentProvider(dataStreamProvider::takeInputStream, dataStreamProvider.size(), MIMETYPE_OCTET_STREAM));
+            client.putObject(request, requestBody);
         }
         catch (SdkException putObjectException) {
             // When `location` already exists, the operation will fail with `412 Precondition Failed`

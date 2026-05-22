@@ -18,19 +18,27 @@ import io.trino.filesystem.TrinoOutputFile;
 import io.trino.filesystem.encryption.EncryptionKey;
 import io.trino.filesystem.s3.S3OutputStream.ByteArrayStreamProvider;
 import io.trino.memory.context.AggregatedMemoryContext;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.filesystem.s3.S3OutputStream.putObject;
 import static java.util.Objects.requireNonNull;
+import static software.amazon.awssdk.core.internal.util.Mimetype.MIMETYPE_OCTET_STREAM;
 
 final class S3OutputFile
         implements TrinoOutputFile
 {
+    // S3 single PUT supports up to 5 GiB; larger payloads must use multipart upload.
+    private static final long MAX_SINGLE_PUT_SIZE = 5L * 1024 * 1024 * 1024;
+
     private final Executor uploadExecutor;
     private final S3Client client;
     private final S3Context context;
@@ -77,6 +85,21 @@ final class S3OutputFile
     public OutputStream create(AggregatedMemoryContext memoryContext)
     {
         return new S3OutputStream(memoryContext, uploadExecutor, client, context, location, key);
+    }
+
+    @Override
+    public void createOrOverwrite(Supplier<InputStream> data, long contentLength)
+            throws IOException
+    {
+        checkArgument(contentLength < MAX_SINGLE_PUT_SIZE, "Files larger than " + MAX_SINGLE_PUT_SIZE + " bytes are not supported");
+        putObject(
+                client,
+                context,
+                location,
+                key,
+                false,
+                contentLength,
+                RequestBody.fromContentProvider(data::get, contentLength, MIMETYPE_OCTET_STREAM));
     }
 
     @Override
