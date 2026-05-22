@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.starburstdata.plugin.kdb.KdbQueryBuilder.buildQuery;
 import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static java.util.Objects.requireNonNull;
 
@@ -69,7 +70,7 @@ public class KdbPageSource
         try {
             log.debug("Loading data for table: %s", schemaTableName);
             long start = System.nanoTime();
-            queryResult = client.fetchData(schemaTableName, columns);
+            queryResult = client.fetchData(buildQuery(schemaTableName, columns));
             readTimeNanos = System.nanoTime() - start;
             log.debug("Loaded %d rows in %d ms", queryResult.rowCount(), readTimeNanos / 1_000_000);
 

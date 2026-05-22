@@ -210,7 +210,7 @@ public class KdbClient
         }
     }
 
-    private static String getFullTableName(SchemaTableName tableName)
+    public static String getFullTableName(SchemaTableName tableName)
     {
         if (tableName.getSchemaName().equals("default")) {
             // Root-level tables are referenced by bare name. Using the symbol form
@@ -223,10 +223,8 @@ public class KdbClient
         return ".%s.%s".formatted(tableName.getSchemaName(), tableName.getTableName());
     }
 
-    public KdbQueryResult fetchData(SchemaTableName tableName, List<KdbColumnHandle> columns)
+    public KdbQueryResult fetchData(String query)
     {
-        String query = buildQuery(tableName, columns);
-
         Object result = execute(query);
 
         if (!(result instanceof Flip flip)) {
@@ -236,38 +234,12 @@ public class KdbClient
         return new KdbQueryResult(flip);
     }
 
-    private static String buildQuery(SchemaTableName tableName, List<KdbColumnHandle> columns)
-    {
-        validateIdentifier(tableName.getSchemaName(), "schema");
-        validateIdentifier(tableName.getTableName(), "table");
-        String fullTableName = getFullTableName(tableName);
-
-        if (columns.isEmpty()) {
-            // Columns can be empty for aggregation queries like SELECT COUNT(*)
-            return "select from %s".formatted(fullTableName);
-        }
-
-        // Use functional select form to safely handle reserved column names
-        // ?[table; (); 0b; cols!cols] projects named columns
-        StringBuilder cols = new StringBuilder();
-        for (int i = 0; i < columns.size(); i++) {
-            if (i > 0) {
-                cols.append("`");
-            }
-            String columnName = columns.get(i).columnName();
-            validateIdentifier(columnName, "column");
-            cols.append(columnName);
-        }
-        String colList = columns.size() == 1 ? "enlist[`" + cols + "]" : "`" + cols;
-        return "?[%s; (); 0b; %s!%s]".formatted(fullTableName, colList, colList);
-    }
-
     public static boolean isValidIdentifier(String name)
     {
         return name.matches("[a-zA-Z0-9_]+");
     }
 
-    private static void validateIdentifier(String name, String type)
+    public static void validateIdentifier(String name, String type)
     {
         if (!isValidIdentifier(name)) {
             throw new TrinoException(GENERIC_USER_ERROR, "Invalid %s name: %s".formatted(type, name));
