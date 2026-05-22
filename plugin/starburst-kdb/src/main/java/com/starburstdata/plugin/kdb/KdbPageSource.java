@@ -29,6 +29,7 @@ import io.trino.spi.type.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 
 import static com.starburstdata.plugin.kdb.KdbQueryBuilder.buildQuery;
 import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
@@ -43,6 +44,7 @@ public class KdbPageSource
     private final KdbClient client;
     private final SchemaTableName schemaTableName;
     private final List<KdbColumnHandle> columns;
+    private final OptionalLong limit;
 
     private KdbQueryResult queryResult;
     private Map<String, Integer> columnIndexMap;
@@ -54,11 +56,13 @@ public class KdbPageSource
     public KdbPageSource(
             KdbClient client,
             SchemaTableName schemaTableName,
-            List<KdbColumnHandle> columns)
+            List<KdbColumnHandle> columns,
+            OptionalLong limit)
     {
         this.client = requireNonNull(client, "client is null");
         this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
         this.columns = ImmutableList.copyOf(columns);
+        this.limit = requireNonNull(limit, "limit is null");
     }
 
     private void loadData()
@@ -70,7 +74,7 @@ public class KdbPageSource
         try {
             log.debug("Loading data for table: %s", schemaTableName);
             long start = System.nanoTime();
-            queryResult = client.fetchData(buildQuery(schemaTableName, columns));
+            queryResult = client.fetchData(buildQuery(schemaTableName, columns, limit));
             readTimeNanos = System.nanoTime() - start;
             log.debug("Loaded %d rows in %d ms", queryResult.rowCount(), readTimeNanos / 1_000_000);
 

@@ -23,6 +23,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTableVersion;
+import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -32,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -81,7 +83,7 @@ public class KdbMetadata
         if (!client.tableExists(tableName)) {
             return null;
         }
-        return new KdbTableHandle(tableName);
+        return new KdbTableHandle(tableName, OptionalLong.empty());
     }
 
     @Override
@@ -149,5 +151,15 @@ public class KdbMetadata
         return relationFilter.apply(relationColumns.keySet()).stream()
                 .map(relationColumns::get)
                 .iterator();
+    }
+
+    @Override
+    public Optional<LimitApplicationResult<ConnectorTableHandle>> applyLimit(ConnectorSession session, ConnectorTableHandle handle, long limit)
+    {
+        KdbTableHandle table = (KdbTableHandle) handle;
+        if (table.limit().isPresent() && table.limit().getAsLong() <= limit) {
+            return Optional.empty();
+        }
+        return Optional.of(new LimitApplicationResult<>(table.withLimit(limit), true, false));
     }
 }

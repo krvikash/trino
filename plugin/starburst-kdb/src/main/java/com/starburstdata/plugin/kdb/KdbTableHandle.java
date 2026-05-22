@@ -16,19 +16,29 @@ package com.starburstdata.plugin.kdb;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 
+import java.util.OptionalLong;
+
 import static java.util.Objects.requireNonNull;
 
-public record KdbTableHandle(SchemaTableName schemaTableName)
+public record KdbTableHandle(SchemaTableName schemaTableName, OptionalLong limit)
         implements ConnectorTableHandle
 {
     public KdbTableHandle
     {
         requireNonNull(schemaTableName, "schemaTableName is null");
+        requireNonNull(limit, "limit is null");
+    }
+
+    public KdbTableHandle withLimit(long limit)
+    {
+        return new KdbTableHandle(schemaTableName, OptionalLong.of(limit));
     }
 
     @Override
     public String toString()
     {
-        return schemaTableName.toString();
+        StringBuilder builder = new StringBuilder(schemaTableName.toString());
+        limit.ifPresent(value -> builder.append(" limit=").append(value));
+        return builder.toString();
     }
 }
