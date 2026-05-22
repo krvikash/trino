@@ -2458,6 +2458,7 @@ jobs:
             - suite-objectstore
             - suite-sap-hana
             - suite-stargate
+            - suite-open-api
             # End of Starburst suites
             - suite-1
             - suite-2

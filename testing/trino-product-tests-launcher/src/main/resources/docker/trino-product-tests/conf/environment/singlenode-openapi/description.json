@@ -1,0 +1,35 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Product Test Tested API",
+        "description": "An API produced by server.py to demonstrate functionality in product tests.",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/static/rows": {
+            "get": {
+                "description": "Returns an array of two static strings to check in tests.",
+                "responses": {
+                    "200": {
+                        "description": "Only response (success) the server is expected to produce.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "string": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
