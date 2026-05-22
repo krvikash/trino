@@ -23,11 +23,14 @@ import io.trino.memory.context.AggregatedMemoryContext;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -80,6 +83,27 @@ class AzureOutputFile
     {
         try {
             blobClient.getBlockBlobClient().upload(BinaryData.fromBytes(data), true);
+        }
+        catch (BlobStorageException e) {
+            if (BlobErrorCode.CONTAINER_NOT_FOUND.equals(e.getErrorCode())) {
+                throw new FileNotFoundException(location.toString());
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public void createOrOverwrite(Supplier<InputStream> data, long contentLength)
+            throws IOException
+    {
+        // Route through AzureOutputStream / AzureMultipartOutputStream so the upload uses the
+        // configured ParallelTransferOptions (writeBlockSize / maxWriteConcurrency / single-upload
+        // threshold) and keeps the in-flight buffer bounded. Bypass the create() existence check
+        // — this is the "overwrite" path. The default fallback in TrinoOutputFile goes through
+        // create() which would do a wasteful exists() round-trip first.
+        try (OutputStream out = createOutputStream(newSimpleAggregatedMemoryContext(), true);
+                InputStream stream = data.get()) {
+            stream.transferTo(out);
         }
         catch (BlobStorageException e) {
             if (BlobErrorCode.CONTAINER_NOT_FOUND.equals(e.getErrorCode())) {
