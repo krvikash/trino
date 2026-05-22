@@ -15,7 +15,6 @@ package io.trino.execution;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.connector.alternatives.MockPlanAlternativePlugin;
-import io.trino.operator.RetryPolicy;
 import io.trino.plugin.memory.MemoryPlugin;
 import io.trino.plugin.tpcds.TpcdsPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -49,7 +48,7 @@ public class TestCoordinatorDynamicFilteringWithPlanAlternatives
         QueryRunner queryRunner = getQueryRunner();
         // create lineitem table in test connector
         queryRunner.installPlugin(new MockPlanAlternativePlugin(
-                new TestingPlugin(getRetryPolicy() == RetryPolicy.TASK),
+                new TestingPlugin(),
                 new TpchPlugin(),
                 new TpcdsPlugin(),
                 new MemoryPlugin()));
