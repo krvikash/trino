@@ -53,7 +53,7 @@ public class TestingDiscoveryServer
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
                 new TestingNodeModule("test"),
-                new TestingHttpServerModule(),
+                new TestingHttpServerModule("test-discovery-server"),
                 new JsonModule(),
                 new JaxrsModule(),
                 new MBeanModule(),

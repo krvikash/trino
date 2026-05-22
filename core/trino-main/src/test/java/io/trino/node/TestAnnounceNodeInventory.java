@@ -296,7 +296,7 @@ class TestAnnounceNodeInventory
         {
             Bootstrap app = new Bootstrap(
                     new TestingNodeModule(),
-                    new TestingHttpServerModule(),
+                    new TestingHttpServerModule("test"),
                     binder -> {
                         binder.bind(Servlet.class).toInstance(servlet);
                     });
