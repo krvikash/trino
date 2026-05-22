@@ -15,7 +15,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
-import io.airlift.slice.OutputStreamSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
@@ -35,13 +34,19 @@ import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoInputStream;
 import io.trino.filesystem.TrinoOutputFile;
 
-import java.io.OutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.MoreFutures.asVoid;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
@@ -98,26 +103,43 @@ public class TrinoFsSpoolingStorage
         String location = getLocation(fileName);
         return translateFailures(executor.submit(() -> {
             ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
-            TrinoOutputFile output = fileSystem.newOutputFile(Location.of(location));
-            try (OutputStream raw = output.create();
-                    SliceOutput sliceOutput = new OutputStreamSliceOutput(raw)) {
-                long offset = 0;
-                for (Map.Entry<Chunk, ChunkDataLease> entry : chunkDataLeaseMap.entrySet()) {
-                    Chunk chunk = entry.getKey();
-                    ChunkDataLease lease = entry.getValue();
-                    int length = lease.serializedSizeInBytes();
-                    spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
-                    offset += length;
-                    sliceOutput.writeLong(lease.getChecksum());
-                    sliceOutput.writeInt(lease.getNumDataPages());
-                    switch (lease) {
-                        case MemoryChunkDataLease memoryLease -> memoryLease.getChunkSlices().forEach(sliceOutput::writeBytes);
-                        case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
-                    }
-                }
+            // One Slice per chunk header + one per backing chunk slice. The header is a fresh
+            // small allocation; the backing slices reference the existing chunk byte[]s.
+            List<Slice> segments = new ArrayList<>();
+            long offset = 0;
+            for (Map.Entry<Chunk, ChunkDataLease> entry : chunkDataLeaseMap.entrySet()) {
+                Chunk chunk = entry.getKey();
+                ChunkDataLease lease = entry.getValue();
+                MemoryChunkDataLease memoryLease = switch (lease) {
+                    case MemoryChunkDataLease m -> m;
+                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
+                };
+                int length = memoryLease.serializedSizeInBytes();
+                spooledChunkMap.put(chunk.getChunkId(), new SpooledChunk(location, offset, length));
+                offset += length;
+                Slice header = Slices.allocate(CHUNK_FILE_HEADER_SIZE);
+                SliceOutput headerOutput = header.getOutput();
+                headerOutput.writeLong(memoryLease.getChecksum());
+                headerOutput.writeInt(memoryLease.getNumDataPages());
+                segments.add(header);
+                segments.addAll(memoryLease.getChunkSlices());
             }
+            TrinoOutputFile output = fileSystem.newOutputFile(Location.of(location));
+            // The supplier may be invoked more than once (e.g. AWS SDK retries); each call rebuilds
+            // fresh ByteArrayInputStream views over the same underlying chunk byte[]s — still zero-copy.
+            output.createOrOverwrite(() -> chunkBody(segments), contentLength);
             return spooledChunkMap.buildOrThrow();
         }));
+    }
+
+    private static InputStream chunkBody(List<Slice> segments)
+    {
+        InputStream[] streams = new InputStream[segments.size()];
+        for (int i = 0; i < segments.size(); i++) {
+            Slice s = segments.get(i);
+            streams[i] = new ByteArrayInputStream(s.byteArray(), s.byteArrayOffset(), s.length());
+        }
+        return new SequenceInputStream(Collections.enumeration(Arrays.asList(streams)));
     }
 
     @Override
