@@ -286,14 +286,6 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
-    public void testDefaultColumnValue()
-    {
-        assertThatThrownBy(super::testDefaultColumnValue)
-                .hasMessageContaining("Malformed request: Table features [allowColumnDefaults] are incompatible with icebergWriterCompatV3");
-    }
-
-    @Test
-    @Override
     public void testCreateOrReplaceTable()
     {
         assertThatThrownBy(super::testCreateOrReplaceTable)
