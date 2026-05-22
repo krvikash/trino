@@ -17,6 +17,7 @@ import io.trino.tempto.ProductTest;
 import org.testng.annotations.Test;
 
 import static io.trino.tempto.assertions.QueryAssert.Row.row;
+import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.tests.product.TestGroups.OPENAPI;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
@@ -32,5 +33,13 @@ public class TestOpenApi
                 .containsOnly(
                         row("Hello World!"),
                         row("Goodbye World!"));
+    }
+
+    @Test(groups = {OPENAPI, PROFILE_SPECIFIC_TESTS})
+    public void testSelectPaginatedRows()
+    {
+        // TODO fix dependency issue
+        assertQueryFailure(() -> onTrino().executeQuery("SELECT number FROM TABLE(starburst_openapi.default.paginated_rows()) LIMIT 1"))
+                .hasMessageMatching(".*\\Qjakarta.ws.rs.ext.RuntimeDelegate: org.glassfish.jersey.internal.RuntimeDelegateImpl not a subtype\\E.*");
     }
 }
