@@ -13,13 +13,15 @@ import com.google.inject.Inject;
 import io.trino.plugin.jdbc.JdbcProcedureHandle;
 import io.trino.plugin.jdbc.JdbcSplitManager;
 import io.trino.plugin.jdbc.JdbcTableHandle;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
+
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,12 +45,12 @@ public class SnowflakeSplitManager
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorTableHandle table,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         if (table instanceof JdbcProcedureHandle) {
-            return jdbcSplitManager.getSplits(transaction, session, table, dynamicFilter, constraint);
+            return jdbcSplitManager.getSplits(transaction, session, table, dynamicFilterColumns, constraint);
         }
-        return parallelSplitSourceFactory.create(session, (JdbcTableHandle) table, dynamicFilter);
+        return parallelSplitSourceFactory.create(session, (JdbcTableHandle) table);
     }
 }

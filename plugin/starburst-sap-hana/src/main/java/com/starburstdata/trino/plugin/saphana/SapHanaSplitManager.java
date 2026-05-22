@@ -14,17 +14,16 @@ import com.google.common.collect.Multiset;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.trino.plugin.jdbc.ConnectionFactory;
-import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.predicate.TupleDomain;
 import org.jdbi.v3.core.Handle;
@@ -33,6 +32,7 @@ import org.jdbi.v3.core.JdbiException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -40,7 +40,6 @@ import static com.google.common.collect.ImmutableMultiset.toImmutableMultiset;
 import static com.starburstdata.trino.plugin.saphana.SapHanaParallelismType.NO_PARALLELISM;
 import static com.starburstdata.trino.plugin.saphana.SapHanaParallelismType.PARTITIONS;
 import static com.starburstdata.trino.plugin.saphana.SapHanaSessionProperties.getParallelismType;
-import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleForDynamicFilter;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -67,26 +66,22 @@ public class SapHanaSplitManager
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorTableHandle table,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         return new FixedSplitSource(listSplits(
                 session,
                 (JdbcTableHandle) table,
-                getParallelismType(session),
-                isEligibleForDynamicFilter((JdbcTableHandle) table)
-                        ? dynamicFilter.getCurrentPredicate().transformKeys(JdbcColumnHandle.class::cast)
-                        : TupleDomain.all()));
+                getParallelismType(session)));
     }
 
     private List<SapHanaSplit> listSplits(
             ConnectorSession session,
             JdbcTableHandle tableHandle,
-            SapHanaParallelismType parallelismType,
-            TupleDomain<JdbcColumnHandle> dynamicFilter)
+            SapHanaParallelismType parallelismType)
     {
         if (parallelismType == NO_PARALLELISM || !tableHandle.isNamedRelation()) {
-            return ImmutableList.of(new SapHanaSplit(Optional.empty(), Optional.empty(), dynamicFilter));
+            return ImmutableList.of(new SapHanaSplit(Optional.empty(), Optional.empty(), TupleDomain.all()));
         }
 
         if (parallelismType == PARTITIONS) {
@@ -94,7 +89,7 @@ public class SapHanaSplitManager
 
             if (partitionIds.isEmpty()) {
                 // Table is not partitioned
-                return ImmutableList.of(new SapHanaSplit(Optional.empty(), Optional.empty(), dynamicFilter));
+                return ImmutableList.of(new SapHanaSplit(Optional.empty(), Optional.empty(), TupleDomain.all()));
             }
 
             List<Integer> duplicatedPartitions = getDuplicates(partitionIds);
@@ -102,7 +97,7 @@ public class SapHanaSplitManager
 
             // Partition partitions into batches to limit total number of splits
             return partitionIds.stream()
-                    .map(partitionId -> new SapHanaSplit(Optional.of(partitionId), Optional.empty(), dynamicFilter))
+                    .map(partitionId -> new SapHanaSplit(Optional.of(partitionId), Optional.empty(), TupleDomain.all()))
                     .collect(toImmutableList());
         }
 

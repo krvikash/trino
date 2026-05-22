@@ -23,6 +23,7 @@ import io.trino.spi.Node;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.DynamicFilterSnapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -71,10 +72,8 @@ public class DispatcherSplitSourceTest
                         "",
                         mock(ConnectorSplit.class)))
                 .collect(Collectors.toList());
-        ConnectorSplitSource.ConnectorSplitBatch connectorSplitBatch = mock(ConnectorSplitSource.ConnectorSplitBatch.class);
-        when(connectorSplitBatch.getSplits()).thenAnswer(_ -> connectorSplits);
-        CompletableFuture<ConnectorSplitSource.ConnectorSplitBatch> connectorSplitBatchCompletableFuture = CompletableFuture.completedFuture(connectorSplitBatch);
-        when(connectorSplitSource.getNextBatch(eq(maxSize))).thenReturn(connectorSplitBatchCompletableFuture);
+        CompletableFuture<List<ConnectorSplit>> connectorSplitBatchCompletableFuture = CompletableFuture.completedFuture(connectorSplits);
+        when(connectorSplitSource.getNextBatch(eq(maxSize), eq(DynamicFilterSnapshot.EMPTY))).thenReturn(connectorSplitBatchCompletableFuture);
 
         coordinatorNodeManager = mock(CoordinatorNodeManager.class);
         mockNodeManager(1, 2, 3);
@@ -90,9 +89,9 @@ public class DispatcherSplitSourceTest
     public void testGetNextBatch()
             throws ExecutionException, InterruptedException
     {
-        CompletableFuture<ConnectorSplitSource.ConnectorSplitBatch> splitBatchCompletableFuture = dispatcherSplitSource.getNextBatch(maxSize);
+        CompletableFuture<List<ConnectorSplit>> splitBatchCompletableFuture = dispatcherSplitSource.getNextBatch(maxSize, DynamicFilterSnapshot.EMPTY);
 
-        List<ConnectorSplit> connectorSplitsResult1 = splitBatchCompletableFuture.get().getSplits();
+        List<ConnectorSplit> connectorSplitsResult1 = splitBatchCompletableFuture.get();
 
         assertThat(connectorSplits.size()).isEqualTo(connectorSplitsResult1.size());
 

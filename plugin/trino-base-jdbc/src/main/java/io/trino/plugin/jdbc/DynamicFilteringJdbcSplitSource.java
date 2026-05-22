@@ -13,14 +13,27 @@
  */
 package io.trino.plugin.jdbc;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import io.airlift.log.Logger;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSplitSource;
-import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.Constraint;
+import io.trino.spi.connector.DynamicFilterSnapshot;
+import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.predicate.TupleDomain;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.getDynamicFilteringWaitTimeout;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -36,52 +49,100 @@ import static java.util.Objects.requireNonNull;
 public class DynamicFilteringJdbcSplitSource
         implements ConnectorSplitSource
 {
-    private final ConnectorSplitSource delegateSplitSource;
-    private final DynamicFilter dynamicFilter;
-    private final JdbcTableHandle tableHandle;
+    private static final Logger log = Logger.get(DynamicFilteringJdbcSplitSource.class);
 
-    DynamicFilteringJdbcSplitSource(ConnectorSplitSource delegateSplitSource, DynamicFilter dynamicFilter, JdbcTableHandle tableHandle)
+    private final ConnectorSplitManager delegateSplitManager;
+    private final ConnectorTransactionHandle transaction;
+    private final ConnectorSession session;
+    private final JdbcTableHandle table;
+    private final Set<ColumnHandle> dynamicFilterColumns;
+    private final Constraint constraint;
+    private final long dynamicFilteringTimeoutMillis;
+
+    private Optional<ConnectorSplitSource> delegateSplitSource = Optional.empty();
+
+    DynamicFilteringJdbcSplitSource(
+            ConnectorSplitManager delegateSplitManager,
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            JdbcTableHandle table,
+            Set<ColumnHandle> dynamicFilterColumns,
+            Constraint constraint)
     {
-        this.delegateSplitSource = requireNonNull(delegateSplitSource, "delegateSplitSource is null");
-        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
-        this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
+        this.delegateSplitManager = requireNonNull(delegateSplitManager, "delegateSplitManager is null");
+        this.transaction = requireNonNull(transaction, "transaction is null");
+        this.session = requireNonNull(session, "session is null");
+        this.table = requireNonNull(table, "table is null");
+        this.dynamicFilterColumns = ImmutableSet.copyOf(dynamicFilterColumns);
+        this.constraint = requireNonNull(constraint, "constraint is null");
+        this.dynamicFilteringTimeoutMillis = getDynamicFilteringWaitTimeout(session).toMillis();
     }
 
     @Override
-    public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)
+    public long getRequestedDynamicFilterWaitTimeoutMillis()
     {
-        if (!isEligibleForDynamicFilter(tableHandle)) {
-            return delegateSplitSource.getNextBatch(maxSize);
+        return dynamicFilteringTimeoutMillis;
+    }
+
+    @Override
+    public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        if (!isEligibleForDynamicFilter(table)) {
+            return getDelegateSplitSource(dynamicFilterSnapshot).getNextBatch(maxSize, DynamicFilterSnapshot.EMPTY);
         }
-        return delegateSplitSource.getNextBatch(maxSize)
-                .thenApply(batch -> {
-                    TupleDomain<JdbcColumnHandle> dynamicFilterPredicate = dynamicFilter.getCurrentPredicate()
-                            .transformKeys(JdbcColumnHandle.class::cast);
-                    return new ConnectorSplitBatch(
-                            batch.getSplits().stream()
-                                    // attach dynamic filter constraint to JdbcSplit
-                                    .map(split -> {
-                                        JdbcSplit jdbcSplit = (JdbcSplit) split;
-                                        // If split was a subclass of JdbcSplit, there would be additional information
-                                        // that we would need to pass further on.
-                                        verify(jdbcSplit.getClass() == JdbcSplit.class, "Unexpected split type %s", jdbcSplit);
-                                        return jdbcSplit.withDynamicFilter(dynamicFilterPredicate);
-                                    })
-                                    .collect(toImmutableList()),
-                            batch.isNoMoreSplits());
-                });
+        log.debug(
+                "Enumerating splits (query %s, table: %s, completed: %s)",
+                session.getQueryId(),
+                table,
+                dynamicFilterSnapshot.isComplete());
+        TupleDomain<JdbcColumnHandle> dynamicFilterPredicate = dynamicFilterSnapshot.currentPredicate()
+                .transformKeys(JdbcColumnHandle.class::cast);
+        return getDelegateSplitSource(dynamicFilterSnapshot).getNextBatch(maxSize, dynamicFilterSnapshot)
+                .thenApply(splits -> splits.stream()
+                        // attach dynamic filter constraint to JdbcSplit
+                        .map(split -> {
+                            // Subclasses of JdbcSplit (e.g. OracleSplit, SapHanaSplit) override withDynamicFilter
+                            // to preserve their additional fields; JdbcSplit.withDynamicFilter guards subclasses
+                            // that fail to override it.
+                            JdbcSplit jdbcSplit = (JdbcSplit) split;
+                            return (ConnectorSplit) jdbcSplit.withDynamicFilter(dynamicFilterPredicate);
+                        })
+                        .collect(toImmutableList()));
     }
 
     @Override
-    public void close()
+    public synchronized void close()
     {
-        delegateSplitSource.close();
+        delegateSplitSource.ifPresent(ConnectorSplitSource::close);
     }
 
     @Override
     public boolean isFinished()
     {
-        return delegateSplitSource.isFinished();
+        return delegateSplitSource
+                .map(ConnectorSplitSource::isFinished)
+                .orElse(false);
+    }
+
+    private synchronized ConnectorSplitSource getDelegateSplitSource(DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        if (delegateSplitSource.isPresent()) {
+            return delegateSplitSource.get();
+        }
+
+        JdbcTableHandle intersected = table.intersectedWithConstraint(dynamicFilterSnapshot.currentPredicate());
+        if (intersected.getConstraint().isNone()) {
+            delegateSplitSource = Optional.of(new FixedSplitSource(ImmutableList.of()));
+            return delegateSplitSource.get();
+        }
+
+        delegateSplitSource = Optional.of(delegateSplitManager.getSplits(
+                transaction,
+                session,
+                intersected,
+                dynamicFilterColumns,
+                constraint));
+        return delegateSplitSource.get();
     }
 
     public static boolean isEligibleForDynamicFilter(JdbcTableHandle tableHandle)

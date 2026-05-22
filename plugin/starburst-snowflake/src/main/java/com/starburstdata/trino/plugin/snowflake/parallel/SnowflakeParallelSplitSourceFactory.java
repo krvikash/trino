@@ -28,7 +28,7 @@ import io.trino.plugin.jdbc.WriteFunction;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.DynamicFilterSnapshot;
 import io.trino.spi.type.Type;
 import net.snowflake.client.core.ParameterBindingDTO;
 import net.snowflake.client.core.SFSession;
@@ -44,6 +44,7 @@ import java.util.Optional;
 import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getPrimaryKeys;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getScanColumns;
+import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleForDynamicFilter;
 import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.dynamicFilteringEnabled;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.lang.String.format;
@@ -65,8 +66,7 @@ public class SnowflakeParallelSplitSourceFactory
 
     public SnowflakeParallelSplitSource create(
             ConnectorSession session,
-            JdbcTableHandle table,
-            DynamicFilter dynamicFilter)
+            JdbcTableHandle table)
     {
         // Synthetic handles represent operations that haven't been pushed down (sort, aggregations etc.)
         // In Snowflake Parallel the only thing "parallel" is the data transfer - each split doesn't result in its own table scan
@@ -80,20 +80,8 @@ public class SnowflakeParallelSplitSourceFactory
         }
 
         final SFSession sfSession;
-        final String modifiedQuery;
-        final Map<String, ParameterBindingDTO> bindValues;
         try {
             sfSession = connection.unwrap(SnowflakeConnectionV1.class).getSfSession();
-            PreparedQuery preparedQuery = snowflakeClient.prepareQuery(
-                    session,
-                    connection,
-                    dynamicFilteringEnabled(session) ? table.intersectedWithConstraint(dynamicFilter.getCurrentPredicate()) : table,
-                    getScanColumns(
-                            table.getColumns().map(List::copyOf).orElseGet(() -> snowflakeClient.getColumns(session, table)),
-                            () -> getPrimaryKeys(session, snowflakeClient, table)),
-                    Optional.empty());
-            modifiedQuery = queryModifier.apply(session, preparedQuery.query());
-            bindValues = convertToSnowflakeFormatWithStatement(modifiedQuery, preparedQuery.parameters(), session, connection);
         }
         catch (SQLException e) {
             try {
@@ -102,11 +90,38 @@ public class SnowflakeParallelSplitSourceFactory
             catch (SQLException connExn) {
                 e.addSuppressed(connExn);
             }
-            throw new TrinoException(JDBC_ERROR, "Couldn't prepare split source, %s".formatted(e.getMessage()), e);
+            throw new TrinoException(JDBC_ERROR, "Couldn't open session, %s".formatted(e.getMessage()), e);
         }
 
-        return new SnowflakeParallelSplitSource(session, connection, sfSession, modifiedQuery, bindValues);
+        return new SnowflakeParallelSplitSource(this, session, connection, sfSession, table);
     }
+
+    /**
+     * Builds the Snowflake query and its parameter bindings. The dynamic filter predicate is read from
+     * {@code dynamicFilterSnapshot} here (rather than at split-source creation) so that the engine's
+     * dynamic-filter wait is honored before the query is prepared.
+     */
+    public PreparedSnowflakeQuery prepare(ConnectorSession session, Connection connection, JdbcTableHandle table, DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        try {
+            PreparedQuery preparedQuery = snowflakeClient.prepareQuery(
+                    session,
+                    connection,
+                    dynamicFilteringEnabled(session) && isEligibleForDynamicFilter(table) ? table.intersectedWithConstraint(dynamicFilterSnapshot.currentPredicate()) : table,
+                    getScanColumns(
+                            table.getColumns().map(List::copyOf).orElseGet(() -> snowflakeClient.getColumns(session, table)),
+                            () -> getPrimaryKeys(session, snowflakeClient, table)),
+                    Optional.empty());
+            String modifiedQuery = queryModifier.apply(session, preparedQuery.query());
+            Map<String, ParameterBindingDTO> bindValues = convertToSnowflakeFormatWithStatement(modifiedQuery, preparedQuery.parameters(), session, connection);
+            return new PreparedSnowflakeQuery(modifiedQuery, bindValues);
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, "Couldn't prepare split source, %s".formatted(e.getMessage()), e);
+        }
+    }
+
+    public record PreparedSnowflakeQuery(String query, Map<String, ParameterBindingDTO> bindValues) {}
 
     /**
      * This is a duplication of {@link io.trino.plugin.jdbc.DefaultQueryBuilder}

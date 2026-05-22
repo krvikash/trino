@@ -17,13 +17,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
-import io.airlift.units.Duration;
 import io.trino.filesystem.cache.SplitAffinityProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitSource;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesSplitSource;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -32,7 +32,6 @@ import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.type.TypeManager;
@@ -54,7 +53,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.trino.plugin.iceberg.IcebergSessionProperties.getDynamicFilteringWaitTimeout;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getMinimumAssignedSplitWeight;
 import static io.trino.spi.connector.FixedSplitSource.emptySplitSource;
 import static java.util.Objects.requireNonNull;
@@ -100,7 +98,7 @@ public class IcebergSplitManager
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorTableHandle handle,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         IcebergTableHandle table = (IcebergTableHandle) handle;
@@ -114,8 +112,6 @@ public class IcebergSplitManager
 
         IcebergMetadata icebergMetadata = transactionManager.get(transaction, session.getIdentity());
         Table icebergTable = icebergMetadata.getIcebergTable(session, table.getSchemaTableName());
-        Duration dynamicFilteringWaitTimeout = getDynamicFilteringWaitTimeout(session);
-
         InMemoryMetricsReporter metricsReporter = new InMemoryMetricsReporter();
         Scan scan = getScan(icebergMetadata, icebergTable, table, metricsReporter, icebergPlanningExecutor);
 
@@ -127,8 +123,6 @@ public class IcebergSplitManager
                 icebergTable,
                 scan,
                 table.getMaxScannedFileSize(),
-                dynamicFilter,
-                dynamicFilteringWaitTimeout,
                 constraint,
                 typeManager,
                 table.isRecordScannedFiles(),
@@ -136,6 +130,7 @@ public class IcebergSplitManager
                 splitAffinityProvider,
                 metricsReporter,
                 splitSourceExecutor,
+                dynamicFilterColumns,
                 evaluator);
 
         return new ClassLoaderSafeConnectorSplitSource(splitSource, IcebergSplitManager.class.getClassLoader());

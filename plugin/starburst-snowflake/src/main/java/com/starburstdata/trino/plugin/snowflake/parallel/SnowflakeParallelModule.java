@@ -10,14 +10,12 @@
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.google.inject.Binder;
-import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
 import io.trino.plugin.jdbc.JdbcSplitManager;
 import io.trino.spi.connector.ConnectorSplitManager;
 import net.snowflake.client.core.HttpClientSettingsKey;
@@ -39,7 +37,7 @@ public class SnowflakeParallelModule
     protected void setup(Binder binder)
     {
         binder.bind(SnowflakeParallelSplitSourceFactory.class).in(SINGLETON);
-        newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
+        newOptionalBinder(binder, ConnectorSplitManager.class)
                 .setBinding().to(SnowflakeSplitManager.class).in(SINGLETON);
         bindSessionPropertiesProvider(binder, SnowflakeParallelSessionProperties.class);
         binder.bind(SnowflakeParallelConnector.class).in(SINGLETON);

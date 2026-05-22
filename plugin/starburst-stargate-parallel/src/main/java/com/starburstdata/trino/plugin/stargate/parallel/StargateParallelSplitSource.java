@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.stargate.parallel;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import io.airlift.units.DataSize;
 import io.trino.client.Column;
@@ -18,17 +19,33 @@ import io.trino.client.StatementClient;
 import io.trino.client.spooling.DataAttributes;
 import io.trino.client.spooling.EncodedQueryData;
 import io.trino.client.spooling.Segment;
+import io.trino.plugin.jdbc.JdbcClient;
+import io.trino.plugin.jdbc.JdbcColumnHandle;
+import io.trino.plugin.jdbc.JdbcTableHandle;
+import io.trino.plugin.jdbc.PreparedQuery;
+import io.trino.plugin.jdbc.QueryParameter;
+import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.DynamicFilterSnapshot;
+import io.trino.spi.type.Type;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.starburstdata.trino.plugin.stargate.parallel.LiteralFormatter.formatLiteral;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleForDynamicFilter;
+import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.dynamicFilteringEnabled;
+import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.getDynamicFilteringWaitTimeout;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.Math.min;
 import static java.lang.System.nanoTime;
@@ -44,23 +61,54 @@ public class StargateParallelSplitSource
     private static final long MIN_WINDOW_TIMEOUT = SECONDS.toNanos(3);
 
     private final ExecutorService executor;
-    private final StatementClient client;
+    private final StargateClientFactory clientFactory;
+    private final JdbcClient stargateClient;
+    private final RemoteQueryModifier queryModifier;
+    private final ConnectorSession session;
+    private final JdbcTableHandle table;
     private final AtomicReference<DataAttributes> metadata = new AtomicReference<>();
 
-    public StargateParallelSplitSource(ExecutorService executor, StatementClient client)
+    // Built lazily on the first getNextBatch so the dynamic filter predicate captured after the
+    // engine's dynamic-filter wait can be pushed into the remote query.
+    private StatementClient client;
+
+    public StargateParallelSplitSource(
+            ExecutorService executor,
+            StargateClientFactory clientFactory,
+            JdbcClient stargateClient,
+            RemoteQueryModifier queryModifier,
+            ConnectorSession session,
+            JdbcTableHandle table)
     {
         this.executor = requireNonNull(executor, "executor is null");
-        this.client = requireNonNull(client, "client is null");
+        this.clientFactory = requireNonNull(clientFactory, "clientFactory is null");
+        this.stargateClient = requireNonNull(stargateClient, "stargateClient is null");
+        this.queryModifier = requireNonNull(queryModifier, "queryModifier is null");
+        this.session = requireNonNull(session, "session is null");
+        this.table = requireNonNull(table, "table is null");
     }
 
     @Override
-    public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)
+    public long getRequestedDynamicFilterWaitTimeoutMillis()
     {
-        return supplyAsync(() -> new ConnectorSplitBatch(prepareNextBatch(maxSize), isFinished()), executor);
+        if (!dynamicFilteringEnabled(session) || !isEligibleForDynamicFilter(table)) {
+            return 0;
+        }
+        return getDynamicFilteringWaitTimeout(session).toMillis();
     }
 
-    private List<ConnectorSplit> prepareNextBatch(int maxBatchSize)
+    @Override
+    public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
     {
+        return supplyAsync(() -> prepareNextBatch(maxSize, dynamicFilterSnapshot), executor);
+    }
+
+    private List<ConnectorSplit> prepareNextBatch(int maxBatchSize, DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        if (client == null) {
+            client = createClient(dynamicFilterSnapshot);
+        }
+
         ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
         int currentBatchSize = 0;
         long nanoStartTime = nanoTime();
@@ -103,6 +151,47 @@ public class StargateParallelSplitSource
         return splits.build();
     }
 
+    private StatementClient createClient(DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        List<JdbcColumnHandle> columns = table.getColumns()
+                .orElseGet(() -> stargateClient.getColumns(session, table));
+
+        PreparedQuery preparedQuery = stargateClient.prepareQuery(
+                session,
+                dynamicFilteringEnabled(session) && isEligibleForDynamicFilter(table) ? table.intersectedWithConstraint(dynamicFilterSnapshot.currentPredicate()) : table,
+                Optional.empty(),
+                columns,
+                Map.of());
+
+        return clientFactory.createFactory(getExecuteStatement(preparedQuery));
+    }
+
+    private String getExecuteStatement(PreparedQuery preparedQuery)
+    {
+        List<QueryParameter> parameters = preparedQuery.parameters();
+        String finalQuery = queryModifier.apply(session, preparedQuery.query());
+
+        if (parameters.isEmpty()) {
+            return finalQuery;
+        }
+
+        List<String> binds = parameters.stream()
+                .map(parameter -> bindParameter(parameter.getType(), parameter.getValue().orElseThrow()))
+                .collect(toImmutableList());
+
+        return """
+               EXECUTE IMMEDIATE '%s' USING %s
+               """.formatted(finalQuery.replace("'", "''"), Joiner.on(",").join(binds));
+    }
+
+    private String bindParameter(Type type, Object value)
+    {
+        return stargateClient.toWriteMapping(session, type)
+                .getWriteFunction()
+                .getBindExpression()
+                .replace("?", formatLiteral(type, value));
+    }
+
     private static StargateParallelSplit createSplit(String encoding, List<Column> columns, List<Segment> segments, DataAttributes attributes)
     {
         return StargateParallelSplit.create(encoding, columns, segments, attributes.toMap());
@@ -111,13 +200,15 @@ public class StargateParallelSplitSource
     @Override
     public void close()
     {
-        client.close();
+        if (client != null) {
+            client.close();
+        }
     }
 
     @Override
     public boolean isFinished()
     {
-        return !client.isRunning();
+        return client != null && !client.isRunning();
     }
 
     private static List<List<Segment>> partitionSegments(List<Segment> segments)

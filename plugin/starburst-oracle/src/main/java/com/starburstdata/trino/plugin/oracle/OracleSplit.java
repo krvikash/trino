@@ -42,4 +42,10 @@ public class OracleSplit
     {
         return partitionNames;
     }
+
+    @Override
+    public OracleSplit withDynamicFilter(TupleDomain<JdbcColumnHandle> dynamicFilter)
+    {
+        return new OracleSplit(partitionNames, getAdditionalPredicate(), dynamicFilter);
+    }
 }

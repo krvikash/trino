@@ -13,14 +13,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
+import com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeParallelSplitSourceFactory.PreparedSnowflakeQuery;
 import io.airlift.log.Logger;
+import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.DynamicFilterSnapshot;
 import io.trino.spi.connector.FixedSplitSource;
 import jakarta.annotation.Nullable;
 import net.snowflake.client.core.ExecTimeTelemetryData;
-import net.snowflake.client.core.ParameterBindingDTO;
 import net.snowflake.client.core.SFException;
 import net.snowflake.client.core.SFSession;
 import net.snowflake.client.core.SFStatement;
@@ -28,11 +31,14 @@ import net.snowflake.client.jdbc.SnowflakeSQLException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient.throwIfInvalidWarehouse;
 import static com.starburstdata.trino.plugin.snowflake.parallel.ChunkParser.parseChunks;
+import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleForDynamicFilter;
+import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.dynamicFilteringEnabled;
+import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.getDynamicFilteringWaitTimeout;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 
 /**
@@ -43,12 +49,12 @@ public class SnowflakeParallelSplitSource
 {
     private static final Logger LOG = Logger.get(SnowflakeParallelSplitSource.class);
 
+    private final SnowflakeParallelSplitSourceFactory factory;
     private final ConnectorSession session;
     private final Connection connection;
     private final SFSession sfSession;
     private final SFStatement sfStatement;
-    private final String query;
-    private final Map<String, ParameterBindingDTO> bindValues;
+    private final JdbcTableHandle table;
 
     /**
      * A split source with pre-computed splits from the Snowflake response.
@@ -59,35 +65,47 @@ public class SnowflakeParallelSplitSource
     private FixedSplitSource delegateSplitSource;
 
     SnowflakeParallelSplitSource(
+            SnowflakeParallelSplitSourceFactory factory,
             ConnectorSession session,
             Connection connection,
             SFSession sfSession,
-            String query,
-            Map<String, ParameterBindingDTO> bindValues)
+            JdbcTableHandle table)
     {
+        this.factory = factory;
         this.session = session;
         this.connection = connection;
         this.sfSession = sfSession;
         this.sfStatement = new SFStatement(sfSession);
-        this.query = query;
-        this.bindValues = bindValues;
+        this.table = table;
     }
 
     @Override
-    public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)
+    public long getRequestedDynamicFilterWaitTimeoutMillis()
     {
-        return getSplitSource().getNextBatch(maxSize);
+        if (!dynamicFilteringEnabled(session) || !isEligibleForDynamicFilter(table)) {
+            return 0;
+        }
+        return getDynamicFilteringWaitTimeout(session).toMillis();
     }
 
-    private FixedSplitSource getSplitSource()
+    @Override
+    public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        return getSplitSource(dynamicFilterSnapshot).getNextBatch(maxSize, dynamicFilterSnapshot);
+    }
+
+    private FixedSplitSource getSplitSource(DynamicFilterSnapshot dynamicFilterSnapshot)
     {
         if (delegateSplitSource == null) {
+            // The query is built here (rather than at split-source creation) so the dynamic filter predicate
+            // captured in dynamicFilterSnapshot, after the engine's dynamic-filter wait, is pushed into it.
+            PreparedSnowflakeQuery preparedQuery = factory.prepare(session, connection, table, dynamicFilterSnapshot);
             JsonNode jsonResult;
             try {
                 jsonResult = (JsonNode) sfStatement.executeHelper(
-                        query,
+                        preparedQuery.query(),
                         "application/snowflake",
-                        bindValues,
+                        preparedQuery.bindValues(),
                         false,
                         false,
                         false,

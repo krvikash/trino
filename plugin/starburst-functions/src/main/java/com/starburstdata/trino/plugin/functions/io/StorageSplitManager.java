@@ -28,6 +28,7 @@ import io.trino.plugin.hive.InternalHiveSplit;
 import io.trino.plugin.hive.fs.TrinoFileStatus;
 import io.trino.plugin.hive.util.InternalHiveSplitFactory;
 import io.trino.spi.SplitWeight;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -36,13 +37,13 @@ import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 
 import static io.trino.hive.formats.line.csv.CsvConstants.LINE_SEPARATOR_KEY;
 import static io.trino.hive.formats.line.csv.CsvConstants.MULTILINE_KEY;
@@ -78,7 +79,7 @@ public class StorageSplitManager
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorTableHandle handle,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         if (handle instanceof LoadTableHandle loadTableHandle) {

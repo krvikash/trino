@@ -16,6 +16,7 @@ package com.starburstdata.trino.plugin.internaltesting;
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.DynamicFilterSnapshot;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -27,10 +28,10 @@ public class InternalTestingSplitSource
     public void close() {}
 
     @Override
-    public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)
+    public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
     {
         List<ConnectorSplit> splits = ImmutableList.of(InternalTestingSplit.INSTANCE);
-        return CompletableFuture.completedFuture(new ConnectorSplitBatch(splits, false));
+        return CompletableFuture.completedFuture(splits);
     }
 
     @Override

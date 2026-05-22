@@ -72,8 +72,7 @@ public class TestClassLoaderSafeWrappers
                 ClassLoaderSafeConnectorPageSourceProvider.class.getMethod("createPageSource", ConnectorTransactionHandle.class, ConnectorSession.class, ConnectorSplit.class, ConnectorTableHandle.class, List.class, DynamicFilter.class)));
         testClassLoaderSafe(ConnectorSplitManager.class, ClassLoaderSafeConnectorSplitManager.class);
         testClassLoaderSafe(ConnectorNodePartitioningProvider.class, ClassLoaderSafeNodePartitioningProvider.class);
-        testClassLoaderSafe(ConnectorSplitSource.class, ClassLoaderSafeConnectorSplitSource.class, ImmutableSet.of(
-                ConnectorSplitSource.class.getMethod("getNextBatch", int.class)));
+        testClassLoaderSafe(ConnectorSplitSource.class, ClassLoaderSafeConnectorSplitSource.class);
         testClassLoaderSafe(SystemTable.class, ClassLoaderSafeSystemTable.class);
         testClassLoaderSafe(ConnectorRecordSetProvider.class, ClassLoaderSafeConnectorRecordSetProvider.class);
         testClassLoaderSafe(RecordSet.class, ClassLoaderSafeRecordSet.class);

@@ -15,17 +15,16 @@ import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.log.Logger;
 import io.trino.plugin.jdbc.ConnectionFactory;
-import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.predicate.TupleDomain;
 import org.jdbi.v3.core.Handle;
@@ -34,6 +33,7 @@ import org.jdbi.v3.core.JdbiException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -42,7 +42,6 @@ import static com.google.common.math.IntMath.divide;
 import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.NO_PARALLELISM;
 import static com.starburstdata.trino.plugin.oracle.StarburstOracleSessionProperties.getMaxSplitsPerScan;
 import static com.starburstdata.trino.plugin.oracle.StarburstOracleSessionProperties.getParallelismType;
-import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleForDynamicFilter;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.lang.String.format;
 import static java.math.RoundingMode.CEILING;
@@ -73,52 +72,47 @@ public class OracleSplitManager
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorTableHandle table,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         return new FixedSplitSource(listSplits(
                 session,
                 (JdbcTableHandle) table,
                 getParallelismType(session),
-                getMaxSplitsPerScan(session),
-                isEligibleForDynamicFilter((JdbcTableHandle) table)
-                        ? dynamicFilter.getCurrentPredicate().transformKeys(JdbcColumnHandle.class::cast)
-                        : TupleDomain.all()));
+                getMaxSplitsPerScan(session)));
     }
 
     private List<OracleSplit> listSplits(
             ConnectorSession session,
             JdbcTableHandle tableHandle,
             OracleParallelismType parallelismType,
-            int maxSplits,
-            TupleDomain<JdbcColumnHandle> dynamicFilter)
+            int maxSplits)
     {
         if (!tableHandle.isNamedRelation()) {
-            return singleSplit(dynamicFilter);
+            return singleSplit();
         }
 
         return switch (parallelismType) {
-            case NO_PARALLELISM -> singleSplit(dynamicFilter);
-            case PARTITIONS -> listPartitionSplits(session, tableHandle, maxSplits, dynamicFilter)
-                    .orElseGet(() -> singleSplit(dynamicFilter));
-            case ORA_HASH -> listOraHashSplits(session, tableHandle, maxSplits, dynamicFilter)
-                    .orElseGet(() -> singleSplit(dynamicFilter));
-            case AUTO -> listPartitionSplits(session, tableHandle, maxSplits, dynamicFilter)
-                    .or(() -> listOraHashSplits(session, tableHandle, maxSplits, dynamicFilter))
-                    .orElseGet(() -> singleSplit(dynamicFilter));
+            case NO_PARALLELISM -> singleSplit();
+            case PARTITIONS -> listPartitionSplits(session, tableHandle, maxSplits)
+                    .orElseGet(OracleSplitManager::singleSplit);
+            case ORA_HASH -> listOraHashSplits(session, tableHandle, maxSplits)
+                    .orElseGet(OracleSplitManager::singleSplit);
+            case AUTO -> listPartitionSplits(session, tableHandle, maxSplits)
+                    .or(() -> listOraHashSplits(session, tableHandle, maxSplits))
+                    .orElseGet(OracleSplitManager::singleSplit);
         };
     }
 
-    private static List<OracleSplit> singleSplit(TupleDomain<JdbcColumnHandle> dynamicFilter)
+    private static List<OracleSplit> singleSplit()
     {
-        return ImmutableList.of(new OracleSplit(Optional.empty(), Optional.empty(), dynamicFilter));
+        return ImmutableList.of(new OracleSplit(Optional.empty(), Optional.empty(), TupleDomain.all()));
     }
 
     private Optional<List<OracleSplit>> listPartitionSplits(
             ConnectorSession session,
             JdbcTableHandle tableHandle,
-            int maxSplits,
-            TupleDomain<JdbcColumnHandle> dynamicFilter)
+            int maxSplits)
     {
         List<String> partitions = listPartitionsForTable(session, tableHandle);
         if (partitions.isEmpty()) {
@@ -129,7 +123,7 @@ public class OracleSplitManager
 
         return Optional.of(partitions.stream()
                 .gather(windowFixed(divide(partitions.size(), maxSplits, CEILING)))
-                .map(batch -> new OracleSplit(Optional.of(batch), Optional.empty(), dynamicFilter))
+                .map(batch -> new OracleSplit(Optional.of(batch), Optional.empty(), TupleDomain.all()))
                 .collect(toImmutableList()));
     }
 
@@ -160,8 +154,7 @@ public class OracleSplitManager
     private Optional<List<OracleSplit>> listOraHashSplits(
             ConnectorSession session,
             JdbcTableHandle tableHandle,
-            int maxSplits,
-            TupleDomain<JdbcColumnHandle> dynamicFilter)
+            int maxSplits)
     {
         RemoteTableName remoteTableName = tableHandle.getRequiredNamedRelation().getRemoteTableName();
         String owner = remoteTableName.getSchemaName().orElse(null);
@@ -173,7 +166,7 @@ public class OracleSplitManager
         ImmutableList.Builder<OracleSplit> splits = ImmutableList.builderWithExpectedSize(maxSplits);
         for (int i = 0; i < maxSplits; i++) {
             String predicate = format("ORA_HASH(ROWID, %s, 0) = %s", maxSplits - 1, i);
-            splits.add(new OracleSplit(Optional.empty(), Optional.of(predicate), dynamicFilter));
+            splits.add(new OracleSplit(Optional.empty(), Optional.of(predicate), TupleDomain.all()));
         }
         return Optional.of(splits.build());
     }

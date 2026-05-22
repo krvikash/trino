@@ -26,6 +26,7 @@ import io.trino.plugin.iceberg.IcebergSplit;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -33,10 +34,10 @@ import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static io.trino.plugin.objectstore.TableType.DELTA;
 import static io.trino.plugin.objectstore.TableType.HIVE;
@@ -69,14 +70,14 @@ public class ObjectStoreSplitManager
     }
 
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableHandle table, DynamicFilter dynamicFilter, Constraint constraint)
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableHandle table, Set<ColumnHandle> dynamicFilterColumns, Constraint constraint)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
         return switch (table) {
-            case HiveTableHandle _ -> hiveSplitManager.getSplits(transaction.getHiveHandle(), unwrap(HIVE, session), table, dynamicFilter, constraint);
-            case IcebergTableHandle _ -> icebergSplitManager.getSplits(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, dynamicFilter, constraint);
-            case DeltaLakeTableHandle _ -> deltaSplitManager.getSplits(transaction.getDeltaHandle(), unwrap(DELTA, session), table, dynamicFilter, constraint);
-            case HudiTableHandle _ -> hudiSplitManager.getSplits(transaction.getHudiHandle(), unwrap(HUDI, session), table, dynamicFilter, constraint);
+            case HiveTableHandle _ -> hiveSplitManager.getSplits(transaction.getHiveHandle(), unwrap(HIVE, session), table, dynamicFilterColumns, constraint);
+            case IcebergTableHandle _ -> icebergSplitManager.getSplits(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, dynamicFilterColumns, constraint);
+            case DeltaLakeTableHandle _ -> deltaSplitManager.getSplits(transaction.getDeltaHandle(), unwrap(DELTA, session), table, dynamicFilterColumns, constraint);
+            case HudiTableHandle _ -> hudiSplitManager.getSplits(transaction.getHudiHandle(), unwrap(HUDI, session), table, dynamicFilterColumns, constraint);
             default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
         };
     }

@@ -13,16 +13,19 @@
  */
 package io.trino.connector.alternatives;
 
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.DynamicFilterSnapshot;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -40,9 +43,9 @@ public class MockPlanAlternativeSplitManager
     }
 
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorTableHandle table, DynamicFilter dynamicFilter, Constraint constraint)
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorTableHandle table, Set<ColumnHandle> dynamicFilterColumns, Constraint constraint)
     {
-        return new PlanAlternativeConnectorSplitSource(delegate.getSplits(transaction, session, table, dynamicFilter, constraint));
+        return new PlanAlternativeConnectorSplitSource(delegate.getSplits(transaction, session, table, dynamicFilterColumns, constraint));
     }
 
     private static class PlanAlternativeConnectorSplitSource
@@ -58,17 +61,21 @@ public class MockPlanAlternativeSplitManager
         }
 
         @Override
-        public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)
+        public long getRequestedDynamicFilterWaitTimeoutMillis()
         {
-            CompletableFuture<ConnectorSplitBatch> delegateBatch = delegate.getNextBatch(maxSize);
+            return delegate.getRequestedDynamicFilterWaitTimeoutMillis();
+        }
+
+        @Override
+        public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
+        {
+            CompletableFuture<List<ConnectorSplit>> delegateBatch = delegate.getNextBatch(maxSize, dynamicFilterSnapshot);
             if (delegateBatch.isCompletedExceptionally()) {
                 return delegateBatch;
             }
-            return delegateBatch.thenApply(batch -> new ConnectorSplitBatch(
-                    batch.getSplits().stream()
-                            .map(split -> new MockPlanAlternativeSplit(split, nextSplitNumber.getAndIncrement()))
-                            .collect(toImmutableList()),
-                    batch.isNoMoreSplits()));
+            return delegateBatch.thenApply(splits -> splits.stream()
+                    .<ConnectorSplit>map(split -> new MockPlanAlternativeSplit(split, nextSplitNumber.getAndIncrement()))
+                    .collect(toImmutableList()));
         }
 
         @Override

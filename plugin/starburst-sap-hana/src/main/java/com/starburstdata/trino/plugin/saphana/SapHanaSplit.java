@@ -39,4 +39,10 @@ public class SapHanaSplit
     {
         return partitionId;
     }
+
+    @Override
+    public SapHanaSplit withDynamicFilter(TupleDomain<JdbcColumnHandle> dynamicFilter)
+    {
+        return new SapHanaSplit(partitionId, getAdditionalPredicate(), dynamicFilter);
+    }
 }

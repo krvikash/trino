@@ -18,27 +18,26 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.jdbc.ConnectionFactory;
-import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcProcedureHandle;
 import io.trino.plugin.jdbc.JdbcSplit;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedSplitSource;
-import io.trino.spi.predicate.TupleDomain;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.JdbiException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -46,7 +45,6 @@ import static com.google.common.collect.Lists.partition;
 import static com.google.common.math.IntMath.divide;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerSessionProperties.getConnectionsCount;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerSessionProperties.hasParallelism;
-import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleForDynamicFilter;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.math.RoundingMode.CEILING;
 import static java.util.Objects.requireNonNull;
@@ -75,7 +73,7 @@ public class SqlServerSplitManager
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorTableHandle table,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         if (table instanceof JdbcProcedureHandle) {
@@ -84,26 +82,22 @@ public class SqlServerSplitManager
         return new FixedSplitSource(listSplits(
                 session,
                 (JdbcTableHandle) table,
-                getConnectionsCount(session),
-                isEligibleForDynamicFilter((JdbcTableHandle) table)
-                        ? dynamicFilter.getCurrentPredicate().transformKeys(JdbcColumnHandle.class::cast)
-                        : TupleDomain.all()));
+                getConnectionsCount(session)));
     }
 
     private List<JdbcSplit> listSplits(
             ConnectorSession session,
             JdbcTableHandle tableHandle,
-            int connectionsCount,
-            TupleDomain<JdbcColumnHandle> dynamicFilter)
+            int connectionsCount)
     {
         if (!hasParallelism(session) || !tableHandle.isNamedRelation()) {
-            return ImmutableList.of(new JdbcSplit(Optional.empty(), dynamicFilter));
+            return ImmutableList.of(new JdbcSplit(Optional.empty()));
         }
 
-        return listPartitionsAndBuildSplitsWithRetries(session, tableHandle, connectionsCount, dynamicFilter);
+        return listPartitionsAndBuildSplitsWithRetries(session, tableHandle, connectionsCount);
     }
 
-    private List<JdbcSplit> listPartitionsAndBuildSplits(ConnectorSession session, JdbcTableHandle tableHandle, int maxSplits, TupleDomain<JdbcColumnHandle> dynamicFilter)
+    private List<JdbcSplit> listPartitionsAndBuildSplits(ConnectorSession session, JdbcTableHandle tableHandle, int maxSplits)
     {
         try (Handle handle = Jdbi.open(() -> connectionFactory.openConnection(session))) {
             RemoteTableName remoteTableName = tableHandle.getRequiredNamedRelation().getRemoteTableName();
@@ -138,18 +132,17 @@ public class SqlServerSplitManager
                             .withColumnName(rs.getString("column_name"))
                             .withFunctionName(rs.getString("function_name"))
                             .withPartitionFanout(rs.getInt("partition_fanout"))
-                            .withDynamicFilter(dynamicFilter)
                             .withMaxSplits(maxSplits)
                             .build())
                     .findOne()
-                    .orElse(ImmutableList.of(new JdbcSplit(Optional.empty(), dynamicFilter)));
+                    .orElse(ImmutableList.of(new JdbcSplit(Optional.empty())));
         }
         catch (JdbiException e) {
             throw new TrinoException(JDBC_ERROR, e);
         }
     }
 
-    private List<JdbcSplit> listPartitionsAndBuildSplitsWithRetries(ConnectorSession session, JdbcTableHandle tableHandle, int maxSplits, TupleDomain<JdbcColumnHandle> dynamicFilter)
+    private List<JdbcSplit> listPartitionsAndBuildSplitsWithRetries(ConnectorSession session, JdbcTableHandle tableHandle, int maxSplits)
     {
         // DDL operations can take out locks against system tables causing the `getTableDataCompression` query to deadlock
         final int maxAttemptCount = 3;
@@ -166,7 +159,7 @@ public class SqlServerSplitManager
 
         return Failsafe
                 .with(retryPolicy)
-                .get(() -> listPartitionsAndBuildSplits(session, tableHandle, maxSplits, dynamicFilter));
+                .get(() -> listPartitionsAndBuildSplits(session, tableHandle, maxSplits));
     }
 
     private static class PartitionSplitBuilder
@@ -176,8 +169,6 @@ public class SqlServerSplitManager
         private String functionName;
         private Integer partitionFanout;
         private Integer maxSplits;
-
-        private TupleDomain<JdbcColumnHandle> dynamicFilter;
 
         private PartitionSplitBuilder() {}
 
@@ -205,17 +196,10 @@ public class SqlServerSplitManager
             return this;
         }
 
-        public PartitionSplitBuilder withDynamicFilter(TupleDomain<JdbcColumnHandle> dynamicFilter)
-        {
-            this.dynamicFilter = dynamicFilter;
-            return this;
-        }
-
         public List<JdbcSplit> build()
         {
             requireNonNull(functionName, "functionName is null");
             requireNonNull(columnName, "columnName is null");
-            requireNonNull(dynamicFilter, "dynamicFilter is null");
             requireNonNull(partitionFanout, "partitionFanout is null");
             requireNonNull(maxSplits, "maxSplits is null");
 
@@ -229,8 +213,7 @@ public class SqlServerSplitManager
                                     quoteForSqlServer(functionName),
                                     quoteForSqlServer(columnName),
                                     partitionNumbers.get(0),
-                                    partitionNumbers.get(partitionNumbers.size() - 1))),
-                            dynamicFilter))
+                                    partitionNumbers.get(partitionNumbers.size() - 1)))))
                     .collect(toImmutableList());
         }
 

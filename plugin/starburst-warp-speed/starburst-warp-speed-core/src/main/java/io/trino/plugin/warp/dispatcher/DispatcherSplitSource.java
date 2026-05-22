@@ -18,6 +18,7 @@ import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.DynamicFilterSnapshot;
 import io.trino.spi.metrics.Metrics;
 
 import java.util.List;
@@ -55,12 +56,18 @@ public class DispatcherSplitSource
     }
 
     @Override
-    public CompletableFuture<ConnectorSplitBatch> getNextBatch(int maxSize)
+    public long getRequestedDynamicFilterWaitTimeoutMillis()
+    {
+        return proxiedConnectorSplitSource.getRequestedDynamicFilterWaitTimeoutMillis();
+    }
+
+    @Override
+    public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
     {
         logger.debug("getNextBatch started isFinished [%b]", isFinished());
-        CompletableFuture<ConnectorSplitBatch> nextBatch = proxiedConnectorSplitSource.getNextBatch(maxSize);
-        return nextBatch.thenApply(connectorSplitBatch -> {
-            List<ConnectorSplit> splits = connectorSplitBatch.getSplits()
+        CompletableFuture<List<ConnectorSplit>> nextBatch = proxiedConnectorSplitSource.getNextBatch(maxSize, dynamicFilterSnapshot);
+        return nextBatch.thenApply(connectorSplits -> {
+            List<ConnectorSplit> splits = connectorSplits
                     .stream()
                     .map(connectorSplit -> dispatcherProxiedConnectorTransformer.createDispatcherSplit(
                             connectorSplit,
@@ -70,7 +77,7 @@ public class DispatcherSplitSource
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
             logger.debug("getNextBatch ended isFinished [%b] - num splits %d", isFinished(), splits.size());
-            return new ConnectorSplitBatch(splits, connectorSplitBatch.isNoMoreSplits());
+            return splits;
         });
     }
 

@@ -94,7 +94,7 @@ public class SplitManager
                     table.transaction(),
                     connectorSession,
                     table.connectorHandle(),
-                    dynamicFilter,
+                    dynamicFilter.getColumnsCovered(),
                     constraint);
         }
 

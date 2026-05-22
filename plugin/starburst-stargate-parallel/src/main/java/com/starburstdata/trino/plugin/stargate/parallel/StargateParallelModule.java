@@ -16,7 +16,6 @@ import com.starburstdata.trino.plugin.stargate.AllowForSpoolingProtocol;
 import com.starburstdata.trino.plugin.stargate.StargateAuthenticationModule;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.client.spooling.SegmentLoader;
-import io.trino.plugin.jdbc.ForJdbcDynamicFiltering;
 import io.trino.plugin.jdbc.JdbcSplitManager;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -35,7 +34,7 @@ public class StargateParallelModule
                 .setBinding()
                 .to(StargateParallelPageSourceProvider.class)
                 .in(Scopes.SINGLETON);
-        newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
+        newOptionalBinder(binder, ConnectorSplitManager.class)
                 .setBinding().to(StargateParallelSplitManager.class).in(SINGLETON);
         binder.bind(JdbcSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(SegmentLoader.class).toProvider(SegmentLoaderProvider.class).in(Scopes.SINGLETON);

@@ -20,6 +20,7 @@ import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitSessionNodeDistributor;
 import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -27,9 +28,9 @@ import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
-import io.trino.spi.connector.DynamicFilter;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -59,7 +60,7 @@ public class DispatcherSplitManager
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorTableHandle table,
-            DynamicFilter dynamicFilter,
+            Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
         ConnectorSplitNodeDistributor splitNodeDistributor;
@@ -78,7 +79,7 @@ public class DispatcherSplitManager
                         transactionHandle,
                         session,
                         dispatcherTableHandle.getProxyConnectorTableHandle(),
-                        dynamicFilter,
+                        dynamicFilterColumns,
                         constraint),
                 dispatcherTableHandle,
                 session,
