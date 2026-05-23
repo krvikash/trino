@@ -47,6 +47,6 @@ public record CorruptedDeltaLakeTableHandle(
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(catalogManaged, managed, tableId, location, Optional.empty());
+        return new VendedCredentialsHandle(catalogManaged, managed, tableId, location);
     }
 }

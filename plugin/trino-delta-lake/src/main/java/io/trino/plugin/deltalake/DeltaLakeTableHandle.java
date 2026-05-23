@@ -255,7 +255,7 @@ public class DeltaLakeTableHandle
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(isCatalogManagedTable(protocolEntry), managed, tableId, location, Optional.empty());
+        return new VendedCredentialsHandle(isCatalogManagedTable(protocolEntry), managed, tableId, location);
     }
 
     @JsonProperty

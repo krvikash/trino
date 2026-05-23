@@ -48,12 +48,8 @@ public class UnityVendedCredentialsProvider
     }
 
     @Override
-    public VendedCredentialsHandle getFreshCredentials(VendedCredentialsHandle handle)
+    public Optional<FileSystemCredentials> getVendedCredentials(VendedCredentialsHandle handle)
     {
-        if (handle.vendedCredentials().map(FileSystemCredentials::isValid).orElse(false)) {
-            return handle;
-        }
-
         Optional<String> tableId = handle.tableId();
         TemporaryCredentials temporaryCredentials;
         if (handle.catalogManaged()) {
@@ -68,7 +64,7 @@ public class UnityVendedCredentialsProvider
 
         FileSystemCredentials credentials = fromTemporaryCredentials(temporaryCredentials);
         verify(credentials.isValid(), "vended credentials is not valid");
-        return handle.withVendedCredentials(credentials);
+        return Optional.of(credentials);
     }
 
     private static FileSystemCredentials fromTemporaryCredentials(TemporaryCredentials credentials)
