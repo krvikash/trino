@@ -18,8 +18,8 @@ import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.deltalake.DeltaLakeFileSystemFactory;
+import io.trino.plugin.deltalake.DeltaLakeTableCredentials;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
-import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.deltalake.transactionlog.Transaction;
 import io.trino.plugin.deltalake.transactionlog.TransactionLogEntries;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.TransactionLogTail;
@@ -39,7 +39,7 @@ class RestUnityTransactionLogReader
 {
     private final String tableId;
     private final String tableLocation;
-    private final VendedCredentialsHandle credentialsHandle;
+    private final Optional<DeltaLakeTableCredentials> tableCredentials;
     private final DeltaLakeFileSystemFactory fileSystemFactory;
     private final FileSystemTransactionLogReader fileSystemTransactionLogReader;
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
@@ -47,15 +47,15 @@ class RestUnityTransactionLogReader
     public RestUnityTransactionLogReader(
             String tableId,
             String tableLocation,
-            VendedCredentialsHandle credentialsHandle,
+            Optional<DeltaLakeTableCredentials> tableCredentials,
             DeltaLakeFileSystemFactory fileSystemFactory,
             DeltaLakeTableOperationsProvider deltaLakeTableOperationsProvider)
     {
         this.tableId = requireNonNull(tableId, "tableId is null");
         this.tableLocation = requireNonNull(tableLocation, "tableLocation is null");
-        this.credentialsHandle = requireNonNull(credentialsHandle, "credentialsHandle is null");
+        this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
-        this.fileSystemTransactionLogReader = new FileSystemTransactionLogReader(tableLocation, credentialsHandle, fileSystemFactory);
+        this.fileSystemTransactionLogReader = new FileSystemTransactionLogReader(tableLocation, tableCredentials, fileSystemFactory);
         this.tableOperationsProvider = requireNonNull(deltaLakeTableOperationsProvider, "deltaLakeTableOperationsProvider is null");
     }
 
@@ -67,7 +67,7 @@ class RestUnityTransactionLogReader
             DataSize transactionLogMaxCachedFileSize)
             throws IOException
     {
-        TrinoFileSystem fileSystem = fileSystemFactory.create(session, credentialsHandle);
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session, tableCredentials);
 
         // always load staged commits first, since there is a rare case that a staged commit is created and
         // just publishing when we are reading the transaction log from file system, in this case we may not

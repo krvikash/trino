@@ -22,9 +22,9 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.deltalake.AllowDeltaLakeManagedTableRename;
 import io.trino.plugin.deltalake.DeltaLakeConfig;
+import io.trino.plugin.deltalake.DeltaLakeTableCredentialsProvider;
 import io.trino.plugin.deltalake.MaxTableParameterLength;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
-import io.trino.plugin.deltalake.metastore.VendedCredentialsProvider;
 import io.trino.plugin.deltalake.transactionlog.reader.TransactionLogReaderFactory;
 import io.trino.plugin.deltalake.transactionlog.reader.UnityTransactionLogReaderFactory;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
@@ -91,7 +91,7 @@ public class DeltaLakeUnityMetastoreModule
         binder.bind(Key.get(int.class, MaxTableParameterLength.class)).toInstance(512000);
 
         if (buildConfigObject(UnityMetastoreConfig.class).isVendedCredentialsEnabled()) {
-            newOptionalBinder(binder, VendedCredentialsProvider.class).setBinding().to(UnityVendedCredentialsProvider.class).in(Scopes.SINGLETON);
+            newOptionalBinder(binder, DeltaLakeTableCredentialsProvider.class).setBinding().to(UnityDeltaLakeTableCredentialsProvider.class).in(Scopes.SINGLETON);
         }
     }
 }

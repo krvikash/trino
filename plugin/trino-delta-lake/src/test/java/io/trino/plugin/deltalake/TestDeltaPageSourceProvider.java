@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
-import io.trino.plugin.deltalake.metastore.NoOpVendedCredentialsProvider;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
@@ -56,7 +55,7 @@ public class TestDeltaPageSourceProvider
             throws IOException
     {
         pageSourceProvider = new DeltaLakePageSourceProvider(
-                new DefaultDeltaLakeFileSystemFactory(new LocalFileSystemFactory(Files.createTempDirectory("prefix")), new NoOpVendedCredentialsProvider()),
+                new DefaultDeltaLakeFileSystemFactory(new LocalFileSystemFactory(Files.createTempDirectory("prefix")), new NoOpTableCredentialsProvider()),
                 new FileFormatDataSourceStats(),
                 new ParquetReaderConfig(),
                 new DeltaLakeConfig(),

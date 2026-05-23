@@ -14,11 +14,12 @@
 package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.inject.Inject;
+import io.trino.plugin.deltalake.DeltaLakeTableCredentials;
+import io.trino.plugin.deltalake.DeltaLakeTableCredentialsProvider;
 import io.trino.plugin.deltalake.metastore.AwsVendedCredentials;
 import io.trino.plugin.deltalake.metastore.FileSystemCredentials;
 import io.trino.plugin.deltalake.metastore.GcsVendedCredentials;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
-import io.trino.plugin.deltalake.metastore.VendedCredentialsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastore;
 import io.trino.spi.TrinoException;
@@ -36,19 +37,19 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
-public class UnityVendedCredentialsProvider
-        implements VendedCredentialsProvider
+public class UnityDeltaLakeTableCredentialsProvider
+        implements DeltaLakeTableCredentialsProvider
 {
     private final UnityMetastore unityMetastore;
 
     @Inject
-    public UnityVendedCredentialsProvider(UnityHiveMetastoreFactory metastoreFactory)
+    public UnityDeltaLakeTableCredentialsProvider(UnityHiveMetastoreFactory metastoreFactory)
     {
         this.unityMetastore = (UnityMetastore) requireNonNull(metastoreFactory, "metastoreFactory is null").createMetastore(Optional.empty());
     }
 
     @Override
-    public Optional<FileSystemCredentials> getVendedCredentials(VendedCredentialsHandle handle)
+    public Optional<DeltaLakeTableCredentials> getTableCredentials(VendedCredentialsHandle handle)
     {
         Optional<String> tableId = handle.tableId();
         TemporaryCredentials temporaryCredentials;
@@ -64,7 +65,7 @@ public class UnityVendedCredentialsProvider
 
         FileSystemCredentials credentials = fromTemporaryCredentials(temporaryCredentials);
         verify(credentials.isValid(), "vended credentials is not valid");
-        return Optional.of(credentials);
+        return Optional.of(new DeltaLakeTableCredentials(handle, credentials));
     }
 
     private static FileSystemCredentials fromTemporaryCredentials(TemporaryCredentials credentials)

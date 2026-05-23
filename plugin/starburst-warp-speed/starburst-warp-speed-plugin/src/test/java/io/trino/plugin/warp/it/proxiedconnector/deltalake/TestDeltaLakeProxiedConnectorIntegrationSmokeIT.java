@@ -19,7 +19,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.plugin.deltalake.DefaultDeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.FileTestingTransactionLogSynchronizer;
-import io.trino.plugin.deltalake.metastore.NoOpVendedCredentialsProvider;
+import io.trino.plugin.deltalake.NoOpTableCredentialsProvider;
 import io.trino.plugin.deltalake.transactionlog.writer.TestingLocalTransactionLogSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizer;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig;
@@ -65,7 +65,7 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
                     newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                             .addBinding("local").toInstance(localFileSystemFactory);
                     newMapBinder(binder, String.class, TransactionLogSynchronizer.class)
-                            .addBinding("local").toInstance(new TestingLocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(localFileSystemFactory, new NoOpVendedCredentialsProvider())));
+                            .addBinding("local").toInstance(new TestingLocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(localFileSystemFactory, new NoOpTableCredentialsProvider())));
                     configBinder(binder).bindConfigDefaults(FileHiveMetastoreConfig.class, defaults -> defaults.setCatalogDirectory("local:///"));
                 }),
                 numNodes,

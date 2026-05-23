@@ -26,8 +26,8 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.metastore.cache.CachingHiveMetastoreConfig;
 import io.trino.plugin.deltalake.DefaultDeltaLakeFileSystemFactory;
+import io.trino.plugin.deltalake.NoOpTableCredentialsProvider;
 import io.trino.plugin.deltalake.TestingDeltaLakeExtensionsModule;
-import io.trino.plugin.deltalake.metastore.NoOpVendedCredentialsProvider;
 import io.trino.plugin.deltalake.metastore.TestingDeltaLakeMetastoreModule;
 import io.trino.plugin.deltalake.transactionlog.writer.TestingLocalTransactionLogSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizer;
@@ -71,7 +71,7 @@ public class TestingObjectStoreConnectorFactory
         this.hiveModule = requireNonNull(hiveModule, "hiveModule is null");
         requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         this.localFileSystemFactory = localFileSystemRootPath.map(LocalFileSystemFactory::new);
-        this.localTransactionLogSynchronizer = localFileSystemFactory.map(factory -> new TestingLocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(factory, new NoOpVendedCredentialsProvider())));
+        this.localTransactionLogSynchronizer = localFileSystemFactory.map(factory -> new TestingLocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(factory, new NoOpTableCredentialsProvider())));
     }
 
     @Override
