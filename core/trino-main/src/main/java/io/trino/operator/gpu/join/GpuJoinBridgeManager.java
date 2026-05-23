@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu.join;
 
+import ai.rapids.cudf.Cuda;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.ReferenceCount;
@@ -55,6 +56,8 @@ public final class GpuJoinBridgeManager
     {
         requireNonNull(bridge, "bridge is null");
         checkState(!bridgeFuture.isDone(), "Bridge future already done");
+        // Sync to ensure full results visibility for consuming threads.
+        Cuda.DEFAULT_STREAM.sync();
         bridgeFuture.set(bridge);
         referenceCount.getFreeFuture().addListener(onRelease, directExecutor());
     }

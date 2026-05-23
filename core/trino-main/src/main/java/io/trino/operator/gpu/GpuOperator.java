@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import ai.rapids.cudf.Cuda;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -368,8 +369,8 @@ public abstract class GpuOperator
             return ready.get();
         }
 
-        @Own GpuOperation.Result result = topOperation.execute();
-        return switch (result) {
+        @Own GpuOperation.Result topGpuOperationResult = topOperation.execute();
+        Page operatorResult = switch (topGpuOperationResult) {
             case Data(GpuPage gpuPage) -> {
                 try (gpuPage) {
                     gpuPageToPages.add(gpuPage);
@@ -386,6 +387,12 @@ public abstract class GpuOperator
                 yield null;
             }
         };
+        // Next time this operator is called, it may be scheduled on a different Driver thread, unless
+        // experimental.thread-per-driver-scheduler-enabled is set.
+        // Therefore, returuning/yielding constitutes an implicit cross-thread communication boundary
+        // for internal state stored within operations or in GpuPageToPages buffers.
+        Cuda.DEFAULT_STREAM.sync();
+        return operatorResult;
     }
 
     @Override

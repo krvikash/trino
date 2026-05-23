@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu.join;
 
+import ai.rapids.cudf.Cuda;
 import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -69,6 +70,8 @@ public final class GpuSemiJoinSetSupplier
     {
         requireNonNull(set, "set is null");
         checkState(!setFuture.isDone(), "Set future already done");
+        // Sync to ensure full results visibility for consuming threads.
+        Cuda.DEFAULT_STREAM.sync();
         setFuture.set(set);
         referenceCount.getFreeFuture().addListener(onRelease, directExecutor());
     }
