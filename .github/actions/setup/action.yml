@@ -39,6 +39,9 @@ runs:
         # Skip free-disk-space.sh. It was added for GHA and is not needed on Starburst fleet. And sometimes conflicts with apt-get.
         run: "true"
         #run: ./.github/bin/free-disk-space.sh
+      - name: Configure Docker Hub mirror
+        shell: bash
+        run: ./.github/bin/configure-docker-hub-mirror.sh
       - uses: actions/setup-java@v5
         if: ${{ inputs.java-version != '' }}
         with:
