@@ -56,15 +56,15 @@ public final class ClosingRef<T extends AutoCloseable>
 
     public @Borrow T borrow()
     {
-        checkState(value != null, "No value");
         checkState(!closed, "Already closed");
+        checkState(value != null, "No value");
         return value;
     }
 
     public @Move T take()
     {
-        checkState(value != null, "No value");
         checkState(!closed, "Already closed");
+        checkState(value != null, "No value");
         @Own T transferred = value;
         value = null;
         return transferred;
