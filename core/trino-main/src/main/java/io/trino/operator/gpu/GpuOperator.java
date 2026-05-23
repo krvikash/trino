@@ -235,8 +235,7 @@ public abstract class GpuOperator
 
         public Factory(int operatorId, PlanNodeId planNodeId, GpuSourceOperation.Factory sourceFactory, List<Type> outputTypes)
         {
-            this(
-                    operatorId,
+            this(operatorId,
                     planNodeId,
                     ImmutableList.of(),
                     () -> {

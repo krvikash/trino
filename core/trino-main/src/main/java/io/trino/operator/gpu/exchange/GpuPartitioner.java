@@ -44,7 +44,9 @@ final class GpuPartitioner
         int columnCount = input.columnCount();
         for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
             checkArgument(input.column(columnIndex) instanceof DeviceMemory,
-                    "All columns must be DeviceMemory; column %s is %s", columnIndex, input.column(columnIndex).getClass().getSimpleName());
+                    "All columns must be DeviceMemory; column %s is %s",
+                    columnIndex,
+                    input.column(columnIndex).getClass().getSimpleName());
         }
 
         @Borrow ColumnVector[] tableColumns = new ColumnVector[columnCount];

@@ -76,7 +76,8 @@ public class TestGpuLocalExchangeSingleNode
         // regexp_like join filter forces the join to CPU; both pipelines of its paired HASH LE
         // must stay on CPU so build and probe routing agree.
         Session session = singleNodePartitionedSession();
-        String sql = """
+        String sql =
+                """
                 SELECT count(*)
                 FROM tpch.sf1.orders o
                 JOIN tpch.sf1.nation n
@@ -144,7 +145,8 @@ public class TestGpuLocalExchangeSingleNode
         // satisfying the LE's upstream-is-GPU producer check; a plain TableScan source would be
         // fused into a single CPU ScanFilterProject operator.
         Session session = singleNodePartitionedSession();
-        String sql = """
+        String sql =
+                """
                 SELECT count(*)
                 FROM tpch.sf1.orders o
                 JOIN (SELECT custkey FROM tpch.sf1.customer GROUP BY custkey) c
@@ -175,7 +177,8 @@ public class TestGpuLocalExchangeSingleNode
         // forces CPU; if that hash local exchange escaped to GPU MURMUR3, build partitioning
         // would disagree with DefaultPageJoiner's Trino hash and rows would be dropped.
         Session session = singleNodePartitionedSession();
-        String sql = """
+        String sql =
+                """
                 SELECT count(*)
                 FROM tpch.sf1.orders o
                 JOIN (SELECT custkey FROM tpch.sf1.customer GROUP BY custkey) c

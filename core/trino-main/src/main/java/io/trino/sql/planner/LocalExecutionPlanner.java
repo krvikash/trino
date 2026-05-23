@@ -4389,7 +4389,10 @@ public class LocalExecutionPlanner
                     Integer actualChannel = sourceLayout.get(symbol);
                     verify(actualChannel != null && actualChannel == channel,
                             "GPU local exchange requires identity input layout (source %s, channel %s, symbol %s, sourceLayout %s)",
-                            sourceIndex, channel, symbol, sourceLayout);
+                            sourceIndex,
+                            channel,
+                            symbol,
+                            sourceLayout);
                 }
 
                 GpuLocalExchange.GpuLocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
