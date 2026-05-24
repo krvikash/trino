@@ -49,6 +49,10 @@ final class GpuPartitioner
                     input.column(columnIndex).getClass().getSimpleName());
         }
 
+        if (numPartitions == 1) {
+            return new GpuPage[] {input.shallowCopy()};
+        }
+
         @Borrow ColumnVector[] tableColumns = new ColumnVector[columnCount];
         for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
             tableColumns[columnIndex] = ((DeviceMemory) input.column(columnIndex)).columnVector();
