@@ -34,9 +34,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
-/**
- * GPU operation that filters and/or projects data.
- */
 public class GpuFilter
         implements GpuOperation
 {
@@ -97,48 +94,8 @@ public class GpuFilter
 
     private @Move Optional<@Own GpuPage> processPage(@Borrow GpuPage input)
     {
-        List<Integer> inputChannels = filter.inputChannels().getInputChannels();
-        List<@Borrow ColumnVector> inputs = inputChannels.stream()
-                .map(input::column)
-                .map(DeviceMemory.class::cast)
-                .map(DeviceMemory::columnVector)
-                .collect(toImmutableList());
-
-        try (ColumnVector mask = filter.expression().evaluate(input.positionCount(), inputs)) {
-            try (Scalar sum = mask.sum(DType.INT32)) {
-                int retained = sum.isValid() ? sum.getInt() : 0;
-                if (retained == 0) {
-                    return Optional.empty();
-                }
-                if (retained == input.positionCount()) {
-                    return Optional.of(input.shallowCopy());
-                }
-
-                @Borrow Column[] filteredColumns = new Column[input.columnCount()];
-                List<@Borrow ColumnVector> columnVectors = new ArrayList<>();
-                int[] columnVectorToIndex = new int[input.columnCount()];
-                for (int i = 0; i < input.columnCount(); i++) {
-                    switch (input.column(i)) {
-                        case DeviceMemory deviceMemory -> {
-                            columnVectorToIndex[columnVectors.size()] = i;
-                            columnVectors.add(deviceMemory.columnVector());
-                        }
-                        case Blocks _ -> throw new UnsupportedOperationException("Implement filtering of in memory blocks");
-                    }
-                }
-
-                // This must hold, otherwise we would not be doing GPU evaluation
-                checkState(!columnVectors.isEmpty(), "No column vectors found");
-
-                try (Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
-                        Table filtered = table.filter(mask)) {
-                    for (int i = 0; i < columnVectors.size(); i++) {
-                        int columnIndex = columnVectorToIndex[i];
-                        filteredColumns[columnIndex] = new DeviceMemory(filtered.getColumn(i));
-                    }
-                    return Optional.of(new GpuPage(retained, filteredColumns));
-                }
-            }
+        try (ColumnVector mask = computeMask(input, filter)) {
+            return applyMask(input, mask);
         }
     }
 
@@ -146,5 +103,55 @@ public class GpuFilter
     public void close()
     {
         source.close();
+    }
+
+    private static @Move ColumnVector computeMask(@Borrow GpuPage input, CompiledExpression filter)
+    {
+        List<Integer> inputChannels = filter.inputChannels().getInputChannels();
+        List<@Borrow ColumnVector> inputs = inputChannels.stream()
+                .map(input::column)
+                .map(DeviceMemory.class::cast)
+                .map(DeviceMemory::columnVector)
+                .collect(toImmutableList());
+
+        return filter.expression().evaluate(input.positionCount(), inputs);
+    }
+
+    private static @Move Optional<@Own GpuPage> applyMask(@Borrow GpuPage input, @Borrow ColumnVector mask)
+    {
+        try (Scalar sum = mask.sum(DType.INT32)) {
+            int retained = sum.isValid() ? sum.getInt() : 0;
+            if (retained == 0) {
+                return Optional.empty();
+            }
+            if (retained == input.positionCount()) {
+                return Optional.of(input.shallowCopy());
+            }
+
+            List<@Borrow ColumnVector> columnVectors = new ArrayList<>();
+            int[] columnVectorToIndex = new int[input.columnCount()];
+            for (int i = 0; i < input.columnCount(); i++) {
+                switch (input.column(i)) {
+                    case DeviceMemory deviceMemory -> {
+                        columnVectorToIndex[columnVectors.size()] = i;
+                        columnVectors.add(deviceMemory.columnVector());
+                    }
+                    case Blocks _ -> throw new UnsupportedOperationException("Implement filtering of in memory blocks");
+                }
+            }
+
+            // This must hold, otherwise we would not be doing GPU evaluation
+            checkState(!columnVectors.isEmpty(), "No column vectors found");
+
+            try (Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
+                    Table filtered = table.filter(mask)) {
+                @Borrow Column[] filteredColumns = new Column[input.columnCount()];
+                for (int i = 0; i < columnVectors.size(); i++) {
+                    int columnIndex = columnVectorToIndex[i];
+                    filteredColumns[columnIndex] = new DeviceMemory(filtered.getColumn(i));
+                }
+                return Optional.of(new GpuPage(retained, filteredColumns));
+            }
+        }
     }
 }
