@@ -170,7 +170,7 @@ public final class GpuLookupJoin
         };
     }
 
-    private Optional<@Move GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge)
+    private @Move Optional<@Own GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge)
     {
         boolean probeSideEmpty = probePage.positionCount() == 0;
         boolean buildSideEmpty = joinBridge instanceof EmptyBuildSide;

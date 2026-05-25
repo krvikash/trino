@@ -52,7 +52,7 @@ final class GpuGroupByAggregation
     }
 
     @Override
-    protected Optional<@Move GpuPage> computeAggregation()
+    protected @Move Optional<@Own GpuPage> computeAggregation()
     {
         if (totalBufferedRowCount == 0) {
             return Optional.empty();

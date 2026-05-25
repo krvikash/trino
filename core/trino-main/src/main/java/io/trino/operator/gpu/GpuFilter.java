@@ -95,7 +95,7 @@ public class GpuFilter
         };
     }
 
-    private Optional<@Move GpuPage> processPage(@Borrow GpuPage input)
+    private @Move Optional<@Own GpuPage> processPage(@Borrow GpuPage input)
     {
         List<Integer> inputChannels = filter.inputChannels().getInputChannels();
         List<@Borrow ColumnVector> inputs = inputChannels.stream()

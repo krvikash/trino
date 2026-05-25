@@ -173,7 +173,7 @@ public abstract class GpuAggregation
      *
      * @return the result page, or empty if there's no output (e.g., GROUP BY with no input rows)
      */
-    protected abstract Optional<@Move GpuPage> computeAggregation();
+    protected abstract @Move Optional<@Own GpuPage> computeAggregation();
 
     @Override
     public void close()
