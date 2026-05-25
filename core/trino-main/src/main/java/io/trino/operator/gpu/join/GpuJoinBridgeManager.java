@@ -49,6 +49,8 @@ public final class GpuJoinBridgeManager
 
     public void probeOperatorClosed()
     {
+        // Sync to ensure that probe operator did indeed fully finish using the build side.
+        Cuda.DEFAULT_STREAM.sync();
         referenceCount.release();
     }
 
