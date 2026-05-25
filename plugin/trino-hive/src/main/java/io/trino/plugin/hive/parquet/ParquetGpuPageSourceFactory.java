@@ -41,7 +41,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
-import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
@@ -71,11 +70,13 @@ public final class ParquetGpuPageSourceFactory
 
             // todo; pass ParquetReaderOptions constructed from config+session from caller
             // https://starburstdata.atlassian.net/browse/ENG-13773
+            // Raise the size of the max read because we are reading everything up front into an in-memory byte array.
+            // The default for CPU is tailored for lazy materialization and early cut-off of page source.
+            // Stay below G1's 16 MB humongous-allocation threshold (region size 32 MB); 1 KB slack for the byte[] header.
+            DataSize bufferSize = DataSize.ofBytes(16L * 1024 * 1024 - 1024);
             ParquetReaderOptions options = ParquetReaderOptions.builder()
-                    // Raise the size of the max read because we are reading everything up front into an in-memory byte array
-                    // The default for CPU is tailored for lazy materialization and early cut-off of page source
-                    .withMaxBufferSize(DataSize.of(32, MEGABYTE))
-                    .withInitialBufferSize(DataSize.of(32, MEGABYTE))
+                    .withMaxBufferSize(bufferSize)
+                    .withInitialBufferSize(bufferSize)
                     .build();
             // Hardcoded UTC: cuDF reads timestamps as raw UTC without applying hive.parquet.time-zone.
             // Using the configured zone for predicate pruning here would be inconsistent with the data
