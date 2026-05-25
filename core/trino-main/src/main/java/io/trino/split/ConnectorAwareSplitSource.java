@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static java.util.Objects.requireNonNull;
@@ -55,8 +56,8 @@ public class ConnectorAwareSplitSource
     private final CatalogHandle catalogHandle;
     private final String sourceToString;
     private final DynamicFilter dynamicFilter;
-    private final long dynamicFilteringWaitTimeoutMillis;
     private final Stopwatch dynamicFilterWaitStopwatch;
+    private final ListenableFuture<Long> dynamicFilterWaitTimeout;
 
     @Nullable
     private ConnectorSplitSource source;
@@ -66,12 +67,26 @@ public class ConnectorAwareSplitSource
 
     public ConnectorAwareSplitSource(CatalogHandle catalogHandle, ConnectorSplitSource source, DynamicFilter dynamicFilter)
     {
+        this(catalogHandle, source, dynamicFilter, immediateFuture(source.getRequestedDynamicFilterWaitTimeoutMillis()));
+    }
+
+    /**
+     * Accepts the source's dynamic-filter wait timeout as a future so a remote source can supply it
+     * from its create round-trip without blocking a scheduler thread. The timeout is fixed for the
+     * source's lifetime, so it is resolved once here and applied on every {@link #getNextBatch}.
+     */
+    public ConnectorAwareSplitSource(CatalogHandle catalogHandle, ConnectorSplitSource source, DynamicFilter dynamicFilter, ListenableFuture<Long> requestedDynamicFilterWaitTimeoutMillis)
+    {
         this.catalogHandle = requireNonNull(catalogHandle, "catalogHandle is null");
         this.source = requireNonNull(source, "source is null");
         this.sourceToString = source.toString();
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
-        this.dynamicFilteringWaitTimeoutMillis = Math.max(source.getRequestedDynamicFilterWaitTimeoutMillis(), dynamicFilter.getPreferredDynamicFilterTimeout().orElse(0));
         this.dynamicFilterWaitStopwatch = Stopwatch.createStarted();
+        requireNonNull(requestedDynamicFilterWaitTimeoutMillis, "requestedDynamicFilterWaitTimeoutMillis is null");
+        this.dynamicFilterWaitTimeout = Futures.transform(
+                requestedDynamicFilterWaitTimeoutMillis,
+                timeout -> Math.max(requireNonNull(timeout, "requestedDynamicFilterWaitTimeoutMillis is null"), dynamicFilter.getPreferredDynamicFilterTimeout().orElse(0)),
+                directExecutor());
     }
 
     @Override
@@ -84,6 +99,11 @@ public class ConnectorAwareSplitSource
     public ListenableFuture<SplitBatch> getNextBatch(int maxSize)
     {
         checkState(source != null, "Already finished or closed");
+        return Futures.transformAsync(dynamicFilterWaitTimeout, timeout -> nextBatch(maxSize, timeout), directExecutor());
+    }
+
+    private ListenableFuture<SplitBatch> nextBatch(int maxSize, long dynamicFilteringWaitTimeoutMillis)
+    {
         long timeLeft = dynamicFilteringWaitTimeoutMillis - dynamicFilterWaitStopwatch.elapsed(MILLISECONDS);
         if (dynamicFilter.isAwaitable() && timeLeft > 0) {
             CompletableFuture<SplitBatch> emptyBatch = dynamicFilter.isBlocked()
@@ -93,9 +113,9 @@ public class ConnectorAwareSplitSource
         }
         boolean isComplete = dynamicFilter.isComplete();
         TupleDomain<ColumnHandle> currentPredicate = dynamicFilter.getCurrentPredicate();
-        ListenableFuture<List<ConnectorSplit>> nextBatch = toListenableFuture(
+        ListenableFuture<List<ConnectorSplit>> splitsFuture = toListenableFuture(
                 source.getNextBatch(maxSize, new DynamicFilterSnapshot(currentPredicate, isComplete)));
-        return Futures.transform(nextBatch, connectorSplits -> {
+        return Futures.transform(splitsFuture, connectorSplits -> {
             ImmutableList.Builder<Split> result = ImmutableList.builderWithExpectedSize(connectorSplits.size());
             for (ConnectorSplit connectorSplit : connectorSplits) {
                 result.add(new Split(catalogHandle, connectorSplit));

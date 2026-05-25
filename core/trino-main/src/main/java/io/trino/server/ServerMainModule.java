@@ -147,11 +147,16 @@ import io.trino.spiller.SingleStreamSpillerFactory;
 import io.trino.spiller.SpillerFactory;
 import io.trino.spiller.SpillerStats;
 import io.trino.split.AlternativeChooser;
+import io.trino.split.ForRemoteSplitsTask;
 import io.trino.split.PageSinkManager;
 import io.trino.split.PageSinkProvider;
 import io.trino.split.PageSourceManager;
 import io.trino.split.PageSourceProviderFactory;
 import io.trino.split.SplitManager;
+import io.trino.split.remote.CreateRemoteSplitsTaskRequest;
+import io.trino.split.remote.CreateRemoteSplitsTaskResponse;
+import io.trino.split.remote.GetRemoteSplitsTaskRequest;
+import io.trino.split.remote.RemoteSplitsTaskResponse;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.SqlEnvironmentConfig;
 import io.trino.sql.analyzer.StatementAnalyzerFactory;
@@ -489,6 +494,17 @@ public class ServerMainModule
 
         // split manager
         binder.bind(SplitManager.class).in(Scopes.SINGLETON);
+        jsonCodecBinder(binder).bindJsonCodec(CreateRemoteSplitsTaskRequest.class);
+        jsonCodecBinder(binder).bindJsonCodec(CreateRemoteSplitsTaskResponse.class);
+        jsonCodecBinder(binder).bindJsonCodec(RemoteSplitsTaskResponse.class);
+        jsonCodecBinder(binder).bindJsonCodec(GetRemoteSplitsTaskRequest.class);
+
+        install(internalHttpClientModule("remote-splits-task", ForRemoteSplitsTask.class)
+                .withConfigDefaults(config -> {
+                    config.setIdleTimeout(new Duration(60, SECONDS));
+                    config.setMaxConnectionsPerServer(250);
+                })
+                .build());
 
         // cache metadata
         binder.bind(CacheMetadata.class).in(Scopes.SINGLETON);
@@ -578,6 +594,7 @@ public class ServerMainModule
         closingBinder(binder).registerExecutor(Key.get(ScheduledExecutorService.class, ForExchange.class));
         closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForAsyncHttp.class));
         closingBinder(binder).registerExecutor(Key.get(ScheduledExecutorService.class, ForAsyncHttp.class));
+        closingBinder(binder).registerExecutor(Key.get(ScheduledExecutorService.class, ForRemoteSplitsTask.class));
     }
 
     @Provides
@@ -701,5 +718,14 @@ public class ServerMainModule
     public static ScheduledExecutorService createAsyncHttpTimeoutExecutor(TaskManagerConfig config)
     {
         return newScheduledThreadPool(config.getHttpTimeoutThreads(), daemonThreadsNamed("async-http-timeout-%s"));
+    }
+
+    @Provides
+    @Singleton
+    @ForRemoteSplitsTask
+    public static ScheduledExecutorService createRemoteSplitsTaskScheduledExecutor()
+    {
+        // Shared by task cleanup, heartbeats, and retry delays.
+        return newScheduledThreadPool(2, daemonThreadsNamed("remote-splits-task-scheduler-%s"));
     }
 }

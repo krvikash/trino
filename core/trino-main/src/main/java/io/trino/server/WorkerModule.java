@@ -14,6 +14,7 @@
 package io.trino.server;
 
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
@@ -21,6 +22,7 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.connector.ThrowingManagedStatisticsClient;
 import io.trino.execution.resourcegroups.NoOpResourceGroupManager;
 import io.trino.execution.resourcegroups.ResourceGroupManager;
+import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.failuredetector.FailureDetector;
 import io.trino.failuredetector.NoOpFailureDetector;
 import io.trino.metadata.LanguageFunctionProvider;
@@ -28,6 +30,20 @@ import io.trino.metadata.WorkerLanguageFunctionProvider;
 import io.trino.server.ui.NoWebUiAuthenticationFilter;
 import io.trino.server.ui.WebUiAuthenticationFilter;
 import io.trino.spi.connector.ManagedStatisticsClient;
+import io.trino.split.ForRemoteSplitsTask;
+import io.trino.split.remote.RemoteSplitsTaskManager;
+import io.trino.split.remote.RemoteSplitsTaskResource;
+
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor.AbortPolicy;
+
+import static io.airlift.bootstrap.ClosingBinder.closingBinder;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class WorkerModule
         extends AbstractConfigurationAwareModule
@@ -52,6 +68,11 @@ public class WorkerModule
 
         // managed statistics: not used on workers but binding has to be present for ConnectorContext
         binder.bind(ManagedStatisticsClient.class).to(ThrowingManagedStatisticsClient.class).in(Scopes.SINGLETON);
+
+        // remote splits tasks are served by workers only; the coordinator never selects itself as a candidate
+        binder.bind(RemoteSplitsTaskManager.class).in(Scopes.SINGLETON);
+        jaxrsBinder(binder).bind(RemoteSplitsTaskResource.class);
+        closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForRemoteSplitsTask.class));
     }
 
     @Provides
@@ -59,5 +80,32 @@ public class WorkerModule
     public static ResourceGroupManager<?> getResourceGroupManager(@SuppressWarnings("rawtypes") ResourceGroupManager manager)
     {
         return manager;
+    }
+
+    @Provides
+    @Singleton
+    public static Optional<StableHostAddressProvider> getRemoteSplitsGenerationAddressProvider()
+    {
+        // Tasks for remote splits generation are issued from the coordinator only; workers have no ring
+        return Optional.empty();
+    }
+
+    @Provides
+    @Singleton
+    @ForRemoteSplitsTask
+    public static ExecutorService createRemoteSplitsTaskCreationExecutor()
+    {
+        // Keeps connector metadata I/O during split-source creation off the shared HTTP serving
+        // threads. The bounded queue is the admission control against create storms: a rejected
+        // create is answered with REMOTE_SPLITS_TASK_QUEUE_FULL, which the coordinator retries on
+        // another worker, rather than queueing past the coordinator's request timeout.
+        return new ThreadPoolExecutor(
+                8,
+                8,
+                0,
+                SECONDS,
+                new LinkedBlockingQueue<>(100),
+                daemonThreadsNamed("remote-splits-task-creation-%s"),
+                new AbortPolicy());
     }
 }

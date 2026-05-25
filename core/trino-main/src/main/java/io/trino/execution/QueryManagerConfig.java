@@ -177,6 +177,7 @@ public class QueryManagerConfig
     private DataSize faultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold = DataSize.of(5, GIGABYTE);
     private boolean faultTolerantExecutionDebugAdaptivePlanner;
     private boolean sourcePagesValidationEnabled = true;
+    private int remoteSplitsGenerationBatchSize = 10_000;
 
     @Min(1)
     public int getScheduleSplitBatchSize()
@@ -1326,6 +1327,20 @@ public class QueryManagerConfig
     public QueryManagerConfig setSourcePagesValidationEnabled(boolean sourcePagesValidationEnabled)
     {
         this.sourcePagesValidationEnabled = sourcePagesValidationEnabled;
+        return this;
+    }
+
+    @Min(1)
+    public int getRemoteSplitsGenerationBatchSize()
+    {
+        return remoteSplitsGenerationBatchSize;
+    }
+
+    @Config("query.remote-splits-generation.batch-size")
+    @ConfigDescription("Number of splits to fetch per batch when using remote splits generation")
+    public QueryManagerConfig setRemoteSplitsGenerationBatchSize(int remoteSplitsGenerationBatchSize)
+    {
+        this.remoteSplitsGenerationBatchSize = remoteSplitsGenerationBatchSize;
         return this;
     }
 }

@@ -327,6 +327,27 @@ public class TestMemoryTracking
         assertOperatorMemoryAllocations(operatorContext.getOperatorMemoryContext(), 0, 0);
     }
 
+    @Test
+    void testSplitSourceMemoryContext()
+    {
+        QueryId queryId = new QueryId("test_query");
+        LocalMemoryContext splitSourceMemoryContext = queryContext.addSplitSourceMemoryContext(
+                new TaskId(new StageId(queryId, Integer.MAX_VALUE), 0, 0),
+                "splitSource");
+
+        // reservations count against the query's user memory in the pool
+        splitSourceMemoryContext.setBytes(100_000);
+        assertThat(memoryPool.getQueryMemoryReservation(queryId)).isEqualTo(100_000);
+
+        // the per-node query memory limit applies, and a failed reservation leaves state unchanged
+        assertThatThrownBy(() -> splitSourceMemoryContext.setBytes(queryMaxMemory.toBytes() + 1))
+                .isInstanceOf(ExceededMemoryLimitException.class);
+        assertThat(memoryPool.getQueryMemoryReservation(queryId)).isEqualTo(100_000);
+
+        splitSourceMemoryContext.close();
+        assertThat(memoryPool.getQueryMemoryReservation(queryId)).isEqualTo(0);
+    }
+
     private void assertStats(
             OperatorStats operatorStats,
             DriverStats driverStats,

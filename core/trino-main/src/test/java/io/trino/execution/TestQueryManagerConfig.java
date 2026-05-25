@@ -130,7 +130,8 @@ public class TestQueryManagerConfig
                 .setFaultTolerantExecutionAdaptiveJoinReorderingSizeDifferenceRatio(1.5)
                 .setFaultTolerantExecutionDebugAdaptivePlanner(false)
                 .setMaxWriterTaskCount(100)
-                .setSourcePagesValidationEnabled(true));
+                .setSourcePagesValidationEnabled(true)
+                .setRemoteSplitsGenerationBatchSize(10_000));
     }
 
     @Test
@@ -221,6 +222,7 @@ public class TestQueryManagerConfig
                 .put("fault-tolerant-execution-adaptive-join-reordering-size-difference-ratio", "2")
                 .put("fault-tolerant-execution-debug-adaptive-planner", "true")
                 .put("source-pages-validation-enabled", "false")
+                .put("query.remote-splits-generation.batch-size", "5000")
                 .buildOrThrow();
 
         QueryManagerConfig expected = new QueryManagerConfig()
@@ -307,7 +309,8 @@ public class TestQueryManagerConfig
                 .setFaultTolerantExecutionAdaptiveJoinReorderingSizeDifferenceRatio(2.0)
                 .setFaultTolerantExecutionDebugAdaptivePlanner(true)
                 .setMaxWriterTaskCount(101)
-                .setSourcePagesValidationEnabled(false);
+                .setSourcePagesValidationEnabled(false)
+                .setRemoteSplitsGenerationBatchSize(5000);
 
         assertFullMapping(properties, expected);
     }

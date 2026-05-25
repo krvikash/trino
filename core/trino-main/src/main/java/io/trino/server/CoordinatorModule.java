@@ -147,6 +147,7 @@ import io.trino.sql.rewrite.StatementRewrite;
 import io.trino.sql.rewrite.StatementRewrite.Rewrite;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -480,6 +481,15 @@ public class CoordinatorModule
             StableHostAddressProviderConfig config)
     {
         return new StableHostAddressProvider(new DefaultNodeManager(currentNode, nodeManager, nodeSchedulerConfig.isIncludeCoordinator()), config);
+    }
+
+    @Provides
+    @Singleton
+    public static Optional<StableHostAddressProvider> getRemoteSplitsGenerationAddressProvider(StableHostAddressProvider hostAddressProvider)
+    {
+        // SplitManager binds on every node but issues tasks for remote splits generation only on the
+        // coordinator; WorkerModule provides the absent counterpart of this optional
+        return Optional.of(hostAddressProvider);
     }
 
     @Provides

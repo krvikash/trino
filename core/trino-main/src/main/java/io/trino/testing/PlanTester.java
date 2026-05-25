@@ -19,6 +19,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.airlift.http.client.HttpClient;
+import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
@@ -198,6 +200,10 @@ import io.trino.split.PageSinkManager;
 import io.trino.split.PageSourceManager;
 import io.trino.split.SplitManager;
 import io.trino.split.SplitSource;
+import io.trino.split.remote.CreateRemoteSplitsTaskRequest;
+import io.trino.split.remote.CreateRemoteSplitsTaskResponse;
+import io.trino.split.remote.GetRemoteSplitsTaskRequest;
+import io.trino.split.remote.RemoteSplitsTaskResponse;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.SessionPropertyResolver;
 import io.trino.sql.SqlEnvironmentConfig;
@@ -282,6 +288,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.opentelemetry.api.OpenTelemetry.noop;
 import static io.trino.connector.CatalogServiceProviderModule.createAccessControlProvider;
@@ -361,6 +368,8 @@ public class PlanTester
     private final SubstitutionMetadata substitutionMetadata;
     private final TestingAccessControlManager accessControl;
     private final SplitManager splitManager;
+    private final HttpClient remoteSplitsHttpClient;
+    private final ScheduledExecutorService remoteSplitsTaskExecutor;
     private final PageSourceManager pageSourceManager;
     private final AlternativeChooser alternativeChooser;
     private final IndexManager indexManager;
@@ -526,12 +535,28 @@ public class PlanTester
                 nodeInfo,
                 evaluator,
                 cacheManagerRegistry));
-        this.splitManager = new SplitManager(createSplitManagerProvider(catalogManager), tracer, new QueryManagerConfig());
+        this.remoteSplitsHttpClient = new JettyHttpClient();
+        this.remoteSplitsTaskExecutor = newScheduledThreadPool(2, daemonThreadsNamed("remote-splits-task-scheduler-%s"));
+        StableHostAddressProvider stableHostAddressProvider = new StableHostAddressProvider(new DefaultNodeManager(CURRENT_NODE, nodeManager, nodeSchedulerConfig.isIncludeCoordinator()), new StableHostAddressProviderConfig());
+        this.splitManager = new SplitManager(
+                createSplitManagerProvider(catalogManager),
+                tracer,
+                new QueryManagerConfig(),
+                catalogManager,
+                remoteSplitsHttpClient,
+                remoteSplitsTaskExecutor,
+                jsonCodec(CreateRemoteSplitsTaskRequest.class),
+                jsonCodec(CreateRemoteSplitsTaskResponse.class),
+                jsonCodec(RemoteSplitsTaskResponse.class),
+                jsonCodec(GetRemoteSplitsTaskRequest.class),
+                metadata,
+                cacheMetadata,
+                Optional.of(stableHostAddressProvider),
+                nodeManager);
         this.pageSourceManager = new PageSourceManager(createPageSourceProviderFactory(catalogManager), new DirectIoExecutor());
         this.alternativeChooser = new AlternativeChooser(createAlternativeChooser(catalogManager));
         this.pageSinkManager = new PageSinkManager(createPageSinkProvider(catalogManager));
         this.indexManager = new IndexManager(createIndexProvider(catalogManager));
-        StableHostAddressProvider stableHostAddressProvider = new StableHostAddressProvider(new DefaultNodeManager(CURRENT_NODE, nodeManager, nodeSchedulerConfig.isIncludeCoordinator()), new StableHostAddressProviderConfig());
         NodeScheduler nodeScheduler = new NodeScheduler(new UniformNodeSelectorFactory(CURRENT_NODE, nodeManager, nodeSchedulerConfig, new NodeTaskMap(finalizerService), stableHostAddressProvider));
         this.sessionPropertyManager = createSessionPropertyManager(catalogManager, taskManagerConfig, cacheConfig, optimizerConfig);
         this.nodePartitioningManager = new NodePartitioningManager(nodeScheduler, createNodePartitioningProvider(catalogManager));
@@ -717,6 +742,8 @@ public class PlanTester
         catalogManager.stop();
         cacheManagerRegistry.shutdown();
         finalizerService.destroy();
+        remoteSplitsTaskExecutor.shutdownNow();
+        remoteSplitsHttpClient.close();
     }
 
     public TransactionManager getTransactionManager()

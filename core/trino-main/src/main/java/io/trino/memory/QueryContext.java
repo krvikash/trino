@@ -24,6 +24,7 @@ import io.trino.Session;
 import io.trino.execution.TaskId;
 import io.trino.execution.TaskStateMachine;
 import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.memory.context.MemoryTrackingContext;
 import io.trino.operator.TaskContext;
@@ -405,6 +406,23 @@ public class QueryContext
                 cpuTimerEnabled);
         taskContexts.put(taskId, taskContext);
         return taskContext;
+    }
+
+    /**
+     * Creates a memory context for split enumeration this node performs for the query outside any
+     * task (remote split tasks). Reservations land in the query's user memory on this node — counted
+     * against the per-node limit and attributed to the query in the memory pool — under the given
+     * synthetic task id, whose only significant part is the query id.
+     */
+    public LocalMemoryContext addSplitSourceMemoryContext(TaskId taskId, String tag)
+    {
+        AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(
+                new QueryMemoryReservationHandler(
+                        (allocationTag, delta) -> updateUserMemory(taskId, allocationTag, delta),
+                        (allocationTag, delta) -> tryUpdateUserMemory(taskId, allocationTag, delta),
+                        transferTagsFunction(memoryPool, taskId)),
+                0L);
+        return memoryContext.newLocalMemoryContext(tag);
     }
 
     public <C, R> R accept(QueryContextVisitor<C, R> visitor, C context)
