@@ -21,7 +21,6 @@ import io.airlift.log.Logger;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
-import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
@@ -393,12 +392,10 @@ public final class GpuAggregationCompiler
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, negatedScale);
         CompiledExpression cast = new CompiledExpression(
                 (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
-                new InputChannels(ImmutableList.of(column.channel())),
-                GpuScore.POTENTIAL);
+                new InputChannels(ImmutableList.of(column.channel())));
         CompiledExpression passthrough = new CompiledExpression(
                 (_, inputColumns) -> getOnlyElement(inputColumns).incRefCount(),
-                new InputChannels(ImmutableList.of(column.channel())),
-                GpuScore.POTENTIAL);
+                new InputChannels(ImmutableList.of(column.channel())));
 
         Type sumOutputType = decimalSumOutputType(inputDecimalType);
 
@@ -410,8 +407,7 @@ public final class GpuAggregationCompiler
                         channel -> new GpuCountNonNull(channel, BigintType.BIGINT, DType.INT64)),
                 Optional.of(new PostProjection(channels -> new CompiledExpression(
                         new GpuPackAvgDecimalState(),
-                        new InputChannels(ImmutableList.of(channels[0], channels[1])),
-                        GpuScore.POTENTIAL)))));
+                        new InputChannels(ImmutableList.of(channels[0], channels[1])))))));
     }
 
     private static Optional<AggregateCompilation> compileMinMax(
@@ -482,8 +478,7 @@ public final class GpuAggregationCompiler
                         return mask.ifElse(value, nullScalar);
                     }
                 },
-                new InputChannels(ImmutableList.of(maskChannel, valueChannel)),
-                GpuScore.POTENTIAL);
+                new InputChannels(ImmutableList.of(maskChannel, valueChannel)));
     }
 
     private record ColumnReference(int channel, Type type)
@@ -571,8 +566,7 @@ public final class GpuAggregationCompiler
                     negatedScale);
             CompiledExpression cast = new CompiledExpression(
                     (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
-                    new InputChannels(List.of(sourceChannel)),
-                    GpuScore.POTENTIAL);
+                    new InputChannels(List.of(sourceChannel)));
             Type sumOutputType = decimalSumOutputType(inputDecimalType);
             return new AggregateCompilation(
                     VARBINARY,
@@ -580,8 +574,7 @@ public final class GpuAggregationCompiler
                     List.of(channel -> new GpuSum(channel, sumOutputType, decimal128Type)),
                     Optional.of(new PostProjection(channels -> new CompiledExpression(
                             new GpuDecimal128AsVarbinary(),
-                            new InputChannels(List.of(channels[0])),
-                            GpuScore.POTENTIAL))));
+                            new InputChannels(List.of(channels[0]))))));
         }
 
         static AggregateCompilation longDecimalSumPartial(int sourceChannel, DType decimal128Type)
@@ -608,16 +601,14 @@ public final class GpuAggregationCompiler
                     sums,
                     Optional.of(new PostProjection(channels -> new CompiledExpression(
                             new GpuCombineSumChunksToVarbinary(decimal128Type),
-                            new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3])),
-                            GpuScore.POTENTIAL))));
+                            new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3]))))));
         }
 
         private static CompiledExpression chunkExpression(int sourceChannel, int chunkIdx, DType chunkType)
         {
             return new CompiledExpression(
                     new GpuExtractInt32Chunk(chunkIdx, chunkType),
-                    new InputChannels(List.of(sourceChannel)),
-                    GpuScore.POTENTIAL);
+                    new InputChannels(List.of(sourceChannel)));
         }
 
         static AggregateCompilation decimalSumFinal(int sourceChannel, DType decimal128Type, Type outputType)
@@ -645,16 +636,14 @@ public final class GpuAggregationCompiler
                     sums,
                     Optional.of(new PostProjection(channels -> new CompiledExpression(
                             new GpuCombineDecimalStateSumsToDecimal128(decimal128Type),
-                            new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3], channels[4])),
-                            GpuScore.POTENTIAL))));
+                            new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3], channels[4]))))));
         }
 
         private static CompiledExpression decimalStateComponentExpression(int sourceChannel, int componentIdx)
         {
             return new CompiledExpression(
                     new GpuExtractDecimalStateChunk(componentIdx),
-                    new InputChannels(List.of(sourceChannel)),
-                    GpuScore.POTENTIAL);
+                    new InputChannels(List.of(sourceChannel)));
         }
     }
 

@@ -304,8 +304,7 @@ final class TestGpuSumDecimalAggregation
             // Cast decimal(p,s) → DECIMAL128(s) so SUM accumulates with 128-bit width.
             preProjections.add(new Projection.Gpu(new CompiledExpression(
                     new GpuShortDecimalToDecimal128(decimal128Type),
-                    new InputChannels(List.of(sourceChannel)),
-                    GpuScore.POTENTIAL)));
+                    new InputChannels(List.of(sourceChannel)))));
         }
         else {
             preProjections.add(new Projection.Gpu(chunkExpression(sourceChannel, 0, DType.UINT32)));
@@ -337,14 +336,12 @@ final class TestGpuSumDecimalAggregation
         if (inputDecimalType.isShort()) {
             postProjections.add(new Projection.Gpu(new CompiledExpression(
                     new GpuDecimal128AsVarbinary(),
-                    new InputChannels(List.of(aggResultStart)),
-                    GpuScore.POTENTIAL)));
+                    new InputChannels(List.of(aggResultStart)))));
         }
         else {
             postProjections.add(new Projection.Gpu(new CompiledExpression(
                     new GpuCombineSumChunksToVarbinary(decimal128Type),
-                    new InputChannels(List.of(aggResultStart, aggResultStart + 1, aggResultStart + 2, aggResultStart + 3)),
-                    GpuScore.POTENTIAL)));
+                    new InputChannels(List.of(aggResultStart, aggResultStart + 1, aggResultStart + 2, aggResultStart + 3)))));
         }
 
         GpuOperation op = new GpuProject.Factory(preProjections.build()).create(source);
@@ -372,8 +369,7 @@ final class TestGpuSumDecimalAggregation
         for (int component = 0; component < GpuExtractDecimalStateChunk.COMPONENT_COUNT; component++) {
             preProjections.add(new Projection.Gpu(new CompiledExpression(
                     new GpuExtractDecimalStateChunk(component),
-                    new InputChannels(List.of(sourceChannel)),
-                    GpuScore.POTENTIAL)));
+                    new InputChannels(List.of(sourceChannel)))));
         }
 
         List<GpuAggregateFunction> aggregates = List.of(
@@ -396,8 +392,7 @@ final class TestGpuSumDecimalAggregation
                         aggResultStart + 1,
                         aggResultStart + 2,
                         aggResultStart + 3,
-                        aggResultStart + 4)),
-                GpuScore.POTENTIAL)));
+                        aggResultStart + 4)))));
 
         GpuOperation op = new GpuProject.Factory(preProjections.build()).create(source);
         op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ false).create(op);
@@ -409,8 +404,7 @@ final class TestGpuSumDecimalAggregation
     {
         return new CompiledExpression(
                 new GpuExtractInt32Chunk(chunkIdx, chunkType),
-                new InputChannels(List.of(sourceChannel)),
-                GpuScore.POTENTIAL);
+                new InputChannels(List.of(sourceChannel)));
     }
 
     /**

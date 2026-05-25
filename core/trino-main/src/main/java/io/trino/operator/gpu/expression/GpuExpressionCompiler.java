@@ -17,10 +17,8 @@ import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.DType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Ordering;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.gpu.regex.GpuRegexTranspiler;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.CatalogSchemaFunctionName;
@@ -78,8 +76,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
-import static io.trino.operator.gpu.GpuScore.POTENTIAL;
-import static io.trino.operator.gpu.GpuScore.PREFERRED;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
@@ -127,7 +123,7 @@ public class GpuExpressionCompiler
     {
         CompilationVisitor visitor = new CompilationVisitor(layout);
         Optional<CompiledExpression> compiled = expression.accept(visitor, null)
-                .map(result -> new CompiledExpression(result.expression(), new InputChannels(ImmutableList.copyOf(visitor.inputChannels)), result.score()));
+                .map(result -> new CompiledExpression(result.expression(), new InputChannels(ImmutableList.copyOf(visitor.inputChannels))));
         if (compiled.isEmpty()) {
             log.debug("Could not compile expression for GPU execution: %s", expression);
         }
@@ -161,8 +157,7 @@ public class GpuExpressionCompiler
         {
             return toGpuMapping(literal.type())
                     .map(typeMapping -> new CompilationResult(
-                            new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value())),
-                            POTENTIAL));
+                            new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value()))));
         }
 
         @Override
@@ -179,8 +174,7 @@ public class GpuExpressionCompiler
                 return compactLayout.size();
             });
             return Optional.of(new CompilationResult(
-                    (_, inputColumns) -> inputColumns.get(compactField).incRefCount(),
-                    POTENTIAL));
+                    (_, inputColumns) -> inputColumns.get(compactField).incRefCount()));
         }
 
         @Override
@@ -210,7 +204,7 @@ public class GpuExpressionCompiler
                     toDType(cast.type()).flatMap(toDType ->
                             cast.expression().accept(this, context).flatMap(compiledArgument ->
                                     compileCast(compiledArgument.expression(), cast.expression().type(), fromDType, cast.type(), toDType)
-                                            .map(gpuCast -> new CompilationResult(gpuCast, compiledArgument.score())))));
+                                            .map(CompilationResult::new))));
         }
 
         private static Optional<GpuExpression> compileCast(GpuExpression input, Type fromType, DType fromDType, Type toType, DType toDType)
@@ -309,15 +303,13 @@ public class GpuExpressionCompiler
                     patternType == LIKE_PATTERN) {
                 return call.arguments().get(0).accept(this, context)
                         .map(searched -> new CompilationResult(
-                                new GpuLike(searched.expression(), ((LikePattern) likePattern).getPattern(), ((LikePattern) likePattern).getEscape()),
-                                Ordering.natural().max(searched.score(), PREFERRED)));
+                                new GpuLike(searched.expression(), ((LikePattern) likePattern).getPattern(), ((LikePattern) likePattern).getEscape())));
             }
 
             if (name.equals("$not") && call.arguments().size() == 1) {
                 return call.arguments().getFirst().accept(this, context)
                         .map(operand -> new CompilationResult(
-                                new GpuNot(operand.expression()),
-                                operand.score()));
+                                new GpuNot(operand.expression())));
             }
 
             if (isOperatorName(name)) {
@@ -339,8 +331,7 @@ public class GpuExpressionCompiler
             if (name.equals("length") && call.arguments().size() == 1 && getOnlyElement(call.arguments()).type() instanceof VarcharType) {
                 return getOnlyElement(call.arguments()).accept(this, context)
                         .map(compiled -> new CompilationResult(
-                                new GpuStringLength(compiled.expression()),
-                                compiled.score()));
+                                new GpuStringLength(compiled.expression())));
             }
 
             // TODO: add substring support for char(x)
@@ -523,7 +514,7 @@ public class GpuExpressionCompiler
                 }
                 default -> Optional.empty();
             };
-            return gpuExpression.map(expression -> new CompilationResult(expression, maxScore(args, POTENTIAL)));
+            return gpuExpression.map(CompilationResult::new);
         }
 
         // Checks whether the raw result precision for decimal add/subtract (before capping at 38)
@@ -549,8 +540,7 @@ public class GpuExpressionCompiler
                         return toDType(resultType).flatMap(resultDType ->
                                 argument.accept(this, context).map(compiled ->
                                         new CompilationResult(
-                                                new GpuCast(new GpuYearExtract(compiled.expression()), resultDType),
-                                                compiled.score())));
+                                                new GpuCast(new GpuYearExtract(compiled.expression()), resultDType))));
                     }
                     case "day" -> dateTimeField = GpuDateTimeExtract.Field.DAY;
                     case "hour" -> dateTimeField = GpuDateTimeExtract.Field.HOUR;
@@ -563,8 +553,7 @@ public class GpuExpressionCompiler
                 return toDType(resultType).flatMap(resultDType ->
                         argument.accept(this, context).map(compiled ->
                                 new CompilationResult(
-                                        new GpuCast(new GpuDateTimeExtract(compiled.expression(), dateTimeField), resultDType),
-                                        compiled.score())));
+                                        new GpuCast(new GpuDateTimeExtract(compiled.expression(), dateTimeField), resultDType))));
             }
             return Optional.empty();
         }
@@ -591,8 +580,7 @@ public class GpuExpressionCompiler
 
             return timestampArgument.accept(this, context)
                     .map(compiled -> new CompilationResult(
-                            new GpuDateTrunc(compiled.expression(), field.get()),
-                            compiled.score()));
+                            new GpuDateTrunc(compiled.expression(), field.get())));
         }
 
         private Optional<CompilationResult> compileSubstring(Call call, Void context)
@@ -613,19 +601,16 @@ public class GpuExpressionCompiler
             }
 
             Optional<GpuExpression> lengthExpression = Optional.empty();
-            List<CompilationResult> results = ImmutableList.of(sourceCompiled.get(), startCompiled.get());
             if (argCount == 3) {
                 Optional<CompilationResult> lengthCompiled = call.arguments().get(2).accept(this, context);
                 if (lengthCompiled.isEmpty()) {
                     return Optional.empty();
                 }
                 lengthExpression = Optional.of(lengthCompiled.get().expression());
-                results = ImmutableList.of(sourceCompiled.get(), startCompiled.get(), lengthCompiled.get());
             }
 
             return Optional.of(new CompilationResult(
-                    new GpuSubstring(sourceCompiled.get().expression(), startCompiled.get().expression(), lengthExpression),
-                    maxScore(results, POTENTIAL)));
+                    new GpuSubstring(sourceCompiled.get().expression(), startCompiled.get().expression(), lengthExpression)));
         }
 
         private Optional<CompilationResult> compileRegexpReplace(Call call, Void context)
@@ -662,8 +647,7 @@ public class GpuExpressionCompiler
             GpuRegexTranspiler.TranspileResult result = transpiled.get();
             return call.arguments().getFirst().accept(this, context)
                     .map(source -> new CompilationResult(
-                            new GpuRegexpReplace(source.expression(), result.pattern(), result.replacement(), result.hasBackreferences()),
-                            Ordering.natural().max(source.score(), PREFERRED)));
+                            new GpuRegexpReplace(source.expression(), result.pattern(), result.replacement(), result.hasBackreferences())));
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)
@@ -714,7 +698,7 @@ public class GpuExpressionCompiler
                 case IDENTICAL -> Optional.empty();
             };
 
-            return compiledComparison.map(expression -> new CompilationResult(expression, maxScore(List.of(leftCompiled.get(), rightCompiled.get()), POTENTIAL)));
+            return compiledComparison.map(CompilationResult::new);
         }
 
         @Override
@@ -762,8 +746,7 @@ public class GpuExpressionCompiler
             }
 
             return Optional.of(new CompilationResult(
-                    new GpuIn(valueCompiled.get().expression(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.get().toColumn()),
-                    Ordering.natural().max(valueCompiled.get().score(), POTENTIAL)));
+                    new GpuIn(valueCompiled.get().expression(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.get().toColumn())));
         }
 
         @Override
@@ -771,8 +754,7 @@ public class GpuExpressionCompiler
         {
             return isNull.value().accept(this, context)
                     .map(operand -> new CompilationResult(
-                            new GpuIsNull(operand.expression()),
-                            Ordering.natural().max(operand.score(), POTENTIAL)));
+                            new GpuIsNull(operand.expression())));
         }
 
         @Override
@@ -828,8 +810,7 @@ public class GpuExpressionCompiler
             checkArgument(arguments.size() >= 2, "Expression requires at least 2 arguments, got %s", arguments.size());
             return compileAll(arguments, context)
                     .map(results -> new CompilationResult(
-                            expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList())),
-                            maxScore(results, POTENTIAL)));
+                            expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList()))));
         }
 
         private Optional<List<CompilationResult>> compileAll(List<Expression> expressions, Void context)
@@ -845,14 +826,6 @@ public class GpuExpressionCompiler
             return Optional.of(results.build());
         }
 
-        private static GpuScore maxScore(List<CompilationResult> results, GpuScore defaultScore)
-        {
-            return results.stream()
-                    .map(CompilationResult::score)
-                    .max(Ordering.natural())
-                    .orElse(defaultScore);
-        }
-
         @Override
         protected Optional<CompilationResult> visitExpression(Expression node, Void context)
         {
@@ -861,12 +834,11 @@ public class GpuExpressionCompiler
     }
 
     @VisibleForTesting
-    record CompilationResult(GpuExpression expression, GpuScore score)
+    record CompilationResult(GpuExpression expression)
     {
         public CompilationResult
         {
             requireNonNull(expression, "expression is null");
-            requireNonNull(score, "score is null");
         }
     }
 

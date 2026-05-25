@@ -13,20 +13,17 @@
  */
 package io.trino.operator.gpu.expression;
 
-import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.project.InputChannels;
 
 import static java.util.Objects.requireNonNull;
 
 public record CompiledExpression(
         GpuExpression expression,
-        InputChannels inputChannels,
-        GpuScore score)
+        InputChannels inputChannels)
 {
     public CompiledExpression
     {
         requireNonNull(expression, "expression is null");
         requireNonNull(inputChannels, "inputChannels is null");
-        requireNonNull(score, "score is null");
     }
 }
