@@ -18,6 +18,7 @@ import ai.rapids.cudf.HostColumnVector;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.connector.BoundedFileSystemReadExecutor;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.memory.MemoryInputFile;
@@ -387,7 +388,8 @@ public class TestGpuParquetPageSource
                 columns,
                 new NameBasedColumnMatcher(),
                 options,
-                metadata);
+                metadata,
+                new BoundedFileSystemReadExecutor(8));
         try (GpuParquetPageSource pageSource = new GpuParquetPageSource(
                 fabricator,
                 columns,

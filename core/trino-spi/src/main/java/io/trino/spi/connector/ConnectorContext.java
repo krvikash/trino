@@ -92,6 +92,11 @@ public interface ConnectorContext
         throw new UnsupportedOperationException();
     }
 
+    default FileSystemReadExecutor getFileSystemReadExecutor()
+    {
+        throw new UnsupportedOperationException();
+    }
+
     default AiModelAccessControl getAiModelAccessControl()
     {
         throw new UnsupportedOperationException();

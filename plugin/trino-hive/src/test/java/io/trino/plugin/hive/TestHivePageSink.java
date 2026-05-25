@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
+import io.trino.connector.BoundedFileSystemReadExecutor;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
@@ -420,7 +421,8 @@ public class TestHivePageSink
                 TESTING_TYPE_MANAGER,
                 config,
                 getDefaultHivePageSourceFactories(fileSystemFactory, config),
-                fileSystemFactory);
+                fileSystemFactory,
+                new BoundedFileSystemReadExecutor(8));
         return provider.createPageSource(transaction, getHiveSession(config), split, table, Optional.empty(), ImmutableList.copyOf(getColumnHandles()), DynamicFilter.EMPTY);
     }
 

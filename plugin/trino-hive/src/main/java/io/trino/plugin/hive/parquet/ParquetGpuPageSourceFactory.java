@@ -28,6 +28,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -61,7 +62,8 @@ public final class ParquetGpuPageSourceFactory
             List<HiveColumnHandle> gpuColumns,
             TupleDomain<HiveColumnHandle> effectivePredicate,
             List<ColumnMapping> columnMappings,
-            int domainCompactionThreshold)
+            int domainCompactionThreshold,
+            FileSystemReadExecutor fileSystemReadExecutor)
     {
         try {
             AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
@@ -142,7 +144,8 @@ public final class ParquetGpuPageSourceFactory
                     gpuColumns,
                     new NameBasedColumnMatcher(),
                     options,
-                    parquetMetadata);
+                    parquetMetadata,
+                    fileSystemReadExecutor);
 
             return new GpuParquetPageSource(fabricator, gpuColumns, columnMappings);
         }

@@ -157,7 +157,7 @@ public abstract class AbstractParquetDataSource
                 smallRangesBuilder.put(entry);
             }
             else {
-                largeRangesBuilder.putAll(entry.getKey(), splitLargeRange(entry.getValue()));
+                largeRangesBuilder.putAll(entry.getKey(), splitLargeRange(entry.getValue(), options.getInitialBufferSize(), options.getMaxBufferSize()));
             }
         }
         ListMultimap<K, DiskRange> smallRanges = smallRangesBuilder.build();
@@ -174,12 +174,12 @@ public abstract class AbstractParquetDataSource
         return slices.build();
     }
 
-    private List<DiskRange> splitLargeRange(DiskRange range)
+    public static List<DiskRange> splitLargeRange(DiskRange range, DataSize initialBufferSize, DataSize maxBufferSize)
     {
         // The read buffer is ramped up from small to max size so that
         // larger reads are used when larger output is consumed from page source.
-        int maxBufferSizeBytes = toIntExact(options.getMaxBufferSize().toBytes());
-        int initialBufferSizeBytes = toIntExact(options.getInitialBufferSize().toBytes());
+        int maxBufferSizeBytes = toIntExact(maxBufferSize.toBytes());
+        int initialBufferSizeBytes = toIntExact(initialBufferSize.toBytes());
         ImmutableList.Builder<DiskRange> ranges = ImmutableList.builder();
         long endOffset = range.offset() + range.length();
         long offset = range.offset();
@@ -261,7 +261,7 @@ public abstract class AbstractParquetDataSource
         return slices.build();
     }
 
-    private static List<DiskRange> mergeAdjacentDiskRanges(Collection<DiskRange> diskRanges, DataSize maxMergeDistance, DataSize maxReadSize)
+    public static List<DiskRange> mergeAdjacentDiskRanges(Collection<DiskRange> diskRanges, DataSize maxMergeDistance, DataSize maxReadSize)
     {
         // sort ranges by start offset
         List<DiskRange> ranges = new ArrayList<>(diskRanges);
