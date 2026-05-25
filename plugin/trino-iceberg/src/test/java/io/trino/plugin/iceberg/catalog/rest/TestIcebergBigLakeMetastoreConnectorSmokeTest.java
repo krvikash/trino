@@ -307,28 +307,10 @@ final class TestIcebergBigLakeMetastoreConnectorSmokeTest
 
     @Test
     @Override
-    public void testDeleteWithV3Format()
-    {
-        assertThatThrownBy(super::testDeleteWithV3Format)
-                .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Unsupported iceberg format version: 3");
-    }
-
-    @Test
-    @Override
-    public void testDefaultColumnValue()
-    {
-        assertThatThrownBy(super::testDefaultColumnValue)
-                .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Unsupported iceberg format version: 3");
-    }
-
-    @Test
-    @Override
     public void testVariantType()
     {
         assertThatThrownBy(super::testVariantType)
-                .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Unsupported iceberg format version: 3");
+                .hasMessageContaining("Failed to commit the transaction")
+                .hasStackTraceContaining("Request contains an invalid argument");
     }
 }
