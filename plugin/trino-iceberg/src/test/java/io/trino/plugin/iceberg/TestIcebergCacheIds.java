@@ -29,6 +29,8 @@ import io.trino.plugin.hive.metastore.file.FileHiveMetastoreFactory;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalogFactory;
 import io.trino.plugin.iceberg.delete.DeleteFile;
+import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
+import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
@@ -106,7 +108,7 @@ public class TestIcebergCacheIds
             throws IOException
     {
         tempDir = Files.createTempDirectory(null).toFile();
-        FileMetastoreTableOperationsProvider tableOperationsProvider = new FileMetastoreTableOperationsProvider(HDFS_FILE_SYSTEM_FACTORY, FILE_IO_FACTORY);
+        FileMetastoreTableOperationsProvider tableOperationsProvider = new FileMetastoreTableOperationsProvider(HDFS_FILE_SYSTEM_FACTORY, FILE_IO_FACTORY, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig()));
         IcebergConfig icebergConfig = new IcebergConfig();
         FileHiveMetastoreFactory metastoreFactory = new FileHiveMetastoreFactory(
                 new NodeVersion("test_version"),
@@ -343,7 +345,8 @@ public class TestIcebergCacheIds
                 TupleDomain.all(),
                 Optional.empty(),
                 OptionalLong.empty(),
-                OptionalLong.empty());
+                OptionalLong.empty(),
+                Optional.empty());
     }
 
     private static IcebergTableHandle createIcebergTableHandle(

@@ -275,7 +275,8 @@ public class IcebergProxiedConnectorTransformerTest
                 TupleDomain.all(),
                 Optional.empty(),
                 OptionalLong.of(1L),
-                OptionalLong.empty());
+                OptionalLong.empty(),
+                Optional.empty());
         DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(
                 SCHEMA_NAME,
                 TABLE_NAME,

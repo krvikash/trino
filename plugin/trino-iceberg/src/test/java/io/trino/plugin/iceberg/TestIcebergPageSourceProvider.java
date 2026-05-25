@@ -40,6 +40,8 @@ import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.iceberg.delete.DeleteFile;
+import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
+import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -135,6 +137,7 @@ class TestIcebergPageSourceProvider
                 Optional.empty(),
                 1L, // dataSequenceNumber
                 OptionalLong.empty(),
+                Optional.empty(),
                 Optional.empty());
 
         IcebergPageSourceProvider provider = createPageSourceProvider();
@@ -144,6 +147,7 @@ class TestIcebergPageSourceProvider
         TestingConnectorSession session = TestingConnectorSession.builder()
                 .setPropertyMetadata(new IcebergSessionProperties(
                         new IcebergConfig(),
+                        new IcebergEncryptionConfig(),
                         ORC_READER_CONFIG,
                         new OrcWriterConfig(),
                         PARQUET_READER_CONFIG,
@@ -173,7 +177,8 @@ class TestIcebergPageSourceProvider
                 Optional.empty(),
                 new IcebergConfig().getFormatVersion(),
                 false,
-                newSimpleAggregatedMemoryContext())) {
+                newSimpleAggregatedMemoryContext(),
+                Optional.empty())) {
             // Memory should still be 0 before reading any pages (lazy loading)
             assertThat(provider.getMemoryUsage()).isEqualTo(0);
 
@@ -286,8 +291,9 @@ class TestIcebergPageSourceProvider
                 PARQUET_READER_CONFIG.toParquetReaderOptions(),
                 new IcebergConfig().getDateTimeZone(),
                 TESTING_TYPE_MANAGER,
+                ParquetFooterCache.noop(),
                 Optional.of(blocksHashFactory),
-                ParquetFooterCache.noop());
+                new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig()));
     }
 
     private static class TestingParquetFooterCache

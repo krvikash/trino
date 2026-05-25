@@ -181,7 +181,8 @@ final class TestCompositeIcebergPageSource
                     TupleDomain.all(),
                     Optional.empty(),
                     OptionalLong.empty(),
-                    OptionalLong.empty()));
+                    OptionalLong.empty(),
+                    Optional.empty()));
         }
         return builder.build();
     }

@@ -145,6 +145,7 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.parquet_writer_row_group_max_row_count', '2147483647', 'integer'),
                         ('objectstore.parquet_writer_row_group_size', '128MB', 'varchar'),
                         ('objectstore.partition_statistics_sample_size', '100', 'integer'),
+                        ('objectstore.plaintext_files_allowed_for_encrypted_tables', 'false', 'boolean'),
                         ('objectstore.projection_pushdown_enabled', 'true', 'boolean'),
                         ('objectstore.propagate_table_scan_sorting_properties', 'false', 'boolean'),
                         ('objectstore.query_partition_filter_required', 'false', 'boolean'),

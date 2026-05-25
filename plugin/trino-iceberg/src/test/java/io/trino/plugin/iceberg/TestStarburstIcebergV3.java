@@ -61,7 +61,6 @@ import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
-import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
 import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -2193,22 +2192,6 @@ public class TestStarburstIcebergV3
             BaseTable icebergTable = loadTable(table.getName());
             icebergTable.updateSchema().addColumn("unknown", Types.UnknownType.get()).commit();
             assertQueryFails("SELECT * FROM " + table.getName(), "\\QCannot convert from Iceberg type 'unknown' (UNKNOWN) to Trino type");
-        }
-    }
-
-    @Test
-    void testUnsupportedTableEncryption()
-    {
-        String tableName = "test_encryption" + randomNameSuffix();
-        assertUpdate("CREATE TABLE " + tableName + "(x int)");
-        try {
-            BaseTable icebergTable = loadTable(tableName);
-            icebergTable.updateProperties().set(ENCRYPTION_TABLE_KEY, "test_key").commit();
-
-            assertQueryFails("SELECT * FROM " + tableName, "Iceberg table encryption is not supported");
-        }
-        finally {
-            metastore.dropTable("tpch", tableName, true);
         }
     }
 

@@ -31,10 +31,11 @@ public class TestingIcebergPlugin
     private final Path localFileSystemRootPath;
     private final Supplier<Optional<Module>> icebergCatalogModule;
     private final Optional<WorkScheduler> workScheduler;
+    private final Supplier<Optional<Module>> additionalOverrideModule;
 
     public TestingIcebergPlugin(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional::empty);
+        this(localFileSystemRootPath, Optional::empty, Optional::empty);
     }
 
     @Deprecated
@@ -45,9 +46,27 @@ public class TestingIcebergPlugin
 
     public TestingIcebergPlugin(Path localFileSystemRootPath, Supplier<Optional<Module>> icebergCatalogModule, Optional<WorkScheduler> workScheduler)
     {
+        this(localFileSystemRootPath, icebergCatalogModule, workScheduler, Optional::empty);
+    }
+
+    public TestingIcebergPlugin(
+            Path localFileSystemRootPath,
+            Supplier<Optional<Module>> icebergCatalogModule,
+            Supplier<Optional<Module>> additionalOverrideModule)
+    {
+        this(localFileSystemRootPath, icebergCatalogModule, Optional.empty(), additionalOverrideModule);
+    }
+
+    public TestingIcebergPlugin(
+            Path localFileSystemRootPath,
+            Supplier<Optional<Module>> icebergCatalogModule,
+            Optional<WorkScheduler> workScheduler,
+            Supplier<Optional<Module>> additionalOverrideModule)
+    {
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         this.icebergCatalogModule = requireNonNull(icebergCatalogModule, "icebergCatalogModule is null");
         this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
+        this.additionalOverrideModule = requireNonNull(additionalOverrideModule, "additionalOverrideModule is null");
     }
 
     @Override
@@ -56,6 +75,6 @@ public class TestingIcebergPlugin
         List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(super.getConnectorFactories());
         verify(connectorFactories.size() == 1, "Unexpected connector factories: %s", connectorFactories);
 
-        return ImmutableList.of(new TestingIcebergConnectorFactory(localFileSystemRootPath, icebergCatalogModule, workScheduler));
+        return ImmutableList.of(new TestingIcebergConnectorFactory(localFileSystemRootPath, icebergCatalogModule, workScheduler, additionalOverrideModule));
     }
 }

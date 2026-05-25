@@ -243,6 +243,7 @@ public class CopyOnWriteIcebergMergeSink
                 nameMapping.map(NameMappingParser::fromJson),
                 formatVersion,
                 false,
-                memoryContext);
+                memoryContext,
+                Optional.empty());
     }
 }

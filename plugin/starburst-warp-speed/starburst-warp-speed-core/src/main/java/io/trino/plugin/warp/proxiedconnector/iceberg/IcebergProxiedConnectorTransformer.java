@@ -183,7 +183,8 @@ public class IcebergProxiedConnectorTransformer
                 TupleDomain.all(),
                 original.affinityKey(),
                 original.dataSequenceNumber(),
-                original.fileFirstRowId());
+                original.fileFirstRowId(),
+                Optional.empty());
     }
 
     @Override

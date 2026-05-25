@@ -224,7 +224,8 @@ public class IcebergSplitManager
                 icebergSplit.fileStatisticsDomain(),
                 icebergSplit.affinityKey(),
                 icebergSplit.dataSequenceNumber(),
-                icebergSplit.fileFirstRowId());
+                icebergSplit.fileFirstRowId(),
+                Optional.empty());
 
         return Optional.of(new CacheSplitId(splitIdCodec.toJson(new IcebergCacheSplitId(
                 icebergSplit.path(),

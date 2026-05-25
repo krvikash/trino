@@ -31,6 +31,8 @@ import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
+import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
+import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
@@ -132,7 +134,8 @@ public class TestTrinoGlueCatalog
                         FILE_IO_FACTORY,
                         new IcebergTypeManager(TESTING_TYPE_MANAGER, new IcebergConfig().getLegacyVariantTypeMapping()),
                         catalogConfig,
-                        new TestingGlueClientProvider(glueClient)),
+                        new TestingGlueClientProvider(glueClient),
+                        new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
                 "test",
                 new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats()),
                 useSystemSecurity,
@@ -290,7 +293,8 @@ public class TestTrinoGlueCatalog
                         FILE_IO_FACTORY,
                         new IcebergTypeManager(TESTING_TYPE_MANAGER, new IcebergConfig().getLegacyVariantTypeMapping()),
                         catalogConfig,
-                        new TestingGlueClientProvider(glueClient)),
+                        new TestingGlueClientProvider(glueClient),
+                        new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
                 "test",
                 new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats()),
                 false,

@@ -104,7 +104,8 @@ public final class PartitionStatisticsReader
                 Optional.empty(),
                 formatVersion(table),
                 false,
-                memoryContext);
+                memoryContext,
+                Optional.empty());
 
         return new PartitionStatsIterator(pageSource, schema);
     }

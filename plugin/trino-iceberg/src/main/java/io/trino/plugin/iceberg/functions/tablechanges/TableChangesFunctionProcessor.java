@@ -144,7 +144,8 @@ public class TableChangesFunctionProcessor
                 // looks like version doesn't matter for table changes
                 2,
                 false,
-                memoryContext);
+                memoryContext,
+                split.parquetFileDecryptionData());
         this.delegateColumnMap = delegateColumnMap;
 
         this.changeTypeIndex = changeTypeIndex;

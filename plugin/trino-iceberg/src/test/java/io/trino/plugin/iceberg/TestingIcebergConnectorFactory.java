@@ -15,6 +15,7 @@ package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
+import io.airlift.configuration.ConfigurationAwareModule;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig;
@@ -39,10 +40,11 @@ public class TestingIcebergConnectorFactory
     private final Path localFileSystemRootPath;
     private final Supplier<Optional<Module>> icebergCatalogModule;
     private final Optional<WorkScheduler> workScheduler;
+    private final Supplier<Optional<Module>> additionalOverrideModule;
 
     public TestingIcebergConnectorFactory(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional::empty, Optional.empty());
+        this(localFileSystemRootPath, Optional::empty, Optional.empty(), Optional::empty);
     }
 
     @Deprecated
@@ -51,12 +53,29 @@ public class TestingIcebergConnectorFactory
             Supplier<Optional<Module>> icebergCatalogModule,
             Optional<WorkScheduler> workScheduler)
     {
+        this(localFileSystemRootPath, icebergCatalogModule, workScheduler, Optional::empty);
+    }
+
+    public TestingIcebergConnectorFactory(
+            Path localFileSystemRootPath,
+            Supplier<Optional<Module>> icebergCatalogModule,
+            Supplier<Optional<Module>> additionalOverrideModule)
+    {
+        this(localFileSystemRootPath, icebergCatalogModule, Optional.empty(), additionalOverrideModule);
+    }
+
+    public TestingIcebergConnectorFactory(
+            Path localFileSystemRootPath,
+            Supplier<Optional<Module>> icebergCatalogModule,
+            Optional<WorkScheduler> workScheduler,
+            Supplier<Optional<Module>> additionalOverrideModule)
+    {
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         var rootPath = localFileSystemRootPath.toFile();
         var _ = rootPath.mkdirs();
         this.icebergCatalogModule = requireNonNull(icebergCatalogModule, "icebergCatalogModule is null");
         this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
-        requireNonNull(workScheduler, "workScheduler is null");
+        this.additionalOverrideModule = requireNonNull(additionalOverrideModule, "additionalOverrideModule is null");
     }
 
     @Override
@@ -74,7 +93,7 @@ public class TestingIcebergConnectorFactory
                     .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
                     .buildOrThrow();
         }
-        Module module = binder -> {
+        Module localModule = binder -> {
             newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
                     .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
             configBinder(binder).bindConfigDefaults(
@@ -84,6 +103,9 @@ public class TestingIcebergConnectorFactory
                 newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
             }
         };
+        Module module = additionalOverrideModule.get()
+                .map(override -> (Module) ConfigurationAwareModule.combine(localModule, override))
+                .orElse(localModule);
         return createConnector(catalogName, config, context, module, icebergCatalogModule.get());
     }
 }

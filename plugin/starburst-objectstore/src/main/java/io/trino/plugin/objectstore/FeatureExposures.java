@@ -178,6 +178,7 @@ public final class FeatureExposures
                 .put(ICEBERG, "parquet_writer_page_value_count", EXPOSED)
                 .put(ICEBERG, "parquet_writer_row_group_max_row_count", EXPOSED)
                 .put(ICEBERG, "parquet_writer_row_group_size", EXPOSED)
+                .put(ICEBERG, "plaintext_files_allowed_for_encrypted_tables", EXPOSED)
                 .put(ICEBERG, "projection_pushdown_enabled", EXPOSED)
                 .put(ICEBERG, "query_partition_filter_required", EXPOSED)
                 .put(ICEBERG, "query_partition_filter_required_schemas", EXPOSED)
