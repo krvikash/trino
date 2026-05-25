@@ -42,6 +42,7 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.predicate.Domain;
@@ -50,6 +51,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
+import io.trino.testing.DirectIoExecutor;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.MessageType;
@@ -86,6 +88,8 @@ import static org.joda.time.DateTimeZone.UTC;
 
 public class TestParquetFileFabricator
 {
+    private static final IoExecutor TEST_IO_EXECUTOR = new DirectIoExecutor();
+
     private final AutoCloseableCloser closer = AutoCloseableCloser.create();
 
     @AfterEach
@@ -218,7 +222,8 @@ public class TestParquetFileFabricator
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                originalMetadata);
+                originalMetadata,
+                TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             assertThat(fabricated.rowCount()).isEqualTo(0);
@@ -395,11 +400,12 @@ public class TestParquetFileFabricator
 
         ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
         MessageType schema = metadata.getFileMetaData().getSchema();
-        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, schema);
+        MessageType requestedSchema = createRequestedSchema(schema, columns);
+        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, requestedSchema);
 
         TupleDomain<ColumnDescriptor> parquetTupleDomain = TupleDomain.all();
         TupleDomainParquetPredicate predicate = buildPredicate(
-                schema,
+                requestedSchema,
                 parquetTupleDomain,
                 descriptorsByPath,
                 UTC,
@@ -419,14 +425,14 @@ public class TestParquetFileFabricator
                 UTC,
                 1000,
                 options);
-        MessageType requestedSchema = createRequestedSchema(schema, columns);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
                 inputFile,
                 filteredRowGroups,
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata);
+                metadata,
+                TEST_IO_EXECUTOR);
 
         return fabricator.fabricate();
     }
@@ -467,11 +473,12 @@ public class TestParquetFileFabricator
                 createColumn("l_quantity", 4, DecimalType.createDecimalType(12, 2)),
                 createColumn("l_shipdate", 10, DATE));
 
-        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, schema);
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
+        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, requestedSchema);
 
         TupleDomain<ColumnDescriptor> parquetTupleDomain = TupleDomain.all();
         TupleDomainParquetPredicate predicate = buildPredicate(
-                schema,
+                requestedSchema,
                 parquetTupleDomain,
                 descriptorsByPath,
                 UTC,
@@ -491,14 +498,14 @@ public class TestParquetFileFabricator
                 UTC,
                 1000,
                 options);
-        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
                 inputFile,
                 filteredRowGroups,
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata);
+                metadata,
+                TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only requested columns
@@ -576,11 +583,12 @@ public class TestParquetFileFabricator
                 createColumn("value", 1, VARCHAR));
 
         MessageType schema = metadata.getFileMetaData().getSchema();
-        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, schema);
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
+        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, requestedSchema);
 
         TupleDomain<ColumnDescriptor> parquetTupleDomain = TupleDomain.all();
         TupleDomainParquetPredicate predicate = buildPredicate(
-                schema,
+                requestedSchema,
                 parquetTupleDomain,
                 descriptorsByPath,
                 UTC,
@@ -600,14 +608,14 @@ public class TestParquetFileFabricator
                 UTC,
                 1000,
                 options);
-        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
                 inputFile,
                 filteredRowGroups,
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata);
+                metadata,
+                TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only selected row group(s)
@@ -656,7 +664,9 @@ public class TestParquetFileFabricator
 
         ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
         MessageType schema = metadata.getFileMetaData().getSchema();
-        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, schema);
+        List<HiveColumnHandle> requestedColumns = List.of(createColumn("col1", 0, BIGINT));
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
+        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, requestedSchema);
 
         // Create predicate that matches only values >= 1000 (should exclude first row group)
         ColumnDescriptor columnDescriptor = descriptorsByPath.get(List.of("col1"));
@@ -666,15 +676,13 @@ public class TestParquetFileFabricator
                         false)));
 
         TupleDomainParquetPredicate predicate = buildPredicate(
-                schema,
+                requestedSchema,
                 parquetTupleDomain,
                 descriptorsByPath,
                 UTC,
                 false,
                 false,
                 false);
-
-        List<HiveColumnHandle> requestedColumns = List.of(createColumn("col1", 0, BIGINT));
 
         ParquetReaderOptions options = ParquetReaderOptions.builder().build();
         List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
@@ -688,14 +696,14 @@ public class TestParquetFileFabricator
                 UTC,
                 1000,
                 options);
-        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
                 inputFile,
                 filteredRowGroups,
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata);
+                metadata,
+                TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file excludes filtered row groups

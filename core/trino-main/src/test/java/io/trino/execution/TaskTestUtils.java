@@ -69,6 +69,7 @@ import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.TableScanNode;
+import io.trino.testing.DirectIoExecutor;
 import io.trino.testing.TestingMetadata.TestingColumnHandle;
 import io.trino.testing.TestingSplit;
 import io.trino.type.BlockTypeOperators;
@@ -157,7 +158,8 @@ public final class TaskTestUtils
     public static LocalExecutionPlanner createTestingPlanner()
     {
         PageSourceManager pageSourceManager = new PageSourceManager(
-                CatalogServiceProvider.singleton(CATALOG_HANDLE, new TestingPageSourceProvider()));
+                CatalogServiceProvider.singleton(CATALOG_HANDLE, new TestingPageSourceProvider()),
+                new DirectIoExecutor());
         AlternativeChooser alternativeChooser = new AlternativeChooser(CatalogServiceProvider.fail());
 
         BlockTypeOperators blockTypeOperators = new BlockTypeOperators(PLANNER_CONTEXT.getTypeOperators());

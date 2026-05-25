@@ -32,6 +32,7 @@ import io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.schema.MessageType;
@@ -76,7 +77,8 @@ public final class HiveGpuParquetPageSourceFactory
             List<HiveColumnHandle> gpuColumns,
             TupleDomain<HiveColumnHandle> effectivePredicate,
             List<ColumnMapping> columnMappings,
-            int domainCompactionThreshold)
+            int domainCompactionThreshold,
+            IoExecutor ioExecutor)
     {
         try {
             AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
@@ -144,7 +146,8 @@ public final class HiveGpuParquetPageSourceFactory
                     requestedSchema,
                     gpuMemoryContext,
                     options,
-                    parquetMetadata);
+                    parquetMetadata,
+                    ioExecutor);
 
             return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings);
         }

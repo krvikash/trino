@@ -101,6 +101,7 @@ import io.trino.spi.connector.SystemColumnHandle;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
@@ -307,7 +308,8 @@ public class IcebergPageSourceProvider
             Optional<ConnectorTableCredentials> connectorTableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
-            ConnectorGpuMemoryContext memoryContext)
+            ConnectorGpuMemoryContext memoryContext,
+            IoExecutor ioExecutor)
     {
         verify(connectorTableCredentials.isPresent(), "connectorTableCredentials is empty");
         IcebergTableCredentials icebergTableCredentials = connectorTableCredentials.map(IcebergTableCredentials.class::cast).get();
@@ -362,7 +364,8 @@ public class IcebergPageSourceProvider
                 partition,
                 tableSchema,
                 effectivePredicate,
-                icebergTable.getFormatVersion());
+                icebergTable.getFormatVersion(),
+                ioExecutor);
     }
 
     private Optional<ConnectorGpuPageSource> createGpuParquetPageSource(
@@ -375,7 +378,8 @@ public class IcebergPageSourceProvider
             String partition,
             Schema tableSchema,
             TupleDomain<IcebergColumnHandle> effectivePredicate,
-            int formatVersion)
+            int formatVersion,
+            IoExecutor ioExecutor)
     {
         AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
         FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
@@ -462,7 +466,8 @@ public class IcebergPageSourceProvider
                     requestedSchema,
                     gpuMemoryContext,
                     gpuParquetReaderOptions,
-                    parquetMetadata);
+                    parquetMetadata,
+                    ioExecutor);
 
             return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build()));
         }

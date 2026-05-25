@@ -102,6 +102,7 @@ import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.RetryPolicy;
+import io.trino.operator.gpu.AsyncIoExecutor;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.GpuNodeSetup;
@@ -128,6 +129,7 @@ import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.function.FunctionBundle;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeDescriptor;
@@ -540,6 +542,9 @@ public class ServerMainModule
 
         // PageIndexer
         binder.bind(PageIndexerFactory.class).to(GroupByHashPageIndexerFactory.class).in(Scopes.SINGLETON);
+
+        // IoExecutor
+        binder.bind(IoExecutor.class).to(AsyncIoExecutor.class).in(Scopes.SINGLETON);
 
         // Finalizer
         binder.bind(FinalizerService.class).in(Scopes.SINGLETON);

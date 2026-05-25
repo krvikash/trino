@@ -21,16 +21,10 @@ import io.airlift.slice.Slices;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.memory.MemoryInputFile;
-import io.trino.parquet.ParquetDataSource;
-import io.trino.parquet.ParquetReaderOptions;
+import io.trino.operator.gpu.AsyncIoExecutor;
 import io.trino.parquet.ParquetTestUtils;
-import io.trino.parquet.metadata.ParquetMetadata;
-import io.trino.parquet.predicate.TupleDomainParquetPredicate;
-import io.trino.parquet.reader.MetadataReader;
-import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.ParquetWriter;
 import io.trino.parquet.writer.ParquetWriterOptions;
-import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.DummyConnectorGpuMemoryContext;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.Page;
@@ -38,6 +32,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Blocked;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Data;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Finished;
@@ -52,9 +47,8 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
-import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.CompressionCodec;
-import org.apache.parquet.schema.MessageType;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -62,18 +56,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
-import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
-import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
-import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
-import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -88,10 +77,17 @@ import static org.apache.parquet.format.CompressionCodec.SNAPPY;
 import static org.apache.parquet.format.CompressionCodec.UNCOMPRESSED;
 import static org.apache.parquet.format.CompressionCodec.ZSTD;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.joda.time.DateTimeZone.UTC;
 
 public class TestHiveGpuParquetPageSource
 {
+    private static final AsyncIoExecutor IO_EXECUTOR = new AsyncIoExecutor(8);
+
+    @AfterAll
+    static void shutdownIoExecutor()
+    {
+        IO_EXECUTOR.shutdown();
+    }
+
     @Test
     public void testBasicReadWithAllTypes()
             throws IOException
@@ -358,50 +354,16 @@ public class TestHiveGpuParquetPageSource
         TrinoInputFile inputFile = new MemoryInputFile(
                 Location.of("memory:///test.parquet"),
                 Slices.wrappedBuffer(parquetFile.getBytes()));
-        ParquetDataSource dataSource = new TrinoParquetDataSource(
+        try (ConnectorGpuPageSource pageSource = new HiveGpuParquetPageSourceFactory(new ParquetReaderConfig()).createGpuPageSource(
+                gpuMemoryContext,
                 inputFile,
-                ParquetReaderOptions.builder().build(),
-                new FileFormatDataSourceStats());
-
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
-        MessageType schema = metadata.getFileMetaData().getSchema();
-        Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(schema, schema);
-
-        TupleDomain<ColumnDescriptor> parquetTupleDomain = TupleDomain.all();
-        TupleDomainParquetPredicate predicate = buildPredicate(
-                schema,
-                parquetTupleDomain,
-                descriptorsByPath,
-                UTC,
-                false,
-                false,
-                false);
-
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                 0,
                 Long.MAX_VALUE,
-                dataSource,
-                metadata,
-                List.of(parquetTupleDomain),
-                List.of(predicate),
-                descriptorsByPath,
-                UTC,
-                1000,
-                options);
-        MessageType requestedSchema = createRequestedSchema(schema, columns);
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                requestedSchema,
-                gpuMemoryContext,
-                options,
-                metadata);
-        try (HiveGpuParquetPageSource pageSource = new HiveGpuParquetPageSource(
-                gpuMemoryContext,
-                fabricator,
                 columns,
-                columnMappings)) {
+                TupleDomain.all(),
+                columnMappings,
+                1000,
+                IO_EXECUTOR)) {
             List<@Own GpuPage> pages = new ArrayList<>();
             try {
                 boolean finished = false;
@@ -565,13 +527,6 @@ public class TestHiveGpuParquetPageSource
                 Optional.empty(),
                 PARTITION_KEY,
                 Optional.empty());
-    }
-
-    private static MessageType createRequestedSchema(MessageType schema, List<HiveColumnHandle> requestedColumns)
-    {
-        boolean useColumnNames = true;
-        return getParquetMessageType(requestedColumns, useColumnNames, schema)
-                .orElseThrow(() -> new IllegalStateException("No columns matched in schema for: " + requestedColumns));
     }
 
     private record Pages(@Own List<GpuPage> pages)

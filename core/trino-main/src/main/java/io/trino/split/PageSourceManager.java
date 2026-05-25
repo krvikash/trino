@@ -35,6 +35,7 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 
@@ -51,11 +52,13 @@ public class PageSourceManager
     private static final Logger log = Logger.get(PageSourceManager.class);
 
     private final CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory;
+    private final IoExecutor ioExecutor;
 
     @Inject
-    public PageSourceManager(CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory)
+    public PageSourceManager(CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory, IoExecutor ioExecutor)
     {
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
+        this.ioExecutor = requireNonNull(ioExecutor, "ioExecutor is null");
     }
 
     public boolean supportsConnectorGpuPageSource(CatalogHandle catalogHandle, ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
@@ -68,16 +71,17 @@ public class PageSourceManager
     public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle)
     {
         ConnectorPageSourceProviderFactory provider = pageSourceProviderFactory.getService(catalogHandle);
-        return new PageSourceProviderInstance(provider.createPageSourceProvider());
+        return new PageSourceProviderInstance(provider.createPageSourceProvider(), ioExecutor);
     }
 
     @VisibleForTesting
-    public record PageSourceProviderInstance(ConnectorPageSourceProvider pageSourceProvider)
+    public record PageSourceProviderInstance(ConnectorPageSourceProvider pageSourceProvider, IoExecutor ioExecutor)
             implements PageSourceProvider
     {
         public PageSourceProviderInstance
         {
             requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+            requireNonNull(ioExecutor, "ioExecutor is null");
         }
 
         @Override
@@ -111,7 +115,8 @@ public class PageSourceManager
                             tableCredentials,
                             columns,
                             finalDynamicFilter,
-                            new DefaultConnectorGpuMemoryContext(gpuOperationContext.taskMemoryContext(), "ConnectorGpuPageSource"))
+                            new DefaultConnectorGpuMemoryContext(gpuOperationContext.taskMemoryContext(), "ConnectorGpuPageSource"),
+                            ioExecutor)
                     .orElseGet(() -> {
                         log.debug("GPU page source was requested but not provided, falling back to CPU scan with adaptation for %s", table.connectorHandle());
                         return new ConnectorGpuPageSourceAdapter(

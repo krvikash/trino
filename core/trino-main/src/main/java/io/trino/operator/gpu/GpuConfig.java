@@ -21,6 +21,7 @@ import io.airlift.units.DataSize;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
@@ -70,6 +71,8 @@ public class GpuConfig
     private Optional<DataSize> maxQueryOffHeapMemoryPerNode = Optional.empty();
 
     private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
+
+    private Optional<Integer> maxConcurrentReads = Optional.empty();
 
     @NotNull
     public AllocationMode getAllocationMode()
@@ -194,6 +197,20 @@ public class GpuConfig
     public GpuConfig setAggregationCompactionThreshold(DataSize aggregationCompactionThreshold)
     {
         this.aggregationCompactionThreshold = aggregationCompactionThreshold;
+        return this;
+    }
+
+    public Optional<@Min(1) Integer> getMaxConcurrentReads()
+    {
+        return maxConcurrentReads;
+    }
+
+    @Config("gpu.max-concurrent-reads")
+    @ConfigDescription("Per-worker cap on concurrent filesystem read tasks issued by GPU page sources; scales with worker threads when unset")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setMaxConcurrentReads(Integer maxConcurrentReads)
+    {
+        this.maxConcurrentReads = Optional.ofNullable(maxConcurrentReads);
         return this;
     }
 }

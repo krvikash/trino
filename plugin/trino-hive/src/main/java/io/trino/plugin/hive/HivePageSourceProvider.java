@@ -46,6 +46,7 @@ import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
@@ -138,7 +139,8 @@ public class HivePageSourceProvider
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
-            ConnectorGpuMemoryContext memoryContext)
+            ConnectorGpuMemoryContext memoryContext,
+            IoExecutor ioExecutor)
     {
         HiveSplit hiveSplit = (HiveSplit) split;
 
@@ -192,7 +194,8 @@ public class HivePageSourceProvider
                     hiveSplit,
                     effectivePredicate.transformKeys(HiveColumnHandle.class::cast),
                     gpuColumns,
-                    columnMappings));
+                    columnMappings,
+                    ioExecutor));
         }
         catch (IOException e) {
             throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source", e);
@@ -212,7 +215,8 @@ public class HivePageSourceProvider
             HiveSplit split,
             TupleDomain<HiveColumnHandle> effectivePredicate,
             List<HiveColumnHandle> gpuColumns,
-            List<ColumnMapping> columnMappings)
+            List<ColumnMapping> columnMappings,
+            IoExecutor ioExecutor)
             throws IOException
     {
         TrinoFileSystem fileSystem = fileSystemFactory.create(session);
@@ -229,7 +233,8 @@ public class HivePageSourceProvider
                 gpuColumns,
                 effectivePredicate,
                 columnMappings,
-                domainCompactionThreshold);
+                domainCompactionThreshold,
+                ioExecutor);
     }
 
     @Override

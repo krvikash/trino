@@ -448,7 +448,7 @@ public abstract class BaseCacheSubqueriesTest
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, nonPartitionDomain))))
                             .matches(TupleDomain::isNone);
                     assertThat(getUnenforcedPredicate(
-                            new PageSourceProviderInstance(pageSourceProvider),
+                            new PageSourceProviderInstance(pageSourceProvider, new DirectIoExecutor()),
                             isDynamicRowFilteringEnabled,
                             session,
                             new Split(catalogHandle, split),
@@ -465,7 +465,7 @@ public abstract class BaseCacheSubqueriesTest
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, partitionDomain))))
                             .matches(TupleDomain::isAll);
                     assertThat(getUnenforcedPredicate(
-                            new PageSourceProviderInstance(pageSourceProvider),
+                            new PageSourceProviderInstance(pageSourceProvider, new DirectIoExecutor()),
                             isDynamicRowFilteringEnabled,
                             session,
                             new Split(catalogHandle, split),
@@ -512,7 +512,7 @@ public abstract class BaseCacheSubqueriesTest
                     if (isDynamicRowFilteringEnabled || getUnenforcedPredicateIsPrune()) {
                         // getUnenforcedPredicate should not prune or simplify data column
                         assertThat(getUnenforcedPredicate(
-                                new PageSourceProviderInstance(pageSourceProvider),
+                                new PageSourceProviderInstance(pageSourceProvider, new DirectIoExecutor()),
                                 isDynamicRowFilteringEnabled,
                                 session,
                                 new Split(catalogHandle, split),

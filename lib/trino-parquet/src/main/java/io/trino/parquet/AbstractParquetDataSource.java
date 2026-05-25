@@ -290,6 +290,10 @@ public abstract class AbstractParquetDataSource
 
     public static List<DiskRange> mergeAdjacentDiskRanges(Collection<DiskRange> diskRanges, DataSize maxMergeDistance, DataSize maxReadSize)
     {
+        if (diskRanges.isEmpty()) {
+            return ImmutableList.of();
+        }
+
         // sort ranges by start offset
         List<DiskRange> ranges = new ArrayList<>(diskRanges);
         ranges.sort(comparingLong(DiskRange::offset));

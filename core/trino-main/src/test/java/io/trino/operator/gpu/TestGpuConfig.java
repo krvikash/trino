@@ -44,7 +44,8 @@ public class TestGpuConfig
                 .setOffHeapMemoryPoolSize(DataSize.of(8, GIGABYTE))
                 .setMaxQueryGpuMemoryPerNode(null)
                 .setMaxQueryOffHeapMemoryPerNode(null)
-                .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE)));
+                .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE))
+                .setMaxConcurrentReads(null));
     }
 
     @Test
@@ -59,6 +60,7 @@ public class TestGpuConfig
                 .put("query.max-gpu-memory-per-node", "8GB")
                 .put("query.max-off-heap-memory-per-node", "4GB")
                 .put("gpu.aggregation.compaction-threshold", "2GB")
+                .put("gpu.max-concurrent-reads", "32")
                 .buildOrThrow();
 
         GpuConfig expected = new GpuConfig()
@@ -69,7 +71,8 @@ public class TestGpuConfig
                 .setOffHeapMemoryPoolSize(DataSize.of(16, GIGABYTE))
                 .setMaxQueryGpuMemoryPerNode(DataSize.of(8, GIGABYTE))
                 .setMaxQueryOffHeapMemoryPerNode(DataSize.of(4, GIGABYTE))
-                .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE));
+                .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE))
+                .setMaxConcurrentReads(32);
 
         assertFullMapping(properties, expected);
     }
