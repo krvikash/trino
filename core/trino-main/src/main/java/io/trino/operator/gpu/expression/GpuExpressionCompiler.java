@@ -71,7 +71,6 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
@@ -123,7 +122,7 @@ public class GpuExpressionCompiler
     {
         CompilationVisitor visitor = new CompilationVisitor(layout);
         Optional<CompiledExpression> compiled = expression.accept(visitor, null)
-                .map(result -> new CompiledExpression(result.expression(), new InputChannels(ImmutableList.copyOf(visitor.inputChannels))));
+                .map(result -> new CompiledExpression(result, new InputChannels(ImmutableList.copyOf(visitor.inputChannels))));
         if (compiled.isEmpty()) {
             log.debug("Could not compile expression for GPU execution: %s", expression);
         }
@@ -132,7 +131,7 @@ public class GpuExpressionCompiler
 
     @VisibleForTesting
     static class CompilationVisitor
-            extends IrVisitor<Optional<CompilationResult>, Void>
+            extends IrVisitor<Optional<GpuExpression>, Void>
     {
         private final Map<Symbol, Integer> sourceLayout;
         // Maps each referenced Symbol to a compact, consecutive index (0, 1, 2, ...).
@@ -147,21 +146,20 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        public Optional<CompilationResult> process(Expression node)
+        public Optional<GpuExpression> process(Expression node)
         {
             throw new UnsupportedOperationException("Process without context should not be called");
         }
 
         @Override
-        protected Optional<CompilationResult> visitConstant(Constant literal, Void context)
+        protected Optional<GpuExpression> visitConstant(Constant literal, Void context)
         {
             return toGpuMapping(literal.type())
-                    .map(typeMapping -> new CompilationResult(
-                            new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value()))));
+                    .map(typeMapping -> new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value())));
         }
 
         @Override
-        protected Optional<CompilationResult> visitReference(Reference reference, Void context)
+        protected Optional<GpuExpression> visitReference(Reference reference, Void context)
         {
             if (!isConvertible(reference.type())) {
                 return Optional.empty();
@@ -173,38 +171,36 @@ public class GpuExpressionCompiler
                 inputChannels.add(sourceChannel);
                 return compactLayout.size();
             });
-            return Optional.of(new CompilationResult(
-                    (_, inputColumns) -> inputColumns.get(compactField).incRefCount()));
+            return Optional.of((_, inputColumns) -> inputColumns.get(compactField).incRefCount());
         }
 
         @Override
-        protected Optional<CompilationResult> visitArray(Array node, Void context)
+        protected Optional<GpuExpression> visitArray(Array node, Void context)
         {
             return Optional.empty();
         }
 
         @Override
-        protected Optional<CompilationResult> visitRow(Row node, Void context)
-        {
-            // TODO support ROW type
-            return Optional.empty();
-        }
-
-        @Override
-        protected Optional<CompilationResult> visitFieldReference(FieldReference node, Void context)
+        protected Optional<GpuExpression> visitRow(Row node, Void context)
         {
             // TODO support ROW type
             return Optional.empty();
         }
 
         @Override
-        protected Optional<CompilationResult> visitCast(Cast cast, Void context)
+        protected Optional<GpuExpression> visitFieldReference(FieldReference node, Void context)
+        {
+            // TODO support ROW type
+            return Optional.empty();
+        }
+
+        @Override
+        protected Optional<GpuExpression> visitCast(Cast cast, Void context)
         {
             return toDType(cast.expression().type()).flatMap(fromDType ->
                     toDType(cast.type()).flatMap(toDType ->
                             cast.expression().accept(this, context).flatMap(compiledArgument ->
-                                    compileCast(compiledArgument.expression(), cast.expression().type(), fromDType, cast.type(), toDType)
-                                            .map(CompilationResult::new))));
+                                    compileCast(compiledArgument, cast.expression().type(), fromDType, cast.type(), toDType))));
         }
 
         private static Optional<GpuExpression> compileCast(GpuExpression input, Type fromType, DType fromDType, Type toType, DType toDType)
@@ -289,7 +285,7 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitCall(Call call, Void context)
+        protected Optional<GpuExpression> visitCall(Call call, Void context)
         {
             CatalogSchemaFunctionName functionName = call.function().signature().getName();
             if (!isBuiltinFunctionName(functionName)) {
@@ -302,14 +298,12 @@ public class GpuExpressionCompiler
                     call.arguments().get(1) instanceof Constant(Type patternType, Object likePattern) &&
                     patternType == LIKE_PATTERN) {
                 return call.arguments().get(0).accept(this, context)
-                        .map(searched -> new CompilationResult(
-                                new GpuLike(searched.expression(), ((LikePattern) likePattern).getPattern(), ((LikePattern) likePattern).getEscape())));
+                        .map(searched -> new GpuLike(searched, ((LikePattern) likePattern).getPattern(), ((LikePattern) likePattern).getEscape()));
             }
 
             if (name.equals("$not") && call.arguments().size() == 1) {
                 return call.arguments().getFirst().accept(this, context)
-                        .map(operand -> new CompilationResult(
-                                new GpuNot(operand.expression())));
+                        .map(GpuNot::new);
             }
 
             if (isOperatorName(name)) {
@@ -330,8 +324,7 @@ public class GpuExpressionCompiler
 
             if (name.equals("length") && call.arguments().size() == 1 && getOnlyElement(call.arguments()).type() instanceof VarcharType) {
                 return getOnlyElement(call.arguments()).accept(this, context)
-                        .map(compiled -> new CompilationResult(
-                                new GpuStringLength(compiled.expression())));
+                        .map(GpuStringLength::new);
             }
 
             // TODO: add substring support for char(x)
@@ -350,7 +343,7 @@ public class GpuExpressionCompiler
             return Optional.empty();
         }
 
-        private Optional<CompilationResult> compileBinaryArithmetic(Call call, OperatorType operatorType, Void context)
+        private Optional<GpuExpression> compileBinaryArithmetic(Call call, OperatorType operatorType, Void context)
         {
             Optional<DType> outputTypeOpt = toDType(call.type());
             if (outputTypeOpt.isEmpty()) {
@@ -361,15 +354,15 @@ public class GpuExpressionCompiler
             Type leftType = call.arguments().get(0).type();
             Type rightType = call.arguments().get(1).type();
 
-            Optional<List<CompilationResult>> argsOpt = compileAll(call.arguments(), context);
+            Optional<List<GpuExpression>> argsOpt = compileAll(call.arguments(), context);
             if (argsOpt.isEmpty()) {
                 return Optional.empty();
             }
-            List<CompilationResult> args = argsOpt.get();
-            GpuExpression left = args.get(0).expression();
-            GpuExpression right = args.get(1).expression();
+            List<GpuExpression> args = argsOpt.get();
+            GpuExpression left = args.get(0);
+            GpuExpression right = args.get(1);
 
-            Optional<GpuExpression> gpuExpression = switch (operatorType) {
+            return switch (operatorType) {
                 case ADD -> {
                     if (leftType == TINYINT && rightType == TINYINT) {
                         yield Optional.of(new GpuIntegerAdd(left, right, outputType, "tinyint"));
@@ -514,7 +507,6 @@ public class GpuExpressionCompiler
                 }
                 default -> Optional.empty();
             };
-            return gpuExpression.map(CompilationResult::new);
         }
 
         // Checks whether the raw result precision for decimal add/subtract (before capping at 38)
@@ -528,7 +520,7 @@ public class GpuExpressionCompiler
             return integral + scale + 1 <= 38;
         }
 
-        private Optional<CompilationResult> compileDateTimeExtract(String trinoFunctionName, Expression argument, Type resultType, Void context)
+        private Optional<GpuExpression> compileDateTimeExtract(String trinoFunctionName, Expression argument, Type resultType, Void context)
         {
             Type argumentType = argument.type();
             if (argumentType == DATE || argumentType instanceof TimestampType) {
@@ -539,8 +531,7 @@ public class GpuExpressionCompiler
                         // YEAR handled separately as it may overflow INT16 result type
                         return toDType(resultType).flatMap(resultDType ->
                                 argument.accept(this, context).map(compiled ->
-                                        new CompilationResult(
-                                                new GpuCast(new GpuYearExtract(compiled.expression()), resultDType))));
+                                        new GpuCast(new GpuYearExtract(compiled), resultDType)));
                     }
                     case "day" -> dateTimeField = GpuDateTimeExtract.Field.DAY;
                     case "hour" -> dateTimeField = GpuDateTimeExtract.Field.HOUR;
@@ -552,13 +543,12 @@ public class GpuExpressionCompiler
                 }
                 return toDType(resultType).flatMap(resultDType ->
                         argument.accept(this, context).map(compiled ->
-                                new CompilationResult(
-                                        new GpuCast(new GpuDateTimeExtract(compiled.expression(), dateTimeField), resultDType))));
+                                new GpuCast(new GpuDateTimeExtract(compiled, dateTimeField), resultDType)));
             }
             return Optional.empty();
         }
 
-        private Optional<CompilationResult> compileDateTrunc(Call call, Void context)
+        private Optional<GpuExpression> compileDateTrunc(Call call, Void context)
         {
             // date_trunc(unit, date_time)
             if (!(call.arguments().get(0) instanceof Constant(Type unitType, Object unitValue)) ||
@@ -579,11 +569,10 @@ public class GpuExpressionCompiler
             }
 
             return timestampArgument.accept(this, context)
-                    .map(compiled -> new CompilationResult(
-                            new GpuDateTrunc(compiled.expression(), field.get())));
+                    .map(compiled -> new GpuDateTrunc(compiled, field.get()));
         }
 
-        private Optional<CompilationResult> compileSubstring(Call call, Void context)
+        private Optional<GpuExpression> compileSubstring(Call call, Void context)
         {
             int argCount = call.arguments().size();
             // substring has only 2-arg (source, start) and 3-arg (source, start, length) overloads
@@ -591,29 +580,28 @@ public class GpuExpressionCompiler
                 return Optional.empty();
             }
 
-            Optional<CompilationResult> sourceCompiled = call.arguments().get(0).accept(this, context);
+            Optional<GpuExpression> sourceCompiled = call.arguments().get(0).accept(this, context);
             if (sourceCompiled.isEmpty()) {
                 return Optional.empty();
             }
-            Optional<CompilationResult> startCompiled = call.arguments().get(1).accept(this, context);
+            Optional<GpuExpression> startCompiled = call.arguments().get(1).accept(this, context);
             if (startCompiled.isEmpty()) {
                 return Optional.empty();
             }
 
             Optional<GpuExpression> lengthExpression = Optional.empty();
             if (argCount == 3) {
-                Optional<CompilationResult> lengthCompiled = call.arguments().get(2).accept(this, context);
+                Optional<GpuExpression> lengthCompiled = call.arguments().get(2).accept(this, context);
                 if (lengthCompiled.isEmpty()) {
                     return Optional.empty();
                 }
-                lengthExpression = Optional.of(lengthCompiled.get().expression());
+                lengthExpression = Optional.of(lengthCompiled.get());
             }
 
-            return Optional.of(new CompilationResult(
-                    new GpuSubstring(sourceCompiled.get().expression(), startCompiled.get().expression(), lengthExpression)));
+            return Optional.of(new GpuSubstring(sourceCompiled.get(), startCompiled.get(), lengthExpression));
         }
 
-        private Optional<CompilationResult> compileRegexpReplace(Call call, Void context)
+        private Optional<GpuExpression> compileRegexpReplace(Call call, Void context)
         {
             int argCount = call.arguments().size();
             // defensive check: regexp_replace has only 2- and 3-arg overloads
@@ -646,8 +634,7 @@ public class GpuExpressionCompiler
 
             GpuRegexTranspiler.TranspileResult result = transpiled.get();
             return call.arguments().getFirst().accept(this, context)
-                    .map(source -> new CompilationResult(
-                            new GpuRegexpReplace(source.expression(), result.pattern(), result.replacement(), result.hasBackreferences())));
+                    .map(source -> new GpuRegexpReplace(source, result.pattern(), result.replacement(), result.hasBackreferences()));
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)
@@ -659,36 +646,36 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitLambda(Lambda lambda, Void context)
+        protected Optional<GpuExpression> visitLambda(Lambda lambda, Void context)
         {
             return Optional.empty();
         }
 
         @Override
-        protected Optional<CompilationResult> visitBind(Bind node, Void context)
+        protected Optional<GpuExpression> visitBind(Bind node, Void context)
         {
             return Optional.empty();
         }
 
         @Override
-        protected Optional<CompilationResult> visitComparison(Comparison comparison, Void context)
+        protected Optional<GpuExpression> visitComparison(Comparison comparison, Void context)
         {
             verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
             if (toDType(comparison.left().type()).filter(DType::isNestedType).isPresent()) {
                 return Optional.empty();
             }
-            Optional<CompilationResult> leftCompiled = comparison.left().accept(this, context);
+            Optional<GpuExpression> leftCompiled = comparison.left().accept(this, context);
             if (leftCompiled.isEmpty()) {
                 return Optional.empty();
             }
-            Optional<CompilationResult> rightCompiled = comparison.right().accept(this, context);
+            Optional<GpuExpression> rightCompiled = comparison.right().accept(this, context);
             if (rightCompiled.isEmpty()) {
                 return Optional.empty();
             }
 
-            GpuExpression left = leftCompiled.get().expression();
-            GpuExpression right = rightCompiled.get().expression();
-            Optional<GpuExpression> compiledComparison = switch (comparison.operator()) {
+            GpuExpression left = leftCompiled.get();
+            GpuExpression right = rightCompiled.get();
+            return switch (comparison.operator()) {
                 case EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
                 case NOT_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
                 case LESS_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
@@ -697,12 +684,10 @@ public class GpuExpressionCompiler
                 case GREATER_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER_EQUAL, DType.BOOL8));
                 case IDENTICAL -> Optional.empty();
             };
-
-            return compiledComparison.map(CompilationResult::new);
         }
 
         @Override
-        protected Optional<CompilationResult> visitBetween(Between between, Void context)
+        protected Optional<GpuExpression> visitBetween(Between between, Void context)
         {
             if (toDType(between.value().type()).filter(DType::isNestedType).isPresent()) {
                 return Optional.empty();
@@ -714,7 +699,7 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitIn(In in, Void context)
+        protected Optional<GpuExpression> visitIn(In in, Void context)
         {
             Optional<GpuTypeMapping> typeMapping = toGpuMapping(in.value().type());
             if (typeMapping.isEmpty()) {
@@ -724,7 +709,7 @@ public class GpuExpressionCompiler
                 return Optional.empty();
             }
 
-            Optional<CompilationResult> valueCompiled = in.value().accept(this, context);
+            Optional<GpuExpression> valueCompiled = in.value().accept(this, context);
             if (valueCompiled.isEmpty()) {
                 return Optional.empty();
             }
@@ -745,20 +730,18 @@ public class GpuExpressionCompiler
                 }
             }
 
-            return Optional.of(new CompilationResult(
-                    new GpuIn(valueCompiled.get().expression(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.get().toColumn())));
+            return Optional.of(new GpuIn(valueCompiled.get(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.get().toColumn()));
         }
 
         @Override
-        protected Optional<CompilationResult> visitIsNull(IsNull isNull, Void context)
+        protected Optional<GpuExpression> visitIsNull(IsNull isNull, Void context)
         {
             return isNull.value().accept(this, context)
-                    .map(operand -> new CompilationResult(
-                            new GpuIsNull(operand.expression())));
+                    .map(GpuIsNull::new);
         }
 
         @Override
-        protected Optional<CompilationResult> visitLogical(Logical logical, Void context)
+        protected Optional<GpuExpression> visitLogical(Logical logical, Void context)
         {
             Function<List<GpuExpression>, GpuExpression> constructor = switch (logical.operator()) {
                 case AND -> GpuLogicalExpression::and;
@@ -768,7 +751,7 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitCase(Case caseExpression, Void context)
+        protected Optional<GpuExpression> visitCase(Case caseExpression, Void context)
         {
             // Only the IF-equivalent shape (single WhenClause + default) is supported. Multi-branch CASE
             // needs first-class GPU support and is left to a follow-up.
@@ -783,41 +766,40 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitSwitch(Switch node, Void context)
+        protected Optional<GpuExpression> visitSwitch(Switch node, Void context)
         {
             // TODO support simple CASE on GPU
             return Optional.empty();
         }
 
         @Override
-        protected Optional<CompilationResult> visitCoalesce(Coalesce coalesce, Void context)
+        protected Optional<GpuExpression> visitCoalesce(Coalesce coalesce, Void context)
         {
             return compileNary(coalesce.operands(), GpuCoalesce::new, context);
         }
 
         @Override
-        protected Optional<CompilationResult> visitNullIf(NullIf node, Void context)
+        protected Optional<GpuExpression> visitNullIf(NullIf node, Void context)
         {
             // TODO support NULLIF on GPU
             return Optional.empty();
         }
 
-        private Optional<CompilationResult> compileNary(
+        private Optional<GpuExpression> compileNary(
                 List<Expression> arguments,
                 Function<List<GpuExpression>, GpuExpression> expressionFactory,
                 Void context)
         {
             checkArgument(arguments.size() >= 2, "Expression requires at least 2 arguments, got %s", arguments.size());
             return compileAll(arguments, context)
-                    .map(results -> new CompilationResult(
-                            expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList()))));
+                    .map(expressionFactory);
         }
 
-        private Optional<List<CompilationResult>> compileAll(List<Expression> expressions, Void context)
+        private Optional<List<GpuExpression>> compileAll(List<Expression> expressions, Void context)
         {
-            ImmutableList.Builder<CompilationResult> results = ImmutableList.builder();
+            ImmutableList.Builder<GpuExpression> results = ImmutableList.builder();
             for (Expression expression : expressions) {
-                Optional<CompilationResult> compiled = expression.accept(this, context);
+                Optional<GpuExpression> compiled = expression.accept(this, context);
                 if (compiled.isEmpty()) {
                     return Optional.empty();
                 }
@@ -827,18 +809,9 @@ public class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<CompilationResult> visitExpression(Expression node, Void context)
+        protected Optional<GpuExpression> visitExpression(Expression node, Void context)
         {
             return Optional.empty();
-        }
-    }
-
-    @VisibleForTesting
-    record CompilationResult(GpuExpression expression)
-    {
-        public CompilationResult
-        {
-            requireNonNull(expression, "expression is null");
         }
     }
 
