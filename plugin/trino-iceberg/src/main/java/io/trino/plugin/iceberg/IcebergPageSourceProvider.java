@@ -286,11 +286,9 @@ public class IcebergPageSourceProvider
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = requireNonNull(orcReaderOptions, "orcReaderOptions is null");
         this.parquetReaderOptions = requireNonNull(parquetReaderOptions, "parquetReaderOptions is null");
+        // Each coalesced read is materialized up front into one byte[], so start the buffer at its max size.
         this.gpuParquetReaderOptions = ParquetReaderOptions.builder(parquetReaderOptions)
-                // Raise the size of the max read because we are reading everything up front into an in-memory byte array.
-                // The default for CPU is tailored for lazy materialization and early cut-off of page source.
-                .withMaxBufferSize(DataSize.of(32, MEGABYTE))
-                .withInitialBufferSize(DataSize.of(32, MEGABYTE))
+                .withInitialBufferSize(parquetReaderOptions.getMaxBufferSize())
                 .build();
         this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");

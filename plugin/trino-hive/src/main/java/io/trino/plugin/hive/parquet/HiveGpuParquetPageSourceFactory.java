@@ -15,7 +15,6 @@ package io.trino.plugin.hive.parquet;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import io.airlift.units.DataSize;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.gpu.HeapMemoryReservationHandler;
@@ -44,7 +43,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
-import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
@@ -61,11 +59,10 @@ public final class HiveGpuParquetPageSourceFactory
     @Inject
     public HiveGpuParquetPageSourceFactory(ParquetReaderConfig config)
     {
-        this.options = ParquetReaderOptions.builder(config.toParquetReaderOptions())
-                // Raise the size of the max read because we are reading everything up front into an in-memory byte array.
-                // The default for CPU is tailored for lazy materialization and early cut-off of page source.
-                .withMaxBufferSize(DataSize.of(32, MEGABYTE))
-                .withInitialBufferSize(DataSize.of(32, MEGABYTE))
+        // Each coalesced read is materialized up front into one byte[], so start the buffer at its max size.
+        ParquetReaderOptions options = config.toParquetReaderOptions();
+        this.options = ParquetReaderOptions.builder(options)
+                .withInitialBufferSize(options.getMaxBufferSize())
                 .build();
     }
 
