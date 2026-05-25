@@ -81,7 +81,6 @@ public class GpuParquetPageSource
         if (fabricatedParquet == null) {
             try {
                 fabricatedParquet = fabricator.fabricate();
-                fabricator.close(); // release
                 return new Yielded();
             }
             catch (IOException e) {
@@ -291,7 +290,6 @@ public class GpuParquetPageSource
             fabricatedParquet.close();
             fabricatedParquet = null;
         }
-        fabricator.close();
     }
 
     // TODO deduplicate with io.trino.operator.gpu.GpuUtils.closeColumns

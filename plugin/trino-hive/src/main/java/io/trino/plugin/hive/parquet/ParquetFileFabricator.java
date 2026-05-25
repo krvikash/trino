@@ -19,26 +19,25 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
+import io.trino.filesystem.TrinoInputFile;
 import io.trino.parquet.DiskRange;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
 import io.trino.parquet.metadata.ColumnChunkMetadata;
 import io.trino.parquet.metadata.FileMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
-import io.trino.parquet.predicate.TupleDomainParquetPredicate;
 import io.trino.parquet.reader.ChunkedInputStream;
 import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.MessageTypeConverter;
 import io.trino.parquet.writer.ParquetTypeConverter;
 import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
-import io.trino.spi.predicate.TupleDomain;
-import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.ColumnMetaData;
 import org.apache.parquet.format.CompressionCodec;
@@ -49,11 +48,9 @@ import org.apache.parquet.format.Statistics;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.schema.MessageType;
-import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -62,12 +59,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
-import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSource;
 import static java.lang.Math.clamp;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
@@ -79,7 +77,6 @@ import static java.util.Objects.requireNonNullElse;
  * the needed columns and row groups from the original Parquet file.
  */
 public class ParquetFileFabricator
-        implements RuntimeCloseable
 {
     /**
      * Result of Parquet fabrication containing both the fabricated file bytes
@@ -119,92 +116,54 @@ public class ParquetFileFabricator
     private static final int PARQUET_MAGIC_LENGTH = PARQUET_MAGIC.length;
     private static final int FOOTER_LENGTH_SIZE = 4;
 
-    private final long splitStart;
-    private final long splitLength;
-    private final ParquetDataSource dataSource;
+    private final TrinoInputFile inputFile;
+    private final List<RowGroupInfo> filteredRowGroups;
     private final List<HiveColumnHandle> columns;
-    private final List<TupleDomain<ColumnDescriptor>> parquetTupleDomains;
-    private final List<TupleDomainParquetPredicate> parquetPredicates;
-    private final Map<List<String>, ColumnDescriptor> descriptorsByPath;
     private final ColumnMatchingStrategy columnMatcher;
-    private final DateTimeZone timeZone;
-    private final int domainCompactionThreshold;
     private final ParquetReaderOptions options;
     private final ParquetMetadata parquetMetadata;
 
     public ParquetFileFabricator(
-            long splitStart,
-            long splitLength,
-            ParquetDataSource dataSource,
+            TrinoInputFile inputFile,
+            List<RowGroupInfo> filteredRowGroups,
             List<HiveColumnHandle> columns,
-            List<TupleDomain<ColumnDescriptor>> parquetTupleDomains,
-            List<TupleDomainParquetPredicate> parquetPredicates,
-            Map<List<String>, ColumnDescriptor> descriptorsByPath,
             ColumnMatchingStrategy columnMatcher,
-            DateTimeZone timeZone,
-            int domainCompactionThreshold,
             ParquetReaderOptions options,
             ParquetMetadata parquetMetadata)
     {
-        this.splitStart = splitStart;
-        this.splitLength = splitLength;
-        this.dataSource = requireNonNull(dataSource, "dataSource is null");
+        this.inputFile = requireNonNull(inputFile, "inputFile is null");
+        this.filteredRowGroups = ImmutableList.copyOf(requireNonNull(filteredRowGroups, "filteredRowGroups is null"));
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
-        this.parquetTupleDomains = ImmutableList.copyOf(requireNonNull(parquetTupleDomains, "parquetTupleDomains is null"));
-        this.parquetPredicates = ImmutableList.copyOf(requireNonNull(parquetPredicates, "parquetPredicates is null"));
-        this.descriptorsByPath = requireNonNull(descriptorsByPath, "descriptorsByPath is null");
         this.columnMatcher = requireNonNull(columnMatcher, "columnMatcher is null");
-        this.timeZone = requireNonNull(timeZone, "timeZone is null");
-        this.domainCompactionThreshold = domainCompactionThreshold;
         this.options = requireNonNull(options, "options is null");
         this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
-    }
-
-    @Override
-    public void close()
-    {
-        try {
-            dataSource.close();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     public @Move FabricatedParquet fabricate()
             throws IOException
     {
-        try {
-            MessageType fullSchema = parquetMetadata.getFileMetaData().getSchema();
-            MessageType clippedSchema = columnMatcher.clipSchema(fullSchema, columns);
-
-            List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
-                    splitStart,
-                    splitLength,
-                    dataSource,
-                    parquetMetadata,
-                    parquetTupleDomains,
-                    parquetPredicates,
-                    descriptorsByPath,
-                    timeZone,
-                    domainCompactionThreshold,
-                    options);
-
-            if (filteredRowGroups.isEmpty()) {
-                return new FabricatedParquet(Optional.empty(), 0);
-            }
-
-            return writeFabricatedFile(filteredRowGroups, clippedSchema, parquetMetadata.getFileMetaData());
+        if (filteredRowGroups.isEmpty()) {
+            return new FabricatedParquet(Optional.empty(), 0);
+        }
+        try (ParquetDataSource dataSource = createDataSource(
+                inputFile,
+                OptionalLong.empty(),
+                options,
+                newSimpleAggregatedMemoryContext(),
+                new FileFormatDataSourceStats())) {
+            MessageType clippedSchema = columnMatcher.clipSchema(parquetMetadata.getFileMetaData().getSchema(), columns);
+            return writeFabricatedFile(filteredRowGroups, clippedSchema, parquetMetadata.getFileMetaData(), dataSource);
         }
         catch (IOException | RuntimeException e) {
-            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from %s: %s", dataSource.getId(), requireNonNullElse(e.getMessage(), e)), e);
+            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from %s: %s", inputFile.location(), requireNonNullElse(e.getMessage(), e)), e);
         }
     }
 
     private @Move FabricatedParquet writeFabricatedFile(
             List<RowGroupInfo> rowGroups,
             MessageType clippedSchema,
-            FileMetadata originalFileMetadata)
+            FileMetadata originalFileMetadata,
+            ParquetDataSource dataSource)
             throws IOException
     {
         // Collect all disk ranges for columns included in the clipped schema
