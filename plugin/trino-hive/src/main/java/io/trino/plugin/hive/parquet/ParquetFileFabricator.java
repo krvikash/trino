@@ -15,20 +15,20 @@ package io.trino.plugin.hive.parquet;
 
 import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Closer;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
+import io.trino.filesystem.TrinoInputFile;
 import io.trino.parquet.DiskRange;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
 import io.trino.parquet.metadata.ColumnChunkMetadata;
 import io.trino.parquet.metadata.FileMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
-import io.trino.parquet.predicate.TupleDomainParquetPredicate;
 import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.MessageTypeConverter;
 import io.trino.parquet.writer.ParquetTypeConverter;
 import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.MemoryAllocation;
@@ -37,8 +37,6 @@ import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
-import io.trino.spi.predicate.TupleDomain;
-import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.ColumnMetaData;
 import org.apache.parquet.format.CompressionCodec;
@@ -49,27 +47,26 @@ import org.apache.parquet.format.Statistics;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.schema.MessageType;
-import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.AbstractParquetDataSource.mergeAdjacentDiskRanges;
 import static io.trino.parquet.AbstractParquetDataSource.splitLargeRange;
-import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSource;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Comparator.comparingLong;
@@ -81,7 +78,6 @@ import static java.util.Objects.requireNonNullElse;
  * the needed columns and row groups from the original Parquet file.
  */
 public class ParquetFileFabricator
-        implements RuntimeCloseable
 {
     /**
      * Result of Parquet fabrication containing both the fabricated file bytes
@@ -124,91 +120,55 @@ public class ParquetFileFabricator
     private static final int PARQUET_MAGIC_LENGTH = PARQUET_MAGIC.length;
     private static final int FOOTER_LENGTH_SIZE = 4;
 
-    private final long splitStart;
-    private final long splitLength;
-    private final ParquetDataSource dataSource;
+    private final TrinoInputFile inputFile;
+    private final List<RowGroupInfo> filteredRowGroups;
     private final MessageType requestedSchema;
-    private final List<TupleDomain<ColumnDescriptor>> parquetTupleDomains;
-    private final List<TupleDomainParquetPredicate> parquetPredicates;
-    private final Map<List<String>, ColumnDescriptor> descriptorsByPath;
-    private final DateTimeZone timeZone;
-    private final int domainCompactionThreshold;
     private final ConnectorGpuMemoryContext gpuMemoryContext;
     private final ParquetReaderOptions options;
     private final ParquetMetadata parquetMetadata;
 
     public ParquetFileFabricator(
-            long splitStart,
-            long splitLength,
-            ParquetDataSource dataSource,
+            TrinoInputFile inputFile,
+            List<RowGroupInfo> filteredRowGroups,
             MessageType requestedSchema,
-            List<TupleDomain<ColumnDescriptor>> parquetTupleDomains,
-            List<TupleDomainParquetPredicate> parquetPredicates,
-            Map<List<String>, ColumnDescriptor> descriptorsByPath,
-            DateTimeZone timeZone,
-            int domainCompactionThreshold,
             ConnectorGpuMemoryContext gpuMemoryContext,
             ParquetReaderOptions options,
             ParquetMetadata parquetMetadata)
     {
-        this.splitStart = splitStart;
-        this.splitLength = splitLength;
-        this.dataSource = requireNonNull(dataSource, "dataSource is null");
+        this.inputFile = requireNonNull(inputFile, "inputFile is null");
+        this.filteredRowGroups = ImmutableList.copyOf(requireNonNull(filteredRowGroups, "filteredRowGroups is null"));
         this.requestedSchema = requireNonNull(requestedSchema, "requestedSchema is null");
-        this.parquetTupleDomains = ImmutableList.copyOf(requireNonNull(parquetTupleDomains, "parquetTupleDomains is null"));
-        this.parquetPredicates = ImmutableList.copyOf(requireNonNull(parquetPredicates, "parquetPredicates is null"));
-        this.descriptorsByPath = requireNonNull(descriptorsByPath, "descriptorsByPath is null");
-        this.timeZone = requireNonNull(timeZone, "timeZone is null");
-        this.domainCompactionThreshold = domainCompactionThreshold;
         this.gpuMemoryContext = requireNonNull(gpuMemoryContext, "gpuMemoryContext is null");
         this.options = requireNonNull(options, "options is null");
         this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
     }
 
-    @Override
-    public void close()
-    {
-        try (var closer = Closer.create()) {
-            closer.register(dataSource);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     public @Move FabricatedParquet fabricate()
     {
-        try {
-            List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
-                    splitStart,
-                    splitLength,
-                    dataSource,
-                    parquetMetadata,
-                    parquetTupleDomains,
-                    parquetPredicates,
-                    descriptorsByPath,
-                    timeZone,
-                    domainCompactionThreshold,
-                    options);
+        if (filteredRowGroups.isEmpty()) {
+            return new FabricatedParquet(gpuMemoryContext.allocate(MemoryAmount.ZERO), Optional.empty(), 0);
+        }
 
-            if (filteredRowGroups.isEmpty()) {
-                return new FabricatedParquet(gpuMemoryContext.allocate(MemoryAmount.ZERO), Optional.empty(), 0);
-            }
-
-            // Collect all disk ranges for columns included in the requested schema
-            ImmutableList.Builder<DiskRange> chunkRanges = ImmutableList.builder();
-            for (RowGroupInfo rowGroupInfo : filteredRowGroups) {
-                for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
-                    if (isColumnInSchema(column.getPath(), requestedSchema)) {
-                        chunkRanges.add(new DiskRange(column.getStartingPos(), column.getTotalSize()));
-                    }
+        // Collect all disk ranges for columns included in the requested schema
+        ImmutableList.Builder<DiskRange> chunkRanges = ImmutableList.builder();
+        for (RowGroupInfo rowGroupInfo : filteredRowGroups) {
+            for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
+                if (isColumnInSchema(column.getPath(), requestedSchema)) {
+                    chunkRanges.add(new DiskRange(column.getStartingPos(), column.getTotalSize()));
                 }
             }
+        }
 
-            return writeFabricatedFile(filteredRowGroups, requestedSchema, parquetMetadata.getFileMetaData(), chunkRanges.build());
+        try (ParquetDataSource dataSource = createDataSource(
+                inputFile,
+                OptionalLong.empty(),
+                options,
+                newSimpleAggregatedMemoryContext(),
+                new FileFormatDataSourceStats())) {
+            return writeFabricatedFile(filteredRowGroups, requestedSchema, parquetMetadata.getFileMetaData(), chunkRanges.build(), dataSource);
         }
         catch (IOException | RuntimeException e) {
-            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from %s: %s", dataSource.getId(), requireNonNullElse(e.getMessage(), e)), e);
+            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from %s: %s", inputFile.location(), requireNonNullElse(e.getMessage(), e)), e);
         }
     }
 
@@ -216,7 +176,8 @@ public class ParquetFileFabricator
             List<RowGroupInfo> rowGroups,
             MessageType clippedSchema,
             FileMetadata originalFileMetadata,
-            List<DiskRange> chunkRanges)
+            List<DiskRange> chunkRanges,
+            ParquetDataSource dataSource)
             throws IOException
     {
         int originalFooterSize = parquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
@@ -239,7 +200,7 @@ public class ParquetFileFabricator
             buffers.add(allocateAndCopy(PARQUET_MAGIC, 0, PARQUET_MAGIC_LENGTH));
             long currentOffset = PARQUET_MAGIC_LENGTH;
 
-            buffers.addAll(readChunks(chunkRanges));
+            buffers.addAll(readChunks(chunkRanges, dataSource));
 
             List<RowGroup> fabricatedRowGroups = new ArrayList<>();
             long totalRowCount = 0;
@@ -352,10 +313,10 @@ public class ParquetFileFabricator
         }
     }
 
-    private @Own List<HostMemoryBuffer> readChunks(List<DiskRange> chunkRanges)
+    private @Own List<HostMemoryBuffer> readChunks(List<DiskRange> chunkRanges, ParquetDataSource dataSource)
             throws IOException
     {
-        return executeReadPlan(planChunkReads(chunkRanges, options));
+        return executeReadPlan(planChunkReads(chunkRanges, options), dataSource);
     }
 
     /**
@@ -400,7 +361,7 @@ public class ParquetFileFabricator
      * Reads each planned read into a pinned buffer and carves its fragments as zero-copy slices, returning them in
      * ascending file offset, the order the fabricated metadata lays the column chunks out.
      */
-    private @Own List<HostMemoryBuffer> executeReadPlan(List<CoalescedRead> reads)
+    private @Own List<HostMemoryBuffer> executeReadPlan(List<CoalescedRead> reads, ParquetDataSource dataSource)
             throws IOException
     {
         List<CoalescedRead> sequentialReads = reads.stream()

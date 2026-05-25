@@ -443,16 +443,23 @@ public class IcebergPageSourceProvider
             TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(descriptorsByPath, effectivePredicate);
             TupleDomainParquetPredicate parquetPredicate = buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, UTC);
 
-            ParquetFileFabricator fabricator = new ParquetFileFabricator(
+            List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                     icebergSplit.start(),
                     icebergSplit.length(),
                     dataSource,
-                    requestedSchema,
+                    parquetMetadata,
                     ImmutableList.of(parquetTupleDomain),
                     ImmutableList.of(parquetPredicate),
                     descriptorsByPath,
                     UTC,
                     ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
+                    gpuParquetReaderOptions);
+            dataSource.close();
+
+            ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                    inputFile,
+                    filteredRowGroups,
+                    requestedSchema,
                     gpuMemoryContext,
                     gpuParquetReaderOptions,
                     parquetMetadata);

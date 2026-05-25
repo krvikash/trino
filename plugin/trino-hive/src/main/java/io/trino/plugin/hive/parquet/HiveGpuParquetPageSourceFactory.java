@@ -25,6 +25,7 @@ import io.trino.parquet.metadata.FileMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.predicate.TupleDomainParquetPredicate;
 import io.trino.parquet.reader.MetadataReader;
+import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
@@ -46,6 +47,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
+import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSource;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
@@ -87,55 +89,59 @@ public final class HiveGpuParquetPageSourceFactory
             // is already UTC; pinning it here as well documents the invariant at the predicate site.
             DateTimeZone timeZone = DateTimeZone.UTC;
 
-            ParquetDataSource dataSource = createDataSource(
-                    inputFile,
-                    OptionalLong.empty(),
-                    options,
-                    memoryContext.newAggregatedMemoryContext(),
-                    stats);
+            ParquetMetadata parquetMetadata;
+            MessageType requestedSchema;
+            List<RowGroupInfo> filteredRowGroups;
+            try (ParquetDataSource footerSource = createDataSource(inputFile, OptionalLong.empty(), options, memoryContext, stats)) {
+                // Read footer and get schema
+                parquetMetadata = MetadataReader.readFooter(
+                        footerSource,
+                        options,
+                        Optional.empty(),
+                        Optional.empty());
+                FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
+                MessageType fileSchema = fileMetadata.getSchema();
 
-            // Read footer and get schema
-            ParquetMetadata parquetMetadata = MetadataReader.readFooter(
-                    dataSource,
-                    options,
-                    Optional.empty(),
-                    Optional.empty());
-            FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
-            MessageType fileSchema = fileMetadata.getSchema();
+                // Get requested schema (columns to read)
+                boolean useColumnNames = true; // Hive uses column names, not field IDs
+                Optional<MessageType> message = getParquetMessageType(gpuColumns, useColumnNames, fileSchema);
+                requestedSchema = message.orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
 
-            // Get requested schema (columns to read)
-            boolean useColumnNames = true; // Hive uses column names, not field IDs
-            Optional<MessageType> message = getParquetMessageType(gpuColumns, useColumnNames, fileSchema);
-            MessageType requestedSchema = message.orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
+                // Build descriptors and predicates
+                Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
+                TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(
+                        descriptorsByPath,
+                        effectivePredicate,
+                        fileSchema,
+                        useColumnNames);
+                // Use default coercion settings (no date/timestamp rebasing for minimal implementation)
+                TupleDomainParquetPredicate predicate = buildPredicate(
+                        requestedSchema,
+                        parquetTupleDomain,
+                        descriptorsByPath,
+                        timeZone,
+                        false, // convertDateToProleptic
+                        false, // convertInt64TimestampProleptic
+                        false); // convertInt96TimestampToProleptic
 
-            // Build descriptors and predicates
-            Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
-            TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(
-                    descriptorsByPath,
-                    effectivePredicate,
-                    fileSchema,
-                    useColumnNames);
-            // Use default coercion settings (no date/timestamp rebasing for minimal implementation)
-            TupleDomainParquetPredicate predicate = buildPredicate(
-                    requestedSchema,
-                    parquetTupleDomain,
-                    descriptorsByPath,
-                    timeZone,
-                    false, // convertDateToProleptic
-                    false, // convertInt64TimestampProleptic
-                    false); // convertInt96TimestampToProleptic
+                filteredRowGroups = getFilteredRowGroups(
+                        start,
+                        length,
+                        footerSource,
+                        parquetMetadata,
+                        ImmutableList.of(parquetTupleDomain),
+                        ImmutableList.of(predicate),
+                        descriptorsByPath,
+                        timeZone,
+                        domainCompactionThreshold,
+                        options);
+            }
 
             // Create fabricator
             ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                    start,
-                    length,
-                    dataSource,
+                    inputFile,
+                    filteredRowGroups,
                     requestedSchema,
-                    ImmutableList.of(parquetTupleDomain),
-                    ImmutableList.of(predicate),
-                    descriptorsByPath,
-                    timeZone,
-                    domainCompactionThreshold,
                     gpuMemoryContext,
                     options,
                     parquetMetadata);

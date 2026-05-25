@@ -30,6 +30,7 @@ import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.predicate.TupleDomainParquetPredicate;
 import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.reader.ParquetReader;
+import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.ParquetWriter;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
@@ -68,6 +69,7 @@ import java.util.Optional;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
+import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
@@ -197,20 +199,26 @@ public class TestParquetFileFabricator
         TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource originalDataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
         ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
-        MessageType requestedSchema = createRequestedSchema(originalMetadata.getFileMetaData().getSchema(), requestedColumns);
-        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
+        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
+        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                 Long.MAX_VALUE, // Split start beyond file end
                 100,
                 originalDataSource,
-                requestedSchema,
+                originalMetadata,
                 List.of(),
                 List.of(),
                 Map.of(),
                 UTC,
                 1000,
+                options);
+        MessageType requestedSchema = createRequestedSchema(originalMetadata.getFileMetaData().getSchema(), requestedColumns);
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                inputFile,
+                filteredRowGroups,
+                requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
-                ParquetReaderOptions.builder().build(),
-                originalMetadata));
+                options,
+                originalMetadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             assertThat(fabricated.rowCount()).isEqualTo(0);
@@ -399,20 +407,26 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
-        MessageType requestedSchema = createRequestedSchema(schema, columns);
-        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
+        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
+        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                requestedSchema,
+                metadata,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
                 UTC,
                 1000,
+                options);
+        MessageType requestedSchema = createRequestedSchema(schema, columns);
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                inputFile,
+                filteredRowGroups,
+                requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
-                ParquetReaderOptions.builder().build(),
-                metadata));
+                options,
+                metadata);
 
         return fabricator.fabricate();
     }
@@ -465,20 +479,26 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
-        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
-        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
+        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
+        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                requestedSchema,
+                metadata,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
                 UTC,
                 1000,
+                options);
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                inputFile,
+                filteredRowGroups,
+                requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
-                ParquetReaderOptions.builder().build(),
-                metadata));
+                options,
+                metadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only requested columns
@@ -568,20 +588,26 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
-        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
-        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
+        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
+        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                 splitStart,
                 splitLength,
                 dataSource,
-                requestedSchema,
+                metadata,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
                 UTC,
                 1000,
+                options);
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                inputFile,
+                filteredRowGroups,
+                requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
-                ParquetReaderOptions.builder().build(),
-                metadata));
+                options,
+                metadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only selected row group(s)
@@ -650,20 +676,26 @@ public class TestParquetFileFabricator
 
         List<HiveColumnHandle> requestedColumns = List.of(createColumn("col1", 0, BIGINT));
 
-        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
-        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
+        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
+        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                requestedSchema,
+                metadata,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
                 UTC,
                 1000,
+                options);
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                inputFile,
+                filteredRowGroups,
+                requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
-                ParquetReaderOptions.builder().build(),
-                metadata));
+                options,
+                metadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file excludes filtered row groups

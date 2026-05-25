@@ -82,7 +82,6 @@ public class HiveGpuParquetPageSource
 
         if (fabricatedParquet == null) {
             fabricatedParquet = fabricator.fabricate();
-            fabricator.close(); // release
             return new Yielded();
         }
 
@@ -229,6 +228,5 @@ public class HiveGpuParquetPageSource
             fabricatedParquet.close();
             fabricatedParquet = null;
         }
-        fabricator.close();
     }
 }

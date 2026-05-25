@@ -103,7 +103,6 @@ public class IcebergGpuParquetPageSource
 
         if (fabricatedParquet == null) {
             fabricatedParquet = fabricator.fabricate();
-            fabricator.close();
             return new Yielded();
         }
 
@@ -204,6 +203,5 @@ public class IcebergGpuParquetPageSource
             fabricatedParquet.close();
             fabricatedParquet = null;
         }
-        fabricator.close();
     }
 }
