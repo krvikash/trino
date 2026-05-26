@@ -115,8 +115,9 @@ final class GpuPartitioner
         }
         try (PartitionedTable hashed = inputTable.onColumns(keyChannels)
                 .hashPartition(HashType.MURMUR3, numPartitions)) {
-            // hashed.getPartitions()[i] is the row offset where partition i starts;
-            // contiguousSplit wants cut points i.e. the offsets after the first.
+            // hashed.getPartitions() returns numPartitions+1 offsets: offsets[i] is where partition i
+            // starts and offsets[numPartitions] is the total row count. contiguousSplit wants the
+            // numPartitions-1 interior cut points.
             int[] offsets = hashed.getPartitions();
             int[] splitPoints = new int[numPartitions - 1];
             System.arraycopy(offsets, 1, splitPoints, 0, splitPoints.length);
