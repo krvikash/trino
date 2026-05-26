@@ -98,7 +98,7 @@ public class SplitManager
                     constraint);
         }
 
-        SplitSource splitSource = new ConnectorAwareSplitSource(catalogHandle, source);
+        SplitSource splitSource = new ConnectorAwareSplitSource(catalogHandle, source, dynamicFilter);
 
         Span span = splitSourceSpan(parentSpan, catalogHandle);
 
@@ -130,7 +130,7 @@ public class SplitManager
                     function.functionHandle());
         }
 
-        SplitSource splitSource = new ConnectorAwareSplitSource(catalogHandle, source);
+        SplitSource splitSource = new ConnectorAwareSplitSource(catalogHandle, source, DynamicFilter.EMPTY);
 
         Span span = splitSourceSpan(parentSpan, catalogHandle);
         return new TracingSplitSource(splitSource, tracer, Optional.of(span), "split-buffer");
