@@ -61,6 +61,10 @@ public sealed interface Column
             return blocks;
         }
 
+        /**
+         * @deprecated No-op. Exists only to satisfy interface. No point in calling directly.
+         */
+        @Deprecated
         @Override
         public Column incRefCount()
         {
