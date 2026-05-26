@@ -23,7 +23,7 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
 import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.plugin.base.gpu.ClosingRef;
-import io.trino.plugin.base.util.AutoCloseableCloser;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -37,7 +37,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Throwables.throwIfUnchecked;
 import static io.trino.operator.gpu.GpuUtils.concatenateAndClose;
 import static java.util.Objects.requireNonNull;
 
@@ -232,11 +231,11 @@ public final class GpuJoinBuild
     @Override
     public void close()
     {
-        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+        try (var closer = UncheckedCloser.create()) {
             closer.register(source);
 
             // if there is anything in bufferedTables, it hasn't been exposed to probe side yet
-            bufferedTables.forEach(closer::register);
+            bufferedTables.forEach(table -> closer.register(table::close));
             bufferedTables.clear();
 
             // If publish wasn't reached, we still own the resources and need to close them.
@@ -245,24 +244,16 @@ public final class GpuJoinBuild
                 releaseSharedResources();
             }
         }
-        catch (Exception e) {
-            throwIfUnchecked(e);
-            throw new RuntimeException(e);
-        }
     }
 
     private void releaseSharedResources()
     {
-        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+        try (var closer = UncheckedCloser.create()) {
             closer.register(buildSourceTable);
             closer.register(buildKeyTable);
             closer.register(hashJoin);
             closer.register(compiledFilter);
             closer.register(buildOutputTable);
-        }
-        catch (Exception e) {
-            throwIfUnchecked(e);
-            throw new RuntimeException(e);
         }
     }
 

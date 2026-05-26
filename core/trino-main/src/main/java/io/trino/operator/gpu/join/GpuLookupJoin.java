@@ -27,7 +27,7 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
 import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.operator.gpu.join.GpuJoinBridge.HashJoinBridge;
-import io.trino.plugin.base.util.AutoCloseableCloser;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
@@ -339,13 +338,9 @@ public final class GpuLookupJoin
     @Override
     public void close()
     {
-        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+        try (var closer = UncheckedCloser.create()) {
             closer.register(source);
             closer.register(bridgeManager::probeOperatorClosed);
-        }
-        catch (Exception e) {
-            throwIfUnchecked(e);
-            throw new RuntimeException(e);
         }
     }
 }

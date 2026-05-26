@@ -21,7 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier.GpuSemiJoinSet;
 import io.trino.plugin.base.gpu.ClosingRef;
-import io.trino.plugin.base.util.AutoCloseableCloser;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -32,7 +32,6 @@ import io.trino.spi.gpu.borrow.Own;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Throwables.throwIfUnchecked;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.trino.operator.gpu.GpuUtils.closeColumns;
@@ -155,13 +154,9 @@ public final class GpuSemiJoin
     @Override
     public void close()
     {
-        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+        try (var closer = UncheckedCloser.create()) {
             closer.register(source);
             closer.register(setSupplier::probeOperatorClosed);
-        }
-        catch (Exception e) {
-            throwIfUnchecked(e);
-            throw new RuntimeException(e);
         }
     }
 }
