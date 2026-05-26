@@ -19,12 +19,12 @@ import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
+import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.base.Throwables;
 import io.trino.plugin.hive.HiveColumnHandle;
+import io.trino.plugin.hive.HivePageSourceProvider;
 import io.trino.spi.TrinoException;
-import io.trino.spi.block.Block;
-import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
@@ -38,9 +38,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
+import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -141,14 +143,8 @@ public class GpuParquetPageSource
                     // This should never happen since gpuColumns is empty
                     case REGULAR -> throw new IllegalStateException("Found REGULAR column when gpuColumns is empty");
 
-                    case PREFILLED -> {
-                        // Partition key or other prefilled value: create RLE block
-                        Block rleBlock = RunLengthEncodedBlock.create(
-                                mapping.getHiveColumnHandle().getType(),
-                                mapping.getPrefilledValue().getValue(),
-                                rowCount);
-                        yield new Column.Blocks(List.of(rleBlock));
-                    }
+                    // Partition key or other prefilled value
+                    case PREFILLED -> prefilledColumn(mapping, rowCount);
 
                     case INTERIM, SYNTHESIZED, EMPTY -> throw new TrinoException(
                             HIVE_UNSUPPORTED_FORMAT,
@@ -193,14 +189,8 @@ public class GpuParquetPageSource
                         yield new Column.DeviceMemory(evolved);
                     }
 
-                    case PREFILLED -> {
-                        // Partition key or other prefilled value: create RLE block
-                        Block rleBlock = RunLengthEncodedBlock.create(
-                                mapping.getHiveColumnHandle().getType(),
-                                mapping.getPrefilledValue().getValue(),
-                                rowCount);
-                        yield new Column.Blocks(List.of(rleBlock));
-                    }
+                    // Partition key or other prefilled value
+                    case PREFILLED -> prefilledColumn(mapping, rowCount);
 
                     case INTERIM, SYNTHESIZED, EMPTY -> throw new TrinoException(
                             HIVE_UNSUPPORTED_FORMAT,
@@ -216,6 +206,19 @@ public class GpuParquetPageSource
         }
         finally {
             closeColumns(columns);
+        }
+    }
+
+    private static @Move Column prefilledColumn(ColumnMapping mapping, int rowCount)
+    {
+        checkArgument(mapping.getKind() == HivePageSourceProvider.ColumnMappingKind.PREFILLED, "Invalid mapping kind: %s", mapping.getKind());
+        // Currently (https://starburstdata.atlassian.net/browse/ENG-9808) GPU execution does not support mixed GPU/CPU data so, create a ColumnVector
+        Type type = mapping.getHiveColumnHandle().getType();
+        try (Scalar scalar = toGpuMapping(type)
+                .orElseThrow(() -> new UnsupportedOperationException("Unsupported type: " + type))
+                .toScalar()
+                .copyToScalar(Optional.ofNullable(mapping.getPrefilledValue().getValue()))) {
+            return new Column.DeviceMemory(ColumnVector.fromScalar(scalar, rowCount));
         }
     }
 

@@ -34,7 +34,6 @@ import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
-import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Result;
@@ -176,16 +175,14 @@ public class TestGpuParquetPageSource
             assertThat(page.column(0)).isInstanceOf(Column.DeviceMemory.class);
             assertThat(page.column(1)).isInstanceOf(Column.DeviceMemory.class);
 
-            // Verify third column is RLE block
-            assertThat(page.column(2)).isInstanceOf(Column.Blocks.class);
-            Column.Blocks blocksColumn = (Column.Blocks) page.column(2);
-            assertThat(blocksColumn.blocks()).hasSize(1);
-            Block block = blocksColumn.blocks().get(0);
-            assertThat(block).isInstanceOf(RunLengthEncodedBlock.class);
-            assertThat(block.getPositionCount()).isEqualTo(rowCount);
-
-            // Verify partition key value
-            assertThat(INTEGER.getLong(block, 0)).isEqualTo(42L);
+            // Verify the prefilled column
+            @Borrow ColumnVector columnVector = ((Column.DeviceMemory) page.column(2)).columnVector();
+            try (HostColumnVector hostColumnVector = columnVector.copyToHost()) {
+                assertThat(hostColumnVector.getRowCount()).isEqualTo(rowCount);
+                for (int row = 0; row < rowCount; row++) {
+                    assertThat(hostColumnVector.getInt(row)).isEqualTo(42);
+                }
+            }
         }
     }
 

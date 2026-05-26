@@ -125,4 +125,19 @@ public class TestHiveGpuQueries
         assertThat(query("SELECT nationkey, \"$file_size\", name FROM nation")).executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT nationkey, \"$file_modified_time\", name FROM nation")).executesWithoutGpu();
     }
+
+    @Test
+    public void testSyntheticColumnsWithFilter()
+    {
+        // synthetic columns only
+        assertThat(query("SELECT \"$path\" FROM nation WHERE \"$path\" LIKE '%/%'")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT \"$file_size\" FROM nation WHERE \"$file_size\" > 0")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT \"$file_size\" FROM nation WHERE \"$file_size\" < 1024")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT \"$file_modified_time\" FROM nation WHERE \"$file_modified_time\" < CURRENT_DATE - INTERVAL '10' DAY")).executesWithoutGpu();
+
+        // data columns and synthetic columns
+        assertThat(query("SELECT nationkey, \"$path\", \"$file_size\", name FROM nation WHERE name LIKE '%a%'")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT nationkey, \"$path\", \"$file_size\", name FROM nation WHERE name LIKE '%a%' OR \"$path\" LIKE '%/%'")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT nationkey, \"$path\", \"$file_size\", \"$file_modified_time\", name FROM nation WHERE name LIKE '%a%'")).executesWithoutGpu();
+    }
 }
