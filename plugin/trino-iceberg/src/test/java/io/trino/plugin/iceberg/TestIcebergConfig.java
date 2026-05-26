@@ -97,7 +97,8 @@ public class TestIcebergConfig
                 .setBucketExecutionEnabled(true)
                 .setTimeZone("UTC")
                 .setLegacyVariantTypeMapping(VariantMapping.VARIANT)
-                .setDropTableMode(DropTableMode.PURGE));
+                .setDropTableMode(DropTableMode.PURGE)
+                .setEqualityDeletesBlocksHashEnabled(true));
     }
 
     @Test
@@ -152,6 +153,7 @@ public class TestIcebergConfig
                 .put("iceberg.time-zone", nonDefaultTimeZone().getID())
                 .put("iceberg.legacy-variant-type-mapping", "JSON")
                 .put("iceberg.drop-table-mode", "keep")
+                .put("iceberg.equality-deletes-blocks-hash-enabled", "false")
                 .buildOrThrow();
 
         IcebergConfig expected = new IcebergConfig()
@@ -203,7 +205,8 @@ public class TestIcebergConfig
                 .setBucketExecutionEnabled(false)
                 .setTimeZone(nonDefaultTimeZone().getID())
                 .setLegacyVariantTypeMapping(VariantMapping.JSON)
-                .setDropTableMode(DropTableMode.KEEP);
+                .setDropTableMode(DropTableMode.KEEP)
+                .setEqualityDeletesBlocksHashEnabled(false);
 
         assertFullMapping(properties, expected);
     }

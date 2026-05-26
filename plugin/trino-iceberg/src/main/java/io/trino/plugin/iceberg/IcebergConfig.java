@@ -130,6 +130,7 @@ public class IcebergConfig
     private String timeZone = "UTC";
     private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
     private DropTableMode dropTableMode = DropTableMode.PURGE;
+    private boolean equalityDeletesBlocksHashEnabled = true;
 
     public CatalogType getCatalogType()
     {
@@ -780,6 +781,19 @@ public class IcebergConfig
     {
         TimeZone timeZone = TimeZone.getTimeZone(ZoneId.of(this.timeZone));
         return DateTimeZone.forTimeZone(timeZone);
+    }
+
+    public boolean isEqualityDeletesBlocksHashEnabled()
+    {
+        return equalityDeletesBlocksHashEnabled;
+    }
+
+    @Config("iceberg.equality-deletes-blocks-hash-enabled")
+    @ConfigDescription("Use BlocksHash for optimized equality delete filtering")
+    public IcebergConfig setEqualityDeletesBlocksHashEnabled(boolean equalityDeletesBlocksHashEnabled)
+    {
+        this.equalityDeletesBlocksHashEnabled = equalityDeletesBlocksHashEnabled;
+        return this;
     }
 
     @NotNull

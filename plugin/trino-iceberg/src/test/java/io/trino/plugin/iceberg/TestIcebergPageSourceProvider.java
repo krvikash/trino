@@ -18,6 +18,8 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slice;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.filesystem.local.LocalInputFile;
+import io.trino.operator.FlatHashStrategyCompiler;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
@@ -25,6 +27,7 @@ import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.iceberg.delete.DeleteFile;
+import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -32,6 +35,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeOperators;
 import io.trino.testing.TestingConnectorSession;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
@@ -189,6 +193,7 @@ class TestIcebergPageSourceProvider
 
     private static IcebergPageSourceProvider createPageSourceProvider()
     {
+        BlocksHashFactory blocksHashFactory = new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())).createBlocksHashFactory();
         return new IcebergPageSourceProvider(
                 new DefaultIcebergFileSystemFactory(new HdfsFileSystemFactory(HDFS_ENVIRONMENT, HDFS_FILE_SYSTEM_STATS)),
                 FILE_IO_FACTORY,
@@ -196,6 +201,7 @@ class TestIcebergPageSourceProvider
                 ORC_READER_CONFIG.toOrcReaderOptions(),
                 PARQUET_READER_CONFIG.toParquetReaderOptions(),
                 new IcebergConfig().getDateTimeZone(),
-                TESTING_TYPE_MANAGER);
+                TESTING_TYPE_MANAGER,
+                Optional.of(blocksHashFactory));
     }
 }

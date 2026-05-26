@@ -22,6 +22,8 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
+import io.trino.operator.FlatHashStrategyCompiler;
+import io.trino.operator.NullSafeHashCompiler;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
@@ -37,7 +39,9 @@ import io.trino.plugin.iceberg.PartitionData;
 import io.trino.plugin.iceberg.PartitionStatisticsReader;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
+import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.NodeVersion;
+import io.trino.spi.type.TypeOperators;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
@@ -77,6 +81,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class TestIcebergPartitionStatistics
         extends AbstractTestQueryFramework
 {
+    public static final BlocksHashFactory BLOCKS_HASH_FACTORY = new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())).createBlocksHashFactory();
     public static final PartitionStatisticsReader PARTITION_STATISTICS_READER = new PartitionStatisticsReader(
             TESTING_TYPE_MANAGER,
             new IcebergPageSourceProviderFactory(
@@ -86,7 +91,8 @@ public final class TestIcebergPartitionStatistics
                     new OrcReaderConfig(),
                     new ParquetReaderConfig(),
                     new IcebergConfig(),
-                    TESTING_TYPE_MANAGER));
+                    TESTING_TYPE_MANAGER,
+                    BLOCKS_HASH_FACTORY));
 
     public static final PartitionStatisticsWriter PARTITION_STATISTICS_WRITER = new PartitionStatisticsWriter(
             TESTING_TYPE_MANAGER,
