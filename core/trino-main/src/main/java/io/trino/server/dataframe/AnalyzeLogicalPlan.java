@@ -40,6 +40,7 @@ import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.function.table.AbstractConnectorTableFunction;
@@ -204,7 +205,11 @@ public class AnalyzeLogicalPlan
         return new TableFunctionProcessorProvider()
         {
             @Override
-            public TableFunctionSplitProcessor getSplitProcessor(ConnectorSession session, ConnectorTableFunctionHandle handle, ConnectorSplit split)
+            public TableFunctionSplitProcessor getSplitProcessor(
+                    ConnectorSession session,
+                    ConnectorTableFunctionHandle handle,
+                    Optional<ConnectorTableCredentials> tableCredentials,
+                    ConnectorSplit split)
             {
                 return new AnalyzeLogicalPlanFunctionProcessor(((AnalyzeLogicalPlanFunctionHandle) handle).getTrinoPlan());
             }
