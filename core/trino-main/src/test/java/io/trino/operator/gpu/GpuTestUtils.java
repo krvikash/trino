@@ -564,34 +564,43 @@ public final class GpuTestUtils
                 CopyToDevice copyToDevice = new CopyToDevice(bufferPages, inputTypes, deviceChannels);
                 GpuOperation operation = operationFactory.apply(copyToDevice);
                 CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes)) {
-            GpuPageToPages gpuPageToPages = new GpuPageToPages();
-
-            ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-            while (true) {
-                if (!input.hasNext()) {
-                    bufferPages.noMoreInput();
-                }
-                else if (bufferPages.needsInput()) {
-                    bufferPages.addInput(input.next());
-                }
-
-                gpuPageToPages.drain().forEachOrdered(outputPages::add);
-
-                @Own GpuOperation.Result result = copyToBlocks.execute();
-                switch (result) {
-                    case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
-                    case GpuOperation.Data(GpuPage gpuPage) -> {
-                        try (gpuPage) {
-                            gpuPageToPages.add(gpuPage);
+            return drainToPages(
+                    () -> {
+                        if (!input.hasNext()) {
+                            bufferPages.noMoreInput();
                         }
+                        else if (bufferPages.needsInput()) {
+                            bufferPages.addInput(input.next());
+                        }
+                    },
+                    copyToBlocks);
+        }
+    }
+
+    public static List<Page> drainToPages(Runnable feedInput, GpuOperation outout)
+    {
+        GpuPageToPages gpuPageToPages = new GpuPageToPages();
+
+        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
+        while (true) {
+            feedInput.run();
+
+            gpuPageToPages.drain().forEachOrdered(outputPages::add);
+
+            @Own GpuOperation.Result result = outout.execute();
+            switch (result) {
+                case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                case GpuOperation.Data(GpuPage gpuPage) -> {
+                    try (gpuPage) {
+                        gpuPageToPages.add(gpuPage);
                     }
-                    case GpuOperation.Yielded() -> {
-                        // continue
-                    }
-                    case GpuOperation.Finished() -> {
-                        checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained at this point");
-                        return outputPages.build();
-                    }
+                }
+                case GpuOperation.Yielded() -> {
+                    // continue
+                }
+                case GpuOperation.Finished() -> {
+                    checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained at this point");
+                    return outputPages.build();
                 }
             }
         }
