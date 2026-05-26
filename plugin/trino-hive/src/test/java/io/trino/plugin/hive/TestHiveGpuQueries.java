@@ -25,18 +25,24 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestTable;
 import org.apache.parquet.format.CompressionCodec;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static io.trino.plugin.hive.HiveStorageFormat.ESRI;
+import static io.trino.plugin.hive.HiveStorageFormat.ESRI_GEO_JSON;
+import static io.trino.plugin.hive.HiveStorageFormat.REGEX;
+import static io.trino.plugin.hive.HiveStorageFormat.SEQUENCEFILE_PROTOBUF;
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.ORDERS;
 import static io.trino.tpch.TpchTable.REGION;
+import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHiveGpuQueries
@@ -109,6 +115,40 @@ public class TestHiveGpuQueries
         }
         finally {
             fileSystem.deleteDirectory(directory);
+        }
+    }
+
+    @Test
+    public void testUnsupportedFileFormat()
+    {
+        for (HiveStorageFormat hiveStorageFormat : HiveStorageFormat.values()) {
+            if (hiveStorageFormat == HiveStorageFormat.CSV) {
+                // CSV supports only unbounded VARCHAR type
+                continue;
+            }
+            if (hiveStorageFormat == REGEX) {
+                // REGEX format is read-only
+                continue;
+            }
+            if (hiveStorageFormat == ESRI) {
+                // ESRI format is read-only
+                continue;
+            }
+            if (hiveStorageFormat == ESRI_GEO_JSON) {
+                // ESRI_GEO_JSON format is read-only
+                continue;
+            }
+            if (hiveStorageFormat == SEQUENCEFILE_PROTOBUF) {
+                // SEQUENCEFILE_PROTOBUF format is read-only
+                continue;
+            }
+
+            try (var table = new TestTable(
+                    getQueryRunner()::execute,
+                    "nation_" + hiveStorageFormat.name().toLowerCase(ENGLISH),
+                    "WITH (format = '%s') AS TABLE nation".formatted(hiveStorageFormat.name()))) {
+                assertThat(query("TABLE " + table.getName())).executesWithGpu(TableScanNode.class);
+            }
         }
     }
 

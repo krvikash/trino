@@ -15,11 +15,13 @@ package io.trino.split;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
+import io.trino.operator.gpu.scan.ConnectorGpuPageSourceAdapter;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -32,6 +34,7 @@ import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.Type;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +46,8 @@ import static java.util.Objects.requireNonNull;
 public class PageSourceManager
         implements PageSourceProviderFactory
 {
+    private static final Logger log = Logger.get(PageSourceManager.class);
+
     private final CatalogServiceProvider<ConnectorPageSourceProviderFactory> pageSourceProviderFactory;
 
     @Inject
@@ -80,9 +85,10 @@ public class PageSourceManager
                 TableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
+                List<Type> columnTypes,
                 DynamicFilter dynamicFilter)
         {
-            requireNonNull(columns, "columns is null");
+            checkArgument(columns.size() == columnTypes.size(), "columns and columnTypes have different sizes");
             checkArgument(split.getCatalogHandle().equals(table.catalogHandle()), "mismatched split and table");
 
             TupleDomain<ColumnHandle> constraint = dynamicFilter.getCurrentPredicate();
@@ -92,15 +98,29 @@ public class PageSourceManager
             if (!isAllowPushdownIntoConnectors(session)) {
                 dynamicFilter = DynamicFilter.EMPTY;
             }
+            DynamicFilter finalDynamicFilter = dynamicFilter;
+            ConnectorSession connectorSession = session.toConnectorSession(table.catalogHandle());
             return pageSourceProvider.createGpuPageSource(
                             table.transaction(),
-                            session.toConnectorSession(table.catalogHandle()),
+                            connectorSession,
                             split.getConnectorSplit(),
                             table.connectorHandle(),
                             tableCredentials,
                             columns,
-                            dynamicFilter)
-                    .orElseThrow(() -> new IllegalStateException("No ConnectorGpuPageSource created"));
+                            finalDynamicFilter)
+                    .orElseGet(() -> {
+                        log.debug("GPU page source was requested but not provided, falling back to CPU scan with adaptation for %s", table.connectorHandle());
+                        return new ConnectorGpuPageSourceAdapter(
+                                pageSourceProvider.createPageSource(
+                                        table.transaction(),
+                                        connectorSession,
+                                        split.getConnectorSplit(),
+                                        table.connectorHandle(),
+                                        tableCredentials,
+                                        columns,
+                                        finalDynamicFilter),
+                                columnTypes);
+                    });
         }
 
         @Override

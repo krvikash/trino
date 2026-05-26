@@ -150,6 +150,7 @@ public abstract class GpuOperator
                                 table,
                                 tableCredentials,
                                 columns,
+                                columnTypes,
                                 dynamicFilter);
                         return new GpuOperatorSource(tableScan, tableScan);
                     },

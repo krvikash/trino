@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
@@ -99,6 +100,8 @@ import static java.util.stream.Collectors.toList;
 public class HivePageSourceProvider
         implements ConnectorPageSourceProvider
 {
+    private static final Logger log = Logger.get(HivePageSourceProvider.class);
+
     public static final int ORIGINAL_TRANSACTION_CHANNEL = 0;
     public static final int BUCKET_CHANNEL = 1;
     public static final int ROW_ID_CHANNEL = 2;
@@ -144,6 +147,7 @@ public class HivePageSourceProvider
 
         // Check if this is a Parquet split
         if (!isParquetSplit(hiveSplit)) {
+            log.debug("GPU table scan is supported only on Parquet format: %s", tableHandle);
             return Optional.empty();
         }
 
@@ -175,6 +179,7 @@ public class HivePageSourceProvider
         boolean hasTimestampGpuColumns = gpuColumns.stream()
                 .anyMatch(col -> containsTimestampType(col.getType()));
         if (hasTimestampGpuColumns && !parquetDateTimeZone.equals(DateTimeZone.UTC)) {
+            log.debug("GPU table scan is supported only when Parquet time zone is set to UTC, got: %s", parquetDateTimeZone);
             return Optional.empty();
         }
 

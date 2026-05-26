@@ -26,6 +26,7 @@ import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.Type;
 import io.trino.split.EmptySplit;
 import io.trino.split.PageSourceProvider;
 import jakarta.annotation.Nullable;
@@ -46,6 +47,7 @@ public class GpuTableScan
     private final TableHandle table;
     private final Optional<ConnectorTableCredentials> tableCredentials;
     private final List<ColumnHandle> columns;
+    private final List<Type> columnTypes;
     private final DynamicFilter dynamicFilter;
 
     private @Nullable Split split;
@@ -58,6 +60,7 @@ public class GpuTableScan
             TableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
+            List<Type> columnTypes,
             DynamicFilter dynamicFilter)
     {
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
@@ -65,6 +68,7 @@ public class GpuTableScan
         this.table = requireNonNull(table, "table is null");
         this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
+        this.columnTypes = ImmutableList.copyOf(requireNonNull(columnTypes, "columnTypes is null"));
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
     }
 
@@ -111,6 +115,7 @@ public class GpuTableScan
                     table,
                     tableCredentials,
                     columns,
+                    columnTypes,
                     dynamicFilter);
         }
 

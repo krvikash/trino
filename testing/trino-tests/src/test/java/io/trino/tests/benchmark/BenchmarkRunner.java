@@ -1316,7 +1316,9 @@ public final class BenchmarkRunner
         logging.setLevel("io.trino.spi.gpu", Level.DEBUG);
         logging.setLevel("io.trino.operator.gpu", Level.DEBUG);
         logging.setLevel("io.trino.sql.planner.LocalExecutionPlanner", Level.DEBUG);
+        logging.setLevel("io.trino.split.PageSourceManager", Level.DEBUG);
         logging.setLevel("io.trino.tests.benchmark", Level.DEBUG);
+        logging.setLevel("io.trino.plugin.hive.HivePageSourceProvider", Level.DEBUG);
     }
 
     /**
