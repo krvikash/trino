@@ -111,4 +111,18 @@ public class TestHiveGpuQueries
             fileSystem.deleteDirectory(directory);
         }
     }
+
+    @Test
+    public void testSyntheticColumns()
+    {
+        // synthetic columns only
+        assertThat(query("SELECT \"$path\" FROM nation")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT \"$file_size\" FROM nation")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT \"$file_modified_time\" FROM nation")).executesWithoutGpu();
+
+        // data columns and synthetic columns
+        assertThat(query("SELECT nationkey, \"$path\", name FROM nation")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT nationkey, \"$file_size\", name FROM nation")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT nationkey, \"$file_modified_time\", name FROM nation")).executesWithoutGpu();
+    }
 }

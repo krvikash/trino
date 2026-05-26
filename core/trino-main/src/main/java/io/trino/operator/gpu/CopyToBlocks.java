@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
@@ -42,15 +43,13 @@ import jakarta.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
-import static com.google.common.collect.MoreCollectors.toOptional;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -108,26 +107,11 @@ public class CopyToBlocks
     {
         try {
             checkArgument(inputPage.columnCount() == types.size(), "Page has wrong column count");
-            int[] columnIndexToCopierIndex = new int[inputPage.columnCount()];
             List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
             @Own Column[] newColumns = new Column[inputPage.columnCount()];
             @Own List<HostColumnVector> hostColumnVectors = new ArrayList<>();
             boolean syncFailed = false;
             try {
-                Optional<List<Integer>> desiredBlockPositions = IntStream.range(0, inputPage.columnCount())
-                        .mapToObj(columnIndex -> switch (inputPage.column(columnIndex)) {
-                            case Blocks blocks -> Optional.of(blocks);
-                            case DeviceMemory _ -> Optional.<Blocks>empty();
-                        })
-                        .flatMap(Optional::stream)
-                        .map(blocks -> blocks.blocks().stream()
-                                .map(Block::getPositionCount)
-                                .collect(toImmutableList()))
-                        .distinct()
-                        .collect(toOptional());
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) if there are any pre-existing blocks, we need to honor their alignment or rewrite them
-                checkState(desiredBlockPositions.isEmpty(), "Pre-existing blocks");
-
                 int positionCount = inputPage.positionCount();
                 // Issue all device→host transfers, then synchronize once so host-side allocation
                 // and bookkeeping overlap with in-flight DMA.
@@ -154,11 +138,10 @@ public class CopyToBlocks
 
                 int hostColumnVectorIndex = 0;
                 for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
+                    Type type = types.get(columnIndex);
                     switch (inputPage.column(columnIndex)) {
-                        case Blocks _ -> {}
+                        case Blocks blocks -> copiers.add(createBlockCopier(blocks, type));
                         case DeviceMemory _ -> {
-                            columnIndexToCopierIndex[columnIndex] = copiers.size();
-                            Type type = types.get(columnIndex);
                             HostColumnVector hostColumnVector = hostColumnVectors.get(hostColumnVectorIndex++);
                             copiers.add(createColumnCopier(hostColumnVector, type));
                         }
@@ -190,16 +173,10 @@ public class CopyToBlocks
                 }
 
                 for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
-                    newColumns[columnIndex] = switch (inputPage.column(columnIndex)) {
-                        case Blocks blocks -> blocks;
-                        case DeviceMemory _ -> {
-                            int copiedPagesColumnIndex = columnIndexToCopierIndex[columnIndex];
-                            yield new Blocks(
-                                    copiedPages.stream()
-                                            .map(page -> page.getBlock(copiedPagesColumnIndex))
-                                            .collect(toImmutableList()));
-                        }
-                    };
+                    int index = columnIndex;
+                    newColumns[columnIndex] = new Blocks(copiedPages.stream()
+                            .map(page -> page.getBlock(index))
+                            .collect(toImmutableList()));
                 }
                 return new GpuPage(positionCount, newColumns);
             }
@@ -225,6 +202,51 @@ public class CopyToBlocks
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static ColumnCopier createBlockCopier(Blocks blocks, Type type)
+    {
+        return new ColumnCopier()
+        {
+            private final Iterator<Block> input = blocks.blocks().iterator();
+            private int pastPositions;
+            private Block currentBlock;
+            private int currentBlockOffset;
+
+            @Override
+            public Block buildBlock(int position, int count)
+            {
+                checkArgument(pastPositions == position, "Unexpected position, expected %s, got %s", pastPositions, position);
+                discardExhaustedInputBlock();
+
+                if (count <= currentBlock.getPositionCount() - currentBlockOffset) {
+                    Block region = currentBlock.getRegion(currentBlockOffset, count);
+                    pastPositions += count;
+                    currentBlockOffset += count;
+                    return region;
+                }
+
+                BlockBuilder builder = type.createBlockBuilder(null, count);
+                int remaining = count;
+                while (remaining > 0) {
+                    discardExhaustedInputBlock();
+                    int batch = Math.min(remaining, currentBlock.getPositionCount() - currentBlockOffset);
+                    builder.appendBlockRange(currentBlock, currentBlockOffset, batch);
+                    remaining -= batch;
+                    pastPositions += batch;
+                    currentBlockOffset += batch;
+                }
+                return builder.build();
+            }
+
+            private void discardExhaustedInputBlock()
+            {
+                while (currentBlock == null || currentBlockOffset == currentBlock.getPositionCount()) {
+                    currentBlock = input.next();
+                    currentBlockOffset = 0;
+                }
+            }
+        };
     }
 
     public static Block copyToBlock(@Borrow HostColumnVector hostColumnVector, Type type)
