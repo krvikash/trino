@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.NodeVersion;
@@ -67,5 +68,6 @@ public class ConnectorContextModule
         binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
         binder.bind(ManagedStatisticsClient.class).toInstance(context.getManagedStatisticsClient());
         // Note: ModelConnectionSpecsLoader is bound conditionally depending on the catalog configuration in AiClientModule
+        binder.bind(BlocksHashFactory.class).toInstance(context.getBlocksHashFactory());
     }
 }

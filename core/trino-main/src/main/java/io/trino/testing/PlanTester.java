@@ -466,6 +466,7 @@ public class PlanTester
                 noop(),
                 transactionManager,
                 typeManager,
+                hashStrategyCompiler,
                 nodeSchedulerConfig,
                 AiModelAccessControl.ALLOW_ALL,
                 EMPTY_LOADER,
