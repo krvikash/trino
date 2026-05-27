@@ -282,6 +282,18 @@ public class TestGpuExpressions
         testConstant(new Constant(VARCHAR, null));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testReference(NullsProvider nullsProvider)
+    {
+        Expression expression = new Reference(BIGINT, "ref0");
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -1000, 1000)));
+        assertGpuMatchesCpu(inputPages, List.of(BIGINT), expression, Set.of(0));
+    }
+
     @Test
     public void testRealToIntegerCastPrecision()
     {
