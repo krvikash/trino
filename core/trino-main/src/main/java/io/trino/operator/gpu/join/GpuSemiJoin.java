@@ -77,17 +77,19 @@ public final class GpuSemiJoin
         }
     }
 
+    private final UncheckedCloser closer = UncheckedCloser.create();
     private final GpuOperation source;
-    private final GpuSemiJoinSetSupplier setSupplier;
     private final ListenableFuture<GpuSemiJoinSet> setFuture;
     private final int probeKeyChannel;
 
     private GpuSemiJoin(GpuOperation source, GpuSemiJoinSetSupplier setSupplier, int probeKeyChannel)
     {
         this.source = requireNonNull(source, "source is null");
-        this.setSupplier = requireNonNull(setSupplier, "setSupplier is null");
         this.setFuture = setSupplier.getSetFuture();
         this.probeKeyChannel = probeKeyChannel;
+
+        closer.register(source);
+        closer.register(setSupplier::probeOperatorClosed);
     }
 
     @Override
@@ -154,9 +156,6 @@ public final class GpuSemiJoin
     @Override
     public void close()
     {
-        try (var closer = UncheckedCloser.create()) {
-            closer.register(source);
-            closer.register(setSupplier::probeOperatorClosed);
-        }
+        closer.close();
     }
 }

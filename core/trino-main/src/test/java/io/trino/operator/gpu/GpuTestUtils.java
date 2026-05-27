@@ -562,8 +562,8 @@ public final class GpuTestUtils
         Iterator<Page> input = inputPages.iterator();
         try (BufferPages bufferPages = new BufferPages();
                 CopyToDevice copyToDevice = new CopyToDevice(bufferPages, inputTypes, deviceChannels);
-                GpuOperation operation = operationFactory.apply(copyToDevice)) {
-            CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes);
+                GpuOperation operation = operationFactory.apply(copyToDevice);
+                CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes)) {
             GpuPageToPages gpuPageToPages = new GpuPageToPages();
 
             ImmutableList.Builder<Page> outputPages = ImmutableList.builder();

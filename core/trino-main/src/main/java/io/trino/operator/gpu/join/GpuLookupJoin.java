@@ -116,8 +116,8 @@ public final class GpuLookupJoin
         }
     }
 
+    private final UncheckedCloser closer = UncheckedCloser.create();
     private final GpuOperation source;
-    private final GpuJoinBridgeManager bridgeManager;
     private final ListenableFuture<GpuJoinBridge> bridgeFuture;
     private final int[] probeKeyChannels;
     private final int[] probeOutputChannels;
@@ -135,13 +135,15 @@ public final class GpuLookupJoin
             boolean filteredJoin)
     {
         this.source = requireNonNull(source, "source is null");
-        this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
         this.bridgeFuture = bridgeManager.getBridgeFuture();
         this.probeKeyChannels = probeKeyChannels;
         this.probeOutputChannels = probeOutputChannels;
         this.joinType = joinType;
         this.buildOutputTypes = buildOutputTypes;
         this.filteredJoin = filteredJoin;
+
+        closer.register(source);
+        closer.register(bridgeManager::probeOperatorClosed);
     }
 
     @Override
@@ -338,9 +340,6 @@ public final class GpuLookupJoin
     @Override
     public void close()
     {
-        try (var closer = UncheckedCloser.create()) {
-            closer.register(source);
-            closer.register(bridgeManager::probeOperatorClosed);
-        }
+        closer.close();
     }
 }
