@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -253,6 +254,83 @@ public class TestLocalDiskTier
         third.lease().release();
     }
 
+    @Test
+    public void testShouldRouteToDiskFollowsMemoryWatermark()
+    {
+        // Watermark at 70%; low watermark at 0% so routing deactivates only at 0% memory.
+        LocalDiskTier diskTier = createDiskTierWithRouting(0.7, 0.0);
+
+        // Below watermark - routing not yet active
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(69.9, 0, 0L, 0L))).isFalse();
+        // At watermark - activates routing
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(70.0, 0, 0L, 0L))).isTrue();
+        // Above watermark - routing remains active
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(100.0, 0, 0L, 0L))).isTrue();
+    }
+
+    @Test
+    public void testShouldRouteToDiskOpenChunksBackpressure()
+    {
+        // maxOpenDiskChunks = 2; chunks above threshold with memory pressure
+        LocalDiskTier diskTier = createDiskTierWithMaxOpenChunks(2);
+        int chunkSize = (int) DataSize.of(64, KILOBYTE).toBytes();
+
+        // No open chunks yet - routing allowed
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(100.0, 0, 0L, 0L))).isTrue();
+
+        DiskChunkSlot slot1 = diskTier.tryReserveChunkSlot("exchange-1", 0, 1L, chunkSize).orElseThrow();
+        DiskChunkSlot slot2 = diskTier.tryReserveChunkSlot("exchange-1", 0, 2L, chunkSize).orElseThrow();
+
+        // Both slots open - limit reached, routing blocked
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(100.0, 2, 0L, 0L))).isFalse();
+
+        // Release one slot - routing resumes
+        slot1.diskRelease().run();
+        slot1.lease().release();
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(100.0, 1, 0L, 0L))).isTrue();
+
+        slot2.diskRelease().run();
+        slot2.lease().release();
+    }
+
+    @Test
+    public void testShouldRouteToDiskHysteresisStaysActiveUntilLowWatermark()
+    {
+        // High=0.7, low=0.5: routing must persist between 50–70% after activation.
+        LocalDiskTier diskTier = createDiskTierWithRouting(0.7, 0.5);
+
+        // Not active initially
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(65.0, 0, 0L, 0L))).isFalse();
+
+        // Cross high watermark - activates
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(75.0, 0, 0L, 0L))).isTrue();
+
+        // Drop below high but above low - stays active (hysteresis)
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(65.0, 0, 0L, 0L))).isTrue();
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(55.0, 0, 0L, 0L))).isTrue();
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(50.1, 0, 0L, 0L))).isTrue();
+
+        // Drop below low watermark - deactivates
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(49.9, 0, 0L, 0L))).isFalse();
+
+        // Stays inactive below low watermark
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(40.0, 0, 0L, 0L))).isFalse();
+
+        // Re-activates when crossing high watermark again
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(70.0, 0, 0L, 0L))).isTrue();
+    }
+
+    @Test
+    public void testShouldRouteToDiskHysteresisDoesNotActivateBelowHighWatermark()
+    {
+        LocalDiskTier diskTier = createDiskTierWithRouting(0.7, 0.5);
+
+        // Memory bounces in the hysteresis zone but never crosses high - routing must not activate.
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(69.9, 0, 0L, 0L))).isFalse();
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(60.0, 0, 0L, 0L))).isFalse();
+        assertThat(diskTier.shouldRouteToDisk(new LocalDiskTier.RoutingDecisionInputs(55.0, 0, 0L, 0L))).isFalse();
+    }
+
     private static LocalDiskTier createDiskTier(Path rootDirectory)
     {
         LocalDiskTierConfig config = new LocalDiskTierConfig()
@@ -266,6 +344,26 @@ public class TestLocalDiskTier
         LocalDiskTierConfig config = new LocalDiskTierConfig()
                 .setDirectory(tempDir)
                 .setCapacity(capacity);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
+    }
+
+    private LocalDiskTier createDiskTierWithRouting(double memoryHighWatermark, double memoryLowWatermark)
+    {
+        LocalDiskTierConfig config = new LocalDiskTierConfig()
+                .setDirectory(tempDir)
+                .setCapacity(DEFAULT_CAPACITY)
+                .setMemoryHighWatermark(memoryHighWatermark)
+                .setMemoryLowWatermark(memoryLowWatermark);
+        return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
+    }
+
+    private LocalDiskTier createDiskTierWithMaxOpenChunks(int maxOpenDiskChunks)
+    {
+        // Default watermarks (high=0.7, low=0.5); test always passes 100% memory so routing fires immediately.
+        LocalDiskTierConfig config = new LocalDiskTierConfig()
+                .setDirectory(tempDir)
+                .setCapacity(DEFAULT_CAPACITY)
+                .setMaxOpenDiskChunks(maxOpenDiskChunks);
         return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 }

@@ -144,6 +144,7 @@ public class ChunkManager
     private final SpoolingStorage spoolingStorage;
     private final Ticker ticker;
     private final SpooledChunksByExchange spooledChunksByExchange;
+    private final ExchangeChunkBytes exchangeAllocatedBytes;
     private final DataServerStats dataServerStats;
     private final Tracer tracer;
     private final ExecutorService executor;
@@ -186,6 +187,7 @@ public class ChunkManager
             SpoolingStorage spoolingStorage,
             @ForChunkManager Ticker ticker,
             SpooledChunksByExchange spooledChunksByExchange,
+            ExchangeChunkBytes exchangeAllocatedBytes,
             Optional<LocalDiskAllocator> localDiskAllocator,
             ChunkDataFactory chunkDataFactory,
             DataServerStats dataServerStats,
@@ -217,6 +219,7 @@ public class ChunkManager
         this.spoolingStorage = requireNonNull(spoolingStorage, "spoolingStorage is null");
         this.ticker = requireNonNull(ticker, "ticker is null");
         this.spooledChunksByExchange = requireNonNull(spooledChunksByExchange, "spooledChunkMapByExchange is null");
+        this.exchangeAllocatedBytes = requireNonNull(exchangeAllocatedBytes, "exchangeAllocatedBytes is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.executor = requireNonNull(executor, "executor is null");
@@ -455,6 +458,7 @@ public class ChunkManager
         recentlyRemovedExchanges.put(exchangeId, EXPLICIT);
         Exchange exchange = exchanges.remove(exchangeId);
         if (exchange != null) {
+            exchangeAllocatedBytes.remove(exchangeId);
             releaseChunks(exchange);
         }
         else {
@@ -663,6 +667,7 @@ public class ChunkManager
                 recentlyRemovedExchanges.put(exchange.getExchangeId(), ABANDONED);
                 iterator.remove();
                 spooledChunksByExchange.removeExchange(exchange.getExchangeId());
+                exchangeAllocatedBytes.remove(exchange.getExchangeId());
                 releaseChunks(exchange);
             }
         }

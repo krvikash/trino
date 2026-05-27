@@ -68,6 +68,7 @@ import static java.util.Objects.requireNonNull;
 public class TrinoFsSpoolingStorage
         extends AbstractSpoolingStorage
 {
+    private final DataServerStats dataServerStats;
     private final TrinoFileSystem fileSystem;
     private final ListeningExecutorService executor;
     private final ListeningExecutorService deleteExecutor;
@@ -84,6 +85,7 @@ public class TrinoFsSpoolingStorage
             @ForTrinoFsSpoolingDelete ListeningExecutorService deleteExecutor)
     {
         super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
+        this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.deleteExecutor = requireNonNull(deleteExecutor, "deleteExecutor is null");
@@ -127,9 +129,11 @@ public class TrinoFsSpoolingStorage
                         for (Slice slice : memoryLease.getChunkSlices()) {
                             segmentSuppliers.add(sliceStreamSupplier(slice));
                         }
+                        dataServerStats.recordMemorySpooledBytes(lease.serializedSizeInBytes());
                     }
                     case DiskChunkDataLease diskLease -> {
                         segmentSuppliers.add(() -> new DiskChunkInputStream(diskLease));
+                        dataServerStats.recordDiskSpooledBytes(lease.serializedSizeInBytes());
                     }
                 }
             }

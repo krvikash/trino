@@ -13,6 +13,8 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -24,10 +26,14 @@ public class LocalDiskTierConfig
 {
     private Path directory;
     private DataSize capacity;
+    private double memoryHighWatermark = 0.7;
+    private double memoryLowWatermark = 0.5;
     private double spoolingHighWatermark = 0.8;
     private double spoolingLowWatermark = 0.5;
     private boolean allowDirectoryCreation;
     private int ioThreads = 32;
+    private int maxOpenDiskChunks = 256;
+    private double exchangeMemoryFraction;
 
     @NotNull
     public Path getDirectory()
@@ -57,6 +63,38 @@ public class LocalDiskTierConfig
     {
         checkArgument(capacity == null || capacity.toBytes() > 0, "capacity must be positive");
         this.capacity = capacity;
+        return this;
+    }
+
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public double getMemoryHighWatermark()
+    {
+        return memoryHighWatermark;
+    }
+
+    @Config("local-disk.routing.memory-high-watermark")
+    @ConfigHidden
+    @ConfigDescription("Fraction of memory capacity at which disk routing activates (0.0–1.0)")
+    public LocalDiskTierConfig setMemoryHighWatermark(double memoryHighWatermark)
+    {
+        this.memoryHighWatermark = memoryHighWatermark;
+        return this;
+    }
+
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public double getMemoryLowWatermark()
+    {
+        return memoryLowWatermark;
+    }
+
+    @Config("local-disk.routing.memory-low-watermark")
+    @ConfigHidden
+    @ConfigDescription("Fraction of memory capacity at which disk routing deactivates after being triggered (0.0–1.0); must be less than memory-high-watermark")
+    public LocalDiskTierConfig setMemoryLowWatermark(double memoryLowWatermark)
+    {
+        this.memoryLowWatermark = memoryLowWatermark;
         return this;
     }
 
@@ -116,6 +154,37 @@ public class LocalDiskTierConfig
     public LocalDiskTierConfig setIoThreads(int ioThreads)
     {
         this.ioThreads = ioThreads;
+        return this;
+    }
+
+    @Min(1)
+    public int getMaxOpenDiskChunks()
+    {
+        return maxOpenDiskChunks;
+    }
+
+    @Config("local-disk.routing.max-open-disk-chunks")
+    @ConfigHidden
+    @ConfigDescription("Maximum number of concurrently open disk chunks; routing pauses when this limit is reached")
+    public LocalDiskTierConfig setMaxOpenDiskChunks(int maxOpenDiskChunks)
+    {
+        this.maxOpenDiskChunks = maxOpenDiskChunks;
+        return this;
+    }
+
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public double getExchangeMemoryFraction()
+    {
+        return exchangeMemoryFraction;
+    }
+
+    @Config("local-disk.routing.exchange-memory-fraction")
+    @ConfigHidden
+    @ConfigDescription("Route exchange to disk when its cumulative allocated bytes exceed this fraction of total memory capacity; 0.0 disables the check")
+    public LocalDiskTierConfig setExchangeMemoryFraction(double exchangeMemoryFraction)
+    {
+        this.exchangeMemoryFraction = exchangeMemoryFraction;
         return this;
     }
 }

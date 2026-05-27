@@ -31,6 +31,7 @@ import io.starburst.stargate.buffer.data.execution.ChunkDataFactory;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.ExchangeChunkBytes;
 import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.memory.FullHeapMemoryConfig;
@@ -46,7 +47,10 @@ import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -59,7 +63,6 @@ import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static java.lang.Runtime.getRuntime;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -113,7 +116,9 @@ public class DataServerMainModule
         binder.bind(ChunkManager.class).in(SINGLETON);
         binder.bind(MergedFileNameGenerator.class).in(SINGLETON);
         binder.bind(SpooledChunksByExchange.class).in(SINGLETON);
-        binder.bind(DataServerStats.class).in(SINGLETON);
+        binder.bind(ExchangeChunkBytes.class).in(SINGLETON);
+        DataServerStats dataServerStats = new DataServerStats();
+        binder.bind(DataServerStats.class).toInstance(dataServerStats);
         newExporter(binder).export(DataServerStats.class).withGeneratedName();
         binder.bind(AddDataPagesThrottlingCalculator.class).in(SINGLETON);
         binder.bind(AddDataPagesInProgressTracker.class).in(SINGLETON);
@@ -145,8 +150,9 @@ public class DataServerMainModule
             configBinder(binder).bindConfig(LocalDiskTierConfig.class, configPrefix.orElse(null));
             binder.bind(LocalDiskAllocator.class).in(SINGLETON);
             binder.bind(LocalDiskTier.class).asEagerSingleton();
-            ExecutorService ioExecutor = createIoOperationsExecutor(localDiskTierConfig);
+            ThreadPoolExecutor ioExecutor = createIoOperationsExecutor(localDiskTierConfig);
             binder.bind(ExecutorService.class).annotatedWith(ForLocalDiskIo.class).toInstance(ioExecutor);
+            dataServerStats.setDiskIoExecutor(ioExecutor);
         }
 
         if (buildConfigObject(DataServerConfig.class, configPrefix.orElse(null)).isTestingEnableStatsLogging()) {
@@ -223,8 +229,15 @@ public class DataServerMainModule
         }
     }
 
-    private static ExecutorService createIoOperationsExecutor(LocalDiskTierConfig localDiskTierConfig)
+    private static ThreadPoolExecutor createIoOperationsExecutor(LocalDiskTierConfig localDiskTierConfig)
     {
-        return newFixedThreadPool(localDiskTierConfig.getIoThreads(), daemonThreadsNamed("local-disk-io-%s"));
+        int ioThreads = localDiskTierConfig.getIoThreads();
+        return new ThreadPoolExecutor(
+                ioThreads,
+                ioThreads,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(),
+                daemonThreadsNamed("local-disk-io-%s"));
     }
 }

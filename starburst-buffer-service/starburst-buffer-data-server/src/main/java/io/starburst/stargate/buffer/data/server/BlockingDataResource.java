@@ -526,6 +526,7 @@ public class BlockingDataResource
         int totalLength = lease.serializedSizeInBytes();
         readDataSize.update(contentLength);
         readDataSizeDistribution.add(contentLength);
+        stats.recordDiskBytesRead(contentLength);
 
         Slice metadataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
         SliceOutput metadataOutput = metadataSlice.getOutput();

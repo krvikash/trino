@@ -36,7 +36,6 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.HttpDataClient;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.blackhole.BlackholeSpooledChunkReader;
-import io.starburst.stargate.buffer.data.execution.ChunkAllocationStats;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.data.server.testing.TestingDiscoveryApiModule;
 import org.junit.jupiter.api.AfterEach;
@@ -564,9 +563,9 @@ abstract class BaseDataServerTest
         getFutureValue(dataClient.removeExchange(exchangeId));
     }
 
-    protected ChunkAllocationStats getChunkAllocationStats()
+    protected DataServerStats getDataServerStats()
     {
-        return dataServer.getChunkAllocationStats();
+        return dataServer.getDataServerStats();
     }
 
     private BufferNodeExchangeMetrics pingExchange(String exchangeId)

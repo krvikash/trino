@@ -20,6 +20,7 @@ import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,7 +58,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
         getFutureValue(chunk.write(1, 0, PAGE));
         assertThat(slot.file()).exists();
 
@@ -72,7 +73,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
         getFutureValue(chunk.close());
 
         assertThatThrownBy(chunk::get)
@@ -88,7 +89,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
         getFutureValue(chunk.write(1, 0, PAGE));
 
         getFutureValue(chunk.close());
@@ -109,7 +110,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
         getFutureValue(chunk.write(1, 0, PAGE));
 
         getFutureValue(chunk.close());
@@ -136,7 +137,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.ofBytes(CHUNK_SIZE_BYTES));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
         getFutureValue(chunk.write(1, 0, PAGE));
         getFutureValue(chunk.close());
         ChunkDataLease lease = chunk.get();
@@ -157,7 +158,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
 
         assertThatCode(() -> getFutureValue(chunk.close())).doesNotThrowAnyException();
         assertThatCode(() -> getFutureValue(chunk.close())).doesNotThrowAnyException();
@@ -171,7 +172,7 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
         getFutureValue(chunk.write(1, 0, PAGE));
 
         getFutureValue(chunk.close());
@@ -186,7 +187,7 @@ public class TestDiskChunkData
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
 
         Slice page = Slices.utf8Slice("hello-disk-chunk");
         int taskId = 12;
@@ -227,7 +228,7 @@ public class TestDiskChunkData
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
 
         Slice page1 = Slices.utf8Slice("first");
         Slice page2 = Slices.utf8Slice("second-page");
@@ -254,7 +255,7 @@ public class TestDiskChunkData
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
 
         Slice page = Slices.utf8Slice("hello-disk-chunk");
         getFutureValue(chunk.write(1, 0, page));

@@ -14,6 +14,8 @@ import io.airlift.stats.DistributionStat;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class DataServerStats
@@ -43,6 +45,19 @@ public class DataServerStats
     private final DistributionStat spooledSharingExchangeSize = new DistributionStat();
     // tracks size of files written to spooling storage
     private final DistributionStat spooledFileSizeDistribution = new DistributionStat();
+
+    private final DistributionStat diskWritePositionalLatencyNanos = new DistributionStat();
+    private final DistributionStat diskChunkWallTimeNanos = new DistributionStat();
+    private final DistributionStat diskChunkBytesAtClose = new DistributionStat();
+    private final CounterStat diskChunksOpened = new CounterStat();
+    private final CounterStat diskChunksClosed = new CounterStat();
+    private final AtomicInteger diskOpenChunks = new AtomicInteger();
+    private final CounterStat diskWrittenBytes = new CounterStat();
+    private volatile ThreadPoolExecutor diskIoExecutor;
+
+    private final CounterStat diskReadBytes = new CounterStat();
+    private final CounterStat diskSpooledBytes = new CounterStat();
+    private final CounterStat memorySpooledBytes = new CounterStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -224,5 +239,142 @@ public class DataServerStats
     public DistributionStat getSpooledFileSizeDistribution()
     {
         return spooledFileSizeDistribution;
+    }
+
+    public void setDiskIoExecutor(ThreadPoolExecutor diskIoExecutor)
+    {
+        this.diskIoExecutor = diskIoExecutor;
+    }
+
+    public void recordDiskChunkOpen()
+    {
+        diskChunksOpened.update(1);
+        diskOpenChunks.incrementAndGet();
+    }
+
+    public void recordDiskChunkClose(long wallTimeNanos, long bytesAtClose)
+    {
+        diskChunksClosed.update(1);
+        diskOpenChunks.decrementAndGet();
+        diskChunkWallTimeNanos.add(wallTimeNanos);
+        diskChunkBytesAtClose.add(bytesAtClose);
+    }
+
+    public void recordDiskWriteLatency(long latencyNanos, long bytes)
+    {
+        diskWritePositionalLatencyNanos.add(latencyNanos);
+        diskWrittenBytes.update(bytes);
+    }
+
+    public void recordDiskBytesRead(long bytes)
+    {
+        diskReadBytes.update(bytes);
+    }
+
+    public void recordDiskSpooledBytes(long bytes)
+    {
+        diskSpooledBytes.update(bytes);
+    }
+
+    public void recordMemorySpooledBytes(long bytes)
+    {
+        memorySpooledBytes.update(bytes);
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getDiskWritePositionalLatencyNanos()
+    {
+        return diskWritePositionalLatencyNanos;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getDiskChunkWallTimeNanos()
+    {
+        return diskChunkWallTimeNanos;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getDiskChunkBytesAtClose()
+    {
+        return diskChunkBytesAtClose;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDiskChunksOpened()
+    {
+        return diskChunksOpened;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDiskChunksClosed()
+    {
+        return diskChunksClosed;
+    }
+
+    @Managed
+    public int getDiskOpenChunks()
+    {
+        return diskOpenChunks.get();
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDiskWrittenBytes()
+    {
+        return diskWrittenBytes;
+    }
+
+    @Managed
+    public int getDiskIoActiveThreads()
+    {
+        ThreadPoolExecutor exec = diskIoExecutor;
+        return exec == null ? 0 : exec.getActiveCount();
+    }
+
+    @Managed
+    public int getDiskIoQueueDepth()
+    {
+        ThreadPoolExecutor exec = diskIoExecutor;
+        return exec == null ? 0 : exec.getQueue().size();
+    }
+
+    @Managed
+    public int getDiskIoPoolSize()
+    {
+        ThreadPoolExecutor exec = diskIoExecutor;
+        return exec == null ? 0 : exec.getPoolSize();
+    }
+
+    @Managed
+    public long getDiskIoCompletedTasks()
+    {
+        ThreadPoolExecutor exec = diskIoExecutor;
+        return exec == null ? 0L : exec.getCompletedTaskCount();
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDiskReadBytes()
+    {
+        return diskReadBytes;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDiskSpooledBytes()
+    {
+        return diskSpooledBytes;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getMemorySpooledBytes()
+    {
+        return memorySpooledBytes;
     }
 }

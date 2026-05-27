@@ -18,4 +18,10 @@ public record ChunkContentResult(ChunkDataLease lease)
     {
         requireNonNull(lease, "lease is null");
     }
+
+    @Override
+    public int localSizeInBytes()
+    {
+        return lease.serializedSizeInBytes();
+    }
 }

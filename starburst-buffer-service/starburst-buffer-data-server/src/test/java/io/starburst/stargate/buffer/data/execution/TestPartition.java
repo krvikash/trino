@@ -134,7 +134,7 @@ public class TestPartition
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig().setChunkSliceSize(DataSize.ofBytes(CHUNK_SLICE_SIZE));
-        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(localDiskTier, memoryAllocator, executor, Optional.empty(), chunkManagerConfig, new DataServerConfig());
+        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(localDiskTier, memoryAllocator, executor, Optional.empty(), new ExchangeChunkBytes(), new DataServerStats(), chunkManagerConfig, new DataServerConfig());
         return buildPartition(chunkDataFactory);
     }
 
@@ -145,6 +145,8 @@ public class TestPartition
                 new MemoryAllocator(new TestingMemoryConfig(DataSize.of(64, MEGABYTE)), new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats()),
                 executor,
                 Optional.empty(),
+                new ExchangeChunkBytes(),
+                new DataServerStats(),
                 new ChunkManagerConfig().setChunkSliceSize(DataSize.ofBytes(CHUNK_SLICE_SIZE)),
                 new DataServerConfig())
         {
@@ -164,7 +166,8 @@ public class TestPartition
                         slot.diskRelease(),
                         () -> {
                             throw new UncheckedIOException(cause);
-                        });
+                        },
+                        new DataServerStats());
             }
         };
     }

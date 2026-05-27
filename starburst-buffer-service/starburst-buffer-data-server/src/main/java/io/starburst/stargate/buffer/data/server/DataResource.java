@@ -735,6 +735,7 @@ public class DataResource
         int totalLength = lease.serializedSizeInBytes();
         readDataSize.update(contentLength);
         readDataSizeDistribution.add(contentLength);
+        stats.recordDiskBytesRead(contentLength);
 
         Slice metadataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
         SliceOutput metadataOutput = metadataSlice.getOutput();
@@ -751,7 +752,7 @@ public class DataResource
             private boolean metadataWritten;
             private long position;
             private int remaining = contentLength;
-            private final ByteBuffer buffer = ByteBuffer.allocate(Math.min(Math.max(remaining, 1), 65536));
+            private final ByteBuffer buffer = ByteBuffer.allocateDirect(Math.min(Math.max(remaining, 1), 1024 * 1024));
             private final AtomicBoolean done = new AtomicBoolean();
 
             @Override
@@ -781,7 +782,8 @@ public class DataResource
                     if (bytesRead <= 0) {
                         throw new IOException("Unexpected end of file at position " + position + " in " + localFile);
                     }
-                    outputStream.write(buffer.array(), 0, bytesRead);
+                    buffer.flip();
+                    outputStream.write(buffer);
                     position += bytesRead;
                     remaining -= bytesRead;
                 }

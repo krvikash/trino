@@ -22,6 +22,7 @@ import io.starburst.stargate.buffer.data.disk.DiskPreAllocator;
 import io.starburst.stargate.buffer.data.disk.DiskSpaceLease;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.CountedReference.Ref;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -55,6 +56,8 @@ public final class DiskChunkData
     private final boolean calculateDataPagesChecksum;
     private final Runnable materializeDirectory;
     private final Ref<DiskSpaceLease> diskLease;
+    private final DataServerStats stats;
+    private final long createNanos = System.nanoTime();
 
     private volatile FileChannel writeChannel;
     private volatile FileChannel readChannel;
@@ -78,7 +81,7 @@ public final class DiskChunkData
     private final AtomicInteger pendingOperations = new AtomicInteger(1);
     private final SettableFuture<Void> closeFuture = SettableFuture.create();
 
-    public DiskChunkData(Executor executor, long chunkId, int chunkSizeInBytes, boolean calculateDataPagesChecksum, DiskChunkSlot chunkSlot)
+    public DiskChunkData(Executor executor, long chunkId, int chunkSizeInBytes, boolean calculateDataPagesChecksum, DiskChunkSlot chunkSlot, DataServerStats stats)
     {
         this(executor,
                 requireNonNull(chunkSlot, "chunkSlot is null").file(),
@@ -87,7 +90,8 @@ public final class DiskChunkData
                 calculateDataPagesChecksum,
                 chunkSlot.lease(),
                 chunkSlot.diskRelease(),
-                chunkSlot.materializeDirectory());
+                chunkSlot.materializeDirectory(),
+                stats);
     }
 
     DiskChunkData(
@@ -98,7 +102,8 @@ public final class DiskChunkData
             boolean calculateDataPagesChecksum,
             DiskSpaceLease spaceLease,
             Runnable directoryRelease,
-            Runnable materializeDirectory)
+            Runnable materializeDirectory,
+            DataServerStats stats)
     {
         this.executor = requireNonNull(executor, "executor is null");
         this.file = requireNonNull(file, "file is null");
@@ -106,6 +111,7 @@ public final class DiskChunkData
         this.chunkSizeInBytes = chunkSizeInBytes;
         this.calculateDataPagesChecksum = calculateDataPagesChecksum;
         this.materializeDirectory = requireNonNull(materializeDirectory, "materializeDirectory is null");
+        this.stats = stats;
         requireNonNull(spaceLease, "spaceLease is null");
         requireNonNull(directoryRelease, "directoryRelease is null");
         this.diskLease = CountedReference.create(
@@ -170,7 +176,7 @@ public final class DiskChunkData
         SettableFuture<Void> result = SettableFuture.create();
         executor.execute(() -> {
             try {
-                doWrite(writeOffset, header, payload, result);
+                doWrite(writeOffset, requiredStorageSize, header, payload, result);
             }
             finally {
                 // Reaches 0 only when close() was called AND all writes finished; see close().
@@ -182,7 +188,7 @@ public final class DiskChunkData
         return result;
     }
 
-    private void doWrite(int offset, ByteBuffer header, ByteBuffer payload, SettableFuture<Void> result)
+    private void doWrite(int offset, int totalBytes, ByteBuffer header, ByteBuffer payload, SettableFuture<Void> result)
     {
         try {
             // Fast path: writeChannel already materialized
@@ -202,8 +208,12 @@ public final class DiskChunkData
                 return;
             }
 
+            long start = System.nanoTime();
             writePositionalLoop(localChannel, offset, header);
             writePositionalLoop(localChannel, offset + DATA_PAGE_HEADER_SIZE, payload);
+            long elapsedNanos = System.nanoTime() - start;
+
+            stats.recordDiskWriteLatency(elapsedNanos, totalBytes);
             result.set(null);
         }
         catch (Throwable t) {
@@ -245,6 +255,7 @@ public final class DiskChunkData
             writeChannel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
         }
         materialized = true;
+        stats.recordDiskChunkOpen();
         log.debug("Chunk file materialized: chunkId=%s file=%s", chunkId, file);
     }
 
@@ -319,6 +330,17 @@ public final class DiskChunkData
     }
 
     @Override
+    public void release()
+    {
+        try {
+            close();
+        }
+        finally {
+            diskLease.release();
+        }
+    }
+
+    @Override
     public ListenableFuture<Void> close()
     {
         synchronized (this) {
@@ -326,6 +348,9 @@ public final class DiskChunkData
                 return closeFuture;
             }
             closed = true;
+            if (materialized) {
+                stats.recordDiskChunkClose(System.nanoTime() - createNanos, writtenBytes);
+            }
             log.debug(
                     "Chunk closed: chunkId=%s file=%s writtenBytes=%d",
                     chunkId,
@@ -366,17 +391,6 @@ public final class DiskChunkData
             catch (IOException e) {
                 log.warn(e, "Failed to close read channel for chunk: chunkId=%s file=%s", chunkId, file);
             }
-        }
-    }
-
-    @Override
-    public void release()
-    {
-        try {
-            close();
-        }
-        finally {
-            diskLease.release();
         }
     }
 }

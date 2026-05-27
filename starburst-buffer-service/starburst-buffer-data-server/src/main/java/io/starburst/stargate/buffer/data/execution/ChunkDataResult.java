@@ -10,4 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 public sealed interface ChunkDataResult
-        permits ChunkContentResult, SpooledChunkResult {}
+        permits ChunkContentResult, SpooledChunkResult
+{
+    int localSizeInBytes();
+}

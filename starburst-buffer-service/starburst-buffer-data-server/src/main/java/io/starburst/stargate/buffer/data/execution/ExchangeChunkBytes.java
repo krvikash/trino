@@ -11,26 +11,21 @@ package io.starburst.stargate.buffer.data.execution;
 
 import com.google.errorprone.annotations.ThreadSafe;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 @ThreadSafe
-public class ChunkAllocationStats
+public class ExchangeChunkBytes
 {
-    private final AtomicLong diskChunks = new AtomicLong();
-    private final AtomicLong memoryChunks = new AtomicLong();
+    private final ConcurrentHashMap<String, AtomicLong> bytesPerExchange = new ConcurrentHashMap<>();
 
-    public void recordDiskChunk()
+    public long addAndGet(String exchangeId, int bytes)
     {
-        diskChunks.incrementAndGet();
+        return bytesPerExchange.computeIfAbsent(exchangeId, _ -> new AtomicLong()).addAndGet(bytes);
     }
 
-    public void recordMemoryChunk()
+    public void remove(String exchangeId)
     {
-        memoryChunks.incrementAndGet();
-    }
-
-    public long diskChunks()
-    {
-        return diskChunks.get();
+        bytesPerExchange.remove(exchangeId);
     }
 }

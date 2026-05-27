@@ -15,8 +15,10 @@ import io.airlift.log.Logger;
 import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
 import io.starburst.stargate.buffer.data.disk.ForLocalDiskIo;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
+import io.starburst.stargate.buffer.data.disk.LocalDiskTier.RoutingDecisionInputs;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -34,9 +36,10 @@ public class ChunkDataFactory
     private final MemoryAllocator memoryAllocator;
     private final ExecutorService executor;
     private final Executor diskIoExecutor;
+    private final ExchangeChunkBytes exchangeAllocatedBytes;
+    private final DataServerStats dataServerStats;
     private final int chunkSliceSizeInBytes;
     private final boolean calculateDataPagesChecksum;
-    private final ChunkAllocationStats chunkAllocationStats = new ChunkAllocationStats();
 
     @Inject
     public ChunkDataFactory(
@@ -44,6 +47,8 @@ public class ChunkDataFactory
             MemoryAllocator memoryAllocator,
             ExecutorService executor,
             @ForLocalDiskIo Optional<ExecutorService> diskIoExecutor,
+            ExchangeChunkBytes exchangeAllocatedBytes,
+            DataServerStats dataServerStats,
             ChunkManagerConfig chunkManagerConfig,
             DataServerConfig dataServerConfig)
     {
@@ -52,6 +57,8 @@ public class ChunkDataFactory
         this.executor = requireNonNull(executor, "executor is null");
         // Dedicated bounded pool for disk-chunk writes
         this.diskIoExecutor = requireNonNull(diskIoExecutor, "diskIoExecutor is null").map(Executor.class::cast).orElse(executor);
+        this.exchangeAllocatedBytes = requireNonNull(exchangeAllocatedBytes, "exchangeAllocatedBytes is null");
+        this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         requireNonNull(chunkManagerConfig, "chunkManagerConfig is null");
         requireNonNull(dataServerConfig, "dataServerConfig is null");
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
@@ -62,23 +69,31 @@ public class ChunkDataFactory
     {
         if (localDiskTier.isPresent()) {
             LocalDiskTier diskTier = localDiskTier.get();
-            Optional<DiskChunkSlot> slot = diskTier.tryReserveChunkSlot(exchangeId, partitionId, chunkId, chunkSizeInBytes);
-            if (slot.isPresent()) {
-                DiskChunkSlot diskChunkSlot = slot.get();
-                log.debug("Chunk %s for exchange %s partition %s allocated to disk: %s", chunkId, exchangeId, partitionId, diskChunkSlot.file());
-                DiskChunkData diskChunkData = new DiskChunkData(diskIoExecutor, chunkId, chunkSizeInBytes, calculateDataPagesChecksum, diskChunkSlot);
-                chunkAllocationStats.recordDiskChunk();
-                return diskChunkData;
+            long totalExchangeAllocated = exchangeAllocatedBytes.addAndGet(exchangeId, chunkSizeInBytes);
+            double memoryPercentage = memoryAllocator.getAllocationPercentage();
+            int openChunks = dataServerStats.getDiskOpenChunks();
+            long memCapacity = memoryAllocator.getTotalMemory();
+            RoutingDecisionInputs routingInputs = new RoutingDecisionInputs(memoryPercentage, openChunks, totalExchangeAllocated, memCapacity);
+            boolean routeToDisk = diskTier.shouldRouteToDisk(routingInputs);
+            log.debug(
+                    "Chunk routing: exchange=%s size=%d memPct=%.2f openChunks=%d totalAllocated=%d memCapacity=%d -> disk=%b",
+                    exchangeId,
+                    chunkSizeInBytes,
+                    memoryPercentage,
+                    openChunks,
+                    totalExchangeAllocated,
+                    memCapacity,
+                    routeToDisk);
+            if (routeToDisk) {
+                Optional<DiskChunkSlot> slot = diskTier.tryReserveChunkSlot(exchangeId, partitionId, chunkId, chunkSizeInBytes);
+                if (slot.isPresent()) {
+                    DiskChunkSlot diskChunkSlot = slot.get();
+                    log.debug("Chunk %s for exchange %s partition %s allocated to disk: %s", chunkId, exchangeId, partitionId, diskChunkSlot.file());
+                    return new DiskChunkData(diskIoExecutor, chunkId, chunkSizeInBytes, calculateDataPagesChecksum, diskChunkSlot, dataServerStats);
+                }
+                log.debug("Chunk %s for exchange %s partition %s falling back to memory (disk allocation failed)", chunkId, exchangeId, partitionId);
             }
-            log.debug("Chunk %s for exchange %s partition %s falling back to memory (disk allocation failed)", chunkId, exchangeId, partitionId);
         }
-        MemoryChunkData memoryChunkData = new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
-        chunkAllocationStats.recordMemoryChunk();
-        return memoryChunkData;
-    }
-
-    public ChunkAllocationStats getChunkAllocationStats()
-    {
-        return chunkAllocationStats;
+        return new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
     }
 }

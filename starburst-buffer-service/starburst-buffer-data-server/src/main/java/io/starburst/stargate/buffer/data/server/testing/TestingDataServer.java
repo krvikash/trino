@@ -23,10 +23,9 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracing.TracingModule;
-import io.starburst.stargate.buffer.data.execution.ChunkAllocationStats;
-import io.starburst.stargate.buffer.data.execution.ChunkDataFactory;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerMainModule;
+import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
 import io.starburst.stargate.buffer.data.server.SpoolingStorageModule;
 import io.starburst.stargate.buffer.data.server.StandaloneDiscoveryApiModule;
@@ -63,7 +62,7 @@ public class TestingDataServer
     private final Closer closer = Closer.create();
     private final Optional<DiscoveryApi> discovery;
     private final long nodeId;
-    private final ChunkDataFactory chunkDataFactory;
+    private final DataServerStats dataServerStats;
 
     private TestingDataServer(
             long nodeId,
@@ -109,7 +108,7 @@ public class TestingDataServer
             stateManager.transitionState(ACTIVE);
         }
         this.statusProvider = injector.getInstance(DataServerStatusProvider.class);
-        this.chunkDataFactory = injector.getInstance(ChunkDataFactory.class);
+        this.dataServerStats = injector.getInstance(DataServerStats.class);
 
         LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
         closer.register(lifeCycleManager::stop);
@@ -145,9 +144,9 @@ public class TestingDataServer
         return this.statusProvider;
     }
 
-    public ChunkAllocationStats getChunkAllocationStats()
+    public DataServerStats getDataServerStats()
     {
-        return chunkDataFactory.getChunkAllocationStats();
+        return dataServerStats;
     }
 
     public Optional<DiscoveryApi> getDiscovery()

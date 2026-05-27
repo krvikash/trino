@@ -20,4 +20,10 @@ public record SpooledChunkResult(SpooledChunk spooledChunk)
     {
         requireNonNull(spooledChunk, "spooledChunk is null");
     }
+
+    @Override
+    public int localSizeInBytes()
+    {
+        return 0;
+    }
 }

@@ -58,7 +58,7 @@ class TestLocalDiskTierDataServer
         finishExchange(exchangeId);
 
         assertEventually(() ->
-                assertThat(getChunkAllocationStats().diskChunks()).isGreaterThan(0));
+                assertThat(getDataServerStats().getDiskChunksOpened().getTotalCount()).isGreaterThan(0));
 
         removeExchange(exchangeId);
     }
@@ -71,6 +71,10 @@ class TestLocalDiskTierDataServer
                 .put("local-disk.enabled", "true")
                 .put("local-disk.directory", diskTierDir.toString())
                 .put("local-disk.capacity", DataSize.of(100, MEGABYTE).toString())
+                // Force the disk path for this smoke test: any non-empty chunk passes the syscall
+                // floor, and a 0% watermark routes every chunk to disk regardless of memory state.
+                .put("local-disk.routing.memory-high-watermark", "0.0")
+                .put("local-disk.routing.memory-low-watermark", "0.0")
                 .put("spooling.local.location", diskTierDir.toString())
                 .put("spooling.directory", "file:///spooling/")
                 .put("spooling.storage-driver", TRINO_FS.toString())
