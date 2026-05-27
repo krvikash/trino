@@ -10,14 +10,13 @@
 package com.starburstdata.plugin.openapi.pagination;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.starburstdata.plugin.openapi.pagination.LinkHeaderUtil.LinkFieldValue;
 import io.airlift.http.client.HeaderNames;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
-import jakarta.ws.rs.core.Link;
 
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Objects;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -45,23 +44,14 @@ public class LinkHeaderPaginationStrategy
     @Override
     public LinkHeaderState nextStateFromResponse(LinkHeaderState currentState, Response response, JsonNode responseBody)
     {
-        Optional<String> linkHeader = response.getHeader(HeaderNames.LINK);
-        if (linkHeader.isEmpty()) {
-            return new LinkHeaderState(Optional.empty(), true);
-        }
-        Optional<String> nextUrl = Arrays.stream(linkHeader.orElseThrow().split(",\\s*(?=<)"))
-                .map(segment -> {
-                    try {
-                        return Link.valueOf(segment.trim());
-                    }
-                    catch (IllegalArgumentException e) {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .filter(link -> "next".equals(link.getRel()))
-                .map(link -> link.getUri().toString())
-                .findFirst();
+        Optional<URI> nextUrl =
+                response.getHeader(HeaderNames.LINK)
+                        .stream()
+                        .map(LinkHeaderUtil::parseLinkFieldValue)
+                        .flatMap(List::stream)
+                        .filter(linkFieldValue -> "next".equals(linkFieldValue.parameters().get("rel")))
+                        .map(LinkFieldValue::uri)
+                        .findFirst();
         return new LinkHeaderState(nextUrl, nextUrl.isEmpty());
     }
 
@@ -76,7 +66,7 @@ public class LinkHeaderPaginationStrategy
             return currentRequest;
         }
         return Request.Builder.fromRequest(currentRequest)
-                .setUri(URI.create(state.nextUrl().get()))
+                .setUri(currentRequest.getUri().resolve(state.nextUrl().get()))
                 .build();
     }
 
@@ -86,5 +76,5 @@ public class LinkHeaderPaginationStrategy
         return state.finished();
     }
 
-    public record LinkHeaderState(Optional<String> nextUrl, boolean finished) {}
+    public record LinkHeaderState(Optional<URI> nextUrl, boolean finished) {}
 }
