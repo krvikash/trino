@@ -116,7 +116,8 @@ public final class GpuTestUtils
         // First call to Rmm.initialize wins.
         new GpuConfigurer(new GpuConfig()
                 .setPoolSize(DataSize.of(1, DataSize.Unit.GIGABYTE))
-                .setAggregationCompactionThreshold(DataSize.of(512, DataSize.Unit.MEGABYTE)));
+                .setAggregationCompactionThreshold(DataSize.of(512, DataSize.Unit.MEGABYTE)),
+                Optional.empty());
     }
 
     /**

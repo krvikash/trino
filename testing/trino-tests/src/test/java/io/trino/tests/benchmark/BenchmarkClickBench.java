@@ -26,6 +26,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
@@ -227,10 +228,10 @@ public final class BenchmarkClickBench
         }
 
         @Override
-        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
+        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath)
                 throws Exception
         {
-            return setup(mode, bind8080, dataLocation);
+            return setup(mode, bind8080, dataLocation, rmmLogPath);
         }
 
         @Override
@@ -286,7 +287,7 @@ public final class BenchmarkClickBench
         }
     }
 
-    static DistributedQueryRunner setup(BenchmarkRunner.ExecutionMode mode, boolean bind8080, String dataLocation)
+    static DistributedQueryRunner setup(BenchmarkRunner.ExecutionMode mode, boolean bind8080, String dataLocation, Optional<Path> rmmLogPath)
             throws Exception
     {
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
@@ -298,6 +299,7 @@ public final class BenchmarkClickBench
             builder.addHiveProperty("fs.s3.enabled", "true");
         }
         BenchmarkRunner.applyExecutionMode(builder, mode);
+        rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }

@@ -99,6 +99,7 @@ import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.RetryPolicy;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
+import io.trino.operator.gpu.RmmLogPath;
 import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
@@ -175,6 +176,7 @@ import io.trino.type.TypeSignatureKeyDeserializer;
 import io.trino.util.EmbedVersion;
 import io.trino.util.FinalizerService;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -305,6 +307,7 @@ public class ServerMainModule
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
         configBinder(binder).bindConfig(GpuConfig.class);
         newOptionalBinder(binder, GpuConfigurer.class);
+        newOptionalBinder(binder, Key.get(Path.class, RmmLogPath.class));
         // Disable GPU execution on coordinator. It's unlikely beneficial but may still cause coordinator instability.
         boolean gpuExecutionEnabled = (!serverConfig.isCoordinator() || buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) &&
                 buildConfigObject(TaskManagerConfig.class).isGpuExecutionEnabled();

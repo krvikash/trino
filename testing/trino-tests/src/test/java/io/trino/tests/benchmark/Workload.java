@@ -18,6 +18,7 @@ import io.trino.testing.DistributedQueryRunner;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Per-benchmark customization for the {@link BenchmarkRunner} harness — describes which
@@ -53,7 +54,7 @@ public interface Workload
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.
      */
-    DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080)
+    DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath)
             throws Exception;
 
     /**

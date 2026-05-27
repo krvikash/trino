@@ -16,12 +16,14 @@ package io.trino.tests.benchmark;
 import ai.rapids.cudf.Rmm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
+import io.airlift.units.DataSize;
 import io.trino.ExceededMemoryLimitException;
 import io.trino.Session;
 import io.trino.client.FailureException;
@@ -47,6 +49,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
@@ -70,6 +73,8 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -327,6 +332,11 @@ public final class BenchmarkRunner
                 description = "Run the benchmark JVM under NVIDIA compute-sanitizer with the given arguments (e.g. \"--tool memcheck --leak-check full\"). Defaults to \"--tool memcheck\" when passed with no value. Requires --mode=gpu.")
         Optional<String> gpuSanitizer;
 
+        @Option(names = "--gpu-memory-trace",
+                description = "Enable GPU memory tracing: RMM allocation logging + stack-trace capture for allocations >= 10 MB. " +
+                        "After each query, runs GpuMemoryAnalyzer and writes a per-query report. Requires --mode=GPU.")
+        boolean gpuMemoryTrace;
+
         RunCommand(Launcher launcher, Workload workload)
         {
             this.launcher = requireNonNull(launcher, "launcher is null");
@@ -358,6 +368,9 @@ public final class BenchmarkRunner
             if (!queries.isEmpty() && !skipQueries.isEmpty()) {
                 throw new IllegalArgumentException("--query and --skip-query are mutually exclusive");
             }
+            if (gpuMemoryTrace && mode != ExecutionMode.GPU) {
+                throw new IllegalArgumentException("--gpu-memory-trace requires --mode=GPU");
+            }
 
             if (debug) {
                 enableDebugLogging();
@@ -373,10 +386,16 @@ public final class BenchmarkRunner
             Path explainOutputDir = benchmarkDataDir.resolve("explain");
             Files.createDirectories(explainOutputDir);
 
-            ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir);
+            Optional<Path> rmmLogFile = Optional.empty();
+            if (gpuMemoryTrace) {
+                rmmLogFile = Optional.of(profileOutputDir.resolve("rmm.log"));
+            }
+
             log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
-            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false)) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false, rmmLogFile)) {
+                ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir, rmmLogFile);
+
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
                 log.info("Running %s benchmark: %s suite warmup, %s warmup, %s measured runs, reporting average", workload.name(), suiteWarmup, warmup, runs);
                 if (dataLocation != null) {
@@ -500,8 +519,9 @@ public final class BenchmarkRunner
                 }
                 throw e;
             }
-
-            session.dumpAndPostProcess(displayName);
+            finally {
+                session.dumpAndPostProcess(displayName);
+            }
 
             long averageElapsed = averageMillis(measurements, Measurement::elapsedMillis);
             long averageExecution = averageMillis(measurements, Measurement::executionMillis);
@@ -552,13 +572,25 @@ public final class BenchmarkRunner
             public void mergeCollapsedFiles(List<Integer> queriesRun) {}
         };
 
-        static ProfileSession of(ProfileEvent profileEvent, Workload workload, Path profileOutputDir)
+        static ProfileSession of(ProfileEvent profileEvent, Workload workload, Path profileOutputDir, Optional<Path> rmmLogFile)
                 throws IOException
         {
-            if (profileEvent == ProfileEvent.NONE) {
+            List<ProfileSession> active = new ArrayList<>();
+
+            if (profileEvent != ProfileEvent.NONE) {
+                active.add(new AsyncProfileSession(AsyncProfiler.getInstance(), profileEvent, workload, profileOutputDir));
+            }
+            if (rmmLogFile.isPresent() && Rmm.isInitialized()) {
+                active.add(new GpuMemoryTraceSession(rmmLogFile.get(), profileOutputDir));
+            }
+
+            if (active.isEmpty()) {
                 return NOOP;
             }
-            return new AsyncProfileSession(AsyncProfiler.getInstance(), profileEvent, workload, profileOutputDir);
+            if (active.size() == 1) {
+                return getOnlyElement(active);
+            }
+            return new CompositeProfileSession(active);
         }
 
         void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
@@ -575,6 +607,62 @@ public final class BenchmarkRunner
 
         void mergeCollapsedFiles(List<Integer> queriesRun)
                 throws IOException;
+    }
+
+    private static final class CompositeProfileSession
+            implements ProfileSession
+    {
+        private final List<ProfileSession> sessions;
+
+        CompositeProfileSession(List<ProfileSession> sessions)
+        {
+            this.sessions = ImmutableList.copyOf(requireNonNull(sessions, "sessions is null"));
+        }
+
+        @Override
+        public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
+                throws IOException
+        {
+            for (ProfileSession session : sessions) {
+                session.writeRunMetadata(queriesRun, warmup, runs);
+            }
+        }
+
+        @Override
+        public void start()
+                throws IOException
+        {
+            for (ProfileSession session : sessions) {
+                session.start();
+            }
+        }
+
+        @Override
+        public void stop()
+                throws IOException
+        {
+            for (ProfileSession session : sessions) {
+                session.stop();
+            }
+        }
+
+        @Override
+        public void dumpAndPostProcess(String displayName)
+                throws IOException
+        {
+            for (ProfileSession session : sessions) {
+                session.dumpAndPostProcess(displayName);
+            }
+        }
+
+        @Override
+        public void mergeCollapsedFiles(List<Integer> queriesRun)
+                throws IOException
+        {
+            for (ProfileSession session : sessions) {
+                session.mergeCollapsedFiles(queriesRun);
+            }
+        }
     }
 
     private static final class AsyncProfileSession
@@ -646,6 +734,119 @@ public final class BenchmarkRunner
         }
     }
 
+    private static final class GpuMemoryTraceSession
+            implements ProfileSession
+    {
+        private static final DataSize GPU_TRACE_THRESHOLD = DataSize.of(10, MEGABYTE);
+
+        private enum State
+        {
+            STARTED,
+            STOPPED,
+            IDLE,
+        }
+
+        private final Path rmmLogPath;
+        private final Path traceLogPath;
+        private final Path outputDir;
+        private final AllocationTraceHandler traceHandler;
+
+        private State state;
+        private long rmmLogLineCount;
+        private long traceLogLineCount;
+
+        GpuMemoryTraceSession(Path rmmLogPath, Path outputDir)
+        {
+            this.rmmLogPath = requireNonNull(rmmLogPath, "rmmLogPath is null");
+            this.outputDir = requireNonNull(outputDir, "outputDir is null");
+            this.traceLogPath = outputDir.resolve("alloc-traces.log");
+            traceHandler = new AllocationTraceHandler(GPU_TRACE_THRESHOLD.toBytes(), traceLogPath.toFile());
+            Rmm.setEventHandler(traceHandler, true);
+            log.info("GPU memory tracing enabled: RMM log=%s, trace log=%s (threshold=%s)", rmmLogPath, traceLogPath, GPU_TRACE_THRESHOLD);
+            state = State.IDLE;
+        }
+
+        @Override
+        public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs) {}
+
+        @Override
+        public void start()
+        {
+            checkState(state == State.IDLE, "Expected IDLE state, got %s", state);
+            state = State.STARTED;
+            rmmLogLineCount = countLines(rmmLogPath);
+            traceLogLineCount = countLines(traceLogPath);
+        }
+
+        @Override
+        public void stop()
+        {
+            if (state == State.STARTED) {
+                traceHandler.flush();
+                state = State.STOPPED;
+            }
+        }
+
+        @Override
+        public void dumpAndPostProcess(String displayName)
+                throws IOException
+        {
+            if (state != State.STOPPED) {
+                state = State.IDLE;
+                return;
+            }
+
+            Path queryRmmLog = extractSliceWithHeader(rmmLogPath, rmmLogLineCount);
+            Path queryTraceLog = extractSliceWithHeader(traceLogPath, traceLogLineCount);
+
+            Path outputFile = outputDir.resolve(displayName + ".gpu-memory-trace.txt");
+            try (PrintStream out = new PrintStream(Files.newOutputStream(outputFile))) {
+                GpuMemoryAnalyzer.analyze(queryRmmLog, queryTraceLog, out);
+            }
+            Files.deleteIfExists(queryRmmLog);
+            Files.deleteIfExists(queryTraceLog);
+            log.info("GPU memory trace for %s written to %s", displayName, outputFile);
+
+            state = State.IDLE;
+        }
+
+        @Override
+        public void mergeCollapsedFiles(List<Integer> queriesRun) {}
+
+        private static long countLines(Path path)
+        {
+            try {
+                if (!Files.exists(path)) {
+                    return 0;
+                }
+                try (var lines = Files.lines(path)) {
+                    return lines.count();
+                }
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+
+        private static Path extractSliceWithHeader(Path source, long skipLines)
+                throws IOException
+        {
+            List<String> allLines = Files.readAllLines(source, UTF_8);
+            Path temp = Files.createTempFile("gpu-trace-slice-", ".log");
+            try (BufferedWriter writer = Files.newBufferedWriter(temp, UTF_8)) {
+                if (!allLines.isEmpty()) {
+                    writer.write(allLines.getFirst());
+                    writer.newLine();
+                }
+                for (int i = Math.max(1, (int) skipLines); i < allLines.size(); i++) {
+                    writer.write(allLines.get(i));
+                    writer.newLine();
+                }
+            }
+            return temp;
+        }
+    }
+
     @Command(
             name = "runner",
             mixinStandardHelpOptions = true,
@@ -678,7 +879,7 @@ public final class BenchmarkRunner
             enableDebugLogging();
             String data = canonicalize(workload.defaultDataLocation());
             workload.validateDataLocation(data);
-            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true)) {
+            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, Optional.empty())) {
                 log.info("======== SERVER STARTED (%s) ========", mode);
                 log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
                 verifyTableStatistics(queryRunner, workload);
@@ -760,7 +961,7 @@ public final class BenchmarkRunner
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
-            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false)) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, Optional.empty())) {
                 if (dataLocation != null) {
                     workload.verifyDataset(runner);
                 }

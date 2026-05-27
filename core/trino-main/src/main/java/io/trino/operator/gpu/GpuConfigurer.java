@@ -16,8 +16,12 @@ package io.trino.operator.gpu;
 import ai.rapids.cudf.Cuda;
 import ai.rapids.cudf.CudaMemInfo;
 import ai.rapids.cudf.Rmm;
+import ai.rapids.cudf.Rmm.LogConf;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+
+import java.nio.file.Path;
+import java.util.Optional;
 
 import static com.clearspring.analytics.util.Preconditions.checkState;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -34,7 +38,7 @@ public class GpuConfigurer
     private static final long ALIGNMENT_MASK = ~511L;
 
     @Inject
-    public GpuConfigurer(GpuConfig config)
+    public GpuConfigurer(GpuConfig config, @RmmLogPath Optional<Path> rmmLogPath)
     {
         requireNonNull(config, "config is null");
 
@@ -60,7 +64,13 @@ public class GpuConfigurer
                     succinctBytes(poolSize));
 
             log.info("Initializing RMM: allocationMode=%s, poolSize=%s", config.getAllocationMode(), succinctBytes(poolSize));
-            Rmm.initialize(allocationMode, null, poolSize);
+            LogConf logConf = rmmLogPath
+                    .map(path -> {
+                        log.info("RMM log: %s", path);
+                        return Rmm.logTo(path.toFile());
+                    })
+                    .orElse(null);
+            Rmm.initialize(allocationMode, logConf, poolSize);
         }
     }
 
