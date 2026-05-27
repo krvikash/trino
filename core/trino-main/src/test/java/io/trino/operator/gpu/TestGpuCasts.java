@@ -19,25 +19,18 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Primitives;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import io.trino.FullConnectorSession;
 import io.trino.Session;
-import io.trino.memory.context.LocalMemoryContext;
-import io.trino.metadata.TestingFunctionResolution;
-import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.OutputFactory;
 import io.trino.operator.gpu.expression.CompiledExpression;
-import io.trino.operator.project.PageProcessor;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
-import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
-import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.PageConsumerOperator.PageConsumerOutputFactory;
 import io.trino.testing.PlanTester;
@@ -51,20 +44,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.collect.Streams.stream;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
@@ -96,16 +86,12 @@ public class TestGpuCasts
     private static final DecimalType DECIMAL_27_5 = createDecimalType(27, 5);
 
     private PlanTester planTester;
-    private TestingFunctionResolution functionResolution;
-    private FullConnectorSession fullConnectorSession;
 
     @BeforeAll
     void setUp()
     {
         Session session = testSessionBuilder().build();
         planTester = PlanTester.create(session);
-        functionResolution = new TestingFunctionResolution(planTester.getTransactionManager(), planTester.getPlannerContext());
-        fullConnectorSession = new FullConnectorSession(session, session.getIdentity().toConnectorIdentity());
     }
 
     @BeforeAll
@@ -667,7 +653,7 @@ public class TestGpuCasts
         private Outcome runOnCpu(Page inputPage)
         {
             try {
-                Page page = getOnlyElement(executeWithCpu(List.of(inputPage), castExpression, layout));
+                Page page = getOnlyElement(executeWithCpu(List.of(inputPage), List.of(castExpression), layout));
                 checkState(page.getChannelCount() == 1 && page.getPositionCount() == 1,
                         "Expected a one-column, one-row result; got %s columns and %s rows",
                         page.getChannelCount(),
@@ -778,31 +764,5 @@ public class TestGpuCasts
         {
             return values.build();
         }
-    }
-
-    private List<Page> executeWithCpu(List<Page> inputPages, Expression expression, Map<Symbol, Integer> layout)
-    {
-        PageProcessor compiledProcessor = functionResolution.getExpressionCompiler().compilePageProcessor(
-                        false,
-                        true,
-                        false,
-                        true,
-                        Optional.empty(),
-                        Optional.empty(),
-                        List.of(expression),
-                        layout,
-                        Optional.empty(),
-                        OptionalInt.empty())
-                .apply(InternalDynamicFilter.EMPTY);
-
-        LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
-        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-        for (Page inputPage : inputPages) {
-            Iterator<Optional<Page>> processed = compiledProcessor.process(fullConnectorSession, new DriverYieldSignal(), context, SourcePage.create(inputPage));
-            stream(processed)
-                    .flatMap(Optional::stream)
-                    .forEachOrdered(outputPages::add);
-        }
-        return outputPages.build();
     }
 }

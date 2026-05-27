@@ -18,26 +18,39 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
+import io.trino.FullConnectorSession;
+import io.trino.memory.context.LocalMemoryContext;
+import io.trino.metadata.TestingFunctionResolution;
+import io.trino.operator.DriverYieldSignal;
+import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.connector.SourcePage;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.planner.InternalDynamicFilter;
+import io.trino.sql.planner.Symbol;
+import io.trino.testing.TestingSession;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
 
 import java.math.BigInteger;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
@@ -47,6 +60,8 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Streams.stream;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -89,6 +104,12 @@ public final class GpuTestUtils
             .build();
 
     private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
+
+    public static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
+            TestingSession.testSessionBuilder().build(),
+            ConnectorIdentity.ofUser("test"));
+
+    public static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     public static void maybeSetGpuMemoryPoolForTests()
     {
@@ -538,6 +559,49 @@ public final class GpuTestUtils
                         randomStrings,
                         List::of)
                 .flatMap(List::stream);
+    }
+
+    public static List<Page> executeWithCpu(
+            List<Page> inputPages,
+            List<Expression> expressions,
+            Map<Symbol, Integer> layout)
+    {
+        PageProcessor pageProcessor = compileCpuExpressions(expressions, layout);
+        return executeWithCpu(pageProcessor, inputPages);
+    }
+
+    public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
+    {
+        return compileCpuExpressions(List.of(expression), layout);
+    }
+
+    public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
+    {
+        return FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
+                        false,
+                        true,
+                        false,
+                        false,
+                        Optional.empty(),
+                        Optional.empty(),
+                        expressions,
+                        layout,
+                        Optional.empty(),
+                        OptionalInt.empty())
+                .apply(InternalDynamicFilter.EMPTY);
+    }
+
+    public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
+    {
+        LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
+        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
+        for (Page inputPage : inputPages) {
+            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, new DriverYieldSignal(), context, SourcePage.create(inputPage));
+            stream(processed)
+                    .flatMap(Optional::stream)
+                    .forEachOrdered(outputPages::add);
+        }
+        return outputPages.build();
     }
 
     public static List<Page> executeGpuOperation(

@@ -15,25 +15,16 @@ package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.FullConnectorSession;
-import io.trino.memory.context.LocalMemoryContext;
-import io.trino.metadata.TestingFunctionResolution;
-import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.expression.CompiledExpression;
-import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.VariableWidthBlockBuilder;
-import io.trino.spi.connector.SourcePage;
-import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
-import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
-import io.trino.testing.TestingSession;
 import jakarta.annotation.Nullable;
 import org.assertj.core.api.AssertProvider;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,17 +33,15 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 
-import static com.google.common.collect.Streams.stream;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.operator.scalar.JoniRegexpCasts.joniRegexp;
@@ -75,12 +64,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 final class TestGpuRegexpReplace
 {
-    private static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
-            TestingSession.testSessionBuilder().build(),
-            ConnectorIdentity.ofUser("test"));
-
-    private final TestingFunctionResolution functionResolution = new TestingFunctionResolution();
-
     @BeforeAll
     public static void maybeSetGpuMemoryPool()
     {
@@ -721,7 +704,7 @@ final class TestGpuRegexpReplace
     void testDoesNotCompileNonConstantPattern()
     {
         Expression expression = new Call(
-                functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
                         new Reference(JONI_REGEXP, "ref1"),
@@ -736,7 +719,7 @@ final class TestGpuRegexpReplace
     void testDoesNotCompileNonConstantReplacement()
     {
         Expression expression = new Call(
-                functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
                         new Constant(JONI_REGEXP, joniRegexp(utf8Slice("x"))),
@@ -804,7 +787,7 @@ final class TestGpuRegexpReplace
     private Expression regexpReplaceExpression(String pattern, String replacement)
     {
         return new Call(
-                functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
                         new Constant(JONI_REGEXP, joniRegexp(utf8Slice(pattern))),
@@ -814,13 +797,13 @@ final class TestGpuRegexpReplace
     private Expression regexpReplaceExpression(String pattern)
     {
         return new Call(
-                functionResolution.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP)),
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP)),
                 ImmutableList.of(
                         new Reference(VARCHAR, "ref0"),
                         new Constant(JONI_REGEXP, joniRegexp(utf8Slice(pattern)))));
     }
 
-    private class RegexpReplaceAssert
+    private static class RegexpReplaceAssert
     {
         private static final Map<Symbol, Integer> LAYOUT = ImmutableMap.of(new Symbol(VARCHAR, "ref0"), 0);
 
@@ -870,8 +853,7 @@ final class TestGpuRegexpReplace
             assertThat(gpuExpression.inputChannels().getInputChannels())
                     .containsExactly(0);
 
-            PageProcessor cpuProcessor = compileCpuExpression(expression, LAYOUT);
-            List<Page> cpuResults = executeWithCpu(cpuProcessor, inputPages);
+            List<Page> cpuResults = executeWithCpu(inputPages, List.of(expression), LAYOUT);
             List<Page> gpuResults = executeGpuOperation(
                     inputPages,
                     inputTypes,
@@ -880,35 +862,6 @@ final class TestGpuRegexpReplace
 
             assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
         }
-    }
-
-    private PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
-    {
-        return functionResolution.getExpressionCompiler().compilePageProcessor(
-                        false,
-                        true,
-                        false,
-                        false,
-                        Optional.empty(),
-                        Optional.empty(),
-                        List.of(expression),
-                        layout,
-                        Optional.empty(),
-                        OptionalInt.empty())
-                .apply(InternalDynamicFilter.EMPTY);
-    }
-
-    private static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
-    {
-        LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
-        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-        for (Page inputPage : inputPages) {
-            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, new DriverYieldSignal(), context, SourcePage.create(inputPage));
-            stream(processed)
-                    .flatMap(Optional::stream)
-                    .forEachOrdered(outputPages::add);
-        }
-        return outputPages.build();
     }
 
     private static Page createNullableVarcharPage(List</* nullable */ String> values)

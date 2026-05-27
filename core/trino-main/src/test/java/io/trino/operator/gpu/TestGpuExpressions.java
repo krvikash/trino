@@ -20,13 +20,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
-import io.trino.FullConnectorSession;
 import io.trino.cache.EvictableCacheBuilder;
-import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.OperatorNotFoundException;
 import io.trino.metadata.ResolvedFunction;
-import io.trino.metadata.TestingFunctionResolution;
-import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuDateTrunc.Field;
 import io.trino.operator.project.PageProcessor;
@@ -36,9 +32,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
-import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
-import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TrinoNumber;
@@ -57,9 +51,7 @@ import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
-import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
-import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
@@ -80,7 +72,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -89,12 +80,13 @@ import java.util.stream.Stream;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.collect.Streams.stream;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
+import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
@@ -129,12 +121,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class TestGpuExpressions
 {
-    private static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
-            TestingSession.testSessionBuilder().build(),
-            ConnectorIdentity.ofUser("test"));
-
-    private final TestingFunctionResolution functionResolution = new TestingFunctionResolution();
-
     /**
      * Useful test strings, including interesting inputs and patterns for LIKE testing.
      */
@@ -390,7 +376,7 @@ public class TestGpuExpressions
 
                 ResolvedFunction function;
                 try {
-                    function = functionResolution.resolveOperator(operator, List.of(type));
+                    function = FUNCTION_RESOLUTION.resolveOperator(operator, List.of(type));
                 }
                 catch (OperatorNotFoundException e) {
                     continue;
@@ -451,7 +437,7 @@ public class TestGpuExpressions
                     continue;
                 }
                 try {
-                    functionResolution.getCoercion(fromType, toType);
+                    FUNCTION_RESOLUTION.getCoercion(fromType, toType);
                 }
                 catch (OperatorNotFoundException e) {
                     continue;
@@ -497,7 +483,7 @@ public class TestGpuExpressions
 
                     ResolvedFunction function;
                     try {
-                        function = functionResolution.resolveOperator(operator, List.of(leftType, rightType));
+                        function = FUNCTION_RESOLUTION.resolveOperator(operator, List.of(leftType, rightType));
                     }
                     catch (OperatorNotFoundException e) {
                         continue;
@@ -788,7 +774,7 @@ public class TestGpuExpressions
                 createBlock(rightType, positionsCount, nullsProvider)));
 
         Expression expression = new Call(
-                functionResolution.resolveOperator(operatorType, List.of(leftType, rightType)),
+                FUNCTION_RESOLUTION.resolveOperator(operatorType, List.of(leftType, rightType)),
                 ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
@@ -921,7 +907,7 @@ public class TestGpuExpressions
                 field(channelA, BIGINT),
                 new Constant(BIGINT, 50L));
         Expression expression = new Call(
-                functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
+                FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
                 ImmutableList.of(comparison));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
@@ -1027,10 +1013,10 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
 
         Expression bNotZero = new Call(
-                functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
+                FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
                 ImmutableList.of(new Comparison(Comparison.Operator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
         Expression aDivB = new Call(
-                functionResolution.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
+                FUNCTION_RESOLUTION.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
                 ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
         Expression expression = new Case(
                 ImmutableList.of(new WhenClause(bNotZero, aDivB)),
@@ -1066,11 +1052,11 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(positionsCount, bBuilder.build()));
 
         Expression bNotZero = new Call(
-                functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
+                FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
                 ImmutableList.of(new Comparison(Comparison.Operator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
         Expression coalesceB = new Coalesce(ImmutableList.of(field(channelB, BIGINT), new Constant(BIGINT, 0L)));
         Expression divide = new Call(
-                functionResolution.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
+                FUNCTION_RESOLUTION.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
                 ImmutableList.of(new Constant(BIGINT, 10L), coalesceB));
         Expression expression = new Case(
                 ImmutableList.of(new WhenClause(bNotZero, divide)),
@@ -1132,7 +1118,7 @@ public class TestGpuExpressions
                 createInRangeDateTimeBlock(type, positionsCount, nullsProvider)));
 
         Expression expression = new Call(
-                functionResolution.resolveFunction("year", fromTypes(type)),
+                FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
@@ -1148,7 +1134,7 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(nativeValueToBlock(type, outOfRangeDays)));
 
         Expression expression = new Call(
-                functionResolution.resolveFunction("year", fromTypes(type)),
+                FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
         CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)))
@@ -1200,7 +1186,7 @@ public class TestGpuExpressions
                 createBlock(timestampType, positionsCount, nullsProvider)));
 
         Expression expression = new Call(
-                functionResolution.resolveFunction(functionName, fromTypes(timestampType)),
+                FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(timestampType)),
                 ImmutableList.of(field(channelA, timestampType)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
@@ -1228,7 +1214,7 @@ public class TestGpuExpressions
 
         Type unitType = createVarcharType(unit.length());
         Expression expression = new Call(
-                functionResolution.resolveFunction("date_trunc", fromTypes(unitType, timestampType)),
+                FUNCTION_RESOLUTION.resolveFunction("date_trunc", fromTypes(unitType, timestampType)),
                 ImmutableList.of(new Constant(unitType, Slices.utf8Slice(unit)), field(channelA, timestampType)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
@@ -1243,7 +1229,7 @@ public class TestGpuExpressions
         List<Page> inputPages = createVarcharPages(List.of(64), nullsProvider);
 
         Expression expression = new Call(
-                functionResolution.resolveFunction("length", fromTypes(VARCHAR)),
+                FUNCTION_RESOLUTION.resolveFunction("length", fromTypes(VARCHAR)),
                 ImmutableList.of(field(varcharChannel, VARCHAR)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
@@ -1271,7 +1257,7 @@ public class TestGpuExpressions
         }
 
         Expression expression = new Call(
-                functionResolution.resolveFunction("substring", fromTypes(VARCHAR, BIGINT)),
+                FUNCTION_RESOLUTION.resolveFunction("substring", fromTypes(VARCHAR, BIGINT)),
                 ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel));
@@ -1304,7 +1290,7 @@ public class TestGpuExpressions
         }
 
         Expression expression = new Call(
-                functionResolution.resolveFunction("substring", fromTypes(VARCHAR, BIGINT, BIGINT)),
+                FUNCTION_RESOLUTION.resolveFunction("substring", fromTypes(VARCHAR, BIGINT, BIGINT)),
                 ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT), field(lengthChannel, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel, lengthChannel));
@@ -1370,7 +1356,7 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, 1, 100)));  // non-zero to avoid division by zero
 
         Expression expression = new Call(
-                functionResolution.resolveOperator(operatorType, List.of(BIGINT, BIGINT)),
+                FUNCTION_RESOLUTION.resolveOperator(operatorType, List.of(BIGINT, BIGINT)),
                 ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
@@ -1389,7 +1375,7 @@ public class TestGpuExpressions
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression);
-        List<Page> cpuResults = executeWithCpu(inputPages, constantExpression, Map.of());
+        List<Page> cpuResults = executeWithCpu(inputPages, List.of(constantExpression), Map.of());
         assertSameDataInOrder(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
 
@@ -1485,44 +1471,10 @@ public class TestGpuExpressions
                 copyToDevice -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
     }
 
-    private List<Page> executeWithCpu(List<Page> inputPages, Expression expression, Map<Symbol, Integer> layout)
-    {
-        return executeWithCpu(compileCpuExpression(expression, layout), inputPages);
-    }
-
-    private PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
-    {
-        return functionResolution.getExpressionCompiler().compilePageProcessor(
-                        false,
-                        true,
-                        false,
-                        true,
-                        Optional.empty(),
-                        Optional.empty(),
-                        List.of(expression),
-                        layout,
-                        Optional.empty(),
-                        OptionalInt.empty())
-                .apply(InternalDynamicFilter.EMPTY);
-    }
-
-    private List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
-    {
-        LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
-        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-        for (Page inputPage : inputPages) {
-            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, new DriverYieldSignal(), context, SourcePage.create(inputPage));
-            stream(processed)
-                    .flatMap(Optional::stream)
-                    .forEachOrdered(outputPages::add);
-        }
-        return outputPages.build();
-    }
-
     private Expression createLikeExpression(int channel, String pattern, Optional<Character> escape)
     {
         return new Call(
-                functionResolution.resolveFunction("$like", fromTypes(VARCHAR, LIKE_PATTERN)),
+                FUNCTION_RESOLUTION.resolveFunction("$like", fromTypes(VARCHAR, LIKE_PATTERN)),
                 ImmutableList.of(
                         field(channel, VARCHAR),
                         new Constant(LIKE_PATTERN, LikePattern.compile(pattern, escape))));
