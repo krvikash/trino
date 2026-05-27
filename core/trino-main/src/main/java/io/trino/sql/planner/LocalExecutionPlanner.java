@@ -140,13 +140,13 @@ import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.exchange.GpuLocalExchange;
 import io.trino.operator.gpu.exchange.GpuLocalExchangeWriter;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GpuExpressionAstCompiler;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.operator.gpu.join.GpuDynamicFilterCollector;
 import io.trino.operator.gpu.join.GpuJoinBridgeManager;
 import io.trino.operator.gpu.join.GpuJoinBuild;
-import io.trino.operator.gpu.join.GpuJoinFilterCompiler;
 import io.trino.operator.gpu.join.GpuLookupJoin;
 import io.trino.operator.gpu.join.GpuSemiJoin;
 import io.trino.operator.gpu.join.GpuSemiJoinBuild;
@@ -4733,7 +4733,7 @@ public class LocalExecutionPlanner
             Optional<CudfAstExpression> compiledFilter;
             if (node.getFilter().isPresent()) {
                 Expression filter = node.getFilter().get();
-                compiledFilter = GpuJoinFilterCompiler.compile(filter);
+                compiledFilter = GpuExpressionAstCompiler.compile(filter);
                 if (compiledFilter.isEmpty()) {
                     log.debug("Could not compile join filter for GPU execution for join type %s: %s", node.getType(), filter);
                     return Optional.empty();

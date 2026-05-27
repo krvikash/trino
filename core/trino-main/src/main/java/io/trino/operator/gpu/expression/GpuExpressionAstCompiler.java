@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu.join;
+package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ast.BinaryOperator;
 import ai.rapids.cudf.ast.Literal;
@@ -21,6 +21,7 @@ import com.google.common.primitives.Shorts;
 import com.google.common.primitives.SignedBytes;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
@@ -55,24 +56,20 @@ import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.toIntExact;
 
 /**
- * Translates a Trino join filter into a {@link CudfAstExpression}.
+ * Translates {@link Expression} to {@link CudfAstExpression} (which later translates to {@link ai.rapids.cudf.ast.AstExpression}).
  */
-public final class GpuJoinFilterCompiler
+public final class GpuExpressionAstCompiler
 {
-    private GpuJoinFilterCompiler() {}
+    private GpuExpressionAstCompiler() {}
 
-    private static final Logger log = Logger.get(GpuJoinFilterCompiler.class);
+    private static final Logger log = Logger.get(GpuExpressionAstCompiler.class);
 
     // The value picked arbitrarily
     private static final int MAX_IN_LIST_SIZE_FOR_OR_REWRITE = 20;
 
     public static Optional<CudfAstExpression> compile(Expression filter)
     {
-        Optional<CudfAstExpression> translated = translate(filter, new Context());
-        if (translated.isEmpty()) {
-            log.debug("Could not compile expression for GPU join filter: %s", filter);
-        }
-        return translated;
+        return translate(filter, new Context());
     }
 
     private static Optional<CudfAstExpression> translate(Expression expression, Context context)
@@ -207,11 +204,6 @@ public final class GpuJoinFilterCompiler
         };
     }
 
-    /**
-     * Translate a {@link Call}. Today only the boolean {@code $not} builtin is handled
-     * natively (mapped to AST {@code NOT}); all other calls return empty so the planner
-     * falls back to the CPU lookup-join.
-     */
     private static Optional<CudfAstExpression> translateCall(Call call, Context context)
     {
         CatalogSchemaFunctionName functionName = call.function().signature().getName();
