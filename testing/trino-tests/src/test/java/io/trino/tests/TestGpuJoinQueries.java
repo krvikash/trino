@@ -225,6 +225,26 @@ public class TestGpuJoinQueries
     }
 
     @Test
+    public void testJoinWithIn()
+    {
+        assertThat(query(
+                """
+                SELECT n.nationkey, r.regionkey
+                FROM nation n
+                JOIN region r ON n.name = r.name AND n.nationkey IN (r.regionkey, 5)
+                """))
+                .executesWithGpu(JoinNode.class);
+
+        assertThat(query(
+                """
+                SELECT n.nationkey, r.regionkey
+                FROM nation n
+                LEFT JOIN region r ON n.regionkey = r.regionkey AND (n.nationkey IN (2, 1, 3, 7) OR r.regionkey = 42)
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
     public void testTpchQ21()
     {
         assertThat(query(

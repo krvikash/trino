@@ -16,6 +16,7 @@ package io.trino.operator.gpu.join;
 import ai.rapids.cudf.ast.BinaryOperator;
 import ai.rapids.cudf.ast.Literal;
 import ai.rapids.cudf.ast.UnaryOperator;
+import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Shorts;
 import com.google.common.primitives.SignedBytes;
 import io.airlift.log.Logger;
@@ -34,6 +35,7 @@ import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
@@ -60,6 +62,9 @@ public final class GpuJoinFilterCompiler
 
     private static final Logger log = Logger.get(GpuJoinFilterCompiler.class);
 
+    // The value picked arbitrarily
+    private static final int MAX_IN_LIST_SIZE_FOR_OR_REWRITE = 20;
+
     public static Optional<CudfAstExpression> compile(Expression filter)
     {
         Optional<CudfAstExpression> translated = translate(filter, new Context());
@@ -74,6 +79,7 @@ public final class GpuJoinFilterCompiler
         Optional<CudfAstExpression> translated = switch (expression) {
             case Comparison comparison -> translateComparison(comparison, context);
             case Logical logical -> translateLogical(logical, context);
+            case In in -> translateIn(in, context);
             case IsNull isNull -> translateIsNull(isNull, context);
             case Constant constant -> translateConstant(constant);
             case Call call -> translateCall(call, context);
@@ -143,6 +149,26 @@ public final class GpuJoinFilterCompiler
         };
     }
 
+    private static Optional<CudfAstExpression> translateIn(In in, Context context)
+    {
+        if (!isCheapDeterministic(in.value())) {
+            return Optional.empty();
+        }
+        List<Expression> valueList = in.valueList();
+        if (valueList.isEmpty() || valueList.size() > MAX_IN_LIST_SIZE_FOR_OR_REWRITE) {
+            return Optional.empty();
+        }
+        ImmutableList.Builder<Expression> equals = ImmutableList.builderWithExpectedSize(valueList.size());
+        for (Expression item : valueList) {
+            equals.add(new Comparison(Comparison.Operator.EQUAL, in.value(), item));
+        }
+        List<Expression> terms = equals.build();
+        Expression rewritten = terms.size() == 1
+                ? getOnlyElement(terms)
+                : new Logical(Logical.Operator.OR, terms);
+        return translate(rewritten, context);
+    }
+
     private static Optional<CudfAstExpression> translateIsNull(IsNull isNull, Context context)
     {
         return translate(isNull.value(), context).map(value ->
@@ -184,6 +210,11 @@ public final class GpuJoinFilterCompiler
                     new CudfAstExpression.UnaryOperation(UnaryOperator.NOT, value));
         }
         return Optional.empty();
+    }
+
+    private static boolean isCheapDeterministic(Expression expression)
+    {
+        return expression instanceof Reference;
     }
 
     private record Context(AtomicBoolean loggedUnsupportedLeaf)
