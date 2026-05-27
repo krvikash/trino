@@ -245,6 +245,19 @@ public class TestGpuJoinQueries
     }
 
     @Test
+    public void testJoinWithBetween()
+    {
+        assertThat(query(
+                """
+                SELECT c.custkey, o.orderkey
+                FROM customer c
+                JOIN (SELECT orderkey, custkey, totalprice - DOUBLE '1' AS lowprice, totalprice + DOUBLE '1' AS highprice FROM orders) o
+                  ON c.custkey = o.custkey AND c.acctbal BETWEEN o.lowprice AND o.highprice
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
     public void testTpchQ21()
     {
         assertThat(query(

@@ -31,6 +31,7 @@ import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.VarcharType;
+import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
@@ -80,6 +81,7 @@ public final class GpuJoinFilterCompiler
             case Comparison comparison -> translateComparison(comparison, context);
             case Logical logical -> translateLogical(logical, context);
             case In in -> translateIn(in, context);
+            case Between between -> translateBetween(between, context);
             case IsNull isNull -> translateIsNull(isNull, context);
             case Constant constant -> translateConstant(constant);
             case Call call -> translateCall(call, context);
@@ -166,6 +168,19 @@ public final class GpuJoinFilterCompiler
         Expression rewritten = terms.size() == 1
                 ? getOnlyElement(terms)
                 : new Logical(Logical.Operator.OR, terms);
+        return translate(rewritten, context);
+    }
+
+    private static Optional<CudfAstExpression> translateBetween(Between between, Context context)
+    {
+        if (!isCheapDeterministic(between.value())) {
+            return Optional.empty();
+        }
+        Expression rewritten = new Logical(
+                Logical.Operator.AND,
+                ImmutableList.of(
+                        new Comparison(Comparison.Operator.LESS_THAN_OR_EQUAL, between.min(), between.value()),
+                        new Comparison(Comparison.Operator.LESS_THAN_OR_EQUAL, between.value(), between.max())));
         return translate(rewritten, context);
     }
 
