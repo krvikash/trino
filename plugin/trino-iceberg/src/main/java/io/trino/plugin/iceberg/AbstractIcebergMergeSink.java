@@ -63,7 +63,7 @@ public abstract class AbstractIcebergMergeSink
     protected final int columnCount;
     protected final IcebergPageSourceProviderFactory pageSourceProviderFactory;
     protected final List<IcebergColumnHandle> columns;
-    protected final Map<String, String> fileIoProperties;
+    protected final IcebergTableCredentials tableCredentials;
     protected final Map<String, Long> fileCounts;
     protected final Map<String, Long> dataSequenceNumbers;
     protected final Map<String, Long> firstRowIds;
@@ -88,7 +88,7 @@ public abstract class AbstractIcebergMergeSink
             int columnCount,
             IcebergPageSourceProviderFactory pageSourceProviderFactory,
             List<IcebergColumnHandle> columns,
-            Map<String, String> fileIoProperties,
+            IcebergTableCredentials tableCredentials,
             Map<String, Long> fileCounts,
             Map<String, Long> dataSequenceNumbers,
             Map<String, Long> firstRowIds,
@@ -110,7 +110,7 @@ public abstract class AbstractIcebergMergeSink
         this.columnCount = columnCount;
         this.columns = ImmutableList.copyOf(columns);
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-        this.fileIoProperties = ImmutableMap.copyOf(fileIoProperties);
+        this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
         this.fileCounts = ImmutableMap.copyOf(fileCounts);
         this.dataSequenceNumbers = ImmutableMap.copyOf(dataSequenceNumbers);
         this.firstRowIds = ImmutableMap.copyOf(firstRowIds);

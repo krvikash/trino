@@ -39,7 +39,7 @@ public class IcebergTableCredentialsProvider
     public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, SchemaTableName schemaTableName)
     {
         return Optional.of(tableCredentials.computeIfAbsent(schemaTableName, key ->
-                new IcebergTableCredentials(catalog.loadTable(session, key).io().properties())));
+                IcebergTableCredentials.forFileIO(catalog.loadTable(session, key).io())));
     }
 
     public Optional<ConnectorTableCredentials> getScanTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)

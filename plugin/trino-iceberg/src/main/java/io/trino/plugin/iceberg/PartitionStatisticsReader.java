@@ -94,7 +94,7 @@ public final class PartitionStatisticsReader
                 inputFile.getLength(),
                 0,
                 fromIceberg(fileFormat),
-                ImmutableMap.of(),
+                new IcebergTableCredentials(ImmutableMap.of(), ImmutableList.of()),
                 null,
                 OptionalLong.empty(),
                 Optional.empty(),
