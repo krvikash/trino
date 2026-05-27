@@ -61,6 +61,8 @@ def test_connect_no_schema(configuration, testing_starburst):
         assert "Schema must be specified when session schema is not set" in str(
             exc_info.value
         )
+
+    with pyodbc_connect(connection_string, timeout=10) as connection:
         assert (
             connection.cursor()
             .execute("select count(*) from tpch.tiny.nation")

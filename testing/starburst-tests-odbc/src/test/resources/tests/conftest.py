@@ -9,10 +9,13 @@
 #
 
 import os
+import pyodbc
 import pytest
 from contextlib import closing
 from . import Configuration, TestingStarburst
 from . import format_connection_string, pyodbc_connect
+
+pyodbc.pooling = False
 
 
 @pytest.fixture(scope="session")

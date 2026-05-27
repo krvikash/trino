@@ -15,9 +15,9 @@ import io.starburst.tests.odbc.protocol.StarburstProtocolModule;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.containers.junit.ReportLeakedContainers;
 import io.trino.tests.tpch.TpchQueryRunnerBuilder;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
@@ -26,7 +26,6 @@ import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Disabled // TODO https://starburstdata.atlassian.net/browse/ENG-16449 this test is currently broken
 public class TestStarburstOdbc
 {
     private final Logger log = Logger.get(TestStarburstOdbc.class);
@@ -41,12 +40,19 @@ public class TestStarburstOdbc
 
         try (runner; GenericContainer<?> container = new GenericContainer<>(buildTestsContainer())) {
             container.withAccessToHost(true); // Access locally running query runner
-            container.withNetworkMode("host");
-            container.withStartupCheckStrategy(new OneShotStartupCheckStrategy()
+            container.withNetworkMode("host")
+                    .withStartupCheckStrategy(new OneShotStartupCheckStrategy()
                             .withTimeout(Duration.ofMinutes(5)))
                     .withEnv("TRINO_HOST", runner.getCoordinator().getAddress().getHost())
-                    .withEnv("TRINO_PORT", String.valueOf(runner.getCoordinator().getAddress().getPort()))
-                    .start();
+                    .withEnv("TRINO_PORT", String.valueOf(runner.getCoordinator().getAddress().getPort()));
+
+            try {
+                container.start();
+            }
+            catch (ContainerLaunchException e) {
+                assertThat(container.getLogs()).as("ODBC test results").contains("22 passed");
+                throw e;
+            }
 
             String results = container.getLogs();
             log.info("ODBC test results:\n%s", results.strip());
