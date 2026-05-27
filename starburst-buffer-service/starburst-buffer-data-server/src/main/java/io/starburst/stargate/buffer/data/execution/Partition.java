@@ -36,12 +36,12 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateAttemptId;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateTaskId;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
@@ -65,7 +65,6 @@ public class Partition
     private final ExecutorService executor;
     private final Consumer<ChunkHandle> closedChunkConsumer;
     private final ChunkDataFactory chunkDataFactory;
-    private final AtomicLong exchangeCumulativeClosedBytes;
 
     private final Map<Long, Chunk> closedChunks = new ConcurrentHashMap<>();
     @GuardedBy("this")
@@ -99,7 +98,6 @@ public class Partition
             ChunkDeliveryMode chunkDeliveryMode,
             ExecutorService executor,
             ChunkDataFactory chunkDataFactory,
-            AtomicLong exchangeCumulativeClosedBytes,
             Consumer<ChunkHandle> closedChunkConsumer)
     {
         this.bufferNodeId = bufferNodeId;
@@ -113,7 +111,6 @@ public class Partition
         this.executor = requireNonNull(executor, "executor is null");
         this.closedChunkConsumer = requireNonNull(closedChunkConsumer, "closedChunkConsumer is null");
         this.chunkDataFactory = requireNonNull(chunkDataFactory, "chunkDataFactory is null");
-        this.exchangeCumulativeClosedBytes = requireNonNull(exchangeCumulativeClosedBytes, "exchangeCumulativeClosedBytes is null");
 
         this.openChunk = createNewOpenChunk(chunkTargetSizeInBytes);
         this.chunkDeliveryMode = requireNonNull(chunkDeliveryMode, "chunkDeliveryMode is null");
@@ -295,16 +292,33 @@ public class Partition
     @GuardedBy("this")
     private void closeChunk(Chunk chunk)
     {
-        // ignore empty chunks
-        if (!chunk.isEmpty()) {
-            lastChunkCloseTime = System.currentTimeMillis();
-            chunk.close();
-            closedChunks.put(chunk.getChunkId(), chunk);
-            ChunkHandle chunkHandle = chunk.getHandle();
-            closedChunkBytes += chunkHandle.dataSizeInBytes();
-            exchangeCumulativeClosedBytes.addAndGet(chunkHandle.dataSizeInBytes());
-            closedChunkConsumer.accept(chunkHandle);
+        if (chunk.isEmpty()) {
+            // Empty chunk has no data to serve; release its resources immediately.
+            chunk.release();
+            return;
         }
+        lastChunkCloseTime = System.currentTimeMillis();
+        ListenableFuture<Void> closeFuture = chunk.close();
+        Futures.addCallback(closeFuture, new FutureCallback<>()
+        {
+            @Override
+            public void onSuccess(Void ignored)
+            {
+                closedChunks.put(chunk.getChunkId(), chunk);
+                ChunkHandle chunkHandle = chunk.getHandle();
+                synchronized (Partition.this) {
+                    closedChunkBytes += chunkHandle.dataSizeInBytes();
+                }
+                closedChunkConsumer.accept(chunkHandle);
+            }
+
+            @Override
+            public void onFailure(Throwable t)
+            {
+                // Flush failed; release the chunk so disk space is reclaimed.
+                chunk.release();
+            }
+        }, directExecutor());
     }
 
     @GuardedBy("this")
@@ -317,7 +331,7 @@ public class Partition
                 exchangeId,
                 partitionId,
                 chunkId,
-                chunkDataFactory.create(exchangeId, partitionId, chunkId, chunkSizeInBytes, exchangeCumulativeClosedBytes.get()));
+                chunkDataFactory.create(exchangeId, partitionId, chunkId, chunkSizeInBytes));
     }
 
     public Collection<Chunk> getClosedChunks()

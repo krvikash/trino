@@ -22,6 +22,7 @@ import io.airlift.http.server.HttpServerInfo;
 import io.airlift.json.JsonBinder;
 import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.disk.ForLocalDiskIo;
 import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
@@ -58,6 +59,7 @@ import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static java.lang.Runtime.getRuntime;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -129,9 +131,11 @@ public class DataServerMainModule
         configBinder(binder).bindConfig(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
         newOptionalBinder(binder, LocalDiskTier.class);
         newOptionalBinder(binder, LocalDiskAllocator.class);
+        newOptionalBinder(binder, Key.get(ExecutorService.class, ForLocalDiskIo.class));
         LocalDiskTierFeatureConfig diskTierFeatureConfig = buildConfigObject(LocalDiskTierFeatureConfig.class, configPrefix.orElse(null));
         if (diskTierFeatureConfig.isEnabled()) {
             SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
+            LocalDiskTierConfig localDiskTierConfig = buildConfigObject(LocalDiskTierConfig.class, configPrefix.orElse(null));
             if (spoolingDirectoryConfig.getStorageDriver() != SpoolingStorageDriver.TRINO_FS) {
                 binder.addError(
                         "Local disk tier requires spooling.storage-driver=TRINO_FS (got %s)",
@@ -141,6 +145,8 @@ public class DataServerMainModule
             configBinder(binder).bindConfig(LocalDiskTierConfig.class, configPrefix.orElse(null));
             binder.bind(LocalDiskAllocator.class).in(SINGLETON);
             binder.bind(LocalDiskTier.class).asEagerSingleton();
+            ExecutorService ioExecutor = createIoOperationsExecutor(localDiskTierConfig);
+            binder.bind(ExecutorService.class).annotatedWith(ForLocalDiskIo.class).toInstance(ioExecutor);
         }
 
         if (buildConfigObject(DataServerConfig.class, configPrefix.orElse(null)).isTestingEnableStatsLogging()) {
@@ -215,5 +221,10 @@ public class DataServerMainModule
                     useStaticMemoryConfig,
                     configPrefix);
         }
+    }
+
+    private static ExecutorService createIoOperationsExecutor(LocalDiskTierConfig localDiskTierConfig)
+    {
+        return newFixedThreadPool(localDiskTierConfig.getIoThreads(), daemonThreadsNamed("local-disk-io-%s"));
     }
 }

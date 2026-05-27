@@ -21,7 +21,6 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
-import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -196,12 +195,14 @@ public class TestLocalDiskTier
     public void testExchangeDirectoryDeletedWhenLastChunkReleases()
             throws ExecutionException, InterruptedException
     {
-        DataSize threshold = DataSize.of(1, BYTE);
-        LocalDiskTier diskTier = createDiskTierWithThreshold(threshold);
+        LocalDiskTier diskTier = createDiskTier(tempDir);
         Path exchangeDirectory = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1");
 
-        DiskChunkSlot slot1 = diskTier.tryReserveChunkSlot("exchange-1", 0, 1L, 1024, Long.MAX_VALUE).orElseThrow();
-        DiskChunkSlot slot2 = diskTier.tryReserveChunkSlot("exchange-1", 1, 2L, 1024, Long.MAX_VALUE).orElseThrow();
+        DiskChunkSlot slot1 = diskTier.tryReserveChunkSlot("exchange-1", 0, 1L, 1024).orElseThrow();
+        DiskChunkSlot slot2 = diskTier.tryReserveChunkSlot("exchange-1", 1, 2L, 1024).orElseThrow();
+        // Simulate the first-write materialization that the chunk's executor task would normally drive.
+        slot1.materializeDirectory().run();
+        slot2.materializeDirectory().run();
 
         slot1.diskRelease().run();
         slot1.lease().release();
@@ -215,42 +216,21 @@ public class TestLocalDiskTier
     }
 
     @Test
-    public void testTryReserveChunkSlotReturnsEmptyWhenThresholdNotConfigured()
+    public void testTryReserveChunkSlotComputesPathWithoutTouchingFilesystem()
     {
         LocalDiskTier diskTier = createDiskTier(tempDir);
 
-        Optional<DiskChunkSlot> slot = diskTier.tryReserveChunkSlot("exchange-1", 3, 42L, 1024, Long.MAX_VALUE);
-
-        assertThat(slot).isEmpty();
-        // no side effects on disk
-        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1")).doesNotExist();
-    }
-
-    @Test
-    public void testTryReserveChunkSlotReturnsEmptyBelowThreshold()
-    {
-        DataSize threshold = DataSize.of(1, MEGABYTE);
-        LocalDiskTier diskTier = createDiskTierWithThreshold(threshold);
-
-        Optional<DiskChunkSlot> slot = diskTier.tryReserveChunkSlot("exchange-1", 3, 42L, 1024, threshold.toBytes() - 1);
-
-        assertThat(slot).isEmpty();
-        assertThat(tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1")).doesNotExist();
-    }
-
-    @Test
-    public void testTryReserveChunkSlotMaterializesPathAndDirectoryAtOrAboveThreshold()
-    {
-        DataSize threshold = DataSize.of(1, MEGABYTE);
-        LocalDiskTier diskTier = createDiskTierWithThreshold(threshold);
-
-        DiskChunkSlot slot = diskTier.tryReserveChunkSlot("exchange-1", 3, 42L, 1024, threshold.toBytes()).orElseThrow();
+        DiskChunkSlot slot = diskTier.tryReserveChunkSlot("exchange-1", 3, 42L, 1024).orElseThrow();
 
         Path expectedFile = tempDir.resolve(String.valueOf(BUFFER_NODE_ID))
                 .resolve("exchange-1")
                 .resolve("3")
                 .resolve("chunk-42.data");
         assertThat(slot.file()).isEqualTo(expectedFile);
+        // Partition directory materialization is lazy - the parent must not exist until the chunk's first write invokes materializeDirectory().
+        assertThat(expectedFile.getParent()).doesNotExist();
+
+        slot.materializeDirectory().run();
         assertThat(expectedFile.getParent()).isDirectory();
 
         slot.lease().release();
@@ -259,18 +239,17 @@ public class TestLocalDiskTier
     @Test
     public void testTryReserveChunkSlotReturnsEmptyWhenCapacityExhausted()
     {
-        DataSize threshold = DataSize.of(1, BYTE);
-        LocalDiskTier diskTier = createDiskTierWithThresholdAndCapacity(threshold, DataSize.ofBytes(1024));
+        LocalDiskTier diskTier = createDiskTierWithCapacity(DataSize.ofBytes(1024));
 
-        DiskChunkSlot first = diskTier.tryReserveChunkSlot("exchange-1", 3, 42L, 1024, Long.MAX_VALUE).orElseThrow();
-        Optional<DiskChunkSlot> second = diskTier.tryReserveChunkSlot("exchange-1", 3, 43L, 1024, Long.MAX_VALUE);
+        DiskChunkSlot first = diskTier.tryReserveChunkSlot("exchange-1", 3, 42L, 1024).orElseThrow();
+        Optional<DiskChunkSlot> second = diskTier.tryReserveChunkSlot("exchange-1", 3, 43L, 1024);
 
         assertThat(second).isEmpty();
 
         first.lease().release();
 
         // capacity available again after the first lease is released
-        DiskChunkSlot third = diskTier.tryReserveChunkSlot("exchange-1", 3, 44L, 1024, Long.MAX_VALUE).orElseThrow();
+        DiskChunkSlot third = diskTier.tryReserveChunkSlot("exchange-1", 3, 44L, 1024).orElseThrow();
         third.lease().release();
     }
 
@@ -282,17 +261,11 @@ public class TestLocalDiskTier
         return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 
-    private LocalDiskTier createDiskTierWithThreshold(DataSize threshold)
-    {
-        return createDiskTierWithThresholdAndCapacity(threshold, DEFAULT_CAPACITY);
-    }
-
-    private LocalDiskTier createDiskTierWithThresholdAndCapacity(DataSize threshold, DataSize capacity)
+    private LocalDiskTier createDiskTierWithCapacity(DataSize capacity)
     {
         LocalDiskTierConfig config = new LocalDiskTierConfig()
                 .setDirectory(tempDir)
-                .setCapacity(capacity)
-                .setMemorySkipThreshold(threshold);
+                .setCapacity(capacity);
         return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 }

@@ -18,20 +18,24 @@ import io.starburst.stargate.buffer.data.disk.DiskSpaceLease;
 import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
+import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Executor;
 
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
-import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestDiskChunkData
 {
@@ -40,9 +44,9 @@ public class TestDiskChunkData
     private static final int PARTITION_ID = 0;
     private static final long CHUNK_ID = 42;
     private static final int CHUNK_SIZE_BYTES = 1024;
-    // tryReserveChunkSlot only engages once cumulativeClosedBytes >= memorySkipThreshold;
-    // tests use the smallest configurable threshold and pass any value that exceeds it.
-    private static final long PAST_THRESHOLD_CLOSED_BYTES = Long.MAX_VALUE;
+    private static final Slice PAGE = Slices.utf8Slice("payload");
+
+    private final Executor executor = directExecutor();
 
     @TempDir
     Path tempDir;
@@ -53,7 +57,8 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        getFutureValue(chunk.write(1, 0, PAGE));
         assertThat(slot.file()).exists();
 
         chunk.release();
@@ -62,14 +67,31 @@ public class TestDiskChunkData
     }
 
     @Test
+    public void testGetOnNeverWrittenChunkThrows()
+    {
+        LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
+
+        DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        getFutureValue(chunk.close());
+
+        assertThatThrownBy(chunk::get)
+                .isInstanceOf(DataServerException.class)
+                .hasMessageContaining("empty or never-materialized");
+
+        chunk.release();
+    }
+
+    @Test
     public void testReleaseWithReaderHoldKeepsFileAlive()
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        getFutureValue(chunk.write(1, 0, PAGE));
 
-        chunk.close();
+        getFutureValue(chunk.close());
         ChunkDataLease lease = chunk.get();
 
         chunk.release();
@@ -87,9 +109,10 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        getFutureValue(chunk.write(1, 0, PAGE));
 
-        chunk.close();
+        getFutureValue(chunk.close());
         ChunkDataLease lease1 = chunk.get();
         ChunkDataLease lease2 = chunk.get();
         ChunkDataLease lease3 = chunk.get();
@@ -110,11 +133,12 @@ public class TestDiskChunkData
     @Test
     public void testReaderHoldDefersCapacityRefund()
     {
-        LocalDiskTier tier = createDiskTier(DataSize.of(CHUNK_SIZE_BYTES, BYTE));
+        LocalDiskTier tier = createDiskTier(DataSize.ofBytes(CHUNK_SIZE_BYTES));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
-        chunk.close();
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        getFutureValue(chunk.write(1, 0, PAGE));
+        getFutureValue(chunk.close());
         ChunkDataLease lease = chunk.get();
 
         chunk.release();
@@ -133,10 +157,10 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
 
-        assertThatCode(chunk::close).doesNotThrowAnyException();
-        assertThatCode(chunk::close).doesNotThrowAnyException();
+        assertThatCode(() -> getFutureValue(chunk.close())).doesNotThrowAnyException();
+        assertThatCode(() -> getFutureValue(chunk.close())).doesNotThrowAnyException();
 
         chunk.release();
     }
@@ -147,9 +171,10 @@ public class TestDiskChunkData
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
 
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        getFutureValue(chunk.write(1, 0, PAGE));
 
-        chunk.close();
+        getFutureValue(chunk.close());
         chunk.release();
 
         assertThat(slot.file()).doesNotExist();
@@ -161,14 +186,14 @@ public class TestDiskChunkData
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
 
         Slice page = Slices.utf8Slice("hello-disk-chunk");
         int taskId = 12;
         int attemptId = 3;
 
         getFutureValue(chunk.write(taskId, attemptId, page));
-        chunk.close();
+        getFutureValue(chunk.close());
 
         ChunkDataLease lease = chunk.get();
         try {
@@ -176,8 +201,13 @@ public class TestDiskChunkData
             assertThat(lease.serializedSizeInBytes())
                     .isEqualTo(DATA_PAGE_HEADER_SIZE + page.length() + CHUNK_SLICES_METADATA_SIZE);
 
-            byte[] fileBytes = Files.readAllBytes(slot.file());
-            assertThat(fileBytes).hasSize(DATA_PAGE_HEADER_SIZE + page.length());
+            int writtenBytes = DATA_PAGE_HEADER_SIZE + page.length();
+            assertThat(Files.size(slot.file())).isGreaterThanOrEqualTo(writtenBytes);
+            byte[] fileBytes = new byte[writtenBytes];
+            try (InputStream in = Files.newInputStream(slot.file())) {
+                int read = in.readNBytes(fileBytes, 0, writtenBytes);
+                assertThat(read).isEqualTo(writtenBytes);
+            }
 
             SliceInput input = Slices.wrappedBuffer(fileBytes).getInput();
             assertThat(input.readShort()).isEqualTo((short) taskId);
@@ -197,21 +227,21 @@ public class TestDiskChunkData
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
 
         Slice page1 = Slices.utf8Slice("first");
         Slice page2 = Slices.utf8Slice("second-page");
 
         getFutureValue(chunk.write(1, 0, page1));
         getFutureValue(chunk.write(2, 0, page2));
-        chunk.close();
+        getFutureValue(chunk.close());
 
         ChunkDataLease lease = chunk.get();
         try {
             assertThat(lease.getNumDataPages()).isEqualTo(2);
             int expectedDataBytes = (DATA_PAGE_HEADER_SIZE + page1.length()) + (DATA_PAGE_HEADER_SIZE + page2.length());
             assertThat(lease.serializedSizeInBytes()).isEqualTo(expectedDataBytes + CHUNK_SLICES_METADATA_SIZE);
-            assertThat(Files.size(slot.file())).isEqualTo(expectedDataBytes);
+            assertThat(Files.size(slot.file())).isGreaterThanOrEqualTo(expectedDataBytes);
         }
         finally {
             lease.release();
@@ -224,11 +254,11 @@ public class TestDiskChunkData
     {
         LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
         DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
-        DiskChunkData chunk = new DiskChunkData(CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot);
 
         Slice page = Slices.utf8Slice("hello-disk-chunk");
         getFutureValue(chunk.write(1, 0, page));
-        chunk.close();
+        getFutureValue(chunk.close());
 
         DiskChunkDataLease lease = (DiskChunkDataLease) chunk.get();
         try {
@@ -245,15 +275,14 @@ public class TestDiskChunkData
 
     private DiskChunkSlot reserveSlot(LocalDiskTier tier, long chunkId)
     {
-        return tier.tryReserveChunkSlot(EXCHANGE_ID, PARTITION_ID, chunkId, CHUNK_SIZE_BYTES, PAST_THRESHOLD_CLOSED_BYTES).orElseThrow();
+        return tier.tryReserveChunkSlot(EXCHANGE_ID, PARTITION_ID, chunkId, CHUNK_SIZE_BYTES).orElseThrow();
     }
 
     private LocalDiskTier createDiskTier(DataSize capacity)
     {
         LocalDiskTierConfig config = new LocalDiskTierConfig()
                 .setDirectory(tempDir)
-                .setCapacity(capacity)
-                .setMemorySkipThreshold(DataSize.of(1, BYTE));
+                .setCapacity(capacity);
         return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
     }
 }

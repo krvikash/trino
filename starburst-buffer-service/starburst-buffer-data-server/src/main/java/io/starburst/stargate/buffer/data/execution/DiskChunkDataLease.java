@@ -10,12 +10,10 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -34,18 +32,14 @@ public final class DiskChunkDataLease
 
     public DiskChunkDataLease(
             Path file,
+            FileChannel channel,
             int length,
             long checksum,
             int numDataPages,
             Runnable releaseCallback)
     {
         this.file = requireNonNull(file, "file is null");
-        try {
-            this.channel = FileChannel.open(file, StandardOpenOption.READ);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("failed to open disk chunk file " + file + " for reading", e);
-        }
+        this.channel = requireNonNull(channel, "channel is null");
         this.length = length;
         this.checksum = checksum;
         this.numDataPages = numDataPages;
@@ -96,16 +90,6 @@ public final class DiskChunkDataLease
     public void release()
     {
         checkState(released.compareAndSet(false, true), "already released");
-        // Channel close runs first so the FD is gone before the CountedReference destroy callback
-        // unlinks the file; either order works on Linux but this is the cleaner pairing.
-        try {
-            channel.close();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException("failed to close disk chunk file " + file, e);
-        }
-        finally {
-            releaseCallback.run();
-        }
+        releaseCallback.run();
     }
 }

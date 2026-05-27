@@ -94,7 +94,6 @@ public class Exchange
     private final ChunkIdGenerator chunkIdGenerator;
     private final ExecutorService executor;
     private final ChunkDataFactory chunkDataFactory;
-    private final AtomicLong cumulativeClosedBytes = new AtomicLong();
 
     // partitionId -> partition
     private final Map<Integer, Partition> partitions = new ConcurrentHashMap<>();
@@ -203,7 +202,6 @@ public class Exchange
                     chunkDeliveryMode,
                     executor,
                     chunkDataFactory,
-                    cumulativeClosedBytes,
                     closedChunkConsumer()));
         }
 

@@ -35,7 +35,7 @@ public sealed interface ChunkData
 
     ChunkDataLease get();
 
-    void close();
+    ListenableFuture<Void> close();
 
     void release();
 }

@@ -50,8 +50,8 @@ class TestLocalDiskTierDataServer
         String exchangeId = "exchange-disk-smoke";
         registerExchange(exchangeId, STANDARD);
 
-        // Two 3kB pages overflow the 4kB chunk. Once that chunk closes,
-        // exchangeCumulativeClosedBytes >= 1B and subsequent allocations land on disk.
+        // Routing gate below sets watermark=0 and floor=1B, so every allocated chunk
+        // takes the disk path regardless of current memory pressure.
         byte[] payload = new byte[3 * 1024];
         addDataPages(exchangeId, 0, 0, 0L, ImmutableListMultimap.of(0, wrappedBuffer(payload)));
         addDataPages(exchangeId, 1, 0, 1L, ImmutableListMultimap.of(0, wrappedBuffer(payload)));
@@ -71,8 +71,6 @@ class TestLocalDiskTierDataServer
                 .put("local-disk.enabled", "true")
                 .put("local-disk.directory", diskTierDir.toString())
                 .put("local-disk.capacity", DataSize.of(100, MEGABYTE).toString())
-                // 1B threshold: as soon as any chunk closes, subsequent allocations land on disk.
-                .put("local-disk.memory-skip-threshold", "1B")
                 .put("spooling.local.location", diskTierDir.toString())
                 .put("spooling.directory", "file:///spooling/")
                 .put("spooling.storage-driver", TRINO_FS.toString())

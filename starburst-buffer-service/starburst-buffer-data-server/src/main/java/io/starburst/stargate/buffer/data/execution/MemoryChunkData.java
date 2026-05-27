@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.finalizeChecksum;
@@ -173,12 +174,13 @@ public final class MemoryChunkData
     }
 
     @Override
-    public synchronized void close()
+    public synchronized ListenableFuture<Void> close()
     {
         if (sliceOutput != null) {
             completedSlices.add(sliceOutput.slice());
             sliceOutput = null;
         }
+        return immediateVoidFuture();
     }
 
     @Override

@@ -85,16 +85,29 @@ public final class ChunkTestHelper
             out.writeInt(pages.data().length());
             out.writeBytes(pages.data());
         }
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+        try (FileChannel writeChannel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             ByteBuffer buffer = slice.toByteBuffer();
             while (buffer.hasRemaining()) {
-                channel.write(buffer);
+                writeChannel.write(buffer);
             }
         }
         catch (IOException e) {
             throw new UncheckedIOException("failed to write disk chunk to " + file, e);
         }
-        return new DiskChunkDataLease(file, length, calculateChecksum(dataPages), dataPages.size(), () -> {});
+        try {
+            FileChannel readChannel = FileChannel.open(file, StandardOpenOption.READ);
+            return new DiskChunkDataLease(file, readChannel, length, calculateChecksum(dataPages), dataPages.size(), () -> {
+                try {
+                    readChannel.close();
+                }
+                catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("failed to open disk chunk for reading " + file, e);
+        }
     }
 
     public static ChunkDataLease toChunkDataLease(Set<List<DataPage>> slicesOfDataPages)

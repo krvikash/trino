@@ -13,10 +13,10 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.nio.file.Path;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -24,10 +24,10 @@ public class LocalDiskTierConfig
 {
     private Path directory;
     private DataSize capacity;
-    private DataSize memorySkipThreshold;
     private double spoolingHighWatermark = 0.8;
     private double spoolingLowWatermark = 0.5;
     private boolean allowDirectoryCreation;
+    private int ioThreads = 32;
 
     @NotNull
     public Path getDirectory()
@@ -57,21 +57,6 @@ public class LocalDiskTierConfig
     {
         checkArgument(capacity == null || capacity.toBytes() > 0, "capacity must be positive");
         this.capacity = capacity;
-        return this;
-    }
-
-    public Optional<DataSize> getMemorySkipThreshold()
-    {
-        return Optional.ofNullable(memorySkipThreshold);
-    }
-
-    @Config("local-disk.memory-skip-threshold")
-    @ConfigHidden
-    @ConfigDescription("Per-exchange cumulative closed-chunk bytes after which subsequent open chunks are written directly to disk. Default empty disables the policy.")
-    public LocalDiskTierConfig setMemorySkipThreshold(DataSize memorySkipThreshold)
-    {
-        checkArgument(memorySkipThreshold == null || memorySkipThreshold.toBytes() > 0, "memorySkipThreshold must be positive");
-        this.memorySkipThreshold = memorySkipThreshold;
         return this;
     }
 
@@ -116,6 +101,21 @@ public class LocalDiskTierConfig
     public LocalDiskTierConfig setAllowDirectoryCreation(boolean allowDirectoryCreation)
     {
         this.allowDirectoryCreation = allowDirectoryCreation;
+        return this;
+    }
+
+    @Min(1)
+    public int getIoThreads()
+    {
+        return ioThreads;
+    }
+
+    @Config("local-disk.io-threads")
+    @ConfigHidden
+    @ConfigDescription("Number of threads used to dispatch disk-chunk writes; caps in-flight I/O so kernel writeback bursts do not blow up tail latency")
+    public LocalDiskTierConfig setIoThreads(int ioThreads)
+    {
+        this.ioThreads = ioThreads;
         return this;
     }
 }

@@ -13,12 +13,13 @@ import java.nio.file.Path;
 
 import static java.util.Objects.requireNonNull;
 
-public record DiskChunkSlot(Path file, DiskSpaceLease lease, Runnable diskRelease)
+public record DiskChunkSlot(Path file, DiskSpaceLease lease, Runnable diskRelease, Runnable materializeDirectory)
 {
     public DiskChunkSlot
     {
         requireNonNull(file, "file is null");
         requireNonNull(lease, "lease is null");
         requireNonNull(diskRelease, "diskRelease is null");
+        requireNonNull(materializeDirectory, "materializeDirectory is null");
     }
 }

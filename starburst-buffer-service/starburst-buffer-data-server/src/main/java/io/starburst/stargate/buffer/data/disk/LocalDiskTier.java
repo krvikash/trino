@@ -13,13 +13,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.starburst.stargate.buffer.data.disk.DiskDirectoryInitializer.initializeDirectories;
@@ -32,7 +32,6 @@ public class LocalDiskTier
     private static final Logger log = Logger.get(LocalDiskTier.class);
 
     private final Path directory;
-    private final Optional<DataSize> memorySkipThreshold;
     private final LocalDiskAllocator allocator;
     private final DiskDirectoryTracker directoryTracker;
 
@@ -43,7 +42,6 @@ public class LocalDiskTier
         requireNonNull(config, "config is null");
         Path rootDirectory = requireNonNull(config.getDirectory(), "directory is null").normalize();
         this.directory = rootDirectory.resolve(String.valueOf(bufferNodeId.getLongValue()));
-        this.memorySkipThreshold = config.getMemorySkipThreshold();
         this.allocator = requireNonNull(allocator, "allocator is null");
         this.directoryTracker = new DiskDirectoryTracker();
         initializeDirectories(rootDirectory, this.directory, directoryTracker, config.isAllowDirectoryCreation());
@@ -53,31 +51,28 @@ public class LocalDiskTier
             String exchangeId,
             int partitionId,
             long chunkId,
-            int chunkSizeInBytes,
-            long exchangeCumulativeClosedBytes)
+            int chunkSizeInBytes)
     {
         validateExchangeIdAsPathSegment(directory, exchangeId);
-        if (memorySkipThreshold.isEmpty()
-                || exchangeCumulativeClosedBytes < memorySkipThreshold.get().toBytes()) {
-            log.debug(
-                    "Disk tier skipped for exchange %s chunk %s: cumulativeClosedBytes=%s, threshold=%s",
-                    exchangeId,
-                    chunkId,
-                    exchangeCumulativeClosedBytes,
-                    memorySkipThreshold.map(DataSize::toBytes).orElse(-1L));
-            return Optional.empty();
-        }
-
         Optional<DiskSpaceLease> lease = allocator.allocate(chunkSizeInBytes);
         if (lease.isEmpty()) {
+            log.debug("Disk allocation skipped for exchange %s chunk %s size=%s", exchangeId, chunkId, chunkSizeInBytes);
             return Optional.empty();
         }
         DiskSpaceLease spaceLease = lease.get();
         try {
-            createPartitionDirectory(exchangeId, partitionId);
+            // Partition directory creation and tracker registration are both deferred to the first write.
+            // An empty chunk that is released without writing never creates the directory, so releasing it
+            // must not trigger exchange-directory cleanup.
             Path file = chunkFile(exchangeId, partitionId, chunkId);
-            Runnable releaseCallback = directoryTracker.registerChunkRelease(exchangeDirectory(exchangeId));
-            return Optional.of(new DiskChunkSlot(file, spaceLease, releaseCallback));
+            Path exchDir = exchangeDirectory(exchangeId);
+            AtomicReference<Runnable> releaseCallbackRef = new AtomicReference<>(() -> {});
+            Runnable materializeDirectory = () -> {
+                createPartitionDirectory(exchangeId, partitionId);
+                releaseCallbackRef.set(directoryTracker.registerChunkRelease(exchDir));
+            };
+            Runnable releaseCallback = () -> releaseCallbackRef.get().run();
+            return Optional.of(new DiskChunkSlot(file, spaceLease, releaseCallback, materializeDirectory));
         }
         catch (RuntimeException e) {
             spaceLease.release();

@@ -9,8 +9,10 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
+import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
 import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
@@ -25,16 +27,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 
+import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestPartition
 {
@@ -98,6 +104,20 @@ public class TestPartition
         assertThat(tempDir.toFile().list()).isEmpty();
     }
 
+    @Test
+    public void testWriteFailurePropagatesToAddDataPagesFuture()
+    {
+        LocalDiskTier diskTier = createDiskTier();
+        IOException injected = new IOException("disk full");
+
+        Partition partition = buildPartition(failingDiskFactory(diskTier, injected));
+        AddDataPagesResult result = partition.addDataPages(1, 0, 0L, List.of(Slices.utf8Slice("page")));
+
+        assertThatThrownBy(() -> getFutureValue(result.addDataPagesFuture()))
+                .hasRootCauseInstanceOf(IOException.class)
+                .hasRootCauseMessage("disk full");
+    }
+
     private LocalDiskTier createDiskTier()
     {
         LocalDiskTierConfig config = new LocalDiskTierConfig()
@@ -114,7 +134,43 @@ public class TestPartition
                 new ChunkManagerConfig(),
                 new DataServerStats());
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig().setChunkSliceSize(DataSize.ofBytes(CHUNK_SLICE_SIZE));
-        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(localDiskTier, memoryAllocator, executor, chunkManagerConfig, new DataServerConfig());
+        ChunkDataFactory chunkDataFactory = new ChunkDataFactory(localDiskTier, memoryAllocator, executor, Optional.empty(), chunkManagerConfig, new DataServerConfig());
+        return buildPartition(chunkDataFactory);
+    }
+
+    private ChunkDataFactory failingDiskFactory(LocalDiskTier diskTier, IOException cause)
+    {
+        return new ChunkDataFactory(
+                Optional.of(diskTier),
+                new MemoryAllocator(new TestingMemoryConfig(DataSize.of(64, MEGABYTE)), new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats()),
+                executor,
+                Optional.empty(),
+                new ChunkManagerConfig().setChunkSliceSize(DataSize.ofBytes(CHUNK_SLICE_SIZE)),
+                new DataServerConfig())
+        {
+            @Override
+            public ChunkData create(String exchangeId, int partitionId, long chunkId, int sizeBytes)
+            {
+                DiskChunkSlot slot = diskTier
+                        .tryReserveChunkSlot(exchangeId, partitionId, chunkId, sizeBytes)
+                        .orElseThrow();
+                return new DiskChunkData(
+                        executor,
+                        slot.file(),
+                        chunkId,
+                        sizeBytes,
+                        false,
+                        slot.lease(),
+                        slot.diskRelease(),
+                        () -> {
+                            throw new UncheckedIOException(cause);
+                        });
+            }
+        };
+    }
+
+    private Partition buildPartition(ChunkDataFactory chunkDataFactory)
+    {
         return new Partition(
                 BUFFER_NODE_ID,
                 EXCHANGE_ID,
@@ -127,7 +183,6 @@ public class TestPartition
                 ChunkDeliveryMode.STANDARD,
                 executor,
                 chunkDataFactory,
-                new AtomicLong(),
                 _ -> {});
     }
 }

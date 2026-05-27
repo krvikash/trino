@@ -151,11 +151,12 @@ public class Chunk
         }
     }
 
-    public void close()
+    public ListenableFuture<Void> close()
     {
-        chunkData.close();
+        ListenableFuture<Void> future = chunkData.close();
         dataSizeInBytes = chunkData.dataSizeInBytes();
         closed = true;
+        return future;
     }
 
     @Override
