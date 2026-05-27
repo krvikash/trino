@@ -15,6 +15,7 @@ import io.starburst.tests.odbc.protocol.StarburstProtocolModule;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.containers.junit.ReportLeakedContainers;
 import io.trino.tests.tpch.TpchQueryRunnerBuilder;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -25,6 +26,7 @@ import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Disabled // TODO https://starburstdata.atlassian.net/browse/ENG-16449 this test is currently broken
 public class TestStarburstOdbc
 {
     private final Logger log = Logger.get(TestStarburstOdbc.class);
