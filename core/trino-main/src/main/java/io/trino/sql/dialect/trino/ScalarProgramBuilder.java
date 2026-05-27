@@ -30,6 +30,7 @@ import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.In;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
+import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.Return;
@@ -333,6 +334,30 @@ public class ScalarProgramBuilder
         Lambda lambda = new Lambda(resultName, lambdaBody);
         context.block().addOperation(lambda);
         return lambda;
+    }
+
+    @Override
+    protected Operation visitLet(io.trino.sql.ir.Let node, Context context)
+    {
+        Operation value = node.value().accept(this, context);
+
+        // model the body as a Block. The bound value is passed as the single field
+        // of the block parameter row.
+        Block.Parameter parameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(RowType.anonymous(ImmutableList.of(node.name().type()))));
+
+        Block.Builder bodyBuilder = new Block.Builder(Optional.of("^body"), ImmutableList.of(parameter));
+        node.body().accept(
+                this,
+                new Context(bodyBuilder, composedMapping(context, argumentMapping(parameter, ImmutableMap.of(node.name(), 0)))));
+
+        addReturnOperation(bodyBuilder);
+
+        String resultName = nameAllocator.newName();
+        Let let = new Let(resultName, value.result(), bodyBuilder.build(), value.attributes());
+        context.block().addOperation(let);
+        return let;
     }
 
     @Override

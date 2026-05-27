@@ -56,6 +56,7 @@ import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Lambda;
+import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
@@ -2646,6 +2647,78 @@ class TestCreateOperation
 
         assertThat(actualLambdaOperation).isEqualTo(lambdaOperation);
         assertThat(actualLambdaOperation.result().type()).isEqualTo(irType(new FunctionType(ImmutableList.of(BIGINT), BOOLEAN)));
+    }
+
+    @Test
+    public void testLet()
+    {
+        Constant constantOperationValue = new Constant("%0", BIGINT, 0L);
+        Parameter letParameter = new Parameter("%1", irType(anonymousRow(BIGINT)));
+        FieldReference fieldReferenceOperationX = new FieldReference("%2", letParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Constant constantOperation = new Constant("%3", BIGINT, 5L);
+        Call callOperation = new Call(
+                "%4",
+                ImmutableList.of(fieldReferenceOperationX.result(), constantOperation.result()),
+                LESS_THAN_BIGINT,
+                ImmutableList.of(fieldReferenceOperationX.attributes(), constantOperation.attributes()));
+        Return returnOperation = new Return("%5", callOperation.result(), callOperation.attributes());
+        Block bodyBlock = new Block(
+                Optional.of("^body"),
+                ImmutableList.of(letParameter),
+                ImmutableList.of(
+                        fieldReferenceOperationX,
+                        constantOperation,
+                        callOperation,
+                        returnOperation));
+
+        Let letOperation = new Let(
+                "%6",
+                constantOperationValue.result(),
+                bodyBlock,
+                constantOperationValue.attributes());
+
+        Operation actualLetOperation = TESTING_TRINO_DIALECT.createOperation(
+                LetOperationMetadata.NAME,
+                "%6",
+                ImmutableList.of(constantOperationValue.result()),
+                ImmutableList.of(singleBlockRegion(bodyBlock)),
+                attributes(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
+
+        assertThat(actualLetOperation).isEqualTo(letOperation);
+        assertThat(actualLetOperation.result().type()).isEqualTo(irType(BOOLEAN));
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                LetOperationMetadata.NAME,
+                "%6",
+                ImmutableList.of(),
+                ImmutableList.of(singleBlockRegion(bodyBlock)),
+                attributes(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
+                .hasMessage("Let operation must have exactly one argument: the bound value");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                LetOperationMetadata.NAME,
+                "%6",
+                ImmutableList.of(constantOperationValue.result()),
+                ImmutableList.of(),
+                attributes(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
+                .hasMessage("Let operation must have exactly one region: the body");
     }
 
     @Test

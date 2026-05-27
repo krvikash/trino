@@ -35,6 +35,7 @@ import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.In;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
+import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.NullIf;
@@ -563,6 +564,50 @@ final class TestScalarProgramBuilder
                                 returnOperation)));
 
         assertProgram(lambdaExpression, ImmutableList.of(lambdaOperation), new FunctionType(ImmutableList.of(BOOLEAN, BOOLEAN), BOOLEAN));
+    }
+
+    @Test
+    public void testLet()
+    {
+        // the bound value is computed in the enclosing block and referenced in the body
+        // as the single field of the body block parameter. The body can also reference
+        // enclosing symbols through the composed mapping.
+        io.trino.sql.ir.Let letExpression = new io.trino.sql.ir.Let(
+                new Symbol(BIGINT, "x"),
+                new Reference(BIGINT, "a"),
+                new io.trino.sql.ir.Call(
+                        LESS_THAN_BIGINT,
+                        ImmutableList.of(new Reference(BIGINT, "x"), new Reference(BIGINT, "a"))));
+
+        FieldReference fieldReferenceOperationValue = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Block.Parameter letParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT)));
+        FieldReference fieldReferenceOperationX = new FieldReference("%2", letParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationA = new FieldReference("%3", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Call callOperation = new Call(
+                "%4",
+                ImmutableList.of(fieldReferenceOperationX.result(), fieldReferenceOperationA.result()),
+                LESS_THAN_BIGINT,
+                ImmutableList.of(fieldReferenceOperationX.attributes(), fieldReferenceOperationA.attributes()));
+        Return returnOperation = new Return("%5", callOperation.result(), callOperation.attributes());
+        Let letOperation = new Let(
+                "%6",
+                fieldReferenceOperationValue.result(),
+                new Block(
+                        Optional.of("^body"),
+                        ImmutableList.of(letParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationX,
+                                fieldReferenceOperationA,
+                                callOperation,
+                                returnOperation)),
+                fieldReferenceOperationValue.attributes());
+
+        assertProgram(
+                letExpression,
+                ImmutableList.of(
+                        fieldReferenceOperationValue,
+                        letOperation),
+                BOOLEAN);
     }
 
     @Test

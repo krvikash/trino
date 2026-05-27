@@ -55,6 +55,7 @@ import io.trino.sql.ir.IrExpressions;
 import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
+import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Match;
 import io.trino.sql.ir.Reference;
@@ -733,6 +734,14 @@ public final class GpuExpressionCompiler
                     ImmutableList.of(between.value(), between.min(), between.max()),
                     args -> new GpuBetween(args.get(0), args.get(1), args.get(2)),
                     context);
+        }
+
+        @Override
+        protected Optional<GpuExpression> visitLet(Let let, Void context)
+        {
+            // The GPU expression model has no variable binding, and inlining the bound value into the body
+            // would evaluate it once per occurrence, violating Let's single-evaluation semantics.
+            return Optional.empty();
         }
 
         @Override

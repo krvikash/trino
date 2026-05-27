@@ -41,6 +41,7 @@ import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
+import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Match;
 import io.trino.sql.ir.MatchClause;
@@ -93,6 +94,8 @@ class TestToOldIrScalarRewriter
 
     private static final MetadataManager TESTING_METADATA_MANAGER = TestingMetadataManager.builder().build();
     private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction LESS_THAN_OR_EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, ImmutableList.of(BIGINT, BIGINT));
 
     private static final ResolvedFunction EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(BIGINT, BIGINT));
 
@@ -709,6 +712,82 @@ class TestToOldIrScalarRewriter
                         returnOperation3));
 
         assertRoundtrip(lambda, rewritten);
+    }
+
+    @Test
+    public void testLet()
+    {
+        // the desugared form of `a + b BETWEEN 0 AND a` with a non-trivial value (see IrExpressions.between):
+        // the value is bound once via Let and referenced twice in the body.
+        // when new IR is rewritten to old IR, we drop all symbols. when rewriting back to old IR, we must reassign symbols.
+        // for the reassigned bound symbol, we use the default name "let". for the purpose of roundtrip, we use that name in the original expression.
+        ResolvedFunction addOperator = FUNCTION_RESOLUTION.resolveOperator(ADD, ImmutableList.of(BIGINT, BIGINT));
+        Let let = new Let(
+                new Symbol(BIGINT, "let"),
+                new Call(addOperator, ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BIGINT, "b"))),
+                new Logical(
+                        AND,
+                        ImmutableList.of(
+                                new Call(LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(new Constant(BIGINT, 0L), new Reference(BIGINT, "let"))),
+                                new Call(LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(new Reference(BIGINT, "let"), new Reference(BIGINT, "a"))))));
+
+        FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Call valueOperation = new io.trino.sql.dialect.trino.operation.Call(
+                "%2",
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation2.result()),
+                addOperator,
+                ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
+
+        Block.Parameter letParameter = new Block.Parameter("%3", irType(anonymousRow(BIGINT)));
+        io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%4", BIGINT, 0L);
+        FieldReference boundReferenceOperation1 = new FieldReference("%5", letParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Call callOperation1 = new io.trino.sql.dialect.trino.operation.Call(
+                "%6",
+                ImmutableList.of(constantOperation.result(), boundReferenceOperation1.result()),
+                LESS_THAN_OR_EQUAL_BIGINT,
+                ImmutableList.of(constantOperation.attributes(), boundReferenceOperation1.attributes()));
+        FieldReference boundReferenceOperation2 = new FieldReference("%7", letParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation3 = new FieldReference("%8", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Call callOperation2 = new io.trino.sql.dialect.trino.operation.Call(
+                "%9",
+                ImmutableList.of(boundReferenceOperation2.result(), fieldReferenceOperation3.result()),
+                LESS_THAN_OR_EQUAL_BIGINT,
+                ImmutableList.of(boundReferenceOperation2.attributes(), fieldReferenceOperation3.attributes()));
+        io.trino.sql.dialect.trino.operation.Logical logicalOperation = new io.trino.sql.dialect.trino.operation.Logical(
+                "%10",
+                ImmutableList.of(callOperation1.result(), callOperation2.result()),
+                LogicalOperator.AND,
+                ImmutableList.of(callOperation1.attributes(), callOperation2.attributes()));
+        Return bodyReturnOperation = new Return("%11", logicalOperation.result(), logicalOperation.attributes());
+        io.trino.sql.dialect.trino.operation.Let letOperation = new io.trino.sql.dialect.trino.operation.Let(
+                "%12",
+                valueOperation.result(),
+                new Block(
+                        Optional.of("^body"),
+                        ImmutableList.of(letParameter),
+                        ImmutableList.of(
+                                constantOperation,
+                                boundReferenceOperation1,
+                                callOperation1,
+                                boundReferenceOperation2,
+                                fieldReferenceOperation3,
+                                callOperation2,
+                                logicalOperation,
+                                bodyReturnOperation)),
+                valueOperation.attributes());
+        Return returnOperation = new Return("%13", letOperation.result(), letOperation.attributes());
+        Block rewritten = new Block(
+                Optional.empty(),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        fieldReferenceOperation1,
+                        fieldReferenceOperation2,
+                        valueOperation,
+                        letOperation,
+                        returnOperation));
+
+        assertRoundtrip(let, rewritten);
     }
 
     @Test

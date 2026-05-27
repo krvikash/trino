@@ -32,6 +32,7 @@ import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.In;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
+import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
@@ -318,6 +319,30 @@ public class ToOldIrScalarRewriter
             Expression lambdaExpression = toOldIr(lambdaBody, new Context(fieldMapping.buildOrThrow(), valueToOperation));
 
             return new io.trino.sql.ir.Lambda(lambdaParameters, lambdaExpression);
+        }
+
+        @Override
+        public Expression visitLet(Let operation, Context context)
+        {
+            Expression value = context.getOperation(operation.value()).accept(this, context);
+
+            // build context to visit the let body
+            // - compose field mapping from enclosing block mapping and the bound value mapping
+            Block body = operation.body();
+            Block.Parameter parameter = getOnlyElement(body.parameters());
+            Symbol symbol = symbolAllocator.newSymbol("let", getOnlyElement(trinoType(parameter.type()).getTypeParameters()));
+
+            ImmutableMap.Builder<RowField, Symbol> fieldMapping = ImmutableMap.builder();
+            fieldMapping.putAll(context.fieldMapping());
+            fieldMapping.put(new RowField(parameter, 0), symbol);
+
+            // - build value to operation mapping for the let body
+            Map<Value, TrinoOperation> valueToOperation = body.operations().stream()
+                    .collect(toImmutableMap(Operation::result, TrinoOperation.class::cast));
+
+            Expression bodyExpression = toOldIr(body, new Context(fieldMapping.buildOrThrow(), valueToOperation));
+
+            return new io.trino.sql.ir.Let(symbol, value, bodyExpression);
         }
 
         @Override

@@ -137,6 +137,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitLet(Let operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitLimit(Limit operation, C context)
     {
         return visitOperation(operation, context);
