@@ -3312,10 +3312,15 @@ public class LocalExecutionPlanner
                 Set<DynamicFilterId> localDynamicFilters,
                 LocalExecutionPlanContext context)
         {
+            Optional<GpuJoinPlanClosure> gpuJoinPlan = tryPlanGpuLookupJoin(node);
             // Plan probe
             PhysicalOperation probeSource;
             HashExchangeConstraint priorConstraint = context.getHashExchangeConstraint();
-            context.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
+            if (gpuJoinPlan.isEmpty()) {
+                // GpuJoinBridge is broadcast (single-driver build), so a GPU-eligible join does not
+                // require probe and build hash partitioners to agree on hash function.
+                context.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
+            }
             try {
                 probeSource = probeNode.accept(this, context);
             }
@@ -3350,18 +3355,12 @@ public class LocalExecutionPlanner
                             .containsAll(node.getRightOutputSymbols());
 
             LocalExecutionPlanContext buildContext = context.createSubContext();
-            Optional<PhysicalOperation> gpuOperation = tryPlanGpuLookupJoin(
-                    node,
-                    buildNode,
-                    buildSymbols,
-                    probeSource,
-                    probeOutputChannels,
-                    probeJoinChannels,
-                    localDynamicFilters,
-                    context,
-                    buildContext);
-            if (gpuOperation.isPresent()) {
-                return gpuOperation.get();
+            if (gpuJoinPlan.isPresent()) {
+                return gpuJoinPlan.get().complete(
+                        probeSource,
+                        localDynamicFilters,
+                        context,
+                        buildContext);
             }
             buildContext.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
             PhysicalOperation buildSource = buildNode.accept(this, buildContext);
@@ -4682,16 +4681,7 @@ public class LocalExecutionPlanner
                             node.getId()));
         }
 
-        private Optional<PhysicalOperation> tryPlanGpuLookupJoin(
-                JoinNode node,
-                PlanNode buildNode,
-                List<Symbol> buildSymbols,
-                PhysicalOperation probeSource,
-                List<Integer> probeOutputChannels,
-                List<Integer> probeJoinChannels,
-                Set<DynamicFilterId> localDynamicFilters,
-                LocalExecutionPlanContext context,
-                LocalExecutionPlanContext buildContext)
+        private Optional<GpuJoinPlanClosure> tryPlanGpuLookupJoin(JoinNode node)
         {
             if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
@@ -4718,10 +4708,10 @@ public class LocalExecutionPlanner
             }
 
             // Every probe and build column must be GPU-convertible (CopyToDevice copies all of them).
-            if (!probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+            if (!node.getLeft().getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
                 return Optional.empty();
             }
-            if (!buildNode.getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
+            if (!node.getRight().getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
                 return Optional.empty();
             }
 
@@ -4739,6 +4729,28 @@ public class LocalExecutionPlanner
                 compiledFilter = Optional.empty();
             }
 
+            return Optional.of((probeSource, localDynamicFilters, context, buildContext) ->
+                    planGpuLookupJoin(node, joinType, compiledFilter, probeSource, localDynamicFilters, context, buildContext));
+        }
+
+        private PhysicalOperation planGpuLookupJoin(
+                JoinNode node,
+                GpuLookupJoin.JoinType joinType,
+                Optional<CudfAstExpression> compiledFilter,
+                PhysicalOperation probeSource,
+                Set<DynamicFilterId> localDynamicFilters,
+                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext buildContext)
+        {
+            PlanNode buildNode = node.getRight();
+            List<Symbol> buildSymbols = node.getCriteria().stream()
+                    .map(JoinNode.EquiJoinClause::getRight)
+                    .collect(toImmutableList());
+            List<Symbol> probeSymbols = node.getCriteria().stream()
+                    .map(JoinNode.EquiJoinClause::getLeft)
+                    .collect(toImmutableList());
+            List<Integer> probeOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getLeftOutputSymbols(), probeSource.getLayout()));
+            List<Integer> probeJoinChannels = ImmutableList.copyOf(getChannelsForSymbols(probeSymbols, probeSource.getLayout()));
             // Force single build driver: GPU handles build-side parallelism internally.
             buildContext.setDriverInstanceCount(1);
             PhysicalOperation buildSource = buildNode.accept(this, buildContext);
@@ -4794,13 +4806,13 @@ public class LocalExecutionPlanner
                     buildOutputTypes,
                     filter.isPresent());
 
-            return Optional.of(addGpuOperation(
+            return addGpuOperation(
                     probeFactory,
                     joinOutputTypes,
                     probeSource,
                     makeLayout(node),
                     context,
-                    node.getId()));
+                    node.getId());
         }
 
         private GpuDynamicFilterCollector buildGpuDynamicFilterCollector(
@@ -4901,6 +4913,16 @@ public class LocalExecutionPlanner
                     hashStrategyCompiler,
                     createPartialAggregationController(maxPartialAggregationMemorySize, step, session));
         }
+    }
+
+    @FunctionalInterface
+    private interface GpuJoinPlanClosure
+    {
+        PhysicalOperation complete(
+                PhysicalOperation probeSource,
+                Set<DynamicFilterId> localDynamicFilters,
+                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext buildContext);
     }
 
     private int getPartitionedWriterCountBasedOnMemory(Session session)

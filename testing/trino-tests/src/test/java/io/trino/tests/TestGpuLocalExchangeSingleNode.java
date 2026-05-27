@@ -20,6 +20,7 @@ import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.ExchangeNode;
+import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.query.QueryAssertions;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SystemSessionProperties.ENABLE_INTERMEDIATE_AGGREGATIONS;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
@@ -51,6 +53,8 @@ public class TestGpuLocalExchangeSingleNode
         // Reads tpch.* directly; setInitialTables would trigger a CTAS that fails under
         // experimental.force-single-node-query=true with "TableExecuteContext not registered".
         return MemoryQueryRunner.builder()
+                // One worker so per-task operator stats translate directly into total counts.
+                .setWorkerCount(1)
                 .addExtraProperty("gpu-execution", "true")
                 .addExtraProperty("task.gpu-execution.enabled", "true")
                 .addWorkerProperty("gpu.memory.pool-size", "4GB")
@@ -166,6 +170,56 @@ public class TestGpuLocalExchangeSingleNode
         MaterializedResult expected = getQueryRunner().execute(cpuOnly, sql);
         assertThat(result.result().getMaterializedRows())
                 .as("GPU lookup join must give same result as CPU-only")
+                .isEqualTo(expected.getMaterializedRows());
+    }
+
+    @Test
+    public void testGpuLookupJoinBuildIsSingleDriver()
+    {
+        // GpuJoinBridge is broadcast, so the build runs single-driver; the probe-side local exchange's hash function then has no correctness invariant to honor.
+        MaterializedResultWithPlan result = getQueryRunner().executeWithPlan(
+                singleNodePartitionedSession(),
+                """
+                SELECT count(*)
+                FROM tpch.sf1.orders o
+                JOIN (SELECT custkey FROM tpch.sf1.customer GROUP BY custkey) c
+                  ON o.custkey = c.custkey
+                """);
+        PlanNodeId joinId = PlanNodeSearcher.searchFrom(result.queryPlan().orElseThrow().getRoot())
+                .where(JoinNode.class::isInstance).findOnlyElement().getId();
+        assertThat(queryStats(result).getOperatorSummaries().stream()
+                .filter(op -> op.getOperatorType().equals("SentinelSinkOperator") && op.getPlanNodeId().equals(joinId))
+                .collect(toImmutableList()))
+                .singleElement()
+                .satisfies(op -> assertThat(op.getTotalDrivers()).isEqualTo(1));
+    }
+
+    @Test
+    public void testProbeHashLocalExchangeRunsOnGpuWhenBothSidesAreGpu()
+    {
+        // Both join inputs end in a GpuOperator (FINAL aggregation) and the join key differs from the GROUP BY key, so each side gets a repartitioning HASH local exchange that must land on GPU.
+        Session session = singleNodePartitionedSession();
+        String sql =
+                """
+                SELECT count(*)
+                FROM (SELECT custkey, count(*) AS cnt FROM tpch.sf1.orders GROUP BY custkey) o
+                JOIN (SELECT nationkey, count(*) AS cnt FROM tpch.sf1.customer GROUP BY nationkey) c
+                  ON o.cnt = c.cnt
+                """;
+        MaterializedResultWithPlan result = getQueryRunner().executeWithPlan(session, sql);
+        Set<PlanNodeId> hashExchanges = findHashLocalExchanges(result);
+        Set<PlanNodeId> gpuPlanNodes = QueryAssertions.QueryAssert.collectGpuPlanNodes(queryStats(result));
+        assertThat(hashExchanges).as("plan must include HASH local exchanges on both sides of the join").isNotEmpty();
+        assertThat(hashExchanges)
+                .as("all HASH local exchanges fed by a GpuOperator must run on GPU when the join is GPU-eligible")
+                .isSubsetOf(gpuPlanNodes);
+
+        Session cpuOnly = Session.builder(session)
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
+        MaterializedResult expected = getQueryRunner().execute(cpuOnly, sql);
+        assertThat(result.result().getMaterializedRows())
+                .as("GPU+CPU mixed execution must give same result as CPU-only")
                 .isEqualTo(expected.getMaterializedRows());
     }
 
