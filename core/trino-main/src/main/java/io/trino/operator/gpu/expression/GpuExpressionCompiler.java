@@ -96,8 +96,10 @@ import static java.util.Objects.requireNonNull;
 /**
  * Compiles Trino Expressions into GPU-executable operations using cuDF.
  */
-public class GpuExpressionCompiler
+public final class GpuExpressionCompiler
 {
+    private GpuExpressionCompiler() {}
+
     private static final Logger log = Logger.get(GpuExpressionCompiler.class);
 
     private static final int TINYINT_DECIMAL_DIGITS = 3;
@@ -105,7 +107,7 @@ public class GpuExpressionCompiler
     private static final int INTEGER_DECIMAL_DIGITS = 10;
     private static final int BIGINT_DECIMAL_DIGITS = 19;
 
-    public Optional<List<CompiledExpression>> compileExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
+    public static Optional<List<CompiledExpression>> compileExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
     {
         ImmutableList.Builder<CompiledExpression> compiledExpressions = ImmutableList.builderWithExpectedSize(expressions.size());
         for (Expression expression : expressions) {
@@ -118,7 +120,7 @@ public class GpuExpressionCompiler
         return Optional.of(compiledExpressions.build());
     }
 
-    public Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout)
+    public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout)
     {
         CompilationVisitor visitor = new CompilationVisitor(layout);
         Optional<CompiledExpression> compiled = expression.accept(visitor, null)

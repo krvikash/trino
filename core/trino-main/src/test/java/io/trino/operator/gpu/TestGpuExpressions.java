@@ -29,7 +29,6 @@ import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuDateTrunc.Field;
-import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.Page;
@@ -97,6 +96,7 @@ import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
@@ -134,7 +134,6 @@ public class TestGpuExpressions
             ConnectorIdentity.ofUser("test"));
 
     private final TestingFunctionResolution functionResolution = new TestingFunctionResolution();
-    private final GpuExpressionCompiler gpuCompiler = new GpuExpressionCompiler();
 
     /**
      * Useful test strings, including interesting inputs and patterns for LIKE testing.
@@ -300,7 +299,7 @@ public class TestGpuExpressions
 
         Expression expression = new Cast(field(0, REAL), INTEGER);
         Map<Symbol, Integer> layout = layoutFor(List.of(REAL));
-        CompiledExpression compiledGpu = gpuCompiler.compileExpression(expression, layout).orElseThrow();
+        CompiledExpression compiledGpu = compileExpression(expression, layout).orElseThrow();
         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
 
         for (int value : values) {
@@ -407,7 +406,7 @@ public class TestGpuExpressions
 
                 Expression expression = buildUnaryOperatorExpression(operator, function, field(0, coerced));
                 Map<Symbol, Integer> layout = layoutFor(List.of(coerced));
-                Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression, layout);
+                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout);
                 if (gpuExpression.isEmpty()) {
                     // Not supported for GPU execution
                     continue;
@@ -451,7 +450,7 @@ public class TestGpuExpressions
 
                 Expression expression = new Cast(field(0, fromType), toType);
                 Map<Symbol, Integer> layout = layoutFor(List.of(fromType));
-                Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression, layout);
+                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout);
                 if (gpuExpression.isEmpty()) {
                     continue;
                 }
@@ -531,7 +530,7 @@ public class TestGpuExpressions
 
                     Expression expression = new Call(function, ImmutableList.of(field(0, leftCoerced), field(1, rightCoerced)));
                     Map<Symbol, Integer> layout = layoutFor(List.of(leftCoerced, rightCoerced));
-                    Optional<CompiledExpression> gpuExpression = gpuCompiler.compileExpression(expression, layout);
+                    Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout);
                     if (gpuExpression.isEmpty()) {
                         // Not supported for GPU execution
                         continue;
@@ -808,7 +807,7 @@ public class TestGpuExpressions
 
         if (operator == Comparison.Operator.IDENTICAL) {
             // operator currently not supported
-            assertThat(gpuCompiler.compileExpression(expression, layoutFor(inputTypes)))
+            assertThat(compileExpression(expression, layoutFor(inputTypes)))
                     .isEmpty();
             return;
         }
@@ -1140,7 +1139,7 @@ public class TestGpuExpressions
                 functionResolution.resolveFunction("year", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(expression, layoutFor(List.of(type)))
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)))
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
@@ -1373,7 +1372,7 @@ public class TestGpuExpressions
                 positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(constantExpression, layoutFor(List.of()))
+        CompiledExpression gpuExpression = compileExpression(constantExpression, layoutFor(List.of()))
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 
@@ -1391,7 +1390,7 @@ public class TestGpuExpressions
     {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
         PageProcessor pageProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(expression, layout)
+        CompiledExpression gpuExpression = compileExpression(expression, layout)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())

@@ -20,7 +20,6 @@ import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.expression.CompiledExpression;
-import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
@@ -55,6 +54,7 @@ import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregate
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.operator.scalar.JoniRegexpCasts.joniRegexp;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
@@ -80,7 +80,6 @@ final class TestGpuRegexpReplace
             ConnectorIdentity.ofUser("test"));
 
     private final TestingFunctionResolution functionResolution = new TestingFunctionResolution();
-    private final GpuExpressionCompiler gpuCompiler = new GpuExpressionCompiler();
 
     @BeforeAll
     public static void maybeSetGpuMemoryPool()
@@ -730,7 +729,7 @@ final class TestGpuRegexpReplace
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(VARCHAR, "ref0"), 0,
                 new Symbol(JONI_REGEXP, "ref1"), 1);
-        assertThat(gpuCompiler.compileExpression(expression, layout)).isEmpty();
+        assertThat(compileExpression(expression, layout)).isEmpty();
     }
 
     @Test
@@ -745,7 +744,7 @@ final class TestGpuRegexpReplace
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(VARCHAR, "ref0"), 0,
                 new Symbol(VARCHAR, "ref1"), 1);
-        assertThat(gpuCompiler.compileExpression(expression, layout)).isEmpty();
+        assertThat(compileExpression(expression, layout)).isEmpty();
     }
 
     @Test
@@ -842,7 +841,7 @@ final class TestGpuRegexpReplace
 
         void doesNotCompile()
         {
-            assertThat(gpuCompiler.compileExpression(expression, LAYOUT))
+            assertThat(compileExpression(expression, LAYOUT))
                     .describedAs("Expected GPU compilation to fail for %s", expressionString)
                     .isEmpty();
         }
@@ -865,7 +864,7 @@ final class TestGpuRegexpReplace
         {
             List<Type> inputTypes = List.of(VARCHAR);
 
-            CompiledExpression gpuExpression = gpuCompiler.compileExpression(expression, LAYOUT)
+            CompiledExpression gpuExpression = compileExpression(expression, LAYOUT)
                     .orElseThrow(() -> new AssertionError("GPU compilation failed for " + expressionString));
 
             assertThat(gpuExpression.inputChannels().getInputChannels())

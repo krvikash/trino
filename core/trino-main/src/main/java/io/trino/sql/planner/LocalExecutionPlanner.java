@@ -485,7 +485,6 @@ public class LocalExecutionPlanner
     private final DirectExchangeClientSupplier directExchangeClientSupplier;
     private final ExpressionCompiler expressionCompiler;
     private final boolean nodeGpuExecutionEnabled;
-    private final GpuExpressionCompiler gpuExpressionCompiler;
     private final PageFunctionCompiler pageFunctionCompiler;
     private final JoinFilterFunctionCompiler joinFilterFunctionCompiler;
     private final DataSize maxIndexMemorySize;
@@ -543,7 +542,6 @@ public class LocalExecutionPlanner
             ExpressionCompiler expressionCompiler,
             PageFunctionCompiler pageFunctionCompiler,
             @NodeGpuExecutionEnabled boolean nodeGpuExecutionEnabled,
-            GpuExpressionCompiler gpuExpressionCompiler,
             JoinFilterFunctionCompiler joinFilterFunctionCompiler,
             IndexJoinLookupStats indexJoinLookupStats,
             CacheStats cacheStats,
@@ -580,7 +578,6 @@ public class LocalExecutionPlanner
         this.pageSinkManager = requireNonNull(pageSinkManager, "pageSinkManager is null");
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
         this.nodeGpuExecutionEnabled = nodeGpuExecutionEnabled;
-        this.gpuExpressionCompiler = requireNonNull(gpuExpressionCompiler, "gpuExpressionCompiler is null");
         this.pageFunctionCompiler = requireNonNull(pageFunctionCompiler, "pageFunctionCompiler is null");
         this.joinFilterFunctionCompiler = requireNonNull(joinFilterFunctionCompiler, "joinFilterFunctionCompiler is null");
         this.indexJoinLookupStats = requireNonNull(indexJoinLookupStats, "indexJoinLookupStats is null");
@@ -2407,14 +2404,13 @@ public class LocalExecutionPlanner
                         sourceOutputTypes.stream().allMatch(GpuTypeConversion::isConvertible) &&
                         // projections have types supported on the GPU
                         projections.stream().map(Expression::type).allMatch(GpuTypeConversion::isConvertible)) {
-                    Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> gpuExpressionCompiler.compileExpression(filter, sourceLayout));
+                    Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> GpuExpressionCompiler.compileExpression(filter, sourceLayout));
                     if (staticFilters.isPresent() == gpuFilter.isPresent()) {
                         PhysicalOperation gpuOperation = sourceGpuOperation.get();
                         Optional<GpuDynamicFilterProvider> gpuDynamicFilter;
                         if (dynamicFilter != InternalDynamicFilter.EMPTY && isEnableDynamicRowFiltering(session)) {
                             gpuDynamicFilter = Optional.of(new GpuDynamicFilterProvider(
                                     new DomainTranslator(metadata),
-                                    gpuExpressionCompiler,
                                     dynamicFilter,
                                     ImmutableMap.copyOf(Maps.transformValues(columnHandleToSymbol, sourceLayout::get)),
                                     sourceOutputTypes));
@@ -2437,7 +2433,7 @@ public class LocalExecutionPlanner
                                     planNodeId);
                         }
 
-                        Optional<List<CompiledExpression>> gpuProjections = gpuExpressionCompiler.compileExpressions(projections, sourceLayout);
+                        Optional<List<CompiledExpression>> gpuProjections = GpuExpressionCompiler.compileExpressions(projections, sourceLayout);
                         if (gpuProjections.isPresent()) {
                             return addGpuOperation(
                                     new GpuProject.Factory(

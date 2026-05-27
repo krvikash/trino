@@ -22,7 +22,6 @@ import io.airlift.log.Logger;
 import io.trino.operator.ReferenceCount;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpression;
-import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.expression.GpuIsNull;
 import io.trino.operator.gpu.expression.GpuLogicalExpression;
 import io.trino.operator.project.InputChannels;
@@ -51,6 +50,7 @@ import java.util.function.Function;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static java.util.Objects.requireNonNull;
 
 public class GpuDynamicFilterProvider
@@ -76,7 +76,6 @@ public class GpuDynamicFilterProvider
     }
 
     private final DomainTranslator domainTranslator;
-    private final GpuExpressionCompiler compiler;
     private final DynamicFilter dynamicFilter;
     private final Map<ColumnHandle, Integer> sourceLayout;
     private final Map<ColumnHandle, Type> handleType;
@@ -93,14 +92,12 @@ public class GpuDynamicFilterProvider
 
     public GpuDynamicFilterProvider(
             DomainTranslator domainTranslator,
-            GpuExpressionCompiler compiler,
             DynamicFilter dynamicFilter,
             Map<ColumnHandle, Integer> sourceLayout,
             List<Type> types)
     {
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
         this.sourceLayout = ImmutableMap.copyOf(requireNonNull(sourceLayout, "sourceLayout is null"));
-        this.compiler = requireNonNull(compiler, "compiler is null");
         this.domainTranslator = requireNonNull(domainTranslator, "domainTranslator is null");
 
         ImmutableMap.Builder<ColumnHandle, Type> handleType = ImmutableMap.builder();
@@ -259,7 +256,7 @@ public class GpuDynamicFilterProvider
 
         Symbol symbol = new Symbol(handleType.get(handle), "synthetic");
         Expression expression = domainTranslator.toPredicate(domain, symbol.toSymbolReference());
-        Optional<GpuExpression> compiled = compiler.compileExpression(expression, ImmutableMap.of(symbol, 0))
+        Optional<GpuExpression> compiled = compileExpression(expression, ImmutableMap.of(symbol, 0))
                 .map(CompiledExpression::expression);
         if (compiled.isEmpty()) {
             log.debug("Could not convert Domain to GPU expression: %s", domain);

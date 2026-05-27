@@ -26,7 +26,6 @@ import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.OutputFactory;
 import io.trino.operator.gpu.expression.CompiledExpression;
-import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.Page;
@@ -67,6 +66,7 @@ import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -97,7 +97,6 @@ public class TestGpuCasts
 
     private PlanTester planTester;
     private TestingFunctionResolution functionResolution;
-    private GpuExpressionCompiler gpuCompiler;
     private FullConnectorSession fullConnectorSession;
 
     @BeforeAll
@@ -106,7 +105,6 @@ public class TestGpuCasts
         Session session = testSessionBuilder().build();
         planTester = PlanTester.create(session);
         functionResolution = new TestingFunctionResolution(planTester.getTransactionManager(), planTester.getPlannerContext());
-        gpuCompiler = new GpuExpressionCompiler();
         fullConnectorSession = new FullConnectorSession(session, session.getIdentity().toConnectorIdentity());
     }
 
@@ -560,7 +558,7 @@ public class TestGpuCasts
             this.to = to;
             this.castExpression = new Cast(new Reference(from, "ref0"), to);
             this.layout = ImmutableMap.of(new Symbol(from, "ref0"), 0);
-            this.compiled = Suppliers.memoize(() -> gpuCompiler.compileExpression(castExpression, layout));
+            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout));
         }
 
         /**
