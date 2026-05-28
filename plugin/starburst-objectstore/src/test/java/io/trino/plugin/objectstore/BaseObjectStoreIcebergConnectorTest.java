@@ -654,6 +654,32 @@ public abstract class BaseObjectStoreIcebergConnectorTest
         }
     }
 
+    @Test
+    public void testCreateChangelogViewProcedure()
+    {
+        // Verifies the Iceberg create_changelog_view procedure is exposed through the Object Store connector (see FeatureExposures).
+        try (TestTable table = newTrinoTable("test_changelog_view", "(id INT NOT NULL, value VARCHAR) WITH (merge_mode = 'copy-on-write')")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'b')", 2);
+            long startSnapshot = getLatestSnapshotId(table.getName());
+            assertUpdate("UPDATE " + table.getName() + " SET value = 'a2' WHERE id = 1", 1);
+            long endSnapshot = getLatestSnapshotId(table.getName());
+
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE create_changelog_view(" +
+                    "start_snapshot_id => " + startSnapshot + ", " +
+                    "end_snapshot_id => " + endSnapshot + ", " +
+                    "identifier_columns => ARRAY['id'])");
+            try {
+                assertThat(query("SELECT id, value, _change_type FROM " + table.getName() + "_changes"))
+                        .matches("VALUES " +
+                                "(INT '1', VARCHAR 'a2', VARCHAR 'update_after'), " +
+                                "(INT '1', VARCHAR 'a', VARCHAR 'update_before')");
+            }
+            finally {
+                assertUpdate("DROP VIEW " + table.getName() + "_changes");
+            }
+        }
+    }
+
     @Override
     protected Session withoutSmallFileThreshold(Session session)
     {

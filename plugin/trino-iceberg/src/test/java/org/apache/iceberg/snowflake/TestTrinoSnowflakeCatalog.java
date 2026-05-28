@@ -66,6 +66,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.units.Duration.ZERO;
+import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
@@ -250,6 +251,7 @@ public class TestTrinoSnowflakeCatalog
                 UNSUPPORTED_DELETION_VECTOR_WRITER,
                 OPTIMIZE_POSITION_DELETES,
                 REMOVE_DANGLING_DELETE_FILES,
+                CREATE_CHANGELOG_VIEW,
                 Optional.empty(),
                 3,
                 false,

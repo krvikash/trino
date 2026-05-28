@@ -31,5 +31,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = IcebergAddFilesFromTableHandle.class, name = "add_files_from_table"),
         @JsonSubTypes.Type(value = IcebergGenerateEmbeddingsHandle.class, name = "generate_embeddings"),
         @JsonSubTypes.Type(value = IcebergRemoveDanglingDeleteFilesHandle.class, name = "remove_dangling_delete_files"),
+        @JsonSubTypes.Type(value = IcebergCreateChangelogViewHandle.class, name = "create_changelog_view"),
 })
 public interface IcebergProcedureHandle {}

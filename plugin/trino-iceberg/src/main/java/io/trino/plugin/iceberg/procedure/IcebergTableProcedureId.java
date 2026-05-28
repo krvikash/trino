@@ -26,4 +26,5 @@ public enum IcebergTableProcedureId
     ADD_FILES,
     ADD_FILES_FROM_TABLE,
     GENERATE_EMBEDDINGS,
+    CREATE_CHANGELOG_VIEW,
 }

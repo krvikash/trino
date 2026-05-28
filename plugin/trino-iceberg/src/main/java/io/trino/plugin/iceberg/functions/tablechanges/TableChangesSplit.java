@@ -77,11 +77,16 @@ public record TableChangesSplit(
                 .toString();
     }
 
+    public static final String INSERT_CHANGE_TYPE_VALUE = "insert";
+    public static final String DELETE_CHANGE_TYPE_VALUE = "delete";
+    public static final String UPDATE_AFTER_CHANGE_TYPE_VALUE = "update_after";
+    public static final String UPDATE_BEFORE_CHANGE_TYPE_VALUE = "update_before";
+
     public enum ChangeType
     {
-        ADDED_FILE("insert"),
-        DELETED_FILE("delete"),
-        POSITIONAL_DELETE("delete");
+        ADDED_FILE(INSERT_CHANGE_TYPE_VALUE),
+        DELETED_FILE(DELETE_CHANGE_TYPE_VALUE),
+        POSITIONAL_DELETE(DELETE_CHANGE_TYPE_VALUE);
 
         private final String tableValue;
 

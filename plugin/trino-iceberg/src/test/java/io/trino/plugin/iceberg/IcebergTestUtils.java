@@ -55,6 +55,7 @@ import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
 import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
+import io.trino.plugin.iceberg.procedure.CreateChangelogView;
 import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.block.Block;
@@ -138,6 +139,8 @@ public final class IcebergTestUtils
             new NodeVersion("test_version"));
 
     public static final RemoveDanglingDeleteFiles REMOVE_DANGLING_DELETE_FILES = new RemoveDanglingDeleteFiles(newDirectExecutorService());
+
+    public static final CreateChangelogView CREATE_CHANGELOG_VIEW = new CreateChangelogView(new CatalogName("iceberg"), TESTING_TYPE_MANAGER);
 
     private IcebergTestUtils() {}
 

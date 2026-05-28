@@ -69,6 +69,7 @@ import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorS
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
+import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
@@ -144,6 +145,7 @@ public class TestIcebergCacheIds
                 UNSUPPORTED_DELETION_VECTOR_WRITER,
                 OPTIMIZE_POSITION_DELETES,
                 REMOVE_DANGLING_DELETE_FILES,
+                CREATE_CHANGELOG_VIEW,
                 Optional.of(metastoreFactory),
                 newDirectExecutorService(),
                 newDirectExecutorService(),

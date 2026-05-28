@@ -54,6 +54,8 @@ import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionProces
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionProvider;
 import io.trino.plugin.iceberg.procedure.AddFilesTableFromTableProcedure;
 import io.trino.plugin.iceberg.procedure.AddFilesTableProcedure;
+import io.trino.plugin.iceberg.procedure.CreateChangelogView;
+import io.trino.plugin.iceberg.procedure.CreateChangelogViewTableProcedure;
 import io.trino.plugin.iceberg.procedure.DropExtendedStatsTableProcedure;
 import io.trino.plugin.iceberg.procedure.ExpireSnapshotsTableProcedure;
 import io.trino.plugin.iceberg.procedure.FlushMetadataCacheProcedure;
@@ -144,6 +146,7 @@ public class IcebergModule
         binder.bind(PartitionStatisticsReader.class).in(Scopes.SINGLETON);
         binder.bind(PartitionStatisticsWriter.class).in(Scopes.SINGLETON);
         binder.bind(RemoveDanglingDeleteFiles.class).in(Scopes.SINGLETON);
+        binder.bind(CreateChangelogView.class).in(Scopes.SINGLETON);
         binder.bind(DeletionVectorWriter.class).to(DefaultDeletionVectorWriter.class).in(Scopes.SINGLETON);
         binder.bind(OptimizePositionDeletes.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMetadataFactory.class).in(Scopes.SINGLETON);
@@ -193,6 +196,7 @@ public class IcebergModule
         tableProcedures.addBinding().toProvider(AddFilesTableFromTableProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(IcebergGenerateEmbeddingsProcedure.class).in(Scopes.SINGLETON);
         tableProcedures.addBinding().toProvider(RemoveDanglingDeleteFilesTableProcedure.class).in(Scopes.SINGLETON);
+        tableProcedures.addBinding().toProvider(CreateChangelogViewTableProcedure.class).in(Scopes.SINGLETON);
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(TableChangesFunctionProvider.class).in(Scopes.SINGLETON);
         binder.bind(FunctionProvider.class).to(IcebergFunctionProvider.class).in(Scopes.SINGLETON);

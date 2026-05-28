@@ -276,6 +276,7 @@ public final class FeatureExposures
                 // sorted by procedure name, then by connector in (Hive, Iceberg, Delta, Hudi) order
                 .put(ICEBERG, "ADD_FILES", EXPOSED)
                 .put(ICEBERG, "ADD_FILES_FROM_TABLE", EXPOSED)
+                .put(ICEBERG, "CREATE_CHANGELOG_VIEW", EXPOSED)
                 .put(ICEBERG, "DROP_EXTENDED_STATS", EXPOSED) // TODO similar to drop_extended_stats *procedure* exposed by Delta
                 .put(ICEBERG, "EXPIRE_SNAPSHOTS", EXPOSED)
                 .put(ICEBERG, "GENERATE_EMBEDDINGS", EXPOSED)
