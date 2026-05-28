@@ -324,7 +324,7 @@ public abstract class GpuOperator
     private ListenableFuture<Void> blocked = NOT_BLOCKED;
     private final GpuPageToPages gpuPageToPages = new GpuPageToPages();
 
-    public GpuOperator(
+    private GpuOperator(
             OperatorContext operatorContext,
             @Move GpuOperation topOperation)
     {
@@ -414,7 +414,7 @@ public abstract class GpuOperator
         topOperation.close();
     }
 
-    public static class GpuSourceOperator
+    private static class GpuSourceOperator
             extends GpuOperator
             implements SourceOperator
     {
@@ -422,7 +422,7 @@ public abstract class GpuOperator
         private final GpuSourceOperation sourceOperation;
         private boolean splitSet;
 
-        public GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation)
+        private GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation)
         {
             super(operatorContext, topOperation);
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -450,12 +450,12 @@ public abstract class GpuOperator
         }
     }
 
-    public static class GpuIntermediateOperator
+    private static class GpuIntermediateOperator
             extends GpuOperator
     {
         private final GpuSourceOperation sourceOperation;
 
-        public GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation)
+        private GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation)
         {
             super(operatorContext, topOperation);
             this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
