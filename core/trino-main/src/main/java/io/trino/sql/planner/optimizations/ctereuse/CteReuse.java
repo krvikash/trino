@@ -643,7 +643,7 @@ public class CteReuse
                             Map.Entry::getKey,
                             entry -> columnMap.get(entry.getValue())));
 
-            expressionConjuncts.add(ConnectorExpressionTranslator.translate(session, expressionAndAssignments.expression(), plannerContext, variableMappings));
+            expressionConjuncts.add(ConnectorExpressionTranslator.translate(session, expressionAndAssignments.expression(), plannerContext, variableMappings, symbolAllocator));
         }
         TupleDomain<Symbol> symbolTupleDomain = tupleDomain.transformKeys(columnMap::get);
         expressionConjuncts.add(new DomainTranslator(metadata).toPredicate(symbolTupleDomain));
