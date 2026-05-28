@@ -20,7 +20,6 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.connector.SortOrder;
-import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -30,6 +29,7 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -118,27 +118,23 @@ public final class GpuTopN
         };
     }
 
-    private void bufferPage(GpuPage page)
+    private void bufferPage(@Borrow GpuPage page)
     {
-        @Borrow ColumnVector[] columns = new ColumnVector[page.columnCount()];
-        for (int i = 0; i < page.columnCount(); i++) {
-            columns[i] = ((DeviceMemory) page.column(i)).columnVector();
-        }
-
-        try (Table concatenated = accumulate(columns)) {
+        try (Table concatenated = accumulate(page)) {
             partialTopN.set(sortAndTruncate(concatenated));
         }
     }
 
-    private @Move Table accumulate(@Borrow ColumnVector[] columns)
+    private @Move Table accumulate(@Borrow GpuPage page)
     {
-        if (partialTopN.isEmpty()) {
-            return new Table(columns);
-        }
+        try (ClosingRef<Table> incoming = ClosingRef.own(toTable(page))) {
+            if (partialTopN.isEmpty()) {
+                return incoming.take();
+            }
 
-        try (Table accumulated = partialTopN.take();
-                Table newTable = new Table(columns)) {
-            return Table.concatenate(accumulated, newTable);
+            try (Table accumulated = partialTopN.take()) {
+                return Table.concatenate(accumulated, incoming.borrow());
+            }
         }
     }
 

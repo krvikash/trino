@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.base.gpu;
 
+import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Table;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
@@ -55,6 +56,24 @@ public final class GpuUtils
         finally {
             closeColumns(columns);
         }
+    }
+
+    public static @Move Table toTable(@Borrow GpuPage page)
+    {
+        @Borrow ColumnVector[] columns = new ColumnVector[page.columnCount()];
+        for (int i = 0; i < page.columnCount(); i++) {
+            columns[i] = ((Column.DeviceMemory) page.column(i)).columnVector();
+        }
+        return new Table(columns);
+    }
+
+    public static @Move Table toTable(@Borrow GpuPage page, int... selectedChannels)
+    {
+        ColumnVector[] selected = new ColumnVector[selectedChannels.length];
+        for (int i = 0; i < selectedChannels.length; i++) {
+            selected[i] = ((Column.DeviceMemory) page.column(selectedChannels[i])).columnVector();
+        }
+        return new Table(selected);
     }
 
     public static long retainedDeviceBytes(GpuPage page)

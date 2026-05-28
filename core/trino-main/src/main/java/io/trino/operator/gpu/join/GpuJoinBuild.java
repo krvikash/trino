@@ -25,7 +25,6 @@ import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.TablesList;
 import io.trino.plugin.base.gpu.UncheckedCloser;
-import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -36,6 +35,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuJoinBuild
@@ -150,16 +150,10 @@ public final class GpuJoinBuild
 
     private void bufferPage(@Borrow GpuPage page)
     {
-        int columnCount = page.columnCount();
         if (page.positionCount() == 0) {
             return;
         }
-        @Borrow ColumnVector[] tableColumns = new ColumnVector[columnCount];
-        for (int channel = 0; channel < columnCount; channel++) {
-            // Table constructor calls incRefCount(), so columns outlive the page being closed.
-            tableColumns[channel] = ((DeviceMemory) page.column(channel)).columnVector();
-        }
-        bufferedTables.add(new Table(tableColumns));
+        bufferedTables.add(toTable(page));
     }
 
     private void publishBuild()

@@ -13,7 +13,6 @@
  */
 package io.trino.operator.gpu.join;
 
-import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.gpu.GpuOperation;
@@ -21,7 +20,6 @@ import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier.GpuSemiJoinSet;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.TablesList;
 import io.trino.plugin.base.gpu.UncheckedCloser;
-import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -30,6 +28,7 @@ import io.trino.spi.gpu.borrow.Own;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuSemiJoinBuild
@@ -115,8 +114,7 @@ public final class GpuSemiJoinBuild
         if (page.positionCount() == 0) {
             return;
         }
-        @Borrow ColumnVector buildKeyColumn = ((DeviceMemory) page.column(buildKeyChannel)).columnVector();
-        bufferedTables.add(new Table(buildKeyColumn));
+        bufferedTables.add(toTable(page, buildKeyChannel));
     }
 
     private void publishBuild()

@@ -46,6 +46,7 @@ import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -192,7 +193,7 @@ public final class GpuLookupJoin
             }
         }
 
-        try (Table probeKeyTable = buildTableFromChannels(probePage, probeKeyChannels)) {
+        try (Table probeKeyTable = toTable(probePage, probeKeyChannels)) {
             @Own GatherMap[] maps;
             if (!filteredJoin) {
                 HashJoinBridge bridge = (HashJoinBridge) joinBridge;
@@ -206,7 +207,7 @@ public final class GpuLookupJoin
                 // The compiled AST references columns by their source-layout channel index, so
                 // hand the kernel the full probe page (wrapped as a cuDF Table view) and the
                 // full build source table; the kernel only reads columns the AST refers to.
-                try (Table probeSourceTable = buildTableFromPage(probePage)) {
+                try (Table probeSourceTable = toTable(probePage)) {
                     maps = switch (joinType) {
                         case INNER -> Table.mixedInnerJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
                         case LEFT -> Table.mixedLeftJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
@@ -229,7 +230,7 @@ public final class GpuLookupJoin
                 if (probeOutputChannels.length == 0) {
                     return Optional.of(assembleOutput(null, probeGatherMap, joinBridge.buildOutputTable(), buildGatherMap, rows));
                 }
-                try (Table probleTable = buildTableFromChannels(probePage, probeOutputChannels)) {
+                try (Table probleTable = toTable(probePage, probeOutputChannels)) {
                     return Optional.of(assembleOutput(probleTable, probeGatherMap, joinBridge.buildOutputTable(), buildGatherMap, rows));
                 }
             }
@@ -316,25 +317,6 @@ public final class GpuLookupJoin
                 buildGathered.close();
             }
         }
-    }
-
-    private static @Own Table buildTableFromChannels(@Borrow GpuPage page, int[] channels)
-    {
-        ColumnVector[] selected = new ColumnVector[channels.length];
-        for (int i = 0; i < channels.length; i++) {
-            selected[i] = ((DeviceMemory) page.column(channels[i])).columnVector();
-        }
-        return new Table(selected);
-    }
-
-    private static @Own Table buildTableFromPage(@Borrow GpuPage page)
-    {
-        int columnCount = page.columnCount();
-        @Borrow ColumnVector[] columns = new ColumnVector[columnCount];
-        for (int i = 0; i < columnCount; i++) {
-            columns[i] = ((DeviceMemory) page.column(i)).columnVector();
-        }
-        return new Table(columns);
     }
 
     @Override

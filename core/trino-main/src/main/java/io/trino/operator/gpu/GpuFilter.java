@@ -22,7 +22,6 @@ import io.trino.operator.gpu.GpuDynamicFilterProvider.CompiledDynamicFilter;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.plugin.base.gpu.UncheckedCloser;
-import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -37,6 +36,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.util.Objects.requireNonNull;
 
 public class GpuFilter
@@ -190,15 +190,7 @@ public class GpuFilter
                 return Optional.of(input.shallowCopy());
             }
 
-            @Borrow ColumnVector[] columnVectors = new ColumnVector[input.columnCount()];
-            for (int i = 0; i < input.columnCount(); i++) {
-                switch (input.column(i)) {
-                    case DeviceMemory deviceMemory -> columnVectors[i] = deviceMemory.columnVector();
-                    case Blocks _ -> throw new UnsupportedOperationException("Implement filtering of in memory blocks");
-                }
-            }
-
-            try (Table table = new Table(columnVectors);
+            try (Table table = toTable(input);
                     Table filtered = table.filter(mask)) {
                 verify(filtered.getRowCount() == retained, "Row count after filter does not match mask's retained: %s != %s", filtered.getRowCount(), retained);
                 return Optional.of(toGpuPage(filtered));

@@ -13,12 +13,9 @@
  */
 package io.trino.operator.gpu.aggregation;
 
-import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.plugin.base.gpu.TablesList;
-import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -29,6 +26,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -156,16 +154,11 @@ public abstract class GpuAggregation
 
         int columnCount = page.columnCount();
         if (columnCount == 0) {
+            // TODO shouldn't we rather check position count?
             return;
         }
 
-        @Borrow ColumnVector[] tableColumns = new ColumnVector[columnCount];
-        for (int channel = 0; channel < columnCount; channel++) {
-            // Table constructor calls incRefCount(), so columns outlive the page
-            tableColumns[channel] = ((DeviceMemory) page.column(channel)).columnVector();
-        }
-
-        inputTables.add(new Table(tableColumns));
+        inputTables.add(toTable(page));
     }
 
     /**

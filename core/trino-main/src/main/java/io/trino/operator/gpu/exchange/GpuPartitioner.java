@@ -13,7 +13,6 @@
  */
 package io.trino.operator.gpu.exchange;
 
-import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ContiguousTable;
 import ai.rapids.cudf.HashType;
 import ai.rapids.cudf.PartitionedTable;
@@ -27,6 +26,7 @@ import io.trino.spi.gpu.borrow.Own;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 
 /**
  * Hash-partitions a {@link GpuPage} across N partitions using cuDF {@code hashPartition}.
@@ -53,13 +53,7 @@ final class GpuPartitioner
             return new GpuPage[] {input.shallowCopy()};
         }
 
-        @Borrow ColumnVector[] tableColumns = new ColumnVector[columnCount];
-        for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-            tableColumns[columnIndex] = ((DeviceMemory) input.column(columnIndex)).columnVector();
-        }
-
-        // Table constructor incRefCount()s each column, so the cuDF Table holds an independent ref.
-        try (Table inputTable = new Table(tableColumns)) {
+        try (Table inputTable = toTable(input)) {
             return splitTable(inputTable, input.positionCount(), columnCount, keyChannels, numPartitions);
         }
     }
