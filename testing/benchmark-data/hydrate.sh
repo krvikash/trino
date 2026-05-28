@@ -12,6 +12,7 @@ Datasets:
   clickbench   ClickBench hits (hive, snappy, large files)
   tpch-sf30    TPC-H scale factor 30 (decimal, snappy, parquet)
   tpch-sf100   TPC-H scale factor 100 (decimal, snappy, parquet)
+  tpcds-sf100  TPC-DS scale factor 100 (snappy, parquet)
 
 Multiple datasets may be specified, e.g.:
   hydrate.sh clickbench tpch-sf30
@@ -26,6 +27,7 @@ fi
 want_clickbench=false
 want_tpch_sf30=false
 want_tpch_sf100=false
+want_tpcds_sf100=false
 
 for arg in "$@"; do
     case "${arg}" in
@@ -33,6 +35,7 @@ for arg in "$@"; do
             want_clickbench=true
             want_tpch_sf30=true
             want_tpch_sf100=true
+            want_tpcds_sf100=true
             ;;
         clickbench)
             want_clickbench=true
@@ -42,6 +45,9 @@ for arg in "$@"; do
             ;;
         tpch-sf100)
             want_tpch_sf100=true
+            ;;
+        tpcds-sf100)
+            want_tpcds_sf100=true
             ;;
         -h|--help)
             usage
@@ -99,26 +105,40 @@ fi
 DATA_ROOT="${HOME}/starburst-benchmark-data"
 
 TPCH_TABLES=(region nation customer supplier part partsupp orders lineitem)
+TPCDS_TABLES=(
+    call_center catalog_page catalog_returns catalog_sales
+    customer customer_address customer_demographics
+    date_dim household_demographics income_band
+    inventory item promotion reason ship_mode
+    store store_returns store_sales
+    time_dim warehouse web_page web_returns web_sales web_site
+)
 
 if "${want_clickbench}"; then
     mkdir -p "${DATA_ROOT}/clickbench/hits/"
     aws s3 sync --delete s3://starburst-benchmarks-data/ClickBench/hive/hits_snappy_large_files "${DATA_ROOT}/clickbench/hits/"
 fi
 
-sync_tpch() {
+sync_dataset() {
     local source_prefix="$1"
     local target_dir="$2"
+    shift 2
     mkdir -p "${target_dir}"
-    for table in "${TPCH_TABLES[@]}"; do
+    for table in "$@"; do
         mkdir -p "${target_dir}/${table}/"
         aws s3 sync --delete "${source_prefix}${table}/" "${target_dir}/${table}/"
     done
 }
 
 if "${want_tpch_sf30}"; then
-    sync_tpch s3://starburst-benchmarks-data/tpch-sf30-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf30"
+    sync_dataset s3://starburst-benchmarks-data/tpch-sf30-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf30" "${TPCH_TABLES[@]}"
 fi
 
 if "${want_tpch_sf100}"; then
-    sync_tpch s3://starburst-benchmarks-data/tpch-sf100-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf100"
+    sync_dataset s3://starburst-benchmarks-data/tpch-sf100-dec-snappy-PARQUET/ "${DATA_ROOT}/tpch-sf100" "${TPCH_TABLES[@]}"
+fi
+
+if "${want_tpcds_sf100}"; then
+    # TODO drop the -v20260528 suffix, replace old tpcds-sf100-snappy-PARQUET dataset
+    sync_dataset s3://starburst-benchmarks-data/tpcds-sf100-snappy-PARQUET-v20260528/ "${DATA_ROOT}/tpcds-sf100" "${TPCDS_TABLES[@]}"
 fi
