@@ -30,13 +30,11 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
@@ -191,27 +189,19 @@ public class GpuFilter
                 return Optional.of(input.shallowCopy());
             }
 
-            List<@Borrow ColumnVector> columnVectors = new ArrayList<>();
-            int[] columnVectorToIndex = new int[input.columnCount()];
+            @Borrow ColumnVector[] columnVectors = new ColumnVector[input.columnCount()];
             for (int i = 0; i < input.columnCount(); i++) {
                 switch (input.column(i)) {
-                    case DeviceMemory deviceMemory -> {
-                        columnVectorToIndex[columnVectors.size()] = i;
-                        columnVectors.add(deviceMemory.columnVector());
-                    }
+                    case DeviceMemory deviceMemory -> columnVectors[i] = deviceMemory.columnVector();
                     case Blocks _ -> throw new UnsupportedOperationException("Implement filtering of in memory blocks");
                 }
             }
 
-            // This must hold, otherwise we would not be doing GPU evaluation
-            checkState(!columnVectors.isEmpty(), "No column vectors found");
-
-            try (Table table = new Table(columnVectors.toArray(ColumnVector[]::new));
+            try (Table table = new Table(columnVectors);
                     Table filtered = table.filter(mask)) {
                 @Borrow Column[] filteredColumns = new Column[input.columnCount()];
-                for (int i = 0; i < columnVectors.size(); i++) {
-                    int columnIndex = columnVectorToIndex[i];
-                    filteredColumns[columnIndex] = new DeviceMemory(filtered.getColumn(i));
+                for (int i = 0; i < input.columnCount(); i++) {
+                    filteredColumns[i] = new DeviceMemory(filtered.getColumn(i));
                 }
                 return Optional.of(new GpuPage(retained, filteredColumns));
             }
