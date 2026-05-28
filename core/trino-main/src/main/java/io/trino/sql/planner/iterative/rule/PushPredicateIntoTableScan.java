@@ -207,6 +207,7 @@ public class PushPredicateIntoTableScan
             Expression resultingPredicate = createResultingPredicate(
                     plannerContext,
                     session,
+                    symbolAllocator,
                     splitExpression.getDynamicFilter(),
                     Booleans.TRUE,
                     splitExpression.getNonDeterministicPredicate(),
@@ -260,23 +261,26 @@ public class PushPredicateIntoTableScan
                     node.getUseConnectorNodePartitioning());
 
             Expression remainingDecomposedPredicate;
-            if (remainingConnectorExpression.isEmpty() || remainingConnectorExpression.get().equals(expressionTranslation.connectorExpression())) {
+            if (remainingConnectorExpression.isEmpty() || remainingConnectorExpression.get().equals(constraint.getExpression())) {
                 remainingDecomposedPredicate = decomposedPredicate.getRemainingExpression();
             }
             else {
                 Map<String, Symbol> variableMappings = assignments.values().stream()
                         .collect(toImmutableMap(Symbol::name, Function.identity()));
+                // translate inlines the IR predicate wrapped by any $engine_expression the connector
+                // echoed back, regardless of where it appears in the expression tree
                 Expression translatedExpression = ConnectorExpressionTranslator.translate(session, remainingConnectorExpression.get(), plannerContext, variableMappings);
                 translatedExpression = LambdaCaptureDesugaringRewriter.rewrite(translatedExpression, symbolAllocator);
                 // ConnectorExpressionTranslator may or may not preserve optimized form of expressions during round-trip. Avoid potential optimizer loop
                 // by ensuring expression is optimized.
-                translatedExpression = plannerContext.getExpressionOptimizer().process(translatedExpression, session, ImmutableMap.of()).orElse(translatedExpression);
+                translatedExpression = plannerContext.getExpressionOptimizer().process(translatedExpression, session, symbolAllocator, ImmutableMap.of()).orElse(translatedExpression);
                 remainingDecomposedPredicate = combineConjuncts(translatedExpression, expressionTranslation.remainingExpression());
             }
 
             Expression resultingPredicate = createResultingPredicate(
                     plannerContext,
                     session,
+                    symbolAllocator,
                     splitExpression.getDynamicFilter(),
                     new DomainTranslator(plannerContext.getMetadata()).toPredicate(remainingFilter.transformKeys(assignments::get)),
                     splitExpression.getNonDeterministicPredicate(),
@@ -353,6 +357,7 @@ public class PushPredicateIntoTableScan
     static Expression createResultingPredicate(
             PlannerContext plannerContext,
             Session session,
+            SymbolAllocator symbolAllocator,
             Expression dynamicFilter,
             Expression unenforcedConstraints,
             Expression nonDeterministicPredicate,
@@ -371,7 +376,7 @@ public class PushPredicateIntoTableScan
 
         // Make sure we produce an expression whose terms are consistent with the canonical form used in other optimizations
         // Otherwise, we'll end up ping-ponging among rules
-        expression = SimplifyExpressions.rewrite(expression, session, plannerContext.getMetadata(), plannerContext.getExpressionOptimizer());
+        expression = SimplifyExpressions.rewrite(expression, session, plannerContext.getMetadata(), symbolAllocator, plannerContext.getExpressionOptimizer());
 
         return expression;
     }
