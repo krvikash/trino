@@ -66,6 +66,12 @@ public class IcebergConfig
         VARIANT,
     }
 
+    public enum DropTableMode
+    {
+        PURGE,
+        KEEP,
+    }
+
     public static final int FORMAT_VERSION_SUPPORT_MIN = 1;
     private static final int FORMAT_VERSION_DEFAULT = 2;
     public static final int FORMAT_VERSION_SUPPORT_MAX = 3;
@@ -122,6 +128,7 @@ public class IcebergConfig
     private boolean bucketExecutionEnabled = true;
     private String timeZone = "UTC";
     private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
+    private DropTableMode dropTableMode = DropTableMode.PURGE;
 
     public CatalogType getCatalogType()
     {
@@ -787,6 +794,19 @@ public class IcebergConfig
     public IcebergConfig setLegacyVariantTypeMapping(VariantMapping legacyVariantTypeMapping)
     {
         this.legacyVariantTypeMapping = legacyVariantTypeMapping;
+        return this;
+    }
+
+    public DropTableMode getDropTableMode()
+    {
+        return dropTableMode;
+    }
+
+    @Config("iceberg.drop-table-mode")
+    @ConfigDescription("How to handle data and metadata for DROP TABLE statement")
+    public IcebergConfig setDropTableMode(DropTableMode dropTableMode)
+    {
+        this.dropTableMode = dropTableMode;
         return this;
     }
 }

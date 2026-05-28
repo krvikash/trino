@@ -165,7 +165,8 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.vacuum_min_retention', '7.00d', 'varchar'),
                         ('objectstore.validate_bucketing', 'true', 'boolean'),
                         ('objectstore.partition_statistics_collect_on_write', 'false', 'boolean'),
-                        ('objectstore.partition_statistics_enabled', 'true', 'boolean')""");
+                        ('objectstore.partition_statistics_enabled', 'true', 'boolean'),
+                        ('objectstore.drop_table_mode', 'PURGE', 'varchar')""");
     }
 
     @Test

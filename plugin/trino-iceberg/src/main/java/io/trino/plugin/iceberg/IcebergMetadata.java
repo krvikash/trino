@@ -51,6 +51,7 @@ import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.LocationAccessControl;
+import io.trino.plugin.iceberg.IcebergConfig.DropTableMode;
 import io.trino.plugin.iceberg.aggregation.DataSketchStateSerializer;
 import io.trino.plugin.iceberg.aggregation.IcebergThetaSketchForStats;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -336,6 +337,7 @@ import static io.trino.plugin.iceberg.IcebergMetadataColumn.ROW_ID;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergPartitionFunction.Transform.BUCKET;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.getDropTableMode;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getExpireSnapshotMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getQueryPartitionFilterRequiredSchemas;
@@ -2990,12 +2992,30 @@ public class IcebergMetadata
     @Override
     public void dropTable(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        if (tableHandle instanceof CorruptedIcebergTableHandle corruptedTableHandle) {
-            catalog.dropCorruptedTable(session, corruptedTableHandle.schemaTableName());
+        switch (getDropTableMode(session)) {
+            case DropTableMode.PURGE -> purgeTable(session, tableHandle);
+            case DropTableMode.KEEP -> catalog.unregisterTable(session, toSchemaTableName(tableHandle));
+        }
+    }
+
+    private void purgeTable(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        SchemaTableName tableName = toSchemaTableName(tableHandle);
+        if (tableHandle instanceof CorruptedIcebergTableHandle) {
+            catalog.dropCorruptedTable(session, tableName);
         }
         else {
-            catalog.dropTable(session, ((IcebergTableHandle) tableHandle).getSchemaTableName());
+            catalog.dropTable(session, tableName);
         }
+    }
+
+    private static SchemaTableName toSchemaTableName(ConnectorTableHandle tableHandle)
+    {
+        return switch (tableHandle) {
+            case CorruptedIcebergTableHandle handle -> handle.schemaTableName();
+            case IcebergTableHandle handle -> handle.getSchemaTableName();
+            default -> throw new IllegalArgumentException("Unknown table handle " + tableHandle);
+        };
     }
 
     @Override

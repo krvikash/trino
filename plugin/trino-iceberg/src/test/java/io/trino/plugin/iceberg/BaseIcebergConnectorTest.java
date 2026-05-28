@@ -6331,6 +6331,26 @@ public abstract class BaseIcebergConnectorTest
     }
 
     @Test
+    public void testDropTableKeepData()
+            throws Exception
+    {
+        Session keepData = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "drop_table_mode", "keep")
+                .build();
+
+        String tableName = "test_drop_table_keep_data" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+        String tableLocation = getTableLocation(tableName);
+        List<String> files = listFiles(tableLocation);
+
+        assertUpdate(keepData, "DROP TABLE " + tableName);
+        assertThat(getQueryRunner().tableExists(getSession(), tableName)).isFalse();
+
+        assertThat(listFiles(tableLocation))
+                .containsExactlyInAnyOrderElementsOf(files);
+    }
+
+    @Test
     void testPartitionHiddenColumn()
     {
         String tableName = "test_partition_" + randomNameSuffix();

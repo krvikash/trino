@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.plugin.hive.HiveCompressionOption;
+import io.trino.plugin.iceberg.IcebergConfig.DropTableMode;
 import io.trino.plugin.iceberg.IcebergConfig.VariantMapping;
 import jakarta.validation.constraints.AssertFalse;
 import jakarta.validation.constraints.AssertTrue;
@@ -94,7 +95,8 @@ public class TestIcebergConfig
                 .setMetadataParallelism(8)
                 .setBucketExecutionEnabled(true)
                 .setTimeZone("UTC")
-                .setLegacyVariantTypeMapping(VariantMapping.VARIANT));
+                .setLegacyVariantTypeMapping(VariantMapping.VARIANT)
+                .setDropTableMode(DropTableMode.PURGE));
     }
 
     @Test
@@ -147,6 +149,7 @@ public class TestIcebergConfig
                 .put("iceberg.bucket-execution", "false")
                 .put("iceberg.time-zone", nonDefaultTimeZone().getID())
                 .put("iceberg.legacy-variant-type-mapping", "JSON")
+                .put("iceberg.drop-table-mode", "keep")
                 .buildOrThrow();
 
         IcebergConfig expected = new IcebergConfig()
@@ -196,7 +199,8 @@ public class TestIcebergConfig
                 .setMetadataParallelism(10)
                 .setBucketExecutionEnabled(false)
                 .setTimeZone(nonDefaultTimeZone().getID())
-                .setLegacyVariantTypeMapping(VariantMapping.JSON);
+                .setLegacyVariantTypeMapping(VariantMapping.JSON)
+                .setDropTableMode(DropTableMode.KEEP);
 
         assertFullMapping(properties, expected);
     }

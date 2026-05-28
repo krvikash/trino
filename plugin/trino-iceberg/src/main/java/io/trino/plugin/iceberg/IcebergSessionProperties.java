@@ -23,6 +23,7 @@ import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
+import io.trino.plugin.iceberg.IcebergConfig.DropTableMode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.session.PropertyMetadata;
@@ -110,6 +111,7 @@ public final class IcebergSessionProperties
     private static final String INCREMENTAL_REFRESH_ENABLED = "incremental_refresh_enabled";
     public static final String BUCKET_EXECUTION_ENABLED = "bucket_execution_enabled";
     private static final String MAX_PARTITIONS_PER_WRITER = "max_partitions_per_writer";
+    private static final String DROP_TABLE_MODE = "drop_table_mode";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -414,6 +416,12 @@ public final class IcebergSessionProperties
                             }
                         },
                         false))
+                .add(enumProperty(
+                        DROP_TABLE_MODE,
+                        "How to handle data and metadata for DROP TABLE statement",
+                        DropTableMode.class,
+                        icebergConfig.getDropTableMode(),
+                        false))
                 .build();
     }
 
@@ -671,5 +679,10 @@ public final class IcebergSessionProperties
     public static int maxPartitionsPerWriter(ConnectorSession session)
     {
         return session.getProperty(MAX_PARTITIONS_PER_WRITER, Integer.class);
+    }
+
+    public static DropTableMode getDropTableMode(ConnectorSession session)
+    {
+        return session.getProperty(DROP_TABLE_MODE, DropTableMode.class);
     }
 }
