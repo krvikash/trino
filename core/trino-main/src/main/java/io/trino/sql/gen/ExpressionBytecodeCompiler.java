@@ -34,7 +34,6 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.sql.gen.LambdaBytecodeGenerator.CompiledLambda;
 import io.trino.sql.ir.Array;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Bind;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
@@ -135,7 +134,7 @@ public class ExpressionBytecodeCompiler
      * and only a call to that method will be inlined in the scope.
      * <p>
      * This behavior may be undesirable in some cases — for example, when temporary variables
-     * are used by child expressions. See {@link io.trino.sql.gen.BetweenCodeGenerator}. In such cases,
+     * are used by child expressions. In such cases,
      * {@link ExpressionBytecodeCompiler#compile(Expression, Scope)} should be used instead.
      * <p>
      * Scope complexity is estimated based on the number of expressions already inlined that
@@ -467,12 +466,6 @@ public class ExpressionBytecodeCompiler
         protected BytecodeNode visitNullIf(NullIf node, Context context)
         {
             return new NullIfCodeGenerator(node, metadata).generateExpression(generatorContext(context.scope(), context.lets()));
-        }
-
-        @Override
-        protected BytecodeNode visitBetween(Between node, Context context)
-        {
-            return new BetweenCodeGenerator(node, metadata).generateExpression(generatorContext(context.scope(), context.lets()));
         }
 
         @Override

@@ -35,7 +35,6 @@ import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Array;
 import io.trino.sql.dialect.trino.operation.AssignUniqueId;
-import io.trino.sql.dialect.trino.operation.Between;
 import io.trino.sql.dialect.trino.operation.Bind;
 import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Case;
@@ -569,69 +568,6 @@ class TestCreateOperation
                 ImmutableList.of(SOME_REGION),
                 attributes()))
                 .hasMessage("AssignUniqueId operation does not have regions");
-    }
-
-    @Test
-    public void testBetween()
-    {
-        Constant constantOperationValue = new Constant("%0", BIGINT, 0L);
-        Constant constantOperationMin = new Constant("%1", BIGINT, 1L);
-        Constant constantOperationMax = new Constant("%2", BIGINT, 2L);
-        Between betweenOperation = new Between(
-                "%3",
-                constantOperationValue.result(),
-                constantOperationMin.result(),
-                constantOperationMax.result(),
-                ImmutableList.of(constantOperationValue.attributes(), constantOperationMin.attributes(), constantOperationMax.attributes()));
-
-        Operation actualBetweenOperation = TESTING_TRINO_DIALECT.createOperation(
-                BetweenOperationMetadata.NAME,
-                "%3",
-                ImmutableList.of(constantOperationValue.result(), constantOperationMin.result(), constantOperationMax.result()),
-                ImmutableList.of(),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false));
-
-        assertThat(actualBetweenOperation).isEqualTo(betweenOperation);
-        assertThat(actualBetweenOperation.result().type()).isEqualTo(irType(BOOLEAN));
-
-        // wrong argument count
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                BetweenOperationMetadata.NAME,
-                "%3",
-                ImmutableList.of(constantOperationValue.result(), constantOperationMin.result()),
-                ImmutableList.of(),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("Between operation must have exactly three arguments");
-
-        // wrong region count
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                BetweenOperationMetadata.NAME,
-                "%3",
-                ImmutableList.of(constantOperationValue.result(), constantOperationMin.result(), constantOperationMax.result()),
-                ImmutableList.of(SOME_REGION),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("Between operation does not have regions");
     }
 
     @Test

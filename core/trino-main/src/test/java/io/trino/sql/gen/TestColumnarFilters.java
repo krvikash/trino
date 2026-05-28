@@ -58,6 +58,7 @@ import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
+import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
@@ -99,6 +100,7 @@ import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.NOT_EQUAL;
 import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.sql.ir.IrExpressions.constantNull;
+import static io.trino.sql.ir.IrUtils.extractConjuncts;
 import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.DataProviders.cartesianProduct;
@@ -466,16 +468,14 @@ public class TestColumnarFilters
         verifyFilter(inputPages, betweenFilter);
 
         // colA BETWEEN colB AND constant
-        betweenFilter = between(
-                new Reference(INTEGER, COL_INT_A),
+        betweenFilter = between(new Reference(INTEGER, COL_INT_A),
                 new Reference(INTEGER, COL_INT_B),
                 new Constant(INTEGER, CONSTANT + 5));
         assertThatColumnarFilterEvaluationIsSupported(betweenFilter);
         verifyFilter(inputPages, betweenFilter);
 
         // colA BETWEEN colB AND colC
-        betweenFilter = between(
-                new Reference(INTEGER, COL_INT_A),
+        betweenFilter = between(new Reference(INTEGER, COL_INT_A),
                 new Reference(INTEGER, COL_INT_B),
                 new Reference(INTEGER, COL_INT_C));
         assertThatColumnarFilterEvaluationIsSupported(betweenFilter);
@@ -491,6 +491,80 @@ public class TestColumnarFilters
                 new Constant(INTEGER, 5L));
         assertThatColumnarFilterEvaluationIsSupported(betweenFilter);
         verifyFilter(inputPages, betweenFilter);
+
+        // colB = constant AND colA BETWEEN constantA AND constantB, flattened into three conjuncts
+        Expression conjunctionWithBetween = new Logical(
+                Logical.Operator.AND,
+                ImmutableList.<Expression>builder()
+                        .add(comparison(EQUAL, new Reference(INTEGER, COL_INT_B), new Constant(INTEGER, CONSTANT)))
+                        .addAll(extractConjuncts(between(
+                                new Reference(INTEGER, COL_INT_A),
+                                new Constant(INTEGER, CONSTANT - 5),
+                                new Constant(INTEGER, CONSTANT + 5))))
+                        .build());
+        assertThatColumnarFilterEvaluationIsSupported(conjunctionWithBetween);
+        verifyFilter(inputPages, conjunctionWithBetween);
+
+        // colA - colB BETWEEN colC AND constant: the Let body references a column besides the bound value
+        betweenFilter = between(
+                call(
+                        FUNCTION_RESOLUTION.resolveOperator(SUBTRACT, ImmutableList.of(INTEGER, INTEGER)),
+                        new Reference(INTEGER, COL_INT_A),
+                        new Reference(INTEGER, COL_INT_B)),
+                new Reference(INTEGER, COL_INT_C),
+                new Constant(INTEGER, CONSTANT + 5));
+        assertThatColumnarFilterEvaluationIsNotSupported(betweenFilter);
+    }
+
+    @ParameterizedTest
+    @MethodSource("inputProviders")
+    public void testLet(NullsProvider nullsProvider, boolean dictionaryEncoded)
+    {
+        List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
+
+        // Let with a Reference value is evaluated by inlining the reference into the body
+        Symbol boundSymbol = new Symbol(INTEGER, "bound");
+        Reference boundReference = new Reference(INTEGER, "bound");
+        Expression letFilter = new Let(
+                boundSymbol,
+                new Reference(INTEGER, COL_INT_A),
+                new Logical(
+                        Logical.Operator.AND,
+                        ImmutableList.of(
+                                comparison(GREATER_THAN_OR_EQUAL, boundReference, new Constant(INTEGER, CONSTANT - 5)),
+                                comparison(LESS_THAN_OR_EQUAL, boundReference, new Constant(INTEGER, CONSTANT + 5)))));
+        assertThatColumnarFilterEvaluationIsSupported(letFilter);
+        verifyFilter(inputPages, letFilter);
+
+        // Let nested in an OR term
+        Expression orWithLet = new Logical(
+                Logical.Operator.OR,
+                ImmutableList.of(
+                        comparison(EQUAL, new Reference(INTEGER, COL_INT_C), new Constant(INTEGER, CONSTANT)),
+                        between(
+                                call(
+                                        FUNCTION_RESOLUTION.resolveOperator(SUBTRACT, ImmutableList.of(INTEGER, INTEGER)),
+                                        new Reference(INTEGER, COL_INT_A),
+                                        new Reference(INTEGER, COL_INT_B)),
+                                new Constant(INTEGER, -5L),
+                                new Constant(INTEGER, 5L))));
+        assertThatColumnarFilterEvaluationIsSupported(orWithLet);
+        verifyFilter(inputPages, orWithLet);
+
+        // Let with a non-trivial value is evaluated by projecting the value onto a synthesized channel
+        Expression projectedLetFilter = new Let(
+                boundSymbol,
+                call(
+                        FUNCTION_RESOLUTION.resolveOperator(SUBTRACT, ImmutableList.of(INTEGER, INTEGER)),
+                        new Reference(INTEGER, COL_INT_A),
+                        new Reference(INTEGER, COL_INT_B)),
+                new Logical(
+                        Logical.Operator.AND,
+                        ImmutableList.of(
+                                comparison(GREATER_THAN_OR_EQUAL, boundReference, new Constant(INTEGER, -5L)),
+                                comparison(LESS_THAN_OR_EQUAL, boundReference, new Constant(INTEGER, 5L)))));
+        assertThatColumnarFilterEvaluationIsSupported(projectedLetFilter);
+        verifyFilter(inputPages, projectedLetFilter);
     }
 
     @ParameterizedTest

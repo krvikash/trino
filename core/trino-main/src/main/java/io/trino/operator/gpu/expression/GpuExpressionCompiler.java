@@ -41,7 +41,6 @@ import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Array;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Bind;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
@@ -710,30 +709,6 @@ public final class GpuExpressionCompiler
         protected Optional<GpuExpression> visitBind(Bind node, Void context)
         {
             return Optional.empty();
-        }
-
-        @Override
-        protected Optional<GpuExpression> visitBetween(Between between, Void context)
-        {
-            switch (between.value().type()) {
-                case BooleanType _,
-                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
-                     RealType _, DoubleType _,
-                     DecimalType _,
-                     CharType _, VarcharType _, DateType _ -> {
-                    // cudf comparison semantics for carrier DType match those of Trino Type
-                }
-                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
-                    // cudf comparison semantics for carrier DType match those of Trino Type
-                }
-                default -> {
-                    return Optional.empty();
-                }
-            }
-            return compileNary(
-                    ImmutableList.of(between.value(), between.min(), between.max()),
-                    args -> new GpuBetween(args.get(0), args.get(1), args.get(2)),
-                    context);
         }
 
         @Override

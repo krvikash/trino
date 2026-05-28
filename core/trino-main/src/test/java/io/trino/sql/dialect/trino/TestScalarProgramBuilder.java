@@ -24,7 +24,6 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder.ValueNameAllocator;
 import io.trino.sql.dialect.trino.operation.Array;
-import io.trino.sql.dialect.trino.operation.Between;
 import io.trino.sql.dialect.trino.operation.Bind;
 import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Case;
@@ -67,7 +66,6 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
-import static io.trino.sql.ir.TestingIr.between;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -84,6 +82,8 @@ final class TestScalarProgramBuilder
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction LESS_THAN_OR_EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, ImmutableList.of(BIGINT, BIGINT));
 
     private static final ResolvedFunction EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(BIGINT, BIGINT));
 
@@ -119,28 +119,44 @@ final class TestScalarProgramBuilder
     @Test
     public void testBetween()
     {
-        Expression betweenExpression = between(
-                new io.trino.sql.ir.Constant(BIGINT, 0L),
-                new io.trino.sql.ir.Constant(BIGINT, 1L),
-                new io.trino.sql.ir.Constant(BIGINT, 2L));
+        // the desugared form of `0 BETWEEN 1 AND 2` with a trivial value (see IrExpressions.between).
+        // It maps 1-1 to new IR operations: there is no dedicated between operation.
+        Expression betweenExpression = new io.trino.sql.ir.Logical(
+                Operator.AND,
+                ImmutableList.of(
+                        new io.trino.sql.ir.Call(LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 1L), new io.trino.sql.ir.Constant(BIGINT, 0L))),
+                        new io.trino.sql.ir.Call(LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 0L), new io.trino.sql.ir.Constant(BIGINT, 2L)))));
 
-        Constant constantOperationValue = new Constant("%0", BIGINT, 0L);
-        Constant constantOperationMin = new Constant("%1", BIGINT, 1L);
-        Constant constantOperationMax = new Constant("%2", BIGINT, 2L);
-        Between betweenOperation = new Between(
-                "%3",
-                constantOperationValue.result(),
-                constantOperationMin.result(),
-                constantOperationMax.result(),
-                ImmutableList.of(constantOperationValue.attributes(), constantOperationMin.attributes(), constantOperationMax.attributes()));
+        Constant constantOperationMin = new Constant("%0", BIGINT, 1L);
+        Constant constantOperationValue1 = new Constant("%1", BIGINT, 0L);
+        Call callOperation1 = new Call(
+                "%2",
+                ImmutableList.of(constantOperationMin.result(), constantOperationValue1.result()),
+                LESS_THAN_OR_EQUAL_BIGINT,
+                ImmutableList.of(constantOperationMin.attributes(), constantOperationValue1.attributes()));
+        Constant constantOperationValue2 = new Constant("%3", BIGINT, 0L);
+        Constant constantOperationMax = new Constant("%4", BIGINT, 2L);
+        Call callOperation2 = new Call(
+                "%5",
+                ImmutableList.of(constantOperationValue2.result(), constantOperationMax.result()),
+                LESS_THAN_OR_EQUAL_BIGINT,
+                ImmutableList.of(constantOperationValue2.attributes(), constantOperationMax.attributes()));
+        Logical logicalOperation = new Logical(
+                "%6",
+                ImmutableList.of(callOperation1.result(), callOperation2.result()),
+                AND,
+                ImmutableList.of(callOperation1.attributes(), callOperation2.attributes()));
 
         assertProgram(
                 betweenExpression,
                 ImmutableList.of(
-                        constantOperationValue,
                         constantOperationMin,
+                        constantOperationValue1,
+                        callOperation1,
+                        constantOperationValue2,
                         constantOperationMax,
-                        betweenOperation),
+                        callOperation2,
+                        logicalOperation),
                 BOOLEAN);
     }
 

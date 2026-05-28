@@ -25,7 +25,6 @@ import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
-import io.trino.sql.dialect.trino.operation.Between;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
@@ -72,7 +71,6 @@ import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUT
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
-import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -147,26 +145,45 @@ class TestToOldIrScalarRewriter
     @Test
     public void testBetween()
     {
-        Expression between = between(new Reference(BIGINT, "b"), new Constant(BIGINT, 0L), new Reference(BIGINT, "a"));
+        // the desugared form of `b BETWEEN 0 AND a` with a trivial value (see IrExpressions.between).
+        // It maps 1-1 to new IR operations: there is no dedicated between operation.
+        Expression between = new Logical(
+                AND,
+                ImmutableList.of(
+                        new Call(LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(new Constant(BIGINT, 0L), new Reference(BIGINT, "b"))),
+                        new Call(LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(new Reference(BIGINT, "b"), new Reference(BIGINT, "a")))));
 
-        FieldReference firstFieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%1", BIGINT, 0L);
-        FieldReference secondFieldReferenceOperation = new FieldReference("%2", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Between betweenOperation = new Between(
-                "%3",
-                firstFieldReferenceOperation.result(),
-                constantOperation.result(),
-                secondFieldReferenceOperation.result(),
-                ImmutableList.of(firstFieldReferenceOperation.attributes(), constantOperation.attributes(), secondFieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%4", betweenOperation.result(), betweenOperation.attributes());
+        io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%0", BIGINT, 0L);
+        FieldReference fieldReferenceOperation1 = new FieldReference("%1", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Call callOperation1 = new io.trino.sql.dialect.trino.operation.Call(
+                "%2",
+                ImmutableList.of(constantOperation.result(), fieldReferenceOperation1.result()),
+                LESS_THAN_OR_EQUAL_BIGINT,
+                ImmutableList.of(constantOperation.attributes(), fieldReferenceOperation1.attributes()));
+        FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation3 = new FieldReference("%4", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Call callOperation2 = new io.trino.sql.dialect.trino.operation.Call(
+                "%5",
+                ImmutableList.of(fieldReferenceOperation2.result(), fieldReferenceOperation3.result()),
+                LESS_THAN_OR_EQUAL_BIGINT,
+                ImmutableList.of(fieldReferenceOperation2.attributes(), fieldReferenceOperation3.attributes()));
+        io.trino.sql.dialect.trino.operation.Logical logicalOperation = new io.trino.sql.dialect.trino.operation.Logical(
+                "%6",
+                ImmutableList.of(callOperation1.result(), callOperation2.result()),
+                LogicalOperator.AND,
+                ImmutableList.of(callOperation1.attributes(), callOperation2.attributes()));
+        Return returnOperation = new Return("%7", logicalOperation.result(), logicalOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(
-                        firstFieldReferenceOperation,
                         constantOperation,
-                        secondFieldReferenceOperation,
-                        betweenOperation,
+                        fieldReferenceOperation1,
+                        callOperation1,
+                        fieldReferenceOperation2,
+                        fieldReferenceOperation3,
+                        callOperation2,
+                        logicalOperation,
                         returnOperation));
 
         assertRoundtrip(between, rewritten);

@@ -99,8 +99,7 @@ public class BenchmarkColumnarFilter
             @Override
             Expression getExpression(Type type)
             {
-                return between(
-                        new Reference(type, COL_0),
+                return between(new Reference(type, COL_0),
                         new Constant(type, CONSTANT - 5),
                         new Constant(type, CONSTANT + 5));
             }

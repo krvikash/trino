@@ -15,6 +15,7 @@ package io.trino.sql.planner;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.StandaloneQueryRunner;
@@ -74,7 +75,12 @@ public class TestLocalExecutionPlanner
                 + " OR " + Joiner.on(" AND ").join(nCopies(1000, " c2 = rand()"))
                 + " OR " + Joiner.on(" AND ").join(nCopies(1000, " c3 + 1 BETWEEN rand() AND rand()"));
 
-        assertTrinoExceptionThrownBy(() -> runner.execute("SELECT * " + filterQueryInner + filterQueryWhere))
+        // Columnar filter evaluation projects sub-expressions into separate methods, so the filter no longer
+        // overflows a single method; exercise the compiler limit through the row-oriented filter compiler.
+        Session noColumnarFilter = Session.builder(TEST_SESSION)
+                .setSystemProperty("columnar_filter_evaluation_enabled", "false")
+                .build();
+        assertTrinoExceptionThrownBy(() -> runner.execute(noColumnarFilter, "SELECT * " + filterQueryInner + filterQueryWhere))
                 .hasErrorCode(QUERY_EXCEEDED_COMPILER_LIMIT)
                 .hasMessage("Query exceeded maximum filters. Please reduce the number of filters referenced and re-run the query.");
     }

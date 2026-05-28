@@ -10,7 +10,7 @@ IR version = 1
                 %18915 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %18916 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_10796]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8378]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %18917 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %18918 = constant() : () -> "integer" ()
@@ -22,7 +22,7 @@ IR version = 1
                 %18922 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %18923 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_10797]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8379]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %18924 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %18925 = constant() : () -> "integer" ()
@@ -114,14 +114,14 @@ IR version = 1
                     {field_reference:index = "1"}
                 %3199 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %3200 = comparison(%3198, %3199) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %3200 = call(%3198, %3199) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %3201 = field_reference(%3049) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %3202 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2002]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %3203 = comparison(%3201, %3202) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %3203 = call(%3201, %3202) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %3204 = logical(%3200, %3203) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %3207 = return(%3204) : ("boolean") -> "boolean" ()
@@ -223,7 +223,7 @@ IR version = 1
                 %19202 = return(%19201) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_10797""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8379""]"}
         %4193 = aggregation(%4020) : ("multiset(row(bigint,varbinary,integer))") -> "multiset(row(integer,bigint,varbinary))" ({
             ^aggregates (%4189 : "multiset(row(bigint,varbinary,integer))")
                 %4194 = aggregate_call(%4189) : ("multiset(row(bigint,varbinary,integer))") -> "varbinary" ({
@@ -439,7 +439,7 @@ IR version = 1
                 %19204 = return(%19203) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_10796""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8378""]"}
         %6839 = aggregation(%6420) : ("multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(varchar,varchar,varchar,varchar,varchar,varchar,varchar,integer,varbinary))" ({
             ^aggregates (%6835 : "multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))")
                 %6840 = aggregate_call(%6835) : ("multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))") -> "varbinary" ({
@@ -542,8 +542,8 @@ IR version = 1
                     {field_reference:index = "7"}
                 %6424 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %6425 = comparison(%6423, %6424) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %6425 = call(%6423, %6424) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %6430 = return(%6425) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -657,14 +657,14 @@ IR version = 1
             {ir.has_side_effects = "false"}
         %358 = filter(%352) : ("multiset(row(varchar,decimal(38,13)))") -> "multiset(row(varchar,decimal(38,13)))" ({
             ^predicate (%359 : "row(varchar,decimal(38,13))")
-                %360 = field_reference(%359) : ("row(varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %361 = constant() : () -> "decimal(38,13)" ()
+                %360 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %362 = comparison(%360, %361) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %361 = field_reference(%359) : ("row(varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %362 = call(%360, %361) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %363 = return(%362) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %9030 = table_scan() : () -> "multiset(row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),bigint))" ()
@@ -676,7 +676,7 @@ IR version = 1
                 %19072 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19073 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_10808]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8390]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19074 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19075 = constant() : () -> "integer" ()
@@ -688,7 +688,7 @@ IR version = 1
                 %19079 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19080 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_10809]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8391]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19081 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19082 = constant() : () -> "integer" ()
@@ -844,7 +844,7 @@ IR version = 1
                 %19206 = return(%19205) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_10809""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8391""]"}
         %10481 = aggregation(%10308) : ("multiset(row(bigint,varbinary,integer))") -> "multiset(row(integer,bigint,varbinary))" ({
             ^aggregates (%10477 : "multiset(row(bigint,varbinary,integer))")
                 %10482 = aggregate_call(%10477) : ("multiset(row(bigint,varbinary,integer))") -> "varbinary" ({
@@ -1060,7 +1060,7 @@ IR version = 1
                 %19208 = return(%19207) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_10808""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8390""]"}
         %11890 = aggregation(%11562) : ("multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(varchar,varchar,varchar,varchar,varchar,varchar,varchar,integer,varbinary))" ({
             ^aggregates (%11886 : "multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))")
                 %11891 = aggregate_call(%11886) : ("multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))") -> "varbinary" ({
@@ -1163,8 +1163,8 @@ IR version = 1
                     {field_reference:index = "7"}
                 %11566 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %11567 = comparison(%11565, %11566) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %11567 = call(%11565, %11566) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %11572 = return(%11567) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -1278,14 +1278,14 @@ IR version = 1
             {ir.has_side_effects = "false"}
         %715 = filter(%709) : ("multiset(row(varchar,decimal(38,13)))") -> "multiset(row(varchar,decimal(38,13)))" ({
             ^predicate (%716 : "row(varchar,decimal(38,13))")
-                %717 = field_reference(%716) : ("row(varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %718 = constant() : () -> "decimal(38,13)" ()
+                %717 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %719 = comparison(%717, %718) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %718 = field_reference(%716) : ("row(varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %719 = call(%717, %718) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %720 = return(%719) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %721 = join(%358, %715) : ("multiset(row(varchar,decimal(38,13)))", "multiset(row(varchar,decimal(38,13)))") -> "multiset(row(varchar,decimal(38,13),decimal(38,13)))" ({
@@ -1345,7 +1345,7 @@ IR version = 1
                 %19172 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19173 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_10822]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8404]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19174 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19175 = constant() : () -> "integer" ()
@@ -1357,7 +1357,7 @@ IR version = 1
                 %19179 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19180 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_10823]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_8405]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19181 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %19182 = constant() : () -> "integer" ()
@@ -1447,14 +1447,14 @@ IR version = 1
                     {field_reference:index = "1"}
                 %9988 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2002]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9989 = comparison(%9987, %9988) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %9989 = call(%9987, %9988) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9990 = field_reference(%3043) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9991 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9992 = comparison(%9990, %9991) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %9992 = call(%9990, %9991) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9993 = logical(%9989, %9992) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %9996 = return(%9993) : ("boolean") -> "boolean" ()
@@ -1532,7 +1532,7 @@ IR version = 1
                 %19213 = return(%19212) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_10823""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_8405""]"}
         %15388 = aggregation(%15099) : ("multiset(row(bigint,varbinary,integer))") -> "multiset(row(integer,bigint,varbinary))" ({
             ^aggregates (%15384 : "multiset(row(bigint,varbinary,integer))")
                 %15389 = aggregate_call(%15384) : ("multiset(row(bigint,varbinary,integer))") -> "varbinary" ({
@@ -1741,7 +1741,7 @@ IR version = 1
                 %19215 = return(%19214) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_10822""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_8404""]"}
         %16104 = aggregation(%15821) : ("multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(varchar,varchar,varchar,varchar,varchar,varchar,varchar,integer,varbinary))" ({
             ^aggregates (%16100 : "multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))")
                 %16105 = aggregate_call(%16100) : ("multiset(row(integer,varbinary,varchar,varchar,varchar,varchar,varchar,varchar,varchar))") -> "varbinary" ({
@@ -1844,8 +1844,8 @@ IR version = 1
                     {field_reference:index = "7"}
                 %15825 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2002]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15826 = comparison(%15824, %15825) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %15826 = call(%15824, %15825) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15831 = return(%15826) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -2025,8 +2025,8 @@ IR version = 1
                     {field_reference:index = "7"}
                 %6480 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2002]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %6481 = comparison(%6479, %6480) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %6481 = call(%6479, %6480) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %6486 = return(%6481) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -2144,8 +2144,8 @@ IR version = 1
                     {field_reference:index = "7"}
                 %11609 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2002]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %11610 = comparison(%11608, %11609) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %11610 = call(%11608, %11609) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %11615 = return(%11610) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -2311,8 +2311,8 @@ IR version = 1
                     {field_reference:index = "7"}
                 %15878 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15879 = comparison(%15877, %15878) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %15879 = call(%15877, %15878) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15884 = return(%15879) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -2426,14 +2426,14 @@ IR version = 1
             {ir.has_side_effects = "false"}
         %2180 = filter(%2174) : ("multiset(row(varchar,decimal(38,13)))") -> "multiset(row(varchar,decimal(38,13)))" ({
             ^predicate (%2181 : "row(varchar,decimal(38,13))")
-                %2182 = field_reference(%2181) : ("row(varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2183 = constant() : () -> "decimal(38,13)" ()
+                %2182 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2184 = comparison(%2182, %2183) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2183 = field_reference(%2181) : ("row(varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2184 = call(%2182, %2183) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2185 = return(%2184) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %2186 = join(%1819, %2180) : ("multiset(row(varchar,decimal(38,13),decimal(38,13)))", "multiset(row(varchar,decimal(38,13)))") -> "multiset(row(decimal(38,13),varchar,decimal(38,13),decimal(38,13)))" ({
@@ -2504,74 +2504,74 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^filter (%2222 : "row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))", %2223 : "row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))")
-                %2224 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2225 = constant() : () -> "decimal(38,13)" ()
+                %2224 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2226 = comparison(%2224, %2225) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2227 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2228 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2225 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2226 = call(%2224, %2225) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %2227 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2228 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2229 = call(%2227, %2228) : ("decimal(38,13)", "decimal(38,13)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2230 = constant() : () -> "decimal(38,6)" ()
                     {constant:value = "[type=decimal(38,6), value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2231 = case(%2226, %2229, %2230) : ("boolean", "decimal(38,6)", "decimal(38,6)") -> "decimal(38,6)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %2232 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2233 = constant() : () -> "decimal(38,13)" ()
+                %2232 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2234 = comparison(%2232, %2233) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2235 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2236 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2233 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2234 = call(%2232, %2233) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %2235 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2236 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2237 = call(%2235, %2236) : ("decimal(38,13)", "decimal(38,13)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2238 = constant() : () -> "decimal(38,6)" ()
                     {constant:value = "[type=decimal(38,6), value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2239 = case(%2234, %2237, %2238) : ("boolean", "decimal(38,6)", "decimal(38,6)") -> "decimal(38,6)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %2240 = comparison(%2231, %2239) : ("decimal(38,6)", "decimal(38,6)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %2241 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2242 = constant() : () -> "decimal(38,13)" ()
+                %2240 = call(%2231, %2239) : ("decimal(38,6)", "decimal(38,6)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,6)"",""decimal(38,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %2241 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2243 = comparison(%2241, %2242) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2242 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2243 = call(%2241, %2242) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2244 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2245 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2246 = call(%2244, %2245) : ("decimal(38,13)", "decimal(38,13)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2247 = constant() : () -> "decimal(38,6)" ()
                     {constant:value = "[type=decimal(38,6), value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2248 = case(%2243, %2246, %2247) : ("boolean", "decimal(38,6)", "decimal(38,6)") -> "decimal(38,6)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %2249 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2250 = constant() : () -> "decimal(38,13)" ()
+                %2249 = constant() : () -> "decimal(38,13)" ()
                     {constant:value = "[type=decimal(38,13), value=0.0000000000000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %2251 = comparison(%2249, %2250) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2250 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %2251 = call(%2249, %2250) : ("decimal(38,13)", "decimal(38,13)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2252 = field_reference(%2223) : ("row(decimal(38,13),varchar,decimal(38,13),decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2253 = field_reference(%2222) : ("row(varchar,decimal(38,13),decimal(38,13),varchar,varchar,varchar,decimal(38,13))") -> "decimal(38,13)" ()
-                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2254 = call(%2252, %2253) : ("decimal(38,13)", "decimal(38,13)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,13)"",""decimal(38,13)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2255 = constant() : () -> "decimal(38,6)" ()
                     {constant:value = "[type=decimal(38,6), value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2256 = case(%2251, %2254, %2255) : ("boolean", "decimal(38,6)", "decimal(38,6)") -> "decimal(38,6)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
-                %2257 = comparison(%2248, %2256) : ("decimal(38,6)", "decimal(38,6)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                %2257 = call(%2248, %2256) : ("decimal(38,6)", "decimal(38,6)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,6)"",""decimal(38,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2258 = logical(%2240, %2257) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2259 = return(%2258) : ("boolean") -> "boolean" ()
