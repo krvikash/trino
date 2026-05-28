@@ -13,29 +13,13 @@
  */
 package io.trino.operator.gpu;
 
-import ai.rapids.cudf.Table;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 
-import java.util.List;
-
 public final class GpuUtils
 {
     private GpuUtils() {}
-
-    public static @Move Table concatenateAndClose(@Move List<Table> tables)
-    {
-        if (tables.size() == 1) {
-            return tables.getFirst();
-        }
-        try {
-            return Table.concatenate(tables.toArray(Table[]::new));
-        }
-        finally {
-            tables.forEach(Table::close);
-        }
-    }
 
     /**
      * Closes all non-null columns in the array. Elements may be null if the array was partially populated.

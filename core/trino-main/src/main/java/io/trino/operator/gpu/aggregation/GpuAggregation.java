@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.plugin.base.gpu.TablesList;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -25,7 +26,6 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 import jakarta.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -99,7 +99,7 @@ public abstract class GpuAggregation
     protected final List<GpuAggregateFunction> aggregates;
     protected final boolean inputRaw;
 
-    protected final List<@Own Table> inputTables = new ArrayList<>();
+    protected final @Own TablesList inputTables = TablesList.create();
     protected long totalBufferedRowCount;
     private @Nullable @Own GpuPage result;
     private boolean finished;
@@ -179,8 +179,7 @@ public abstract class GpuAggregation
     public void close()
     {
         source.close();
-        inputTables.forEach(Table::close);
-        inputTables.clear();
+        inputTables.close();
         if (result != null) {
             result.close();
             result = null;

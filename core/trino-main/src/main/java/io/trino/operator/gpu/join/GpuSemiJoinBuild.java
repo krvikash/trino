@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier.GpuSemiJoinSet;
 import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.gpu.TablesList;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -26,12 +27,9 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.operator.gpu.GpuUtils.concatenateAndClose;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuSemiJoinBuild
@@ -70,7 +68,7 @@ public final class GpuSemiJoinBuild
     private final int buildKeyChannel;
 
     // Never observed by the probe side
-    private final List<@Own Table> bufferedTables = new ArrayList<>();
+    private final @Own TablesList bufferedTables = TablesList.create();
 
     // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildKeyTable = ClosingRef.empty();
@@ -130,9 +128,7 @@ public final class GpuSemiJoinBuild
             set = new GpuSemiJoinSet(Optional.empty(), false);
         }
         else {
-            buildKeyTable.set(concatenateAndClose(bufferedTables));
-            bufferedTables.clear();
-
+            buildKeyTable.set(bufferedTables.concatenateAndClear());
             boolean buildHasNull = buildKeyTable.borrow().getColumn(0).hasNulls();
             set = new GpuSemiJoinSet(Optional.of(buildKeyTable.borrow()), buildHasNull);
         }
@@ -161,10 +157,8 @@ public final class GpuSemiJoinBuild
     {
         try (var closer = UncheckedCloser.create()) {
             closer.register(source);
-
             // if there is anything in bufferedTables, it hasn't been exposed to probe side yet
-            bufferedTables.forEach(table -> closer.register(table::close));
-            bufferedTables.clear();
+            closer.register(bufferedTables);
 
             // If publish wasn't reached, we still own the resources and need to close them.
             if (!published) {

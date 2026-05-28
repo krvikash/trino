@@ -29,7 +29,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.GpuUtils.closeColumns;
-import static io.trino.operator.gpu.GpuUtils.concatenateAndClose;
 
 /**
  * GPU aggregation without GROUP BY (global aggregation).
@@ -103,7 +102,7 @@ final class GpuGlobalAggregation
     {
         checkState(!inputTables.isEmpty(), "Expected non-empty inputTables");
 
-        try (Table concatenated = concatenateAndClose(inputTables)) {
+        try (Table concatenated = inputTables.concatenateAndClear()) {
             return reduce(concatenated);
         }
     }

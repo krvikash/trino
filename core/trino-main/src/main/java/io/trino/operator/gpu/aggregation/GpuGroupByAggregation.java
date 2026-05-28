@@ -30,7 +30,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.GpuUtils.closeColumns;
-import static io.trino.operator.gpu.GpuUtils.concatenateAndClose;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -64,7 +63,7 @@ final class GpuGroupByAggregation
     {
         checkState(!inputTables.isEmpty(), "Expected non-empty inputTables");
 
-        try (Table concatenated = concatenateAndClose(inputTables)) {
+        try (Table concatenated = inputTables.concatenateAndClear()) {
             GroupByAggregationOnColumn[] aggregations = new GroupByAggregationOnColumn[aggregates.size()];
             for (int i = 0; i < aggregates.size(); i++) {
                 GpuAggregateFunction aggregate = aggregates.get(i);
