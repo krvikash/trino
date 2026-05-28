@@ -223,7 +223,7 @@ public class NewIrFragmenter
             this.planNodeIdAllocator = requireNonNull(planNodeIdAllocator, "planNodeIdAllocator is null");
             this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
             this.nameAllocator = requireNonNull(nameAllocator, "nameAllocator is null");
-            this.scalarRewriter = new ToOldIrScalarRewriter(symbolAllocator, metadata);
+            this.scalarRewriter = new ToOldIrScalarRewriter(symbolAllocator);
             this.relationalRewriter = new ToOldIrRelationalRewriter(planNodeIdAllocator, symbolAllocator, scalarRewriter, session, metadata);
             this.processedRemoteExchanges = new HashMap<>();
         }

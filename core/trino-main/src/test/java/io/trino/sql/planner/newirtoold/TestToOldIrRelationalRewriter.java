@@ -701,7 +701,7 @@ class TestToOldIrRelationalRewriter
         // rewrite of TableScan involves a metadata call to resolve column names. This test uses the test metadata manager, which does not support it, so we don't test TableScan rewrite.
         // TODO test TableScan rewrite
         Metadata metadata = createTestingMetadataManager();
-        ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator, metadata), testSession(), metadata);
+        ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator), testSession(), metadata);
         return ((TrinoOperation) rewrittenOperation).accept(rewriter, planNode.getSources());
     }
 }

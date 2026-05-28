@@ -15,10 +15,8 @@ package io.trino.sql.planner.newirtoold;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.metadata.MetadataManager;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
-import io.trino.metadata.TestingMetadataManager;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.Context;
@@ -26,7 +24,6 @@ import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
 import io.trino.sql.dialect.trino.operation.FieldReference;
-import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Array;
@@ -91,7 +88,6 @@ class TestToOldIrScalarRewriter
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
-    private static final MetadataManager TESTING_METADATA_MANAGER = TestingMetadataManager.builder().build();
     private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
 
     private static final ResolvedFunction LESS_THAN_OR_EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, ImmutableList.of(BIGINT, BIGINT));
@@ -838,23 +834,40 @@ class TestToOldIrScalarRewriter
     @Test
     public void testNullIf()
     {
-        Expression nullIf = new io.trino.sql.ir.NullIf(new Reference(BIGINT, "b"), new Reference(BIGINT, "a"));
+        // the desugared form of `NULLIF(b, a)` with a trivial first operand (see IrExpressions.nullIf).
+        // It maps 1-1 to new IR operations: there is no dedicated null_if operation.
+        Expression nullIf = new Case(
+                ImmutableList.of(new WhenClause(
+                        new Call(EQUAL_BIGINT, ImmutableList.of(new Reference(BIGINT, "b"), new Reference(BIGINT, "a"))),
+                        new Constant(BIGINT, null))),
+                new Reference(BIGINT, "b"));
 
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        NullIf nullIfOperation = new NullIf(
+        io.trino.sql.dialect.trino.operation.Call callOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%2",
-                fieldReferenceOperation1.result(),
-                fieldReferenceOperation2.result(),
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation2.result()),
+                EQUAL_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
-        Return returnOperation = new Return("%3", nullIfOperation.result(), nullIfOperation.attributes());
+        io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%3", BIGINT, null);
+        FieldReference fieldReferenceOperation3 = new FieldReference("%4", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        io.trino.sql.dialect.trino.operation.Case caseOperation = new io.trino.sql.dialect.trino.operation.Case(
+                "%5",
+                ImmutableList.of(callOperation.result()),
+                ImmutableList.of(constantOperation.result()),
+                fieldReferenceOperation3.result(),
+                ImmutableList.of(callOperation.attributes(), constantOperation.attributes(), fieldReferenceOperation3.attributes()));
+        Return returnOperation = new Return("%6", caseOperation.result(), caseOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(
                         fieldReferenceOperation1,
                         fieldReferenceOperation2,
-                        nullIfOperation,
+                        callOperation,
+                        constantOperation,
+                        fieldReferenceOperation3,
+                        caseOperation,
                         returnOperation));
 
         assertRoundtrip(nullIf, rewritten);
@@ -1016,7 +1029,7 @@ class TestToOldIrScalarRewriter
         Block block = blockBuilder.build();
         assertThat(block).isEqualTo(rewritten);
 
-        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER);
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator());
         Expression roundtripExpression = scalarRewriter.toOldIr(block, ImmutableList.of(INPUT_SYMBOLS, anotherSymbolList));
         assertThat(roundtripExpression).isEqualTo(coalesce);
     }
@@ -1028,7 +1041,7 @@ class TestToOldIrScalarRewriter
                 "^emptyFieldSelector",
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
-        Expression expression = new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(emptyFieldSelector, ImmutableList.of(INPUT_SYMBOLS));
+        Expression expression = new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(emptyFieldSelector, ImmutableList.of(INPUT_SYMBOLS));
 
         assertThat(expression).isEqualTo(new Constant(EMPTY_ROW, null));
     }
@@ -1052,7 +1065,7 @@ class TestToOldIrScalarRewriter
                         rowOperation,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getSelectedSymbols(fieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(fieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(new Symbol(BOOLEAN, "c"), new Symbol(BIGINT, "a")));
 
         // empty field selector
@@ -1061,7 +1074,7 @@ class TestToOldIrScalarRewriter
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getSelectedSymbols(emptyFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(emptyFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of());
 
         // block is not a field selector
@@ -1073,7 +1086,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         returnOperation2));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getSelectedSymbols(notAFieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(notAFieldSelector, INPUT_SYMBOLS))
                 .hasMessage("Expected field selector block");
     }
 
@@ -1095,7 +1108,7 @@ class TestToOldIrScalarRewriter
                         rowOperation1,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(oneFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(oneFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(Optional.of(new Symbol(BOOLEAN, "c")));
 
         // empty field selector
@@ -1104,7 +1117,7 @@ class TestToOldIrScalarRewriter
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(emptyFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(emptyFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(Optional.empty());
 
         // multiple symbols selected
@@ -1122,7 +1135,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation2,
                         rowOperation2,
                         returnOperation2));
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(fieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(fieldSelector, INPUT_SYMBOLS))
                 .hasMessage("expected one element but was: <c::[boolean], a::[bigint]>");
 
         // block is not a field selector
@@ -1134,7 +1147,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         returnOperation3));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(notAFieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(notAFieldSelector, INPUT_SYMBOLS))
                 .hasMessage("Expected field selector block");
     }
 
@@ -1167,7 +1180,7 @@ class TestToOldIrScalarRewriter
                         rowOperation,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getExpressions(block, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(block, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(
                         new Constant(BIGINT, 0L),
                         new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BIGINT, "b"))),
@@ -1183,7 +1196,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation4,
                         returnOperation2));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getExpressions(notARowOfExpressions, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(notARowOfExpressions, INPUT_SYMBOLS))
                 .hasMessage("Expected block returning a row");
     }
 
@@ -1201,7 +1214,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation,
                         returnOperation));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(invalidReferenceBlock1, ImmutableList.of(INPUT_SYMBOLS)))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(invalidReferenceBlock1, ImmutableList.of(INPUT_SYMBOLS)))
                 .hasMessage("Could not resolve reference %unmapped[0] as block parameter field");
     }
 
@@ -1223,7 +1236,7 @@ class TestToOldIrScalarRewriter
         // the symbols lists must match block parameters in size and types
 
         // too few symbol lists
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting 2 lists for 2 block parameters, got 1
@@ -1231,7 +1244,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // too many symbol lists
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting 2 lists for 2 block parameters, got 3
@@ -1241,7 +1254,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // symbol list size mismatch
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
@@ -1250,7 +1263,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // type mismatch
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting BIGINT, BOOLEAN
@@ -1267,7 +1280,7 @@ class TestToOldIrScalarRewriter
                         constantOperation,
                         returnOperation));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
                 bigintBlock,
                 ImmutableList.of(ImmutableList.of(new Symbol(BIGINT, "a")))))
                 .hasMessage("Type mismatch");
@@ -1282,7 +1295,7 @@ class TestToOldIrScalarRewriter
         Block block = blockBuilder.build();
         assertThat(block).isEqualTo(rewritten);
 
-        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER);
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator());
         Expression roundtripExpression = scalarRewriter.toOldIr(block, ImmutableList.of(INPUT_SYMBOLS));
         assertThat(roundtripExpression).isEqualTo(expression);
     }

@@ -37,7 +37,6 @@ import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
-import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.ir.Expression;
@@ -659,24 +658,43 @@ final class TestScalarProgramBuilder
     @Test
     public void testNullIf()
     {
-        io.trino.sql.ir.NullIf nullIfExpression = new io.trino.sql.ir.NullIf(
-                new io.trino.sql.ir.Constant(BIGINT, 0L),
-                new io.trino.sql.ir.Constant(SMALLINT, 1L));
+        // the desugared form of `NULLIF(0, smallint 1)` with a trivial first operand (see IrExpressions.nullIf):
+        // the second operand is cast to the comparison type. It maps 1-1 to new IR operations.
+        Expression nullIfExpression = new io.trino.sql.ir.Case(
+                ImmutableList.of(new WhenClause(
+                        new io.trino.sql.ir.Call(EQUAL_BIGINT, ImmutableList.of(
+                                new io.trino.sql.ir.Constant(BIGINT, 0L),
+                                new io.trino.sql.ir.Cast(new io.trino.sql.ir.Constant(SMALLINT, 1L), BIGINT))),
+                        new io.trino.sql.ir.Constant(BIGINT, null))),
+                new io.trino.sql.ir.Constant(BIGINT, 0L));
 
         Constant constantOperationFirst = new Constant("%0", BIGINT, 0L);
         Constant constantOperationSecond = new Constant("%1", SMALLINT, 1L);
-        NullIf nullIfOperation = new NullIf(
-                "%2",
-                constantOperationFirst.result(),
-                constantOperationSecond.result(),
-                ImmutableList.of(constantOperationFirst.attributes(), constantOperationSecond.attributes()));
+        Cast castOperation = new Cast("%2", constantOperationSecond.result(), BIGINT, constantOperationSecond.attributes());
+        Call callOperation = new Call(
+                "%3",
+                ImmutableList.of(constantOperationFirst.result(), castOperation.result()),
+                EQUAL_BIGINT,
+                ImmutableList.of(constantOperationFirst.attributes(), castOperation.attributes()));
+        Constant constantOperationNull = new Constant("%4", BIGINT, null);
+        Constant constantOperationDefault = new Constant("%5", BIGINT, 0L);
+        Case caseOperation = new Case(
+                "%6",
+                ImmutableList.of(callOperation.result()),
+                ImmutableList.of(constantOperationNull.result()),
+                constantOperationDefault.result(),
+                ImmutableList.of(callOperation.attributes(), constantOperationNull.attributes(), constantOperationDefault.attributes()));
 
         assertProgram(
                 nullIfExpression,
                 ImmutableList.of(
                         constantOperationFirst,
                         constantOperationSecond,
-                        nullIfOperation),
+                        castOperation,
+                        callOperation,
+                        constantOperationNull,
+                        constantOperationDefault,
+                        caseOperation),
                 BIGINT);
     }
 

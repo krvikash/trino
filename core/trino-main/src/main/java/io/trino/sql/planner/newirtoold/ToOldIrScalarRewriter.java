@@ -15,7 +15,6 @@ package io.trino.sql.planner.newirtoold;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.metadata.Metadata;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
@@ -79,10 +78,10 @@ public class ToOldIrScalarRewriter
 {
     private final Rewriter rewriter;
 
-    public ToOldIrScalarRewriter(SymbolAllocator symbolAllocator, Metadata metadata)
+    public ToOldIrScalarRewriter(SymbolAllocator symbolAllocator)
     {
         requireNonNull(symbolAllocator, "symbolAllocator is null");
-        this.rewriter = new Rewriter(symbolAllocator, metadata);
+        this.rewriter = new Rewriter(symbolAllocator);
     }
 
     public Expression toOldIr(Block block, List<List<Symbol>> inputSymbols)
@@ -162,12 +161,10 @@ public class ToOldIrScalarRewriter
             extends TrinoOperationVisitor<Expression, Context>
     {
         private final SymbolAllocator symbolAllocator;
-        private final Metadata metadata;
 
-        public Rewriter(SymbolAllocator symbolAllocator, Metadata metadata)
+        public Rewriter(SymbolAllocator symbolAllocator)
         {
             this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
-            this.metadata = requireNonNull(metadata, "metadata is null");
         }
 
         public Expression toOldIr(Block block, Context context)

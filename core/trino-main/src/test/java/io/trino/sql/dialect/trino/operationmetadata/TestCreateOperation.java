@@ -59,7 +59,6 @@ import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
-import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
@@ -2927,67 +2926,6 @@ class TestCreateOperation
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("logicalOperator is null");
-    }
-
-    @Test
-    public void testNullIf()
-    {
-        Constant constantOperationFirst = new Constant("%0", BIGINT, 0L);
-        Constant constantOperationSecond = new Constant("%1", SMALLINT, 1L);
-        NullIf nullIfOperation = new NullIf(
-                "%2",
-                constantOperationFirst.result(),
-                constantOperationSecond.result(),
-                ImmutableList.of(constantOperationFirst.attributes(), constantOperationSecond.attributes()));
-
-        Operation actualNullIfOperation = TESTING_TRINO_DIALECT.createOperation(
-                NullIfOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationFirst.result(), constantOperationSecond.result()),
-                ImmutableList.of(),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false));
-
-        assertThat(actualNullIfOperation).isEqualTo(nullIfOperation);
-        assertThat(actualNullIfOperation.result().type()).isEqualTo(irType(BIGINT));
-
-        // wrong argument count
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                NullIfOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationFirst.result()),
-                ImmutableList.of(),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("NullIf operation must have exactly two arguments");
-
-        // wrong region count
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                NullIfOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationFirst.result(), constantOperationSecond.result()),
-                ImmutableList.of(SOME_REGION),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("NullIf operation does not have regions");
     }
 
     @Test

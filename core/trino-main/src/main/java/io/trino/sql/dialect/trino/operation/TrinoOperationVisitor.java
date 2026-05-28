@@ -152,11 +152,6 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
-    public R visitNullIf(NullIf operation, C context)
-    {
-        return visitOperation(operation, context);
-    }
-
     public R visitOutput(Output operation, C context)
     {
         return visitOperation(operation, context);
