@@ -13,9 +13,14 @@
  */
 package io.trino.plugin.base.gpu;
 
+import ai.rapids.cudf.Table;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
+
+import static java.lang.Math.toIntExact;
 
 public final class GpuUtils
 {
@@ -32,6 +37,23 @@ public final class GpuUtils
                     closer.register(column);
                 }
             }
+        }
+    }
+
+    public static @Move GpuPage toGpuPage(@Borrow Table table)
+    {
+        int rowCount = toIntExact(table.getRowCount());
+
+        @Own Column[] columns = new Column[table.getNumberOfColumns()];
+        try {
+            for (int i = 0; i < columns.length; i++) {
+                // TODO we could perhaps cheat here and skip incRefCount and then skip closeColumns too
+                columns[i] = new Column.DeviceMemory(table.getColumn(i).incRefCount());
+            }
+            return new GpuPage(rowCount, columns);
+        }
+        finally {
+            closeColumns(columns);
         }
     }
 

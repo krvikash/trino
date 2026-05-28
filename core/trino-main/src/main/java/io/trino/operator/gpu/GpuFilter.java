@@ -22,7 +22,6 @@ import io.trino.operator.gpu.GpuDynamicFilterProvider.CompiledDynamicFilter;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.plugin.base.gpu.UncheckedCloser;
-import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -35,7 +34,9 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static java.util.Objects.requireNonNull;
 
 public class GpuFilter
@@ -199,11 +200,8 @@ public class GpuFilter
 
             try (Table table = new Table(columnVectors);
                     Table filtered = table.filter(mask)) {
-                @Borrow Column[] filteredColumns = new Column[input.columnCount()];
-                for (int i = 0; i < input.columnCount(); i++) {
-                    filteredColumns[i] = new DeviceMemory(filtered.getColumn(i));
-                }
-                return Optional.of(new GpuPage(retained, filteredColumns));
+                verify(filtered.getRowCount() == retained, "Row count after filter does not match mask's retained: %s != %s", filtered.getRowCount(), retained);
+                return Optional.of(toGpuPage(filtered));
             }
         }
     }

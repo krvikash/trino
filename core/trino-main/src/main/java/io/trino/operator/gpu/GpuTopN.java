@@ -19,7 +19,6 @@ import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.connector.SortOrder;
-import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -30,7 +29,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -186,22 +185,6 @@ public final class GpuTopN
                     column.close();
                 }
             }
-        }
-    }
-
-    private static @Move GpuPage toGpuPage(@Borrow Table table)
-    {
-        int rowCount = toIntExact(table.getRowCount());
-
-        @Own Column[] columns = new Column[table.getNumberOfColumns()];
-        try {
-            for (int i = 0; i < columns.length; i++) {
-                columns[i] = new DeviceMemory(table.getColumn(i).incRefCount());
-            }
-            return new GpuPage(rowCount, columns);
-        }
-        finally {
-            closeColumns(columns);
         }
     }
 
