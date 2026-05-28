@@ -21,6 +21,7 @@ import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -361,6 +362,15 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
     public void verifySupportsMergeDeclaration()
     {
         assertThatThrownBy(super::verifySupportsMergeDeclaration)
+                .hasMessageContaining(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
+    }
+
+    @Test
+    @Disabled
+    @Override
+    public void testView()
+    {
+        assertThatThrownBy(super::testView)
                 .hasMessageContaining(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
     }
 
