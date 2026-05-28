@@ -61,7 +61,7 @@ public class TestAwsBedrockGptOssResponse
         LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice("gpt_oss_120b"));
         TokenUsageContext context = TokenUsageContext.of("gpt_oss_120b", new TestingUtils.TestOperationId("test-gpt-oss-reasoning"));
 
-        String response = client.generate("What does NTLM mean in Connectivity?", context);
+        String response = client.generate("Tell me a short joke", context);
         assertThat(response).isNotEmpty();
     }
 }
