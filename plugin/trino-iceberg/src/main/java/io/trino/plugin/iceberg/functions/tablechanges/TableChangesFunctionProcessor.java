@@ -137,7 +137,7 @@ public class TableChangesFunctionProcessor
                 split.fileRecordCount(),
                 split.fileFormat(),
                 getFileIoProperties(tableCredentials),
-                0L,
+                OptionalLong.empty(),
                 OptionalLong.empty(),
                 functionHandle.nameMappingJson().map(NameMappingParser::fromJson),
                 // looks like version doesn't matter for table changes

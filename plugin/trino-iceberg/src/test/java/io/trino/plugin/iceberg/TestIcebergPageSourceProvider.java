@@ -144,7 +144,7 @@ class TestIcebergPageSourceProvider
                 3, // fileRecordCount
                 PARQUET,
                 ImmutableMap.of(),
-                0L, // dataSequenceNumber
+                OptionalLong.of(0), // dataSequenceNumber
                 OptionalLong.empty(), // firstRowId
                 Optional.empty(),
                 new IcebergConfig().getFormatVersion(),

@@ -238,7 +238,7 @@ public class CopyOnWriteIcebergMergeSink
                 fileCounts.get(path.toString()),
                 fileFormat,
                 fileIoProperties,
-                dataSequenceNumbers.get(path.toString()),
+                dataSequenceNumbers.containsKey(path.toString()) ? OptionalLong.of(dataSequenceNumbers.get(path.toString())) : OptionalLong.empty(),
                 firstRowIds.containsKey(path.toString()) ? OptionalLong.of(firstRowIds.get(path.toString())) : OptionalLong.empty(),
                 nameMapping.map(NameMappingParser::fromJson),
                 formatVersion,

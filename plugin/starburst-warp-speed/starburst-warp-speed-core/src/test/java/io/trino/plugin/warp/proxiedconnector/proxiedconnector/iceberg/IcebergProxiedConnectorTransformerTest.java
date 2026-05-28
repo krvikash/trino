@@ -270,7 +270,7 @@ public class IcebergProxiedConnectorTransformerTest
                 SplitWeight.standard(),
                 TupleDomain.all(),
                 Optional.empty(),
-                1L,
+                OptionalLong.of(1L),
                 OptionalLong.empty());
         DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(
                 SCHEMA_NAME,
