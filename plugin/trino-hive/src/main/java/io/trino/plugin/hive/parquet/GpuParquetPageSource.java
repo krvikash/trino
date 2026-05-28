@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
@@ -292,15 +293,5 @@ public class GpuParquetPageSource
             fabricatedParquet = null;
         }
         fabricator.close();
-    }
-
-    // TODO deduplicate with io.trino.operator.gpu.GpuUtils.closeColumns
-    private static void closeColumns(@Move Column[] columns)
-    {
-        for (Column column : columns) {
-            if (column != null) {
-                column.close();
-            }
-        }
     }
 }

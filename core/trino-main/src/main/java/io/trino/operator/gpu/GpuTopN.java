@@ -30,7 +30,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.operator.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 

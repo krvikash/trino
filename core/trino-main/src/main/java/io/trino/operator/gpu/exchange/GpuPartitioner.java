@@ -26,7 +26,7 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.operator.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 
 /**
  * Hash-partitions a {@link GpuPage} across N partitions using cuDF {@code hashPartition}.

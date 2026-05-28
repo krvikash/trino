@@ -34,7 +34,7 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
-import static io.trino.operator.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuSemiJoin

@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.operator.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static java.util.Objects.requireNonNull;
 
 /**

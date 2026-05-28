@@ -11,9 +11,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu;
+package io.trino.plugin.base.gpu;
 
-import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;

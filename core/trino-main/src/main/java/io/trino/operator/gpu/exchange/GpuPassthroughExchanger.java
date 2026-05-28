@@ -19,7 +19,7 @@ import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 
-import static io.trino.operator.gpu.GpuUtils.retainedDeviceBytes;
+import static io.trino.plugin.base.gpu.GpuUtils.retainedDeviceBytes;
 import static java.util.Objects.requireNonNull;
 
 final class GpuPassthroughExchanger
