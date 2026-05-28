@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
@@ -26,9 +27,11 @@ public final class GpuUtils
      */
     public static void closeColumns(@Move Column[] columns)
     {
-        for (Column column : columns) {
-            if (column != null) {
-                column.close();
+        try (var closer = UncheckedCloser.create()) {
+            for (Column column : columns) {
+                if (column != null) {
+                    closer.register(column);
+                }
             }
         }
     }
