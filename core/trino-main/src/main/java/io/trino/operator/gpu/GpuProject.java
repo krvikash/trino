@@ -27,6 +27,7 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -110,11 +111,7 @@ public class GpuProject
             return new GpuPage(input.positionCount(), newColumns);
         }
         finally {
-            for (Column column : newColumns) {
-                if (column != null) {
-                    column.close();
-                }
-            }
+            closeColumns(newColumns);
         }
     }
 

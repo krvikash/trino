@@ -51,6 +51,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
 import static io.airlift.slice.Slices.wrappedBuffer;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -182,12 +183,9 @@ public class CopyToBlocks
             }
             finally {
                 try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
-                    for (Column column : newColumns) {
-                        if (column != null) {
-                            // Technically, no close is needed because newColumns is fully heap stuff
-                            closer.register(column);
-                        }
-                    }
+                    // Technically, no close is needed because newColumns is fully heap stuff
+                    closer.register(() -> closeColumns(newColumns));
+
                     // When the stream sync failed, host buffers may still be targets of in-flight
                     // DMAs and must be leaked rather than freed.
                     if (!syncFailed) {
