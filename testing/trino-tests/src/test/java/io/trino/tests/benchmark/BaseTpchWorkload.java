@@ -20,6 +20,7 @@ import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
+import io.trino.tpch.TpchTable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -31,6 +32,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -44,8 +46,9 @@ public abstract class BaseTpchWorkload
 {
     private static final Logger log = Logger.get(BaseTpchWorkload.class);
 
-    private static final List<String> TABLES = List.of(
-            "region", "nation", "customer", "supplier", "part", "partsupp", "orders", "lineitem");
+    private static final List<String> TABLES = TpchTable.getTables().stream()
+            .map(TpchTable::getTableName)
+            .collect(toImmutableList());
 
     private static final Pattern EXTERNAL_LOCATION_PATTERN = Pattern.compile("external_location\\s*=\\s*'([^']+)'");
 
