@@ -18,18 +18,19 @@ import ai.rapids.cudf.OrderByArg;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
-import jakarta.annotation.Nullable;
 
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
+import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -77,8 +78,7 @@ public final class GpuTopN
     private final int[] sortChannels;
     private final List<SortOrder> sortOrders;
 
-    private final ClosingRef<Table> accumulatedTable = ClosingRef.empty();
-    private @Nullable @Own GpuPage result;
+    private final ClosingRef<Table> partialTopN = ClosingRef.empty();
     private boolean finished;
 
     private GpuTopN(GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders)
@@ -96,13 +96,6 @@ public final class GpuTopN
             return new Finished();
         }
 
-        if (result != null) {
-            GpuPage page = result;
-            result = null;
-            finished = true;
-            return new Data(page);
-        }
-
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
             case Blocked blocked -> blocked;
@@ -114,14 +107,13 @@ public final class GpuTopN
                 yield new Yielded();
             }
             case Finished() -> {
-                if (accumulatedTable.isEmpty()) {
-                    finished = true;
-                    yield new Finished();
+                finished = true;
+                if (!partialTopN.isEmpty()) {
+                    try (Table table = partialTopN.take()) {
+                        yield new Data(toGpuPage(table));
+                    }
                 }
-                try (Table table = accumulatedTable.take()) {
-                    result = toGpuPage(table);
-                }
-                yield new Yielded();
+                yield new Finished();
             }
         };
     }
@@ -134,17 +126,17 @@ public final class GpuTopN
         }
 
         try (Table concatenated = accumulate(columns)) {
-            accumulatedTable.set(sortAndTruncate(concatenated));
+            partialTopN.set(sortAndTruncate(concatenated));
         }
     }
 
     private @Move Table accumulate(@Borrow ColumnVector[] columns)
     {
-        if (accumulatedTable.isEmpty()) {
+        if (partialTopN.isEmpty()) {
             return new Table(columns);
         }
 
-        try (Table accumulated = accumulatedTable.take();
+        try (Table accumulated = partialTopN.take();
                 Table newTable = new Table(columns)) {
             return Table.concatenate(accumulated, newTable);
         }
@@ -171,11 +163,11 @@ public final class GpuTopN
 
     private static @Move Table applyLimit(@Borrow Table sorted, int limit)
     {
-        int rowCount = Math.min(toIntExact(sorted.getRowCount()), limit);
+        int retainedRows = min(toIntExact(sorted.getRowCount()), limit);
         @Own ColumnVector[] columns = new ColumnVector[sorted.getNumberOfColumns()];
         try {
             for (int i = 0; i < columns.length; i++) {
-                columns[i] = sorted.getColumn(i).subVector(0, rowCount);
+                columns[i] = sorted.getColumn(i).subVector(0, retainedRows);
             }
             return new Table(columns);
         }
@@ -191,11 +183,9 @@ public final class GpuTopN
     @Override
     public void close()
     {
-        source.close();
-        accumulatedTable.close();
-        if (result != null) {
-            result.close();
-            result = null;
+        try (var closer = UncheckedCloser.create()) {
+            closer.register(source);
+            closer.register(partialTopN);
         }
     }
 }
