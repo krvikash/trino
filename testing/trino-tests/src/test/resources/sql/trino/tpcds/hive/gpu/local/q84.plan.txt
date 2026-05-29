@@ -1,0 +1,29 @@
+- OutputNode
+  - ProjectNode
+    - TopNNode
+      - ExchangeNode
+        - TopNNode
+          - JoinNode
+            - FilterNode (GPU)
+              - TableScanNode (GPU)
+            - ExchangeNode
+              - JoinNode
+                - FilterNode (GPU)
+                  - TableScanNode (GPU)
+                - ExchangeNode
+                  - JoinNode
+                    - JoinNode
+                      - FilterNode (GPU)
+                        - TableScanNode (GPU)
+                      - ExchangeNode
+                        - JoinNode
+                          - FilterNode
+                            - TableScanNode
+                          - ExchangeNode (GPU)
+                            - ProjectNode (GPU)
+                              - FilterNode
+                                - TableScanNode (GPU)
+                    - ExchangeNode (GPU)
+                      - ProjectNode (GPU)
+                        - FilterNode
+                          - TableScanNode (GPU)

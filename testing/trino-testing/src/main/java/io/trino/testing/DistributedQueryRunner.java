@@ -848,6 +848,19 @@ public final class DistributedQueryRunner
         }
 
         @CanIgnoreReturnValue
+        public SELF configureGpuLocalExecution()
+        {
+            // enable GPU execution
+            return addExtraProperty("gpu-execution", "true")
+                    .addExtraProperty("task.gpu-execution.enabled", "true")
+                    .addExtraProperty("gpu.memory.pool-size", "4GB")
+                    // Single-node execution mode, mirroring how the local benchmark runs.
+                    .setWorkerCount(0)
+                    .addExtraProperty("node-scheduler.include-coordinator", "true")
+                    .addExtraProperty("experimental.force-single-node-query", "true");
+        }
+
+        @CanIgnoreReturnValue
         public SELF setWorkerCount(int workerCount)
         {
             this.workerCount = workerCount;

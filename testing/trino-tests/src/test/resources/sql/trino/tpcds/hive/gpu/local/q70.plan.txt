@@ -1,0 +1,44 @@
+- OutputNode
+  - ProjectNode
+    - TopNNode
+      - ExchangeNode
+        - TopNNode
+          - ProjectNode
+            - ProjectNode
+              - WindowNode
+                - ExchangeNode
+                  - ProjectNode
+                    - ProjectNode
+                      - AggregationNode
+                        - ExchangeNode
+                          - AggregationNode
+                            - GroupIdNode
+                              - JoinNode
+                                - JoinNode
+                                  - JoinNode (GPU)
+                                    - FilterNode (GPU)
+                                      - TableScanNode (GPU)
+                                    - ExchangeNode (GPU)
+                                      - ProjectNode (GPU)
+                                        - FilterNode
+                                          - TableScanNode (GPU)
+                                  - ExchangeNode
+                                    - FilterNode
+                                      - TableScanNode
+                                - AggregationNode
+                                  - ProjectNode
+                                    - TopNRankingNode
+                                      - AggregationNode
+                                        - ExchangeNode
+                                          - AggregationNode
+                                            - JoinNode
+                                              - AggregationNode (GPU)
+                                                - JoinNode (GPU)
+                                                  - FilterNode (GPU)
+                                                    - TableScanNode (GPU)
+                                                  - ExchangeNode (GPU)
+                                                    - ProjectNode (GPU)
+                                                      - FilterNode
+                                                        - TableScanNode (GPU)
+                                              - ExchangeNode
+                                                - TableScanNode

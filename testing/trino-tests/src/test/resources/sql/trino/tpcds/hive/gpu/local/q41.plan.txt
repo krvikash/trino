@@ -1,0 +1,17 @@
+- OutputNode
+  - TopNNode
+    - ExchangeNode
+      - TopNNode
+        - AggregationNode
+          - ProjectNode
+            - AggregationNode
+              - ExchangeNode
+                - AggregationNode
+                  - JoinNode
+                    - AssignUniqueId
+                      - FilterNode
+                        - TableScanNode
+                    - ExchangeNode
+                      - ProjectNode
+                        - FilterNode
+                          - TableScanNode

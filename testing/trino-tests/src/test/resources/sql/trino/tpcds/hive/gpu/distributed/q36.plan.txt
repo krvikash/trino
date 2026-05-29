@@ -1,0 +1,43 @@
+- OutputNode
+  - ProjectNode
+    - TopNNode
+      - ExchangeNode
+        - ExchangeNode
+          - TopNNode
+            - ExchangeNode
+              - TopNNode
+                - ExchangeNode
+                  - TopNNode
+                    - ProjectNode
+                      - ProjectNode
+                        - WindowNode
+                          - ExchangeNode
+                            - ExchangeNode
+                              - ProjectNode
+                                - ProjectNode
+                                  - AggregationNode
+                                    - ExchangeNode
+                                      - ExchangeNode
+                                        - AggregationNode
+                                          - GroupIdNode
+                                            - JoinNode
+                                              - ExchangeNode
+                                                - JoinNode (GPU)
+                                                  - ExchangeNode
+                                                    - JoinNode (GPU)
+                                                      - ExchangeNode
+                                                        - FilterNode (GPU)
+                                                          - TableScanNode (GPU)
+                                                      - ExchangeNode
+                                                        - ExchangeNode
+                                                          - ProjectNode (GPU)
+                                                            - FilterNode
+                                                              - TableScanNode (GPU)
+                                                  - ExchangeNode
+                                                    - ExchangeNode
+                                                      - ProjectNode
+                                                        - FilterNode
+                                                          - TableScanNode
+                                              - ExchangeNode
+                                                - ExchangeNode
+                                                  - TableScanNode

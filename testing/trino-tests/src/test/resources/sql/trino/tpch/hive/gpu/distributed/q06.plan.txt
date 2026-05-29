@@ -1,0 +1,8 @@
+- OutputNode
+  - AggregationNode (GPU)
+    - ExchangeNode
+      - ExchangeNode
+        - AggregationNode (GPU)
+          - ProjectNode (GPU)
+            - FilterNode
+              - TableScanNode (GPU)

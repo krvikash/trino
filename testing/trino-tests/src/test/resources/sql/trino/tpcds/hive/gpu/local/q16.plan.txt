@@ -1,0 +1,42 @@
+- OutputNode
+  - AggregationNode (GPU)
+    - ExchangeNode (GPU)
+      - AggregationNode (GPU)
+        - ProjectNode (GPU)
+          - AggregationNode (GPU)
+            - ExchangeNode (GPU)
+              - AggregationNode (GPU)
+                - FilterNode (GPU)
+                  - GroupIdNode (GPU)
+                    - ProjectNode (GPU)
+                      - FilterNode
+                        - JoinNode (GPU)
+                          - ProjectNode
+                            - AggregationNode
+                              - ExchangeNode
+                                - AggregationNode
+                                  - JoinNode
+                                    - AggregationNode (GPU)
+                                      - FilterNode (GPU)
+                                        - TableScanNode (GPU)
+                                    - ExchangeNode
+                                      - AssignUniqueId
+                                        - JoinNode
+                                          - JoinNode
+                                            - JoinNode
+                                              - FilterNode (GPU)
+                                                - TableScanNode (GPU)
+                                              - ExchangeNode
+                                                - FilterNode
+                                                  - TableScanNode
+                                            - ExchangeNode (GPU)
+                                              - FilterNode (GPU)
+                                                - TableScanNode (GPU)
+                                          - ExchangeNode (GPU)
+                                            - FilterNode (GPU)
+                                              - TableScanNode (GPU)
+                          - ProjectNode (GPU)
+                            - AggregationNode (GPU)
+                              - ExchangeNode (GPU)
+                                - AggregationNode (GPU)
+                                  - TableScanNode (GPU)

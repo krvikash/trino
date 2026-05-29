@@ -1,0 +1,43 @@
+- OutputNode
+  - ExchangeNode
+    - ExchangeNode
+      - SortNode
+        - ExchangeNode
+          - JoinNode (GPU)
+            - AggregationNode (GPU)
+              - ExchangeNode
+                - ExchangeNode
+                  - AggregationNode (GPU)
+                    - JoinNode
+                      - AggregationNode (GPU)
+                        - ExchangeNode
+                          - ExchangeNode
+                            - AggregationNode (GPU)
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode (GPU)
+                      - ExchangeNode
+                        - ProjectNode
+                          - ExchangeNode
+                            - JoinNode (GPU)
+                              - ExchangeNode
+                                - FilterNode (GPU)
+                                  - TableScanNode (GPU)
+                              - AggregationNode (GPU)
+                                - ExchangeNode
+                                  - ExchangeNode
+                                    - AggregationNode (GPU)
+                                      - ProjectNode (GPU)
+                                        - FilterNode
+                                          - TableScanNode (GPU)
+            - ExchangeNode
+              - ExchangeNode
+                - JoinNode (GPU)
+                  - ExchangeNode
+                    - FilterNode (GPU)
+                      - TableScanNode (GPU)
+                  - ExchangeNode
+                    - ExchangeNode
+                      - ProjectNode (GPU)
+                        - FilterNode
+                          - TableScanNode (GPU)
