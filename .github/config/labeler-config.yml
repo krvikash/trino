@@ -73,6 +73,10 @@ iceberg:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-iceberg/**'
 
+iceberg:biglake:
+  - changed-files:
+    - any-glob-to-any-file: 'plugin/trino-iceberg/**'
+
 ignite:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-ignite/**'
