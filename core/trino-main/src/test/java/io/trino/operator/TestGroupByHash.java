@@ -23,7 +23,10 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.VariableWidthBlock;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import org.junit.jupiter.api.Test;
@@ -47,7 +50,9 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -60,6 +65,77 @@ public class TestGroupByHash
     private static final int VARCHAR_EXPECTED_REHASH = 8;
 
     private static final List<Type> DATA_TYPES = ImmutableList.of(VARCHAR, BIGINT);
+
+    private static final Type ARRAY_TYPE = new ArrayType(BIGINT);
+    private static final Type MAP_TYPE = new MapType(BIGINT, BIGINT, new TypeOperators());
+    private static final Type ROW_TYPE = RowType.anonymous(ImmutableList.of(BIGINT));
+
+    @Test
+    public void testShouldCacheHashValueForSpillable()
+    {
+        // Spillable aggregations always cache the hash value, even for a single fixed-width column
+        assertThat(shouldCacheHashValue(true, ImmutableList.of(BIGINT))).isTrue();
+    }
+
+    @Test
+    public void testShouldCacheHashValueForThreeOrMoreColumns()
+    {
+        // 3 or more columns always cache, regardless of type
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, BIGINT, BIGINT))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, BIGINT, BIGINT, BIGINT))).isTrue();
+    }
+
+    @Test
+    public void testShouldCacheHashValueForFixedWidthColumns()
+    {
+        // Fixed-width columns are cheap to hash and compare, so no caching
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT))).isFalse();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(INTEGER))).isFalse();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, BIGINT))).isFalse();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, INTEGER))).isFalse();
+    }
+
+    @Test
+    public void testShouldCacheHashValueForContainerColumns()
+    {
+        // Container types are expensive to hash/compare, so always cache
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(ARRAY_TYPE))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(MAP_TYPE))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(ROW_TYPE))).isTrue();
+    }
+
+    @Test
+    public void testShouldCacheHashValueForVarcharColumns()
+    {
+        // Unbounded varchar always caches
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(VARCHAR))).isTrue();
+        // Bounded varchar caches only when the length exceeds 8
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(createVarcharType(9)))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(createVarcharType(100)))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(createVarcharType(8)))).isFalse();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(createVarcharType(1)))).isFalse();
+    }
+
+    @Test
+    public void testShouldCacheHashValueForVarbinaryColumns()
+    {
+        // Varbinary is variable width, so it always caches
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(VARBINARY))).isTrue();
+    }
+
+    @Test
+    public void testShouldCacheHashValueScansAllColumns()
+    {
+        // A qualifying type in a later position must still trigger caching (regression guard)
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, ARRAY_TYPE))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, MAP_TYPE))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, ROW_TYPE))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, VARBINARY))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, VARCHAR))).isTrue();
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, createVarcharType(20)))).isTrue();
+        // Short bounded varchar after a fixed-width column stays uncached
+        assertThat(shouldCacheHashValue(false, ImmutableList.of(BIGINT, createVarcharType(4)))).isFalse();
+    }
 
     private enum GroupByHashType
     {

@@ -27,6 +27,7 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.IsolatedClass;
 
 import java.lang.reflect.Constructor;
@@ -97,18 +98,24 @@ public interface GroupByHash
             return true;
         }
 
-        int variableWidthTypes = 0;
         for (Type type : types) {
-            // The presence of any container types should trigger hash value caching since computing the hash and
+            // The presence of any container types or variable width should trigger hash value caching since computing the hash and
             // checking valueIdentical is so much more expensive for these values
-            if (type instanceof MapType || type instanceof ArrayType || type instanceof RowType) {
-                return true;
-            }
-            // Cache hash values when more than 2 or more variable width types are present
-            if (type.isFlatVariableWidth()) {
-                variableWidthTypes++;
-                if (variableWidthTypes >= 2) {
+            switch (type) {
+                case RowType _, ArrayType _, MapType _ -> {
                     return true;
+                }
+                case VarcharType varcharType -> {
+                    // Varchar of at most 8 bytes is hashed with a single XxHash64 read, so recomputing on demand is cheap;
+                    // cache the hash only for longer or unbounded varchar
+                    if (varcharType.getLength().map(length -> length > 8).orElse(true)) {
+                        return true;
+                    }
+                }
+                default -> {
+                    if (type.isFlatVariableWidth()) {
+                        return true;
+                    }
                 }
             }
         }
