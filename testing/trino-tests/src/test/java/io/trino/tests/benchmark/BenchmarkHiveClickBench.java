@@ -253,21 +253,28 @@ public final class BenchmarkHiveClickBench
                 hiveProperties.put("fs.s3.enabled", "true");
             }
             else {
-                hiveProperties.put("fs.hadoop.enabled", "true");
+                hiveProperties.put("hive.metastore.catalog.dir", "local://" + queryRunner.getCoordinator().getBaseDataDir().resolve("clickbench-metastore").toAbsolutePath());
             }
             if (mode == BenchmarkRunner.ExecutionMode.GPU) {
                 hiveProperties.put("hive.max-initial-split-size", "512MB");
                 hiveProperties.put("hive.max-split-size", "512MB");
             }
 
-            Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
+            // local:// routes reads through the native LocalFileSystem; root "/" so absolute data paths resolve.
+            Path dataDir;
+            if (isRemote(dataLocation)) {
+                dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
+            }
+            else {
+                dataDir = Path.of("/");
+            }
             queryRunner.installPlugin(new TestingHivePlugin(dataDir));
             queryRunner.createCatalog("hive", "hive", hiveProperties);
 
             queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
             String hitsLocation = isRemote(dataLocation)
-                    ? dataLocation + "/hits"
-                    : Path.of(dataLocation, "hits").toUri().toString();
+                    ? dataLocation
+                    : "local://" + Path.of(dataLocation, "hits").toAbsolutePath();
             log.info("Creating hive.clickbench.hits at %s", hitsLocation);
             queryRunner.execute(format(
                     "CREATE TABLE hive.clickbench.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",

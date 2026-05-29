@@ -127,7 +127,11 @@ public abstract class BaseHiveTpchWorkload
         // Wipe the directory if the underlying parquet files change.
         Path metastoreDir = Path.of(System.getProperty("user.home"), "starburst-benchmark-data", ".metastore", name());
         Files.createDirectories(metastoreDir);
-        DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
+        DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(
+                testSessionBuilder()
+                        .setCatalog("hive")
+                        .setSchema("tpch")
+                        .build());
 
         builder.setWorkerCount(0);
         builder.setBaseDataDir(Optional.of(metastoreDir));
@@ -139,6 +143,7 @@ public abstract class BaseHiveTpchWorkload
 
         DistributedQueryRunner runner = builder.build();
 
+        // tpch source catalog supplies column types for the CREATE TABLE ... LIKE below.
         runner.installPlugin(new TpchPlugin());
         runner.createCatalog("tpch", "tpch", Map.of("tpch.double-type-mapping", DecimalTypeMapping.DECIMAL.name()));
 
@@ -148,15 +153,22 @@ public abstract class BaseHiveTpchWorkload
             hiveProperties.put("fs.s3.enabled", "true");
         }
         else {
-            hiveProperties.put("fs.hadoop.enabled", "true");
+            hiveProperties.put("hive.metastore.catalog.dir", "local://" + metastoreDir.resolve("hive").toAbsolutePath());
         }
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {
             hiveProperties.put("hive.max-initial-split-size", "512MB");
             hiveProperties.put("hive.max-split-size", "512MB");
         }
 
-        Path dataDir = runner.getCoordinator().getBaseDataDir().resolve("hive_data");
-        runner.installPlugin(new TestingHivePlugin(dataDir));
+        // local:// routes reads through the native LocalFileSystem; root "/" so absolute data paths resolve.
+        Path localFileSystemRoot;
+        if (isRemote(dataLocation)) {
+            localFileSystemRoot = runner.getCoordinator().getBaseDataDir().resolve("hive_data");
+        }
+        else {
+            localFileSystemRoot = Path.of("/");
+        }
+        runner.installPlugin(new TestingHivePlugin(localFileSystemRoot));
         runner.createCatalog("hive", "hive", hiveProperties);
 
         runner.execute("CREATE SCHEMA IF NOT EXISTS hive.tpch");
@@ -218,7 +230,7 @@ public abstract class BaseHiveTpchWorkload
     {
         String location = isRemote(dataLocation)
                 ? dataLocation + "/" + table
-                : Path.of(dataLocation, table).toUri().toString();
+                : "local://" + Path.of(dataLocation, table).toAbsolutePath();
         Optional<String> existing = readExistingExternalLocation(runner, table);
         if (existing.isPresent() && existing.get().equals(location)) {
             log.info("Reusing existing hive.tpch.%s at %s", table, location);
