@@ -30,7 +30,6 @@ import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.predicate.TupleDomainParquetPredicate;
 import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.reader.ParquetReader;
-import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.ParquetWriter;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
@@ -68,7 +67,6 @@ import java.util.Optional;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
-import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -197,25 +195,19 @@ public class TestParquetFileFabricator
         TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource originalDataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
         ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
-                Long.MAX_VALUE,
+        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
+                Long.MAX_VALUE, // Split start beyond file end
                 100,
                 originalDataSource,
-                originalMetadata,
+                requestedColumns,
                 List.of(),
                 List.of(),
                 Map.of(),
+                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
-                options);
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                requestedColumns,
-                new NameBasedColumnMatcher(),
-                options,
-                originalMetadata);
+                ParquetReaderOptions.builder().build(),
+                originalMetadata));
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             assertThat(fabricated.rowCount()).isEqualTo(0);
@@ -404,26 +396,19 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                metadata,
+                columns,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
+                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
-                options);
-
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                columns,
-                new NameBasedColumnMatcher(),
-                options,
-                metadata);
+                ParquetReaderOptions.builder().build(),
+                metadata));
 
         return fabricator.fabricate();
     }
@@ -476,25 +461,19 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                metadata,
+                requestedColumns,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
+                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
-                options);
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                requestedColumns,
-                new NameBasedColumnMatcher(),
-                options,
-                metadata);
+                ParquetReaderOptions.builder().build(),
+                metadata));
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only requested columns
@@ -584,25 +563,19 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 splitStart,
                 splitLength,
                 dataSource,
-                metadata,
+                requestedColumns,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
+                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
-                options);
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                requestedColumns,
-                new NameBasedColumnMatcher(),
-                options,
-                metadata);
+                ParquetReaderOptions.builder().build(),
+                metadata));
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only selected row group(s)
@@ -671,25 +644,19 @@ public class TestParquetFileFabricator
 
         List<HiveColumnHandle> requestedColumns = List.of(createColumn("col1", 0, BIGINT));
 
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+        ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                metadata,
+                requestedColumns,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
+                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
-                options);
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                requestedColumns,
-                new NameBasedColumnMatcher(),
-                options,
-                metadata);
+                ParquetReaderOptions.builder().build(),
+                metadata));
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file excludes filtered row groups

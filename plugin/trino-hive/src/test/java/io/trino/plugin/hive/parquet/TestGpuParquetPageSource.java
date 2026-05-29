@@ -27,7 +27,6 @@ import io.trino.parquet.ParquetTestUtils;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.predicate.TupleDomainParquetPredicate;
 import io.trino.parquet.reader.MetadataReader;
-import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.ParquetWriter;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
@@ -64,7 +63,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
-import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
@@ -369,50 +367,45 @@ public class TestGpuParquetPageSource
                 false,
                 false);
 
-        ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-        List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+        try (ParquetFileFabricator fabricator = new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                metadata,
+                columns,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
+                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
-                options);
-        ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
-                columns,
-                new NameBasedColumnMatcher(),
-                options,
-                metadata);
-        try (GpuParquetPageSource pageSource = new GpuParquetPageSource(
-                fabricator,
-                columns,
-                columnMappings)) {
-            List<@Own GpuPage> pages = new ArrayList<>();
-            try {
-                boolean finished = false;
-                while (!finished) {
-                    @Own Result next = pageSource.readNext();
-                    switch (next) {
-                        case ConnectorGpuPageSource.Blocked(CompletableFuture<?> _) -> throw new IllegalStateException("Blocking not supported");
-                        case ConnectorGpuPageSource.Data(GpuPage page) -> pages.add(page);
-                        case ConnectorGpuPageSource.Finished() -> finished = true;
-                        case ConnectorGpuPageSource.Yielded() -> {
-                            /* continue */
+                ParquetReaderOptions.builder().build(),
+                metadata)) {
+            try (GpuParquetPageSource pageSource = new GpuParquetPageSource(
+                    fabricator,
+                    columns,
+                    columnMappings)) {
+                List<@Own GpuPage> pages = new ArrayList<>();
+                try {
+                    boolean finished = false;
+                    while (!finished) {
+                        @Own Result next = pageSource.readNext();
+                        switch (next) {
+                            case ConnectorGpuPageSource.Blocked(CompletableFuture<?> _) -> throw new IllegalStateException("Blocking not supported");
+                            case ConnectorGpuPageSource.Data(GpuPage page) -> pages.add(page);
+                            case ConnectorGpuPageSource.Finished() -> finished = true;
+                            case ConnectorGpuPageSource.Yielded() -> {
+                                /* continue */
+                            }
                         }
                     }
                 }
-            }
-            catch (Throwable e) {
-                closeAllSuppress(e, pages.toArray(new GpuPage[0]));
-                throw e;
-            }
+                catch (Throwable e) {
+                    closeAllSuppress(e, pages.toArray(new GpuPage[0]));
+                    throw e;
+                }
 
-            return new Pages(pages);
+                return new Pages(pages);
+            }
         }
     }
 
