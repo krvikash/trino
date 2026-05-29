@@ -305,7 +305,7 @@ public final class BenchmarkClickBench
 
         queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
         String hitsLocation = isRemote(dataLocation)
-                ? dataLocation
+                ? dataLocation + "/hits"
                 : Path.of(dataLocation, "hits").toUri().toString();
         log.info("Creating hive.clickbench.hits at %s", hitsLocation);
         queryRunner.execute(format(
