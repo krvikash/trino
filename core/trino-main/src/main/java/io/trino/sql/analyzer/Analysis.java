@@ -547,6 +547,7 @@ public class Analysis
         subqueries.addSubqueries(dereference(expressionAnalysis.getSubqueries()));
         subqueries.addExistsSubqueries(dereference(expressionAnalysis.getExistsSubqueries()));
         subqueries.addQuantifiedComparisons(expressionAnalysis.getQuantifiedComparisons());
+        subqueries.addMatchPredicates(expressionAnalysis.getMatchPredicates());
     }
 
     private <T extends Node> List<T> dereference(Collection<NodeRef<T>> nodeRefs)
@@ -1836,6 +1837,7 @@ public class Analysis
         private final List<SubqueryExpression> subqueries = new ArrayList<>();
         private final List<ExistsPredicate> existsSubqueries = new ArrayList<>();
         private final List<OperandAndPredicate> quantifiedComparisons = new ArrayList<>();
+        private final List<OperandAndPredicate> matchPredicates = new ArrayList<>();
 
         public void addInPredicates(List<OperandAndPredicate> predicates)
         {
@@ -1857,6 +1859,11 @@ public class Analysis
             quantifiedComparisons.addAll(predicates);
         }
 
+        public void addMatchPredicates(List<OperandAndPredicate> predicates)
+        {
+            matchPredicates.addAll(predicates);
+        }
+
         public List<OperandAndPredicate> getInPredicates()
         {
             return unmodifiableList(inPredicates);
@@ -1875,6 +1882,11 @@ public class Analysis
         public List<OperandAndPredicate> getQuantifiedComparisons()
         {
             return unmodifiableList(quantifiedComparisons);
+        }
+
+        public List<OperandAndPredicate> getMatchPredicates()
+        {
+            return unmodifiableList(matchPredicates);
         }
     }
 
