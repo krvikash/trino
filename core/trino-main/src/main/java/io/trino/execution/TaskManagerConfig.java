@@ -62,7 +62,6 @@ public class TaskManagerConfig
     private boolean threadPerDriverSchedulerEnabled;
     private boolean gpuExecutionEnabled;
     private DataSize gpuLocalExchangeBufferSize = DataSize.of(48, Unit.MEGABYTE);
-    private int maxConcurrentFilesystemReads = Runtime.getRuntime().availableProcessors() * 2;
     private boolean perOperatorCpuTimerEnabled = true;
     private boolean taskCpuTimerEnabled = true;
     private DataSize maxPartialAggregationMemoryUsage = DataSize.of(16, Unit.MEGABYTE);
@@ -160,21 +159,6 @@ public class TaskManagerConfig
     public TaskManagerConfig setGpuLocalExchangeBufferSize(DataSize gpuLocalExchangeBufferSize)
     {
         this.gpuLocalExchangeBufferSize = gpuLocalExchangeBufferSize;
-        return this;
-    }
-
-    @Min(1)
-    public int getMaxConcurrentFilesystemReads()
-    {
-        return maxConcurrentFilesystemReads;
-    }
-
-    @Config("task.max-concurrent-filesystem-reads")
-    @ConfigDescription("JVM-wide cap on concurrent filesystem read tasks shared by connectors")
-    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
-    public TaskManagerConfig setMaxConcurrentFilesystemReads(int maxConcurrentFilesystemReads)
-    {
-        this.maxConcurrentFilesystemReads = maxConcurrentFilesystemReads;
         return this;
     }
 

@@ -18,7 +18,6 @@ import ai.rapids.cudf.MemoryBuffer;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
-import io.trino.connector.BoundedFileSystemReadExecutor;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.local.LocalInputFile;
@@ -41,7 +40,6 @@ import io.trino.plugin.hive.parquet.ParquetFileFabricator.FabricatedParquet;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
-import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -86,8 +84,6 @@ import static org.joda.time.DateTimeZone.UTC;
 
 public class TestParquetFileFabricator
 {
-    private static final FileSystemReadExecutor TEST_FILE_SYSTEM_READ_EXECUTOR = new BoundedFileSystemReadExecutor(8);
-
     private final AutoCloseableCloser closer = AutoCloseableCloser.create();
 
     @AfterEach
@@ -219,8 +215,7 @@ public class TestParquetFileFabricator
                 requestedColumns,
                 new NameBasedColumnMatcher(),
                 options,
-                originalMetadata,
-                TEST_FILE_SYSTEM_READ_EXECUTOR);
+                originalMetadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             assertThat(fabricated.rowCount()).isEqualTo(0);
@@ -428,8 +423,7 @@ public class TestParquetFileFabricator
                 columns,
                 new NameBasedColumnMatcher(),
                 options,
-                metadata,
-                TEST_FILE_SYSTEM_READ_EXECUTOR);
+                metadata);
 
         return fabricator.fabricate();
     }
@@ -500,8 +494,7 @@ public class TestParquetFileFabricator
                 requestedColumns,
                 new NameBasedColumnMatcher(),
                 options,
-                metadata,
-                TEST_FILE_SYSTEM_READ_EXECUTOR);
+                metadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only requested columns
@@ -609,8 +602,7 @@ public class TestParquetFileFabricator
                 requestedColumns,
                 new NameBasedColumnMatcher(),
                 options,
-                metadata,
-                TEST_FILE_SYSTEM_READ_EXECUTOR);
+                metadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file has only selected row group(s)
@@ -697,8 +689,7 @@ public class TestParquetFileFabricator
                 requestedColumns,
                 new NameBasedColumnMatcher(),
                 options,
-                metadata,
-                TEST_FILE_SYSTEM_READ_EXECUTOR);
+                metadata);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
             // Verify fabricated file excludes filtered row groups

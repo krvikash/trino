@@ -41,7 +41,6 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorName;
-import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.security.AiModelAccessControl;
@@ -87,7 +86,6 @@ public class DefaultCatalogFactory
     private final LocalMemoryManager localMemoryManager;
     private final SecretsResolver secretsResolver;
     private final NodeInfo nodeInfo;
-    private final FileSystemReadExecutor fileSystemReadExecutor;
 
     @Inject
     public DefaultCatalogFactory(
@@ -109,8 +107,7 @@ public class DefaultCatalogFactory
             OptimizerConfig optimizerConfig,
             LocalMemoryManager localMemoryManager,
             SecretsResolver secretsResolver,
-            NodeInfo nodeInfo,
-            FileSystemReadExecutor fileSystemReadExecutor)
+            NodeInfo nodeInfo)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
@@ -131,7 +128,6 @@ public class DefaultCatalogFactory
         this.localMemoryManager = requireNonNull(localMemoryManager, "localMemoryManager is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
-        this.fileSystemReadExecutor = requireNonNull(fileSystemReadExecutor, "fileSystemReadExecutor is null");
     }
 
     @Override
@@ -231,8 +227,7 @@ public class DefaultCatalogFactory
                 catalogVersion,
                 nodeInfo.getEnvironment(),
                 new InternalFunctionBundleFactory(),
-                managedStatisticsClient,
-                fileSystemReadExecutor);
+                managedStatisticsClient);
 
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connectorFactory.getClass().getClassLoader())) {
             // TODO: connector factory should take CatalogName

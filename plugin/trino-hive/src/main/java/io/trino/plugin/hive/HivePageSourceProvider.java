@@ -43,7 +43,6 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
-import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.Domain;
@@ -114,22 +113,19 @@ public class HivePageSourceProvider
     private final Set<HivePageSourceFactory> pageSourceFactories;
     private final TrinoFileSystemFactory fileSystemFactory;
     private final DateTimeZone parquetDateTimeZone;
-    private final FileSystemReadExecutor fileSystemReadExecutor;
 
     @Inject
     public HivePageSourceProvider(
             TypeManager typeManager,
             HiveConfig hiveConfig,
             Set<HivePageSourceFactory> pageSourceFactories,
-            TrinoFileSystemFactory fileSystemFactory,
-            FileSystemReadExecutor fileSystemReadExecutor)
+            TrinoFileSystemFactory fileSystemFactory)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.domainCompactionThreshold = hiveConfig.getDomainCompactionThreshold();
         this.pageSourceFactories = ImmutableSet.copyOf(requireNonNull(pageSourceFactories, "pageSourceFactories is null"));
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.parquetDateTimeZone = hiveConfig.getParquetDateTimeZone();
-        this.fileSystemReadExecutor = requireNonNull(fileSystemReadExecutor, "fileSystemReadExecutor is null");
     }
 
     @Override
@@ -242,8 +238,7 @@ public class HivePageSourceProvider
                 gpuColumns,
                 effectivePredicate,
                 columnMappings,
-                domainCompactionThreshold,
-                fileSystemReadExecutor);
+                domainCompactionThreshold);
     }
 
     @Override

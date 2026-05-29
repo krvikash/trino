@@ -22,7 +22,6 @@ import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
-import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -50,7 +49,6 @@ public class ConnectorContextInstance
     private final String nodeEnvironment;
     private final FunctionBundleFactory functionBundleFactory;
     private final ManagedStatisticsClient managedStatisticsClient;
-    private final FileSystemReadExecutor fileSystemReadExecutor;
 
     public ConnectorContextInstance(
             OpenTelemetry openTelemetry,
@@ -67,8 +65,7 @@ public class ConnectorContextInstance
             CatalogVersion catalogVersion,
             String nodeEnvironment,
             FunctionBundleFactory functionBundleFactory,
-            ManagedStatisticsClient managedStatisticsClient,
-            FileSystemReadExecutor fileSystemReadExecutor)
+            ManagedStatisticsClient managedStatisticsClient)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
@@ -85,7 +82,6 @@ public class ConnectorContextInstance
         this.nodeEnvironment = requireNonNull(nodeEnvironment, "nodeEnvironment is null");
         this.functionBundleFactory = requireNonNull(functionBundleFactory, "functionBundleFactory is null");
         this.managedStatisticsClient = requireNonNull(managedStatisticsClient, "managedStatisticsClient is null");
-        this.fileSystemReadExecutor = requireNonNull(fileSystemReadExecutor, "fileSystemReadExecutor is null");
     }
 
     @Override
@@ -176,11 +172,5 @@ public class ConnectorContextInstance
     public ManagedStatisticsClient getManagedStatisticsClient()
     {
         return managedStatisticsClient;
-    }
-
-    @Override
-    public FileSystemReadExecutor getFileSystemReadExecutor()
-    {
-        return fileSystemReadExecutor;
     }
 }

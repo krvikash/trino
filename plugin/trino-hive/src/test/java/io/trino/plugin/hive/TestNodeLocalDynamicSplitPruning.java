@@ -16,7 +16,6 @@ package io.trino.plugin.hive;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.trino.connector.BoundedFileSystemReadExecutor;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.memory.MemoryFileSystemFactory;
@@ -159,8 +158,7 @@ class TestNodeLocalDynamicSplitPruning
                 TESTING_TYPE_MANAGER,
                 hiveConfig,
                 getDefaultHivePageSourceFactories(fileSystemFactory, hiveConfig),
-                fileSystemFactory,
-                new BoundedFileSystemReadExecutor(8));
+                fileSystemFactory);
 
         return provider.createPageSource(
                 transaction,

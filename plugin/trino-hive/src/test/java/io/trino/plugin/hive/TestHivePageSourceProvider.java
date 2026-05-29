@@ -16,7 +16,6 @@ package io.trino.plugin.hive;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.trino.connector.BoundedFileSystemReadExecutor;
 import io.trino.filesystem.memory.MemoryFileSystemFactory;
 import io.trino.spi.Page;
 import io.trino.spi.SplitWeight;
@@ -131,8 +130,7 @@ public class TestHivePageSourceProvider
                 TESTING_TYPE_MANAGER,
                 config,
                 ImmutableSet.of(),
-                new MemoryFileSystemFactory(),
-                new BoundedFileSystemReadExecutor(8));
+                new MemoryFileSystemFactory());
     }
 
     @Test

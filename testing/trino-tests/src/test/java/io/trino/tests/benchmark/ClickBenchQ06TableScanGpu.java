@@ -17,7 +17,6 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import io.airlift.units.DataSize;
-import io.trino.connector.BoundedFileSystemReadExecutor;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
@@ -154,8 +153,7 @@ public class ClickBenchQ06TableScanGpu
                     List.of(searchPhrase),
                     TupleDomain.all(),
                     List.of(HivePageSourceProvider.ColumnMapping.regular(searchPhrase, 0, Optional.empty())),
-                    new HiveConfig().getDomainCompactionThreshold(),
-                    new BoundedFileSystemReadExecutor(64));
+                    new HiveConfig().getDomainCompactionThreshold());
                     Scalar expected = Scalar.fromString("ricca full that – du have")) {
                 long found = 0;
                 while (true) {

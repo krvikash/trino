@@ -36,7 +36,6 @@ import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
-import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -45,9 +44,6 @@ import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.util.EmbedVersion;
-
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 
 import static io.trino.spi.connector.MetadataProvider.NOOP_METADATA_PROVIDER;
 import static io.trino.spi.connector.ai.ModelConnectionSpecsLoader.EMPTY_LOADER;
@@ -164,26 +160,6 @@ public final class TestingConnectorContext
     public ManagedStatisticsClient getManagedStatisticsClient()
     {
         return new ThrowingManagedStatisticsClient();
-    }
-
-    @Override
-    public FileSystemReadExecutor getFileSystemReadExecutor()
-    {
-        return new FileSystemReadExecutor()
-        {
-            @Override
-            public <T> CompletableFuture<T> submit(Callable<T> task)
-            {
-                CompletableFuture<T> future = new CompletableFuture<>();
-                try {
-                    future.complete(task.call());
-                }
-                catch (Throwable t) {
-                    future.completeExceptionally(t);
-                }
-                return future;
-            }
-        };
     }
 
     public static final class Builder

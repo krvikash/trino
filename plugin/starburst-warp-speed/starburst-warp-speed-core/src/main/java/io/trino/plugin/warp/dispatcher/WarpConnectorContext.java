@@ -23,7 +23,6 @@ import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
-import io.trino.spi.connector.FileSystemReadExecutor;
 import io.trino.spi.connector.ManagedStatisticsClient;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -151,11 +150,5 @@ public class WarpConnectorContext
     public ManagedStatisticsClient getManagedStatisticsClient()
     {
         return connectorContext.getManagedStatisticsClient();
-    }
-
-    @Override
-    public FileSystemReadExecutor getFileSystemReadExecutor()
-    {
-        return connectorContext.getFileSystemReadExecutor();
     }
 }
