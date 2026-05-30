@@ -140,10 +140,10 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.parquet_use_column_names', 'true', 'boolean'),
                         ('objectstore.parquet_vectorized_decoding_enabled', 'true', 'boolean'),
                         ('objectstore.parquet_writer_batch_size', '10000', 'integer'),
-                        ('objectstore.parquet_writer_block_size', '128MB', 'varchar'),
                         ('objectstore.parquet_writer_page_size', '1048576B', 'varchar'),
                         ('objectstore.parquet_writer_page_value_count', '60000', 'integer'),
                         ('objectstore.parquet_writer_row_group_max_row_count', '2147483647', 'integer'),
+                        ('objectstore.parquet_writer_row_group_size', '128MB', 'varchar'),
                         ('objectstore.partition_statistics_sample_size', '100', 'integer'),
                         ('objectstore.projection_pushdown_enabled', 'true', 'boolean'),
                         ('objectstore.propagate_table_scan_sorting_properties', 'false', 'boolean'),
@@ -185,6 +185,7 @@ public abstract class BaseTestObjectStoreProperties
                         "delegate_transactional_managed_table_location_to_metastore false boolean",
                         "max_initial_split_size 32MB varchar",
                         "max_split_size null varchar",
+                        "parquet_writer_block_size null varchar",
                         "store_table_metadata false boolean");
     }
 }

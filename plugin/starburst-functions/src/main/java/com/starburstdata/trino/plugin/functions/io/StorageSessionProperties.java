@@ -66,6 +66,7 @@ public class StorageSessionProperties
             .put("parquet_writer_page_size", true)
             .put("parquet_writer_page_value_count", true)
             .put("parquet_writer_row_group_max_row_count", true)
+            .put("parquet_writer_row_group_size", true)
             .put("parquet_writer_batch_size", true)
             .put("parquet_optimized_writer_validation_percentage", true)
             .put("max_split_size", true)
