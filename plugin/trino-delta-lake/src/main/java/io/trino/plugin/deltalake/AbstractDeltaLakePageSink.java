@@ -61,6 +61,7 @@ import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getCompressio
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetWriterBlockSize;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetWriterPageSize;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetWriterPageValueCount;
+import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getParquetWriterRowGroupMaxRowCount;
 import static io.trino.plugin.deltalake.DeltaLakeTypes.toParquetType;
 import static io.trino.plugin.hive.HiveCompressionCodecs.toCompressionCodec;
 import static java.lang.String.format;
@@ -466,6 +467,7 @@ public abstract class AbstractDeltaLakePageSink
     {
         ParquetWriterOptions parquetWriterOptions = ParquetWriterOptions.builder()
                 .setMaxBlockSize(getParquetWriterBlockSize(session))
+                .setMaxRowGroupRowCount(getParquetWriterRowGroupMaxRowCount(session))
                 .setMaxPageSize(getParquetWriterPageSize(session))
                 .setMaxPageValueCount(getParquetWriterPageValueCount(session))
                 .setUseDeltaLengthByteArrayEncoding(useDeltaLengthByteArrayEncoding)
