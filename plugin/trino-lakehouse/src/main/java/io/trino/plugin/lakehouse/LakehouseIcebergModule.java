@@ -15,10 +15,14 @@ package io.trino.plugin.lakehouse;
 
 import com.google.inject.Binder;
 import com.google.inject.Key;
+import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
+import io.trino.parquet.cache.MemoryParquetFooterCache;
+import io.trino.parquet.cache.ParquetFooterCache;
 import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.DefaultIcebergFileSystemFactory;
@@ -104,5 +108,15 @@ public class LakehouseIcebergModule
         configBinder(binder).bindConfig(IcebergScheduledMvRefreshConfig.class);
         jsonCodecBinder(binder).bindJsonCodec(IcebergCacheSplitId.class);
         newOptionalBinder(binder, WorkScheduler.class).setDefault().toInstance(new NoopWorkScheduler());
+    }
+
+    @Provides
+    @Singleton
+    public static ParquetFooterCache createParquetFooterCache(IcebergConfig config)
+    {
+        return switch (config.getParquetFooterCacheType()) {
+            case NONE -> ParquetFooterCache.noop();
+            case MEMORY -> new MemoryParquetFooterCache(config.getParquetFooterCacheMemoryMaxSize());
+        };
     }
 }

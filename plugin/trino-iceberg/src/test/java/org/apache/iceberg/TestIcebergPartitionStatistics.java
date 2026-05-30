@@ -24,6 +24,7 @@ import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.NullSafeHashCompiler;
+import io.trino.parquet.cache.ParquetFooterCache;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
@@ -92,7 +93,8 @@ public final class TestIcebergPartitionStatistics
                     new ParquetReaderConfig(),
                     new IcebergConfig(),
                     TESTING_TYPE_MANAGER,
-                    BLOCKS_HASH_FACTORY));
+                    BLOCKS_HASH_FACTORY,
+                    ParquetFooterCache.noop()));
 
     public static final PartitionStatisticsWriter PARTITION_STATISTICS_WRITER = new PartitionStatisticsWriter(
             TESTING_TYPE_MANAGER,

@@ -30,6 +30,7 @@ import io.trino.orc.OrcWriter;
 import io.trino.orc.OrcWriterOptions;
 import io.trino.orc.OrcWriterStats;
 import io.trino.orc.OutputStreamOrcDataSink;
+import io.trino.parquet.cache.ParquetFooterCache;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
@@ -610,7 +611,8 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                 PARQUET_READER_CONFIG,
                 icebergConfig,
                 TESTING_TYPE_MANAGER,
-                blocksHashFactory);
+                blocksHashFactory,
+                ParquetFooterCache.noop());
         return factory.createPageSourceProvider().createPageSource(
                 transaction,
                 getSession(icebergConfig),

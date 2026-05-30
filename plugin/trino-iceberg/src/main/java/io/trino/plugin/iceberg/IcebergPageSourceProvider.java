@@ -44,6 +44,8 @@ import io.trino.parquet.ParquetCorruptionException;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetDataSourceId;
 import io.trino.parquet.ParquetReaderOptions;
+import io.trino.parquet.cache.ParquetFooterCache;
+import io.trino.parquet.cache.ParquetFooterCacheKey;
 import io.trino.parquet.metadata.FileMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.predicate.TupleDomainParquetPredicate;
@@ -251,6 +253,7 @@ public class IcebergPageSourceProvider
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
     private final Optional<BlocksHashFactory> blocksHashFactory;
+    private final ParquetFooterCache parquetFooterCache;
     private final DeleteManager unpartitionedTableDeleteManager;
     private final Map<Integer, Function<PartitionData, PartitionKey>> partitionKeyFactories = new ConcurrentHashMap<>();
     private final Map<PartitionKey, DeleteManager> partitionedDeleteManagers = new ConcurrentHashMap<>();
@@ -263,7 +266,8 @@ public class IcebergPageSourceProvider
             ParquetReaderOptions parquetReaderOptions,
             DateTimeZone dateTimeZone,
             TypeManager typeManager,
-            Optional<BlocksHashFactory> blocksHashFactory)
+            Optional<BlocksHashFactory> blocksHashFactory,
+            ParquetFooterCache parquetFooterCache)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
@@ -280,6 +284,7 @@ public class IcebergPageSourceProvider
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.blocksHashFactory = requireNonNull(blocksHashFactory, "blocksHashFactory is null");
         this.unpartitionedTableDeleteManager = new DeleteManager(typeManager, blocksHashFactory);
+        this.parquetFooterCache = requireNonNull(parquetFooterCache, "parquetFooterCache is null");
     }
 
     @Override
@@ -898,6 +903,7 @@ public class IcebergPageSourceProvider
                             .build(),
                     predicate,
                     fileFormatDataSourceStats,
+                    parquetFooterCache,
                     nameMapping,
                     partition,
                     partitionKeys,
@@ -1295,6 +1301,7 @@ public class IcebergPageSourceProvider
             ParquetReaderOptions options,
             TupleDomain<IcebergColumnHandle> effectivePredicate,
             FileFormatDataSourceStats fileFormatDataSourceStats,
+            ParquetFooterCache parquetFooterCache,
             Optional<NameMapping> nameMapping,
             String partition,
             Map<Integer, Optional<String>> partitionKeys,
@@ -1307,7 +1314,7 @@ public class IcebergPageSourceProvider
         ParquetDataSource dataSource = null;
         try {
             dataSource = createDataSource(inputFile, OptionalLong.of(fileSize), options, memoryContext, fileFormatDataSourceStats);
-            ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, options, Optional.empty(), Optional.empty());
+            ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, options, Optional.empty(), Optional.empty(), parquetFooterCache, new ParquetFooterCacheKey(inputFile.location().toString(), fileSize));
             FileMetadata fileMetaData = parquetMetadata.getFileMetaData();
             MessageType fileSchema = fileMetaData.getSchema();
             if (nameMapping.isPresent() && !ParquetSchemaUtil.hasIds(fileSchema)) {

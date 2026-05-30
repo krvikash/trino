@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.orc.OrcReaderOptions;
 import io.trino.parquet.ParquetReaderOptions;
+import io.trino.parquet.cache.ParquetFooterCache;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
@@ -47,6 +48,7 @@ public class IcebergPageSourceProviderFactory
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
     private final Optional<BlocksHashFactory> blocksHashFactory;
+    private final ParquetFooterCache parquetFooterCache;
 
     @Inject
     public IcebergPageSourceProviderFactory(
@@ -57,7 +59,8 @@ public class IcebergPageSourceProviderFactory
             ParquetReaderConfig parquetReaderConfig,
             IcebergConfig icebergConfig,
             TypeManager typeManager,
-            BlocksHashFactory blocksHashFactory)
+            BlocksHashFactory blocksHashFactory,
+            ParquetFooterCache parquetFooterCache)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
@@ -69,6 +72,7 @@ public class IcebergPageSourceProviderFactory
         this.blocksHashFactory = icebergConfig.isEqualityDeletesBlocksHashEnabled()
                 ? Optional.of(requireNonNull(blocksHashFactory, "blocksHashFactory is null"))
                 : Optional.empty();
+        this.parquetFooterCache = requireNonNull(parquetFooterCache, "parquetFooterCache is null");
     }
 
     @Override
@@ -97,6 +101,6 @@ public class IcebergPageSourceProviderFactory
     @Override
     public IcebergPageSourceProvider createPageSourceProvider()
     {
-        return new IcebergPageSourceProvider(fileSystemFactory, fileIoFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, dateTimeZone, typeManager, blocksHashFactory);
+        return new IcebergPageSourceProvider(fileSystemFactory, fileIoFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, dateTimeZone, typeManager, blocksHashFactory, parquetFooterCache);
     }
 }

@@ -39,6 +39,8 @@ import static io.trino.plugin.iceberg.CatalogType.GLUE;
 import static io.trino.plugin.iceberg.CatalogType.HIVE_METASTORE;
 import static io.trino.plugin.iceberg.IcebergFileFormat.ORC;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.iceberg.ParquetFooterCacheType.MEMORY;
+import static io.trino.plugin.iceberg.ParquetFooterCacheType.NONE;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -99,7 +101,9 @@ public class TestIcebergConfig
                 .setTimeZone("UTC")
                 .setLegacyVariantTypeMapping(VariantMapping.VARIANT)
                 .setDropTableMode(DropTableMode.PURGE)
-                .setEqualityDeletesBlocksHashEnabled(true));
+                .setEqualityDeletesBlocksHashEnabled(true)
+                .setParquetFooterCacheType(NONE)
+                .setParquetFooterCacheMemoryMaxSize(DataSize.of(10, MEGABYTE)));
     }
 
     @Test
@@ -156,6 +160,8 @@ public class TestIcebergConfig
                 .put("iceberg.legacy-variant-type-mapping", "JSON")
                 .put("iceberg.drop-table-mode", "keep")
                 .put("iceberg.equality-deletes-blocks-hash-enabled", "false")
+                .put("iceberg.parquet-footer-cache.type", "MEMORY")
+                .put("iceberg.parquet-footer-cache.memory.max-size", "42MB")
                 .buildOrThrow();
 
         IcebergConfig expected = new IcebergConfig()
@@ -209,7 +215,9 @@ public class TestIcebergConfig
                 .setTimeZone(nonDefaultTimeZone().getID())
                 .setLegacyVariantTypeMapping(VariantMapping.JSON)
                 .setDropTableMode(DropTableMode.KEEP)
-                .setEqualityDeletesBlocksHashEnabled(false);
+                .setEqualityDeletesBlocksHashEnabled(false)
+                .setParquetFooterCacheType(MEMORY)
+                .setParquetFooterCacheMemoryMaxSize(DataSize.of(42, MEGABYTE));
 
         assertFullMapping(properties, expected);
     }

@@ -36,6 +36,7 @@ import io.trino.orc.OrcRecordReader;
 import io.trino.orc.metadata.OrcType;
 import io.trino.parquet.ParquetReaderOptions;
 import io.trino.parquet.ParquetTestUtils;
+import io.trino.parquet.cache.ParquetFooterCache;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.reader.ParquetReader;
@@ -126,7 +127,8 @@ public final class IcebergTestUtils
                     new ParquetReaderConfig(),
                     new IcebergConfig(),
                     TESTING_TYPE_MANAGER,
-                    BLOCKS_HASH_FACTORY),
+                    BLOCKS_HASH_FACTORY,
+                    ParquetFooterCache.noop()),
             new IcebergFileWriterFactory(
                     TESTING_TYPE_MANAGER,
                     new NodeVersion("test_version"),
