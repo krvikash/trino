@@ -22,6 +22,7 @@ import com.google.common.collect.Multimaps;
 import com.google.common.collect.Streams;
 import com.google.common.io.CharStreams;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.units.DataSize;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
@@ -97,6 +98,7 @@ import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_PARTITION_VALUE;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNKNOWN_ERROR;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HiveSessionProperties.getMaxSplitSize;
+import static io.trino.plugin.hive.HiveSessionProperties.getParquetMaxSplitSize;
 import static io.trino.plugin.hive.HiveSessionProperties.isForceLocalScheduling;
 import static io.trino.plugin.hive.HiveSessionProperties.isValidateBucketing;
 import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
@@ -106,6 +108,7 @@ import static io.trino.plugin.hive.fs.HiveFileIterator.NestedDirectoryPolicy.IGN
 import static io.trino.plugin.hive.fs.HiveFileIterator.NestedDirectoryPolicy.RECURSE;
 import static io.trino.plugin.hive.metastore.MetastoreUtil.getHiveSchema;
 import static io.trino.plugin.hive.metastore.MetastoreUtil.getPartitionLocation;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.isParquetSerde;
 import static io.trino.plugin.hive.util.AcidTables.getAcidState;
 import static io.trino.plugin.hive.util.AcidTables.isFullAcidTable;
 import static io.trino.plugin.hive.util.AcidTables.isTransactionalTable;
@@ -411,6 +414,10 @@ public class BackgroundHiveSplitLoader
             HiveStorageFormat targetStorageFormat = getSymlinkStorageFormat(getSerializationLibraryName(schema));
             ListMultimap<Location, Location> targets = getTargetLocationsByParentFromSymlink(location);
 
+            DataSize maxSplitSize = getMaxSplitSize(session);
+            if (isParquetSerde(getSerializationLibraryName(schema))) {
+                maxSplitSize = getParquetMaxSplitSize(session);
+            }
             InternalHiveSplitFactory splitFactory = new InternalHiveSplitFactory(
                     partitionName,
                     targetStorageFormat,
@@ -422,7 +429,7 @@ public class BackgroundHiveSplitLoader
                     partition.getHiveColumnCoercions(),
                     Optional.empty(),
                     Optional.empty(),
-                    getMaxSplitSize(session),
+                    maxSplitSize,
                     isForceLocalScheduling(session),
                     maxSplitFileSize,
                     session,
@@ -466,6 +473,10 @@ public class BackgroundHiveSplitLoader
             bucketValidation = Optional.of(new BucketValidation(info.getBucketingVersion(), info.getTableBucketCount(), info.getBucketColumns()));
         }
 
+        DataSize maxSplitSize = getMaxSplitSize(session);
+        if (isParquetSerde(getSerializationLibraryName(schema))) {
+            maxSplitSize = getParquetMaxSplitSize(session);
+        }
         InternalHiveSplitFactory splitFactory = new InternalHiveSplitFactory(
                 partitionName,
                 storageFormat,
@@ -477,7 +488,7 @@ public class BackgroundHiveSplitLoader
                 partition.getHiveColumnCoercions(),
                 bucketConversionRequiresWorkerParticipation ? bucketConversion : Optional.empty(),
                 bucketValidation,
-                getMaxSplitSize(session),
+                maxSplitSize,
                 isForceLocalScheduling(session),
                 maxSplitFileSize,
                 session,

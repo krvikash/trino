@@ -158,6 +158,7 @@ public abstract class BaseHiveTpchWorkload
         }
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {
             hiveProperties.put("hive.max-split-size", "512MB");
+            hiveProperties.put("hive.parquet.max-split-size", "512MB");
         }
 
         // local:// routes reads through the native LocalFileSystem; root "/" so absolute data paths resolve.

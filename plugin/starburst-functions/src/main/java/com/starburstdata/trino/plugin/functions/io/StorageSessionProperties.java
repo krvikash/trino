@@ -60,6 +60,7 @@ public class StorageSessionProperties
             .put("parquet_use_bloom_filter", true)
             .put("parquet_max_read_block_size", true)
             .put("parquet_max_read_block_row_count", true)
+            .put("parquet_max_split_size", true)
             .put("parquet_small_file_threshold", true)
             .put("parquet_vectorized_decoding_enabled", true)
             .put("parquet_writer_block_size", true)

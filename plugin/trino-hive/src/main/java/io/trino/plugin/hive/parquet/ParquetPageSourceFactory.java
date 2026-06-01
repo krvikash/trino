@@ -173,6 +173,11 @@ public class ParquetPageSourceFactory
 
     public static boolean stripUnnecessaryProperties(String serializationLibraryName)
     {
+        return isParquetSerde(serializationLibraryName);
+    }
+
+    public static boolean isParquetSerde(String serializationLibraryName)
+    {
         return PARQUET_SERDE_CLASS_NAMES.contains(serializationLibraryName);
     }
 
@@ -192,7 +197,7 @@ public class ParquetPageSourceFactory
             boolean originalFile,
             AcidTransaction transaction)
     {
-        if (!PARQUET_SERDE_CLASS_NAMES.contains(schema.serializationLibraryName())) {
+        if (!isParquetSerde(schema.serializationLibraryName())) {
             return Optional.empty();
         }
 

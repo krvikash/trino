@@ -54,11 +54,13 @@ import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNKNOWN_ERROR;
 import static io.trino.plugin.hive.HiveSessionProperties.getDynamicFilteringWaitTimeout;
 import static io.trino.plugin.hive.HiveSessionProperties.getMaxSplitSize;
 import static io.trino.plugin.hive.HiveSessionProperties.getMinimumAssignedSplitWeight;
+import static io.trino.plugin.hive.HiveSessionProperties.getParquetMaxSplitSize;
 import static io.trino.plugin.hive.HiveSessionProperties.isSizeBasedSplitWeightsEnabled;
 import static io.trino.plugin.hive.HiveSplitSource.StateKind.CLOSED;
 import static io.trino.plugin.hive.HiveSplitSource.StateKind.FAILED;
 import static io.trino.plugin.hive.HiveSplitSource.StateKind.INITIAL;
 import static io.trino.plugin.hive.HiveSplitSource.StateKind.NO_MORE_SPLITS;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.isParquetSerde;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -75,6 +77,7 @@ class HiveSplitSource
     private final long maxOutstandingSplitsBytes;
 
     private final DataSize maxSplitSize;
+    private final DataSize parquetMaxSplitSize;
 
     private final HiveSplitLoader splitLoader;
     private final AtomicReference<State> stateReference;
@@ -115,6 +118,7 @@ class HiveSplitSource
         this.highMemorySplitSourceCounter = requireNonNull(highMemorySplitSourceCounter, "highMemorySplitSourceCounter is null");
 
         this.maxSplitSize = getMaxSplitSize(session);
+        this.parquetMaxSplitSize = getParquetMaxSplitSize(session);
         this.splitWeightProvider = isSizeBasedSplitWeightsEnabled(session) ? new SizeBasedSplitWeightProvider(getMinimumAssignedSplitWeight(session), maxSplitSize) : HiveSplitWeightProvider.uniformStandardWeightProvider();
         this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
         this.recordScannedFiles = recordScannedFiles;
@@ -290,6 +294,9 @@ class HiveSplitSource
                 }
 
                 long maxSplitBytes = maxSplitSize.toBytes();
+                if (isParquetSerde(internalSplit.getSchema().serializationLibraryName())) {
+                    maxSplitBytes = parquetMaxSplitSize.toBytes();
+                }
                 InternalHiveBlock block = internalSplit.currentBlock();
                 long splitBytes;
                 if (internalSplit.isSplittable()) {
