@@ -46,6 +46,7 @@
         <module>lib/starburst-events-model</module>
         <module>lib/starburst-functions-client</module>
         <module>lib/starburst-license</module>
+        <module>lib/starburst-materialization-metastore-api</module>
         <module>lib/starburst-schema-discovery</module>
         <module>lib/starburst-testing-auto-configuration</module>
         <module>lib/trino-array</module>
@@ -1183,6 +1184,12 @@
             <dependency>
                 <groupId>io.trino</groupId>
                 <artifactId>starburst-license</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-materialization-metastore-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
