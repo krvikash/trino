@@ -27,7 +27,6 @@ import org.intellij.lang.annotations.Language;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
@@ -36,7 +35,6 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.sql.query.QueryAssertions.QueryAssert.collectGpuPlanNodes;
 import static java.nio.file.Files.createDirectories;
-import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -160,10 +158,6 @@ final class GpuQueriesTests
                 QueryRunner runner = test.accessQueryRunner();
                 for (int queryNumber : test.queries().toArray()) {
                     Path filePath = getModuleSourcePath().resolve("src/test/resources/" + test.gpuPlanResource(queryNumber));
-                    if (test.expectedFailure(queryNumber).isPresent()) {
-                        deleteIfExists(filePath);
-                        continue;
-                    }
                     log.info("Writing GPU plan for query %s to %s", queryNumber, filePath);
                     updateGpuOperators(runner, test.readQuery(queryNumber), filePath);
                 }
@@ -187,11 +181,6 @@ final class GpuQueriesTests
 
         abstract String readQuery(int queryNumber)
                 throws IOException;
-
-        Optional<String> expectedFailure(int queryNumber)
-        {
-            return Optional.empty();
-        }
 
         abstract String gpuPlanResource(int queryNumber);
     }

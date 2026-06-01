@@ -22,7 +22,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
@@ -30,7 +29,6 @@ import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseHiveGpuTpcdsQueriesTest
         extends GpuQueriesTests.GpuPlanTest
@@ -79,12 +77,6 @@ public abstract class BaseHiveGpuTpcdsQueriesTest
             throws Exception
     {
         String sql = readQuery(queryNumber);
-        Optional<String> expectedFailure = expectedFailure(queryNumber);
-        if (expectedFailure.isPresent()) {
-            assertThat(query(sql)).nonTrinoExceptionFailure()
-                    .hasMessage(expectedFailure.get());
-            return;
-        }
         assertGpuQueryResultsAndOperators(
                 getQueryRunner(),
                 sql,

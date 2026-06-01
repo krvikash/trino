@@ -4402,27 +4402,17 @@ public class LocalExecutionPlanner
                 DriverFactoryParameters parameters = driverFactoryParameters.get(sourceIndex);
                 PhysicalOperation source = parameters.getSource();
                 LocalExecutionPlanContext subContext = parameters.getSubContext();
-                // LOCAL ExchangeNode inputs match the source output channels for the partitioning
-                // handles we accept; fail loudly if a future plan shape breaks this.
+                // Lay the source columns out in exchange-output order; a LOCAL exchange may reorder or duplicate them (e.g. UNION ALL branches).
                 List<Symbol> expectedInputs = node.getInputs().get(sourceIndex);
-                Map<Symbol, Integer> sourceLayout = source.getLayout();
-                for (int channel = 0; channel < expectedInputs.size(); channel++) {
-                    Symbol symbol = expectedInputs.get(channel);
-                    Integer actualChannel = sourceLayout.get(symbol);
-                    verify(actualChannel != null && actualChannel == channel,
-                            "GPU local exchange requires identity input layout (source %s, channel %s, symbol %s, sourceLayout %s)",
-                            sourceIndex,
-                            channel,
-                            symbol,
-                            sourceLayout);
-                }
+                List<GpuOperation.Factory> sinkOperations = new ArrayList<>();
+                enforceLoadedLayoutGpuProjection(expectedInputs, source.getLayout()).ifPresent(sinkOperations::add);
+                sinkOperations.add(new GpuLocalExchangeWriter.Factory(exchange.createSinkFactory()));
 
-                GpuLocalExchange.GpuLocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
-                PhysicalOperation pipelineWithSink = addGpuOperation(
-                        new GpuLocalExchangeWriter.Factory(sinkFactory),
+                PhysicalOperation pipelineWithSink = addGpuOperations(
+                        sinkOperations,
                         outputTypes,
                         source,
-                        source.getLayout(),
+                        makeLayout(node),
                         subContext,
                         node.getId());
                 // For the last operator, Driver does not call getOutput(), only addInput() (guarded by needsInput()) and finish() (when input exhausted).
@@ -5089,6 +5079,26 @@ public class LocalExecutionPlanner
         }
 
         return new PageChannelSelector(channels);
+    }
+
+    /**
+     * GPU counterpart of {@link #enforceLoadedLayoutProcessor}. Empty when the layout is already identity.
+     */
+    private static Optional<GpuProject.Factory> enforceLoadedLayoutGpuProjection(List<Symbol> expectedLayout, Map<Symbol, Integer> inputLayout)
+    {
+        int[] channels = expectedLayout.stream()
+                .peek(symbol -> checkArgument(inputLayout.containsKey(symbol), "channel not found for symbol: %s", symbol))
+                .mapToInt(inputLayout::get)
+                .toArray();
+
+        if (Arrays.equals(channels, range(0, inputLayout.size()).toArray())) {
+            return Optional.empty();
+        }
+
+        List<GpuProject.Projection> projections = Arrays.stream(channels)
+                .mapToObj(GpuProject.Projection.PassThrough::new)
+                .collect(toImmutableList());
+        return Optional.of(new GpuProject.Factory(projections));
     }
 
     private static Page validateSpooledLayoutProcessor(Page page)

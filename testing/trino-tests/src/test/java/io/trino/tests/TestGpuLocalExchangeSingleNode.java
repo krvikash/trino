@@ -256,6 +256,72 @@ public class TestGpuLocalExchangeSingleNode
                 .isEqualTo(expected.getMaterializedRows());
     }
 
+    @Test
+    public void testLocalExchangeRunsOnGpuWhenUnionReordersColumns()
+    {
+        // UNION ALL reorders branch columns into the exchange input layout
+        Session session = singleNodePartitionedSession();
+        String sql =
+                """
+                SELECT k, sum(v)
+                FROM (
+                    SELECT max(totalprice) AS v, custkey % 10 AS k FROM tpch.sf1.orders GROUP BY custkey % 10
+                    UNION ALL
+                    SELECT max(totalprice) AS v, orderkey % 13 AS k FROM tpch.sf1.orders GROUP BY orderkey % 13
+                ) t
+                GROUP BY k
+                ORDER BY k
+                """;
+        MaterializedResultWithPlan result = getQueryRunner().executeWithPlan(session, sql);
+        Set<PlanNodeId> hashExchanges = findHashLocalExchanges(result);
+        Set<PlanNodeId> gpuPlanNodes = QueryAssertions.QueryAssert.collectGpuPlanNodes(queryStats(result));
+        assertThat(hashExchanges).as("plan must include a HASH local exchange").isNotEmpty();
+        assertThat(gpuPlanNodes)
+                .as("every HASH local exchange must run on GPU, including the UNION-fed one")
+                .containsAll(hashExchanges);
+
+        Session cpuOnly = Session.builder(session)
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
+        MaterializedResult expected = getQueryRunner().execute(cpuOnly, sql);
+        assertThat(result.result().getMaterializedRows())
+                .as("reordered-column GPU local exchange must give same result as CPU-only")
+                .isEqualTo(expected.getMaterializedRows());
+    }
+
+    @Test
+    public void testLocalExchangeRunsOnGpuWhenUnionDuplicatesConstant()
+    {
+        // UNION ALL projects one deduped constant into two columns, so the exchange input repeats a symbol
+        Session session = singleNodePartitionedSession();
+        String sql =
+                """
+                SELECT k, sum(a), sum(b)
+                FROM (
+                    SELECT custkey % 10 AS k, max(totalprice) AS a, CAST(0 AS double) AS b FROM tpch.sf1.orders GROUP BY custkey % 10
+                    UNION ALL
+                    SELECT orderkey % 13 AS k, CAST(0 AS double) AS a, CAST(0 AS double) AS b FROM tpch.sf1.orders GROUP BY orderkey % 13
+                ) t
+                GROUP BY k
+                ORDER BY k
+                """;
+        MaterializedResultWithPlan result = getQueryRunner().executeWithPlan(session, sql);
+        Set<PlanNodeId> hashExchanges = findHashLocalExchanges(result);
+        Set<PlanNodeId> gpuPlanNodes = QueryAssertions.QueryAssert.collectGpuPlanNodes(queryStats(result));
+        assertThat(hashExchanges).as("plan must include a HASH local exchange").isNotEmpty();
+        assertThat(gpuPlanNodes)
+                .as("every HASH local exchange must run on GPU, including the UNION-fed one")
+                .containsAll(hashExchanges);
+
+        Session cpuOnly = Session.builder(session)
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
+        MaterializedResult expected = getQueryRunner().execute(cpuOnly, sql);
+        assertThat(result.result().getMaterializedRows())
+                .as("duplicated-constant GPU local exchange must give same result as CPU-only")
+                .isEqualTo(expected.getMaterializedRows());
+    }
+
     private static Set<PlanNodeId> findHashLocalExchanges(MaterializedResultWithPlan result)
     {
         return findLocalExchanges(result, FIXED_HASH_DISTRIBUTION);

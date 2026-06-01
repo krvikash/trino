@@ -29,7 +29,6 @@ import static com.google.common.io.Resources.getResource;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseHiveGpuTpchQueriesTest
         extends GpuQueriesTests.GpuPlanTest
@@ -76,7 +75,6 @@ public abstract class BaseHiveGpuTpchQueriesTest
     public final void testQuery(int queryNumber)
             throws Exception
     {
-        assertThat(expectedFailure(queryNumber)).as("Expected failure").isEmpty();
         assertGpuQueryResultsAndOperators(
                 getQueryRunner(),
                 readQuery(queryNumber),
