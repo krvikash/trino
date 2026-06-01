@@ -64,15 +64,15 @@ public class SnowflakeQueryRunner
                 "snowflake.role", ROLE);
     }
 
-    public static Builder<?> jdbcBuilder()
+    public static Builder jdbcBuilder()
     {
-        return new Builder<>(createSessionForUser(USER))
+        return new Builder(createSessionForUser(USER))
                 .withConnectorName(DEPRECATED_JDBC.getName());
     }
 
-    public static Builder<?> parallelBuilder()
+    public static Builder parallelBuilder()
     {
-        return new Builder<>(createSessionForUser(USER))
+        return new Builder(createSessionForUser(USER))
                 .withConnectorName(PARALLEL.getName());
     }
 
@@ -91,8 +91,8 @@ public class SnowflakeQueryRunner
                 .build();
     }
 
-    public static class Builder<SELF extends Builder<?>>
-            extends DistributedQueryRunner.Builder<SELF>
+    public static class Builder
+            extends DistributedQueryRunner.Builder<Builder>
     {
         private Function<Session, Session> builderSessionModifier = identity();
         private Plugin plugin = new TestingSnowflakePlugin();
@@ -114,70 +114,70 @@ public class SnowflakeQueryRunner
         }
 
         @CanIgnoreReturnValue
-        protected SELF withBuilderSession(Function<Session, Session> builderSessionModifier)
+        protected Builder withBuilderSession(Function<Session, Session> builderSessionModifier)
         {
             this.builderSessionModifier = builderSessionModifier;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withPlugin(Plugin plugin)
+        public Builder withPlugin(Plugin plugin)
         {
             this.plugin = requireNonNull(plugin, "plugin is null");
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withConnectorName(String connectorName)
+        public Builder withConnectorName(String connectorName)
         {
             this.connectorName = requireNonNull(connectorName, "connectorName is null");
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withWarehouse(Optional<String> warehouseName)
+        public Builder withWarehouse(Optional<String> warehouseName)
         {
             this.warehouseName = warehouseName;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withPrivateKey(Optional<String> privateKey)
+        public Builder withPrivateKey(Optional<String> privateKey)
         {
             this.privateKey = privateKey;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withPrivateKeyPassphrase(Optional<String> privateKeyPassphrase)
+        public Builder withPrivateKeyPassphrase(Optional<String> privateKeyPassphrase)
         {
             this.privateKeyPassphrase = privateKeyPassphrase;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withPassword(Optional<String> password)
+        public Builder withPassword(Optional<String> password)
         {
             this.password = password;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withDatabase(Optional<String> databaseName)
+        public Builder withDatabase(Optional<String> databaseName)
         {
             this.databaseName = databaseName;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withCatalog(String catalogName)
+        public Builder withCatalog(String catalogName)
         {
             this.catalogName = requireNonNull(catalogName, "catalogName is null");
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withSchema(Optional<String> schemaName)
+        public Builder withSchema(Optional<String> schemaName)
         {
             this.schemaName = schemaName;
             return self();
@@ -185,28 +185,28 @@ public class SnowflakeQueryRunner
 
         // additive. TODO change name to indicate that
         @CanIgnoreReturnValue
-        public SELF withConnectorProperties(Map<String, String> connectorProperties)
+        public Builder withConnectorProperties(Map<String, String> connectorProperties)
         {
             this.connectorProperties.putAll(requireNonNull(connectorProperties, "connectorProperties is null"));
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withNodeCount(int nodeCount)
+        public Builder withNodeCount(int nodeCount)
         {
             this.nodeCount = nodeCount;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withTpchTables(Iterable<TpchTable<?>> tpchTables)
+        public Builder withTpchTables(Iterable<TpchTable<?>> tpchTables)
         {
             this.tpchTables = tpchTables;
             return self();
         }
 
         @CanIgnoreReturnValue
-        public SELF withCreateUserContextView()
+        public Builder withCreateUserContextView()
         {
             verify(databaseName.isPresent(), "Database name must be provided to create view");
             // Create view used for testing user/role impersonation

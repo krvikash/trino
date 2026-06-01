@@ -15,7 +15,7 @@ public class TestParallelSnowflakeTableStatisticsWithDatabasePrefix
         extends TestSnowflakeTableStatisticsWithDatabasePrefix
 {
     @Override
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return parallelBuilder();
     }

@@ -69,7 +69,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .build();
     }
 
-    protected SnowflakeQueryRunner.Builder<?> getBuilder()
+    protected SnowflakeQueryRunner.Builder getBuilder()
     {
         return jdbcBuilder();
     }

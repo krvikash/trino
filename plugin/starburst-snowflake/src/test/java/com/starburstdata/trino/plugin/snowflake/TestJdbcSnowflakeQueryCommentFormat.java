@@ -15,7 +15,7 @@ final class TestJdbcSnowflakeQueryCommentFormat
         extends BaseSnowflakeQueryCommentFormat
 {
     @Override
-    protected SnowflakeQueryRunner.Builder<?> getSnowflakeQueryRunnerBuilder()
+    protected SnowflakeQueryRunner.Builder getSnowflakeQueryRunnerBuilder()
     {
         return jdbcBuilder();
     }

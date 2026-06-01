@@ -45,7 +45,7 @@ public class TestJdbcSnowflakeWarehouseSwitching
         return queryRunner;
     }
 
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return jdbcBuilder();
     }

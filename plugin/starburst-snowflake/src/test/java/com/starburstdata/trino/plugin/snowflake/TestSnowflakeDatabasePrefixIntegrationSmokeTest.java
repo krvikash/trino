@@ -54,7 +54,7 @@ public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
                 .build();
     }
 
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return jdbcBuilder();
     }

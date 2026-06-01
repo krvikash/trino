@@ -15,7 +15,7 @@ public class TestParallelSnowflakeTableStatistics
         extends TestSnowflakeTableStatistics
 {
     @Override
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return parallelBuilder();
     }

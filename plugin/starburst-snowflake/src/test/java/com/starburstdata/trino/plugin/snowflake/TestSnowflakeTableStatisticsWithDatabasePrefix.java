@@ -41,7 +41,7 @@ public class TestSnowflakeTableStatisticsWithDatabasePrefix
                 .build();
     }
 
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return jdbcBuilder();
     }

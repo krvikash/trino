@@ -37,7 +37,7 @@ public abstract class BaseSnowflakeQueryCommentFormat
 {
     private SnowflakeQueryRecorder snowflakeQueryRecorder;
 
-    protected abstract SnowflakeQueryRunner.Builder<?> getSnowflakeQueryRunnerBuilder();
+    protected abstract SnowflakeQueryRunner.Builder getSnowflakeQueryRunnerBuilder();
 
     @Override
     protected QueryRunner createQueryRunner()

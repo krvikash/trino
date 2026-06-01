@@ -15,7 +15,7 @@ public class TestParallelSnowflakeDatabasePrefixIntegrationSmokeTest
         extends TestSnowflakeDatabasePrefixIntegrationSmokeTest
 {
     @Override
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return parallelBuilder();
     }

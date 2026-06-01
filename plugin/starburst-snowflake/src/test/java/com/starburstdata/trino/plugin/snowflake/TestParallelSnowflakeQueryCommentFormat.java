@@ -15,7 +15,7 @@ final class TestParallelSnowflakeQueryCommentFormat
         extends BaseSnowflakeQueryCommentFormat
 {
     @Override
-    protected SnowflakeQueryRunner.Builder<?> getSnowflakeQueryRunnerBuilder()
+    protected SnowflakeQueryRunner.Builder getSnowflakeQueryRunnerBuilder()
     {
         return parallelBuilder();
     }

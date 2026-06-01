@@ -38,7 +38,7 @@ public class TestSnowflakeDynamicFiltering
                 .build();
     }
 
-    protected SnowflakeQueryRunner.Builder<?> createBuilder()
+    protected SnowflakeQueryRunner.Builder createBuilder()
     {
         return parallelBuilder();
     }

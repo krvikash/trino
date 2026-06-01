@@ -63,7 +63,7 @@ public abstract class BaseSnowflakeTimeoutCancellationTest
                 .build();
     }
 
-    protected abstract SnowflakeQueryRunner.Builder<?> getSnowflakeQueryRunnerBuilder();
+    protected abstract SnowflakeQueryRunner.Builder getSnowflakeQueryRunnerBuilder();
 
     @Test
     @Timeout(60)

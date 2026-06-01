@@ -15,7 +15,7 @@ public class TestJdbcSnowflakeTimeoutCancellationTest
         extends BaseSnowflakeTimeoutCancellationTest
 {
     @Override
-    protected SnowflakeQueryRunner.Builder<?> getSnowflakeQueryRunnerBuilder()
+    protected SnowflakeQueryRunner.Builder getSnowflakeQueryRunnerBuilder()
     {
         return jdbcBuilder();
     }
