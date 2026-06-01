@@ -21,12 +21,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.trino.spi.session.PropertyMetadata.booleanProperty;
 import static io.trino.spi.session.PropertyMetadata.stringProperty;
 
 public class IcebergMaterializedViewProperties
 {
     public static final String REFRESH_SCHEDULE = "refresh_schedule";
     public static final String STORAGE_SCHEMA = "storage_schema";
+    public static final String SUBSTITUTION_ENABLED = "substitution_enabled";
 
     private final List<PropertyMetadata<?>> materializedViewProperties;
 
@@ -38,6 +40,11 @@ public class IcebergMaterializedViewProperties
                         STORAGE_SCHEMA,
                         "Schema for creating materialized view storage table",
                         icebergConfig.getMaterializedViewsStorageSchema().orElse(null),
+                        false))
+                .add(booleanProperty(
+                        SUBSTITUTION_ENABLED,
+                        "Whether this materialized view can be used for automatic query substitution",
+                        false,
                         false))
                 // Materialized view should allow configuring all the supported iceberg table properties for the storage table
                 .addAll(tableProperties.getTableProperties());
@@ -64,5 +71,10 @@ public class IcebergMaterializedViewProperties
     public static Optional<String> getStorageSchema(Map<String, Object> materializedViewProperties)
     {
         return Optional.ofNullable((String) materializedViewProperties.get(STORAGE_SCHEMA));
+    }
+
+    public static Optional<Boolean> isSubstitutionEnabled(Map<String, Object> materializedViewProperties)
+    {
+        return Optional.ofNullable((Boolean) materializedViewProperties.get(SUBSTITUTION_ENABLED));
     }
 }

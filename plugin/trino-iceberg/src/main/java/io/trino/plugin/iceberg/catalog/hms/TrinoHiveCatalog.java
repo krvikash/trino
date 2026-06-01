@@ -110,6 +110,8 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.encodeMa
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConnectorMaterializedViewDefinition;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.SUBSTITUTION_ENABLED;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.isSubstitutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnMetadatas;
@@ -126,6 +128,7 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_EMPTY;
 import static io.trino.spi.StandardErrorCode.UNSUPPORTED_TABLE_TYPE;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
+import static java.lang.Boolean.parseBoolean;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -616,7 +619,7 @@ public class TrinoHiveCatalog
             Location storageMetadataLocation = createMaterializedViewStorage(session, viewName, definition, materializedViewProperties);
             Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(Table::getParameters));
 
-            Map<String, String> viewProperties = createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId);
+            Map<String, String> viewProperties = createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId, isSubstitutionEnabled(materializedViewProperties));
             Column dummyColumn = new Column("dummy", HIVE_STRING, Optional.empty(), ImmutableMap.of());
             Table.Builder tableBuilder = Table.builder()
                     .setDatabaseName(viewName.getSchemaName())
@@ -673,7 +676,7 @@ public class TrinoHiveCatalog
         Optional<String> refreshJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, materializedViewProperties, existing.map(Table::getParameters));
 
         // Create a view indicating the storage table
-        Map<String, String> viewProperties = createMaterializedViewProperties(session, storageTable, refreshJobId);
+        Map<String, String> viewProperties = createMaterializedViewProperties(session, storageTable, refreshJobId, isSubstitutionEnabled(materializedViewProperties));
         Column dummyColumn = new Column("dummy", HIVE_STRING, Optional.empty(), Map.of());
 
         Table.Builder tableBuilder = Table.builder()
@@ -761,6 +764,26 @@ public class TrinoHiveCatalog
                     NO_PRIVILEGES,
                     ImmutableMap.of());
         }
+    }
+
+    @Override
+    public void updateMaterializedViewSubstitutionEnabled(ConnectorSession session, SchemaTableName viewName, Optional<Boolean> substitutionEnabled)
+    {
+        Table existing = metastore.getTable(viewName.getSchemaName(), viewName.getTableName())
+                .orElseThrow(() -> new ViewNotFoundException(viewName));
+
+        if (!isTrinoMaterializedView(existing.getTableType(), existing.getParameters())) {
+            throw new TrinoException(UNSUPPORTED_TABLE_TYPE, "Existing table is not a Materialized View: " + viewName);
+        }
+
+        metastore.replaceTable(
+                viewName.getSchemaName(),
+                viewName.getTableName(),
+                Table.builder(existing)
+                        .setParameter(SUBSTITUTION_ENABLED, substitutionEnabled.map(String::valueOf))
+                        .build(),
+                NO_PRIVILEGES,
+                ImmutableMap.of());
     }
 
     private void replaceMaterializedView(ConnectorSession session, SchemaTableName viewName, Table view, ConnectorMaterializedViewDefinition newDefinition)
@@ -866,6 +889,9 @@ public class TrinoHiveCatalog
         if (scheduledMaterializedViewRefreshEnabled) {
             Optional<String> jobId = Optional.ofNullable(materializedView.getParameters().get(REFRESH_JOB_ID_PROPERTY));
             jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+        }
+        if (materializedView.getParameters().containsKey(SUBSTITUTION_ENABLED)) {
+            properties.put(SUBSTITUTION_ENABLED, parseBoolean(materializedView.getParameters().get(SUBSTITUTION_ENABLED)));
         }
         return properties.buildOrThrow();
     }
@@ -981,7 +1007,7 @@ public class TrinoHiveCatalog
     }
 
     @Override
-    protected void invalidateTableCache(SchemaTableName schemaTableName)
+    public void invalidateTableCache(SchemaTableName schemaTableName)
     {
         tableMetadataCache.invalidate(schemaTableName);
     }

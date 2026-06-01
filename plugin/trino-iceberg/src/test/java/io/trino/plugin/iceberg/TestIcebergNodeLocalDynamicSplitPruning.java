@@ -70,6 +70,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static io.trino.hdfs.HdfsTestUtils.HDFS_ENVIRONMENT;
@@ -184,6 +185,8 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             Optional.empty(),
                             Optional.empty(),
                             false,
+                            UUID.randomUUID(),
+                            false,
                             Optional.empty(),
                             false,
                             ImmutableSet.of(),
@@ -248,6 +251,8 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             ImmutableMap.of(),
                             Optional.empty(),
                             Optional.empty(),
+                            false,
+                            UUID.fromString("00000000-0000-0000-0000-000000000001"),
                             false,
                             Optional.empty(),
                             false,
@@ -365,6 +370,8 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             ImmutableMap.of(),
                             Optional.empty(),
                             Optional.empty(),
+                            false,
+                            UUID.randomUUID(),
                             false,
                             Optional.empty(),
                             false,
@@ -528,6 +535,8 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                             ImmutableMap.of(),
                             Optional.empty(),
                             Optional.empty(),
+                            false,
+                            UUID.randomUUID(),
                             false,
                             Optional.empty(),
                             false,

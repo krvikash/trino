@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -297,6 +298,8 @@ class TestFileBasedConflictDetection
                 ImmutableMap.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 false,
                 Optional.empty(),
                 false,

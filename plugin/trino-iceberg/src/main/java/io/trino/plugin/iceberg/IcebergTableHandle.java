@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -52,6 +53,11 @@ public class IcebergTableHandle
     private final String tableLocation;
     private final Map<String, String> storageProperties;
     private final Optional<String> branch;
+    private final boolean versionPinnedByQuery;
+    // Iceberg's intrinsic table-uuid, captured when the handle is built from a loaded table.
+    // Lets substitution detect a source-table drop+recreate even when the new table reuses the
+    // dropped table's on-disk location (under iceberg.unique-table-location=false).
+    private final UUID tableUuid;
 
     // Filter used during split generation and table scan, but not required to be strictly enforced by Iceberg Connector
     private final TupleDomain<IcebergColumnHandle> unenforcedPredicate;
@@ -108,7 +114,9 @@ public class IcebergTableHandle
             @JsonProperty("nameMappingJson") Optional<String> nameMappingJson,
             @JsonProperty("tableLocation") String tableLocation,
             @JsonProperty("storageProperties") Map<String, String> storageProperties,
-            @JsonProperty("branch") Optional<String> branch)
+            @JsonProperty("branch") Optional<String> branch,
+            @JsonProperty("versionPinnedByQuery") boolean versionPinnedByQuery,
+            @JsonProperty("tableUuid") UUID tableUuid)
     {
         return new IcebergTableHandle(
                 schemaName,
@@ -130,6 +138,8 @@ public class IcebergTableHandle
                 storageProperties,
                 Optional.empty(),
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 false,
                 Optional.empty(),
                 false,
@@ -157,6 +167,8 @@ public class IcebergTableHandle
             Map<String, String> storageProperties,
             Optional<IcebergTablePartitioning> tablePartitioning,
             Optional<String> branch,
+            boolean versionPinnedByQuery,
+            UUID tableUuid,
             boolean recordScannedFiles,
             Optional<DataSize> maxScannedFileSize,
             boolean forceReadingAllFiles,
@@ -186,6 +198,8 @@ public class IcebergTableHandle
         this.storageProperties = ImmutableMap.copyOf(requireNonNull(storageProperties, "storageProperties is null"));
         this.tablePartitioning = requireNonNull(tablePartitioning, "tablePartitioning is null");
         this.branch = requireNonNull(branch, "branch is null");
+        this.versionPinnedByQuery = versionPinnedByQuery;
+        this.tableUuid = requireNonNull(tableUuid, "tableUuid is null");
         this.recordScannedFiles = recordScannedFiles;
         this.maxScannedFileSize = requireNonNull(maxScannedFileSize, "maxScannedFileSize is null");
         this.forceReadingAllFiles = forceReadingAllFiles;
@@ -299,6 +313,18 @@ public class IcebergTableHandle
         return branch;
     }
 
+    @JsonProperty
+    public boolean isVersionPinnedByQuery()
+    {
+        return versionPinnedByQuery;
+    }
+
+    @JsonProperty
+    public UUID getTableUuid()
+    {
+        return tableUuid;
+    }
+
     @JsonIgnore
     public boolean isRecordScannedFiles()
     {
@@ -373,6 +399,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,
@@ -402,6 +430,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,
@@ -431,6 +461,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 true,
                 Optional.empty(),
                 true,
@@ -460,6 +492,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 Optional.of(maxScannedFileSize),
                 forceReadingAllFiles,
@@ -489,6 +523,8 @@ public class IcebergTableHandle
                 storageProperties,
                 requiredTablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,
@@ -523,6 +559,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,
@@ -552,6 +590,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,
@@ -581,6 +621,8 @@ public class IcebergTableHandle
                 storageProperties,
                 tablePartitioning,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,
@@ -616,6 +658,8 @@ public class IcebergTableHandle
                 Objects.equals(tableLocation, that.tableLocation) &&
                 Objects.equals(storageProperties, that.storageProperties) &&
                 Objects.equals(branch, that.branch) &&
+                versionPinnedByQuery == that.versionPinnedByQuery &&
+                Objects.equals(tableUuid, that.tableUuid) &&
                 Objects.equals(maxScannedFileSize, that.maxScannedFileSize) &&
                 forceReadingAllFiles == that.forceReadingAllFiles &&
                 Objects.equals(constraintColumns, that.constraintColumns) &&
@@ -644,6 +688,8 @@ public class IcebergTableHandle
                 tableLocation,
                 storageProperties,
                 branch,
+                versionPinnedByQuery,
+                tableUuid,
                 recordScannedFiles,
                 maxScannedFileSize,
                 forceReadingAllFiles,

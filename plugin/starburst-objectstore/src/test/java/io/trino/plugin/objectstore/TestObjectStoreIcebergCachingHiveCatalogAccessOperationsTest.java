@@ -40,6 +40,7 @@ final class TestObjectStoreIcebergCachingHiveCatalogAccessOperationsTest
                                 .setCatalog(CATALOG_NAME)
                                 .setSchema(TEST_SCHEMA)
                                 .build())
+                .addExtraProperty("materialized-view-substitution.support.enabled", "false")
                 .build();
         Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("objectstore_iceberg_hms_cache");
         verify(dataDir.toFile().mkdirs());

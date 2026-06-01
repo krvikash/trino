@@ -36,6 +36,7 @@ final class TestIcebergCachingGlueCatalogAccessOperationsTest
     {
         return IcebergQueryRunner.builder(testSchema)
                 .addCoordinatorProperty("optimizer.experimental-max-prefetched-information-schema-prefixes", Integer.toString(MAX_PREFIXES_COUNT))
+                .addExtraProperty("materialized-view-substitution.support.enabled", "false")
                 .addIcebergProperty("iceberg.catalog.type", "glue")
                 .addIcebergProperty("hive.metastore.glue.default-warehouse-dir", "local:///glue")
                 .addIcebergProperty("iceberg.glue.metastore-cache.ttl", "30m")

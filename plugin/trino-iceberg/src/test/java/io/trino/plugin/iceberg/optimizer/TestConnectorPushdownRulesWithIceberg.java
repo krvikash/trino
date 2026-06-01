@@ -62,6 +62,7 @@ import java.nio.file.Files;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.UUID;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
@@ -178,6 +179,8 @@ public class TestConnectorPushdownRulesWithIceberg
                 Optional.empty(),
                 Optional.empty(),
                 false,
+                UUID.randomUUID(),
+                false,
                 Optional.empty(),
                 false,
                 ImmutableSet.of(),
@@ -267,6 +270,8 @@ public class TestConnectorPushdownRulesWithIceberg
                 Optional.empty(),
                 Optional.empty(),
                 false,
+                UUID.randomUUID(),
+                false,
                 Optional.empty(),
                 false,
                 ImmutableSet.of(),
@@ -322,6 +327,8 @@ public class TestConnectorPushdownRulesWithIceberg
                 ImmutableMap.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 false,
                 Optional.empty(),
                 false,
@@ -388,6 +395,8 @@ public class TestConnectorPushdownRulesWithIceberg
                 ImmutableMap.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 false,
                 Optional.empty(),
                 false,

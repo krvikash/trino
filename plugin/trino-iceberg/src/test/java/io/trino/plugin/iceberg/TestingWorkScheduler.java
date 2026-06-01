@@ -18,10 +18,10 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
@@ -29,7 +29,7 @@ import static java.util.Objects.requireNonNull;
 public class TestingWorkScheduler
         implements WorkScheduler
 {
-    private final Map<String, MaterializedViewRefresh> jobs = new HashMap<>();
+    private final Map<String, MaterializedViewRefresh> jobs = new ConcurrentHashMap<>();
     private final Supplier<QueryRunner> queryRunner;
 
     public TestingWorkScheduler(Supplier<QueryRunner> queryRunner)
@@ -38,7 +38,7 @@ public class TestingWorkScheduler
     }
 
     @Override
-    public synchronized String createMaterializedViewRefreshJob(ConnectorSession session, String catalogName, String schemaName, String materializedViewName, String jobCron)
+    public String createMaterializedViewRefreshJob(ConnectorSession session, String catalogName, String schemaName, String materializedViewName, String jobCron)
     {
         String id = UUID.randomUUID().toString();
         jobs.put(id, new MaterializedViewRefresh(new CatalogSchemaTableName(catalogName, schemaName, materializedViewName), jobCron));
@@ -46,40 +46,40 @@ public class TestingWorkScheduler
     }
 
     @Override
-    public synchronized Optional<String> getJobSchedule(ConnectorSession session, String jobId)
+    public Optional<String> getJobSchedule(ConnectorSession session, String jobId)
     {
         return Optional.ofNullable(jobs.get(jobId)).map(MaterializedViewRefresh::jobCron);
     }
 
     @Override
-    public synchronized void deleteJobSchedule(ConnectorSession session, String jobId)
+    public void deleteJobSchedule(ConnectorSession session, String jobId)
     {
         jobs.remove(jobId);
     }
 
     @Override
-    public synchronized boolean updateJobSchedule(ConnectorSession session, String jobId, String jobCron)
+    public boolean updateJobSchedule(ConnectorSession session, String jobId, String jobCron)
     {
         return jobs.computeIfPresent(jobId, (_, existing) -> existing.withCronJob(jobCron)) != null;
     }
 
     @Override
-    public synchronized boolean updateMaterializedViewName(ConnectorSession session, String jobId, String materializedViewName)
+    public boolean updateMaterializedViewName(ConnectorSession session, String jobId, String materializedViewName)
     {
         return jobs.computeIfPresent(jobId, (_, existing) -> existing.withMaterializedViewName(materializedViewName)) != null;
     }
 
-    public synchronized void runScheduledRefreshesForJobId(String jobId)
+    public void runScheduledRefreshesForJobId(String jobId)
     {
         refreshMaterializedView(jobs.get(jobId));
     }
 
-    public synchronized String getRequiredJobScheduleId(CatalogSchemaTableName materializedView)
+    public String getRequiredJobScheduleId(CatalogSchemaTableName materializedView)
     {
         return getJobScheduleId(materializedView).orElseThrow();
     }
 
-    public synchronized Optional<String> getJobScheduleId(CatalogSchemaTableName materializedView)
+    public Optional<String> getJobScheduleId(CatalogSchemaTableName materializedView)
     {
         return jobs.entrySet().stream()
                 .filter(entry -> entry.getValue().table().equals(materializedView))

@@ -191,7 +191,7 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
             // First refresh creates storage table and populates cache for source table and MV
             assertGlueMetastoreApiInvocations("REFRESH MATERIALIZED VIEW test_select_mview_view",
                     ImmutableMultiset.<GlueMetastoreMethod>builder()
-                            .addCopies(GET_TABLE, 5)
+                            .addCopies(GET_TABLE, 6)
                             .add(UPDATE_TABLE)
                             .build());
 
@@ -206,7 +206,7 @@ public abstract class BaseIcebergCachingGlueCatalogAccessOperationsTest
             // Refresh repopulates the cache
             assertGlueMetastoreApiInvocations("REFRESH MATERIALIZED VIEW test_select_mview_view",
                     ImmutableMultiset.<GlueMetastoreMethod>builder()
-                            .addCopies(GET_TABLE, 5)
+                            .addCopies(GET_TABLE, 6)
                             .add(UPDATE_TABLE)
                             .build());
 

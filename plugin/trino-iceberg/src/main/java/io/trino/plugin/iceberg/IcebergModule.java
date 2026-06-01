@@ -25,6 +25,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSinkProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProviderFactory;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
 import io.trino.plugin.base.classloader.ForClassLoaderSafe;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
@@ -63,6 +64,7 @@ import io.trino.plugin.iceberg.procedure.RemoveOrphanFilesTableProcedure;
 import io.trino.plugin.iceberg.procedure.RollbackToSnapshotProcedure;
 import io.trino.plugin.iceberg.procedure.RollbackToSnapshotTableProcedure;
 import io.trino.plugin.iceberg.procedure.UnregisterTableProcedure;
+import io.trino.plugin.iceberg.substitution.IcebergSubstitutionMetadata;
 import io.trino.plugin.iceberg.system.IcebergTablesSystemTable;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.ConnectorContext;
@@ -72,6 +74,7 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -147,6 +150,9 @@ public class IcebergModule
 
         binder.bind(ConnectorCacheMetadata.class).annotatedWith(ForClassLoaderSafe.class).to(IcebergCacheMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorCacheMetadata.class).to(ClassLoaderSafeConnectorCacheMetadata.class).in(Scopes.SINGLETON);
+
+        binder.bind(ConnectorSubstitutionMetadata.class).annotatedWith(ForClassLoaderSafe.class).to(IcebergSubstitutionMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ConnectorSubstitutionMetadata.class).to(ClassLoaderSafeConnectorSubstitutionMetadata.class).in(Scopes.SINGLETON);
 
         // for table handle, column handle and split ids
         jsonCodecBinder(binder).bindJsonCodec(IcebergCacheTableId.class);

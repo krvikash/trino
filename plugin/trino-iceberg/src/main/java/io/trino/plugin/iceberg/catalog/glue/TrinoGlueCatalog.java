@@ -132,8 +132,11 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.encodeMa
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConnectorMaterializedViewDefinition;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.REFRESH_SCHEDULE;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.SUBSTITUTION_ENABLED;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.isSubstitutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
+import static io.trino.plugin.iceberg.IcebergTableName.tableNameFrom;
 import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_DEFAULT_VALUE_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_NOT_NULL_PROPERTY;
@@ -1232,7 +1235,7 @@ public class TrinoGlueCatalog
                     viewName.getTableName(),
                     encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
                     isUsingSystemSecurity ? null : session.getUser(),
-                    createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId));
+                    createMaterializedViewProperties(session, storageMetadataLocation, refreshJobId, isSubstitutionEnabled(materializedViewProperties)));
             try {
                 if (existing.isPresent()) {
                     updateTable(viewName.getSchemaName(), materializedViewTableInput);
@@ -1277,7 +1280,7 @@ public class TrinoGlueCatalog
                 viewName.getTableName(),
                 encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(definition)),
                 isUsingSystemSecurity ? null : session.getUser(),
-                createMaterializedViewProperties(session, storageTable, refreshJobId));
+                createMaterializedViewProperties(session, storageTable, refreshJobId, isSubstitutionEnabled(materializedViewProperties)));
 
         if (existing.isPresent()) {
             try {
@@ -1349,27 +1352,46 @@ public class TrinoGlueCatalog
         Optional<String> updatedJobId = createOrUpdateMaterializedViewRefreshJob(session, viewName, existingJobId, schedule);
 
         if (!existingJobId.equals(updatedJobId)) {
-            Table.Builder updatedView = view.toBuilder();
-            ImmutableMap.Builder<String, String> tableParameters = ImmutableMap.builder();
-            view.parameters().entrySet().stream()
-                    .filter(entry -> !entry.getKey().equals(REFRESH_JOB_ID_PROPERTY))
-                    .forEach(tableParameters::put);
-            updatedJobId.ifPresent(id -> tableParameters.put(REFRESH_JOB_ID_PROPERTY, id));
-            updatedView.parameters(tableParameters.buildOrThrow());
-            Table newView = updatedView.build();
-            ConnectorMaterializedViewDefinition newDefinition = createMaterializedViewDefinition(viewName, newView);
+            updateParameters(viewName, view, REFRESH_JOB_ID_PROPERTY, updatedJobId);
+        }
+    }
 
-            TableInput materializedViewTableInput = getMaterializedViewTableInput(
-                    viewName.getTableName(),
-                    encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(newDefinition)),
-                    newView.owner(),
-                    newView.parameters());
-            try {
-                updateTable(viewName.getSchemaName(), materializedViewTableInput);
-            }
-            catch (SdkException e) {
-                throw new TrinoException(ICEBERG_CATALOG_ERROR, e);
-            }
+    @Override
+    public void updateMaterializedViewSubstitutionEnabled(ConnectorSession session, SchemaTableName viewName, Optional<Boolean> substitutionEnabled)
+    {
+        Table view = getTableAndCacheMetadata(session, viewName)
+                .orElseThrow(() -> new MaterializedViewNotFoundException(viewName));
+
+        if (!isTrinoMaterializedView(getTableType(view), view.parameters())) {
+            throw new TrinoException(UNSUPPORTED_TABLE_TYPE, "Not a Materialized View: " + view.databaseName() + "." + view.name());
+        }
+
+        updateParameters(viewName, view, SUBSTITUTION_ENABLED, substitutionEnabled.map(String::valueOf));
+        materializedViewCache.invalidate(viewName);
+    }
+
+    private void updateParameters(SchemaTableName viewName, Table view, String key, Optional<String> value)
+    {
+        Table.Builder updatedView = view.toBuilder();
+        ImmutableMap.Builder<String, String> tableParameters = ImmutableMap.builder();
+        view.parameters().entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(key))
+                .forEach(tableParameters::put);
+        value.ifPresent(id -> tableParameters.put(key, id));
+        updatedView.parameters(tableParameters.buildOrThrow());
+        Table newView = updatedView.build();
+        ConnectorMaterializedViewDefinition newDefinition = createMaterializedViewDefinition(viewName, newView);
+
+        TableInput materializedViewTableInput = getMaterializedViewTableInput(
+                viewName.getTableName(),
+                encodeMaterializedViewData(fromConnectorMaterializedViewDefinition(newDefinition)),
+                newView.owner(),
+                newView.parameters());
+        try {
+            updateTable(viewName.getSchemaName(), materializedViewTableInput);
+        }
+        catch (SdkException e) {
+            throw new TrinoException(ICEBERG_CATALOG_ERROR, e);
         }
     }
 
@@ -1480,17 +1502,16 @@ public class TrinoGlueCatalog
         ImmutableMap.Builder<String, Object> properties = ImmutableMap.<String, Object>builder()
                 .putAll(super.getMaterializedViewProperties(session, viewName, definition));
 
+        Map<String, String> mvProperties = Optional.ofNullable(materializedViewCache.getIfPresent(viewName))
+                .map(MaterializedViewData::properties)
+                .orElseGet(() -> getTableAndCacheMetadata(session, viewName).orElseThrow().parameters());
         if (scheduledMaterializedViewRefreshEnabled) {
-            MaterializedViewData materializedViewData = materializedViewCache.getIfPresent(viewName);
-            Optional<String> jobId;
-            if (materializedViewData != null) {
-                jobId = Optional.ofNullable(materializedViewData.properties.get(REFRESH_JOB_ID_PROPERTY));
-            }
-            else {
-                jobId = Optional.ofNullable(getTableAndCacheMetadata(session, viewName).orElseThrow().parameters().get(REFRESH_JOB_ID_PROPERTY));
-            }
+            Optional<String> jobId = Optional.ofNullable(mvProperties.get(REFRESH_JOB_ID_PROPERTY));
 
             jobId.flatMap(id -> workScheduler.getJobSchedule(session, id)).ifPresent(cronSchedule -> properties.put(REFRESH_SCHEDULE, cronSchedule));
+        }
+        if (mvProperties.containsKey(SUBSTITUTION_ENABLED)) {
+            properties.put(SUBSTITUTION_ENABLED, parseBoolean(mvProperties.get(SUBSTITUTION_ENABLED)));
         }
         return properties.buildOrThrow();
     }
@@ -1616,9 +1637,16 @@ public class TrinoGlueCatalog
     }
 
     @Override
-    protected void invalidateTableCache(SchemaTableName schemaTableName)
+    public void invalidateTableCache(SchemaTableName schemaTableName)
     {
         tableMetadataCache.invalidate(schemaTableName);
+        // For a materialized-view storage table, getRefreshedLocation reads the Iceberg
+        // metadata_location from the materialized view's own Glue entry, i.e. under the un-suffixed
+        // name, so the raw-table caches are keyed by that name. Strip the suffix so a post-refresh
+        // reload observes the new metadata_location instead of the snapshot from before the refresh.
+        SchemaTableName glueTableName = new SchemaTableName(schemaTableName.getSchemaName(), tableNameFrom(schemaTableName.getTableName()));
+        glueTableCache.invalidate(glueTableName);
+        glueClient.invalidateCache(glueTableName);
     }
 
     Table getTable(SchemaTableName tableName, boolean invalidateCaches)

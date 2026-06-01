@@ -51,6 +51,7 @@ final class TestObjectStoreIcebergCachingGlueCatalogAccessOperationsTest
                                 .setCatalog(CATALOG_NAME)
                                 .setSchema(testSchema)
                                 .build())
+                .addExtraProperty("materialized-view-substitution.support.enabled", "false")
                 .build();
         Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("objectstore_iceberg_glue_cache");
         verify(dataDir.toFile().mkdirs());

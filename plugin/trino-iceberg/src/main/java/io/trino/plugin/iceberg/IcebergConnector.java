@@ -37,6 +37,7 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -67,6 +68,7 @@ public class IcebergConnector
     private final IcebergTransactionManager transactionManager;
     private final ConnectorSplitManager splitManager;
     private final ConnectorCacheMetadata cacheMetadata;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
     private final ConnectorPageSourceProviderFactory pageSourceProviderFactory;
     private final ConnectorPageSinkProvider pageSinkProvider;
     private final ConnectorNodePartitioningProvider nodePartitioningProvider;
@@ -90,6 +92,7 @@ public class IcebergConnector
             IcebergTransactionManager transactionManager,
             ConnectorSplitManager splitManager,
             ConnectorCacheMetadata cacheMetadata,
+            ConnectorSubstitutionMetadata substitutionMetadata,
             ConnectorPageSourceProviderFactory pageSourceProviderFactory,
             ConnectorPageSinkProvider pageSinkProvider,
             ConnectorNodePartitioningProvider nodePartitioningProvider,
@@ -111,6 +114,7 @@ public class IcebergConnector
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.cacheMetadata = requireNonNull(cacheMetadata, "cacheMetadata is null");
+        this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
         this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
@@ -162,6 +166,12 @@ public class IcebergConnector
     public ConnectorCacheMetadata getCacheMetadata()
     {
         return cacheMetadata;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override

@@ -228,7 +228,8 @@ public abstract class BaseIcebergMaterializedViewTest
                                 "   orc_bloom_filter_columns = ARRAY['_date'],\n" +
                                 "   orc_bloom_filter_fpp = 1E-1,\n" +
                                 "   partitioning = ARRAY['_date'],\n" +
-                                "   storage_schema = '" + schema + "'\n" +
+                                "   storage_schema = '" + schema + "',\n" +
+                                "   substitution_enabled = false\n" +
                                 ") AS\n" +
                                 "SELECT\n" +
                                 "  _bigint\n" +
@@ -544,7 +545,8 @@ public abstract class BaseIcebergMaterializedViewTest
                         "   format_version = 2,\n" +
                         "   location = '" + getSchemaDirectory() + "/materialized_view_window-\\E[0-9a-f]+\\Q',\n" +
                         "   partitioning = ARRAY['_date'],\n" +
-                        "   storage_schema = '" + schema + "'\n" +
+                        "   storage_schema = '" + schema + "',\n" +
+                        "   substitution_enabled = false\n" +
                         ") AS\n" +
                         "SELECT\n" +
                         "  _date\n" +

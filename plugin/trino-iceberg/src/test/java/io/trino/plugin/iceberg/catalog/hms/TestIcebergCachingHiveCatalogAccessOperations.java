@@ -24,6 +24,7 @@ final class TestIcebergCachingHiveCatalogAccessOperations
             throws Exception
     {
         return IcebergQueryRunner.builder()
+                .addExtraProperty("materialized-view-substitution.support.enabled", "false")
                 .addCoordinatorProperty("optimizer.experimental-max-prefetched-information-schema-prefixes", Integer.toString(MAX_PREFIXES_COUNT))
                 .addIcebergProperty("hive.metastore-cache-ttl", "30m")
                 .build();

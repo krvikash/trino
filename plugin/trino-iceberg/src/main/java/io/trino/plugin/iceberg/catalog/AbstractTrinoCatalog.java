@@ -78,6 +78,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.decodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.STORAGE_SCHEMA;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.SUBSTITUTION_ENABLED;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.getRefreshSchedule;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.getStorageSchema;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
@@ -349,6 +350,7 @@ public abstract class AbstractTrinoCatalog
         Schema schema = schemaFromMetadata(columns);
         PartitionSpec partitionSpec = parsePartitionFields(schema, getPartitioning(materializedViewProperties));
         SortOrder sortOrder = parseSortFields(schema, getSortOrder(materializedViewProperties));
+
         Map<String, String> properties = createTableProperties(new ConnectorTableMetadata(storageTableName, columns, materializedViewProperties, Optional.empty()), _ -> false);
 
         TableMetadata metadata = newTableMetadata(schema, partitionSpec, sortOrder, tableLocation, properties);
@@ -548,21 +550,29 @@ public abstract class AbstractTrinoCatalog
                 .buildOrThrow();
     }
 
-    protected abstract void invalidateTableCache(SchemaTableName schemaTableName);
-
-    protected Map<String, String> createMaterializedViewProperties(ConnectorSession session, SchemaTableName storageTableName, Optional<String> refreshJobId)
+    protected Map<String, String> createMaterializedViewProperties(
+            ConnectorSession session,
+            SchemaTableName storageTableName,
+            Optional<String> refreshJobId,
+            Optional<Boolean> substitutionEnabled)
     {
         ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
                 .putAll(createMaterializedViewProperties(session, storageTableName));
         refreshJobId.ifPresent(id -> properties.put(REFRESH_JOB_ID_PROPERTY, id));
+        substitutionEnabled.ifPresent(enabled -> properties.put(SUBSTITUTION_ENABLED, String.valueOf(enabled)));
         return properties.buildOrThrow();
     }
 
-    protected Map<String, String> createMaterializedViewProperties(ConnectorSession session, Location storageMetadataLocation, Optional<String> refreshJobId)
+    protected Map<String, String> createMaterializedViewProperties(
+            ConnectorSession session,
+            Location storageMetadataLocation,
+            Optional<String> refreshJobId,
+            Optional<Boolean> substitutionEnabled)
     {
         ImmutableMap.Builder<String, String> properties = ImmutableMap.<String, String>builder()
                 .putAll(createMaterializedViewProperties(session, storageMetadataLocation));
         refreshJobId.ifPresent(id -> properties.put(REFRESH_JOB_ID_PROPERTY, id));
+        substitutionEnabled.ifPresent(enabled -> properties.put(SUBSTITUTION_ENABLED, String.valueOf(enabled)));
         return properties.buildOrThrow();
     }
 }

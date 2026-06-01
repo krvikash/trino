@@ -307,6 +307,12 @@ public class TrinoUnityCatalog
     }
 
     @Override
+    public void updateMaterializedViewSubstitutionEnabled(ConnectorSession session, SchemaTableName viewName, Optional<Boolean> substitutionEnabled)
+    {
+        throw new UnsupportedOperationException("updateMaterializedViewSubstitutionEnabled is not supported");
+    }
+
+    @Override
     public void dropMaterializedView(ConnectorSession session, SchemaTableName viewName)
     {
         throw new UnsupportedOperationException("dropMaterializedView is not supported");
@@ -329,6 +335,12 @@ public class TrinoUnityCatalog
     public Optional<BaseTable> getMaterializedViewStorageTable(ConnectorSession session, SchemaTableName viewName)
     {
         throw new UnsupportedOperationException("getMaterializedViewProperties is not supported");
+    }
+
+    @Override
+    public void invalidateTableCache(SchemaTableName schemaTableName)
+    {
+        throw new UnsupportedOperationException("invalidateTableCache is not supported");
     }
 
     @Override

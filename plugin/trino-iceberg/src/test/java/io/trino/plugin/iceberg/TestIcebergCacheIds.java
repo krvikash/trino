@@ -59,6 +59,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
@@ -367,6 +368,8 @@ public class TestIcebergCacheIds
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 true,
                 Optional.empty(),
                 false,
@@ -402,6 +405,8 @@ public class TestIcebergCacheIds
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 true,
                 Optional.empty(),
                 false,
@@ -439,6 +444,8 @@ public class TestIcebergCacheIds
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 true,
                 Optional.empty(),
                 false,
@@ -470,6 +477,8 @@ public class TestIcebergCacheIds
                 storageProperties,
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 true,
                 Optional.empty(),
                 false,

@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.UUID;
 
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,6 +92,8 @@ public class IcebergProxiedConnectorTransformerTest
                 Optional.empty(),
                 Optional.empty(),
                 false,
+                UUID.randomUUID(),
+                false,
                 Optional.of(DataSize.of(1, DataSize.Unit.BYTE)),
                 false,
                 Collections.emptySet(),
@@ -128,6 +131,8 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle.getStorageProperties(),
                 Optional.empty(),
                 icebergTableHandle.getBranch(),
+                icebergTableHandle.isVersionPinnedByQuery(),
+                icebergTableHandle.getTableUuid(),
                 icebergTableHandle.isRecordScannedFiles(),
                 Optional.empty(),
                 false,
@@ -163,6 +168,8 @@ public class IcebergProxiedConnectorTransformerTest
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 true,
                 Optional.of(DataSize.of(1, DataSize.Unit.BYTE)),
                 false,
@@ -201,6 +208,8 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle.getStorageProperties(),
                 Optional.empty(),
                 icebergTableHandle.getBranch(),
+                icebergTableHandle.isVersionPinnedByQuery(),
+                icebergTableHandle.getTableUuid(),
                 icebergTableHandle.isRecordScannedFiles(),
                 Optional.empty(),
                 false,
@@ -250,6 +259,8 @@ public class IcebergProxiedConnectorTransformerTest
                 ImmutableMap.of(),
                 Optional.empty(),
                 Optional.empty(),
+                false,
+                UUID.randomUUID(),
                 false,
                 Optional.empty(),
                 false,
