@@ -104,7 +104,7 @@ public class SnowflakeQueryRunner
         private Optional<String> password = Optional.of(PASSWORD);
         private String catalogName = SNOWFLAKE_CATALOG;
         private Optional<String> schemaName = Optional.empty();
-        private ImmutableMap.Builder<String, String> connectorProperties = ImmutableMap.builder();
+        private final ImmutableMap.Builder<String, String> connectorProperties = ImmutableMap.builder();
         private int nodeCount = 3;
         private Iterable<TpchTable<?>> tpchTables = new ArrayList<>();
 
