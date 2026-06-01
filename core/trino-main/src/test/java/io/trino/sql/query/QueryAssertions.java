@@ -714,7 +714,6 @@ public class QueryAssertions
             Session gpuDisabled = Session.builder(session)
                     .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
                     .build();
-            MaterializedResult expected = runner.execute(gpuDisabled, query());
             new ResultAssert(
                     runner,
                     session,
@@ -722,7 +721,7 @@ public class QueryAssertions
                     result,
                     ordered,
                     skipTypesCheck)
-                    .matches(expected);
+                    .matches(gpuDisabled, query());
         }
 
         private String query()
