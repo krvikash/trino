@@ -12,9 +12,9 @@
                       - ExchangeNode REMOTE
                         - AggregationNode (GPU)
                           - JoinNode (GPU)
-                            - AggregationNode (GPU)
-                              - ProjectNode
-                                - ExchangeNode REMOTE
+                            - ExchangeNode REMOTE
+                              - AggregationNode (GPU)
+                                - ProjectNode (GPU)
                                   - JoinNode (GPU)
                                     - ExchangeNode REMOTE
                                       - FilterNode (GPU)

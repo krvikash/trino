@@ -10,9 +10,9 @@
                   - AggregationNode (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - JoinNode (GPU)
-                        - AggregationNode (GPU)
-                          - ProjectNode
-                            - ExchangeNode REMOTE
+                        - ExchangeNode REMOTE
+                          - AggregationNode (GPU)
+                            - ProjectNode (GPU)
                               - ProjectNode (GPU)
                                 - FilterNode
                                   - TableScanNode lineitem (GPU)

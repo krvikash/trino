@@ -13,17 +13,21 @@
                         - ExchangeNode REMOTE
                           - AggregationNode
                             - JoinNode (GPU)
-                              - AggregationNode (GPU)
+                              - ExchangeNode REMOTE
                                 - ProjectNode
-                                  - ExchangeNode REMOTE
+                                  - AggregationNode
                                     - JoinNode (GPU)
                                       - ExchangeNode REMOTE
                                         - ProjectNode (GPU)
-                                          - FilterNode
-                                            - TableScanNode store_sales (GPU)
-                                      - ExchangeNode LOCAL
-                                        - ExchangeNode REMOTE
-                                          - TableScanNode item (GPU)
+                                          - AggregationNode (GPU)
+                                            - ProjectNode (GPU)
+                                              - ProjectNode (GPU)
+                                                - FilterNode
+                                                  - TableScanNode store_sales (GPU)
+                                      - ProjectNode
+                                        - ExchangeNode LOCAL
+                                          - ExchangeNode REMOTE
+                                            - TableScanNode item (GPU)
                               - ExchangeNode LOCAL
                                 - ExchangeNode REMOTE
                                   - TableScanNode date_dim (GPU)

@@ -16,19 +16,20 @@
                               - ExchangeNode REMOTE
                                 - AggregationNode
                                   - JoinNode (GPU)
-                                    - AggregationNode (GPU)
-                                      - ProjectNode
-                                        - ExchangeNode REMOTE
+                                    - ExchangeNode REMOTE
+                                      - ProjectNode (GPU)
+                                        - AggregationNode (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
-                                              - JoinNode (GPU)
-                                                - ExchangeNode REMOTE
-                                                  - FilterNode (GPU)
-                                                    - TableScanNode catalog_sales (GPU)
-                                                - ExchangeNode LOCAL
+                                            - ProjectNode (GPU)
+                                              - FilterNode
+                                                - JoinNode (GPU)
                                                   - ExchangeNode REMOTE
                                                     - FilterNode (GPU)
-                                                      - TableScanNode catalog_returns (GPU)
+                                                      - TableScanNode catalog_sales (GPU)
+                                                  - ExchangeNode LOCAL
+                                                    - ExchangeNode REMOTE
+                                                      - FilterNode (GPU)
+                                                        - TableScanNode catalog_returns (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
                                         - FilterNode (GPU)
@@ -41,19 +42,20 @@
                                 - ExchangeNode REMOTE
                                   - AggregationNode
                                     - JoinNode (GPU)
-                                      - AggregationNode (GPU)
-                                        - ProjectNode
-                                          - ExchangeNode REMOTE
+                                      - ExchangeNode REMOTE
+                                        - ProjectNode (GPU)
+                                          - AggregationNode (GPU)
                                             - ProjectNode (GPU)
-                                              - FilterNode
-                                                - JoinNode (GPU)
-                                                  - ExchangeNode REMOTE
-                                                    - FilterNode (GPU)
-                                                      - TableScanNode store_sales (GPU)
-                                                  - ExchangeNode LOCAL
+                                              - ProjectNode (GPU)
+                                                - FilterNode
+                                                  - JoinNode (GPU)
                                                     - ExchangeNode REMOTE
                                                       - FilterNode (GPU)
-                                                        - TableScanNode store_returns (GPU)
+                                                        - TableScanNode store_sales (GPU)
+                                                    - ExchangeNode LOCAL
+                                                      - ExchangeNode REMOTE
+                                                        - FilterNode (GPU)
+                                                          - TableScanNode store_returns (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE
                                           - FilterNode (GPU)
@@ -66,18 +68,19 @@
                                       - ExchangeNode REMOTE
                                         - AggregationNode
                                           - JoinNode (GPU)
-                                            - AggregationNode (GPU)
-                                              - ProjectNode
-                                                - ExchangeNode REMOTE
+                                            - ExchangeNode REMOTE
+                                              - ProjectNode (GPU)
+                                                - AggregationNode (GPU)
                                                   - ProjectNode (GPU)
-                                                    - FilterNode
-                                                      - JoinNode (GPU)
-                                                        - ExchangeNode REMOTE
-                                                          - FilterNode (GPU)
-                                                            - TableScanNode web_sales (GPU)
-                                                        - ExchangeNode LOCAL
+                                                    - ProjectNode (GPU)
+                                                      - FilterNode
+                                                        - JoinNode (GPU)
                                                           - ExchangeNode REMOTE
-                                                            - TableScanNode web_returns (GPU)
+                                                            - FilterNode (GPU)
+                                                              - TableScanNode web_sales (GPU)
+                                                          - ExchangeNode LOCAL
+                                                            - ExchangeNode REMOTE
+                                                              - TableScanNode web_returns (GPU)
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE
                                                 - FilterNode (GPU)
