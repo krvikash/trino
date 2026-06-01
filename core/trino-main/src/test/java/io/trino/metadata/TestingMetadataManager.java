@@ -115,7 +115,8 @@ public final class TestingMetadataManager
                     languageFunctionManager,
                     tableFunctionRegistry,
                     typeManager,
-                    NO_CATALOGS);
+                    NO_CATALOGS,
+                    () -> { throw new UnsupportedOperationException(); });
         }
     }
 

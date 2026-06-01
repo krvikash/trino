@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import io.trino.FeaturesConfig;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.metadata.AnalyzePropertyManager;
 import io.trino.metadata.BranchPropertyManager;
@@ -40,6 +41,7 @@ import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 
 import java.util.Optional;
@@ -66,6 +68,13 @@ public class CatalogServiceProviderModule
     public static CatalogServiceProvider<Optional<ConnectorCacheMetadata>> createCacheMetadata(ConnectorServicesProvider connectorServicesProvider)
     {
         return new ConnectorCatalogServiceProvider<>("cache metadata", connectorServicesProvider, ConnectorServices::getCacheMetadata);
+    }
+
+    @Provides
+    @Singleton
+    public static CatalogServiceProvider<Optional<ConnectorSubstitutionMetadata>> createSubstitutionMetadata(ConnectorServicesProvider connectorServicesProvider)
+    {
+        return new ConnectorCatalogServiceProvider<>("substitution metadata", connectorServicesProvider, ConnectorServices::getSubstitutionMetadata);
     }
 
     @Provides
@@ -161,9 +170,11 @@ public class CatalogServiceProviderModule
 
     @Provides
     @Singleton
-    public static MaterializedViewPropertyManager createMaterializedViewPropertyManager(ConnectorServicesProvider connectorServicesProvider)
+    public static MaterializedViewPropertyManager createMaterializedViewPropertyManager(FeaturesConfig featuresConfig, ConnectorServicesProvider connectorServicesProvider)
     {
-        return new MaterializedViewPropertyManager(new ConnectorCatalogServiceProvider<>("materialized view properties", connectorServicesProvider, ConnectorServices::getMaterializedViewProperties));
+        return new MaterializedViewPropertyManager(
+                featuresConfig.isMaterializedViewSubstitutionSupportEnabled(),
+                new ConnectorCatalogServiceProvider<>("materialized view properties", connectorServicesProvider, ConnectorServices::getMaterializedViewProperties));
     }
 
     @Provides

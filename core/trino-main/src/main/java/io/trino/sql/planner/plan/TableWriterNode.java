@@ -31,6 +31,7 @@ import io.trino.metadata.TableExecuteHandle;
 import io.trino.metadata.TableHandle;
 import io.trino.metadata.TableLayout;
 import io.trino.spi.RefreshType;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.RowChangeParadigm;
@@ -485,6 +486,7 @@ public class TableWriterNode
             extends WriterTarget
     {
         private final String table;
+        private final CatalogSchemaTableName mvName;
         private final TableHandle storageTableHandle;
         private final List<TableHandle> sourceTableHandles;
         private final List<String> sourceTableFunctions;
@@ -493,6 +495,7 @@ public class TableWriterNode
 
         public RefreshMaterializedViewReference(
                 String table,
+                CatalogSchemaTableName mvName,
                 TableHandle storageTableHandle,
                 List<TableHandle> sourceTableHandles,
                 List<String> sourceTableFunctions,
@@ -500,11 +503,17 @@ public class TableWriterNode
                 RefreshType refreshType)
         {
             this.table = requireNonNull(table, "table is null");
+            this.mvName = requireNonNull(mvName, "mvName is null");
             this.storageTableHandle = requireNonNull(storageTableHandle, "storageTableHandle is null");
             this.sourceTableHandles = ImmutableList.copyOf(sourceTableHandles);
             this.sourceTableFunctions = ImmutableList.copyOf(sourceTableFunctions);
             this.hasNonDeterministicFunctions = hasNonDeterministicFunctions;
             this.refreshType = requireNonNull(refreshType, "refreshType is null");
+        }
+
+        public CatalogSchemaTableName getMvName()
+        {
+            return mvName;
         }
 
         public TableHandle getStorageTableHandle()
@@ -560,7 +569,7 @@ public class TableWriterNode
 
         public RefreshMaterializedViewReference withRefreshType(RefreshType refreshType)
         {
-            return new RefreshMaterializedViewReference(table, storageTableHandle, sourceTableHandles, sourceTableFunctions, hasNonDeterministicFunctions, refreshType);
+            return new RefreshMaterializedViewReference(table, mvName, storageTableHandle, sourceTableHandles, sourceTableFunctions, hasNonDeterministicFunctions, refreshType);
         }
     }
 
@@ -570,6 +579,7 @@ public class TableWriterNode
         private final TableHandle tableHandle;
         private final InsertTableHandle insertHandle;
         private final SchemaTableName schemaTableName;
+        private final CatalogSchemaTableName mvName;
         private final List<TableHandle> sourceTableHandles;
         private final List<String> sourceTableFunctions;
         private final boolean hasNonDeterministicFunctions;
@@ -580,6 +590,7 @@ public class TableWriterNode
                 @JsonProperty("tableHandle") TableHandle tableHandle,
                 @JsonProperty("insertHandle") InsertTableHandle insertHandle,
                 @JsonProperty("schemaTableName") SchemaTableName schemaTableName,
+                @JsonProperty("mvName") CatalogSchemaTableName mvName,
                 @JsonProperty("sourceTableHandles") List<TableHandle> sourceTableHandles,
                 @JsonProperty("sourceTableFunctions") List<String> sourceTableFunctions,
                 @JsonProperty("hasNonDeterministicFunctions") boolean hasNonDeterministicFunctions,
@@ -588,6 +599,7 @@ public class TableWriterNode
             this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
             this.insertHandle = requireNonNull(insertHandle, "insertHandle is null");
             this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
+            this.mvName = requireNonNull(mvName, "mvName is null");
             this.sourceTableHandles = ImmutableList.copyOf(sourceTableHandles);
             this.sourceTableFunctions = ImmutableList.copyOf(sourceTableFunctions);
             this.hasNonDeterministicFunctions = hasNonDeterministicFunctions;
@@ -610,6 +622,12 @@ public class TableWriterNode
         public SchemaTableName getSchemaTableName()
         {
             return schemaTableName;
+        }
+
+        @JsonProperty
+        public CatalogSchemaTableName getMvName()
+        {
+            return mvName;
         }
 
         @JsonProperty

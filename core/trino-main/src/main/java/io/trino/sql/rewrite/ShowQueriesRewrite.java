@@ -112,6 +112,8 @@ import java.util.Set;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.connector.informationschema.InformationSchemaTable.COLUMNS;
 import static io.trino.connector.informationschema.InformationSchemaTable.SCHEMATA;
 import static io.trino.connector.informationschema.InformationSchemaTable.TABLES;
@@ -557,6 +559,16 @@ public final class ShowQueriesRewrite
             Map<String, Object> properties = metadata.getMaterializedViewProperties(session, objectName, viewDefinition.get());
             CatalogHandle catalogHandle = getRequiredCatalogHandle(metadata, session, node, catalogName.getValue());
             Collection<PropertyMetadata<?>> allMaterializedViewProperties = materializedViewPropertyManager.getAllProperties(catalogHandle);
+            // Drop values for properties the engine has gated off for this catalog (e.g.
+            // substitution_enabled when materialized-view-substitution.support.enabled is false).
+            // Connectors still persist and return such parameters; the engine omits them from
+            // the rendered MV definition because the property is not exposed here.
+            Set<String> knownPropertyNames = allMaterializedViewProperties.stream()
+                    .map(PropertyMetadata::getName)
+                    .collect(toImmutableSet());
+            properties = properties.entrySet().stream()
+                    .filter(entry -> knownPropertyNames.contains(entry.getKey()))
+                    .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
             List<Property> propertyNodes = toSqlProperties("materialized view " + objectName, INVALID_MATERIALIZED_VIEW_PROPERTY, properties, allMaterializedViewProperties);
 
             String sql = formatSql(new CreateMaterializedView(

@@ -74,7 +74,9 @@ public class TestFeaturesConfig
                 .setAdaptiveFilterReorderingEnabled(true)
                 .setLegacyArithmeticDecimalOperators(false)
                 .setExternalExchangeEncryptionEnabled(true)
-                .setParallelizeLookupOuterOperator(true));
+                .setParallelizeLookupOuterOperator(true)
+                .setMaterializedViewSubstitutionSupportEnabled(true)
+                .setMaterializedViewSubstitutionEnabled(false));
     }
 
     @Test
@@ -117,6 +119,8 @@ public class TestFeaturesConfig
                 .put("external-exchange-encryption-enabled", "false")
                 .put("optimizer.super-set-predicate.pushdown.enabled", "false")
                 .put("parallelize-lookup-outer-operator", "false")
+                .put("materialized-view-substitution.support.enabled", "false")
+                .put("materialized-view-substitution.enabled", "true")
                 .buildOrThrow();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -155,7 +159,9 @@ public class TestFeaturesConfig
                 .setAdaptiveFilterReorderingEnabled(false)
                 .setLegacyArithmeticDecimalOperators(true)
                 .setExternalExchangeEncryptionEnabled(false)
-                .setParallelizeLookupOuterOperator(false);
+                .setParallelizeLookupOuterOperator(false)
+                .setMaterializedViewSubstitutionSupportEnabled(false)
+                .setMaterializedViewSubstitutionEnabled(true);
         assertFullMapping(properties, expected);
     }
 }

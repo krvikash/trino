@@ -37,6 +37,7 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.SchemaRoutineName;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionKind;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ArgumentSpecification;
@@ -78,6 +79,7 @@ public class ConnectorServices
     private final CatalogTableFunctions tableFunctions;
     private final Optional<ConnectorSplitManager> splitManager;
     private final Optional<ConnectorCacheMetadata> cacheMetadata;
+    private final Optional<ConnectorSubstitutionMetadata> substitutionMetadata;
     private final Optional<ConnectorPageSourceProviderFactory> pageSourceProviderFactory;
     private final Optional<ConnectorAlternativeChooser> alternativeChooser;
     private final Optional<ConnectorPageSinkProvider> pageSinkProvider;
@@ -137,6 +139,14 @@ public class ConnectorServices
         catch (UnsupportedOperationException ignored) {
         }
         this.cacheMetadata = Optional.ofNullable(cacheMetadata);
+
+        ConnectorSubstitutionMetadata substitutionMetadata = null;
+        try {
+            substitutionMetadata = connector.getSubstitutionMetadata();
+        }
+        catch (UnsupportedOperationException _) {
+        }
+        this.substitutionMetadata = Optional.ofNullable(substitutionMetadata);
 
         ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory = null;
         try {
@@ -289,6 +299,11 @@ public class ConnectorServices
     public Optional<ConnectorCacheMetadata> getCacheMetadata()
     {
         return cacheMetadata;
+    }
+
+    public Optional<ConnectorSubstitutionMetadata> getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     public Optional<ConnectorPageSourceProviderFactory> getPageSourceProviderFactory()

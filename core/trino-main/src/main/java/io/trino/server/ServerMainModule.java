@@ -33,6 +33,7 @@ import io.airlift.stats.JmxGcMonitor;
 import io.airlift.stats.PauseMeter;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.server.substitution.MvSubstitutionModule;
 import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 import io.trino.FeaturesConfig;
 import io.trino.SystemSessionProperties;
@@ -428,6 +429,8 @@ public class ServerMainModule
         // page sink provider
         binder.bind(PageSinkManager.class).in(Scopes.SINGLETON);
         binder.bind(PageSinkProvider.class).to(PageSinkManager.class).in(Scopes.SINGLETON);
+
+        install(new MvSubstitutionModule());
 
         // metadata
         binder.bind(MetadataManager.class).in(Scopes.SINGLETON);

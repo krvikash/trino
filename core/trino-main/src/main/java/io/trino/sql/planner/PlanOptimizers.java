@@ -18,6 +18,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.starburst.server.substitution.MaterializationIndex;
+import io.starburst.server.substitution.MvSubstitutionOptimizer;
+import io.starburst.server.substitution.SubstitutionMetadata;
 import io.trino.SystemSessionProperties;
 import io.trino.cache.NonEvictableCache;
 import io.trino.cost.CostCalculator;
@@ -274,6 +277,7 @@ import io.trino.sql.planner.optimizations.WindowFilterPushDown;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
@@ -304,6 +308,8 @@ public class PlanOptimizers
             @EstimatedExchanges CostCalculator costCalculatorWithEstimatedExchanges,
             CostComparator costComparator,
             TaskCountEstimator taskCountEstimator,
+            Optional<MaterializationIndex> materializationIndex,
+            SubstitutionMetadata substitutionMetadata,
             NodePartitioningManager nodePartitioningManager,
             RuleStatsRecorder ruleStats)
     {
@@ -318,6 +324,8 @@ public class PlanOptimizers
                 costCalculatorWithEstimatedExchanges,
                 costComparator,
                 taskCountEstimator,
+                materializationIndex,
+                substitutionMetadata,
                 nodePartitioningManager,
                 ruleStats);
     }
@@ -334,6 +342,8 @@ public class PlanOptimizers
             CostCalculator costCalculatorWithEstimatedExchanges,
             CostComparator costComparator,
             TaskCountEstimator taskCountEstimator,
+            Optional<MaterializationIndex> materializationIndex,
+            SubstitutionMetadata substitutionMetadata,
             NodePartitioningManager nodePartitioningManager,
             RuleStatsRecorder ruleStats)
     {
@@ -652,6 +662,12 @@ public class PlanOptimizers
                                 .addAll(new PushFilterThroughCountAggregation(plannerContext).rules()) // must run after PredicatePushDown and after TransformFilteringSemiJoinToInnerJoin
                                 .addAll(new PushFilterThroughBoolOrAggregation(plannerContext).rules())
                                 .build()));
+
+        // MV substitution must run before PushPredicateIntoTableScan so that enforcedConstraint is still all()
+        // and FilterNodes are preserved above the scan for the substituted storage table.
+        // When the MV substitution feature is disabled the index isn't bound, so the rule is skipped entirely.
+        materializationIndex.ifPresent(index ->
+                builder.add(new MvSubstitutionOptimizer(index, plannerContext.getMetadata(), substitutionMetadata)));
 
         // Perform redirection before CBO rules to ensure stats from destination connector are used
         // Perform redirection before agg, topN, limit, sample etc. push down into table scan as the destination connector may support a different set of push downs

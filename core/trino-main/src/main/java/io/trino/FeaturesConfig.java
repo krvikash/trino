@@ -142,6 +142,8 @@ public class FeaturesConfig
     private boolean legacyArithmeticDecimalOperators;
 
     private boolean parallelizeLookupOuterOperator = true;
+    private boolean materializedViewSubstitutionSupportEnabled = true;
+    private boolean materializedViewSubstitutionEnabled;
 
     public boolean isRedistributeWrites()
     {
@@ -637,6 +639,32 @@ public class FeaturesConfig
     public FeaturesConfig setParallelizeLookupOuterOperator(boolean value)
     {
         this.parallelizeLookupOuterOperator = value;
+        return this;
+    }
+
+    public boolean isMaterializedViewSubstitutionSupportEnabled()
+    {
+        return materializedViewSubstitutionSupportEnabled;
+    }
+
+    @Config("materialized-view-substitution.support.enabled")
+    @ConfigDescription("Enable materialized view substitution feature. When false, no substitution wiring is installed and queries are never rewritten to read from MV storage tables.")
+    public FeaturesConfig setMaterializedViewSubstitutionSupportEnabled(boolean value)
+    {
+        this.materializedViewSubstitutionSupportEnabled = value;
+        return this;
+    }
+
+    public boolean isMaterializedViewSubstitutionEnabled()
+    {
+        return materializedViewSubstitutionEnabled;
+    }
+
+    @Config("materialized-view-substitution.enabled")
+    @ConfigDescription("Enables materialized view substitution for the query by default")
+    public FeaturesConfig setMaterializedViewSubstitutionEnabled(boolean value)
+    {
+        this.materializedViewSubstitutionEnabled = value;
         return this;
     }
 }

@@ -26,6 +26,11 @@ import io.airlift.node.NodeInfo;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
+import io.starburst.server.substitution.MaterializationIndex;
+import io.starburst.server.substitution.SubstitutionMetadata;
+import io.starburst.server.substitution.SubstitutionMetadataManager;
+import io.starburst.server.substitution.VersionAwareMaterializationMetastore;
 import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.SystemSessionProperties;
@@ -38,6 +43,7 @@ import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
 import io.trino.connector.CatalogFactory;
 import io.trino.connector.CatalogHandle;
+import io.trino.connector.CatalogServiceProvider;
 import io.trino.connector.CatalogServiceProviderModule;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.connector.CoordinatorDynamicCatalogManager;
@@ -283,6 +289,7 @@ import static io.trino.connector.CatalogServiceProviderModule.createPageSinkProv
 import static io.trino.connector.CatalogServiceProviderModule.createPageSourceProviderFactory;
 import static io.trino.connector.CatalogServiceProviderModule.createSchemaPropertyManager;
 import static io.trino.connector.CatalogServiceProviderModule.createSplitManagerProvider;
+import static io.trino.connector.CatalogServiceProviderModule.createSubstitutionMetadata;
 import static io.trino.connector.CatalogServiceProviderModule.createTableFunctionProvider;
 import static io.trino.connector.CatalogServiceProviderModule.createTableProceduresPropertyManager;
 import static io.trino.connector.CatalogServiceProviderModule.createTableProceduresProvider;
@@ -291,6 +298,7 @@ import static io.trino.connector.CatalogServiceProviderModule.createViewProperty
 import static io.trino.execution.ParameterExtractor.bindParameters;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.execution.warnings.WarningCollector.NOOP;
+import static io.trino.metadata.CatalogManager.NO_CATALOGS;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.connector.DynamicFilter.EMPTY;
@@ -333,6 +341,8 @@ public class PlanTester
     private final CostCalculator costCalculator;
     private final CostCalculator estimatedExchangesCostCalculator;
     private final TaskCountEstimator taskCountEstimator;
+    private final MaterializationIndex materializationIndex;
+    private final SubstitutionMetadata substitutionMetadata;
     private final TestingAccessControlManager accessControl;
     private final SplitManager splitManager;
     private final PageSourceManager pageSourceManager;
@@ -443,7 +453,10 @@ public class PlanTester
                 languageFunctionManager,
                 tableFunctionRegistry,
                 typeManager,
-                catalogManager));
+                catalogManager,
+                () -> {
+                    throw new UnsupportedOperationException();
+                }));
         JsonMapper mapper = new JsonMapperProvider()
                 .withJsonDeserializers(ImmutableMap.of(
                         Type.class, new TypeDeserializer(typeManager),
@@ -506,7 +519,7 @@ public class PlanTester
         this.columnPropertyManager = createColumnPropertyManager(catalogManager);
         this.tablePropertyManager = createTablePropertyManager(catalogManager);
         this.viewPropertyManager = createViewPropertyManager(catalogManager);
-        this.materializedViewPropertyManager = createMaterializedViewPropertyManager(catalogManager);
+        this.materializedViewPropertyManager = createMaterializedViewPropertyManager(new FeaturesConfig().setMaterializedViewSubstitutionSupportEnabled(true), catalogManager);
         this.analyzePropertyManager = createAnalyzePropertyManager(catalogManager);
         TableProceduresPropertyManager tableProceduresPropertyManager = createTableProceduresPropertyManager(catalogManager);
         this.formatOptions = TESTING_FORMAT_OPTIONS;
@@ -518,6 +531,12 @@ public class PlanTester
                 new JsonValueFunction(functionManager, metadata, typeManager),
                 new JsonQueryFunction(functionManager, metadata, typeManager)));
 
+        this.materializationIndex = new MaterializationIndex(new VersionAwareMaterializationMetastore(
+                new InMemoryRawMaterializationMetastore(),
+                new JsonCodecFactory(mapper).jsonCodec(io.starburst.materialization.ir.Output.class),
+                new SubstitutionMetadataManager(CatalogServiceProvider.fail()),
+                NO_CATALOGS));
+        this.substitutionMetadata = new SubstitutionMetadataManager(createSubstitutionMetadata(catalogManager));
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);
         ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(plannerContext, 0);
         this.expressionCompiler = new ExpressionCompiler(pageFunctionCompiler, filterCompiler);
@@ -1035,6 +1054,8 @@ public class PlanTester
                 estimatedExchangesCostCalculator,
                 new CostComparator(optimizerConfig),
                 taskCountEstimator,
+                Optional.of(materializationIndex),
+                substitutionMetadata,
                 nodePartitioningManager,
                 new RuleStatsRecorder());
     }

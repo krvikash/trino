@@ -283,6 +283,11 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-materialization-metastore-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-array</artifactId>
         </dependency>
 
@@ -359,6 +364,11 @@
         <dependency>
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
         </dependency>
 
         <dependency>

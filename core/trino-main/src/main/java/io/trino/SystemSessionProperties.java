@@ -239,6 +239,7 @@ public final class SystemSessionProperties
     public static final String CACHE_PROJECTIONS_ENABLED = "cache_projections_enabled";
     public static final String CACHE_MAX_SPLIT_SIZE = "cache_max_split_size";
     public static final String CACHE_DATA_REDUCTION_THRESHOLD = "cache_data_reduction_threshold";
+    public static final String MATERIALIZED_VIEW_SUBSTITUTION_ENABLED = "materialized_view_substitution_enabled";
     public static final String PAGE_PARTITIONING_BUFFER_POOL_SIZE = "page_partitioning_buffer_pool_size";
     public static final String IDLE_WRITER_MIN_DATA_SIZE_THRESHOLD = "idle_writer_min_data_size_threshold";
     public static final String CLOSE_IDLE_WRITERS_TRIGGER_DURATION = "close_idle_writers_trigger_duration";
@@ -1289,6 +1290,11 @@ public final class SystemSessionProperties
                         cacheConfig.getDataReductionThreshold(),
                         value -> validateDoubleRange(value, CACHE_DATA_REDUCTION_THRESHOLD, 0.0, Double.MAX_VALUE),
                         true),
+                booleanProperty(
+                        MATERIALIZED_VIEW_SUBSTITUTION_ENABLED,
+                        "Enable automatic materialized view substitution in query plans",
+                        featuresConfig.isMaterializedViewSubstitutionEnabled(),
+                        false),
                 booleanProperty(
                         ADAPTIVE_FILTER_REORDERING_ENABLED,
                         "Reorder conjunctive/disjunctive filter terms at runtime based on observed selectivity and performance",
@@ -2351,6 +2357,11 @@ public final class SystemSessionProperties
     public static double getCacheDataReductionThreshold(Session session)
     {
         return session.getSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, Double.class);
+    }
+
+    public static boolean isMaterializedViewSubstitutionEnabled(Session session)
+    {
+        return session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, Boolean.class);
     }
 
     public static int getPagePartitioningBufferPoolSize(Session session)

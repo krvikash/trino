@@ -59,6 +59,7 @@ import io.trino.execution.TaskManagerConfig;
 import io.trino.execution.buffer.OutputBuffer;
 import io.trino.metadata.MergeHandle;
 import io.trino.metadata.Metadata;
+import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TableExecuteHandle;
 import io.trino.metadata.TableHandle;
@@ -206,6 +207,7 @@ import io.trino.spi.block.RowBlock;
 import io.trino.spi.block.SqlRow;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorIndex;
@@ -5037,8 +5039,14 @@ public class LocalExecutionPlanner
                 return metadata.finishInsert(session, insertTarget.getHandle(), insertTarget.getSourceTableHandles(), fragments, statistics);
             }
             if (target instanceof TableWriterNode.RefreshMaterializedViewTarget refreshTarget) {
+                CatalogSchemaTableName mv = refreshTarget.getMvName();
+                QualifiedObjectName mvName = new QualifiedObjectName(
+                        mv.getCatalogName(),
+                        mv.getSchemaTableName().getSchemaName(),
+                        mv.getSchemaTableName().getTableName());
                 return metadata.finishRefreshMaterializedView(
                         session,
+                        mvName,
                         refreshTarget.getTableHandle(),
                         refreshTarget.getInsertHandle(),
                         fragments,
