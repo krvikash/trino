@@ -17,7 +17,6 @@ import io.airlift.log.Logging;
 import io.trino.Session;
 import io.trino.plugin.jmx.JmxPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
-import io.trino.spi.Plugin;
 import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.tpch.TpchTable;
@@ -25,7 +24,6 @@ import io.trino.tpch.TpchTable;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 
 import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
@@ -41,7 +39,6 @@ import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.Objects.requireNonNull;
-import static java.util.function.Function.identity;
 
 public class SnowflakeQueryRunner
 {
@@ -94,8 +91,6 @@ public class SnowflakeQueryRunner
     public static class Builder
             extends DistributedQueryRunner.Builder<Builder>
     {
-        private Function<Session, Session> builderSessionModifier = identity();
-        private Plugin plugin = new TestingSnowflakePlugin();
         private String connectorName;
         private Optional<String> warehouseName = Optional.of(TEST_WAREHOUSE);
         private Optional<String> databaseName = Optional.of(TEST_DATABASE);
@@ -111,20 +106,6 @@ public class SnowflakeQueryRunner
         protected Builder(Session defaultSession)
         {
             super(defaultSession);
-        }
-
-        @CanIgnoreReturnValue
-        protected Builder withBuilderSession(Function<Session, Session> builderSessionModifier)
-        {
-            this.builderSessionModifier = builderSessionModifier;
-            return self();
-        }
-
-        @CanIgnoreReturnValue
-        public Builder withPlugin(Plugin plugin)
-        {
-            this.plugin = requireNonNull(plugin, "plugin is null");
-            return self();
         }
 
         @CanIgnoreReturnValue
@@ -228,7 +209,7 @@ public class SnowflakeQueryRunner
             amendSession(sessionBuilder -> sessionBuilder.setCatalog(catalogName));
             setWorkerCount(nodeCount - 1);
             DistributedQueryRunner queryRunner = super.build();
-            Session session = builderSessionModifier.apply(queryRunner.getDefaultSession());
+            Session session = queryRunner.getDefaultSession();
             try {
                 queryRunner.installPlugin(new TpchPlugin());
                 queryRunner.createCatalog(TPCH_CATALOG, TPCH_CATALOG, ImmutableMap.of());
@@ -244,7 +225,7 @@ public class SnowflakeQueryRunner
                 warehouseName.ifPresent(warehouse -> properties.put("snowflake.warehouse", warehouse));
                 databaseName.ifPresent(database -> properties.put("snowflake.database", database));
 
-                queryRunner.installPlugin(plugin);
+                queryRunner.installPlugin(new TestingSnowflakePlugin());
                 queryRunner.createCatalog(catalogName, connectorName, properties.buildOrThrow());
 
                 copyTpchTables(queryRunner, TPCH_CATALOG, TINY_SCHEMA_NAME, session, tpchTables);
