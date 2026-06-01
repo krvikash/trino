@@ -16,6 +16,7 @@ import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcConnector;
 import io.trino.plugin.jdbc.JdbcTransactionManager;
 import io.trino.plugin.jdbc.TablePropertiesProvider;
+import io.trino.plugin.jdbc.substitution.JdbcSubstitutionMetadata;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -45,7 +46,8 @@ public class SnowflakeParallelConnector
             JdbcTransactionManager transactionManager,
             ConnectorPageSourceProvider jdbcPageSourceProvider,
             StarburstResultStreamProvider streamProvider,
-            JdbcClient jdbcClient)
+            JdbcClient jdbcClient,
+            JdbcSubstitutionMetadata substitutionMetadata)
     {
         super(lifeCycleManager,
                 jdbcSplitManager,
@@ -56,7 +58,8 @@ public class SnowflakeParallelConnector
                 connectorTableFunctions,
                 sessionProperties,
                 tableProperties,
-                transactionManager);
+                transactionManager,
+                substitutionMetadata);
         this.connectorPageSourceProvider = new SnowflakePageSourceProvider(jdbcPageSourceProvider, streamProvider, jdbcClient);
     }
 

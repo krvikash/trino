@@ -27,6 +27,7 @@ import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifierModule;
 import io.trino.plugin.jdbc.procedure.ExecuteProcedure;
 import io.trino.plugin.jdbc.procedure.FlushJdbcMetadataCacheProcedure;
+import io.trino.plugin.jdbc.substitution.JdbcSubstitutionMetadata;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
@@ -74,6 +75,7 @@ public class JdbcModule
 
         binder.bind(JdbcTransactionManager.class).in(Scopes.SINGLETON);
         binder.bind(JdbcConnector.class).in(Scopes.SINGLETON);
+        binder.bind(JdbcSubstitutionMetadata.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(JdbcMetadataConfig.class);
         configBinder(binder).bindConfig(JdbcWriteConfig.class);
         configBinder(binder).bindConfig(BaseJdbcConfig.class);
