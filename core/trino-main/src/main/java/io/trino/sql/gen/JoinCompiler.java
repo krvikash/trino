@@ -621,6 +621,8 @@ public class JoinCompiler
                 .ifFalse(typeIdenticalIgnoreNulls(callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightBlockPosition));
     }
 
+    // Both inputs are non-null here; the isNull guard in typeIdentical handles the null cases, so the
+    // identical operator can skip its internal isNull checks.
     private BytecodeExpression typeIdenticalIgnoreNulls(
             CallSiteBinder callSiteBinder,
             Type type,
@@ -629,7 +631,7 @@ public class JoinCompiler
             BytecodeExpression rightBlock,
             BytecodeExpression rightBlockPosition)
     {
-        MethodHandle identicalOperator = typeOperators.getIdenticalOperator(type, simpleConvention(FAIL_ON_NULL, BLOCK_POSITION, BLOCK_POSITION));
+        MethodHandle identicalOperator = typeOperators.getIdenticalOperator(type, simpleConvention(FAIL_ON_NULL, BLOCK_POSITION_NOT_NULL, BLOCK_POSITION_NOT_NULL));
         return invokeDynamic(
                 BOOTSTRAP_METHOD,
                 ImmutableList.of(callSiteBinder.bind(identicalOperator).getBindingId()),
