@@ -13,8 +13,8 @@
  */
 package io.trino.server.protocol.spooling.encoding.arrow;
 
-import io.trino.spi.block.ArrayBlock;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.ColumnarArray;
 import org.apache.arrow.vector.complex.ListVector;
 
 import static java.util.Objects.requireNonNull;
@@ -34,34 +34,26 @@ public final class ArrayWriter
     @Override
     public void initialize(Block block)
     {
-        if (!(block instanceof ArrayBlock arrayBlock)) {
-            throw new IllegalArgumentException("ArrayBlock is expected but got " + block.getClass().getSimpleName());
-        }
-
-        Block dataBlock = arrayBlock.getElementsBlock();
-        vector.setInitialCapacity(dataBlock.getPositionCount());
+        ColumnarArray arrayBlock = ColumnarArray.toColumnarArray(block);
+        vector.setInitialCapacity(arrayBlock.getElementsBlock().getPositionCount());
         vector.allocateNew();
     }
 
     @Override
     public void write(Block block)
     {
-        if (!(block instanceof ArrayBlock arrayBlock)) {
-            throw new IllegalArgumentException("ArrayBlock is expected but got " + block.getClass().getSimpleName());
-        }
-
-        Block dataBlock = arrayBlock.getElementsBlock();
-        for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-            if (block.isNull(blockPosition)) {
-                vector.setNull(blockPosition);
+        ColumnarArray arrayBlock = ColumnarArray.toColumnarArray(block);
+        Block elementsBlock = arrayBlock.getElementsBlock();
+        for (int position = 0; position < arrayBlock.getPositionCount(); position++) {
+            if (arrayBlock.isNull(position)) {
+                vector.setNull(position);
                 continue;
             }
-            Block elementBlock = arrayBlock.getArray(blockPosition);
-            vector.startNewValue(blockPosition);
-            elementWriter.write(dataBlock);
-            vector.endValue(blockPosition, elementBlock.getPositionCount());
+            vector.startNewValue(position);
+            vector.endValue(position, arrayBlock.getLength(position));
         }
-        vector.setValueCount(block.getPositionCount());
+        elementWriter.write(elementsBlock);
+        vector.setValueCount(arrayBlock.getPositionCount());
     }
 
     @Override
