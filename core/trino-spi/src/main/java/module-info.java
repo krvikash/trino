@@ -45,4 +45,5 @@ module trino.spi {
     exports io.trino.spi.transaction;
     exports io.trino.spi.type;
     exports io.trino.spi.variant;
+    exports io.trino.spi.connector.substitution;
 }

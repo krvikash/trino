@@ -14,6 +14,7 @@
 package io.trino.spi.connector;
 
 import io.trino.spi.cache.ConnectorCacheMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -70,6 +71,14 @@ public interface Connector
      * @throws UnsupportedOperationException if this connector does not support cache ids
      */
     default ConnectorCacheMetadata getCacheMetadata()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * @throws UnsupportedOperationException if this connector does not support MV substitution
+     */
+    default ConnectorSubstitutionMetadata getSubstitutionMetadata()
     {
         throw new UnsupportedOperationException();
     }
