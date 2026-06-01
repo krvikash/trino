@@ -1,0 +1,43 @@
+# Install a YAML language server in your IDE to validate against the schema, or use a tool
+# like https://github.com/yaml-schema/yaml-schema
+# yaml-language-server: $schema=./schedule-config-schema.yaml
+
+## Always
+- modules: [plugin/trino-postgresql, plugin/starburst-warp-speed/starburst-warp-speed-plugin]
+- modules: [plugin/trino-delta-lake, plugin/trino-iceberg]
+  profiles: [fte-tests]
+## Nightly
+- modules: [plugin/trino-mongodb]
+  profiles: [default, cloud-tests]
+  when:
+    scheduled: nightly
+- modules: [plugin/starburst-stargate-parallel]
+  runners: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
+  when:
+    scheduled: nightly
+## Weekly
+- modules: [plugin/trino-hudi]
+  when:
+    scheduled: weekly
+- modules: [plugin/trino-redshift]
+  profiles: [cloud-tests, fte-tests]
+  when:
+    scheduled: weekly
+    labeled: [redshift]
+# synapse smoke tests
+- modules: [plugin/starburst-synapse]
+  when:
+    scheduled: weekly
+    labeled: [synapse, synapse-smoke]
+# synapse weekly
+- modules: [plugin/starburst-synapse]
+  profiles: [fte-tests, long-running-tests, type-mapping-tests]
+  when:
+    scheduled: weekly
+    labeled: [synapse]
+    dispatches: false
+    impacted: false
+## As-needed
+- modules: [plugin/trino-cassandra, plugin/trino-duckdb]
+  when:
+    scheduled: never
