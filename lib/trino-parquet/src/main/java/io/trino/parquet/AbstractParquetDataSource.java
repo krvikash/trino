@@ -26,6 +26,7 @@ import io.trino.memory.context.LocalMemoryContext;
 import io.trino.parquet.reader.ChunkedInputStream;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -67,6 +68,19 @@ public abstract class AbstractParquetDataSource
 
     protected abstract void readInternal(long position, byte[] buffer, int bufferOffset, int bufferLength)
             throws IOException;
+
+    /**
+     * Read into {@code destination} (advancing its position). The default stages through a heap
+     * array via {@link #readInternal(long, byte[], int, int)}; subclasses whose input can target
+     * native memory should override this to avoid the on-heap copy.
+     */
+    protected void readInternal(long position, ByteBuffer destination)
+            throws IOException
+    {
+        byte[] buffer = new byte[destination.remaining()];
+        readInternal(position, buffer, 0, buffer.length);
+        destination.put(buffer);
+    }
 
     @Override
     public ParquetDataSourceId getId()
@@ -127,6 +141,19 @@ public abstract class AbstractParquetDataSource
     }
 
     @Override
+    public final void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        long start = System.nanoTime();
+        int length = destination.remaining();
+
+        readInternal(position, destination);
+
+        readTimeNanos += System.nanoTime() - start;
+        readBytes += length;
+    }
+
+    @Override
     public final <K> Map<K, ChunkedInputStream> planRead(ListMultimap<K, DiskRange> diskRanges, AggregatedMemoryContext memoryContext)
     {
         requireNonNull(diskRanges, "diskRanges is null");
@@ -157,7 +184,7 @@ public abstract class AbstractParquetDataSource
                 smallRangesBuilder.put(entry);
             }
             else {
-                largeRangesBuilder.putAll(entry.getKey(), splitLargeRange(entry.getValue()));
+                largeRangesBuilder.putAll(entry.getKey(), splitLargeRange(entry.getValue(), options.getInitialBufferSize(), options.getMaxBufferSize()));
             }
         }
         ListMultimap<K, DiskRange> smallRanges = smallRangesBuilder.build();
@@ -174,12 +201,12 @@ public abstract class AbstractParquetDataSource
         return slices.build();
     }
 
-    private List<DiskRange> splitLargeRange(DiskRange range)
+    public static List<DiskRange> splitLargeRange(DiskRange range, DataSize initialBufferSize, DataSize maxBufferSize)
     {
         // The read buffer is ramped up from small to max size so that
         // larger reads are used when larger output is consumed from page source.
-        int maxBufferSizeBytes = toIntExact(options.getMaxBufferSize().toBytes());
-        int initialBufferSizeBytes = toIntExact(options.getInitialBufferSize().toBytes());
+        int maxBufferSizeBytes = toIntExact(maxBufferSize.toBytes());
+        int initialBufferSizeBytes = toIntExact(initialBufferSize.toBytes());
         ImmutableList.Builder<DiskRange> ranges = ImmutableList.builder();
         long endOffset = range.offset() + range.length();
         long offset = range.offset();
@@ -261,7 +288,7 @@ public abstract class AbstractParquetDataSource
         return slices.build();
     }
 
-    private static List<DiskRange> mergeAdjacentDiskRanges(Collection<DiskRange> diskRanges, DataSize maxMergeDistance, DataSize maxReadSize)
+    public static List<DiskRange> mergeAdjacentDiskRanges(Collection<DiskRange> diskRanges, DataSize maxMergeDistance, DataSize maxReadSize)
     {
         // sort ranges by start offset
         List<DiskRange> ranges = new ArrayList<>(diskRanges);

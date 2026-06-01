@@ -20,6 +20,7 @@ import io.trino.spi.metrics.Metrics;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public interface TrinoInput
         extends Closeable
@@ -54,6 +55,23 @@ public interface TrinoInput
      */
     int readTail(byte[] buffer, int bufferOffset, int maxLength)
             throws IOException;
+
+    /**
+     * Read exactly {@code destination.remaining()} bytes starting from input position
+     * {@code position} into {@code destination}, advancing its position to its limit.
+     *
+     * @param position the position in the input to start reading from; must be non-negative
+     * @param destination the buffer to read bytes into; bytes are written from its current position
+     * @throws EOFException when input has fewer than {@code position + remaining} bytes
+     * @throws IOException when {@code position} is negative, or when any other I/O error occurs
+     */
+    default void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        byte[] buffer = new byte[destination.remaining()];
+        readFully(position, buffer, 0, buffer.length);
+        destination.put(buffer);
+    }
 
     /**
      * Read exactly {@code length} bytes starting from input position {@code position}

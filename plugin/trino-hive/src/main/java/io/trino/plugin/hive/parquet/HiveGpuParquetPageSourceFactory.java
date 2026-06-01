@@ -137,7 +137,6 @@ public final class HiveGpuParquetPageSourceFactory
                     timeZone,
                     domainCompactionThreshold,
                     gpuMemoryContext,
-                    memoryContext.newAggregatedMemoryContext(),
                     options,
                     parquetMetadata);
 

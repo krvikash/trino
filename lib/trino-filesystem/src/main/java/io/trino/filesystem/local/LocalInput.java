@@ -16,9 +16,12 @@ package io.trino.filesystem.local;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInput;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 import static io.trino.filesystem.local.LocalUtils.handleException;
 import static java.lang.Math.min;
@@ -51,6 +54,32 @@ class LocalInput
         try {
             input.seek(position);
             input.readFully(buffer, bufferOffset, bufferLength);
+        }
+        catch (IOException e) {
+            throw handleException(location, e);
+        }
+    }
+
+    @Override
+    public void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        ensureOpen();
+        if (position < 0) {
+            throw new IOException("Negative seek offset");
+        }
+
+        try {
+            FileChannel channel = input.getChannel();
+            int length = destination.remaining();
+            int total = 0;
+            while (total < length) {
+                int read = channel.read(destination, position + total);
+                if (read < 0) {
+                    throw new EOFException("Read past end of file " + location + " at position " + (position + total));
+                }
+                total += read;
+            }
         }
         catch (IOException e) {
             throw handleException(location, e);

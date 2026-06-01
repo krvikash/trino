@@ -21,6 +21,7 @@ import io.trino.spi.metrics.Metrics;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Map;
 
 public interface ParquetDataSource
@@ -39,6 +40,14 @@ public interface ParquetDataSource
 
     Slice readFully(long position, int length)
             throws IOException;
+
+    default void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        int length = destination.remaining();
+        Slice slice = readFully(position, length);
+        destination.put(slice.byteArray(), slice.byteArrayOffset(), length);
+    }
 
     <K> Map<K, ChunkedInputStream> planRead(ListMultimap<K, DiskRange> diskRanges, AggregatedMemoryContext memoryContext);
 

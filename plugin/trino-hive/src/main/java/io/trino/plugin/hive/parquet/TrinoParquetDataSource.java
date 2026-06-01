@@ -23,6 +23,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.spi.metrics.Metrics;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static java.util.Objects.requireNonNull;
 
@@ -64,6 +65,16 @@ public class TrinoParquetDataSource
         long readStart = System.nanoTime();
         input.readFully(position, buffer, bufferOffset, bufferLength);
         stats.readDataBytesPerSecond(bufferLength, System.nanoTime() - readStart);
+    }
+
+    @Override
+    protected void readInternal(long position, ByteBuffer destination)
+            throws IOException
+    {
+        long readStart = System.nanoTime();
+        int length = destination.remaining();
+        input.readFully(position, destination);
+        stats.readDataBytesPerSecond(length, System.nanoTime() - readStart);
     }
 
     @Override

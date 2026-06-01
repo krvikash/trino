@@ -22,6 +22,7 @@ import io.trino.filesystem.TrinoInput;
 import io.trino.spi.metrics.Metrics;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Optional;
 
 import static io.trino.filesystem.tracing.Tracing.attribute;
@@ -52,6 +53,16 @@ final class TracingInput
                 .setAttribute(FileSystemAttributes.FILE_READ_POSITION, position)
                 .startSpan();
         withTracing(span, () -> delegate.readFully(position, buffer, bufferOffset, bufferLength));
+    }
+
+    @Override
+    public void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        Span span = spanBuilder("Input.readFully", destination.remaining())
+                .setAttribute(FileSystemAttributes.FILE_READ_POSITION, position)
+                .startSpan();
+        withTracing(span, () -> delegate.readFully(position, destination));
     }
 
     @Override

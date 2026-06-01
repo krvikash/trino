@@ -66,7 +66,6 @@ import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
@@ -388,7 +387,6 @@ public class TestHiveGpuParquetPageSource
                 UTC,
                 1000,
                 gpuMemoryContext,
-                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata)) {
             try (HiveGpuParquetPageSource pageSource = new HiveGpuParquetPageSource(

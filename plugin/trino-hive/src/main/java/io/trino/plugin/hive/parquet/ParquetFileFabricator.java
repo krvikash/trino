@@ -14,13 +14,10 @@
 package io.trino.plugin.hive.parquet;
 
 import ai.rapids.cudf.HostMemoryBuffer;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
-import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.parquet.DiskRange;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
@@ -28,7 +25,6 @@ import io.trino.parquet.metadata.ColumnChunkMetadata;
 import io.trino.parquet.metadata.FileMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.predicate.TupleDomainParquetPredicate;
-import io.trino.parquet.reader.ChunkedInputStream;
 import io.trino.parquet.reader.RowGroupInfo;
 import io.trino.parquet.writer.MessageTypeConverter;
 import io.trino.parquet.writer.ParquetTypeConverter;
@@ -68,13 +64,15 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.parquet.AbstractParquetDataSource.mergeAdjacentDiskRanges;
+import static io.trino.parquet.AbstractParquetDataSource.splitLargeRange;
 import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
-import static java.lang.Math.clamp;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
+import static java.util.Comparator.comparingLong;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 
@@ -136,7 +134,6 @@ public class ParquetFileFabricator
     private final DateTimeZone timeZone;
     private final int domainCompactionThreshold;
     private final ConnectorGpuMemoryContext gpuMemoryContext;
-    private final AggregatedMemoryContext memoryContext;
     private final ParquetReaderOptions options;
     private final ParquetMetadata parquetMetadata;
 
@@ -151,7 +148,6 @@ public class ParquetFileFabricator
             DateTimeZone timeZone,
             int domainCompactionThreshold,
             ConnectorGpuMemoryContext gpuMemoryContext,
-            AggregatedMemoryContext memoryContext,
             ParquetReaderOptions options,
             ParquetMetadata parquetMetadata)
     {
@@ -165,7 +161,6 @@ public class ParquetFileFabricator
         this.timeZone = requireNonNull(timeZone, "timeZone is null");
         this.domainCompactionThreshold = domainCompactionThreshold;
         this.gpuMemoryContext = requireNonNull(gpuMemoryContext, "gpuMemoryContext is null");
-        this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.options = requireNonNull(options, "options is null");
         this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
     }
@@ -174,7 +169,6 @@ public class ParquetFileFabricator
     public void close()
     {
         try (var closer = Closer.create()) {
-            closer.register(memoryContext::close);
             closer.register(dataSource);
         }
         catch (IOException e) {
@@ -201,7 +195,17 @@ public class ParquetFileFabricator
                 return new FabricatedParquet(gpuMemoryContext.allocate(MemoryAmount.ZERO), Optional.empty(), 0);
             }
 
-            return writeFabricatedFile(filteredRowGroups, requestedSchema, parquetMetadata.getFileMetaData());
+            // Collect all disk ranges for columns included in the requested schema
+            ImmutableList.Builder<DiskRange> chunkRanges = ImmutableList.builder();
+            for (RowGroupInfo rowGroupInfo : filteredRowGroups) {
+                for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
+                    if (isColumnInSchema(column.getPath(), requestedSchema)) {
+                        chunkRanges.add(new DiskRange(column.getStartingPos(), column.getTotalSize()));
+                    }
+                }
+            }
+
+            return writeFabricatedFile(filteredRowGroups, requestedSchema, parquetMetadata.getFileMetaData(), chunkRanges.build());
         }
         catch (IOException | RuntimeException e) {
             throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from %s: %s", dataSource.getId(), requireNonNullElse(e.getMessage(), e)), e);
@@ -211,36 +215,8 @@ public class ParquetFileFabricator
     private @Move FabricatedParquet writeFabricatedFile(
             List<RowGroupInfo> rowGroups,
             MessageType clippedSchema,
-            FileMetadata originalFileMetadata)
-            throws IOException
-    {
-        // Collect all disk ranges for columns included in the clipped schema
-        ListMultimap<Integer, DiskRange> diskRanges = ArrayListMultimap.create();
-        int chunkCount = 0;
-        for (RowGroupInfo rowGroupInfo : rowGroups) {
-            for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
-                if (!isColumnInSchema(column.getPath(), clippedSchema)) {
-                    continue;
-                }
-                diskRanges.put(chunkCount++, new DiskRange(column.getStartingPos(), column.getTotalSize()));
-            }
-        }
-
-        Map<Integer, ChunkedInputStream> chunkStreams = dataSource.planRead(diskRanges, memoryContext);
-        try {
-            return writeFabricatedFile(rowGroups, clippedSchema, originalFileMetadata, chunkStreams, chunkCount);
-        }
-        finally {
-            chunkStreams.values().forEach(ChunkedInputStream::close);
-        }
-    }
-
-    private @Move FabricatedParquet writeFabricatedFile(
-            List<RowGroupInfo> rowGroups,
-            MessageType clippedSchema,
             FileMetadata originalFileMetadata,
-            Map<Integer, ChunkedInputStream> chunkStreams,
-            int expectedChunkCount)
+            List<DiskRange> chunkRanges)
             throws IOException
     {
         int originalFooterSize = parquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
@@ -263,9 +239,10 @@ public class ParquetFileFabricator
             buffers.add(allocateAndCopy(PARQUET_MAGIC, 0, PARQUET_MAGIC_LENGTH));
             long currentOffset = PARQUET_MAGIC_LENGTH;
 
+            buffers.addAll(readChunks(chunkRanges));
+
             List<RowGroup> fabricatedRowGroups = new ArrayList<>();
             long totalRowCount = 0;
-            int chunkIndex = 0;
 
             for (RowGroupInfo rowGroupInfo : rowGroups) {
                 List<ColumnChunk> fabricatedColumns = new ArrayList<>();
@@ -280,9 +257,6 @@ public class ParquetFileFabricator
 
                     long chunkOffset = column.getStartingPos();
                     long chunkSize = column.getTotalSize();
-
-                    ChunkedInputStream nextChunk = chunkStreams.get(chunkIndex++);
-                    buffers.add(allocateAndCopyChunk(nextChunk, toIntExact(chunkSize)));
 
                     long offsetAdjustment = currentOffset - chunkOffset;
 
@@ -341,8 +315,6 @@ public class ParquetFileFabricator
                 fabricatedRowGroups.add(rowGroup);
             }
 
-            verify(chunkIndex == expectedChunkCount, "Expected %s chunks but processed %s", expectedChunkCount, chunkIndex);
-
             DynamicSliceOutput footerThrift = new DynamicSliceOutput(originalFooterSize);
             writeFooter(footerThrift, fabricatedRowGroups, clippedSchema, originalFileMetadata);
             Slice footerSlice = footerThrift.slice();
@@ -380,24 +352,91 @@ public class ParquetFileFabricator
         }
     }
 
-    private static @Own HostMemoryBuffer allocateAndCopyChunk(ChunkedInputStream in, int length)
+    private @Own List<HostMemoryBuffer> readChunks(List<DiskRange> chunkRanges)
             throws IOException
     {
-        try (ClosingRef<HostMemoryBuffer> buffer = ClosingRef.own(HostMemoryBuffer.allocate(length))) {
-            long position = 0;
-            int remaining = length;
-            while (remaining > 0) {
-                // Pull only what is in the current sub-slice — that read is zero-copy from the
-                // underlying byte array — then copy straight into the destination buffer.
-                int toRead = clamp(in.available(), 1, remaining);
-                Slice slice = in.getSlice(toRead);
-                buffer.borrow().setBytes(position, slice.byteArray(), slice.byteArrayOffset(), toRead);
-                position += toRead;
-                remaining -= toRead;
+        return executeReadPlan(planChunkReads(chunkRanges, options));
+    }
+
+    /**
+     * Maps the column chunks onto pinned-buffer reads following {@code AbstractParquetDataSource.planChunksRead}:
+     * chunks within {@code initialBufferSize} coalesce with their neighbors into a shared read, larger chunks split
+     * into ramped sub-ranges read individually. Each read becomes one pinned buffer carved into the fragment slices
+     * it covers.
+     */
+    private static List<CoalescedRead> planChunkReads(List<DiskRange> chunkRanges, ParquetReaderOptions options)
+    {
+        long initialBytes = options.getInitialBufferSize().toBytes();
+        List<DiskRange> smallRanges = new ArrayList<>();
+        List<DiskRange> largeRanges = new ArrayList<>();
+        for (DiskRange chunkRange : chunkRanges) {
+            if (chunkRange.length() <= initialBytes) {
+                smallRanges.add(chunkRange);
             }
-            return buffer.take();
+            else {
+                largeRanges.addAll(splitLargeRange(chunkRange, options.getInitialBufferSize(), options.getMaxBufferSize()));
+            }
+        }
+
+        ImmutableList.Builder<CoalescedRead> reads = ImmutableList.builder();
+        if (!smallRanges.isEmpty()) {
+            for (DiskRange mergedRange : mergeAdjacentDiskRanges(smallRanges, options.getMaxMergeDistance(), options.getMaxBufferSize())) {
+                ImmutableList.Builder<FragmentSlice> slices = ImmutableList.builder();
+                for (DiskRange smallRange : smallRanges) {
+                    if (mergedRange.contains(smallRange)) {
+                        slices.add(new FragmentSlice(smallRange.offset() - mergedRange.offset(), smallRange.length()));
+                    }
+                }
+                reads.add(new CoalescedRead(mergedRange.offset(), toIntExact(mergedRange.length()), slices.build()));
+            }
+        }
+        for (DiskRange largeRange : largeRanges) {
+            reads.add(new CoalescedRead(largeRange.offset(), toIntExact(largeRange.length()), ImmutableList.of(new FragmentSlice(0, largeRange.length()))));
+        }
+        return reads.build();
+    }
+
+    /**
+     * Reads each planned read into a pinned buffer and carves its fragments as zero-copy slices, returning them in
+     * ascending file offset, the order the fabricated metadata lays the column chunks out.
+     */
+    private @Own List<HostMemoryBuffer> executeReadPlan(List<CoalescedRead> reads)
+            throws IOException
+    {
+        List<CoalescedRead> sequentialReads = reads.stream()
+                .sorted(comparingLong(CoalescedRead::offset))
+                .collect(toImmutableList());
+        List<HostMemoryBuffer> fragments = new ArrayList<>();
+        try {
+            for (CoalescedRead read : sequentialReads) {
+                try (ClosingRef<HostMemoryBuffer> buffer = ClosingRef.own(HostMemoryBuffer.allocate(read.length()));
+                        // Non-native sources stage the read through an on-heap array before filling the buffer; account for it pessimistically.
+                        MemoryAllocation _ = gpuMemoryContext.allocate(MemoryAmount.heap(read.length()))) {
+                    dataSource.readFully(read.offset(), buffer.borrow().asByteBuffer(0, read.length()));
+                    for (FragmentSlice slice : read.slices()) {
+                        fragments.add(buffer.borrow().slice(slice.bufferOffset(), slice.length()));
+                    }
+                }
+            }
+        }
+        catch (Throwable t) {
+            closeAllSuppress(t, fragments.toArray(HostMemoryBuffer[]::new));
+            throw t;
+        }
+        return ImmutableList.copyOf(fragments);
+    }
+
+    private record CoalescedRead(long offset, int length, List<FragmentSlice> slices)
+    {
+        private CoalescedRead(long offset, int length, List<FragmentSlice> slices)
+        {
+            this.offset = offset;
+            this.length = length;
+            this.slices = requireNonNull(slices, "slices is null");
         }
     }
+
+    private record FragmentSlice(long bufferOffset, long length) {}
 
     private void writeFooter(
             OutputStream outputStream,

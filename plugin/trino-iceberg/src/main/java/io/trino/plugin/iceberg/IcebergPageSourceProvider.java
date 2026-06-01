@@ -438,7 +438,6 @@ public class IcebergPageSourceProvider
                     UTC,
                     ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
                     gpuMemoryContext,
-                    memoryContext.newAggregatedMemoryContext(),
                     gpuParquetReaderOptions,
                     parquetMetadata);
 

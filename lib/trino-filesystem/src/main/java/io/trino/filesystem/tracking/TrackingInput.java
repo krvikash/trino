@@ -19,6 +19,7 @@ import io.trino.filesystem.TrinoInput;
 
 import java.io.IOException;
 import java.lang.ref.Cleaner;
+import java.nio.ByteBuffer;
 
 import static java.util.Objects.requireNonNull;
 
@@ -41,6 +42,13 @@ public class TrackingInput
             throws IOException
     {
         delegate.readFully(position, buffer, bufferOffset, bufferLength);
+    }
+
+    @Override
+    public void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        delegate.readFully(position, destination);
     }
 
     @Override

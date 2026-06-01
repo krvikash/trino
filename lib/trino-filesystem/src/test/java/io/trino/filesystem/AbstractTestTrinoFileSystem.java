@@ -36,6 +36,8 @@ import java.io.UncheckedIOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.FileAlreadyExistsException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -585,6 +587,70 @@ public abstract class AbstractTestTrinoFileSystem
             tempBlob.outputFile().createOrOverwrite(new byte[0]);
             try (TrinoInputStream inputStream = tempBlob.inputFile().newStream()) {
                 assertThat(inputStream.read()).isLessThan(0);
+            }
+        }
+    }
+
+    @Test
+    public void testInputFileReadFullyIntoByteBuffer()
+            throws IOException
+    {
+        try (TempBlob tempBlob = randomBlobLocation("byteBufferInput")) {
+            TrinoInputFile inputFile = getFileSystem().newInputFile(tempBlob.location());
+            try (OutputStream outputStream = tempBlob.outputFile().create()) {
+                byte[] bytes = new byte[4];
+                Slice slice = wrappedBuffer(bytes);
+                for (int i = 0; i < 2 * MEGABYTE / 4; i++) {
+                    slice.setInt(0, i);
+                    outputStream.write(bytes);
+                }
+            }
+            long fileSize = 2 * MEGABYTE;
+            assertThat(inputFile.length()).isEqualTo(fileSize);
+
+            try (TrinoInput trinoInput = inputFile.newInput()) {
+                // heap buffer read at the start of the file, advancing the buffer position to its limit
+                ByteBuffer heap = ByteBuffer.allocate(4 * 10).order(ByteOrder.LITTLE_ENDIAN);
+                trinoInput.readFully(0, heap);
+                assertThat(heap.position()).isEqualTo(heap.limit());
+                for (int i = 0; i < 10; i++) {
+                    assertThat(heap.getInt(i * 4)).isEqualTo(i);
+                }
+
+                // direct buffer read at a non-zero position, the path GPU Parquet reads exercise
+                ByteBuffer direct = ByteBuffer.allocateDirect(4 * 10).order(ByteOrder.LITTLE_ENDIAN);
+                trinoInput.readFully(MEGABYTE, direct);
+                assertThat(direct.position()).isEqualTo(direct.limit());
+                for (int i = 0; i < 10; i++) {
+                    assertThat(direct.getInt(i * 4)).isEqualTo(i + MEGABYTE / 4);
+                }
+
+                // the read fills from the buffer's current position, leaving earlier bytes untouched
+                ByteBuffer prefixed = ByteBuffer.allocate(8 + (4 * 10)).order(ByteOrder.LITTLE_ENDIAN);
+                prefixed.putLong(0, 0x0102030405060708L);
+                prefixed.position(8);
+                trinoInput.readFully(0, prefixed);
+                assertThat(prefixed.position()).isEqualTo(prefixed.limit());
+                assertThat(prefixed.getLong(0)).isEqualTo(0x0102030405060708L);
+                for (int i = 0; i < 10; i++) {
+                    assertThat(prefixed.getInt(8 + (i * 4))).isEqualTo(i);
+                }
+
+                // reading past the end of the file fails
+                ByteBuffer pastEnd = ByteBuffer.allocate(4 * 10);
+                assertThatThrownBy(() -> trinoInput.readFully(fileSize - (4 * 10) + 1, pastEnd))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining(tempBlob.location().toString());
+
+                // negative position is not allowed
+                assertThatThrownBy(() -> trinoInput.readFully(-1, ByteBuffer.allocate(10)))
+                        .isInstanceOf(IOException.class);
+
+                // reads after close fail
+                trinoInput.close();
+                assertThatThrownBy(() -> trinoInput.readFully(0, ByteBuffer.allocate(10)))
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining(tempBlob.location().toString());
             }
         }
     }
