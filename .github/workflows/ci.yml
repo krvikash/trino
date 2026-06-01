@@ -1940,6 +1940,24 @@ jobs:
           ./.github/bin/build-matrix-from-impacted.py -v -i gib-impacted.log -m .github/test-matrix.yaml -o matrix.json
           echo "Matrix: $(jq '.' matrix.json)"
           echo "matrix=$(jq -c '.' matrix.json)" >> $GITHUB_OUTPUT
+      # For schedule-based testing, in development. The result of this step can be ignored
+      - name: Build matrix from schedule config
+        if: "!cancelled()"
+        continue-on-error: true
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          ./.github/bin/build-matrix-schedule-aware.py build \
+            --schedule-config ./.github/schedule-config.yaml \
+            --impacted gib-impacted.log \
+            --event-name "$EVENT_NAME" \
+            --event-schedule "$EVENT_SCHEDULE" \
+            --pr-labels "$PR_LABELS" \
+            --verbose > matrix-from-schedule.json
+          echo "Matrix from schedule:"
+          jq '.' matrix-from-schedule.json
       - name: Cancel merge queue workflow
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
