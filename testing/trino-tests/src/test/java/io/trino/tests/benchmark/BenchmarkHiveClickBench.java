@@ -257,7 +257,6 @@ public final class BenchmarkHiveClickBench
                 hiveProperties.put("hive.metastore.catalog.dir", "local://" + queryRunner.getCoordinator().getBaseDataDir().resolve("clickbench-metastore").toAbsolutePath());
             }
             if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-                hiveProperties.put("hive.max-initial-split-size", "512MB");
                 hiveProperties.put("hive.max-split-size", "512MB");
             }
 

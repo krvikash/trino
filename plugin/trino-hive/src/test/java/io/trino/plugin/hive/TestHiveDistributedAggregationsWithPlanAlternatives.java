@@ -30,7 +30,6 @@ public class TestHiveDistributedAggregationsWithPlanAlternatives
                 .setInitialTables(getTables())
                 .withPlanAlternatives()
                 .setHiveProperties(ImmutableMap.of(
-                        "hive.max-initial-split-size", "10kB", // so that we have multiple splits to utilize alternatives
                         "hive.max-split-size", "10kB")) // so that we have multiple splits to utilize alternatives
                 .build();
     }

@@ -70,7 +70,6 @@ public class StorageSessionProperties
             .put("parquet_writer_batch_size", true)
             .put("parquet_optimized_writer_validation_percentage", true)
             .put("max_split_size", true)
-            .put("max_initial_split_size", true)
             .put("rcfile_optimized_writer_validate", true)
             .put("sorted_writing_enabled", true)
             .put("propagate_table_scan_sorting_properties", false)

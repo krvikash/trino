@@ -136,7 +136,6 @@ public class TestHiveS3MinioQueries
         String hiveCatalogName = getSession().getCatalog().orElseThrow();
         Session session = Session.builder(getSession())
                 .setCatalogSessionProperty(hiveCatalogName, "compression_codec", CompressionCodec.NONE.name())
-                .setCatalogSessionProperty(hiveCatalogName, "max_initial_split_size", "128kB")
                 .setCatalogSessionProperty(hiveCatalogName, "max_split_size", "1MB")
                 .build();
         assertUpdate(

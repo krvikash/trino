@@ -41,6 +41,7 @@ import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -52,6 +53,10 @@ import static io.trino.plugin.hive.HiveMetadata.CSV_ESCAPE_KEY;
 import static io.trino.plugin.hive.HiveMetadata.CSV_QUOTE_KEY;
 import static io.trino.plugin.hive.HiveMetadata.CSV_SEPARATOR_KEY;
 import static io.trino.plugin.hive.HiveMetadata.SKIP_HEADER_COUNT_KEY;
+import static io.trino.plugin.hive.HiveSessionProperties.getMaxSplitSize;
+import static io.trino.plugin.hive.HiveSessionProperties.getParquetMaxSplitSize;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.isParquetSerde;
+import static io.trino.plugin.hive.util.HiveUtil.getSerializationLibraryName;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMNS;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMN_TYPES;
 import static io.trino.plugin.hive.util.SerdeConstants.SERIALIZATION_LIB;
@@ -63,14 +68,12 @@ public class StorageSplitManager
     private static final String FILE_INPUT_FORMAT = "file.inputformat";
 
     private final TrinoFileSystemFactory fileSystemFactory;
-    private final DataSize maxInitialSplitSize;
     private final boolean forceLocalScheduling;
 
     @Inject
     public StorageSplitManager(TrinoFileSystemFactory fileSystemFactory, HiveConfig config)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
-        maxInitialSplitSize = config.getMaxInitialSplitSize();
         forceLocalScheduling = config.isForceLocalScheduling();
     }
 
@@ -103,10 +106,17 @@ public class StorageSplitManager
             loadTableHandle.lineSeparator().ifPresent(separator -> schemaBuilder.put(LINE_SEPARATOR_KEY, String.valueOf(separator)));
             loadTableHandle.quote().ifPresent(quote -> schemaBuilder.put(CSV_QUOTE_KEY, String.valueOf(quote)));
             loadTableHandle.escape().ifPresent(escape -> schemaBuilder.put(CSV_ESCAPE_KEY, String.valueOf(escape)));
+            Map<String, String> schema = schemaBuilder.buildOrThrow();
+
+            DataSize maxSplitSize = getMaxSplitSize(session);
+            if (isParquetSerde(getSerializationLibraryName(schema))) {
+                maxSplitSize = getParquetMaxSplitSize(session);
+            }
+
             InternalHiveSplitFactory internalSplitFactory = new InternalHiveSplitFactory(
                     UNPARTITIONED_ID,
                     format,
-                    schemaBuilder.buildOrThrow(),
+                    schema,
                     ImmutableList.of(),
                     TupleDomain.all(),
                     Constraint.alwaysTrue(),
@@ -114,7 +124,7 @@ public class StorageSplitManager
                     ImmutableMap.of(),
                     Optional.empty(),
                     Optional.empty(),
-                    maxInitialSplitSize,
+                    maxSplitSize,
                     forceLocalScheduling,
                     Optional.empty(),
                     session,

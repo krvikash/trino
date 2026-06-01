@@ -157,7 +157,6 @@ public abstract class BaseHiveTpchWorkload
             hiveProperties.put("hive.metastore.catalog.dir", "local://" + metastoreDir.resolve("hive").toAbsolutePath());
         }
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-            hiveProperties.put("hive.max-initial-split-size", "512MB");
             hiveProperties.put("hive.max-split-size", "512MB");
         }
 

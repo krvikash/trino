@@ -96,7 +96,7 @@ import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_METADATA;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_PARTITION_VALUE;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNKNOWN_ERROR;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
-import static io.trino.plugin.hive.HiveSessionProperties.getMaxInitialSplitSize;
+import static io.trino.plugin.hive.HiveSessionProperties.getMaxSplitSize;
 import static io.trino.plugin.hive.HiveSessionProperties.isForceLocalScheduling;
 import static io.trino.plugin.hive.HiveSessionProperties.isValidateBucketing;
 import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
@@ -422,7 +422,7 @@ public class BackgroundHiveSplitLoader
                     partition.getHiveColumnCoercions(),
                     Optional.empty(),
                     Optional.empty(),
-                    getMaxInitialSplitSize(session),
+                    getMaxSplitSize(session),
                     isForceLocalScheduling(session),
                     maxSplitFileSize,
                     session,
@@ -477,7 +477,7 @@ public class BackgroundHiveSplitLoader
                 partition.getHiveColumnCoercions(),
                 bucketConversionRequiresWorkerParticipation ? bucketConversion : Optional.empty(),
                 bucketValidation,
-                getMaxInitialSplitSize(session),
+                getMaxSplitSize(session),
                 isForceLocalScheduling(session),
                 maxSplitFileSize,
                 session,

@@ -183,7 +183,6 @@ public abstract class BaseTestObjectStoreProperties
                 .sorted())
                 .containsExactly(
                         "delegate_transactional_managed_table_location_to_metastore false boolean",
-                        "max_initial_split_size 32MB varchar",
                         "max_split_size null varchar",
                         "parquet_writer_block_size null varchar",
                         "store_table_metadata false boolean");

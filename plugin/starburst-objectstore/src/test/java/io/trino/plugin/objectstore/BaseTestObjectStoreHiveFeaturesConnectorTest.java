@@ -130,7 +130,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
             // Hive setting synced from HiveQueryRunner
             Map<String, String> objectStoreBucketedProperties = new HashMap<>(objectStoreProperties);
-            objectStoreBucketedProperties.put(prefix + "hive.max-initial-split-size", "10kB"); // so that each bucket has multiple splits
             objectStoreBucketedProperties.put(prefix + "hive.max-split-size", "10kB"); // so that each bucket has multiple splits
             objectStoreBucketedProperties.put(prefix + "hive.storage-format", "TEXTFILE"); // so that there's no minimum split size for the file
             objectStoreBucketedProperties.put(prefix + "hive.compression-codec", "NONE"); // so that the file is splittable

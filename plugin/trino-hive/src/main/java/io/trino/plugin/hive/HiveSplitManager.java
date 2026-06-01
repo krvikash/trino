@@ -121,7 +121,6 @@ public class HiveSplitManager
     private final DataSize maxOutstandingSplitsSize;
     private final int minPartitionBatchSize;
     private final int maxPartitionBatchSize;
-    private final int maxInitialSplits;
     private final int splitLoaderConcurrency;
     private final int maxSplitsPerSecond;
     private final boolean recursiveDfsWalkerEnabled;
@@ -154,7 +153,6 @@ public class HiveSplitManager
                 hiveConfig.getMaxOutstandingSplitsSize(),
                 hiveConfig.getMinPartitionBatchSize(),
                 hiveConfig.getMaxPartitionBatchSize(),
-                hiveConfig.getMaxInitialSplits(),
                 hiveConfig.getSplitLoaderConcurrency(),
                 hiveConfig.getMaxSplitsPerSecond(),
                 hiveConfig.getRecursiveDirWalkerEnabled(),
@@ -175,7 +173,6 @@ public class HiveSplitManager
             DataSize maxOutstandingSplitsSize,
             int minPartitionBatchSize,
             int maxPartitionBatchSize,
-            int maxInitialSplits,
             int splitLoaderConcurrency,
             @Nullable Integer maxSplitsPerSecond,
             boolean recursiveDfsWalkerEnabled,
@@ -195,7 +192,6 @@ public class HiveSplitManager
         this.maxOutstandingSplitsSize = maxOutstandingSplitsSize;
         this.minPartitionBatchSize = minPartitionBatchSize;
         this.maxPartitionBatchSize = maxPartitionBatchSize;
-        this.maxInitialSplits = maxInitialSplits;
         this.splitLoaderConcurrency = splitLoaderConcurrency;
         this.maxSplitsPerSecond = requireNonNullElse(maxSplitsPerSecond, Integer.MAX_VALUE);
         this.recursiveDfsWalkerEnabled = recursiveDfsWalkerEnabled;
@@ -301,7 +297,6 @@ public class HiveSplitManager
                 session,
                 table.getDatabaseName(),
                 table.getTableName(),
-                maxInitialSplits,
                 maxOutstandingSplits,
                 maxOutstandingSplitsSize,
                 maxSplitsPerSecond,
