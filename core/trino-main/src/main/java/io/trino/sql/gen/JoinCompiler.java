@@ -451,6 +451,7 @@ public class JoinCompiler
             rowIdenticalToRowMethod
                     .getBody()
                     .append(typeIdentical(
+                            rowIdenticalToRowMethod.getScope(),
                             callSiteBinder,
                             type,
                             leftBlock,
@@ -551,7 +552,7 @@ public class JoinCompiler
             LabelNode checkNextField = new LabelNode("checkNextField");
             positionIdenticalToRowPosition
                     .getBody()
-                    .append(typeIdentical(callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightPosition))
+                    .append(typeIdentical(positionIdenticalToRowPosition.getScope(), callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightPosition))
                     .ifTrueGoto(checkNextField)
                     .push(false)
                     .retBoolean()
@@ -599,13 +600,14 @@ public class JoinCompiler
             Type type = joinChannelTypes.get(index);
 
             body.append(new IfStatement()
-                    .condition(typeIdentical(callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightPosition))
+                    .condition(typeIdentical(scope, callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightPosition))
                     .ifFalse(constantFalse().ret()));
         }
         body.append(constantTrue().ret());
     }
 
     private BytecodeNode typeIdentical(
+            Scope scope,
             CallSiteBinder callSiteBinder,
             Type type,
             BytecodeExpression leftBlock,
@@ -613,12 +615,19 @@ public class JoinCompiler
             BytecodeExpression rightBlock,
             BytecodeExpression rightBlockPosition)
     {
-        return new IfStatement()
-                .condition(BytecodeExpressions.or(leftBlock.invoke("isNull", boolean.class, leftBlockPosition), rightBlock.invoke("isNull", boolean.class, rightBlockPosition)))
-                .ifTrue(BytecodeExpressions.and(
-                        leftBlock.invoke("isNull", boolean.class, leftBlockPosition),
-                        rightBlock.invoke("isNull", boolean.class, rightBlockPosition)))
-                .ifFalse(typeIdenticalIgnoreNulls(callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightBlockPosition));
+        Variable leftBlockVariable = scope.createTempVariable(Block.class);
+        Variable rightBlockVariable = scope.createTempVariable(Block.class);
+        Variable leftNull = scope.createTempVariable(boolean.class);
+        Variable rightNull = scope.createTempVariable(boolean.class);
+        return new BytecodeBlock()
+                .append(leftBlockVariable.set(leftBlock))
+                .append(rightBlockVariable.set(rightBlock))
+                .append(leftNull.set(leftBlockVariable.invoke("isNull", boolean.class, leftBlockPosition)))
+                .append(rightNull.set(rightBlockVariable.invoke("isNull", boolean.class, rightBlockPosition)))
+                .append(new IfStatement()
+                        .condition(BytecodeExpressions.or(leftNull, rightNull))
+                        .ifTrue(BytecodeExpressions.and(leftNull, rightNull))
+                        .ifFalse(typeIdenticalIgnoreNulls(callSiteBinder, type, leftBlockVariable, leftBlockPosition, rightBlockVariable, rightBlockPosition)));
     }
 
     // Both inputs are non-null here; the isNull guard in typeIdentical handles the null cases, so the
@@ -730,7 +739,7 @@ public class JoinCompiler
             LabelNode checkNextField = new LabelNode("checkNextField");
             positionIdenticalToPositionMethod
                     .getBody()
-                    .append(typeIdentical(callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightBlockPosition))
+                    .append(typeIdentical(positionIdenticalToPositionMethod.getScope(), callSiteBinder, type, leftBlock, leftBlockPosition, rightBlock, rightBlockPosition))
                     .ifTrueGoto(checkNextField)
                     .push(false)
                     .retBoolean()
