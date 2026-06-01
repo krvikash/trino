@@ -34,10 +34,7 @@ public class TestGpuLocalExchange
     {
         return MemoryQueryRunner.builder()
                 .setInitialTables(ImmutableList.of(ORDERS))
-                .addExtraProperty("gpu-execution", "true")
-                .addExtraProperty("task.gpu-execution.enabled", "true")
-                .addWorkerProperty("gpu.memory.pool-size", "4GB")
-                .addExtraProperty("node-scheduler.include-coordinator", "false")
+                .configureGpuDistributedExecution()
                 .build();
     }
 
