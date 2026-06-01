@@ -419,6 +419,7 @@ public final class BenchmarkRunner
                             runner.execute(workload.readQuery(queryNumber));
                         }
                         catch (RuntimeException e) {
+                            e.addSuppressed(new Exception("Query: " + displayName(queryNumber)));
                             if (!isOutOfMemory(e)) {
                                 throw e;
                             }
@@ -507,6 +508,7 @@ public final class BenchmarkRunner
                 }
             }
             catch (RuntimeException e) {
+                e.addSuppressed(new Exception("Query: " + displayName(queryNumber)));
                 try {
                     session.stop();
                 }
