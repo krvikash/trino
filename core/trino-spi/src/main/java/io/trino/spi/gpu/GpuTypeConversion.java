@@ -37,6 +37,7 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
@@ -192,10 +193,11 @@ public final class GpuTypeConversion
                     blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS),
                     nullChecked(Scalar::getLong)));
 
-            case VarcharType _ -> Optional.of(new GpuTypeMapping(
+            // For CHAR(n) the GPU representation is DType.STRING with trailing spaces trimmed (same as Trino stack representation)
+            case CharType _, VarcharType _ -> Optional.of(new GpuTypeMapping(
                     DType.STRING,
                     value -> Scalar.fromUTF8String(value.map(v -> ((Slice) v).getBytes()).orElse(null)),
-                    GpuTypeConversion::copyVarcharBlocksToDevice,
+                    GpuTypeConversion::copyVariableWithBlocksToDeviceString,
                     nullChecked(scalar -> Slices.wrappedBuffer(scalar.getUTF8()))));
 
             case VarbinaryType _ -> Optional.of(new GpuTypeMapping(
@@ -586,7 +588,7 @@ public final class GpuTypeConversion
         }
     }
 
-    private static @Move ColumnVector copyVarcharBlocksToDevice(Blocks blocks)
+    private static @Move ColumnVector copyVariableWithBlocksToDeviceString(Blocks blocks)
     {
         int totalPositions = blocks.positionCount();
         if (totalPositions == 0) {

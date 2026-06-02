@@ -13,10 +13,10 @@
                         - JoinNode (GPU)
                           - FilterNode (GPU)
                             - TableScanNode (GPU)
-                          - ExchangeNode
-                            - ProjectNode
+                          - ExchangeNode (GPU)
+                            - ProjectNode (GPU)
                               - FilterNode
-                                - TableScanNode
+                                - TableScanNode (GPU)
                         - ExchangeNode (GPU)
                           - TableScanNode (GPU)
                       - ExchangeNode (GPU)

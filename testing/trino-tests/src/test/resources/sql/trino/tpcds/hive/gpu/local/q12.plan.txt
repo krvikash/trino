@@ -1,16 +1,16 @@
 - OutputNode
-  - TopNNode
-    - ExchangeNode
-      - TopNNode
+  - TopNNode (GPU)
+    - ExchangeNode (GPU)
+      - TopNNode (GPU)
         - ProjectNode
           - WindowNode
-            - AggregationNode
-              - ExchangeNode
-                - AggregationNode
-                  - JoinNode
-                    - FilterNode
-                      - TableScanNode
-                    - ExchangeNode
+            - AggregationNode (GPU)
+              - ExchangeNode (GPU)
+                - AggregationNode (GPU)
+                  - JoinNode (GPU)
+                    - FilterNode (GPU)
+                      - TableScanNode (GPU)
+                    - ExchangeNode (GPU)
                       - JoinNode (GPU)
                         - FilterNode (GPU)
                           - TableScanNode (GPU)

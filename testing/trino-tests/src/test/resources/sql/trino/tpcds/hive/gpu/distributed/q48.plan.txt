@@ -6,8 +6,8 @@
           - ProjectNode
             - JoinNode
               - ExchangeNode
-                - FilterNode
-                  - TableScanNode
+                - FilterNode (GPU)
+                  - TableScanNode (GPU)
               - ExchangeNode
                 - ExchangeNode
                   - JoinNode (GPU)
@@ -20,9 +20,9 @@
                                 - TableScanNode (GPU)
                             - ExchangeNode
                               - ExchangeNode
-                                - ProjectNode
+                                - ProjectNode (GPU)
                                   - FilterNode
-                                    - TableScanNode
+                                    - TableScanNode (GPU)
                         - ExchangeNode
                           - ExchangeNode
                             - ProjectNode (GPU)

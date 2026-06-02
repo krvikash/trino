@@ -1,16 +1,16 @@
 - OutputNode
-  - TopNNode
+  - TopNNode (GPU)
     - ExchangeNode
       - ExchangeNode
-        - TopNNode
-          - ExchangeNode
-            - TopNNode
-              - ExchangeNode
-                - TopNNode
+        - TopNNode (GPU)
+          - ExchangeNode (GPU)
+            - TopNNode (GPU)
+              - ExchangeNode (GPU)
+                - TopNNode (GPU)
                   - JoinNode
                     - ExchangeNode
-                      - FilterNode
-                        - TableScanNode
+                      - FilterNode (GPU)
+                        - TableScanNode (GPU)
                     - ExchangeNode
                       - ExchangeNode
                         - JoinNode (GPU)
@@ -49,6 +49,6 @@
                                                         - TableScanNode (GPU)
                             - ExchangeNode
                               - ExchangeNode
-                                - ProjectNode
+                                - ProjectNode (GPU)
                                   - FilterNode
-                                    - TableScanNode
+                                    - TableScanNode (GPU)

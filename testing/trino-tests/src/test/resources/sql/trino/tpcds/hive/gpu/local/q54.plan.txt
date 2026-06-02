@@ -39,20 +39,20 @@
                                                                 - TableScanNode (GPU)
                                                               - FilterNode (GPU)
                                                                 - TableScanNode (GPU)
-                                                            - ExchangeNode
-                                                              - ProjectNode
+                                                            - ExchangeNode (GPU)
+                                                              - ProjectNode (GPU)
                                                                 - FilterNode
-                                                                  - TableScanNode
+                                                                  - TableScanNode (GPU)
                                                           - ExchangeNode (GPU)
                                                             - ProjectNode (GPU)
                                                               - FilterNode
                                                                 - TableScanNode (GPU)
-                                                - ExchangeNode
-                                                  - JoinNode
-                                                    - FilterNode
-                                                      - TableScanNode
-                                                    - ExchangeNode
-                                                      - TableScanNode
+                                                - ExchangeNode (GPU)
+                                                  - JoinNode (GPU)
+                                                    - FilterNode (GPU)
+                                                      - TableScanNode (GPU)
+                                                    - ExchangeNode (GPU)
+                                                      - TableScanNode (GPU)
                                       - EnforceSingleRowNode
                                         - ExchangeNode (GPU)
                                           - AggregationNode (GPU)

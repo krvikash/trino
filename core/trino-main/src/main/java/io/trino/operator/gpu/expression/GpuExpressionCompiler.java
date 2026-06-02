@@ -25,6 +25,7 @@ import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.spi.type.BigintType;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
@@ -270,6 +271,14 @@ public final class GpuExpressionCompiler
                             yield Optional.of(input);
                         }
                         yield Optional.of(new GpuCast(input, toDType));
+                    }
+                    default -> Optional.empty();
+                };
+                case CharType from -> switch (toType) {
+                    // No truncation
+                    case CharType to when from.getLength() <= to.getLength() -> {
+                        verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
+                        yield Optional.of(input);
                     }
                     default -> Optional.empty();
                 };

@@ -6,13 +6,13 @@
           - AggregationNode (GPU)
             - ProjectNode
               - JoinNode
-                - FilterNode
-                  - TableScanNode
+                - FilterNode (GPU)
+                  - TableScanNode (GPU)
                 - ExchangeNode
                   - JoinNode
-                    - ProjectNode
+                    - ProjectNode (GPU)
                       - FilterNode
-                        - TableScanNode
+                        - TableScanNode (GPU)
                     - ExchangeNode
                       - JoinNode (GPU)
                         - JoinNode (GPU)

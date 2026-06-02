@@ -26,6 +26,7 @@ import io.trino.spi.ErrorCode;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -471,6 +472,48 @@ public class TestGpuCasts
         assertThat(gpuCast(NUMBER, DECIMAL_13_2)).isNotSupported();
         assertThat(gpuCast(NUMBER, DECIMAL_27_5)).isNotSupported();
         assertThat(gpuCast(NUMBER, NUMBER)).isNotSupported();
+    }
+
+    @Test
+    void testCastFromChar()
+    {
+        CharType char5Type = createCharType(5);
+        String[] char5Values = {
+                "CAST('hello' AS CHAR(5))",
+                "CAST('he  o' AS CHAR(5))",
+                "CAST('    o' AS CHAR(5))",
+                "CAST('' AS CHAR(5))",
+                "CAST('a' AS CHAR(5))",
+                "CAST(NULL AS CHAR(5))",
+        };
+        // to CHAR no-op
+        assertCastSucceedsForAll(char5Type, char5Type, char5Values);
+        // to CHAR widening
+        assertCastSucceedsForAll(char5Type, createCharType(6), char5Values);
+        // to CHAR narrowing
+        assertThat(gpuCast(char5Type, createCharType(4))).isNotSupported();
+        assertThat(gpuCast(char5Type, createCharType(1))).isNotSupported();
+
+        // to VARCHAR no-op
+        assertThat(gpuCast(char5Type, createVarcharType(5))).isNotSupported();
+        // to VARCHAR widening
+        assertThat(gpuCast(char5Type, createVarcharType(6))).isNotSupported();
+        assertThat(gpuCast(char5Type, VARCHAR)).isNotSupported();
+        // to VARCHAR narrowing
+        assertThat(gpuCast(char5Type, createVarcharType(4))).isNotSupported();
+        assertThat(gpuCast(char5Type, createVarcharType(1))).isNotSupported();
+
+        // CHAR -> non-string targets: not supported on GPU
+        assertThat(gpuCast(char5Type, BOOLEAN)).isNotSupported();
+        assertThat(gpuCast(char5Type, TINYINT)).isNotSupported();
+        assertThat(gpuCast(char5Type, SMALLINT)).isNotSupported();
+        assertThat(gpuCast(char5Type, INTEGER)).isNotSupported();
+        assertThat(gpuCast(char5Type, BIGINT)).isNotSupported();
+        assertThat(gpuCast(char5Type, REAL)).isNotSupported();
+        assertThat(gpuCast(char5Type, DOUBLE)).isNotSupported();
+        assertThat(gpuCast(char5Type, DECIMAL_13_2)).isNotSupported();
+        assertThat(gpuCast(char5Type, DECIMAL_27_5)).isNotSupported();
+        assertThat(gpuCast(char5Type, NUMBER)).isNotSupported();
     }
 
     @Test

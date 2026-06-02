@@ -24,6 +24,6 @@
                                         - TableScanNode (GPU)
                               - ExchangeNode
                                 - ExchangeNode
-                                  - ProjectNode
+                                  - ProjectNode (GPU)
                                     - FilterNode
-                                      - TableScanNode
+                                      - TableScanNode (GPU)

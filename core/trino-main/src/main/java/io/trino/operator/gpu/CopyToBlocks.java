@@ -34,6 +34,7 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
@@ -286,8 +287,8 @@ public class CopyToBlocks
         if (type == DOUBLE) {
             return new DoubleColumnCopier(hostColumnVector);
         }
-        if (type instanceof VarcharType) {
-            return new VarcharColumnCopier(hostColumnVector);
+        if (type instanceof CharType || type instanceof VarcharType) {
+            return new VariableWidthBlockColumnCopier(hostColumnVector);
         }
         if (type instanceof VarbinaryType) {
             return new VarbinaryColumnCopier(hostColumnVector);
@@ -506,12 +507,12 @@ public class CopyToBlocks
         }
     }
 
-    private static class VarcharColumnCopier
+    private static class VariableWidthBlockColumnCopier
             implements ColumnCopier
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public VarcharColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        public VariableWidthBlockColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }

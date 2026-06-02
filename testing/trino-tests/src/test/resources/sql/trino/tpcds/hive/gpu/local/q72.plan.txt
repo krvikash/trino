@@ -19,18 +19,18 @@
                           - JoinNode (GPU)
                             - JoinNode (GPU)
                               - JoinNode (GPU)
-                                - ProjectNode
+                                - ProjectNode (GPU)
                                   - FilterNode
-                                    - TableScanNode
+                                    - TableScanNode (GPU)
                                 - ExchangeNode (GPU)
                                   - JoinNode (GPU)
                                     - JoinNode (GPU)
                                       - FilterNode (GPU)
                                         - TableScanNode (GPU)
-                                      - ExchangeNode
-                                        - ProjectNode
+                                      - ExchangeNode (GPU)
+                                        - ProjectNode (GPU)
                                           - FilterNode
-                                            - TableScanNode
+                                            - TableScanNode (GPU)
                                     - ExchangeNode (GPU)
                                       - ProjectNode (GPU)
                                         - FilterNode

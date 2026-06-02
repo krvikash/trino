@@ -104,10 +104,10 @@ public abstract class BaseHiveGpuQueriesTest
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_timestamp FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT col_char FROM test_gpu_types"))
+                .executesWithGpu(TableScanNode.class);
 
         // Verify all unsupported types execute without GPU
-        assertThat(query("SELECT col_char FROM test_gpu_types"))
-                .executesWithoutGpu();
         assertThat(query("SELECT col_array FROM test_gpu_types"))
                 .executesWithoutGpu();
         assertThat(query("SELECT col_map FROM test_gpu_types"))

@@ -8,15 +8,15 @@
               - ProjectNode
                 - JoinNode
                   - ExchangeNode
-                    - FilterNode
-                      - TableScanNode
+                    - FilterNode (GPU)
+                      - TableScanNode (GPU)
                   - ExchangeNode
                     - ExchangeNode
                       - JoinNode
                         - ExchangeNode
-                          - ProjectNode
+                          - ProjectNode (GPU)
                             - FilterNode
-                              - TableScanNode
+                              - TableScanNode (GPU)
                         - ExchangeNode
                           - ExchangeNode
                             - JoinNode (GPU)

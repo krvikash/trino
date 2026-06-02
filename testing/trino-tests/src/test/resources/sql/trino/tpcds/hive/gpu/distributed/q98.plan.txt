@@ -7,14 +7,14 @@
             - WindowNode
               - ExchangeNode
                 - ExchangeNode
-                  - AggregationNode
+                  - AggregationNode (GPU)
                     - ExchangeNode
                       - ExchangeNode
                         - AggregationNode
-                          - JoinNode
+                          - JoinNode (GPU)
                             - ExchangeNode
-                              - FilterNode
-                                - TableScanNode
+                              - FilterNode (GPU)
+                                - TableScanNode (GPU)
                             - ExchangeNode
                               - ExchangeNode
                                 - AggregationNode (GPU)

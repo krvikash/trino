@@ -33,6 +33,7 @@ import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.TimestampType;
@@ -65,6 +66,7 @@ import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -102,6 +104,7 @@ public final class GpuTestUtils
             .add(createDecimalType(18, 6))
             .add(createDecimalType(27, 4))
             .add(createDecimalType(38, 10))
+            .add(createCharType(20))
             .add(VARCHAR)
             .add(createVarcharType(5))
             .add(createVarcharType(20))
@@ -180,8 +183,11 @@ public final class GpuTestUtils
                     ? createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType)
                     : createLongDecimalBlocks(positionsCounts, nullsProvider, decimalType);
         }
+        if (type instanceof CharType charType) {
+            return createStringBlocks(positionsCounts, nullsProvider, Optional.of(charType.getLength()), true);
+        }
         if (type instanceof VarcharType varcharType) {
-            return createVarcharBlocks(positionsCounts, nullsProvider, varcharType.getLength());
+            return createStringBlocks(positionsCounts, nullsProvider, varcharType.getLength(), false);
         }
         if (type == VARBINARY) {
             return createVarbinaryBlocks(positionsCounts, nullsProvider);
@@ -446,7 +452,7 @@ public final class GpuTestUtils
                 .collect(toImmutableList());
     }
 
-    private static List<Block> createVarcharBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Optional<Integer> lengthLimit)
+    private static List<Block> createStringBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Optional<Integer> lengthLimit, boolean trimTrailingSpaces)
     {
         Iterator<String> strings = generateInputStrings().iterator();
         return positionsCounts.stream()
@@ -462,6 +468,9 @@ public final class GpuTestUtils
                             String next = strings.next();
                             if (lengthLimit.isPresent()) {
                                 next = next.substring(0, min(next.length(), lengthLimit.get()));
+                            }
+                            if (trimTrailingSpaces) {
+                                next = next.stripTrailing();
                             }
                             builder.writeEntry(Slices.utf8Slice(next));
                         }

@@ -1,17 +1,17 @@
 - OutputNode
-  - TopNNode
-    - ExchangeNode
-      - TopNNode
-        - AggregationNode
-          - ProjectNode
-            - AggregationNode
-              - ExchangeNode
-                - AggregationNode
-                  - JoinNode
+  - TopNNode (GPU)
+    - ExchangeNode (GPU)
+      - TopNNode (GPU)
+        - AggregationNode (GPU)
+          - ProjectNode (GPU)
+            - AggregationNode (GPU)
+              - ExchangeNode (GPU)
+                - AggregationNode (GPU)
+                  - JoinNode (GPU)
                     - AssignUniqueId
-                      - FilterNode
-                        - TableScanNode
-                    - ExchangeNode
-                      - ProjectNode
+                      - FilterNode (GPU)
+                        - TableScanNode (GPU)
+                    - ExchangeNode (GPU)
+                      - ProjectNode (GPU)
                         - FilterNode
-                          - TableScanNode
+                          - TableScanNode (GPU)

@@ -3,13 +3,13 @@
     - SortNode
       - ProjectNode
         - WindowNode
-          - AggregationNode
+          - AggregationNode (GPU)
             - ExchangeNode
               - AggregationNode
-                - JoinNode
-                  - FilterNode
-                    - TableScanNode
-                  - ExchangeNode
+                - JoinNode (GPU)
+                  - FilterNode (GPU)
+                    - TableScanNode (GPU)
+                  - ExchangeNode (GPU)
                     - AggregationNode (GPU)
                       - JoinNode (GPU)
                         - FilterNode (GPU)
