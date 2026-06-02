@@ -15,7 +15,6 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.trino.spi.block.Block;
 import io.trino.spi.block.RowBlock;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.StructVector;
 
 import java.util.List;
@@ -44,24 +43,23 @@ public final class RowWriter
     @Override
     public void write(Block block)
     {
-        List<Block> fields = RowBlock.getRowFieldsFromBlock(block);
-        List<FieldVector> children = vector.getChildrenFromFields();
-        for (int i = 0; i < children.size(); i++) {
-            Block childBlock = fields.get(i);
-
-            for (int position = 0; position < childBlock.getPositionCount(); position++) {
-                if (block.isNull(position)) {
-                    vector.setNull(position);
-                }
-                else {
-                    vector.setIndexDefined(position);
-                }
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
             }
+            else {
+                vector.setIndexDefined(position);
+            }
+        }
 
+        List<Block> fields = RowBlock.getRowFieldsFromBlock(block);
+        for (int i = 0; i < fields.size(); i++) {
+            Block childBlock = fields.get(i);
             childWriters.get(i).initialize(childBlock);
             childWriters.get(i).write(childBlock);
         }
-        vector.setValueCount(block.getPositionCount());
+        vector.setValueCount(positionCount);
     }
 
     @Override
