@@ -117,6 +117,9 @@ tar -C "${WORK_DIR}" -xzf "${WORK_DIR}/${SERVER_ARTIFACT}-${TRINO_VERSION}.tar.g
 rm "${WORK_DIR}/${SERVER_ARTIFACT}-${TRINO_VERSION}.tar.gz"
 mv "${WORK_DIR}/${SERVER_ARTIFACT}-${TRINO_VERSION}" "${WORK_DIR}/trino-server"
 cp -R bin "${WORK_DIR}/trino-server"
+
+mkdir -p "${WORK_DIR}/cudf-layer"
+find "${WORK_DIR}/trino-server/lib/" -name '*cudf*.jar' -exec mv {} "${WORK_DIR}/cudf-layer/" \;
 cp -R default "${WORK_DIR}/"
 if [ "${SERVER_ARTIFACT}" != "trino-server" ]; then
     rm -rf "${WORK_DIR}"/default/etc/catalog/*.properties
