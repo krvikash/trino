@@ -24,6 +24,7 @@ import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
@@ -185,7 +186,7 @@ public class TestHiveGpuQueries
         assertThat(query("SELECT CAST(a_char AS varchar) FROM test_char_trimming"))
                 .executesWithoutGpu();
         assertThat(query("SELECT length(a_char) FROM test_char_trimming"))
-                .executesWithoutGpu();
+                .executesWithGpu(ProjectNode.class);
         assertThat(query("SELECT substring(a_char, 1, 3) FROM test_char_trimming"))
                 .executesWithoutGpu();
         assertThat(query("SELECT substring(a_char, 3, 1) FROM test_char_trimming"))
