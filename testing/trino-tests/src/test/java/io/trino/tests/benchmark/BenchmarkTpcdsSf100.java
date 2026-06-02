@@ -50,7 +50,7 @@ public final class BenchmarkTpcdsSf100
         @Override
         public DataSize jvmHeapSize()
         {
-            return DataSize.of(80, DataSize.Unit.GIGABYTE);
+            return DataSize.of(30, DataSize.Unit.GIGABYTE);
         }
 
         @Override
