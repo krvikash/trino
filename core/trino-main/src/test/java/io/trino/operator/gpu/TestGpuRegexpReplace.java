@@ -553,6 +553,22 @@ final class TestGpuRegexpReplace
     }
 
     @Test
+    void testZeroWidthCaptureAtStart()
+    {
+        // https://github.com/rapidsai/cudf/issues/22707: stringReplaceWithBackrefs drops the first character and
+        // appends a stray \x00 when the first capture group matches empty at position 0.
+        assertThat(regexpReplace("(\\A)", "$1#"))
+                .doesNotCompile();
+        // TODO: when https://github.com/rapidsai/cudf/issues/22707 is fixed, try to drop GpuRegexTranspiler.PatternTranspiler.render limitation on empty sequences
+        assertThatThrownBy(() -> assertThat(regexpReplace("(^)", "$1#"))
+                .executesCorrectly("single", "abc", ""))
+                .hasMessage("row 0 channel 0 (type varchar): actual=«#ingle\u0000» expected=«#single»");
+        assertThatThrownBy(() -> assertThat(regexpReplace("^(a?)", "$1#"))
+                .executesCorrectly("single", "abc", "aabc", ""))
+                .hasMessage("row 0 channel 0 (type varchar): actual=«#ingle\u0000» expected=«#single»");
+    }
+
+    @Test
     void testClickBenchPattern()
     {
         assertThat(regexpReplace("^https?://(?:www\\.)?([^/]+)/.*$", "$1"))
