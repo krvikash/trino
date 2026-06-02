@@ -13,6 +13,8 @@
  */
 package io.trino.server.protocol;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.client.Column;
@@ -21,12 +23,19 @@ import io.trino.client.spooling.DataAttributes;
 import io.trino.client.spooling.encoding.JsonQueryDataDecoder;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.JsonQueryDataEncoder;
+import io.trino.spi.Page;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.AbstractIntType;
+import io.trino.spi.type.TypeSignature;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.server.protocol.AbstractTestEncodingDecoding.TypedColumn.typed;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -45,7 +54,7 @@ public class TestJsonEncodingDecoding
     @Override
     protected QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns)
     {
-        return new JsonQueryDataEncoder.Factory().create(session, columns);
+        return new JsonQueryDataEncoder.Factory(new JsonMapper()).create(session, columns);
     }
 
     @Test
@@ -66,6 +75,24 @@ public class TestJsonEncodingDecoding
         assertThat(parseJson(columns, "[[5]]")).isEqualTo(List.of(List.of(5L)));
     }
 
+    @Test
+    public void testTypeObjectSerialization()
+            throws IOException
+    {
+        CustomType customType = new CustomType();
+        BlockBuilder blockBuilder = customType.createBlockBuilder(null, 2);
+        customType.writeInt(blockBuilder, 42);
+        blockBuilder.appendNull();
+        Page page = new Page(blockBuilder.build());
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        QueryDataEncoder encoder = new JsonQueryDataEncoder.Factory(new JsonMapper())
+                .create(TEST_SESSION, ImmutableList.of(new OutputColumn(0, "custom", customType)));
+
+        encoder.encodeTo(output, List.of(page));
+        assertThat(output.toString(UTF_8)).isEqualTo("[[{\"value\":42}],[null]]");
+    }
+
     protected void assertInvalidJson(List<TypedColumn> columns, String json, String expectedError)
     {
         assertThatThrownBy(() -> parseJson(columns, json))
@@ -78,4 +105,30 @@ public class TestJsonEncodingDecoding
         QueryDataDecoder decoder = newDecoder(columns, true, true);
         return ImmutableList.copyOf(decoder.decode(new ByteArrayInputStream(json.getBytes(UTF_8)), null));
     }
+
+    private static final class CustomType
+            extends AbstractIntType
+    {
+        private CustomType()
+        {
+            super(new TypeSignature("custom"));
+        }
+
+        @Override
+        public String getDisplayName()
+        {
+            return "custom";
+        }
+
+        @Override
+        public Object getObjectValue(Block block, int position)
+        {
+            if (block.isNull(position)) {
+                return null;
+            }
+            return new Custom(getInt(block, position));
+        }
+    }
+
+    private record Custom(@JsonProperty("value") int value) {}
 }
