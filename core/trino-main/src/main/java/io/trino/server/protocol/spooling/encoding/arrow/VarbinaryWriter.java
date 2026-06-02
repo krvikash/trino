@@ -13,6 +13,7 @@
  */
 package io.trino.server.protocol.spooling.encoding.arrow;
 
+import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import org.apache.arrow.vector.VarBinaryVector;
 
@@ -35,6 +36,7 @@ public final class VarbinaryWriter
     @Override
     protected void writeValue(int offset, Block block, int position)
     {
-        vector.setSafe(offset, VARBINARY.getSlice(block, position).getBytes());
+        Slice slice = VARBINARY.getSlice(block, position);
+        vector.setSafe(offset, slice.byteArray(), slice.byteArrayOffset(), slice.length());
     }
 }
