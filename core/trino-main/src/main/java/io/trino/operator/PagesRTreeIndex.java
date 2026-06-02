@@ -42,6 +42,7 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.trino.geospatial.GeometryUtils.estimateMemorySize;
 import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
+import static io.trino.geospatial.serde.JtsGeometrySerde.validateAndGetSrid;
 import static io.trino.operator.join.JoinUtils.channelsToPages;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -56,6 +57,7 @@ public class PagesRTreeIndex
     private final List<Integer> outputChannels;
     private final List<ObjectArrayList<Block>> channels;
     private final STRtree rtree;
+    private final SpatialIndexSridState sridState;
     private final int radiusChannel;
     private final OptionalDouble constantRadius;
     private final SpatialPredicate spatialRelationshipTest;
@@ -104,6 +106,7 @@ public class PagesRTreeIndex
             List<Integer> outputChannels,
             List<ObjectArrayList<Block>> channels,
             STRtree rtree,
+            SpatialIndexSridState sridState,
             OptionalInt radiusChannel,
             OptionalDouble constantRadius,
             SpatialPredicate spatialRelationshipTest,
@@ -114,6 +117,7 @@ public class PagesRTreeIndex
         this.outputChannels = outputChannels;
         this.channels = requireNonNull(channels, "channels is null");
         this.rtree = requireNonNull(rtree, "rtree is null");
+        this.sridState = requireNonNull(sridState, "sridState is null");
         this.radiusChannel = radiusChannel.orElse(-1);
         this.constantRadius = requireNonNull(constantRadius, "constantRadius is null");
         this.spatialRelationshipTest = requireNonNull(spatialRelationshipTest, "spatialRelationshipTest is null");
@@ -153,6 +157,7 @@ public class PagesRTreeIndex
         if (probeGeometry.isEmpty()) {
             return EMPTY_ADDRESSES;
         }
+        sridState.validateProbe(probeGeometry.getSRID());
 
         boolean probeIsPoint = probeGeometry instanceof Point;
 
@@ -163,6 +168,7 @@ public class PagesRTreeIndex
             GeometryWithPosition geometryWithPosition = (GeometryWithPosition) item;
             Geometry buildGeometry = geometryWithPosition.getGeometry();
             if (partitions.isEmpty() || (probePartition == geometryWithPosition.getPartition() && (probeIsPoint || (buildGeometry instanceof Point) || testReferencePoint(envelope, buildGeometry, probePartition)))) {
+                validateAndGetSrid(buildGeometry, probeGeometry);
                 if (radiusChannel == -1 && constantRadius.isEmpty()) {
                     if (spatialRelationshipTest.apply(buildGeometry, probeGeometry, OptionalDouble.empty())) {
                         matchingPositions.add(geometryWithPosition.getPosition());
@@ -173,7 +179,7 @@ public class PagesRTreeIndex
                     if (radius.isEmpty()) {
                         radius = OptionalDouble.of(getRadius(geometryWithPosition.getPosition()));
                     }
-                    if (spatialRelationshipTest.apply(geometryWithPosition.getGeometry(), probeGeometry, radius)) {
+                    if (spatialRelationshipTest.apply(buildGeometry, probeGeometry, radius)) {
                         matchingPositions.add(geometryWithPosition.getPosition());
                     }
                 }
