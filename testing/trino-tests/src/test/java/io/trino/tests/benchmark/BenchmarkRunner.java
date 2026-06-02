@@ -76,6 +76,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -1288,24 +1289,27 @@ public final class BenchmarkRunner
     private static void verifyTableStatistics(DistributedQueryRunner runner, Workload workload)
     {
         List<String> tables = workload.tablesForStats();
+        Session withoutGpu = Session.builder(runner.getDefaultSession())
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
         log.info("Verifying table statistics for %d table(s): %s", tables.size(), tables);
         for (String table : tables) {
-            Optional<String> missing = findMissingStatistic(runner, table);
+            Optional<String> missing = findMissingStatistic(runner, withoutGpu, table);
             if (missing.isEmpty()) {
                 log.info("  %s: statistics present", table);
                 continue;
             }
             log.info("  %s: missing %s, running ANALYZE", table, missing.get());
             long start = System.nanoTime();
-            runner.execute("ANALYZE " + table);
+            runner.execute(withoutGpu, "ANALYZE " + table);
             long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
             log.info("  %s: ANALYZE completed in %d ms", table, elapsedMillis);
         }
     }
 
-    private static Optional<String> findMissingStatistic(DistributedQueryRunner runner, String table)
+    private static Optional<String> findMissingStatistic(DistributedQueryRunner runner, Session session, String table)
     {
-        MaterializedResult result = runner.execute("SHOW STATS FOR " + table);
+        MaterializedResult result = runner.execute(session, "SHOW STATS FOR " + table);
         // SHOW STATS columns: column_name(0), data_size(1), distinct_values_count(2),
         // nulls_fraction(3), row_count(4), low_value(5), high_value(6). The summary row has a
         // null column_name and carries the table-level row_count; per-column rows carry NDV.
