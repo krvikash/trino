@@ -50,22 +50,30 @@ public abstract class BaseHiveGpuQueriesTest
     @Test
     public void testAllTypes()
     {
-        // Create table with all types (both supported and unsupported)
-        assertUpdate("CREATE TABLE test_gpu_types AS SELECT " +
-                "CAST(true AS boolean) AS col_boolean, " +
-                "CAST(127 AS tinyint) AS col_tinyint, " +
-                "CAST(32767 AS smallint) AS col_smallint, " +
-                "CAST(2147483647 AS integer) AS col_integer, " +
-                "CAST(9223372036854775807 AS bigint) AS col_bigint, " +
-                "CAST(3.14 AS real) AS col_real, " +
-                "CAST(3.141592653589793 AS double) AS col_double, " +
-                "CAST('hello' AS varchar) AS col_varchar, " +
-                "CAST(12.345 AS decimal(5,3)) AS col_decimal, " +
-                "CAST(12345678901234567890123.5678 AS decimal(27,4)) AS col_long_decimal, " +
-                "DATE '2024-01-01' AS col_date, " +
-                "CAST(TIMESTAMP '2020-02-12 15:03:00' AS timestamp(3)) AS col_timestamp, " +
-                "X'12ab3f' AS col_varbinary, " +
-                "CAST('abc' AS char(3)) AS col_char", 1);
+        assertUpdate(
+                """
+                CREATE TABLE test_gpu_types AS SELECT
+                    CAST(true AS boolean) AS col_boolean,
+                    CAST(127 AS tinyint) AS col_tinyint,
+                    CAST(32767 AS smallint) AS col_smallint,
+                    CAST(2147483647 AS integer) AS col_integer,
+                    CAST(9223372036854775807 AS bigint) AS col_bigint,
+                    CAST(3.14 AS real) AS col_real,
+                    CAST(3.141592653589793 AS double) AS col_double,
+                    CAST(12.345 AS decimal(5,3)) AS col_decimal,
+                    CAST(12345678901234567890123.5678 AS decimal(27,4)) AS col_long_decimal,
+                    CAST('abc' AS char(3)) AS col_char,
+                    CAST('hello' AS varchar) AS col_varchar,
+                    CAST('hi' AS varchar(20)) AS col_varchar_20,
+                    DATE '2024-01-01' AS col_date,
+                    CAST(TIMESTAMP '2020-02-12 15:03:00' AS timestamp(3)) AS col_timestamp,
+                    X'12ab3f' AS col_varbinary,
+                    ARRAY[1, 2, 3] AS col_array,
+                    MAP(ARRAY['k1', 'k2'], ARRAY[1, 2]) AS col_map,
+                    CAST(ROW(1, 'x') AS row(a integer, b varchar)) AS col_row,
+                    '' AS dummy
+                """,
+                1);
 
         // Verify all supported types execute with GPU
         assertThat(query("SELECT col_boolean FROM test_gpu_types"))
@@ -84,6 +92,8 @@ public abstract class BaseHiveGpuQueriesTest
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_varchar FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT col_varchar_20 FROM test_gpu_types"))
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_varbinary FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_decimal FROM test_gpu_types"))
@@ -97,6 +107,12 @@ public abstract class BaseHiveGpuQueriesTest
 
         // Verify all unsupported types execute without GPU
         assertThat(query("SELECT col_char FROM test_gpu_types"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT col_array FROM test_gpu_types"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT col_map FROM test_gpu_types"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT col_row FROM test_gpu_types"))
                 .executesWithoutGpu();
 
         assertUpdate("DROP TABLE test_gpu_types");
