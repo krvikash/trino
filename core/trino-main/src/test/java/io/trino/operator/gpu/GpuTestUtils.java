@@ -37,6 +37,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.InternalDynamicFilter;
@@ -76,6 +77,8 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
+import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -100,6 +103,8 @@ public final class GpuTestUtils
             .add(createDecimalType(27, 4))
             .add(createDecimalType(38, 10))
             .add(VARCHAR)
+            .add(createVarcharType(5))
+            .add(createVarcharType(20))
             .add(VARBINARY)
             .build();
 
@@ -175,8 +180,8 @@ public final class GpuTestUtils
                     ? createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType)
                     : createLongDecimalBlocks(positionsCounts, nullsProvider, decimalType);
         }
-        if (type == VARCHAR) {
-            return createVarcharBlocks(positionsCounts, nullsProvider);
+        if (type instanceof VarcharType varcharType) {
+            return createVarcharBlocks(positionsCounts, nullsProvider, varcharType.getLength());
         }
         if (type == VARBINARY) {
             return createVarbinaryBlocks(positionsCounts, nullsProvider);
@@ -441,7 +446,7 @@ public final class GpuTestUtils
                 .collect(toImmutableList());
     }
 
-    private static List<Block> createVarcharBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    private static List<Block> createVarcharBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Optional<Integer> lengthLimit)
     {
         Iterator<String> strings = generateInputStrings().iterator();
         return positionsCounts.stream()
@@ -454,7 +459,11 @@ public final class GpuTestUtils
                             builder.appendNull();
                         }
                         else {
-                            builder.writeEntry(Slices.utf8Slice(strings.next()));
+                            String next = strings.next();
+                            if (lengthLimit.isPresent()) {
+                                next = next.substring(0, min(next.length(), lengthLimit.get()));
+                            }
+                            builder.writeEntry(Slices.utf8Slice(next));
                         }
                     }
                     return builder.build();
