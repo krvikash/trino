@@ -16,6 +16,7 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 import com.google.common.collect.ImmutableList;
 import io.trino.server.protocol.OutputColumn;
 import io.trino.spi.Page;
+import io.trino.spi.block.Block;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
@@ -66,7 +67,6 @@ import java.io.OutputStream;
 import java.util.List;
 
 import static com.google.common.base.Verify.verify;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MICROS;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_MILLIS;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.PRECISION_NANOS;
@@ -81,7 +81,7 @@ public class ArrowPageWriter
 {
     private final VectorSchemaRoot schema;
     private final List<ArrowWriter> vectorWriters;
-    private final List<Integer> sourceChannels;
+    private final int[] sourceChannels;
     private final CompressionCodec.Factory compressionFactory;
     private final CodecType codecType;
 
@@ -90,8 +90,8 @@ public class ArrowPageWriter
         this.schema = requireNonNull(schema, "schema is null");
         this.vectorWriters = createVectorWriters(schema, columns);
         this.sourceChannels = columns.stream()
-                .map(OutputColumn::sourcePageChannel)
-                .collect(toImmutableList());
+                .mapToInt(OutputColumn::sourcePageChannel)
+                .toArray();
         this.compressionFactory = requireNonNull(compressionFactory, "compressionFactory is null");
         this.codecType = requireNonNull(codecType, "codecType is null");
     }
@@ -103,8 +103,10 @@ public class ArrowPageWriter
             for (Page page : pages) {
                 schema.setRowCount(page.getPositionCount());
                 for (int i = 0; i < vectorWriters.size(); i++) {
-                    vectorWriters.get(i).initialize(page.getBlock(sourceChannels.get(i)));
-                    vectorWriters.get(i).write(page.getBlock(sourceChannels.get(i)));
+                    ArrowWriter writer = vectorWriters.get(i);
+                    Block block = page.getBlock(sourceChannels[i]);
+                    writer.initialize(block);
+                    writer.write(block);
                 }
                 streamWriter.writeBatch();
             }
