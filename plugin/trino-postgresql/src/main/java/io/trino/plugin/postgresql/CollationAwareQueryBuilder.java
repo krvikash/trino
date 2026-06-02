@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.postgresql;
 
+import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import io.trino.plugin.jdbc.DefaultQueryBuilder;
 import io.trino.plugin.jdbc.JdbcClient;
@@ -25,6 +26,7 @@ import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.Type;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -32,6 +34,7 @@ import java.util.stream.Stream;
 import static io.trino.plugin.postgresql.PostgreSqlClient.isCollatable;
 import static io.trino.plugin.postgresql.PostgreSqlSessionProperties.isEnableStringPushdownWithCollate;
 import static java.lang.String.format;
+import static java.util.Collections.nCopies;
 
 public class CollationAwareQueryBuilder
         extends DefaultQueryBuilder
@@ -70,5 +73,20 @@ public class CollationAwareQueryBuilder
         }
 
         return super.toPredicate(client, session, column, jdbcType, type, writeFunction, operator, value, accumulator);
+    }
+
+    @Override
+    protected String toInPredicate(JdbcClient client, ConnectorSession session, JdbcColumnHandle column, JdbcTypeHandle jdbcType, Type type, List<Object> singleValues, WriteFunction writeFunction, Consumer<QueryParameter> accumulator)
+    {
+        if (isCollatable(column) && isEnableStringPushdownWithCollate(session)) {
+            for (Object value : singleValues) {
+                accumulator.accept(new QueryParameter(jdbcType, type, Optional.of(value)));
+            }
+            String values = Joiner.on(",").join(nCopies(singleValues.size(), writeFunction.getBindExpression()));
+            // COLLATE "C" allows PostgreSQL to use indexes created with the C collation
+            return client.quoted(column.getColumnName()) + " COLLATE \"C\" IN (" + values + ")";
+        }
+
+        return super.toInPredicate(client, session, column, jdbcType, type, singleValues, writeFunction, accumulator);
     }
 }

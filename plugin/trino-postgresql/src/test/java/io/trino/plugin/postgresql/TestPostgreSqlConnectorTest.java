@@ -588,6 +588,71 @@ public class TestPostgreSqlConnectorTest
     }
 
     @Test
+    public void testInPredicatePushdownWithCollate()
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty("postgresql", "enable_string_pushdown_with_collate", "true")
+                .build();
+
+        // varchar IN with collation: pushed down and remote SQL contains COLLATE "C"
+        assertThat(postgreSqlServer
+                .recordEventsForOperations(() ->
+                        assertThat(query(session, "SELECT regionkey, nationkey, name FROM nation WHERE name IN ('POLAND', 'ROMANIA', 'VIETNAM')"))
+                                .matches("VALUES " +
+                                        "(BIGINT '3', BIGINT '19', CAST('ROMANIA' AS varchar(25))), " +
+                                        "(BIGINT '2', BIGINT '21', CAST('VIETNAM' AS varchar(25)))")
+                                .isFullyPushedDown())
+                .stopEventsRecording()
+                .streamQueriesContaining("\"nation\""))
+                .anyMatch(query -> query.contains("COLLATE \"C\" IN"));
+
+        // varchar IN without collation: pushed down but remote SQL does not contain COLLATE
+        assertThat(postgreSqlServer
+                .recordEventsForOperations(() ->
+                        assertThat(query("SELECT regionkey, nationkey, name FROM nation WHERE name IN ('POLAND', 'ROMANIA', 'VIETNAM')"))
+                                .matches("VALUES " +
+                                        "(BIGINT '3', BIGINT '19', CAST('ROMANIA' AS varchar(25))), " +
+                                        "(BIGINT '2', BIGINT '21', CAST('VIETNAM' AS varchar(25)))")
+                                .isFullyPushedDown())
+                .stopEventsRecording()
+                .streamQueriesContaining("\"nation\""))
+                .noneMatch(query -> query.contains("COLLATE"));
+
+        // bigint IN with collation enabled: not affected, no COLLATE in remote SQL
+        assertThat(postgreSqlServer
+                .recordEventsForOperations(() ->
+                        assertThat(query(session, "SELECT regionkey, nationkey, name FROM nation WHERE nationkey IN (19, 21)"))
+                                .matches("VALUES " +
+                                        "(BIGINT '3', BIGINT '19', CAST('ROMANIA' AS varchar(25))), " +
+                                        "(BIGINT '2', BIGINT '21', CAST('VIETNAM' AS varchar(25)))")
+                                .isFullyPushedDown())
+                .stopEventsRecording()
+                .streamQueriesContaining("\"nation\""))
+                .noneMatch(query -> query.contains("COLLATE"));
+
+        // enum column mapped to varchar with collation enabled: not collatable, no COLLATE in remote SQL
+        String enumType = "test_enum_" + randomNameSuffix();
+        onRemoteDatabase().execute("CREATE TYPE " + enumType + " AS ENUM ('POLAND', 'ROMANIA', 'VIETNAM')");
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "test_in_predicate_enum",
+                "(id bigint, country " + enumType + ")",
+                List.of("1, 'POLAND'", "2, 'ROMANIA'", "3, 'VIETNAM'"))) {
+            assertThat(postgreSqlServer
+                    .recordEventsForOperations(() ->
+                            assertThat(query(session, "SELECT id, country FROM " + testTable.getName() + " WHERE country IN ('POLAND', 'ROMANIA')"))
+                                    .matches("VALUES (BIGINT '1', CAST('POLAND' AS varchar)), (BIGINT '2', CAST('ROMANIA' AS varchar))")
+                                    .isFullyPushedDown())
+                    .stopEventsRecording()
+                    .streamQueriesContaining(testTable.getName().replace("tpch.", "")))
+                    .noneMatch(query -> query.contains("COLLATE"));
+        }
+        finally {
+            onRemoteDatabase().execute("DROP TYPE " + enumType);
+        }
+    }
+
+    @Test
     public void testStringJoinPushdownWithCollate()
     {
         PlanMatchPattern joinOverTableScans =
