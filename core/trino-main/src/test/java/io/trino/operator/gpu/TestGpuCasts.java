@@ -28,6 +28,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
@@ -60,6 +61,8 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -473,23 +476,21 @@ public class TestGpuCasts
     @Test
     void testCastFromVarchar()
     {
+        VarcharType varchar5Type = createVarcharType(5);
         String[] varchar5Values = {
                 "CAST('hello' AS VARCHAR(5))",
                 "CAST('' AS VARCHAR(5))",
                 "CAST('a' AS VARCHAR(5))",
                 "CAST(NULL AS VARCHAR(5))",
         };
-        // Same width is a no-op widening
-        assertCastSucceedsForAll(createVarcharType(5), createVarcharType(5), varchar5Values);
-        // Widening to a larger bound
-        assertCastSucceedsForAll(createVarcharType(5), createVarcharType(10), varchar5Values);
-        // Widening to unbounded
-        assertCastSucceedsForAll(createVarcharType(5), VARCHAR, varchar5Values);
-
-        // Narrowing is not supported on GPU (would require length check / truncation)
-        assertThat(gpuCast(createVarcharType(5), createVarcharType(4))).isNotSupported();
-        // Unbounded source cannot be narrowed to a bounded target
-        assertThat(gpuCast(VARCHAR, createVarcharType(5))).isNotSupported();
+        // to VARCHAR no-op
+        assertCastSucceedsForAll(varchar5Type, varchar5Type, varchar5Values);
+        // to VARCHAR widening
+        assertCastSucceedsForAll(varchar5Type, createVarcharType(10), varchar5Values);
+        assertCastSucceedsForAll(varchar5Type, VARCHAR, varchar5Values);
+        // to VARCHAR narrowing
+        assertThat(gpuCast(varchar5Type, createVarcharType(4))).isNotSupported();
+        assertThat(gpuCast(VARCHAR, varchar5Type)).isNotSupported();
 
         String[] unboundedValues = {
                 "CAST('hello' AS VARCHAR)",
@@ -498,16 +499,22 @@ public class TestGpuCasts
         };
         assertCastSucceedsForAll(VARCHAR, VARCHAR, unboundedValues);
 
-        // VARCHAR -> non-string targets: not supported on GPU
-        assertThat(gpuCast(createVarcharType(20), TINYINT)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), SMALLINT)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), INTEGER)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), BIGINT)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), REAL)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), DOUBLE)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), DECIMAL_13_2)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), DECIMAL_27_5)).isNotSupported();
-        assertThat(gpuCast(createVarcharType(20), NUMBER)).isNotSupported();
+        // to other types: not supported on GPU
+        for (VarcharType varcharType : List.of(createVarcharType(20), VARCHAR)) {
+            assertThat(gpuCast(varcharType, BOOLEAN)).isNotSupported();
+            assertThat(gpuCast(varcharType, TINYINT)).isNotSupported();
+            assertThat(gpuCast(varcharType, SMALLINT)).isNotSupported();
+            assertThat(gpuCast(varcharType, INTEGER)).isNotSupported();
+            assertThat(gpuCast(varcharType, BIGINT)).isNotSupported();
+            assertThat(gpuCast(varcharType, REAL)).isNotSupported();
+            assertThat(gpuCast(varcharType, DOUBLE)).isNotSupported();
+            assertThat(gpuCast(varcharType, DECIMAL_13_2)).isNotSupported();
+            assertThat(gpuCast(varcharType, DECIMAL_27_5)).isNotSupported();
+            assertThat(gpuCast(varcharType, NUMBER)).isNotSupported();
+            assertThat(gpuCast(varcharType, createCharType(10))).isNotSupported();
+            assertThat(gpuCast(varcharType, createCharType(20))).isNotSupported();
+            assertThat(gpuCast(varcharType, createCharType(40))).isNotSupported();
+        }
     }
 
     private void assertCastSucceedsForAll(Type from, Type to, @Language("SQL") String[] sqlValues)
