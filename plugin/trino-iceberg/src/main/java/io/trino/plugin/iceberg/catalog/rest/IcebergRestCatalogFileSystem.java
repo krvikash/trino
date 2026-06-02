@@ -187,6 +187,20 @@ public class IcebergRestCatalogFileSystem
         return fileSystem(location).encryptedPreSignedUri(location, ttl, key);
     }
 
+    @Override
+    public Optional<UriLocation> preSignedPutUri(Location location, Duration ttl, Optional<EncryptionKey> key)
+            throws IOException
+    {
+        return fileSystem(location).preSignedPutUri(location, ttl, key);
+    }
+
+    @Override
+    public Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
+            throws IOException
+    {
+        return fileSystem(location).preSignedDeleteUri(location, ttl);
+    }
+
     private TrinoFileSystem fileSystem(Location location)
     {
         return loader.apply(location);
