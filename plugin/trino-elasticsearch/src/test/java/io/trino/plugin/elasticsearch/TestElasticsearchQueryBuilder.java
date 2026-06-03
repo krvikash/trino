@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonMapperProvider;
-import io.airlift.slice.Slices;
 import io.trino.plugin.elasticsearch.client.IndexMetadata;
 import io.trino.plugin.elasticsearch.decoders.DoubleDecoder;
 import io.trino.plugin.elasticsearch.decoders.IntegerDecoder;
@@ -33,6 +32,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.elasticsearch.ElasticsearchQueryBuilder.buildSearchQuery;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -77,7 +77,7 @@ public class TestElasticsearchQueryBuilder
 
         // List
         assertQueryBuilder(
-                ImmutableMap.of(NAME, Domain.multipleValues(VARCHAR, ImmutableList.of("alice", "bob"))),
+                ImmutableMap.of(NAME, Domain.multipleValues(VARCHAR, ImmutableList.of(utf8Slice("alice"), utf8Slice("bob")))),
                 """
                 {"bool":{"filter":[{"bool":{"should":[{"term":{"name":"alice"}},{"term":{"name":"bob"}}]}}]}}""");
         // all
@@ -139,19 +139,19 @@ public class TestElasticsearchQueryBuilder
     {
         // SingleValue
         assertQueryBuilder(
-                ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, Slices.utf8Slice("PN1"))),
+                ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, utf8Slice("PN1"))),
                 """
                 {"bool":{"filter":[{"term":{"product.product_code":"PN1"}}]}}""");
 
         // Range
         assertQueryBuilder(
-                ImmutableMap.of(PRODUCT, Domain.create(ValueSet.ofRanges(Range.range(VARCHAR, Slices.utf8Slice("PA"), false, Slices.utf8Slice("PZ"), true)), false)),
+                ImmutableMap.of(PRODUCT, Domain.create(ValueSet.ofRanges(Range.range(VARCHAR, utf8Slice("PA"), false, utf8Slice("PZ"), true)), false)),
                 """
                 {"bool":{"filter":[{"range":{"product.product_code":{"gt":"PA","lte":"PZ"}}}]}}""");
 
         // List
         assertQueryBuilder(
-                ImmutableMap.of(PRODUCT, Domain.multipleValues(VARCHAR, ImmutableList.of(Slices.utf8Slice("PN1"), Slices.utf8Slice("PN2")))),
+                ImmutableMap.of(PRODUCT, Domain.multipleValues(VARCHAR, ImmutableList.of(utf8Slice("PN1"), utf8Slice("PN2")))),
                 """
                 {"bool":{"filter":[{"bool":{"should":[{"term":{"product.product_code":"PN1"}},{"term":{"product.product_code":"PN2"}}]}}]}}""");
 
@@ -169,7 +169,7 @@ public class TestElasticsearchQueryBuilder
 
         // isNullAllowed
         assertQueryBuilder(
-                ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, Slices.utf8Slice("PN1"), true)),
+                ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, utf8Slice("PN1"), true)),
                 """
                 {"bool":{"filter":[{"bool":{"should":[{"term":{"product.product_code":"PN1"}},{"bool":{"must_not":[{"exists":{"field":"product.product_code"}}]}}]}}]}}""");
     }

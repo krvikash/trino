@@ -122,7 +122,7 @@ public class TestDynamicPageFilter
 
         filterEvaluator = createDynamicFilterEvaluator(
                 TupleDomain.withColumnDomains(ImmutableMap.of(
-                        column, Domain.multipleValues(VARCHAR, ImmutableList.of("bc", "cd")))),
+                        column, Domain.multipleValues(VARCHAR, ImmutableList.of(utf8Slice("bc"), utf8Slice("cd"))))),
                 ImmutableMap.of(column, 0));
         verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {1, 3});
 

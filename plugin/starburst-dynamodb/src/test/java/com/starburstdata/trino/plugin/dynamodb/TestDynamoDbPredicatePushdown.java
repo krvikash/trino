@@ -12,7 +12,6 @@ package com.starburstdata.trino.plugin.dynamodb;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.dynamodb.testing.DynamoDbTemporaryTable;
-import io.airlift.slice.Slices;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
@@ -35,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.spi.predicate.Domain.DEFAULT_COMPACTION_THRESHOLD;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -673,7 +673,7 @@ public class TestDynamoDbPredicatePushdown
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
-                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.greaterThan(varcharType, value1)), false))); // Shows what predicate is pushed down for the above query
+                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.greaterThan(varcharType, utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
                             assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                             return true;
                         }));
@@ -704,7 +704,7 @@ public class TestDynamoDbPredicatePushdown
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
-                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.greaterThanOrEqual(varcharType, value1)), false))); // Shows what predicate is pushed down for the above query
+                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.greaterThanOrEqual(varcharType, utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
                             assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                             return true;
                         }));
@@ -717,7 +717,7 @@ public class TestDynamoDbPredicatePushdown
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
-                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.lessThanOrEqual(varcharType, value1)), false))); // Shows what predicate is pushed down for the above query
+                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.lessThanOrEqual(varcharType, utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
                             assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                             return true;
                         }));
@@ -730,7 +730,7 @@ public class TestDynamoDbPredicatePushdown
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
-                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.greaterThan(varcharType, value1)), false))); // Shows what predicate is pushed down for the above query
+                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.greaterThan(varcharType, utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
                             assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                             return true;
                         }));
@@ -743,7 +743,7 @@ public class TestDynamoDbPredicatePushdown
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
-                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.lessThan(varcharType, value1)), false))); // Shows what predicate is pushed down for the above query
+                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.lessThan(varcharType, utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
                             assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                             return true;
                         }));
@@ -773,7 +773,7 @@ public class TestDynamoDbPredicatePushdown
                             TupleDomain<?> expectedPredicate =
                                     TupleDomain.withColumnDomains(
                                             Map.of(
-                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.lessThan(varcharType, Slices.utf8Slice(value1)), Range.greaterThan(varcharType, Slices.utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
+                                                    createColumnHandle(columnName, varcharType, 12, jdbcTypeName, Optional.empty(), Optional.empty()), Domain.create(ValueSet.ofRanges(Range.lessThan(varcharType, utf8Slice(value1)), Range.greaterThan(varcharType, utf8Slice(value1))), false))); // Shows what predicate is pushed down for the above query
                             assertThat(effectivePredicate).isEqualTo(expectedPredicate);
                             return true;
                         }));
