@@ -69,6 +69,18 @@ public class TestIcebergGpuConnectorTest
 
     @Test
     @Override
+    public void testDeleteOnIdentityPartitionedTableProducesOneDeleteEntryPerDataFile()
+    {
+        // TODO: The error message is misleading due to https://starburstdata.atlassian.net/browse/ENG-18118,
+        //  but it indicates that there was an attempt to fall back to the CPU because deletes are not yet
+        //  supported on the GPU, which is expected.
+        assertThatThrownBy(super::testDeleteOnIdentityPartitionedTableProducesOneDeleteEntryPerDataFile)
+                .hasMessageMatching("Execution of 'actual' query .* failed: SELECT count\\(\\*\\) FROM test_identity_partitioned_deletes_.*")
+                .hasStackTraceContaining("No columns to copy");
+    }
+
+    @Test
+    @Override
     public void testInsertIntoBucketedColumnTaskWriterCount()
     {
         // Base test uses taskWriterCount=4 and asserts it's greater than getNodeCount().
