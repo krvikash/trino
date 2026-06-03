@@ -38,11 +38,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * ClickBench entry point.
  */
-public final class BenchmarkClickBench
+public final class BenchmarkHiveClickBench
 {
-    private BenchmarkClickBench() {}
+    private BenchmarkHiveClickBench() {}
 
-    private static final Logger log = Logger.get(BenchmarkClickBench.class);
+    private static final Logger log = Logger.get(BenchmarkHiveClickBench.class);
 
     private static final String HITS_COLUMNS =
             """
@@ -156,7 +156,7 @@ public final class BenchmarkClickBench
     static void main(String[] args)
             throws Exception
     {
-        System.exit(BenchmarkRunner.run(args, new ClickBenchWorkload(), BenchmarkClickBench.class));
+        System.exit(BenchmarkRunner.run(args, new ClickBenchWorkload(), BenchmarkHiveClickBench.class));
     }
 
     static final class ClickBenchWorkload

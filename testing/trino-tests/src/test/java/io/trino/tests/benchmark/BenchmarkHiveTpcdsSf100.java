@@ -20,18 +20,18 @@ import java.nio.file.Path;
 /**
  * TPC-DS entry point at scale factor 100.
  */
-public final class BenchmarkTpcdsSf100
+public final class BenchmarkHiveTpcdsSf100
 {
-    private BenchmarkTpcdsSf100() {}
+    private BenchmarkHiveTpcdsSf100() {}
 
     static void main(String[] args)
             throws Exception
     {
-        System.exit(BenchmarkRunner.run(args, new TpcdsSf100Workload(), BenchmarkTpcdsSf100.class));
+        System.exit(BenchmarkRunner.run(args, new TpcdsSf100Workload(), BenchmarkHiveTpcdsSf100.class));
     }
 
     static final class TpcdsSf100Workload
-            extends BaseTpcdsWorkload
+            extends BaseHiveTpcdsWorkload
     {
         TpcdsSf100Workload()
         {

@@ -17,9 +17,10 @@ import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
+import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.tpcds.Table;
+import io.trino.tpch.TpchTable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -35,27 +36,25 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Shared TPC-DS workload definition. Subclasses bind a specific scale factor.
+ * Shared TPC-H workload definition. Subclasses bind a specific scale factor.
  */
-public abstract class BaseTpcdsWorkload
+public abstract class BaseHiveTpchWorkload
         implements Workload
 {
-    private static final Logger log = Logger.get(BaseTpcdsWorkload.class);
+    private static final Logger log = Logger.get(BaseHiveTpchWorkload.class);
 
-    private static final List<String> TABLES = Table.getBaseTables().stream()
-            .filter(table -> table != Table.DBGEN_VERSION)
-            .map(table -> table.getName().toLowerCase(ENGLISH))
+    private static final List<String> TABLES = TpchTable.getTables().stream()
+            .map(TpchTable::getTableName)
             .collect(toImmutableList());
 
     private static final Pattern EXTERNAL_LOCATION_PATTERN = Pattern.compile("external_location\\s*=\\s*'([^']+)'");
 
     protected final int scaleFactor;
 
-    protected BaseTpcdsWorkload(int scaleFactor)
+    protected BaseHiveTpchWorkload(int scaleFactor)
     {
         this.scaleFactor = scaleFactor;
     }
@@ -63,13 +62,13 @@ public abstract class BaseTpcdsWorkload
     @Override
     public String name()
     {
-        return "tpcds-sf%d".formatted(scaleFactor);
+        return "tpch-sf%d".formatted(scaleFactor);
     }
 
     @Override
     public List<Integer> defaultQueries()
     {
-        return IntStream.rangeClosed(1, 99).boxed().toList();
+        return IntStream.rangeClosed(1, 22).boxed().toList();
     }
 
     @Override
@@ -77,9 +76,11 @@ public abstract class BaseTpcdsWorkload
     {
         try {
             return Resources.toString(
-                            getResource("sql/trino/tpcds/q%02d.sql".formatted(queryNumber)), UTF_8)
+                            getResource("sql/trino/tpch/q%02d.sql".formatted(queryNumber)), UTF_8)
                     .replace("${database}", "hive")
-                    .replace("${schema}", "tpcds")
+                    .replace("${schema}", "tpch")
+                    .replace("${prefix}", "")
+                    .replace("${scale}", String.valueOf(scaleFactor))
                     .trim()
                     .replaceFirst(";$", "");
         }
@@ -123,13 +124,12 @@ public abstract class BaseTpcdsWorkload
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
                 .setWorkerCount(0)
                 .setBaseDataDir(Optional.of(metastoreDir))
-                .setCreateTpchSchemas(false)
-                .setTpcdsCatalogEnabled(true)
                 .addExtraProperty("query.max-memory-per-node", "80%")
                 .addExtraProperty("query.max-memory", "1TB")
                 .addExtraProperty("memory.heap-headroom-per-node", "20%")
                 .setSkipTimezoneSetup(true)
-                .addHiveProperty("hive.parquet.time-zone", "UTC");
+                .addHiveProperty("hive.parquet.time-zone", "UTC")
+                .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL);
         if (isRemote(dataLocation)) {
             builder.addHiveProperty("fs.s3.enabled", "true");
         }
@@ -140,7 +140,7 @@ public abstract class BaseTpcdsWorkload
         BenchmarkRunner.applyExecutionMode(builder, mode);
         DistributedQueryRunner runner = builder.build();
 
-        runner.execute("CREATE SCHEMA IF NOT EXISTS hive.tpcds");
+        runner.execute("CREATE SCHEMA IF NOT EXISTS hive.tpch");
         for (String table : TABLES) {
             createExternalTable(runner, dataLocation, table);
         }
@@ -154,14 +154,14 @@ public abstract class BaseTpcdsWorkload
         Files.createDirectories(target);
         try (DistributedQueryRunner runner = BenchmarkRunner.dataGenerationBuilder()
                 .setCreateTpchSchemas(false)
-                .setTpcdsCatalogEnabled(true)
+                .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL)
                 .build()) {
             Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
             String schemaLocation = target.toAbsolutePath().normalize().toUri().toString();
-            runner.execute(session, "CREATE SCHEMA hive.tpcds WITH (location = '%s')".formatted(schemaLocation));
+            runner.execute(session, "CREATE SCHEMA hive.tpch WITH (location = '%s')".formatted(schemaLocation));
             for (String table : TABLES) {
-                log.info("Generating tpcds.sf%d.%s -> %s%s", scaleFactor, table, schemaLocation, table);
-                runner.execute(session, "CREATE TABLE hive.tpcds.%s WITH (format = 'PARQUET') AS SELECT * FROM tpcds.sf%d.%s"
+                log.info("Generating tpch.sf%d.%s -> %s%s", scaleFactor, table, schemaLocation, table);
+                runner.execute(session, "CREATE TABLE hive.tpch.%s WITH (format = 'PARQUET') AS SELECT * FROM tpch.sf%d.%s"
                         .formatted(table, scaleFactor, table));
             }
         }
@@ -173,22 +173,22 @@ public abstract class BaseTpcdsWorkload
     {
         QueryAssertions assertions = new QueryAssertions(runner);
         for (String table : TABLES) {
-            log.info("Verifying row count: hive.tpcds.%s vs tpcds.sf%d.%s", table, scaleFactor, table);
-            assertThat(assertions.query("SELECT count(*) FROM hive.tpcds." + table))
-                    .matches("SELECT count(*) FROM tpcds.sf%d.%s".formatted(scaleFactor, table));
+            log.info("Verifying row count: hive.tpch.%s vs tpch.sf%d.%s", table, scaleFactor, table);
+            assertThat(assertions.query("SELECT count(*) FROM hive.tpch." + table))
+                    .matches("SELECT count(*) FROM tpch.sf%d.%s".formatted(scaleFactor, table));
         }
     }
 
     @Override
     public List<String> tablesForStats()
     {
-        return TABLES.stream().map(table -> "hive.tpcds." + table).toList();
+        return TABLES.stream().map(table -> "hive.tpch." + table).toList();
     }
 
     @Override
     public String expectedResultResource(int queryNumber)
     {
-        return "sql/trino/tpcds/sf%d/results/q%02d.ndjson".formatted(scaleFactor, queryNumber);
+        return "sql/trino/tpch/sf%d/results/q%02d.ndjson".formatted(scaleFactor, queryNumber);
     }
 
     private void createExternalTable(DistributedQueryRunner runner, String dataLocation, String table)
@@ -198,29 +198,29 @@ public abstract class BaseTpcdsWorkload
                 : Path.of(dataLocation, table).toUri().toString();
         Optional<String> existing = readExistingExternalLocation(runner, table);
         if (existing.isPresent() && existing.get().equals(location)) {
-            log.info("Reusing existing hive.tpcds.%s at %s", table, location);
+            log.info("Reusing existing hive.tpch.%s at %s", table, location);
             return;
         }
         if (existing.isPresent()) {
-            log.info("Recreating hive.tpcds.%s: was at %s, now at %s", table, existing.get(), location);
-            runner.execute("DROP TABLE hive.tpcds." + table);
+            log.info("Recreating hive.tpch.%s: was at %s, now at %s", table, existing.get(), location);
+            runner.execute("DROP TABLE hive.tpch." + table);
         }
         else {
-            log.info("Creating hive.tpcds.%s at %s", table, location);
+            log.info("Creating hive.tpch.%s at %s", table, location);
         }
         runner.execute(
                 """
-                CREATE TABLE hive.tpcds.%s (LIKE tpcds.sf%d.%s)
+                CREATE TABLE hive.tpch.%s (LIKE tpch.sf%d.%s)
                 WITH (external_location = '%s', format = 'PARQUET')
                 """.formatted(table, scaleFactor, table, location));
     }
 
     private static Optional<String> readExistingExternalLocation(DistributedQueryRunner runner, String table)
     {
-        if ((Long) runner.execute("SELECT count(*) FROM hive.information_schema.tables WHERE table_schema = 'tpcds' AND table_name = '%s'".formatted(table)).getOnlyValue() == 0) {
+        if ((Long) runner.execute("SELECT count(*) FROM hive.information_schema.tables WHERE table_schema = 'tpch' AND table_name = '%s'".formatted(table)).getOnlyValue() == 0) {
             return Optional.empty();
         }
-        String createSql = (String) runner.execute("SHOW CREATE TABLE hive.tpcds." + table).getOnlyValue();
+        String createSql = (String) runner.execute("SHOW CREATE TABLE hive.tpch." + table).getOnlyValue();
         Matcher matcher = EXTERNAL_LOCATION_PATTERN.matcher(createSql);
         if (!matcher.find()) {
             return Optional.empty();
