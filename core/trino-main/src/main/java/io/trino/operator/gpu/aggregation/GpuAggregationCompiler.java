@@ -33,10 +33,18 @@ import io.trino.operator.gpu.expression.GpuPackAvgDecimalState;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.CharType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
@@ -431,18 +439,33 @@ public final class GpuAggregationCompiler
             OptionalInt maskChannel)
     {
         return getSingleColumnReference(arguments, sourceLayout)
-                .flatMap(column -> toDType(returnType)
-                        .filter(dType -> !dType.isNestedType())
-                        .map(dType -> {
-                            if (maskChannel.isPresent()) {
-                                return new AggregateCompilation(
-                                        returnType,
-                                        ImmutableList.of(maskExpression(maskChannel.getAsInt(), column.channel())),
-                                        ImmutableList.of(channel -> factory.create(channel, returnType, dType)),
-                                        Optional.empty());
-                            }
-                            return AggregateCompilation.simple(returnType, factory.create(column.channel(), returnType, dType));
-                        }));
+                .flatMap(column -> {
+                    switch (column.type()) {
+                        case BooleanType _,
+                             TinyintType _, SmallintType _, IntegerType _, BigintType _,
+                             RealType _, DoubleType _,
+                             DecimalType _,
+                             CharType _, VarcharType _, DateType _ -> {
+                            // cudf comparison semantics for carrier DType match those of Trino Type
+                        }
+                        case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
+                            // cudf comparison semantics for carrier DType match those of Trino Type
+                        }
+                        default -> {
+                            return Optional.empty();
+                        }
+                    }
+                    return toDType(returnType).map(dType -> {
+                        if (maskChannel.isPresent()) {
+                            return new AggregateCompilation(
+                                    returnType,
+                                    ImmutableList.of(maskExpression(maskChannel.getAsInt(), column.channel())),
+                                    ImmutableList.of(channel -> factory.create(channel, returnType, dType)),
+                                    Optional.empty());
+                        }
+                        return AggregateCompilation.simple(returnType, factory.create(column.channel(), returnType, dType));
+                    });
+                });
     }
 
     private static Optional<AggregateCompilation> compileAnyValue(

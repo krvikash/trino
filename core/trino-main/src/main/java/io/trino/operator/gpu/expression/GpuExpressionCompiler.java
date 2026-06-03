@@ -25,7 +25,9 @@ import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.CharType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
@@ -672,8 +674,20 @@ public final class GpuExpressionCompiler
         protected Optional<GpuExpression> visitComparison(Comparison comparison, Void context)
         {
             verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
-            if (toDType(comparison.left().type()).filter(DType::isNestedType).isPresent()) {
-                return Optional.empty();
+            switch (comparison.left().type()) {
+                case BooleanType _,
+                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
+                     RealType _, DoubleType _,
+                     DecimalType _,
+                     CharType _, VarcharType _, DateType _ -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                default -> {
+                    return Optional.empty();
+                }
             }
             Optional<GpuExpression> leftCompiled = comparison.left().accept(this, context);
             if (leftCompiled.isEmpty()) {
@@ -700,8 +714,20 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitBetween(Between between, Void context)
         {
-            if (toDType(between.value().type()).filter(DType::isNestedType).isPresent()) {
-                return Optional.empty();
+            switch (between.value().type()) {
+                case BooleanType _,
+                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
+                     RealType _, DoubleType _,
+                     DecimalType _,
+                     CharType _, VarcharType _, DateType _ -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                default -> {
+                    return Optional.empty();
+                }
             }
             return compileNary(
                     ImmutableList.of(between.value(), between.min(), between.max()),
@@ -712,13 +738,22 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitIn(In in, Void context)
         {
-            Optional<GpuTypeMapping> typeMapping = toGpuMapping(in.value().type());
-            if (typeMapping.isEmpty()) {
-                return Optional.empty();
+            switch (in.value().type()) {
+                case BooleanType _,
+                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
+                     RealType _, DoubleType _,
+                     DecimalType _,
+                     CharType _, VarcharType _, DateType _ -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                default -> {
+                    return Optional.empty();
+                }
             }
-            if (typeMapping.get().dType().isNestedType()) {
-                return Optional.empty();
-            }
+            GpuTypeMapping typeMapping = toGpuMapping(in.value().type()).orElseThrow();
 
             Optional<GpuExpression> valueCompiled = in.value().accept(this, context);
             if (valueCompiled.isEmpty()) {
@@ -741,7 +776,7 @@ public final class GpuExpressionCompiler
                 }
             }
 
-            return Optional.of(new GpuIn(valueCompiled.get(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.get().toColumn()));
+            return Optional.of(new GpuIn(valueCompiled.get(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.toColumn()));
         }
 
         @Override
