@@ -16,6 +16,7 @@ Datasets:
   hive-tpcds-sf100     Hive TPC-DS scale factor 100 (snappy, parquet)
   iceberg-tpch-sf30    Iceberg TPC-H scale factor 30 (decimal, snappy, parquet)
   iceberg-tpch-sf100   Iceberg TPC-H scale factor 100 (decimal, snappy, parquet)
+  iceberg-tpcds-sf100  Iceberg TPC-DS scale factor 100 (snappy, parquet)
 
 Multiple datasets may be specified, e.g.:
   hydrate.sh hive-clickbench hive-tpch-sf30
@@ -34,6 +35,7 @@ want_hive_tpcds_sf100=false
 want_iceberg_clickbench=false
 want_iceberg_tpch_sf30=false
 want_iceberg_tpch_sf100=false
+want_iceberg_tpcds_sf100=false
 
 for arg in "$@"; do
     case "${arg}" in
@@ -45,6 +47,7 @@ for arg in "$@"; do
             want_iceberg_clickbench=true
             want_iceberg_tpch_sf30=true
             want_iceberg_tpch_sf100=true
+            want_iceberg_tpcds_sf100=true
             ;;
         hive-clickbench)
             want_hive_clickbench=true
@@ -66,6 +69,9 @@ for arg in "$@"; do
             ;;
         iceberg-tpch-sf100)
             want_iceberg_tpch_sf100=true
+            ;;
+        iceberg-tpcds-sf100)
+            want_iceberg_tpcds_sf100=true
             ;;
         -h|--help)
             usage
@@ -193,4 +199,34 @@ if "${want_iceberg_tpch_sf100}"; then
         supplier-e61f2fa498264d49b3711c95e38aa619
     )
     sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf100-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpch-sf100/tables" "${tpch_tables[@]}"
+fi
+
+if "${want_iceberg_tpcds_sf100}"; then
+    tables=(
+        call_center-d25f1f5f82b54eb4b952a5be304b7f73
+        catalog_page-b6732c62099d4a1c951013c9052045d6
+        catalog_returns-256bf8aeece34579bc0f9d19b2cb4543
+        catalog_sales-4db5f6164de44048a84ba10c7f17589d
+        customer-a274f74636104d6384c3bffa84100cbc
+        customer_address-651e1c68f4884fc09f4088c8e436b22c
+        customer_demographics-eef2e095d6d14945af22cef0988ed5ff
+        date_dim-66a709699883471684cd954c981e4b59
+        household_demographics-1b88bf552134431998e69a8e2112fffb
+        income_band-b2e7b325f5e640aea9dc400e82f95ba1
+        inventory-484b80a5590e449199b01b4ca507ab91
+        item-153ad53ffd8948a4ad24ec5020485e4d
+        promotion-226aa472cc894da787dfb0682638f10b
+        reason-5224765121ef4211952ba66770c4bfe3
+        ship_mode-1e424ce99bc64a09b7abbd90a22a2251
+        store-1cbeb6c68e2b46f1a61f19fe8527b57a
+        store_returns-9f1669793a40476bba696a31a5da1417
+        store_sales-c68a9755e2f7494a841fc01770d4dd67
+        time_dim-fb84514664e8431eb0884da596ed7a08
+        warehouse-bd781304580642779ffa8233b1fe60da
+        web_page-ea1d765ebcfb448fa43ccb7e57e8645c
+        web_returns-a227bf7382cb46f0827f84d7c4f65b29
+        web_sales-28c8ab917b0a49faa78a5bfde99e515b
+        web_site-c3dcd5b06e974e2b9b7a7182afd00678
+    )
+    sync_dataset s3://starburst-benchmarks-data/iceberg-tpcds-sf100-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpcds-sf100/tables" "${tables[@]}"
 fi
