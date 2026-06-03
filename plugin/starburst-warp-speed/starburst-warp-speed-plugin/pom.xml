@@ -248,10 +248,6 @@
                     <groupId>ai.rapids</groupId>
                     <artifactId>cudf</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>org.apache.lucene</groupId>
-                    <artifactId>lucene-analysis-common</artifactId>
-                </exclusion>
             </exclusions>
         </dependency>
 

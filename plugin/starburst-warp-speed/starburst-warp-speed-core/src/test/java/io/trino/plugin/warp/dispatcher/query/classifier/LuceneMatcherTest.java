@@ -409,7 +409,7 @@ public class LuceneMatcherTest
                 .build();
 
         BooleanQuery falseQuery = new BooleanQuery.Builder()
-                .add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD)
+                .add(MatchAllDocsQuery.INSTANCE, BooleanClause.Occur.SHOULD)
                 .add(likeQuery, BooleanClause.Occur.MUST_NOT)
                 .build();
 

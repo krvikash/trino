@@ -53,7 +53,7 @@ class NotRewriter
     {
         BooleanQuery.Builder innerQueryBuilder = new BooleanQuery.Builder();
         LuceneRewriteContext subContext = new LuceneRewriteContext(innerQueryBuilder, BooleanClause.Occur.MUST_NOT, context.collectNulls());
-        subContext.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
+        subContext.queryBuilder().add(MatchAllDocsQuery.INSTANCE, BooleanClause.Occur.SHOULD);
         boolean valid = luceneRulesHandler.rewrite(warpExpression.getChildren().getFirst(), subContext);
         if (valid) {
             context.queryBuilder().add(innerQueryBuilder.build(), BooleanClause.Occur.MUST);

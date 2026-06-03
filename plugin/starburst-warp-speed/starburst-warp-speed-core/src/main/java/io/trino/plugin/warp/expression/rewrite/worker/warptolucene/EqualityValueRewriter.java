@@ -75,7 +75,7 @@ public class EqualityValueRewriter
             if (positionValue instanceof WarpPrimitiveConstant warpPrimitiveConstant) {
                 if (warpPrimitiveConstant.getValue() == Integer.valueOf(0)) {
                     // See https://stackoverflow.com/a/16091066, =false->false, =true->true, !=true->false, !=false->true
-                    context.queryBuilder().add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
+                    context.queryBuilder().add(MatchAllDocsQuery.INSTANCE, BooleanClause.Occur.SHOULD);
                     context = createContext(context, BooleanClause.Occur.MUST_NOT);
                 }
                 warpConstant = (WarpConstant) warpCall.getChildren().get(1);

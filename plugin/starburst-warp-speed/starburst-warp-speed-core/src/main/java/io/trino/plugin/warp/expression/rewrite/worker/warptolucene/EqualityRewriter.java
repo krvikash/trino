@@ -68,7 +68,7 @@ class EqualityRewriter
         BooleanClause.Occur res;
         if (isEqual != value) { // =false->false, =true->true, !=true->false, !=false->true
             // See https://stackoverflow.com/a/16091066
-            queryBuilder.add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
+            queryBuilder.add(MatchAllDocsQuery.INSTANCE, BooleanClause.Occur.SHOULD);
             res = BooleanClause.Occur.MUST_NOT;
         }
         else {
