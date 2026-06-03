@@ -139,7 +139,7 @@
                     <groupId>org.apache.logging.log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
-                <!-- trino-main brings in 9.7.0 (vs 8.11.1) -->
+                <!-- trino-main brings in 10.4.0 (vs 8.11.3) -->
                 <exclusion>
                     <groupId>org.apache.lucene</groupId>
                     <artifactId>lucene-analyzers-common</artifactId>
