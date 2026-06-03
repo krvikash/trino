@@ -50,7 +50,7 @@ import static io.trino.spi.function.InvocationConvention.InvocationArgumentConve
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.DEFAULT_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.simpleConvention;
-import static io.trino.spi.predicate.Utils.blockToNativeValue;
+import static io.trino.spi.type.TypeUtils.blockToNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static java.lang.String.format;
