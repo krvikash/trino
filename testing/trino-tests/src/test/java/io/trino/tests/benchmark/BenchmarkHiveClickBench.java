@@ -45,7 +45,7 @@ public final class BenchmarkHiveClickBench
 
     private static final Logger log = Logger.get(BenchmarkHiveClickBench.class);
 
-    private static final String HITS_COLUMNS =
+    static final String HITS_COLUMNS =
             """
             WatchID BIGINT,
             JavaEnable SMALLINT,

@@ -12,6 +12,7 @@ Datasets:
   hive-clickbench      Hive ClickBench hits (snappy, large files)
   hive-tpch-sf30       Hive TPC-H scale factor 30 (decimal, snappy, parquet)
   hive-tpch-sf100      Hive TPC-H scale factor 100 (decimal, snappy, parquet)
+  iceberg-clickbench   Iceberg ClickBench hits (snappy, large files)
   hive-tpcds-sf100     Hive TPC-DS scale factor 100 (snappy, parquet)
   iceberg-tpch-sf30    Iceberg TPC-H scale factor 30 (decimal, snappy, parquet)
   iceberg-tpch-sf100   Iceberg TPC-H scale factor 100 (decimal, snappy, parquet)
@@ -30,6 +31,7 @@ want_hive_clickbench=false
 want_hive_tpch_sf30=false
 want_hive_tpch_sf100=false
 want_hive_tpcds_sf100=false
+want_iceberg_clickbench=false
 want_iceberg_tpch_sf30=false
 want_iceberg_tpch_sf100=false
 
@@ -40,6 +42,7 @@ for arg in "$@"; do
             want_hive_tpch_sf30=true
             want_hive_tpch_sf100=true
             want_hive_tpcds_sf100=true
+            want_iceberg_clickbench=true
             want_iceberg_tpch_sf30=true
             want_iceberg_tpch_sf100=true
             ;;
@@ -54,6 +57,9 @@ for arg in "$@"; do
             ;;
         hive-tpcds-sf100)
             want_hive_tpcds_sf100=true
+            ;;
+        iceberg-clickbench)
+            want_iceberg_clickbench=true
             ;;
         iceberg-tpch-sf30)
             want_iceberg_tpch_sf30=true
@@ -129,6 +135,12 @@ TPCDS_TABLES=(
 if "${want_hive_clickbench}"; then
     mkdir -p "${DATA_ROOT}/clickbench/hits/"
     aws s3 sync --delete s3://starburst-benchmarks-data/ClickBench/hive/hits_snappy_large_files "${DATA_ROOT}/clickbench/hits/"
+fi
+
+if "${want_iceberg_clickbench}"; then
+    local_dir="${DATA_ROOT}/iceberg-clickbench/tables/hits-597fe8e4c83a44ea8999a5703ebd9c1c"
+    mkdir -p "${local_dir}/"
+    aws s3 sync --delete "s3://starburst-benchmarks-data/ClickBench/iceberg/hits_snappy_large_files-597fe8e4c83a44ea8999a5703ebd9c1c/" "${local_dir}/"
 fi
 
 sync_dataset() {
