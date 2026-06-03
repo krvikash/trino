@@ -50,7 +50,6 @@ import static io.trino.plugin.hive.HiveTimestampPrecision.NANOSECONDS;
 import static io.trino.plugin.hive.coercions.CoercionUtils.createCoercer;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
-import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochMillisAndFraction;
@@ -66,6 +65,7 @@ import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
@@ -640,7 +640,7 @@ public class TestTimestampCoercer
     {
         ZonedDateTime insertZdt = fromDateTimeString(writtenTimestamp, UTC);
         long hybridMillis = toHybridMillis(insertZdt);
-        Block writtenBlock = nativeValueToBlock(TIMESTAMP_MICROS, multiplyExact(hybridMillis, MICROSECONDS_PER_MILLISECOND));
+        Block writtenBlock = writeNativeValue(TIMESTAMP_MICROS, multiplyExact(hybridMillis, MICROSECONDS_PER_MILLISECOND));
 
         Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_MICROS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic, UTC_TZ));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
@@ -671,7 +671,7 @@ public class TestTimestampCoercer
         ZonedDateTime zonedDateTime = fromDateTimeString(timestamp, timezone.toZoneId());
         long hybridMillis = toHybridMillis(zonedDateTime);
         long hybridMillisWithTimeZone = DateTimeEncoding.packDateTimeWithZone(hybridMillis, UTC_KEY);
-        Block writtenBlock = nativeValueToBlock(TIMESTAMP_TZ_MILLIS, hybridMillisWithTimeZone);
+        Block writtenBlock = writeNativeValue(TIMESTAMP_TZ_MILLIS, hybridMillisWithTimeZone);
 
         Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(
                 INT96,
@@ -704,7 +704,7 @@ public class TestTimestampCoercer
     private void assertReadingHybridToProlepticLegacyLongTimestamp(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
     {
         LongTimestamp givenTimestamp = fromHybridTimestamp(writtenTimestamp);
-        Block writtenBlock = nativeValueToBlock(TIMESTAMP_NANOS, givenTimestamp);
+        Block writtenBlock = writeNativeValue(TIMESTAMP_NANOS, givenTimestamp);
 
         Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_NANOS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic, UTC_TZ));
         Block readBlock = coercer.isPresent() ? coercer.orElseThrow().apply(writtenBlock) : writtenBlock;
@@ -731,7 +731,7 @@ public class TestTimestampCoercer
         TimeZoneKey givenTimeZoneKey = TimeZoneKey.getTimeZoneKey(zoneId.toString());
 
         LongTimestampWithTimeZone givenTimestamp = fromHybridTimestamp(writtenTimestamp, givenTimeZoneKey);
-        Block writtenBlock = nativeValueToBlock(TIMESTAMP_TZ_NANOS, givenTimestamp);
+        Block writtenBlock = writeNativeValue(TIMESTAMP_TZ_NANOS, givenTimestamp);
 
         Optional<TypeCoercer<? extends Type, ? extends Type>> coercer =
                 ParquetTypeTranslator.createCoercer(
@@ -824,7 +824,7 @@ public class TestTimestampCoercer
     public static void assertCoercions(Type fromType, Object valueToBeCoerced, Type toType, Object expectedValue, HiveTimestampPrecision timestampPrecision)
     {
         Block coercedValue = createCoercer(TESTING_TYPE_MANAGER, toHiveType(fromType), toHiveType(toType), new CoercionContext(timestampPrecision, PARQUET)).orElseThrow()
-                .apply(nativeValueToBlock(fromType, valueToBeCoerced));
+                .apply(writeNativeValue(fromType, valueToBeCoerced));
         assertThat(blockToNativeValue(toType, coercedValue))
                 .isEqualTo(expectedValue);
     }

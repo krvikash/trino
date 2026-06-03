@@ -34,8 +34,8 @@ import static io.trino.plugin.hive.HiveTimestampPrecision.DEFAULT_PRECISION;
 import static io.trino.plugin.hive.coercions.CoercionUtils.createCoercer;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
-import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -206,7 +206,7 @@ public class TestDateCoercer
 
     private void assertReadingHybridToProlepticLegacyDate(boolean convertDateToProleptic, long hybridDays, long gregorianDays)
     {
-        Block writtenBlock = nativeValueToBlock(DATE, hybridDays);
+        Block writtenBlock = writeNativeValue(DATE, hybridDays);
         Optional<TypeCoercer<? extends Type, ? extends Type>> coercer =
                 ParquetTypeTranslator.createCoercer(
                         INT32,
@@ -253,7 +253,7 @@ public class TestDateCoercer
     private void assertVarcharToDateCoercion(Type fromType, String date, Long expected)
     {
         Block coercedValue = createCoercer(TESTING_TYPE_MANAGER, toHiveType(fromType), toHiveType(DATE), new CoercionContext(DEFAULT_PRECISION, PARQUET)).orElseThrow()
-                .apply(nativeValueToBlock(fromType, utf8Slice(date)));
+                .apply(writeNativeValue(fromType, utf8Slice(date)));
         assertThat(blockToNativeValue(DATE, coercedValue))
                 .isEqualTo(expected);
     }
@@ -261,7 +261,7 @@ public class TestDateCoercer
     private void assertDateToVarcharCoercion(Type toType, LocalDate date, String expected)
     {
         Block coercedValue = createCoercer(TESTING_TYPE_MANAGER, toHiveType(DATE), toHiveType(toType), new CoercionContext(DEFAULT_PRECISION, PARQUET)).orElseThrow()
-                .apply(nativeValueToBlock(DATE, date.toEpochDay()));
+                .apply(writeNativeValue(DATE, date.toEpochDay()));
         assertThat(blockToNativeValue(VARCHAR, coercedValue))
                 .isEqualTo(utf8Slice(expected));
     }

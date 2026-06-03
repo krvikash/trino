@@ -94,7 +94,6 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
-import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -110,6 +109,7 @@ import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
@@ -308,7 +308,7 @@ public class TestGpuExpressions
 
         for (int value : values) {
             long realBits = Float.floatToIntBits((float) value);
-            Page input = new Page(nativeValueToBlock(REAL, realBits));
+            Page input = new Page(writeNativeValue(REAL, realBits));
             assertGpuMatchesCpuForCast(List.of(input), List.of(REAL), expression, cpuProcessor, compiledGpu);
         }
     }
@@ -354,7 +354,7 @@ public class TestGpuExpressions
                 // Unbounded. This is only to memoize.
                 .maximumSize(Long.MAX_VALUE)
                 .build(CacheLoader.from(type -> testedTypeValues.getUnchecked(type).stream()
-                        .map(value -> new Page(nativeValueToBlock(type, value)))
+                        .map(value -> new Page(writeNativeValue(type, value)))
                         .collect(toImmutableList())));
 
         LoadingCache<Pair<Type, Type>, List<Page>> binaryInputs = EvictableCacheBuilder.newBuilder()
@@ -638,7 +638,7 @@ public class TestGpuExpressions
         Map<Symbol, Integer> layout = layoutFor(List.of(sourceType));
         PageProcessor pageProcessor = compileCpuExpression(castExpression, layout);
         for (@Nullable Object sourceValue : sourceNativeValues) {
-            Page sourcePage = new Page(nativeValueToBlock(sourceType, sourceValue));
+            Page sourcePage = new Page(writeNativeValue(sourceType, sourceValue));
             List<Page> result;
             try {
                 result = executeWithCpu(pageProcessor, List.of(sourcePage));
@@ -665,8 +665,8 @@ public class TestGpuExpressions
         for (Object leftValue : leftValues) {
             for (Object rightValue : rightValues) {
                 pages.add(new Page(
-                        nativeValueToBlock(leftType, leftValue),
-                        nativeValueToBlock(rightType, rightValue)));
+                        writeNativeValue(leftType, leftValue),
+                        writeNativeValue(rightType, rightValue)));
             }
         }
         return pages;
@@ -1138,7 +1138,7 @@ public class TestGpuExpressions
         int channelA = 0;
         Type type = DATE;
         long outOfRangeDays = LocalDate.of(100_000, 6, 15).toEpochDay();
-        List<Page> inputPages = List.of(new Page(nativeValueToBlock(type, outOfRangeDays)));
+        List<Page> inputPages = List.of(new Page(writeNativeValue(type, outOfRangeDays)));
 
         Expression expression = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
@@ -1275,8 +1275,8 @@ public class TestGpuExpressions
         // Edge cases that random data may not cover: start=0 (empty), negative start beyond string length, start past end
         for (long start : List.of(0L, 1L, -1L, -100L, 100L, (long) Integer.MAX_VALUE, (long) Integer.MIN_VALUE)) {
             inputPages.add(new Page(
-                    nativeValueToBlock(VARCHAR, Slices.utf8Slice("hello")),
-                    nativeValueToBlock(BIGINT, start)));
+                    writeNativeValue(VARCHAR, Slices.utf8Slice("hello")),
+                    writeNativeValue(BIGINT, start)));
         }
 
         Expression expression = new Call(
@@ -1306,9 +1306,9 @@ public class TestGpuExpressions
         for (long start : List.of(0L, 1L, -1L, -100L, 100L)) {
             for (long length : List.of(-1L, 0L, 1L, 100L)) {
                 inputPages.add(new Page(
-                        nativeValueToBlock(VARCHAR, Slices.utf8Slice("hello")),
-                        nativeValueToBlock(BIGINT, start),
-                        nativeValueToBlock(BIGINT, length)));
+                        writeNativeValue(VARCHAR, Slices.utf8Slice("hello")),
+                        writeNativeValue(BIGINT, start),
+                        writeNativeValue(BIGINT, length)));
             }
         }
 

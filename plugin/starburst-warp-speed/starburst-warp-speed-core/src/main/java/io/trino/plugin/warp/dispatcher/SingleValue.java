@@ -23,8 +23,8 @@ import io.trino.spi.type.Type;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.util.Objects.requireNonNull;
 
 public class SingleValue
@@ -63,7 +63,7 @@ public class SingleValue
         if (value instanceof NullableValue nullableValue) {
             value = nullableValue.getValue();
         }
-        return new SingleValue(type, value, nativeValueToBlock(type, value), true);
+        return new SingleValue(type, value, writeNativeValue(type, value), true);
     }
 
     @JsonProperty

@@ -49,7 +49,6 @@ import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.predicate.Utils;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
@@ -91,6 +90,7 @@ import static io.trino.plugin.hive.util.HiveTypeUtil.getHiveTypeForDereferences;
 import static io.trino.plugin.hive.util.HiveUtil.getInputFormatName;
 import static io.trino.plugin.hive.util.HiveUtil.getPrefilledColumnValue;
 import static io.trino.spi.type.TypeUtils.containsTimestamp;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
@@ -452,7 +452,7 @@ public class HivePageSourceProvider
 
             Type type = column.getType();
             switch (columnMapping.getKind()) {
-                case PREFILLED -> transforms.constantValue(Utils.nativeValueToBlock(type, columnMapping.getPrefilledValue().getValue()));
+                case PREFILLED -> transforms.constantValue(writeNativeValue(type, columnMapping.getPrefilledValue().getValue()));
                 case EMPTY -> transforms.constantValue(type.createNullBlock());
                 case REGULAR, SYNTHESIZED -> {
                     Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = Optional.empty();

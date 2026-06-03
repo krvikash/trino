@@ -51,7 +51,7 @@ import static io.trino.spi.function.InvocationConvention.InvocationReturnConvent
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.simpleConvention;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
-import static io.trino.spi.predicate.Utils.nativeValueToBlock;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static java.lang.String.format;
 import static java.lang.invoke.MethodType.methodType;
@@ -389,7 +389,7 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
         @JsonProperty
         public Serializable getSerializable()
         {
-            return new Serializable(type, value == null ? null : nativeValueToBlock(type, value));
+            return new Serializable(type, value == null ? null : writeNativeValue(type, value));
         }
 
         public Type getType()
@@ -515,7 +515,7 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
         @Override
         public String toString()
         {
-            return "[type=" + type + ", value=" + (value == null ? "null" : type.getObjectValue(nativeValueToBlock(type, value), 0).toString()) + "]";
+            return "[type=" + type + ", value=" + (value == null ? "null" : type.getObjectValue(writeNativeValue(type, value), 0).toString()) + "]";
         }
 
         public record Serializable(Type type, Block block)

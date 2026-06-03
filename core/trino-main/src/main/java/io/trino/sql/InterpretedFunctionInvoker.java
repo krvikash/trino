@@ -40,7 +40,7 @@ import static io.trino.spi.function.InvocationConvention.InvocationArgumentConve
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.NULLABLE_RETURN;
 import static io.trino.spi.predicate.Utils.blockToNativeValue;
-import static io.trino.spi.predicate.Utils.nativeValueToBlock;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.lang.invoke.MethodHandleProxies.asInterfaceInstance;
 import static java.util.Objects.requireNonNull;
 
@@ -134,7 +134,7 @@ public class InterpretedFunctionInvoker
             }
 
             Type type = function.signature().getArgumentTypes().get(i);
-            Block block = nativeValueToBlock(type, argument);
+            Block block = writeNativeValue(type, argument);
             actualArguments.add(block.getUnderlyingValueBlock());
             actualArguments.add(new int[] {0});
         }
