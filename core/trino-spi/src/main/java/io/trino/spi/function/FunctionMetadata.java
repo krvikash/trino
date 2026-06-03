@@ -13,7 +13,7 @@
  */
 package io.trino.spi.function;
 
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeTemplate;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,7 +45,7 @@ public class FunctionMetadata
     private final String description;
     private final FunctionKind kind;
     private final boolean deprecated;
-    private final Optional<TypeSignature> receiverType;
+    private final Optional<TypeTemplate> receiverType;
     private final boolean instanceMethod;
 
     private FunctionMetadata(
@@ -60,7 +60,7 @@ public class FunctionMetadata
             String description,
             FunctionKind kind,
             boolean deprecated,
-            Optional<TypeSignature> receiverType,
+            Optional<TypeTemplate> receiverType,
             boolean instanceMethod)
     {
         this.functionId = requireNonNull(functionId, "functionId is null");
@@ -165,7 +165,7 @@ public class FunctionMetadata
      * the type of the {@code self} parameter (the first declared argument).
      * Empty for regular functions.
      */
-    public Optional<TypeSignature> getReceiverType()
+    public Optional<TypeTemplate> getReceiverType()
     {
         return receiverType;
     }
@@ -236,7 +236,7 @@ public class FunctionMetadata
         private String description;
         private FunctionId functionId;
         private boolean deprecated;
-        private Optional<TypeSignature> receiverType = Optional.empty();
+        private Optional<TypeTemplate> receiverType = Optional.empty();
         private boolean instanceMethod;
 
         private Builder(String canonicalName, FunctionKind kind)
@@ -337,7 +337,7 @@ public class FunctionMetadata
             return this;
         }
 
-        public Builder receiverType(TypeSignature receiverType)
+        public Builder receiverType(TypeTemplate receiverType)
         {
             this.receiverType = Optional.of(requireNonNull(receiverType, "receiverType is null"));
             return this;

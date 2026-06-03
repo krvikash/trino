@@ -70,7 +70,6 @@ import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
-import io.trino.spi.function.AggregationFunctionMetadata;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.FunctionDependencyDeclaration;
@@ -966,7 +965,7 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
-    public AggregationFunctionMetadata getAggregationFunctionMetadata(Session session, ResolvedFunction resolvedFunction)
+    public ResolvedAggregationFunctionMetadata getAggregationFunctionMetadata(Session session, ResolvedFunction resolvedFunction)
     {
         throw new UnsupportedOperationException();
     }
