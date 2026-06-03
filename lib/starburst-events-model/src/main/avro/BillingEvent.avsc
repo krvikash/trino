@@ -1,0 +1,371 @@
+{
+  "type": "record",
+  "name": "BillingEvent",
+  "namespace": "io.trino.billing.event",
+  "version": "1.0",
+  "doc": "Unified billing event schema. A single super event covering all billing types: instance runtime heartbeats (Galaxy and SEP), Icehouse task billing, ingest worker billing, Galaxy task billing, and AI usage. Publishers populate only the fields relevant to their billingType; all other fields are null. Consumers use the billingType discriminator to interpret which fields are meaningful.",
+  "fields": [
+    {
+      "name": "billingType",
+      "type": "string",
+      "doc": "Billing event type discriminator. Values: 'HEARTBEAT', 'SEP_HEARTBEAT', 'ICEHOUSE_TASK_BILLING', 'INGEST_WORKER_BILLING', 'GALAXY_TASK_BILLING', 'AI_USAGE'."
+    },
+    {
+      "name": "durationMillis",
+      "type": "long",
+      "doc": "Duration of the billing interval in milliseconds."
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Event timestamp in milliseconds since epoch."
+    },
+
+    {
+      "name": "accountId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Account identifier."
+    },
+    {
+      "name": "cloudRegionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Cloud region identifier (e.g. 'aws-us-east-1')."
+    },
+    {
+      "name": "paymentTier",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment tier."
+    },
+
+    {
+      "name": "role",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Node role: 'coordinator' or 'worker'."
+    },
+    {
+      "name": "warehouseId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Cluster identifier."
+    },
+    {
+      "name": "deploymentId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Galaxy deployment identifier."
+    },
+    {
+      "name": "variant",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Galaxy cluster variant (e.g. 'standard', 'demo')."
+    },
+    {
+      "name": "nodeInstanceType",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Cloud instance type (e.g. 'r6i.xlarge')."
+    },
+    {
+      "name": "podName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Kubernetes pod name."
+    },
+    {
+      "name": "podIp",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Kubernetes pod IP address."
+    },
+    {
+      "name": "catalogMetrics",
+      "type": ["null", {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "CatalogMetricsSnapshot",
+          "namespace": "io.trino.billing.event",
+          "doc": "Per-catalog data transfer metrics snapshot.",
+          "fields": [
+            {
+              "name": "catalogId",
+              "type": "string",
+              "doc": "Catalog identifier."
+            },
+            {
+              "name": "catalogName",
+              "type": "string",
+              "doc": "Catalog display name."
+            },
+            {
+              "name": "intraRegionReadBytes",
+              "type": "long",
+              "doc": "Bytes read within the same cloud region."
+            },
+            {
+              "name": "intraRegionWriteBytes",
+              "type": "long",
+              "doc": "Bytes written within the same cloud region."
+            },
+            {
+              "name": "crossRegionReadBytes",
+              "type": "long",
+              "doc": "Bytes read across cloud regions."
+            },
+            {
+              "name": "crossRegionWriteBytes",
+              "type": "long",
+              "doc": "Bytes written across cloud regions."
+            },
+            {
+              "name": "privateLinkReadBytes",
+              "type": ["null", "long"],
+              "default": null,
+              "doc": "Bytes read over private link."
+            },
+            {
+              "name": "privateLinkWriteBytes",
+              "type": ["null", "long"],
+              "default": null,
+              "doc": "Bytes written over private link."
+            }
+          ]
+        }
+      }],
+      "default": null,
+      "doc": "Per-catalog data transfer metrics."
+    },
+
+    {
+      "name": "nodeEnvironment",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "SEP node environment identifier."
+    },
+    {
+      "name": "instanceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "SEP cluster instance UUID for epoch tracking."
+    },
+    {
+      "name": "nodeVersion",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "SEP/Trino node version string."
+    },
+    {
+      "name": "cores",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Number of CPU cores on this node."
+    },
+    {
+      "name": "startTime",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "SEP cluster epoch start time in milliseconds."
+    },
+    {
+      "name": "licenseOwner",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "SEP license owner."
+    },
+    {
+      "name": "licenseType",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "SEP license type."
+    },
+    {
+      "name": "licenseHash",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "SEP license hash for attribution."
+    },
+
+    {
+      "name": "serviceName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Service name (e.g. 'icehouse-file-ingest', 'icehouse-maintenance', 'icehouse-transform', 'galaxy-table-maintenance')."
+    },
+    {
+      "name": "taskSourceType",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Task source type (e.g. 'DISCOVERY', 'INGEST', 'TRANSFORM')."
+    },
+    {
+      "name": "liveTableId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Live table identifier."
+    },
+    {
+      "name": "liveTableInstanceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Live table instance identifier."
+    },
+    {
+      "name": "reservedComputeUnitMillis",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Reserved compute units in milliseconds."
+    },
+    {
+      "name": "reservedCpuMillis",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Reserved CPU time in milliseconds."
+    },
+    {
+      "name": "reservedMemoryByteMillis",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Reserved memory in byte-milliseconds."
+    },
+    {
+      "name": "actualComputeUnitMillis",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Actual compute units consumed in milliseconds."
+    },
+    {
+      "name": "actualCpuMillis",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Actual CPU time consumed in milliseconds."
+    },
+    {
+      "name": "actualMemoryByteMillis",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Actual memory consumed in byte-milliseconds."
+    },
+    {
+      "name": "numTasks",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Number of tasks in this billing batch."
+    },
+
+    {
+      "name": "catalogId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Catalog identifier."
+    },
+    {
+      "name": "schemaName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Schema name."
+    },
+    {
+      "name": "tableName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Table name."
+    },
+
+    {
+      "name": "jobGroupId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Ingest job group identifier."
+    },
+    {
+      "name": "jobId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Ingest job identifier."
+    },
+    {
+      "name": "inputUncompressedBytesPerSecLimit",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Input uncompressed bytes per second rate limit."
+    },
+    {
+      "name": "networkReceivedBytes",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Network bytes received (delta since last publish)."
+    },
+    {
+      "name": "sourceInfo",
+      "type": ["null", {"type": "map", "values": "string"}],
+      "default": null,
+      "doc": "Ingest source information."
+    },
+
+    {
+      "name": "userId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User identifier."
+    },
+    {
+      "name": "model",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "AI model short name."
+    },
+    {
+      "name": "fullyQualifiedModelName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "AI model fully qualified name."
+    },
+    {
+      "name": "modelBackend",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "AI model backend provider."
+    },
+    {
+      "name": "operation",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "AI operation type."
+    },
+    {
+      "name": "inputTokens",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "AI input tokens consumed."
+    },
+    {
+      "name": "outputTokens",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "AI output tokens generated."
+    },
+    {
+      "name": "cacheReadInputTokens",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "AI prompt cache read input tokens."
+    },
+    {
+      "name": "cacheCreationInputTokens",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "AI prompt cache creation input tokens."
+    },
+    {
+      "name": "reasoningTokens",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "AI reasoning tokens."
+    }
+  ]
+}

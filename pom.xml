@@ -43,6 +43,7 @@
         <module>core/trino-web-ui</module>
         <module>docs</module>
         <module>lib/sep-license</module>
+        <module>lib/starburst-events-model</module>
         <module>lib/starburst-functions-client</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-schema-discovery</module>
@@ -1137,6 +1138,12 @@
                 <artifactId>starburst-base-jdbc</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-events-model</artifactId>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
