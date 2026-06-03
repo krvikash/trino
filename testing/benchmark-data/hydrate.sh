@@ -14,6 +14,7 @@ Datasets:
   hive-tpch-sf100      Hive TPC-H scale factor 100 (decimal, snappy, parquet)
   hive-tpcds-sf100     Hive TPC-DS scale factor 100 (snappy, parquet)
   iceberg-tpch-sf30    Iceberg TPC-H scale factor 30 (decimal, snappy, parquet)
+  iceberg-tpch-sf100   Iceberg TPC-H scale factor 100 (decimal, snappy, parquet)
 
 Multiple datasets may be specified, e.g.:
   hydrate.sh hive-clickbench hive-tpch-sf30
@@ -30,6 +31,7 @@ want_hive_tpch_sf30=false
 want_hive_tpch_sf100=false
 want_hive_tpcds_sf100=false
 want_iceberg_tpch_sf30=false
+want_iceberg_tpch_sf100=false
 
 for arg in "$@"; do
     case "${arg}" in
@@ -39,6 +41,7 @@ for arg in "$@"; do
             want_hive_tpch_sf100=true
             want_hive_tpcds_sf100=true
             want_iceberg_tpch_sf30=true
+            want_iceberg_tpch_sf100=true
             ;;
         hive-clickbench)
             want_hive_clickbench=true
@@ -54,6 +57,9 @@ for arg in "$@"; do
             ;;
         iceberg-tpch-sf30)
             want_iceberg_tpch_sf30=true
+            ;;
+        iceberg-tpch-sf100)
+            want_iceberg_tpch_sf100=true
             ;;
         -h|--help)
             usage
@@ -161,4 +167,18 @@ if "${want_iceberg_tpch_sf30}"; then
         supplier-ae961b8cec9b4dfba2bde399e980121e
     )
     sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf30-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpch-sf30/tables" "${tables[@]}"
+fi
+
+if "${want_iceberg_tpch_sf100}"; then
+    tpch_tables=(
+        customer-f1db0087172d4e90a7eab0f5cde4774f
+        lineitem-c3e45c03224643b3a63c478aaae57b08
+        nation-f54e78db9ef64cc58bf83431ab13b67e
+        orders-16331d4eeedf4e0c993faceafff8b2e3
+        part-564b7204508e42de87afa69704a0be7a
+        partsupp-befa29c04a7042b89bbf622486705a7c
+        region-c8f62a399e354427a2b5eb5dee904da5
+        supplier-e61f2fa498264d49b3711c95e38aa619
+    )
+    sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf100-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpch-sf100/tables" "${tpch_tables[@]}"
 fi
