@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.AtomicDouble;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
@@ -111,6 +112,7 @@ public class ClusterMemoryManager
     private final AtomicLong clusterMemoryBytes = new AtomicLong();
     private final AtomicLong queriesKilledDueToOutOfMemory = new AtomicLong();
     private final AtomicLong tasksKilledDueToOutOfMemory = new AtomicLong();
+    private final AtomicDouble clusterCpuUtilization = new AtomicDouble();
 
     @GuardedBy("this")
     private final Map<String, RemoteNodeMemory> nodes = new HashMap<>();
@@ -461,21 +463,37 @@ public class ClusterMemoryManager
     private synchronized void updateMemoryPool(int queryCount)
     {
         // Update view of cluster memory and pools
-        List<MemoryInfo> nodeMemoryInfos = nodes.values().stream()
-                .map(RemoteNodeMemory::getInfo)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(toImmutableList());
+        long totalProcessors = 0;
+        long totalClusterMemory = 0;
+        long workerProcessors = 0;
+        double weightedProcessCpuSum = 0.0;
+        ImmutableList.Builder<MemoryInfo> nodeMemoryInfosBuilder = ImmutableList.builder();
 
-        long totalProcessors = nodeMemoryInfos.stream()
-                .mapToLong(MemoryInfo::getAvailableProcessors)
-                .sum();
+        for (RemoteNodeMemory node : nodes.values()) {
+            Optional<MemoryInfo> info = node.getInfo();
+            if (info.isEmpty()) {
+                continue;
+            }
+            MemoryInfo memoryInfo = info.get();
+            nodeMemoryInfosBuilder.add(memoryInfo);
+            long processors = memoryInfo.getAvailableProcessors();
+            totalProcessors += processors;
+            totalClusterMemory += memoryInfo.getPool().getMaxBytes();
+            if (includeCoordinator || !node.getNode().isCoordinator()) {
+                workerProcessors += processors;
+                weightedProcessCpuSum += memoryInfo.getProcessCpuLoad() * processors;
+            }
+        }
+
+        List<MemoryInfo> nodeMemoryInfos = nodeMemoryInfosBuilder.build();
         totalAvailableProcessors.set(totalProcessors);
-
-        long totalClusterMemory = nodeMemoryInfos.stream()
-                .mapToLong(memoryInfo -> memoryInfo.getPool().getMaxBytes())
-                .sum();
         clusterMemoryBytes.set(totalClusterMemory);
+        if (workerProcessors > 0) {
+            clusterCpuUtilization.set(weightedProcessCpuSum / workerProcessors);
+        }
+        else {
+            clusterCpuUtilization.set(0.0);
+        }
 
         pool.update(nodeMemoryInfos, queryCount);
         if (!changeListeners.isEmpty()) {
@@ -559,5 +577,11 @@ public class ClusterMemoryManager
     public long getTasksKilledDueToOutOfMemory()
     {
         return tasksKilledDueToOutOfMemory.get();
+    }
+
+    @Managed
+    public double getClusterCpuUtilization()
+    {
+        return clusterCpuUtilization.get();
     }
 }

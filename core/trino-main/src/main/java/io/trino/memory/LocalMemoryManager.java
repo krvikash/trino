@@ -40,6 +40,10 @@ public final class LocalMemoryManager
     private static final Supplier<Double> SYSTEM_CPU_LOAD = Suppliers
             .memoizeWithExpiration(() -> clamp(((UnixOperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getCpuLoad(), 0.0, 1.0), 5, TimeUnit.SECONDS);
 
+    // Clamp value because according to the documentation: if the recent CPU usage is not available, the method returns a negative value.
+    private static final Supplier<Double> PROCESS_CPU_LOAD = Suppliers
+            .memoizeWithExpiration(() -> clamp(((UnixOperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getProcessCpuLoad(), 0.0, 1.0), 5, TimeUnit.SECONDS);
+
     @Inject
     public LocalMemoryManager(NodeMemoryConfig config, Optional<MemoryConfig> bufferServiceMemoryConfig)
     {
@@ -88,7 +92,7 @@ public final class LocalMemoryManager
 
     public MemoryInfo getInfo()
     {
-        return new MemoryInfo(AVAILABLE_PROCESSORS.get(), SYSTEM_CPU_LOAD.get(), memoryPool.getInfo());
+        return new MemoryInfo(AVAILABLE_PROCESSORS.get(), SYSTEM_CPU_LOAD.get(), PROCESS_CPU_LOAD.get(), memoryPool.getInfo());
     }
 
     public MemoryPool getMemoryPool()

@@ -24,16 +24,19 @@ public class MemoryInfo
 {
     private final int availableProcessors;
     private final double systemCpuLoad;
+    private final double processCpuLoad;
     private final MemoryPoolInfo pool;
 
     @JsonCreator
     public MemoryInfo(
             @JsonProperty("availableProcessors") int availableProcessors,
             @JsonProperty("systemCpuLoad") double systemCpuLoad,
+            @JsonProperty("processCpuLoad") double processCpuLoad,
             @JsonProperty("pool") MemoryPoolInfo pool)
     {
         this.availableProcessors = availableProcessors;
         this.systemCpuLoad = systemCpuLoad;
+        this.processCpuLoad = processCpuLoad;
         this.pool = requireNonNull(pool, "pool is null");
     }
 
@@ -50,6 +53,12 @@ public class MemoryInfo
     }
 
     @JsonProperty
+    public double getProcessCpuLoad()
+    {
+        return processCpuLoad;
+    }
+
+    @JsonProperty
     public MemoryPoolInfo getPool()
     {
         return pool;
@@ -61,6 +70,7 @@ public class MemoryInfo
         return toStringHelper(this)
                 .add("availableProcessors", availableProcessors)
                 .add("systemCpuLoad", systemCpuLoad)
+                .add("processCpuLoad", processCpuLoad)
                 .add("pool", pool)
                 .toString();
     }
