@@ -25,6 +25,7 @@ import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
 import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.iceberg.IcebergUtil;
+import io.trino.plugin.iceberg.IcebergViewProperties;
 import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.AbstractTrinoCatalog;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
@@ -575,7 +576,7 @@ public class TrinoJdbcCatalog
     }
 
     @Override
-    public void createView(ConnectorSession session, SchemaTableName schemaViewName, ConnectorViewDefinition definition, boolean replace)
+    public void createView(ConnectorSession session, SchemaTableName schemaViewName, ConnectorViewDefinition definition, Map<String, Object> viewProperties, boolean replace)
     {
         if (schemaVersion == SchemaVersion.V0) {
             throw new TrinoException(NOT_SUPPORTED, "Schema version V0 does not support views");
@@ -585,13 +586,14 @@ public class TrinoJdbcCatalog
         definition.getOwner().ifPresent(owner -> properties.put(ICEBERG_VIEW_RUN_AS_OWNER, owner));
         definition.getComment().ifPresent(comment -> properties.put(COMMENT, comment));
         Schema schema = IcebergUtil.schemaFromViewColumns(typeManager, definition.getColumns());
+        String viewLocation = stripTrailingSlash(IcebergViewProperties.getLocation(viewProperties).orElse(defaultTableLocation(session, schemaViewName)));
         ViewBuilder viewBuilder = jdbcCatalog.buildView(toIdentifier(schemaViewName));
         viewBuilder = viewBuilder.withSchema(schema)
                 .withQuery("trino", definition.getOriginalSql())
                 .withDefaultNamespace(Namespace.of(schemaViewName.getSchemaName()))
                 .withDefaultCatalog(definition.getCatalog().orElse(null))
                 .withProperties(properties.buildOrThrow())
-                .withLocation(defaultTableLocation(session, schemaViewName));
+                .withLocation(viewLocation);
 
         if (replace) {
             viewBuilder.createOrReplace();
@@ -690,6 +692,15 @@ public class TrinoJdbcCatalog
         catch (NoSuchViewException e) {
             throw new ViewNotFoundException(viewName);
         }
+    }
+
+    @Override
+    public Map<String, Object> getViewProperties(ConnectorSession session, SchemaTableName viewName)
+    {
+        View view = loadIcebergView(viewName);
+        return ImmutableMap.<String, Object>builder()
+                .put(LOCATION_PROPERTY, view.location())
+                .buildOrThrow();
     }
 
     @Override

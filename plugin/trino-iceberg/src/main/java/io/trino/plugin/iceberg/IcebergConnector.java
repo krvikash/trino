@@ -76,6 +76,7 @@ public class IcebergConnector
     private final List<PropertyMetadata<?>> schemaProperties;
     private final List<PropertyMetadata<?>> branchProperties;
     private final List<PropertyMetadata<?>> tableProperties;
+    private final List<PropertyMetadata<?>> viewProperties;
     private final List<PropertyMetadata<?>> materializedViewProperties;
     private final List<PropertyMetadata<?>> analyzeProperties;
     private final Optional<ConnectorAccessControl> accessControl;
@@ -100,6 +101,7 @@ public class IcebergConnector
             IcebergSchemaProperties schemaProperties,
             IcebergBranchProperties branchProperties,
             IcebergTableProperties tableProperties,
+            IcebergViewProperties viewProperties,
             IcebergMaterializedViewProperties materializedViewProperties,
             IcebergAnalyzeProperties analyzeProperties,
             Optional<ConnectorAccessControl> accessControl,
@@ -124,6 +126,7 @@ public class IcebergConnector
         this.schemaProperties = ImmutableList.copyOf(requireNonNull(schemaProperties, "schemaProperties is null").getSchemaProperties());
         this.branchProperties = ImmutableList.copyOf(requireNonNull(branchProperties, "branchProperties is null").getBranchProperties());
         this.tableProperties = ImmutableList.copyOf(requireNonNull(tableProperties, "tableProperties is null").getTableProperties());
+        this.viewProperties = ImmutableList.copyOf(requireNonNull(viewProperties, "viewProperties is null").getViewProperties());
         this.materializedViewProperties = ImmutableList.copyOf(requireNonNull(materializedViewProperties, "materializedViewProperties is null").getMaterializedViewProperties());
         this.analyzeProperties = ImmutableList.copyOf(requireNonNull(analyzeProperties, "analyzeProperties is null").getAnalyzeProperties());
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
@@ -250,6 +253,12 @@ public class IcebergConnector
     public List<PropertyMetadata<?>> getBranchProperties()
     {
         return branchProperties;
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getViewProperties()
+    {
+        return viewProperties;
     }
 
     @Override

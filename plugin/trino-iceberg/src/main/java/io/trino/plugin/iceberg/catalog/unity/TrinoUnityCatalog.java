@@ -253,7 +253,7 @@ public class TrinoUnityCatalog
     }
 
     @Override
-    public void createView(ConnectorSession session, SchemaTableName schemaViewName, ConnectorViewDefinition definition, boolean replace)
+    public void createView(ConnectorSession session, SchemaTableName schemaViewName, ConnectorViewDefinition definition, Map<String, Object> viewProperties, boolean replace)
     {
         throw new UnsupportedOperationException("createView is not supported");
     }
@@ -286,6 +286,12 @@ public class TrinoUnityCatalog
     public Optional<ConnectorViewDefinition> getView(ConnectorSession session, SchemaTableName viewName)
     {
         throw new UnsupportedOperationException("getView is not supported");  // Objectstore doesn't call IcebergMetadata#getView
+    }
+
+    @Override
+    public Map<String, Object> getViewProperties(ConnectorSession session, SchemaTableName viewName)
+    {
+        throw new UnsupportedOperationException("getViewProperties is not supported");
     }
 
     @Override

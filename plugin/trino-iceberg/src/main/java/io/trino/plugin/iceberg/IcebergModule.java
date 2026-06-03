@@ -118,6 +118,7 @@ public class IcebergModule
         binder.bind(IcebergSchemaProperties.class).in(Scopes.SINGLETON);
         binder.bind(IcebergBranchProperties.class).in(Scopes.SINGLETON);
         binder.bind(IcebergTableProperties.class).in(Scopes.SINGLETON);
+        binder.bind(IcebergViewProperties.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMaterializedViewProperties.class).in(Scopes.SINGLETON);
         binder.bind(IcebergAnalyzeProperties.class).in(Scopes.SINGLETON);
 
