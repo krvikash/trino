@@ -23,6 +23,7 @@ import io.trino.metadata.TableHandle;
 import io.trino.metastore.Column;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.hive.parquet.ParquetGpuPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.spi.SplitWeight;
@@ -157,6 +158,7 @@ class TestNodeLocalDynamicSplitPruning
         HivePageSourceProvider provider = new HivePageSourceProvider(
                 TESTING_TYPE_MANAGER,
                 hiveConfig,
+                new ParquetGpuPageSourceFactory(new ParquetReaderConfig()),
                 getDefaultHivePageSourceFactories(fileSystemFactory, hiveConfig),
                 fileSystemFactory);
 

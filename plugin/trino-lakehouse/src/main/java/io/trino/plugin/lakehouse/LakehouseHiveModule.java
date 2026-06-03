@@ -62,6 +62,7 @@ import io.trino.plugin.hive.metastore.HiveMetastoreModule;
 import io.trino.plugin.hive.orc.OrcFileWriterFactory;
 import io.trino.plugin.hive.orc.OrcPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetFileWriterFactory;
+import io.trino.plugin.hive.parquet.ParquetGpuPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetPageSourceFactory;
 import io.trino.plugin.hive.rcfile.RcFilePageSourceFactory;
 
@@ -113,6 +114,7 @@ class LakehouseHiveModule
         systemTableProviders.addBinding().to(PartitionsSystemTableProvider.class).in(Scopes.SINGLETON);
         systemTableProviders.addBinding().to(PropertiesSystemTableProvider.class).in(Scopes.SINGLETON);
 
+        binder.bind(ParquetGpuPageSourceFactory.class).in(Scopes.SINGLETON);
         var pageSourceFactoryBinder = newSetBinder(binder, HivePageSourceFactory.class);
         pageSourceFactoryBinder.addBinding().to(CsvPageSourceFactory.class).in(Scopes.SINGLETON);
         pageSourceFactoryBinder.addBinding().to(JsonPageSourceFactory.class).in(Scopes.SINGLETON);

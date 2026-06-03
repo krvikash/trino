@@ -110,6 +110,7 @@ public class HivePageSourceProvider
 
     private final TypeManager typeManager;
     private final int domainCompactionThreshold;
+    private final ParquetGpuPageSourceFactory parquetGpuPageSourceFactory;
     private final Set<HivePageSourceFactory> pageSourceFactories;
     private final TrinoFileSystemFactory fileSystemFactory;
     private final DateTimeZone parquetDateTimeZone;
@@ -118,11 +119,13 @@ public class HivePageSourceProvider
     public HivePageSourceProvider(
             TypeManager typeManager,
             HiveConfig hiveConfig,
+            ParquetGpuPageSourceFactory parquetGpuPageSourceFactory,
             Set<HivePageSourceFactory> pageSourceFactories,
             TrinoFileSystemFactory fileSystemFactory)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.domainCompactionThreshold = hiveConfig.getDomainCompactionThreshold();
+        this.parquetGpuPageSourceFactory = requireNonNull(parquetGpuPageSourceFactory, "parquetGpuPageSourceFactory is null");
         this.pageSourceFactories = ImmutableSet.copyOf(requireNonNull(pageSourceFactories, "pageSourceFactories is null"));
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.parquetDateTimeZone = hiveConfig.getParquetDateTimeZone();
@@ -231,7 +234,7 @@ public class HivePageSourceProvider
                 split.getEstimatedFileSize(),
                 Instant.ofEpochMilli(split.getFileModifiedTime()));
 
-        return ParquetGpuPageSourceFactory.createGpuPageSource(
+        return parquetGpuPageSourceFactory.createGpuPageSource(
                 inputFile,
                 split.getStart(),
                 split.getLength(),

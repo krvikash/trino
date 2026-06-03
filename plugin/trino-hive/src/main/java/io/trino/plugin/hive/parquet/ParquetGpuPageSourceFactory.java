@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.parquet;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Inject;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
@@ -50,9 +51,20 @@ import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetTu
 
 public final class ParquetGpuPageSourceFactory
 {
-    private ParquetGpuPageSourceFactory() {}
+    private final ParquetReaderOptions options;
 
-    public static ConnectorGpuPageSource createGpuPageSource(
+    @Inject
+    public ParquetGpuPageSourceFactory(ParquetReaderConfig config)
+    {
+        this.options = ParquetReaderOptions.builder(config.toParquetReaderOptions())
+                // Raise the size of the max read because we are reading everything up front into an in-memory byte array.
+                // The default for CPU is tailored for lazy materialization and early cut-off of page source.
+                .withMaxBufferSize(DataSize.of(32, MEGABYTE))
+                .withInitialBufferSize(DataSize.of(32, MEGABYTE))
+                .build();
+    }
+
+    public ConnectorGpuPageSource createGpuPageSource(
             TrinoInputFile inputFile,
             long start,
             long length,
@@ -65,14 +77,6 @@ public final class ParquetGpuPageSourceFactory
             AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
             FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
 
-            // todo; pass ParquetReaderOptions constructed from config+session from caller
-            // https://starburstdata.atlassian.net/browse/ENG-13773
-            ParquetReaderOptions options = ParquetReaderOptions.builder()
-                    // Raise the size of the max read because we are reading everything up front into an in-memory byte array
-                    // The default for CPU is tailored for lazy materialization and early cut-off of page source
-                    .withMaxBufferSize(DataSize.of(32, MEGABYTE))
-                    .withInitialBufferSize(DataSize.of(32, MEGABYTE))
-                    .build();
             // Hardcoded UTC: cuDF reads timestamps as raw UTC without applying hive.parquet.time-zone.
             // Using the configured zone for predicate pruning here would be inconsistent with the data
             // actually read (pruning on a shifted interpretation, reading raw). The upstream UTC guard
@@ -87,16 +91,10 @@ public final class ParquetGpuPageSourceFactory
                     memoryContext,
                     stats);
 
-            // todo; pass ParquetReaderOptions constructed from config+session from caller
-            // https://starburstdata.atlassian.net/browse/ENG-13773
-            ParquetReaderOptions parquetReaderOptions = ParquetReaderOptions.builder()
-                    .withMaxFooterReadSize(options.getMaxFooterReadSize())
-                    .build();
-
             // Read footer and get schema
             ParquetMetadata parquetMetadata = MetadataReader.readFooter(
                     dataSource,
-                    parquetReaderOptions,
+                    options,
                     Optional.empty(),
                     Optional.empty());
             FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
