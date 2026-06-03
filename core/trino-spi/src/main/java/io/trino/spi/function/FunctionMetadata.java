@@ -13,9 +13,6 @@
  */
 package io.trino.spi.function;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.errorprone.annotations.DoNotCall;
 import io.trino.spi.type.TypeSignature;
 
 import java.util.ArrayList;
@@ -94,7 +91,6 @@ public class FunctionMetadata
     /**
      * Unique id of this function.
      */
-    @JsonProperty
     public FunctionId getFunctionId()
     {
         return functionId;
@@ -103,7 +99,6 @@ public class FunctionMetadata
     /**
      * Signature of a matching call site.
      */
-    @JsonProperty
     public Signature getSignature()
     {
         return signature;
@@ -112,7 +107,6 @@ public class FunctionMetadata
     /**
      * The canonical name of the function.
      */
-    @JsonProperty
     public String getCanonicalName()
     {
         return canonicalName;
@@ -121,25 +115,21 @@ public class FunctionMetadata
     /**
      * Canonical name and any aliases.
      */
-    @JsonProperty
     public Set<String> getNames()
     {
         return names;
     }
 
-    @JsonProperty
     public FunctionNullability getFunctionNullability()
     {
         return functionNullability;
     }
 
-    @JsonProperty
     public boolean isHidden()
     {
         return hidden;
     }
 
-    @JsonProperty
     public boolean isDeterministic()
     {
         return deterministic;
@@ -148,25 +138,21 @@ public class FunctionMetadata
     /**
      * Whether function never fails for any possible combination of input parameters.
      */
-    @JsonProperty
     public boolean isNeverFails()
     {
         return neverFails;
     }
 
-    @JsonProperty
     public String getDescription()
     {
         return description;
     }
 
-    @JsonProperty
     public FunctionKind getKind()
     {
         return kind;
     }
 
-    @JsonProperty
     public boolean isDeprecated()
     {
         return deprecated;
@@ -179,7 +165,6 @@ public class FunctionMetadata
      * the type of the {@code self} parameter (the first declared argument).
      * Empty for regular functions.
      */
-    @JsonProperty
     public Optional<TypeSignature> getReceiverType()
     {
         return receiverType;
@@ -190,43 +175,9 @@ public class FunctionMetadata
      * argument) rather than a static method. Only meaningful when
      * {@link #getReceiverType()} is present.
      */
-    @JsonProperty
     public boolean isInstanceMethod()
     {
         return instanceMethod;
-    }
-
-    @JsonCreator
-    @DoNotCall // For JSON deserialization only
-    public static FunctionMetadata fromJson(
-            @JsonProperty FunctionId functionId,
-            @JsonProperty Signature signature,
-            @JsonProperty String canonicalName,
-            @JsonProperty Set<String> names,
-            @JsonProperty FunctionNullability functionNullability,
-            @JsonProperty boolean hidden,
-            @JsonProperty boolean deterministic,
-            @JsonProperty boolean neverFails,
-            @JsonProperty String description,
-            @JsonProperty FunctionKind kind,
-            @JsonProperty boolean deprecated,
-            @JsonProperty Optional<TypeSignature> receiverType,
-            @JsonProperty boolean instanceMethod)
-    {
-        return new FunctionMetadata(
-                functionId,
-                signature,
-                canonicalName,
-                names,
-                functionNullability,
-                hidden,
-                deterministic,
-                neverFails,
-                description,
-                kind,
-                deprecated,
-                receiverType == null ? Optional.empty() : receiverType,
-                instanceMethod);
     }
 
     @Override
