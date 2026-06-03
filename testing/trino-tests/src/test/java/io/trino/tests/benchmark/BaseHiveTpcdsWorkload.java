@@ -33,6 +33,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
+import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
@@ -138,6 +139,10 @@ public abstract class BaseHiveTpcdsWorkload
         }
         rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         BenchmarkRunner.applyExecutionMode(builder, mode);
+        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+            builder.addHiveProperty("hive.max-initial-split-size", "512MB")
+                    .addHiveProperty("hive.max-split-size", "512MB");
+        }
         DistributedQueryRunner runner = builder.build();
 
         runner.execute("CREATE SCHEMA IF NOT EXISTS hive.tpcds");
@@ -152,9 +157,13 @@ public abstract class BaseHiveTpcdsWorkload
             throws Exception
     {
         Files.createDirectories(target);
-        try (DistributedQueryRunner runner = BenchmarkRunner.dataGenerationBuilder()
+        try (DistributedQueryRunner runner = applyDataGenerationConfiguration(HiveQueryRunner.builder())
+                .setSkipTimezoneSetup(true)
                 .setCreateTpchSchemas(false)
                 .setTpcdsCatalogEnabled(true)
+                .addHiveProperty("hive.parquet.time-zone", "UTC")
+                .addHiveProperty("hive.metastore.disable-location-checks", "true")
+                .addHiveProperty("hive.compression-codec", "SNAPPY")
                 .build()) {
             Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
             String schemaLocation = target.toAbsolutePath().normalize().toUri().toString();

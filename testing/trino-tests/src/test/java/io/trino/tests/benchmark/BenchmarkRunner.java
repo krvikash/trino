@@ -29,7 +29,6 @@ import io.trino.Session;
 import io.trino.client.FailureException;
 import io.trino.client.FailureInfo;
 import io.trino.execution.QueryInfo;
-import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.NodeVersion;
 import io.trino.sql.planner.planprinter.PlanPrinter;
@@ -1448,24 +1447,19 @@ public final class BenchmarkRunner
     }
 
     /**
-     * Pre-configured Hive runner builder with deterministic-write settings (single writer per
-     * task, no scaling, snappy parquet). Workloads chain their own builder calls and {@code build}.
+     * Apply deterministic-write settings (single writer per task, no scaling).
      */
-    public static HiveQueryRunner.Builder<?> dataGenerationBuilder()
+    public static <T extends DistributedQueryRunner.Builder<T>> T applyDataGenerationConfiguration(T builder)
     {
-        return HiveQueryRunner.builder()
+        return builder
                 .setWorkerCount(0)
-                .setSkipTimezoneSetup(true)
                 .addExtraProperties(ImmutableMap.<String, String>builder()
                         .put("scale-writers", "false")
                         .put("task.scale-writers.enabled", "false")
                         .put("task.max-writer-count", "1")
                         .put("query.max-writer-task-count", "1")
                         .put("redistribute-writes", "false")
-                        .buildOrThrow())
-                .addHiveProperty("hive.parquet.time-zone", "UTC")
-                .addHiveProperty("hive.metastore.disable-location-checks", "true")
-                .addHiveProperty("hive.compression-codec", "SNAPPY");
+                        .buildOrThrow());
     }
 
     /**
@@ -1504,9 +1498,9 @@ public final class BenchmarkRunner
     }
 
     /**
-     * Apply mode-specific extras (GPU acceleration toggles, GPU-tuned Hive split sizes).
+     * Apply connector-agnostic mode-specific extras (GPU acceleration toggles, single-node).
      */
-    public static void applyExecutionMode(HiveQueryRunner.Builder<?> builder, ExecutionMode mode)
+    public static void applyExecutionMode(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
         switch (mode) {
             case CPU -> builder
@@ -1515,9 +1509,7 @@ public final class BenchmarkRunner
             case GPU -> builder
                     .addExtraProperty("gpu-execution", "true")
                     .addExtraProperty("task.gpu-execution.enabled", "true")
-                    .addExtraProperty("experimental.force-single-node-query", "true")
-                    .addHiveProperty("hive.max-initial-split-size", "512MB")
-                    .addHiveProperty("hive.max-split-size", "512MB");
+                    .addExtraProperty("experimental.force-single-node-query", "true");
         }
     }
 

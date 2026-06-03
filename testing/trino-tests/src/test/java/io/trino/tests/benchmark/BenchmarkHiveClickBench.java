@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
+import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -269,7 +270,12 @@ public final class BenchmarkHiveClickBench
                 throw new IllegalStateException("Target must differ from source (" + source + "); pass --data");
             }
             Files.createDirectories(target);
-            try (DistributedQueryRunner runner = BenchmarkRunner.dataGenerationBuilder().build()) {
+            try (DistributedQueryRunner runner = applyDataGenerationConfiguration(HiveQueryRunner.builder())
+                    .setSkipTimezoneSetup(true)
+                    .addHiveProperty("hive.parquet.time-zone", "UTC")
+                    .addHiveProperty("hive.metastore.disable-location-checks", "true")
+                    .addHiveProperty("hive.compression-codec", "SNAPPY")
+                    .build()) {
                 Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
                 String sourcePath = sourceHits.toAbsolutePath().normalize().toUri().toString();
                 runner.execute("CREATE SCHEMA hive.clickbench_src");
@@ -299,6 +305,10 @@ public final class BenchmarkHiveClickBench
             builder.addHiveProperty("fs.s3.enabled", "true");
         }
         BenchmarkRunner.applyExecutionMode(builder, mode);
+        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+            builder.addHiveProperty("hive.max-initial-split-size", "512MB")
+                    .addHiveProperty("hive.max-split-size", "512MB");
+        }
         rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
