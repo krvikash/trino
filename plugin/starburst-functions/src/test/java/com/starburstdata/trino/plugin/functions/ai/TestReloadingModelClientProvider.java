@@ -74,7 +74,7 @@ public class TestReloadingModelClientProvider
                 ]
             }""";
 
-    String MODEL_SPECS_V2 =
+    private static final String MODEL_SPECS_V2 =
             """
             {
                 "models": [

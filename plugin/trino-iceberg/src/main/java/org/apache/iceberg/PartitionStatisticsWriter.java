@@ -17,7 +17,6 @@ import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
-import com.google.common.collect.Queues;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
@@ -64,6 +63,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -312,7 +312,7 @@ public class PartitionStatisticsWriter
     private PartitionMap<PartitionStats> computeStats(Table table, List<ManifestFile> manifests, StatsUpdateMode updateMode)
     {
         StructType partitionType = Partitioning.partitionType(table);
-        Queue<PartitionMap<PartitionStats>> statsByManifest = Queues.newConcurrentLinkedQueue();
+        Queue<PartitionMap<PartitionStats>> statsByManifest = new ConcurrentLinkedQueue<>();
         Tasks.foreach(manifests)
                 .stopOnFailure()
                 .throwFailureWhenFinished()

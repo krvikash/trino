@@ -3059,7 +3059,7 @@ public abstract class BaseElasticsearchConnectorTest
                 """;
 
         @Language("JSON")
-        String mappings_3 =
+        String mappings3 =
                 """
                 {
                   "_meta": {
@@ -3081,7 +3081,7 @@ public abstract class BaseElasticsearchConnectorTest
                 .put("a", "aaa")
                 .buildOrThrow());
 
-        createIndex(thirdIndex, mappings_3);
+        createIndex(thirdIndex, mappings3);
         index(secondIndex, ImmutableMap.<String, Object>builder()
                 .buildOrThrow());
 

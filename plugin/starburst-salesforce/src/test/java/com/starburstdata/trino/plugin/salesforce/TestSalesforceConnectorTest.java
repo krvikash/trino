@@ -2475,31 +2475,26 @@ public class TestSalesforceConnectorTest
 
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
-        switch (connectorBehavior) {
-            case SUPPORTS_AGGREGATION_PUSHDOWN:
-            case SUPPORTS_ARRAY:
-            case SUPPORTS_CREATE_SCHEMA:
-            case SUPPORTS_RENAME_SCHEMA:
-            case SUPPORTS_CREATE_TABLE:
-            case SUPPORTS_CREATE_TABLE_WITH_DATA:
-            case SUPPORTS_CREATE_VIEW:
-            case SUPPORTS_COMMENT_ON_TABLE:
-            case SUPPORTS_COMMENT_ON_COLUMN:
-            case SUPPORTS_DELETE:
-            case SUPPORTS_INSERT:
-            case SUPPORTS_JOIN_PUSHDOWN:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN:
-            case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM:
-            case SUPPORTS_LIMIT_PUSHDOWN:
-            case SUPPORTS_ROW_LEVEL_DELETE:
-            case SUPPORTS_TOPN_PUSHDOWN:
-                return false;
-            case SUPPORTS_PREDICATE_PUSHDOWN:
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY:
-            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
-            default:
-                return true;
-        }
+        return switch (connectorBehavior) {
+            case SUPPORTS_AGGREGATION_PUSHDOWN,
+                 SUPPORTS_ARRAY,
+                 SUPPORTS_CREATE_SCHEMA,
+                 SUPPORTS_RENAME_SCHEMA,
+                 SUPPORTS_CREATE_TABLE,
+                 SUPPORTS_CREATE_TABLE_WITH_DATA,
+                 SUPPORTS_CREATE_VIEW,
+                 SUPPORTS_COMMENT_ON_TABLE,
+                 SUPPORTS_COMMENT_ON_COLUMN,
+                 SUPPORTS_DELETE,
+                 SUPPORTS_INSERT,
+                 SUPPORTS_JOIN_PUSHDOWN,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN,
+                 SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
+                 SUPPORTS_LIMIT_PUSHDOWN,
+                 SUPPORTS_ROW_LEVEL_DELETE,
+                 SUPPORTS_TOPN_PUSHDOWN -> false;
+            default -> true;
+        };
     }
 
     @Test

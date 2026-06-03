@@ -228,7 +228,7 @@ public class CallHomeJob
         if (srcFile.exists()) {
             try {
                 File tmpFile = Path.of(targetDirectory.toString(), srcFile.getName()).toFile();
-                FileUtils.copyFile(srcFile, tmpFile);
+                Files.copy(srcFile.toPath(), tmpFile.toPath());
                 return Optional.of(tmpFile);
             }
             catch (Exception e) {

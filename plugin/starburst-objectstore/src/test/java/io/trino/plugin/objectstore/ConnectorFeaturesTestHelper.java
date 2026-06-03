@@ -149,7 +149,7 @@ class ConnectorFeaturesTestHelper
 
         for (Class<?> clazz = byClazz; clazz != method.getDeclaringClass(); clazz = clazz.getSuperclass()) {
             try {
-                Method ignored = clazz.getDeclaredMethod(method.getName(), method.getParameterTypes());
+                Method _ = clazz.getDeclaredMethod(method.getName(), method.getParameterTypes());
                 return true;
             }
             catch (NoSuchMethodException ignore) {
