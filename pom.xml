@@ -59,6 +59,8 @@
         <module>lib/trino-filesystem-gcs</module>
         <module>lib/trino-filesystem-manager</module>
         <module>lib/trino-filesystem-s3</module>
+        <module>lib/trino-geospatial-epsg</module>
+        <module>lib/trino-geospatial-epsg-generator</module>
         <module>lib/trino-geospatial-toolkit</module>
         <module>lib/trino-hdfs</module>
         <module>lib/trino-hive-formats</module>
@@ -246,11 +248,13 @@
         <dep.avro.version>1.12.1</dep.avro.version>
         <dep.cassandra.version>4.17.0</dep.cassandra.version>
         <dep.confluent.version>8.1.1</dep.confluent.version>
+        <dep.derby.version>10.15.2.0</dep.derby.version>
         <dep.docker.images.version>127</dep.docker.images.version>
         <dep.drift.version>1.24</dep.drift.version>
         <dep.flyway.version>12.10.0</dep.flyway.version>
         <dep.frontend-maven-plugin.version>2.0.1</dep.frontend-maven-plugin.version>
         <dep.frontend-bun.version>v1.3.14</dep.frontend-bun.version>
+        <dep.geoapi.version>3.0.2</dep.geoapi.version>
         <dep.httpcore5.version>5.4.3</dep.httpcore5.version>
         <dep.iceberg.version>1.11.0-e.4</dep.iceberg.version>
         <dep.jna.version>5.19.1</dep.jna.version>
@@ -266,6 +270,7 @@
         <dep.parquet.version>1.17.1</dep.parquet.version>
         <dep.protobuf.version>4.35.1</dep.protobuf.version>
         <dep.starburst-shared.version>stargate-28609-g33510d6274</dep.starburst-shared.version>
+        <dep.sis.version>1.6</dep.sis.version>
         <dep.swagger.version>2.2.52</dep.swagger.version>
         <dep.takari.version>2.3.4</dep.takari.version>
         <dep.tcnative.version>2.0.80.Final</dep.tcnative.version>
@@ -1436,6 +1441,18 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
+                <artifactId>trino-geospatial-epsg</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-geospatial-epsg-generator</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
                 <artifactId>trino-geospatial-toolkit</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -2261,6 +2278,12 @@
             </dependency>
 
             <dependency>
+                <groupId>org.apache.derby</groupId>
+                <artifactId>derby</artifactId>
+                <version>${dep.derby.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
                 <version>4.5.14</version>
@@ -2501,6 +2524,24 @@
             </dependency>
 
             <dependency>
+                <groupId>org.apache.sis.core</groupId>
+                <artifactId>sis-metadata</artifactId>
+                <version>${dep.sis.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.sis.core</groupId>
+                <artifactId>sis-referencing</artifactId>
+                <version>${dep.sis.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.sis.non-free</groupId>
+                <artifactId>sis-embedded-data</artifactId>
+                <version>${dep.sis.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.apache.thrift</groupId>
                 <artifactId>libthrift</artifactId>
                 <version>0.23.0</version>
@@ -2647,6 +2688,12 @@
                         <artifactId>waffle-jna</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.opengis</groupId>
+                <artifactId>geoapi</artifactId>
+                <version>${dep.geoapi.version}</version>
             </dependency>
 
             <dependency>
