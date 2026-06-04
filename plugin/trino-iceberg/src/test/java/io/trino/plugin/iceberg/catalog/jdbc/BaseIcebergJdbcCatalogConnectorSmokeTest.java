@@ -28,6 +28,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.view.BaseView;
+import org.apache.iceberg.view.View;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -160,6 +161,25 @@ public abstract class BaseIcebergJdbcCatalogConnectorSmokeTest
 
         assertThat(jdbcCatalog.viewExists(sparkViewIdentifier)).isFalse();
         assertThat(jdbcCatalog.viewExists(trinoViewIdentifier)).isFalse();
+    }
+
+    @Test
+    void testReplaceViewReuseExistingLocation()
+    {
+        String viewName = "test_replace_view_reuse_location_" + randomNameSuffix();
+        TableIdentifier identifier = toIdentifier(viewName);
+
+        assertUpdate("CREATE VIEW " + viewName + " AS SELECT nationkey FROM nation");
+        View initialView = jdbcCatalog.loadView(identifier);
+        assertThat(initialView.location()).isNotNull();
+
+        assertUpdate("CREATE OR REPLACE VIEW " + viewName + " AS SELECT nationkey, name FROM nation");
+        View replacedView = jdbcCatalog.loadView(identifier);
+
+        assertThat(replacedView.location()).isEqualTo(initialView.location());
+        assertThat(replacedView.currentVersion().versionId()).isEqualTo(initialView.currentVersion().versionId() + 1);
+
+        assertUpdate("DROP VIEW " + viewName);
     }
 
     @Test
