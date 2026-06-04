@@ -42,4 +42,12 @@ public interface ConnectorSession
     Instant getStart();
 
     <T> T getProperty(String name, Class<T> type);
+
+    default <T extends ConnectorSession> Optional<T> unwrap(Class<T> type)
+    {
+        if (type.isInstance(this)) {
+            return Optional.of(type.cast(this));
+        }
+        return Optional.empty();
+    }
 }

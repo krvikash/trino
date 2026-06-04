@@ -122,6 +122,7 @@ import io.trino.spi.VersionEmbedder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorExpressionEvaluator;
 import io.trino.spi.function.FunctionBundle;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
@@ -154,10 +155,12 @@ import io.trino.sql.gen.JoinFilterFunctionCompiler;
 import io.trino.sql.gen.OrderingCompiler;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
+import io.trino.sql.ir.Expression;
 import io.trino.sql.newir.DialectRegistry;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.parser.SqlParser;
 import io.trino.sql.planner.CompilerConfig;
+import io.trino.sql.planner.InternalConnectorExpressionEvaluator;
 import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.PartitionFunctionProvider;
@@ -434,6 +437,7 @@ public class ServerMainModule
         binder.bind(TableProceduresRegistry.class).in(Scopes.SINGLETON);
         binder.bind(TableFunctionRegistry.class).in(Scopes.SINGLETON);
         binder.bind(PlannerContext.class).in(Scopes.SINGLETON);
+        binder.bind(ConnectorExpressionEvaluator.class).to(InternalConnectorExpressionEvaluator.class).in(Scopes.SINGLETON);
         binder.bind(LanguageFunctionManager.class).in(Scopes.SINGLETON);
         binder.bind(LanguageFunctionEngineManager.class).in(Scopes.SINGLETON);
 
@@ -450,6 +454,7 @@ public class ServerMainModule
         binder.bind(TypeRegistry.class).in(Scopes.SINGLETON);
         binder.bind(TypeManager.class).to(InternalTypeManager.class).in(Scopes.SINGLETON);
         newSetBinder(binder, Type.class);
+        jsonCodecBinder(binder).bindJsonCodec(Expression.class);
         jsonCodecBinder(binder).bindJsonCodec(IrJsonPath.class);
         binder.bind(RegisterJsonPath2016Type.class).asEagerSingleton();
 

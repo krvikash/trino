@@ -10,7 +10,7 @@ IR version = 1
                 %2917 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2918 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_862]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_859]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2919 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2920 = constant() : () -> "integer" ()
@@ -499,7 +499,7 @@ IR version = 1
                 %3122 = return(%3121) : ("row(varchar)") -> "row(varchar)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "true", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_862""]", join:statistics_and_cost_summary = "{""outputRowCount"":851.8058373711929,""outputSizeInBytes"":28413.82060346928,""cpuCost"":3.5919813770623714E7,""memoryCost"":4923.078350968988,""networkCost"":4923.078350968988}"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "true", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_859""]", join:statistics_and_cost_summary = "{""outputRowCount"":851.8058373711929,""outputSizeInBytes"":28413.82060346928,""cpuCost"":3.5919813770623714E7,""memoryCost"":4923.078350968988,""networkCost"":4923.078350968988}"}
         %253 = aggregation(%226) : ("multiset(row(integer,varchar,varchar,bigint))") -> "multiset(row(integer,varchar,varchar,bigint))" ({
             ^aggregates (%254 : "multiset(row(integer,varchar,varchar,bigint))")
                 %255 = constant() : () -> "empty row" ()

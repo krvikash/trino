@@ -233,5 +233,14 @@ public class ObjectStoreSessionProperties
             }
             return type.cast(connectorValue);
         }
+
+        @Override
+        public <T extends ConnectorSession> Optional<T> unwrap(Class<T> type)
+        {
+            if (type.isInstance(this)) {
+                return Optional.of(type.cast(this));
+            }
+            return baseSession.unwrap(type);
+        }
     }
 }

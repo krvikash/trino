@@ -465,7 +465,7 @@ public class PlanTester
 
         CacheMetadata cacheMetadata = new CacheMetadata(createCacheMetadata(catalogManager));
         FunctionManager functionManager = new FunctionManager(createFunctionProvider(catalogManager), globalFunctionCatalog, languageFunctionManager);
-        this.plannerContext = new PlannerContext(metadata, cacheMetadata, typeOperators, blockEncodingSerde, typeManager, functionManager, languageFunctionManager, tracer);
+        this.plannerContext = new PlannerContext(metadata, cacheMetadata, typeOperators, blockEncodingSerde, typeManager, functionManager, languageFunctionManager, tracer, expressionCodec);
         this.evaluator = new InternalConnectorExpressionEvaluator(plannerContext);
         NodeInfo nodeInfo = new NodeInfo("test");
         catalogFactory.setCatalogFactory(new DefaultCatalogFactory(
@@ -488,7 +488,8 @@ public class PlanTester
                 optimizerConfig,
                 new LocalMemoryManager(new NodeMemoryConfig(), Optional.empty()),
                 secretsResolver,
-                nodeInfo));
+                nodeInfo,
+                evaluator));
         this.splitManager = new SplitManager(createSplitManagerProvider(catalogManager), tracer, new QueryManagerConfig());
         this.pageSourceManager = new PageSourceManager(createPageSourceProviderFactory(catalogManager));
         this.alternativeChooser = new AlternativeChooser(createAlternativeChooser(catalogManager));

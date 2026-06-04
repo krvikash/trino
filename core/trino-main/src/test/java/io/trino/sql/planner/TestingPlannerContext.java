@@ -47,6 +47,7 @@ import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.TypeSignature;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.ir.Expression;
 import io.trino.sql.parser.SqlParser;
 import io.trino.transaction.TransactionManager;
 import io.trino.type.BlockTypeOperators;
@@ -174,7 +175,8 @@ public final class TestingPlannerContext
                             Block.class, new BlockJsonSerde.Serializer(blockEncodingSerde)))
                     .get();
 
-            JsonCodec<IrJsonPath> irJsonPathJsonCodec = new JsonCodecFactory(jsonMapper).jsonCodec(IrJsonPath.class);
+            JsonCodecFactory codecFactory = new JsonCodecFactory(jsonMapper);
+            JsonCodec<IrJsonPath> irJsonPathJsonCodec = codecFactory.jsonCodec(IrJsonPath.class);
             typeRegistry.addType(new JsonPath2016Type(irJsonPathJsonCodec));
 
             CacheMetadata cacheMetadata = new CacheMetadata(_ -> Optional.empty());
@@ -186,7 +188,8 @@ public final class TestingPlannerContext
                     typeManager,
                     functionManager,
                     languageFunctionManager,
-                    noopTracer());
+                    noopTracer(),
+                    codecFactory.jsonCodec(Expression.class));
         }
     }
 }

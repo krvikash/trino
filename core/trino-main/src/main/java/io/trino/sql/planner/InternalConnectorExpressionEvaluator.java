@@ -50,9 +50,12 @@ public class InternalConnectorExpressionEvaluator
     }
 
     @Override
-    public Prepared prepare(ConnectorSession session, ConnectorExpression expression)
+    public Prepared prepare(ConnectorSession connectorSession, ConnectorExpression expression)
     {
-        return new PreparedExpression(session, expression);
+        return requireNonNull(connectorSession, "connectorSession is null")
+                .unwrap(FullConnectorSession.class)
+                .map(fullSession -> (Prepared) new PreparedExpression(expression, fullSession))
+                .orElseGet(() -> ConnectorExpressionEvaluator.NO_OP.prepare(connectorSession, expression));
     }
 
     private final class PreparedExpression
@@ -62,9 +65,9 @@ public class InternalConnectorExpressionEvaluator
         private final Expression irExpression;
         private final Set<Symbol> columnSymbols;
 
-        PreparedExpression(ConnectorSession connectorSession, ConnectorExpression connectorExpression)
+        PreparedExpression(ConnectorExpression connectorExpression, FullConnectorSession connectorSession)
         {
-            session = ((FullConnectorSession) requireNonNull(connectorSession, "connectorSession is null")).getSession();
+            session = connectorSession.getSession();
 
             Map<String, Symbol> variableMappings = extractVariables(connectorExpression).stream()
                     .collect(toImmutableMap(
