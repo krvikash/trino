@@ -28,12 +28,12 @@ public class EmptyRowType
 {
     public static final EmptyRowType EMPTY_ROW = new EmptyRowType();
 
-    private final TypeSignature signature = new TypeSignature(StandardTypes.EMPTY_ROW);
+    private final TypeDescriptor signature = new TypeDescriptor(StandardTypes.EMPTY_ROW);
 
     private EmptyRowType() {}
 
     @Override
-    public TypeSignature getTypeSignature()
+    public TypeDescriptor getTypeDescriptor()
     {
         return signature;
     }

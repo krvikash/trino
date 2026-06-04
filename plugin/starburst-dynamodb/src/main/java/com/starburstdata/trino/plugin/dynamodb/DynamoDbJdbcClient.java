@@ -586,7 +586,7 @@ public class DynamoDbJdbcClient
         List<RsdColumnDefinition> templateColumns = new ArrayList<>();
         templateColumns.add(new RsdColumnDefinition(
                 partitionKeyMetadata.getName(),
-                partitionKeyMetadata.getType() instanceof VarcharType ? "string" : partitionKeyMetadata.getType().getTypeSignature().toString(),
+                partitionKeyMetadata.getType() instanceof VarcharType ? "string" : partitionKeyMetadata.getType().getTypeDescriptor().toString(),
                 true,
                 getColumnSize(partitionKeyMetadata),
                 partitionKeyMetadata.getComment(),
@@ -597,7 +597,7 @@ public class DynamoDbJdbcClient
         sortKeyMetadata.ifPresent(metadata ->
                 templateColumns.add(new RsdColumnDefinition(
                         metadata.getName(),
-                        metadata.getType() instanceof VarcharType ? "string" : metadata.getType().getTypeSignature().toString(),
+                        metadata.getType() instanceof VarcharType ? "string" : metadata.getType().getTypeDescriptor().toString(),
                         true,
                         getColumnSize(metadata),
                         metadata.getComment(),
@@ -613,7 +613,7 @@ public class DynamoDbJdbcClient
 
             templateColumns.add(new RsdColumnDefinition(
                     metadata.getName(),
-                    metadata.getType() instanceof VarcharType ? "string" : metadata.getType().getTypeSignature().toString(),
+                    metadata.getType() instanceof VarcharType ? "string" : metadata.getType().getTypeDescriptor().toString(),
                     false,
                     getColumnSize(metadata),
                     metadata.getComment(),

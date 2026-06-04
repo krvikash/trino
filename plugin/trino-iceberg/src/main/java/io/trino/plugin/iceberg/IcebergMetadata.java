@@ -176,8 +176,8 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
-import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import org.apache.datasketches.theta.CompactThetaSketch;
@@ -301,7 +301,7 @@ import static io.trino.plugin.base.util.Procedures.checkProcedureArgument;
 import static io.trino.plugin.hive.HiveMetadata.TRANSACTIONAL;
 import static io.trino.plugin.hive.HiveTimestampPrecision.DEFAULT_PRECISION;
 import static io.trino.plugin.hive.ViewReaderUtil.isSomeKindOfAView;
-import static io.trino.plugin.hive.util.HiveTypeUtil.getTypeSignature;
+import static io.trino.plugin.hive.util.HiveTypeUtil.getTypeDescriptor;
 import static io.trino.plugin.hive.util.HiveUtil.isDeltaLakeTable;
 import static io.trino.plugin.hive.util.HiveUtil.isHudiTable;
 import static io.trino.plugin.hive.util.HiveUtil.isIcebergTable;
@@ -2272,7 +2272,7 @@ public class IcebergMetadata
                         return;
                     }
                     ColumnIdentity columnIdentity = createColumnIdentity(targetColumn);
-                    org.apache.iceberg.types.Type sourceColumnType = toIcebergType(typeManager.getType(getTypeSignature(sourceColumn.getType(), DEFAULT_PRECISION)), columnIdentity);
+                    org.apache.iceberg.types.Type sourceColumnType = toIcebergType(typeManager.getType(getTypeDescriptor(sourceColumn.getType(), DEFAULT_PRECISION)), columnIdentity);
                     if (!targetColumn.type().equals(sourceColumnType)) {
                         throw new TrinoException(TYPE_MISMATCH, "Target '%s' column is '%s' type, but got source '%s' type".formatted(targetColumn.name(), targetColumn.type(), sourceColumnType));
                     }
@@ -2323,19 +2323,19 @@ public class IcebergMetadata
 
         checkProcedureArgument(embeddingColumn.isPresent(), "embedding_column does not exist: %s", embeddingColumnName);
         checkProcedureArgument(dataColumn.isPresent(), "data_column does not exist: %s", dataColumnName);
-        TypeSignature embeddingTypeSignature = toTrinoType(embeddingColumn.get().type(), typeManager).getTypeSignature();
+        TypeDescriptor embeddingTypeSignature = toTrinoType(embeddingColumn.get().type(), typeManager).getTypeDescriptor();
         checkProcedureArgument(
                 toTrinoType(dataColumn.get().type(), typeManager).equals(VARCHAR),
                 "data_column must reference a column with type VARCHAR");
 
         EmbeddingType embeddingType;
-        if (embeddingTypeSignature.equals(TypeSignature.arrayType(RealType.REAL.getTypeSignature()))) {
+        if (embeddingTypeSignature.equals(TypeDescriptor.arrayType(RealType.REAL.getTypeDescriptor()))) {
             embeddingType = EmbeddingType.FLOAT;
         }
-        else if (embeddingTypeSignature.equals(TypeSignature.arrayType(DoubleType.DOUBLE.getTypeSignature()))) {
+        else if (embeddingTypeSignature.equals(TypeDescriptor.arrayType(DoubleType.DOUBLE.getTypeDescriptor()))) {
             embeddingType = EmbeddingType.DOUBLE;
         }
-        else if (embeddingTypeSignature.equals(VarbinaryType.VARBINARY.getTypeSignature())) {
+        else if (embeddingTypeSignature.equals(VarbinaryType.VARBINARY.getTypeDescriptor())) {
             embeddingType = EmbeddingType.BINARY;
         }
         else {

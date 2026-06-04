@@ -46,7 +46,7 @@ import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.DoubleType;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
@@ -63,7 +63,7 @@ import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.NULLABLE_RETURN;
-import static io.trino.spi.type.TypeSignature.arrayType;
+import static io.trino.spi.type.TypeDescriptor.arrayType;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.invoke.MethodHandles.lookup;
@@ -74,17 +74,17 @@ import static java.util.Objects.requireNonNull;
 public class StarburstFunctions
         implements FunctionProvider
 {
-    private static final TypeSignature TEXT = VARCHAR.getTypeSignature();
-    private static final TypeSignature DOUBLE = DoubleType.DOUBLE.getTypeSignature();
+    private static final TypeDescriptor TEXT = VARCHAR.getTypeDescriptor();
+    private static final TypeDescriptor DOUBLE = DoubleType.DOUBLE.getTypeDescriptor();
     private static final List<FunctionMetadata> FUNCTIONS = ImmutableList.<FunctionMetadata>builder()
             .add(function("generate_embedding")
                     .description("Generate a vector embedding for the provided VARCHAR, using the specified model")
-                    .signature(signature(TypeSignature.arrayType(DOUBLE), TEXT, TEXT))
+                    .signature(signature(TypeDescriptor.arrayType(DOUBLE), TEXT, TEXT))
                     .nullable()
                     .build())
             .add(function("generate_binary_embedding", "generate_binary_embedding")
                     .description("Generate a vector embedding for the provided VARCHAR with a VARBINARY encoding")
-                    .signature(signature(VARBINARY.getTypeSignature(), TEXT, TEXT))
+                    .signature(signature(VARBINARY.getTypeDescriptor(), TEXT, TEXT))
                     .nullable()
                     .build())
             .add(function("analyze_sentiment")
@@ -555,7 +555,7 @@ public class StarburstFunctions
         return FunctionMetadata.batchBuilder(name).functionId(new FunctionId(name));
     }
 
-    private static Signature signature(TypeSignature returnType, TypeSignature... argumentTypes)
+    private static Signature signature(TypeDescriptor returnType, TypeDescriptor... argumentTypes)
     {
         return Signature.builder()
                 .returnType(returnType)

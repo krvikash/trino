@@ -37,7 +37,7 @@ import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.function.Signature;
 import io.trino.spi.security.ConnectorIdentity;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
 import io.trino.sql.gen.columnar.FilterEvaluator;
 import io.trino.sql.ir.Call;
@@ -70,7 +70,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.testing.DataProviders.cartesianProduct;
 import static io.trino.testing.DataProviders.toDataProvider;
@@ -120,14 +120,14 @@ final class TestBatchProjection
                     .function(new SqlBatchFunction(
                             batchFunction("batch_add")
                                     .description("Add two BIGINT values")
-                                    .signature(signature(BIGINT.getTypeSignature(), BIGINT.getTypeSignature(), BIGINT.getTypeSignature()))
+                                    .signature(signature(BIGINT.getTypeDescriptor(), BIGINT.getTypeDescriptor(), BIGINT.getTypeDescriptor()))
                                     .nullable()
                                     .build(),
                             addHandle))
                     .function(new SqlBatchFunction(
                             batchFunction("batch_less_than")
                                     .description("Compare two BIGINT values for less-than")
-                                    .signature(signature(BOOLEAN.getTypeSignature(), BIGINT.getTypeSignature(), BIGINT.getTypeSignature()))
+                                    .signature(signature(BOOLEAN.getTypeDescriptor(), BIGINT.getTypeDescriptor(), BIGINT.getTypeDescriptor()))
                                     .nullable()
                                     .build(),
                             lessThanHandle))
@@ -676,7 +676,7 @@ final class TestBatchProjection
         return FunctionMetadata.batchBuilder(name).functionId(new FunctionId(name));
     }
 
-    private static Signature signature(TypeSignature returnType, TypeSignature... argumentTypes)
+    private static Signature signature(TypeDescriptor returnType, TypeDescriptor... argumentTypes)
     {
         return Signature.builder()
                 .returnType(returnType)

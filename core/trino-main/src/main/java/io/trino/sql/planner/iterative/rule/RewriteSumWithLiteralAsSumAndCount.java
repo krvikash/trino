@@ -27,7 +27,7 @@ import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
-import io.trino.sql.analyzer.TypeSignatureProvider;
+import io.trino.sql.analyzer.TypeDescriptorProvider;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Constant;
@@ -409,7 +409,7 @@ public class RewriteSumWithLiteralAsSumAndCount
         {
             return sumAggregates.computeIfAbsent(sumInput, input -> {
                 ResolvedFunction function = plannerContext.getMetadata()
-                        .resolveBuiltinFunction("sum", TypeSignatureProvider.fromTypes(input.type()));
+                        .resolveBuiltinFunction("sum", TypeDescriptorProvider.fromTypes(input.type()));
                 Symbol symbol = context.getSymbolAllocator().newSymbol("sum", function.signature().getReturnType());
                 newAggregations.put(symbol, new Aggregation(
                         function,
@@ -426,7 +426,7 @@ public class RewriteSumWithLiteralAsSumAndCount
         {
             return countAggregates.computeIfAbsent(column, col -> {
                 ResolvedFunction function = plannerContext.getMetadata()
-                        .resolveBuiltinFunction("count", TypeSignatureProvider.fromTypes(col.type()));
+                        .resolveBuiltinFunction("count", TypeDescriptorProvider.fromTypes(col.type()));
                 Symbol symbol = context.getSymbolAllocator().newSymbol("count", function.signature().getReturnType());
                 newAggregations.put(symbol, new Aggregation(
                         function,

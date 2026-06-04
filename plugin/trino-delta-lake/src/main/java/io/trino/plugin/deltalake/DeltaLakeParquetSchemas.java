@@ -27,9 +27,9 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeNotFoundException;
-import io.trino.spi.type.TypeSignature;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.PrimitiveType;
@@ -205,7 +205,7 @@ public final class DeltaLakeParquetSchemas
             }
 
             List<String> fullName = ImmutableList.<String>builder().addAll(parent).add(name).build();
-            primitiveTypesBuilder.put(fullName, typeManager.getType(new TypeSignature(JSON)));
+            primitiveTypesBuilder.put(fullName, typeManager.getType(new TypeDescriptor(JSON)));
 
             return groupTypeGroupBuilder.named(name);
         }

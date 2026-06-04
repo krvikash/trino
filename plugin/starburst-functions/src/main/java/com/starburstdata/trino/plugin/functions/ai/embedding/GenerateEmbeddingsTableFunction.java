@@ -39,7 +39,7 @@ import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 
@@ -65,10 +65,10 @@ public class GenerateEmbeddingsTableFunction
     private static final String DATA_COLUMN_ARGUMENT_NAME = "DATA_COLUMN";
     private static final String EMBEDDING_COLUMN_ARGUMENT_NAME = "EMBEDDING_COLUMN";
     private static final String MODEL_ID_ARGUMENT_NAME = "MODEL_ID";
-    private static final Map<TypeSignature, EmbeddingType> SUPPORTED_TYPES = ImmutableMap.<TypeSignature, EmbeddingType>builder()
-            .put(new ArrayType(RealType.REAL).getTypeSignature(), EmbeddingType.FLOAT)
-            .put(new ArrayType(DoubleType.DOUBLE).getTypeSignature(), EmbeddingType.FLOAT)
-            .put(VarbinaryType.VARBINARY.getTypeSignature(), EmbeddingType.BINARY)
+    private static final Map<TypeDescriptor, EmbeddingType> SUPPORTED_TYPES = ImmutableMap.<TypeDescriptor, EmbeddingType>builder()
+            .put(new ArrayType(RealType.REAL).getTypeDescriptor(), EmbeddingType.FLOAT)
+            .put(new ArrayType(DoubleType.DOUBLE).getTypeDescriptor(), EmbeddingType.FLOAT)
+            .put(VarbinaryType.VARBINARY.getTypeDescriptor(), EmbeddingType.BINARY)
             .buildOrThrow();
 
     private final AiModelAccessControl aiModelAccessControl;
@@ -125,7 +125,7 @@ public class GenerateEmbeddingsTableFunction
         Descriptor.Field embeddingColumnField = getOnlyElement(embeddingColumnDescriptor.getFields());
         Type embeddingType = new ArrayType(RealType.REAL);
         if (embeddingColumnField.getType().isPresent()) {
-            TypeSignature specifiedTypeSignature = embeddingColumnField.getType().get().getTypeSignature();
+            TypeDescriptor specifiedTypeSignature = embeddingColumnField.getType().get().getTypeDescriptor();
             if (!SUPPORTED_TYPES.containsKey(specifiedTypeSignature)) {
                 throw new TrinoException(INVALID_FUNCTION_ARGUMENT, "EMBEDDING_COLUMN descriptor references an unsupported type: " + specifiedTypeSignature);
             }
@@ -170,7 +170,7 @@ public class GenerateEmbeddingsTableFunction
         return TableFunctionAnalysis.builder()
                 .requiredColumns(SOURCE_ARGUMENT_NAME, requiredColumns.build())
                 .returnedType(new Descriptor(returnedColumns.build()))
-                .handle(new GenerateEmbeddingsFunctionHandle(modelId, SUPPORTED_TYPES.get(embeddingType.getTypeSignature())))
+                .handle(new GenerateEmbeddingsFunctionHandle(modelId, SUPPORTED_TYPES.get(embeddingType.getTypeDescriptor())))
                 .build();
     }
 

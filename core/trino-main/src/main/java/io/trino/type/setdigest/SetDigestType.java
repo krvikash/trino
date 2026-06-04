@@ -23,7 +23,7 @@ import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.SqlVarbinary;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 
 // Layout is <size>:<digest>, where
 //   size: is an int describing the length of the set digest bytes
@@ -36,7 +36,7 @@ public class SetDigestType
 
     private SetDigestType()
     {
-        super(new TypeSignature(NAME), Slice.class);
+        super(new TypeDescriptor(NAME), Slice.class);
     }
 
     @Override

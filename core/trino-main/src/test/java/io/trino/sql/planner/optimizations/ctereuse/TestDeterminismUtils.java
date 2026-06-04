@@ -26,7 +26,7 @@ import java.util.Optional;
 
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.RowType.anonymousRow;
-import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.planner.optimizations.ctereuse.DeterminismUtils.isDeterministic;
 import static org.assertj.core.api.Assertions.assertThat;

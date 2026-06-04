@@ -204,7 +204,7 @@ public final class DeltaLakeWriter
                 .collect(toImmutableMap(column -> column.basePhysicalColumnName().toLowerCase(ENGLISH), DeltaLakeColumnHandle::basePhysicalType));
 
         Set<String> variantNames = typeForColumn.entrySet().stream()
-                .filter(entry -> entry.getValue().getTypeSignature().getBase().equals(JSON))
+                .filter(entry -> entry.getValue().getTypeDescriptor().getBase().equals(JSON))
                 .map(Map.Entry::getKey)
                 .collect(toImmutableSet());
 

@@ -145,7 +145,7 @@ public final class IcebergTypes
             return trinoUuidToJavaUuid(((Slice) trinoNativeValue));
         }
 
-        if (type.getTypeSignature().getBase().equals(JSON)) {
+        if (type.getTypeDescriptor().getBase().equals(JSON)) {
             return ((Slice) trinoNativeValue).toStringUtf8();
         }
 

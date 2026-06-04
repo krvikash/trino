@@ -211,7 +211,7 @@ public class TypeUtils
 
     public static boolean isJsonType(Type type)
     {
-        return type.getTypeSignature().getBase().equalsIgnoreCase("json");
+        return type.getTypeDescriptor().getBase().equalsIgnoreCase("json");
     }
 
     public static boolean isRowType(Type type)

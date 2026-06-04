@@ -19,9 +19,9 @@ import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.conversions.ir.StringIr;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
-import io.trino.spi.type.TypeSignature;
 
 import static com.starburstdata.plugin.openapi.conversions.decoder.FloatingPointNumberColumnWriters.DOUBLE_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.FloatingPointNumberColumnWriters.FLOAT_COLUMN_WRITER;
@@ -48,7 +48,7 @@ public class ColumnWriterFactory
             TypeManager typeManager)
     {
         requireNonNull(typeManager, "typeManager is null");
-        Type jsonType = typeManager.getType(new TypeSignature(JSON));
+        Type jsonType = typeManager.getType(new TypeDescriptor(JSON));
         jsonColumnWriter = new JsonColumnWriter(jsonType);
         typeOperators = typeManager.getTypeOperators();
     }

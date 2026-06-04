@@ -62,7 +62,7 @@ public final class DoubleType
 
     private DoubleType()
     {
-        super(new TypeSignature(NAME), double.class, LongArrayBlock.class);
+        super(new TypeDescriptor(NAME), double.class, LongArrayBlock.class);
     }
 
     @Override

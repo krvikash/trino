@@ -15,11 +15,11 @@ package io.trino.plugin.iceberg;
 
 import io.trino.plugin.iceberg.IcebergConfig.VariantMapping;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeId;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.TypeParameter;
-import io.trino.spi.type.TypeSignature;
 
 import java.util.List;
 
@@ -39,7 +39,7 @@ public class IcebergTypeManager
     }
 
     @Override
-    public Type getType(TypeSignature signature)
+    public Type getType(TypeDescriptor signature)
     {
         return typeManager.getType(signature);
     }

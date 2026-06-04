@@ -23,7 +23,7 @@ import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.function.IsNull;
 import io.trino.spi.function.ScalarOperator;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 
 import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
 import static io.trino.spi.function.OperatorType.EQUAL;
@@ -39,7 +39,7 @@ public class GeometryType
 
     public GeometryType()
     {
-        super(new TypeSignature(NAME));
+        super(new TypeDescriptor(NAME));
     }
 
     @Override

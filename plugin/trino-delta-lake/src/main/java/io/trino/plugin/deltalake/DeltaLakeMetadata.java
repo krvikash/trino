@@ -2098,7 +2098,7 @@ public class DeltaLakeMetadata
                 .collect(toImmutableList());
 
         if (columns.stream().filter(column -> partitionColumnNames.contains(column.getName()))
-                .anyMatch(column -> column.getType().getTypeSignature().getBase().equals(JSON))) {
+                .anyMatch(column -> column.getType().getTypeDescriptor().getBase().equals(JSON))) {
             throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Using variant type on partitioned columns is unsupported");
         }
 
@@ -2148,7 +2148,7 @@ public class DeltaLakeMetadata
             return rowType.getFields().stream().anyMatch(field -> containsVariantType(field.getType()));
         }
         checkArgument(type.getTypeParameters().isEmpty(), "Unexpected type parameters for type %s", type);
-        return type.getTypeSignature().getBase().equals(JSON);
+        return type.getTypeDescriptor().getBase().equals(JSON);
     }
 
     private static boolean containsTimestampType(Type type)

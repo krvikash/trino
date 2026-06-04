@@ -44,7 +44,7 @@ import io.trino.spi.connector.SortOrder;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.DynamicFilters;
-import io.trino.sql.analyzer.TypeSignatureProvider;
+import io.trino.sql.analyzer.TypeDescriptorProvider;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
@@ -886,7 +886,7 @@ public class TestCanonicalSubplanExtractor
 
     private ResolvedFunction sumBigint()
     {
-        return getPlanTester().getPlannerContext().getMetadata().resolveBuiltinFunction("sum", TypeSignatureProvider.fromTypes(BIGINT));
+        return getPlanTester().getPlannerContext().getMetadata().resolveBuiltinFunction("sum", TypeDescriptorProvider.fromTypes(BIGINT));
     }
 
     private ProjectNode createScanAndProjectNode()

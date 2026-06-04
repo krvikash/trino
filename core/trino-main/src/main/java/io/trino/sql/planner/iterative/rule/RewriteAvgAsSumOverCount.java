@@ -22,7 +22,7 @@ import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
-import io.trino.sql.analyzer.TypeSignatureProvider;
+import io.trino.sql.analyzer.TypeDescriptorProvider;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Expression;
@@ -125,7 +125,7 @@ public class RewriteAvgAsSumOverCount
             Optional<Symbol> mask = aggregation.getMask();
 
             ResolvedFunction sumFunction = plannerContext.getMetadata()
-                    .resolveBuiltinFunction("sum", TypeSignatureProvider.fromTypes(DOUBLE));
+                    .resolveBuiltinFunction("sum", TypeDescriptorProvider.fromTypes(DOUBLE));
             Symbol sumSymbol = context.getSymbolAllocator().newSymbol("sum", sumFunction.signature().getReturnType());
             newAggregations.put(sumSymbol, new Aggregation(
                     sumFunction,
@@ -136,7 +136,7 @@ public class RewriteAvgAsSumOverCount
                     mask));
 
             ResolvedFunction countFunction = plannerContext.getMetadata()
-                    .resolveBuiltinFunction("count", TypeSignatureProvider.fromTypes(DOUBLE));
+                    .resolveBuiltinFunction("count", TypeDescriptorProvider.fromTypes(DOUBLE));
             Symbol countSymbol = context.getSymbolAllocator().newSymbol("count", countFunction.signature().getReturnType());
             newAggregations.put(countSymbol, new Aggregation(
                     countFunction,

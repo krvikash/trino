@@ -22,7 +22,7 @@ import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 
 import java.util.Optional;
 
@@ -37,7 +37,7 @@ public class LikePatternType
 
     private LikePatternType()
     {
-        super(new TypeSignature(NAME), LikePattern.class);
+        super(new TypeDescriptor(NAME), LikePattern.class);
     }
 
     @Override

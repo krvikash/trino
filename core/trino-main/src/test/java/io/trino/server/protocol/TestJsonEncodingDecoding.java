@@ -27,7 +27,7 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.AbstractIntType;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -111,7 +111,7 @@ public class TestJsonEncodingDecoding
     {
         private CustomType()
         {
-            super(new TypeSignature("custom"));
+            super(new TypeDescriptor("custom"));
         }
 
         @Override

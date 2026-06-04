@@ -31,7 +31,7 @@ import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.function.Signature;
 import io.trino.spi.type.RowType;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
@@ -68,7 +68,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.ExpressionTestUtils.assertExpressionEquals;
-import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.Booleans.FALSE;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.Comparison.Operator.EQUAL;
@@ -101,7 +101,7 @@ public class TestExpressionInterpreter
                     .function(new SqlBatchFunction(
                             batchFunction("batch_add")
                                     .description("Add two BIGINT values")
-                                    .signature(signature(BIGINT.getTypeSignature(), BIGINT.getTypeSignature(), BIGINT.getTypeSignature()))
+                                    .signature(signature(BIGINT.getTypeDescriptor(), BIGINT.getTypeDescriptor(), BIGINT.getTypeDescriptor()))
                                     .nullable()
                                     .build(),
                             lookup().findStatic(TestExpressionInterpreter.class, "batchAdd", methodType(Block.class, ConnectorSession.class, ValueBlock.class, int[].class, ValueBlock.class, int[].class))))
@@ -998,7 +998,7 @@ public class TestExpressionInterpreter
         return FunctionMetadata.batchBuilder(name).functionId(new FunctionId(name));
     }
 
-    private static Signature signature(TypeSignature returnType, TypeSignature... argumentTypes)
+    private static Signature signature(TypeDescriptor returnType, TypeDescriptor... argumentTypes)
     {
         return Signature.builder()
                 .returnType(returnType)

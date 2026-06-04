@@ -451,7 +451,7 @@ public class IoPlanPrinter
         {
             return toStringHelper(this)
                     .add("columnName", columnName)
-                    .add("typeSignature", type)
+                    .add("typeDescriptor", type)
                     .add("domain", domain)
                     .toString();
         }

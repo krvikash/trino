@@ -64,8 +64,8 @@ import io.trino.spi.type.TimeWithTimeZoneType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
-import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarcharType;
 
 import java.math.BigDecimal;
@@ -177,7 +177,7 @@ public class StargateClient
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, queryModifier, false);
         this.enableWrites = enableWrites;
-        this.jsonType = requireNonNull(typeManager, "typeManager is null").getType(new TypeSignature(JSON));
+        this.jsonType = requireNonNull(typeManager, "typeManager is null").getType(new TypeDescriptor(JSON));
 
         this.supportedScalarFunctions = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(30)));
         this.supportedAggregateFunctions = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(30)));

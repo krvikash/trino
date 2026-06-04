@@ -62,7 +62,7 @@ public final class SmallintType
 
     private SmallintType()
     {
-        super(new TypeSignature(NAME), long.class, ShortArrayBlock.class);
+        super(new TypeDescriptor(NAME), long.class, ShortArrayBlock.class);
     }
 
     @Override
@@ -199,10 +199,10 @@ public final class SmallintType
     private void checkValueValid(long value)
     {
         if (value > Short.MAX_VALUE) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Value %d exceeds MAX_SHORT for type %s", value, getTypeSignature()));
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Value %d exceeds MAX_SHORT for type %s", value, getTypeDescriptor()));
         }
         if (value < Short.MIN_VALUE) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Value %d is less than MIN_SHORT for type %s", value, getTypeSignature()));
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Value %d is less than MIN_SHORT for type %s", value, getTypeDescriptor()));
         }
     }
 

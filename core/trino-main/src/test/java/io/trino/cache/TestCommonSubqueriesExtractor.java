@@ -39,7 +39,7 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.Type;
-import io.trino.sql.analyzer.TypeSignatureProvider;
+import io.trino.sql.analyzer.TypeDescriptorProvider;
 import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -501,7 +501,7 @@ public class TestCommonSubqueriesExtractor
     {
         ResolvedFunction resolvedFunction = getPlanTester().getPlannerContext().getMetadata().resolveBuiltinFunction(
                 name,
-                TypeSignatureProvider.fromTypes(Stream.of(arguments)
+                TypeDescriptorProvider.fromTypes(Stream.of(arguments)
                         .map(Expression::type)
                         .collect(toImmutableList())));
         return new CanonicalAggregation(

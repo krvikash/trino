@@ -404,7 +404,7 @@ final class ParquetWriters
             List<String> fieldNames = ImmutableList.copyOf(path);
             if (trinoTypes.containsKey(fieldNames)) {
                 Type type = trinoTypes.get(fieldNames);
-                return type.getTypeSignature().getBase().equals(JSON);
+                return type.getTypeDescriptor().getBase().equals(JSON);
             }
             return false;
         }

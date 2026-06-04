@@ -16,7 +16,7 @@ package io.trino.plugin.geospatial;
 import io.airlift.slice.Slice;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
-import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeDescriptor;
 
 public class SphericalGeographyType
         extends AbstractGeometryType
@@ -26,7 +26,7 @@ public class SphericalGeographyType
 
     private SphericalGeographyType()
     {
-        super(new TypeSignature(NAME));
+        super(new TypeDescriptor(NAME));
     }
 
     @Override

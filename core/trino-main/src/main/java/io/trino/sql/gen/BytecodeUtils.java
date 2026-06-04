@@ -486,7 +486,7 @@ public final class BytecodeUtils
         BytecodeBlock writeBlock;
         if (type.supportsPreSizedBlockBuilder()) {
             writeBlock = new BytecodeBlock()
-                    .comment("%s.%s(output, %s)", type.getTypeSignature(), methodName, valueJavaType.getSimpleName())
+                    .comment("%s.%s(output, %s)", type.getTypeDescriptor(), methodName, valueJavaType.getSimpleName())
                     .putVariable(tempValue)
                     .putVariable(tempOutput)
                     .append(loadConstant(callSiteBinder.bind(type, Type.class)))
@@ -498,7 +498,7 @@ public final class BytecodeUtils
             // Type does not override writeXxx(PreSizedBlockBuilder, ...), fall back to
             // writeXxx(BlockBuilder, ...) by unwrapping the DefaultPreSizedBlockBuilder
             writeBlock = new BytecodeBlock()
-                    .comment("%s.%s(output.getBlockBuilder(), %s) [compat]", type.getTypeSignature(), methodName, valueJavaType.getSimpleName())
+                    .comment("%s.%s(output.getBlockBuilder(), %s) [compat]", type.getTypeDescriptor(), methodName, valueJavaType.getSimpleName())
                     .putVariable(tempValue)
                     .putVariable(tempOutput)
                     .append(loadConstant(callSiteBinder.bind(type, Type.class)))

@@ -39,9 +39,9 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeNotFoundException;
-import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
@@ -408,7 +408,7 @@ public final class DeltaLakeSchemaSupport
         if (type instanceof DecimalType decimalType) {
             return Optional.of(format("decimal(%s,%s)", decimalType.getPrecision(), decimalType.getScale()));
         }
-        if (type.getTypeSignature().getBase().equals(JSON)) {
+        if (type.getTypeDescriptor().getBase().equals(JSON)) {
             return Optional.of("variant");
         }
         return Optional.ofNullable(PRIMITIVE_TYPE_MAPPING.get(type));
@@ -801,7 +801,7 @@ public final class DeltaLakeSchemaSupport
             // For more info, see https://delta-users.slack.com/archives/GKTUWT03T/p1585760533005400
             // and https://cwiki.apache.org/confluence/display/Hive/Different+TIMESTAMP+types
             case "timestamp" -> TIMESTAMP_TZ_MILLIS;
-            case "variant" -> typeManager.getType(new TypeSignature(JSON));
+            case "variant" -> typeManager.getType(new TypeDescriptor(JSON));
             default -> throw new TypeNotFoundException(primitiveType);
         };
     }

@@ -216,7 +216,7 @@ public class ParquetSchemaConverter
         if (type instanceof VarbinaryType) {
             return Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition).named(name);
         }
-        if (type.getTypeSignature().getBase().equals(JSON)) {
+        if (type.getTypeDescriptor().getBase().equals(JSON)) {
             PrimitiveType metadata = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, REQUIRED).named("metadata");
             PrimitiveType value = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, REQUIRED).named("value");
             return Types.optionalGroup()

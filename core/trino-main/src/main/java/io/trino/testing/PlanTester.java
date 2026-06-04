@@ -183,9 +183,9 @@ import io.trino.spi.function.FunctionBundle;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
-import io.trino.spi.type.TypeSignature;
 import io.trino.spiller.GenericSpillerFactory;
 import io.trino.split.AlternativeChooser;
 import io.trino.split.PageSinkManager;
@@ -249,9 +249,9 @@ import io.trino.transaction.TransactionManagerConfig;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.InternalTypeManager;
 import io.trino.type.JsonPath2016Type;
+import io.trino.type.TypeDescriptorDeserializer;
+import io.trino.type.TypeDescriptorKeyDeserializer;
 import io.trino.type.TypeDeserializer;
-import io.trino.type.TypeSignatureDeserializer;
-import io.trino.type.TypeSignatureKeyDeserializer;
 import io.trino.util.FinalizerService;
 import org.intellij.lang.annotations.Language;
 
@@ -467,9 +467,9 @@ public class PlanTester
         JsonMapper mapper = new JsonMapperProvider()
                 .withJsonDeserializers(ImmutableMap.of(
                         Type.class, new TypeDeserializer(typeManager),
-                        TypeSignature.class, new TypeSignatureDeserializer(),
+                        TypeDescriptor.class, new TypeDescriptorDeserializer(),
                         Block.class, new BlockJsonSerde.Deserializer(blockEncodingSerde)))
-                .withKeyDeserializers(ImmutableMap.of(TypeSignature.class, new TypeSignatureKeyDeserializer()))
+                .withKeyDeserializers(ImmutableMap.of(TypeDescriptor.class, new TypeDescriptorKeyDeserializer()))
                 .withJsonSerializers(ImmutableMap.of(
                         Block.class, new BlockJsonSerde.Serializer(blockEncodingSerde)))
                 .get();

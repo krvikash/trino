@@ -144,7 +144,7 @@ public final class IcebergParquetColumnIOConverter
     private static boolean isLegacyVariantMapping(Type type, ColumnIO columnIO)
     {
         // TODO: Support Variant shredding type https://github.com/apache/parquet-format/blob/master/VariantShredding.md
-        return type.getTypeSignature().getBase().equals(JSON) &&
+        return type.getTypeDescriptor().getBase().equals(JSON) &&
                 columnIO instanceof GroupColumnIO groupColumnIo &&
                 groupColumnIo.getChildrenCount() == 2 &&
                 groupColumnIo.getChild("value") != null &&
