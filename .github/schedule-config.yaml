@@ -2,42 +2,142 @@
 # like https://github.com/yaml-schema/yaml-schema
 # yaml-language-server: $schema=./schedule-config-schema.yaml
 
-## Always
-- modules: [plugin/trino-postgresql, plugin/starburst-warp-speed/starburst-warp-speed-plugin]
-- modules: [plugin/trino-delta-lake, plugin/trino-iceberg]
-  profiles: [fte-tests]
-## Nightly
-- modules: [plugin/trino-mongodb]
-  profiles: [default, cloud-tests]
-  when:
-    scheduled: nightly
-- modules: [plugin/starburst-stargate-parallel]
+- modules:
+    - core/trino-main
+    - [client/trino-jdbc, core/trino-spi, core/trino-web-ui, plugin/starburst-base-jdbc]
+    - [
+        plugin/trino-base-jdbc,
+        plugin/trino-faker,
+        plugin/trino-geospatial,
+        plugin/trino-memory,
+        plugin/trino-openlineage,
+        plugin/trino-thrift,
+      ]
+    - [lib/trino-orc, lib/trino-parquet]
+    - [
+        lib/trino-filesystem,
+        lib/trino-filesystem-azure,
+        lib/trino-filesystem-alluxio,
+        lib/trino-filesystem-cache-alluxio,
+        lib/trino-filesystem-gcs,
+        lib/trino-filesystem-manager,
+        lib/trino-filesystem-s3,
+        lib/trino-hdfs,
+        lib/trino-hive-formats,
+      ]
+    - [
+        plugin/starburst-warp-speed/starburst-warp-speed-core,
+        plugin/starburst-warp-speed/starburst-warp-speed-extensions,
+        plugin/starburst-warp-speed/starburst-warp-speed-plugin,
+      ]
+- modules:
+    - lib/trino-filesystem-azure
+    - lib/trino-filesystem-gcs
+    - lib/trino-filesystem-s3
+    - plugin/trino-exchange-filesystem
+    - starburst-buffer-service/starburst-buffer-data-server
+  profiles:
+    - cloud-tests
+- modules:
+    - lib/starburst-functions-client
+    - plugin/starburst-functions
+- modules:
+    - plugin/starburst-objectstore
+  profiles:
+    - ""
+    - hive-tests
+  runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]
+- modules:
+    - plugin/starburst-objectstore
+  profiles:
+    - iceberg-delta
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+- modules:
+    - plugin/starburst-objectstore
+  profiles:
+    - cloud-tests
+  runners: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
+- modules:
+    - plugin/starburst-stargate
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+- modules:
+    - plugin/starburst-stargate-parallel
   runners: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-  when:
-    scheduled: nightly
-## Weekly
-- modules: [plugin/trino-hudi]
-  when:
-    scheduled: weekly
-- modules: [plugin/trino-redshift]
-  profiles: [cloud-tests, fte-tests]
-  when:
-    scheduled: weekly
-    labeled: [redshift]
-# synapse smoke tests
-- modules: [plugin/starburst-synapse]
-  when:
-    scheduled: weekly
-    labeled: [synapse, synapse-smoke]
-# synapse weekly
-- modules: [plugin/starburst-synapse]
-  profiles: [fte-tests, long-running-tests, type-mapping-tests]
-  when:
-    scheduled: weekly
-    labeled: [synapse]
-    dispatches: false
-    impacted: false
-## As-needed
-- modules: [plugin/trino-cassandra, plugin/trino-duckdb]
-  when:
-    scheduled: never
+- modules:
+    - plugin/trino-delta-lake
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+- modules:
+    - plugin/trino-delta-lake
+  profiles:
+    - cloud-tests
+    - fte-tests
+- modules:
+    - starburst-buffer-service/starburst-buffer-exchange-tests
+  profiles:
+    - ""
+    - test-buffer-exchange-failure-recovery
+- modules:
+    - plugin/trino-hive
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+- modules:
+    - plugin/trino-hive
+  profiles:
+    - fte-tests
+    - test-parquet
+- modules:
+    - plugin/trino-iceberg
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+- modules:
+    - plugin/trino-iceberg
+  profiles:
+    - cloud-tests
+    - fte-tests
+    - minio-and-avro
+- modules:
+    - testing/trino-faulttolerant-tests
+  profiles:
+    - default
+    - test-fault-tolerant-delta
+    - test-fault-tolerant-hive
+    - test-fault-tolerant-iceberg
+- modules:
+    - testing/trino-tests
+  runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ]
+  matrix-properties:
+    buildAll: true # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
+- modules:
+    - plugin/starburst-dynamodb
+    - plugin/starburst-kdb
+    - plugin/starburst-oracle
+    - plugin/starburst-sap-hana
+    - plugin/starburst-sqlserver
+    - plugin/trino-cassandra
+    - plugin/trino-clickhouse
+    - plugin/trino-druid
+    - plugin/trino-duckdb
+    - plugin/trino-elasticsearch
+    - plugin/trino-exasol
+    - plugin/trino-hudi
+    - plugin/trino-ignite
+    - plugin/trino-kafka
+    - plugin/trino-lakehouse
+    - plugin/trino-mariadb
+    - plugin/trino-mysql
+    - plugin/starburst-openapi
+    - plugin/trino-opensearch
+    - plugin/trino-oracle
+    - plugin/trino-postgresql
+    - plugin/trino-redis
+    - plugin/trino-redshift
+    - plugin/trino-resource-group-managers
+    - plugin/trino-singlestore
+    - plugin/trino-sqlserver
+    - plugin/trino-vertica
+- modules:
+    - plugin/trino-mongodb
+  profiles:
+    - ""
+    - cloud-tests
+- modules:
+    - plugin/trino-pinot
+  runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]

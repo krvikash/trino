@@ -1833,131 +1833,22 @@ jobs:
           $MAVEN validate ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -Dgib.logImpactedTo=gib-impacted.log -P disable-check-spi-dependencies
       - name: Set matrix
         id: set-matrix
-        run: |
-          # GIB doesn't run on master, so make sure the file always exist
-          touch gib-impacted.log
-          cat <<EOF > .github/test-matrix.yaml
-          include:
-            - modules:
-                - client/trino-jdbc
-                - core/trino-spi
-                - core/trino-web-ui
-                - plugin/starburst-base-jdbc
-            - modules:
-                - plugin/trino-base-jdbc
-                - plugin/trino-faker
-                - plugin/trino-geospatial
-                - plugin/trino-memory
-                - plugin/trino-openlineage
-                - plugin/trino-thrift
-            - modules:
-                - lib/trino-orc
-                - lib/trino-parquet
-            - modules:
-                - lib/trino-filesystem
-                - lib/trino-filesystem-azure
-                - lib/trino-filesystem-alluxio
-                - lib/trino-filesystem-cache-alluxio
-                - lib/trino-filesystem-gcs
-                - lib/trino-filesystem-manager
-                - lib/trino-filesystem-s3
-                - lib/trino-hdfs
-                - lib/trino-hive-formats
-            - modules:
-                - plugin/starburst-warp-speed/starburst-warp-speed-core
-                - plugin/starburst-warp-speed/starburst-warp-speed-extensions
-                - plugin/starburst-warp-speed/starburst-warp-speed-plugin
-            - { modules: core/trino-main }
-            - { modules: lib/trino-filesystem-azure, profile: cloud-tests }
-            - { modules: lib/trino-filesystem-gcs, profile: cloud-tests }
-            - { modules: lib/trino-filesystem-s3, profile: cloud-tests }
-            - { modules: plugin/starburst-dynamodb }
-            - { modules: plugin/starburst-functions }
-            - { modules: lib/starburst-functions-client }
-            - { modules: plugin/starburst-kdb }
-            - { modules: plugin/starburst-objectstore, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-objectstore, profile: iceberg-delta, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-objectstore, profile: cloud-tests, runners: [ self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest ] }
-            - { modules: plugin/starburst-oracle }
-            - { modules: plugin/starburst-sap-hana }
-            - { modules: plugin/starburst-sqlserver }
-            - { modules: plugin/starburst-stargate, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/starburst-stargate-parallel, runners: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ] }
-            # - { modules: plugin/trino-bigquery }
-            # - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
-            - { modules: plugin/trino-cassandra }
-            - { modules: plugin/trino-clickhouse }
-            - { modules: plugin/trino-delta-lake, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/trino-delta-lake, profile: cloud-tests }
-            - { modules: plugin/trino-delta-lake, profile: fte-tests }
-            - { modules: plugin/trino-druid }
-            - { modules: plugin/trino-duckdb }
-            - { modules: plugin/trino-elasticsearch }
-            - { modules: starburst-buffer-service/starburst-buffer-exchange-tests, profile: test-buffer-exchange-failure-recovery }
-            - { modules: starburst-buffer-service/starburst-buffer-exchange-tests }
-            - { modules: starburst-buffer-service/starburst-buffer-data-server, profile: cloud-tests }
-            - { modules: plugin/trino-exchange-filesystem, profile: cloud-tests }
-            - { modules: plugin/trino-exasol }
-            # - { modules: plugin/trino-google-sheets }
-            # - { modules: plugin/trino-google-sheets, profile: cloud-tests }
-            - { modules: plugin/trino-hive, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/trino-hive, profile: fte-tests }
-            - { modules: plugin/trino-hive, profile: test-parquet }
-            - { modules: plugin/trino-hudi }
-            - { modules: plugin/trino-iceberg, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/trino-iceberg, profile: cloud-tests }
-            - { modules: plugin/trino-iceberg, profile: fte-tests }
-            - { modules: plugin/trino-iceberg, profile: minio-and-avro }
-            - { modules: plugin/trino-ignite }
-            - { modules: plugin/trino-kafka }
-            - { modules: plugin/trino-lakehouse }
-            - { modules: plugin/trino-mariadb }
-            - { modules: plugin/trino-mongodb }
-            - { modules: plugin/trino-mongodb, profile: cloud-tests }
-            - { modules: plugin/trino-mysql }
-            - { modules: plugin/starburst-openapi }
-            - { modules: plugin/trino-opensearch }
-            - { modules: plugin/trino-oracle }
-            - { modules: plugin/trino-pinot, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
-            - { modules: plugin/trino-postgresql }
-            - { modules: plugin/trino-redis }
-            - { modules: plugin/trino-redshift }
-            # - { modules: plugin/trino-redshift, profile: cloud-tests } # Only run on a schedule, labeled PRs, or workflow_dispatch
-            # - { modules: plugin/trino-redshift, profile: fte-tests } # Only run on a schedule, labeled PRs, or workflow_dispatch
-            - { modules: plugin/trino-resource-group-managers }
-            - { modules: plugin/trino-singlestore }
-            #- { modules: plugin/trino-snowflake } # Disabled for Starburst, since we don't ship this connector and don't have secrets configured to run its tests
-            #- { modules: plugin/trino-snowflake, profile: cloud-tests } # Disabled for Starburst, since we don't ship this connector and don't have secrets configured to run its tests
-            - { modules: plugin/trino-sqlserver }
-            - { modules: plugin/trino-vertica }
-            - { modules: testing/trino-faulttolerant-tests, profile: default }
-            - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-delta }
-            - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-hive }
-            - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-iceberg }
-            - { modules: testing/trino-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ], buildAll: true } # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
-          EOF
-          ./.github/bin/build-matrix-from-impacted.py -v -i gib-impacted.log -m .github/test-matrix.yaml -o matrix.json
-          echo "Matrix: $(jq '.' matrix.json)"
-          echo "matrix=$(jq -c '.' matrix.json)" >> $GITHUB_OUTPUT
-      # For schedule-based testing, in development. The result of this step can be ignored
-      - name: Build matrix from schedule config
-        if: "!cancelled()"
-        continue-on-error: true
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
         run: |
+          # GIB doesn't run on master, so make sure the file always exist
+          touch gib-impacted.log
           ./.github/bin/build-matrix-schedule-aware.py build \
             --schedule-config ./.github/schedule-config.yaml \
             --impacted gib-impacted.log \
             --event-name "$EVENT_NAME" \
             --event-schedule "$EVENT_SCHEDULE" \
             --pr-labels "$PR_LABELS" \
-            --verbose > matrix-from-schedule.json
-          echo "Matrix from schedule:"
-          jq '.' matrix-from-schedule.json
+            --verbose > matrix.json
+          echo "Matrix: $(jq '.' matrix.json)"
+          echo "matrix=$(jq -c '.' matrix.json)" >> $GITHUB_OUTPUT
       - name: Cancel merge queue workflow
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
