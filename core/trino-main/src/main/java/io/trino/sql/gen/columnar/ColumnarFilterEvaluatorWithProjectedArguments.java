@@ -56,17 +56,18 @@ final class ColumnarFilterEvaluatorWithProjectedArguments
     @Override
     public SelectionResult evaluate(ConnectorSession session, SelectedPositions activePositions, SourcePage page)
     {
-        long start = System.nanoTime();
         Block[] blocks = new Block[argumentProjections.size()];
+        long projectionTimeNanos = 0;
         for (int i = 0; i < argumentProjections.size(); i++) {
             PageProjection projection = argumentProjections.get(i);
             SourcePage inputPage = projection.getInputChannels().getInputChannels(page);
+            long start = System.nanoTime();
             blocks[i] = projection.project(session, inputPage, activePositions);
+            projectionTimeNanos += System.nanoTime() - start;
             debugContext.logDebugOutput(i, blocks[i], inputPage, activePositions);
         }
         int positionsCount = activePositions.size();
         SourcePage filterInputPage = new TemporarySourcePage(positionsCount, blocks);
-        long projectionTimeNanos = System.nanoTime() - start;
         SelectionResult result = filter.evaluate(session, SelectedPositions.positionsRange(0, positionsCount), filterInputPage);
         SelectedPositions translatedPositions = translateResultPositions(result.selectedPositions(), activePositions);
         debugContext.logDebugFilteredPositions(translatedPositions);
