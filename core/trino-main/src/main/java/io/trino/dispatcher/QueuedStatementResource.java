@@ -31,6 +31,7 @@ import io.trino.client.StatementStats;
 import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.QueryState;
+import io.trino.server.ConflictException;
 import io.trino.server.ExternalUriInfo;
 import io.trino.server.GoneException;
 import io.trino.server.HttpRequestSessionContextFactory;
@@ -56,6 +57,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -77,8 +79,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -97,6 +100,7 @@ import static io.trino.server.protocol.QueryInfoUrlFactory.getQueryInfoUri;
 import static io.trino.server.protocol.Slug.Context.EXECUTING_QUERY;
 import static io.trino.server.protocol.Slug.Context.QUEUED_QUERY;
 import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
+import static io.trino.server.security.ResourceSecurity.AccessType.PORTAL;
 import static io.trino.server.security.ResourceSecurity.AccessType.PUBLIC;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
@@ -179,11 +183,41 @@ public class QueuedStatementResource
             throw new BadRequestException("SQL statement is empty");
         }
 
-        Query query = registerQuery(statement, servletRequest, httpHeaders);
+        Query query = registerQueryIfNeeded(servletRequest, httpHeaders, sessionContext ->
+                new Query(statement, sessionContext, dispatchManager, queryInfoUrlFactory, tracer));
         return createQueryResultsResponse(query.getQueryResults(query.getLastToken(), externalUriInfo), query.sessionContext.getQueryDataEncoding());
     }
 
-    private Query registerQuery(String statement, HttpServletRequest servletRequest, HttpHeaders httpHeaders)
+    @ResourceSecurity(PORTAL)
+    @PUT
+    @Path("queued/{queryId}/{slug}")
+    @Produces(APPLICATION_JSON)
+    public Response putStatement(
+            @PathParam("queryId") QueryId queryId,
+            @PathParam("slug") String slug,
+            String statement,
+            @Context HttpServletRequest servletRequest,
+            @Context HttpHeaders httpHeaders,
+            @BeanParam ExternalUriInfo uriInfo)
+    {
+        if (isNullOrEmpty(statement)) {
+            throw new BadRequestException("SQL statement is empty");
+        }
+        if (isNullOrEmpty(slug)) {
+            throw new BadRequestException("Slug is empty");
+        }
+
+        Query query = registerQueryIfNeeded(servletRequest, httpHeaders, sessionContext ->
+                new Query(statement, queryId, Optional.of(slug), sessionContext, dispatchManager, queryInfoUrlFactory, tracer));
+
+        if (!query.getSubmitSlug().equals(Optional.of(slug)) || query.getLastToken() != 0) {
+            throw new ConflictException("Conflict with existing query");
+        }
+
+        return createQueryResultsResponse(query.getQueryResults(query.getLastToken(), uriInfo), query.sessionContext.getQueryDataEncoding());
+    }
+
+    private Query registerQueryIfNeeded(HttpServletRequest servletRequest, HttpHeaders httpHeaders, Function<SessionContext, Query> queryFactory)
     {
         Optional<String> remoteAddress = Optional.ofNullable(servletRequest.getRemoteAddr());
         Optional<Identity> identity = authenticatedIdentity(servletRequest);
@@ -194,8 +228,7 @@ public class QueuedStatementResource
         MultivaluedMap<String, String> headers = httpHeaders.getRequestHeaders();
 
         SessionContext sessionContext = sessionContextFactory.createSessionContext(headers, remoteAddress, identity);
-        Query query = new Query(statement, sessionContext, dispatchManager, queryInfoUrlFactory, tracer);
-        queryManager.registerQuery(query);
+        Query query = queryManager.registerQuery(() -> queryFactory.apply(sessionContext));
 
         // let authentication filter know that identity lifecycle has been handed off
         clearAuthenticatedIdentity(servletRequest);
@@ -318,6 +351,7 @@ public class QueuedStatementResource
         private final SessionContext sessionContext;
         private final DispatchManager dispatchManager;
         private final QueryId queryId;
+        private final Optional<String> submitSlug;
         private final Optional<URI> queryInfoUrl;
         private final Span querySpan;
         private final Slug slug = Slug.createNew();
@@ -329,10 +363,23 @@ public class QueuedStatementResource
 
         public Query(String query, SessionContext sessionContext, DispatchManager dispatchManager, QueryInfoUrlFactory queryInfoUrlFactory, Tracer tracer)
         {
+            this(query, dispatchManager.createQueryId(), Optional.empty(), sessionContext, dispatchManager, queryInfoUrlFactory, tracer);
+        }
+
+        public Query(
+                String query,
+                QueryId queryId,
+                Optional<String> submitSlug,
+                SessionContext sessionContext,
+                DispatchManager dispatchManager,
+                QueryInfoUrlFactory queryInfoUrlFactory,
+                Tracer tracer)
+        {
             this.query = requireNonNull(query, "query is null");
+            this.queryId = requireNonNull(queryId, "queryId is null");
+            this.submitSlug = requireNonNull(submitSlug, "submitSlug is null");
             this.sessionContext = requireNonNull(sessionContext, "sessionContext is null");
             this.dispatchManager = requireNonNull(dispatchManager, "dispatchManager is null");
-            this.queryId = dispatchManager.createQueryId();
             requireNonNull(queryInfoUrlFactory, "queryInfoUrlFactory is null");
             this.queryInfoUrl = queryInfoUrlFactory.getQueryInfoUrl(queryId);
             requireNonNull(tracer, "tracer is null");
@@ -349,6 +396,11 @@ public class QueuedStatementResource
         public Slug getSlug()
         {
             return slug;
+        }
+
+        public Optional<String> getSubmitSlug()
+        {
+            return submitSlug;
         }
 
         public long getLastToken()
@@ -556,10 +608,16 @@ public class QueuedStatementResource
             }
         }
 
-        public void registerQuery(Query query)
+        public Query registerQuery(Supplier<Query> queryFactory)
         {
-            Query existingQuery = queries.putIfAbsent(query.getQueryId(), query);
-            checkState(existingQuery == null, "Query already registered");
+            Query newQuery = queryFactory.get();
+            Query existingQuery = queries.putIfAbsent(newQuery.getQueryId(), newQuery);
+            if (existingQuery != null) {
+                // Query already registered
+                destroyQuietly(newQuery);
+                return existingQuery;
+            }
+            return newQuery;
         }
 
         @Nullable
