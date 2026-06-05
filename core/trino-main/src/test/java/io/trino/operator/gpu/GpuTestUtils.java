@@ -36,6 +36,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -73,13 +74,14 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
+import static io.trino.spi.type.TimestampType.createTimestampType;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
+import static java.lang.Math.clamp;
 import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,9 +99,16 @@ public final class GpuTestUtils
             .add(BIGINT)
             .add(REAL)
             .add(DOUBLE)
-            .add(TIMESTAMP_SECONDS)
-            .add(TIMESTAMP_MILLIS)
-            .add(TIMESTAMP_MICROS)
+            .add(createTimestampType(0))
+            .add(createTimestampType(1))
+            .add(createTimestampType(2))
+            .add(createTimestampType(3))
+            .add(createTimestampType(4))
+            .add(createTimestampType(5))
+            .add(createTimestampType(6))
+            .add(createTimestampType(7))
+            .add(createTimestampType(8))
+            .add(createTimestampType(9))
             .add(createDecimalType(9, 2))
             .add(createDecimalType(18, 6))
             .add(createDecimalType(27, 4))
@@ -175,8 +184,11 @@ public final class GpuTestUtils
         if (type == DOUBLE) {
             return createDoubleBlocks(positionsCounts, nullsProvider);
         }
-        if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
-            return createShortTimestampBlocks(positionsCounts, nullsProvider, (TimestampType) type);
+        if (type instanceof TimestampType timestampType) {
+            if (timestampType.isShort()) {
+                return createShortTimestampBlocks(positionsCounts, nullsProvider, timestampType);
+            }
+            return createLongTimestampBlocks(positionsCounts, nullsProvider, timestampType);
         }
         if (type instanceof DecimalType decimalType) {
             return decimalType.isShort()
@@ -388,6 +400,41 @@ public final class GpuTestUtils
                         }
                         else {
                             type.writeLong(builder, (random.nextLong() / finalScale) * finalScale);
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createLongTimestampBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampType type)
+    {
+        Random random = new Random(42);
+        // picosOfMicro is in [0, 10^6); for precision p, digits beyond p must be 0,
+        // i.e. picosOfMicro must be a multiple of 10^(MAX_PRECISION - p).
+        int picosScale = 1;
+        for (int i = type.getPrecision(); i < TimestampType.MAX_PRECISION; i++) {
+            picosScale *= 10;
+        }
+        int finalPicosScale = picosScale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            long epochMicros = random.nextLong();
+                            // Limit to values that can be represented in 64-bit with nanosecond precision, also after e.g. date_trunc(day)
+                            epochMicros = clamp(
+                                    epochMicros,
+                                    Long.MIN_VALUE / NANOSECONDS_PER_MICROSECOND + MICROSECONDS_PER_DAY,
+                                    Long.MAX_VALUE / NANOSECONDS_PER_MICROSECOND - 1);
+                            int picosOfMicro = (random.nextInt(1_000_000) / finalPicosScale) * finalPicosScale;
+                            type.writeObject(builder, new LongTimestamp(epochMicros, picosOfMicro));
                         }
                     }
                     return builder.build();

@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import ai.rapids.cudf.Cuda;
+import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
@@ -22,6 +23,7 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.Fixed12Block;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
@@ -61,8 +63,12 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.type.DateTimes.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.type.DateTimes.PICOSECONDS_PER_NANOSECOND;
 import static java.lang.Double.longBitsToDouble;
 import static java.lang.Float.intBitsToFloat;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
@@ -270,8 +276,9 @@ public class CopyToBlocks
             case VarbinaryType _ -> new VarbinaryColumnCopier(hostColumnVector);
             case DateType _ -> new IntColumnCopier(hostColumnVector);
             case TimestampType timestampType when timestampType.getPrecision() == 0 -> new RescaledLongColumnCopier(hostColumnVector, 1_000_000L);
-            case TimestampType timestampType when timestampType.getPrecision() == 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
-            case TimestampType timestampType when timestampType.getPrecision() == 6 -> new LongColumnCopier(hostColumnVector);
+            case TimestampType timestampType when timestampType.getPrecision() <= 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
+            case TimestampType timestampType when timestampType.getPrecision() <= 6 -> new LongColumnCopier(hostColumnVector);
+            case TimestampType timestampType when timestampType.getPrecision() <= 9 -> new TimestampNanosCopier(hostColumnVector);
             default -> throw new UnsupportedOperationException("Unsupported type: " + type);
         };
     }
@@ -562,6 +569,33 @@ public class CopyToBlocks
                     wrappedBuffer(bytes),
                     offsets,
                     validityToNulls(hostColumnVector.getValidity(), position, count));
+        }
+    }
+
+    private static class TimestampNanosCopier
+            implements ColumnCopier
+    {
+        private final @Borrow HostColumnVector hostColumnVector;
+
+        public TimestampNanosCopier(@Borrow HostColumnVector hostColumnVector)
+        {
+            checkArgument(hostColumnVector.getType() == DType.TIMESTAMP_NANOSECONDS, "Unexpected type: %s", hostColumnVector.getType());
+            this.hostColumnVector = hostColumnVector;
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            long[] nanos = new long[count];
+            hostColumnVector.getData().getLongs(nanos, 0, (long) position * Long.BYTES, count);
+            int[] values = new int[count * 3];
+            for (int i = 0; i < count; i++) {
+                long timestampNanos = nanos[i];
+                long epochMicros = floorDiv(timestampNanos, NANOSECONDS_PER_MICROSECOND);
+                int picosOfMicro = floorMod(timestampNanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
+                Fixed12Block.encodeFixed12(epochMicros, picosOfMicro, values, i);
+            }
+            return new Fixed12Block(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
     }
 

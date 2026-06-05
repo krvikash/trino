@@ -28,6 +28,7 @@ import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -339,16 +341,66 @@ public class TestGpuDataConversion
     @Test
     public void testUnsupportedTimestampPrecisions()
     {
-        for (int precision : List.of(1, 2, 4, 5)) {
-            assertThat(GpuTypeConversion.toGpuMapping(TimestampType.createTimestampType(precision)))
-                    .as("short timestamp precision %d", precision)
-                    .isEmpty();
-        }
-        for (int precision : List.of(7, 9, 12)) {
+        for (int precision : List.of(10, 11, 12)) {
             assertThat(GpuTypeConversion.toGpuMapping(TimestampType.createTimestampType(precision)))
                     .as("long timestamp precision %d", precision)
                     .isEmpty();
         }
+    }
+
+    @Test
+    public void testTimestampPrecisionMappings()
+    {
+        // Precisions finer than a cuDF DType bucket round up to the next-coarser DType: ms covers 1-3, μs covers 4-6, ns covers 7-9.
+        assertThat(GpuTypeConversion.toDType(TimestampType.createTimestampType(0))).hasValue(DType.TIMESTAMP_SECONDS);
+        for (int precision = 1; precision <= 3; precision++) {
+            assertThat(GpuTypeConversion.toDType(TimestampType.createTimestampType(precision)))
+                    .as("precision %d", precision)
+                    .hasValue(DType.TIMESTAMP_MILLISECONDS);
+        }
+        for (int precision = 4; precision <= 6; precision++) {
+            assertThat(GpuTypeConversion.toDType(TimestampType.createTimestampType(precision)))
+                    .as("precision %d", precision)
+                    .hasValue(DType.TIMESTAMP_MICROSECONDS);
+        }
+        for (int precision = 7; precision <= 9; precision++) {
+            assertThat(GpuTypeConversion.toDType(TimestampType.createTimestampType(precision)))
+                    .as("precision %d", precision)
+                    .hasValue(DType.TIMESTAMP_NANOSECONDS);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+    public void testTimestampPrecisionRoundTrip(int precision)
+    {
+        TimestampType type = TimestampType.createTimestampType(precision);
+        BlockBuilder builder = type.createBlockBuilder(null, 4);
+        if (type.isShort()) {
+            // Trino stores epochMicros; clear digits beyond precision so the write round-trips at this precision.
+            long scale = 1L;
+            for (int i = precision; i < TimestampType.MAX_SHORT_PRECISION; i++) {
+                scale *= 10;
+            }
+            type.writeLong(builder, (1_700_000_000_000_000L / scale) * scale);
+            type.writeLong(builder, 0L);
+            type.writeLong(builder, (-1_700_000_000_000_000L / scale) * scale);
+        }
+        else {
+            // picosOfMicro must be a multiple of 10^(12 - precision) to be representable at this precision.
+            int picosScale = 1;
+            for (int i = precision; i < 12; i++) {
+                picosScale *= 10;
+            }
+            type.writeObject(builder, new LongTimestamp(1_700_000_000_000_000L, picosScale));
+            type.writeObject(builder, new LongTimestamp(0L, 0));
+            type.writeObject(builder, new LongTimestamp(-1_700_000_000_000_000L, 999_999 / picosScale * picosScale));
+        }
+        builder.appendNull();
+
+        List<Page> inputPages = List.of(new Page(builder.build()));
+        List<Page> outputPages = executeRoundTrip(inputPages, List.of(type), Set.of(0));
+        assertSameDataInOrder(outputPages, inputPages, List.of(type));
     }
 
     @Test

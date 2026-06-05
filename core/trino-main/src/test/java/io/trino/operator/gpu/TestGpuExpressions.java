@@ -34,7 +34,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -102,9 +104,10 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
+import static io.trino.spi.type.TimestampType.createTimestampType;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -112,6 +115,9 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
+import static java.lang.Math.clamp;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -1087,8 +1093,8 @@ public class TestGpuExpressions
     public void testDateTimeExtract(NullsProvider nullsProvider)
     {
         for (String functionName : List.of("day", "hour", "minute", "second")) {
-            for (Type type : List.of(TIMESTAMP_SECONDS, TIMESTAMP_MILLIS, TIMESTAMP_MICROS)) {
-                testDateTimeExtract(functionName, type, nullsProvider);
+            for (int precision = 0; precision <= 9; precision++) {
+                testDateTimeExtract(functionName, createTimestampType(precision), nullsProvider);
             }
         }
         // Trino only defines day() (aka day_of_month) for DATE — hour/minute/second are timestamp-only.
@@ -1103,8 +1109,9 @@ public class TestGpuExpressions
         // Random test data spans the full long/int range and would overflow, so generate inputs in a
         // realistic range. The GPU compiler does not statically constrain the input range — callers
         // are responsible for ensuring values fit, which is the case for all production data sets.
-        for (Type type : List.of(DATE, TIMESTAMP_SECONDS, TIMESTAMP_MILLIS, TIMESTAMP_MICROS)) {
-            testYearExtract(type, nullsProvider);
+        testYearExtract(DATE, nullsProvider);
+        for (int precision = 0; precision <= 9; precision++) {
+            testYearExtract(createTimestampType(precision), nullsProvider);
         }
     }
 
@@ -1158,16 +1165,25 @@ public class TestGpuExpressions
                 // Days since epoch in ±10000 years (~3.65M days).
                 type.writeLong(builder, random.nextInt(7_300_001) - 3_650_000);
             }
-            else if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
+            else if (type instanceof TimestampType timestampType && timestampType.isShort()) {
                 // Trino short TimestampType stores epochMicros; pick microsecond values in ±10000 years.
                 long maxMicros = 10_000L * 365L * 24L * 60L * 60L * 1_000_000L;
                 long micros = (random.nextLong() % maxMicros);
                 // Precision p < 6 requires the last (6-p) decimal digits to be zero.
                 long scale = 1L;
-                for (int p = ((TimestampType) type).getPrecision(); p < TimestampType.MAX_SHORT_PRECISION; p++) {
+                for (int p = timestampType.getPrecision(); p < TimestampType.MAX_SHORT_PRECISION; p++) {
                     scale *= 10;
                 }
                 type.writeLong(builder, (micros / scale) * scale);
+            }
+            else if (type instanceof TimestampType timestampType) {
+                // Limit to values that can be represented in 64-bit with nanosecond precision, also after e.g. date_trunc(day)
+                long epochNanos = clamp(random.nextLong(), Long.MIN_VALUE + NANOSECONDS_PER_DAY, Long.MAX_VALUE);
+                // Align to the declared precision (zero the last 9-p decimal digits of nanos).
+                epochNanos = Timestamps.round(epochNanos, 9 - timestampType.getPrecision());
+                long epochMicros = floorDiv(epochNanos, NANOSECONDS_PER_MICROSECOND);
+                int picosOfMicro = floorMod(epochNanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
+                type.writeObject(builder, new LongTimestamp(epochMicros, picosOfMicro));
             }
             else {
                 throw new IllegalArgumentException("Unsupported type: " + type);
@@ -1197,8 +1213,15 @@ public class TestGpuExpressions
     public void testDateTrunc(NullsProvider nullsProvider)
     {
         for (String unit : Arrays.stream(Field.values()).map(Field::trinoDateTruncUnit).toList()) {
-            for (Type type : List.of(TIMESTAMP_SECONDS, TIMESTAMP_MILLIS, TIMESTAMP_MICROS)) {
-                testDateTrunc(unit, type, nullsProvider);
+            for (int precision = 0; precision <= 9; precision++) {
+                try {
+                    testDateTrunc(unit, createTimestampType(precision), nullsProvider);
+                }
+                catch (Throwable t) {
+                    t.addSuppressed(new Exception("unit: " + unit));
+                    t.addSuppressed(new Exception("precision: " + precision));
+                    throw t;
+                }
             }
         }
     }

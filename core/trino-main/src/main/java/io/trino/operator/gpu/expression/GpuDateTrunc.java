@@ -128,7 +128,6 @@ public class GpuDateTrunc
                     case DAY -> OptionalLong.of(86_400_000_000L);
                 };
             }
-            // No NANOSECOND field exists, so all five fields produce a non-trivial floor.
             if (columnType.equals(DType.TIMESTAMP_NANOSECONDS)) {
                 return switch (this) {
                     case MILLISECOND -> OptionalLong.of(1_000_000);

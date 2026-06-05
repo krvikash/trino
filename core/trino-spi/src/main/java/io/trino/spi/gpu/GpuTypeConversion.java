@@ -25,6 +25,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.Fixed12Block;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
@@ -43,6 +44,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
@@ -59,7 +61,14 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
+import static java.lang.Math.addExact;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
+import static java.lang.Math.multiplyExact;
 import static java.lang.Math.toIntExact;
+import static java.lang.String.format;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
@@ -180,18 +189,24 @@ public final class GpuTypeConversion
                     blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_SECONDS, 1_000_000L),
                     nullChecked(scalar -> scalar.getLong() * 1_000_000L)));
 
-            case TimestampType timestampType when timestampType.getPrecision() == 3 -> Optional.of(new GpuTypeMapping(
+            case TimestampType timestampType when timestampType.getPrecision() <= 3 -> Optional.of(new GpuTypeMapping(
                     DType.TIMESTAMP_MILLISECONDS,
                     // Trino short TimestampType stores epochMicros; rescale to match the cuDF DType
                     value -> Scalar.timestampFromLong(DType.TIMESTAMP_MILLISECONDS, value.map(v -> (Long) v / 1_000L).orElse(null)),
                     blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_MILLISECONDS, 1_000L),
                     nullChecked(scalar -> scalar.getLong() * 1_000L)));
 
-            case TimestampType timestampType when timestampType.getPrecision() == 6 -> Optional.of(new GpuTypeMapping(
+            case TimestampType timestampType when timestampType.getPrecision() <= 6 -> Optional.of(new GpuTypeMapping(
                     DType.TIMESTAMP_MICROSECONDS,
                     value -> Scalar.timestampFromLong(DType.TIMESTAMP_MICROSECONDS, (Long) value.orElse(null)),
                     blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS),
                     nullChecked(Scalar::getLong)));
+
+            case TimestampType timestampType when timestampType.getPrecision() <= 9 -> Optional.of(new GpuTypeMapping(
+                    DType.TIMESTAMP_NANOSECONDS,
+                    value -> Scalar.timestampFromLong(DType.TIMESTAMP_NANOSECONDS, value.map(v -> longTimestampToNanos((LongTimestamp) v)).orElse(null)),
+                    blocks -> copyTimestampNanosBlocksToDevice(blocks),
+                    nullChecked(scalar -> nanosToLongTimestamp(scalar.getLong()))));
 
             // For CHAR(n) the GPU representation is DType.STRING with trailing spaces trimmed (same as Trino stack representation)
             case CharType _, VarcharType _ -> Optional.of(new GpuTypeMapping(
@@ -586,6 +601,94 @@ public final class GpuTypeConversion
                 validity.close();
             }
         }
+    }
+
+    private static @Move ColumnVector copyTimestampNanosBlocksToDevice(Blocks blocks)
+    {
+        int totalPositions = blocks.positionCount();
+        if (totalPositions == 0) {
+            try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.TIMESTAMP_NANOSECONDS, 0)) {
+                return builder.buildAndPutOnDevice();
+            }
+        }
+
+        HostMemoryBuffer data = null;
+        HostMemoryBuffer validity = null;
+        try {
+            data = HostMemoryBuffer.allocate((long) totalPositions * Long.BYTES);
+            long destByteOffset = 0;
+            for (Block block : blocks.blocks()) {
+                int count = block.getPositionCount();
+                long[] temp = new long[count];
+                switch (block) {
+                    case RunLengthEncodedBlock rle -> {
+                        Fixed12Block value = (Fixed12Block) rle.getValue();
+                        long nanos = longTimestampToNanos(value, 0);
+                        Arrays.fill(temp, nanos);
+                    }
+                    case DictionaryBlock dictionary -> {
+                        Fixed12Block valueBlock = (Fixed12Block) dictionary.getUnderlyingValueBlock();
+                        for (int i = 0; i < count; i++) {
+                            temp[i] = longTimestampToNanos(valueBlock, dictionary.getUnderlyingValuePosition(i));
+                        }
+                    }
+                    case Fixed12Block fixed12Block -> {
+                        for (int i = 0; i < count; i++) {
+                            temp[i] = longTimestampToNanos(fixed12Block, i);
+                        }
+                    }
+                    default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
+                }
+                data.setLongs(destByteOffset, temp, 0, count);
+                destByteOffset += (long) count * Long.BYTES;
+            }
+
+            ValidityResult validityResult = buildValidity(blocks, totalPositions);
+            validity = validityResult.buffer();
+            long nullCount = validityResult.nullCount();
+
+            try (HostColumnVector hcv = new HostColumnVector(DType.TIMESTAMP_NANOSECONDS, totalPositions, Optional.of(nullCount), data, validity, null, List.of())) {
+                data = null;
+                validity = null;
+                return hcv.copyToDevice();
+            }
+        }
+        finally {
+            if (data != null) {
+                data.close();
+            }
+            if (validity != null) {
+                validity.close();
+            }
+        }
+    }
+
+    private static long longTimestampToNanos(Fixed12Block block, int position)
+    {
+        return longTimestampToNanos(block.getFixed12First(position), block.getFixed12Second(position));
+    }
+
+    private static long longTimestampToNanos(LongTimestamp value)
+    {
+        return longTimestampToNanos(value.getEpochMicros(), value.getPicosOfMicro());
+    }
+
+    private static long longTimestampToNanos(long epochMicros, int picosOfMicro)
+    {
+        int nanosOfMicro = picosOfMicro / PICOSECONDS_PER_NANOSECOND;
+        if (nanosOfMicro * PICOSECONDS_PER_NANOSECOND != picosOfMicro) {
+            throw new IllegalArgumentException(format("Unexpected value precision: %s", picosOfMicro));
+        }
+        return addExact(
+                multiplyExact(epochMicros, NANOSECONDS_PER_MICROSECOND),
+                nanosOfMicro);
+    }
+
+    private static LongTimestamp nanosToLongTimestamp(long nanos)
+    {
+        long epochMicros = floorDiv(nanos, NANOSECONDS_PER_MICROSECOND);
+        int picosOfMicro = floorMod(nanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
+        return new LongTimestamp(epochMicros, picosOfMicro);
     }
 
     private static @Move ColumnVector copyVariableWithBlocksToDeviceString(Blocks blocks)

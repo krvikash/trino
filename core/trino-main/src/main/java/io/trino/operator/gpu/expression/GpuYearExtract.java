@@ -66,6 +66,10 @@ public class GpuYearExtract
     private static void checkOverflow(@Borrow ColumnVector input)
     {
         DType type = input.getType();
+        if (type.equals(DType.TIMESTAMP_NANOSECONDS)) {
+            // All valid 64-bit TIMESTAMP_NANOSECONDS values have year() fitting in 16-bit signed integer.
+            return;
+        }
         try (Scalar minValidValue = minValidValue(type);
                 Scalar maxValidValue = maxValidValue(type);
                 ClosingOnce<ColumnVector> belowMinValid = ClosingOnce.own(input.binaryOp(LESS, minValidValue, DType.BOOL8));
