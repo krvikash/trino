@@ -23,7 +23,7 @@ import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_VE
 import static io.trino.spi.type.DateTimeEncoding.unpackOffsetMinutes;
 import static io.trino.spi.type.DateTimeEncoding.unpackTimeNanos;
 import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_MILLIS;
-import static io.trino.type.DateTimes.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
