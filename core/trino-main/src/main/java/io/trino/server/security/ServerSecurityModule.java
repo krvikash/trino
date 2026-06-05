@@ -64,6 +64,11 @@ public class ServerSecurityModule
         SecurityConfig securityConfig = buildConfigObject(SecurityConfig.class);
         insecureHttpAuthenticationDefaults(securityConfig);
 
+        binder.bind(PortalAuthenticationFilter.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, PortalAuthenticator.class)
+                .setDefault()
+                .to(FailingPortalAuthenticator.class).in(Scopes.SINGLETON);
+
         authenticatorBinder(binder); // create empty map binder
         install(authenticatorModule(securityConfig, "certificate", CertificateAuthenticator.class, certificateBinder -> {
             newOptionalBinder(certificateBinder, ClientCertificate.class).setBinding().toInstance(REQUESTED);

@@ -47,6 +47,7 @@ public class ResourceSecurityDynamicFeature
 {
     private final ResourceAccessType resourceAccessType;
     private final AuthenticationFilter authenticationFilter;
+    private final PortalAuthenticationFilter portalAuthenticationFilter;
     private final WebUiAuthenticationFilter webUiAuthenticationFilter;
     private final InternalAuthenticationManager internalAuthenticationManager;
     private final AccessControl accessControl;
@@ -58,6 +59,7 @@ public class ResourceSecurityDynamicFeature
     public ResourceSecurityDynamicFeature(
             ResourceAccessType resourceAccessType,
             AuthenticationFilter authenticationFilter,
+            PortalAuthenticationFilter portalAuthenticationFilter,
             WebUiAuthenticationFilter webUiAuthenticationFilter,
             InternalAuthenticationManager internalAuthenticationManager,
             AccessControl accessControl,
@@ -66,6 +68,7 @@ public class ResourceSecurityDynamicFeature
     {
         this.resourceAccessType = requireNonNull(resourceAccessType, "resourceAccessType is null");
         this.authenticationFilter = requireNonNull(authenticationFilter, "authenticationFilter is null");
+        this.portalAuthenticationFilter = requireNonNull(portalAuthenticationFilter, "portalAuthenticationFilter is null");
         this.webUiAuthenticationFilter = requireNonNull(webUiAuthenticationFilter, "webUiAuthenticationFilter is null");
         this.internalAuthenticationManager = requireNonNull(internalAuthenticationManager, "internalAuthenticationManager is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
@@ -90,6 +93,11 @@ public class ResourceSecurityDynamicFeature
             }
             case AUTHENTICATED_USER -> {
                 context.register(authenticationFilter);
+                context.register(new DisposeIdentityResponseFilter());
+                return;
+            }
+            case PORTAL -> {
+                context.register(portalAuthenticationFilter);
                 context.register(new DisposeIdentityResponseFilter());
                 return;
             }

@@ -97,6 +97,7 @@ import static io.trino.client.OkHttpUtil.setupSsl;
 import static io.trino.client.ProtocolHeaders.TRINO_HEADERS;
 import static io.trino.metadata.TestingMetadataManager.createTestingMetadataManager;
 import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
+import static io.trino.server.security.ResourceSecurity.AccessType.PORTAL;
 import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
 import static io.trino.server.security.jwt.JwtUtil.newJwtBuilder;
 import static io.trino.server.security.jwt.JwtUtil.newJwtParserBuilder;
@@ -143,6 +144,8 @@ public class TestResourceSecurity
     private static final String MANAGEMENT_USER = "management-user";
     private static final String MANAGEMENT_USER_LOGIN = MANAGEMENT_USER + "@allowed";
     private static final String MANAGEMENT_PASSWORD = "management-password";
+    private static final String PORTAL_USER = "portal-user";
+    private static final String VALID_PORTAL_TOKEN = "valid-portal-token";
     private static final String HMAC_KEY = Resources.getResource("hmac_key.txt").getPath();
     private static final String JWK_KEY_ID = "test-rsa";
     private static final String TRINO_AUDIENCE = "trino-client";
@@ -987,6 +990,48 @@ public class TestResourceSecurity
         }
     }
 
+    @Test
+    public void testPortalAuthenticationFailsWhenNotConfigured()
+            throws Exception
+    {
+        try (TestingTrinoServer server = TestingTrinoServer.builder()
+                .setAdditionalModule(binder -> jaxrsBinder(binder).bind(TestResource.class))
+                .setSystemAccessControl(TestSystemAccessControl.NO_IMPERSONATION)
+                .build()) {
+            HttpServerInfo httpServerInfo = server.getInstance(Key.get(HttpServerInfo.class));
+            assertResponseCode(client, getPortalLocation(httpServerInfo.getHttpUri()), SC_UNAUTHORIZED);
+        }
+    }
+
+    @Test
+    public void testPortalAuthenticationWithCustomAuthenticator()
+            throws Exception
+    {
+        try (TestingTrinoServer server = TestingTrinoServer.builder()
+                .setAdditionalModule(portalModule())
+                .setSystemAccessControl(TestSystemAccessControl.NO_IMPERSONATION)
+                .build()) {
+            HttpServerInfo httpServerInfo = server.getInstance(Key.get(HttpServerInfo.class));
+
+            assertResponseCode(client, getPortalLocation(httpServerInfo.getHttpUri()), SC_UNAUTHORIZED);
+            assertResponseCode(
+                    client,
+                    getPortalLocation(httpServerInfo.getHttpUri()),
+                    SC_UNAUTHORIZED,
+                    Headers.of("X-Portal-Token", "wrong-token"));
+
+            Request request = new Request.Builder()
+                    .url(getPortalLocation(httpServerInfo.getHttpUri()))
+                    .addHeader("X-Portal-Token", VALID_PORTAL_TOKEN)
+                    .build();
+            try (Response response = client.newCall(request).execute()) {
+                assertThat(response.code()).isEqualTo(SC_OK);
+                assertThat(response.header("user")).isEqualTo(PORTAL_USER);
+                assertThat(response.header("principal")).isEqualTo(PORTAL_USER);
+            }
+        }
+    }
+
     private static Module oauth2Module(TokenServer tokenServer)
     {
         return binder -> {
@@ -994,6 +1039,22 @@ public class TestResourceSecurity
             newOptionalBinder(binder, OAuth2Client.class)
                     .setBinding()
                     .toInstance(tokenServer.getOAuth2Client());
+        };
+    }
+
+    private static Module portalModule()
+    {
+        return binder -> {
+            jaxrsBinder(binder).bind(TestResource.class);
+            newOptionalBinder(binder, PortalAuthenticator.class)
+                    .setBinding()
+                    .toInstance(request -> {
+                        String token = request.getHeaderString("X-Portal-Token");
+                        if (!VALID_PORTAL_TOKEN.equals(token)) {
+                            throw new AuthenticationException("Invalid portal token");
+                        }
+                        return Identity.forUser(PORTAL_USER).withPrincipal(new BasicPrincipal(PORTAL_USER)).build();
+                    });
         };
     }
 
@@ -1193,6 +1254,14 @@ public class TestResourceSecurity
             return echoIdentity(servletRequest, httpHeaders);
         }
 
+        @ResourceSecurity(PORTAL)
+        @GET
+        @jakarta.ws.rs.Path("/portal/identity")
+        public jakarta.ws.rs.core.Response portalIdentity(@Context HttpServletRequest servletRequest, @Context HttpHeaders httpHeaders)
+        {
+            return echoIdentity(servletRequest, httpHeaders);
+        }
+
         public jakarta.ws.rs.core.Response echoIdentity(HttpServletRequest servletRequest, HttpHeaders httpHeaders)
         {
             Identity identity = sessionContextFactory.extractAuthorizedIdentity(servletRequest, httpHeaders);
@@ -1373,6 +1442,11 @@ public class TestResourceSecurity
     private static String getPublicLocation(URI baseUri)
     {
         return getLocation(baseUri, "/v1/info");
+    }
+
+    private static String getPortalLocation(URI baseUri)
+    {
+        return getLocation(baseUri, "/portal/identity");
     }
 
     private static String getLocation(URI baseUri, String path)
