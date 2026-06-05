@@ -34,9 +34,17 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.CharType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
@@ -53,14 +61,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.lang.Double.longBitsToDouble;
 import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.max;
@@ -256,44 +256,24 @@ public class CopyToBlocks
 
     private static ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
     {
-        if (type == BOOLEAN || type == TINYINT) {
-            return new ByteColumnCopier(hostColumnVector);
-        }
-        if (type == SMALLINT) {
-            return new ShortColumnCopier(hostColumnVector);
-        }
-        if (type == INTEGER || type == DATE) {
-            return new IntColumnCopier(hostColumnVector);
-        }
-        if (type == BIGINT) {
-            return new LongColumnCopier(hostColumnVector);
-        }
-        if (type instanceof DecimalType decimalType) {
-            return decimalType.isShort()
-                    ? new LongColumnCopier(hostColumnVector)
-                    : new Int128ColumnCopier(hostColumnVector);
-        }
-        if (type instanceof TimestampType timestampType) {
-            return switch (timestampType.getPrecision()) {
-                case 0 -> new RescaledLongColumnCopier(hostColumnVector, 1_000_000L);
-                case 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
-                case 6 -> new LongColumnCopier(hostColumnVector);
-                default -> throw new UnsupportedOperationException("Unsupported type: " + type);
-            };
-        }
-        if (type == REAL) {
-            return new RealColumnCopier(hostColumnVector);
-        }
-        if (type == DOUBLE) {
-            return new DoubleColumnCopier(hostColumnVector);
-        }
-        if (type instanceof CharType || type instanceof VarcharType) {
-            return new VariableWidthBlockColumnCopier(hostColumnVector);
-        }
-        if (type instanceof VarbinaryType) {
-            return new VarbinaryColumnCopier(hostColumnVector);
-        }
-        throw new UnsupportedOperationException("Unsupported type: " + type);
+        return switch (type) {
+            case BooleanType _ -> new ByteColumnCopier(hostColumnVector);
+            case TinyintType _ -> new ByteColumnCopier(hostColumnVector);
+            case SmallintType _ -> new ShortColumnCopier(hostColumnVector);
+            case IntegerType _ -> new IntColumnCopier(hostColumnVector);
+            case BigintType _ -> new LongColumnCopier(hostColumnVector);
+            case RealType _ -> new RealColumnCopier(hostColumnVector);
+            case DoubleType _ -> new DoubleColumnCopier(hostColumnVector);
+            case DecimalType decimalType when decimalType.isShort() -> new LongColumnCopier(hostColumnVector);
+            case DecimalType decimalType when !decimalType.isShort() -> new Int128ColumnCopier(hostColumnVector);
+            case CharType _, VarcharType _ -> new VariableWidthBlockColumnCopier(hostColumnVector);
+            case VarbinaryType _ -> new VarbinaryColumnCopier(hostColumnVector);
+            case DateType _ -> new IntColumnCopier(hostColumnVector);
+            case TimestampType timestampType when timestampType.getPrecision() == 0 -> new RescaledLongColumnCopier(hostColumnVector, 1_000_000L);
+            case TimestampType timestampType when timestampType.getPrecision() == 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
+            case TimestampType timestampType when timestampType.getPrecision() == 6 -> new LongColumnCopier(hostColumnVector);
+            default -> throw new UnsupportedOperationException("Unsupported type: " + type);
+        };
     }
 
     @Override
