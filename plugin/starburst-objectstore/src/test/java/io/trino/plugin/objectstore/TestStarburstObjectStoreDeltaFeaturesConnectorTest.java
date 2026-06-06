@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.plugin.deltalake.DeltaLakeConnector;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -30,9 +30,9 @@ import static io.trino.plugin.objectstore.ObjectStoreQueryRunner.initializeTpchT
 import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.TransactionBuilder.transaction;
-import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_REGION;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 
 public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
         extends BaseTestObjectStoreDeltaFeaturesConnectorTest
@@ -41,9 +41,8 @@ public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        Hive3MinioDataLake hiveMinioDataLake = closeAfterClass(new Hive3MinioDataLake(bucketName));
-        hiveMinioDataLake.start();
-        minioClient = closeAfterClass(hiveMinioDataLake.getMinioClient());
+        Hive3FlociDataLake hiveFlociDataLake = closeAfterClass(new Hive3FlociDataLake(bucketName));
+        hiveFlociDataLake.start();
 
         String catalog = DeltaLakeQueryRunner.DELTA_CATALOG;
         String schema = "test_schema"; // must match TestDeltaLakeConnectorTest.SCHEMA
@@ -59,16 +58,16 @@ public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
 
             queryRunner.installPlugin(new ObjectStorePlugin());
             queryRunner.createCatalog(catalog, STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
-                    .put("hive.metastore.uri", hiveMinioDataLake.getHiveMetastoreEndpoint().toString())
+                    .put("hive.metastore.uri", hiveFlociDataLake.getHiveMetastoreEndpoint().toString())
                     .put("hive.metastore.thrift.client.read-timeout", "1m") // read timed out sometimes happens with the default timeout
                     .put("delta.register-table-procedure.enabled", "true")
                     .put("delta.metastore.store-table-metadata", "true")
                     .put("delta.metastore.store-table-metadata-threads", "0")
                     .put("fs.s3.enabled", "true")
-                    .put("s3.aws-access-key", MINIO_ROOT_USER)
-                    .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                    .put("s3.region", MINIO_REGION)
-                    .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
+                    .put("s3.aws-access-key", FLOCI_ACCESS_KEY)
+                    .put("s3.aws-secret-key", FLOCI_SECRET_KEY)
+                    .put("s3.region", FLOCI_REGION)
+                    .put("s3.endpoint", hiveFlociDataLake.floci().endpoint().toString())
                     .put("s3.path-style-access", "true")
                     .put("s3.streaming.part-size", "5MB") // minimize memory usage
                     .put("great-lakes.table-type", TableType.DELTA.name())
