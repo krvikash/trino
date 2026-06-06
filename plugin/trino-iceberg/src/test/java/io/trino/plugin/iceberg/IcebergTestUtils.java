@@ -60,6 +60,7 @@ import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.block.Block;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SourcePage;
@@ -252,16 +253,20 @@ public final class IcebergTestUtils
         };
     }
 
+    public static <T> T getConnectorService(QueryRunner queryRunner, Class<T> clazz)
+    {
+        Connector connector = queryRunner.getCoordinator().getConnector(ICEBERG_CATALOG);
+        return ((IcebergConnector) connector).getInjector().getInstance(clazz);
+    }
+
     public static TrinoFileSystemFactory getFileSystemFactory(QueryRunner queryRunner)
     {
-        return ((IcebergConnector) queryRunner.getCoordinator().getConnector(ICEBERG_CATALOG))
-                .getInjector().getInstance(TrinoFileSystemFactory.class);
+        return getConnectorService(queryRunner, TrinoFileSystemFactory.class);
     }
 
     public static HiveMetastore getHiveMetastore(QueryRunner queryRunner)
     {
-        return ((IcebergConnector) queryRunner.getCoordinator().getConnector(ICEBERG_CATALOG)).getInjector()
-                .getInstance(HiveMetastoreFactory.class)
+        return getConnectorService(queryRunner, HiveMetastoreFactory.class)
                 .createMetastore(Optional.empty());
     }
 
