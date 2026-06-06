@@ -14,7 +14,7 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.testing.QueryRunner;
 import org.apache.iceberg.FileFormat;
@@ -22,13 +22,14 @@ import org.apache.iceberg.FileFormat;
 import java.util.Map;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_REGION;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 
 public class TestIcebergHiveMinioCatalogMaterializedViewAutoRefreshTest
         extends TestIcebergHiveCatalogMaterializedViewAutoRefreshTest
 {
-    private Hive3MinioDataLake hive3MinioDataLake;
+    private Hive3FlociDataLake hive3FlociDataLake;
     private String bucketName;
 
     @Override
@@ -36,8 +37,8 @@ public class TestIcebergHiveMinioCatalogMaterializedViewAutoRefreshTest
             throws Exception
     {
         this.bucketName = "test-iceberg-hive-minio-mv-auto-refresh-test-" + randomNameSuffix();
-        hive3MinioDataLake = closeAfterClass(new Hive3MinioDataLake(bucketName, HiveHadoop.HIVE3_IMAGE));
-        hive3MinioDataLake.start();
+        hive3FlociDataLake = closeAfterClass(new Hive3FlociDataLake(bucketName, HiveHadoop.HIVE3_IMAGE));
+        hive3FlociDataLake.start();
         return super.createQueryRunner();
     }
 
@@ -46,13 +47,13 @@ public class TestIcebergHiveMinioCatalogMaterializedViewAutoRefreshTest
     {
         return ImmutableMap.<String, String>builder()
                 .put("iceberg.catalog.type", "HIVE_METASTORE")
-                .put("hive.metastore.uri", hive3MinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
+                .put("hive.metastore.uri", hive3FlociDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
                 .put("fs.hadoop.enabled", "false")
                 .put("fs.s3.enabled", "true")
-                .put("s3.aws-access-key", MINIO_ROOT_USER)
-                .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                .put("s3.endpoint", hive3MinioDataLake.getMinio().getMinioAddress())
-                .put("s3.region", "us-east-1")
+                .put("s3.aws-access-key", FLOCI_ACCESS_KEY)
+                .put("s3.aws-secret-key", FLOCI_SECRET_KEY)
+                .put("s3.endpoint", hive3FlociDataLake.floci().endpoint().toString())
+                .put("s3.region", FLOCI_REGION)
                 .put("s3.path-style-access", "true")
                 .put("iceberg.file-format", FileFormat.PARQUET.name())
                 .put("iceberg.register-table-procedure.enabled", "true")

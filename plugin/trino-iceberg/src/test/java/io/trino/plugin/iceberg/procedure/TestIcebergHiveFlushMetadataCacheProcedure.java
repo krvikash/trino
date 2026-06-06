@@ -15,16 +15,16 @@ package io.trino.plugin.iceberg.procedure;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.metastore.HiveMetastore;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.metastore.thrift.BridgingHiveMetastore;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.QueryRunner;
 
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_REGION;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 
 final class TestIcebergHiveFlushMetadataCacheProcedure
         extends BaseTestIcebergFlushMetadataCacheProcedure
@@ -36,24 +36,24 @@ final class TestIcebergHiveFlushMetadataCacheProcedure
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        Hive3MinioDataLake hiveMinioDataLake = closeAfterClass(new Hive3MinioDataLake(bucketName));
-        hiveMinioDataLake.start();
+        Hive3FlociDataLake hiveFlociDataLake = closeAfterClass(new Hive3FlociDataLake(bucketName));
+        hiveFlociDataLake.start();
         metastore = new BridgingHiveMetastore(
                 testingThriftHiveMetastoreBuilder()
-                        .metastoreClient(hiveMinioDataLake.getHiveMetastoreEndpoint())
+                        .metastoreClient(hiveFlociDataLake.getHiveMetastoreEndpoint())
                         .build(this::closeAfterClass));
 
         return IcebergQueryRunner.builder("default")
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
                         .put("iceberg.catalog.type", "HIVE_METASTORE")
-                        .put("hive.metastore.uri", hiveMinioDataLake.getHiveMetastoreEndpoint().toString())
+                        .put("hive.metastore.uri", hiveFlociDataLake.getHiveMetastoreEndpoint().toString())
                         .put("hive.metastore.thrift.client.read-timeout", "1m")
                         .put("hive.metastore-cache-ttl", "10m")
                         .put("fs.s3.enabled", "true")
-                        .put("s3.aws-access-key", MINIO_ROOT_USER)
-                        .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                        .put("s3.region", MINIO_REGION)
-                        .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
+                        .put("s3.aws-access-key", FLOCI_ACCESS_KEY)
+                        .put("s3.aws-secret-key", FLOCI_SECRET_KEY)
+                        .put("s3.region", FLOCI_REGION)
+                        .put("s3.endpoint", hiveFlociDataLake.floci().endpoint().toString())
                         .put("s3.path-style-access", "true")
                         .buildOrThrow())
                 .build();

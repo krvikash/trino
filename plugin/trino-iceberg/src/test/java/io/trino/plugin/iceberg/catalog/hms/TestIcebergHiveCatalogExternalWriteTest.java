@@ -14,7 +14,7 @@
 package io.trino.plugin.iceberg.catalog.hms;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.iceberg.BaseIcebergExternalWriteTest;
 import org.junit.jupiter.api.AfterAll;
@@ -30,19 +30,19 @@ final class TestIcebergHiveCatalogExternalWriteTest
         extends BaseIcebergExternalWriteTest
 {
     private final String bucketName = "test-iceberg-hms-concurrent-" + randomNameSuffix();
-    private final Hive3MinioDataLake hive3MinioDataLake;
+    private final Hive3FlociDataLake hive3FlociDataLake;
 
     public TestIcebergHiveCatalogExternalWriteTest()
     {
-        hive3MinioDataLake = new Hive3MinioDataLake(bucketName, HiveHadoop.HIVE3_IMAGE);
-        hive3MinioDataLake.start();
+        hive3FlociDataLake = new Hive3FlociDataLake(bucketName, HiveHadoop.HIVE3_IMAGE);
+        hive3FlociDataLake.start();
     }
 
     @AfterAll
     public void cleanupResources()
             throws Exception
     {
-        hive3MinioDataLake.close();
+        hive3FlociDataLake.close();
     }
 
     @Override
@@ -50,12 +50,12 @@ final class TestIcebergHiveCatalogExternalWriteTest
     {
         return ImmutableMap.<String, String>builder()
                 .put("iceberg.catalog.type", "HIVE_METASTORE")
-                .put("hive.metastore.uri", hive3MinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
+                .put("hive.metastore.uri", hive3FlociDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
                 .put("fs.hadoop.enabled", "false")
                 .put("fs.s3.enabled", "true")
                 .put("s3.aws-access-key", MINIO_ROOT_USER)
                 .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                .put("s3.endpoint", hive3MinioDataLake.getMinio().getMinioAddress())
+                .put("s3.endpoint", hive3FlociDataLake.floci().endpoint().toString())
                 .put("s3.region", "us-east-1")
                 .put("s3.path-style-access", "true")
                 .put("iceberg.file-format", PARQUET.name())
