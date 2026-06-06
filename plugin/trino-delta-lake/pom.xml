@@ -691,16 +691,9 @@
                             <excludes combine.children="append">
                                 <exclude>**/TestDeltaLakeAdlsStorage.java</exclude>
                                 <exclude>**/TestDeltaLakeAdlsConnectorSmokeTest.java</exclude>
-                                <exclude>**/TestDeltaLakeGlueMetastore.java</exclude>
-                                <exclude>**/TestDeltaS3AndGlueAws.java</exclude>
-                                <exclude>**/TestDeltaLakeCleanUpGlueMetastore.java</exclude>
-                                <exclude>**/TestDeltaLakeSharedGlueMetastoreViews.java</exclude>
-                                <exclude>**/TestDeltaLakeSharedGlueMetastoreWithTableRedirections.java</exclude>
+                                <exclude>**/TestDeltaLakeS3AndGlueAws.java</exclude>
                                 <exclude>**/TestDeltaLakeSharedUnityWithTableRedirections.java</exclude>
-                                <exclude>**/TestDeltaLakeTableWithCustomLocationUsingGlueMetastore.java</exclude>
-                                <exclude>**/TestDeltaLakeRenameToWithGlueMetastore.java</exclude>
-                                <exclude>**/TestDeltaLakeRegisterTableProcedureWithGlue.java</exclude>
-                                <exclude>**/TestDeltaLakeViewsGlueMetastore.java</exclude>
+                                <exclude>**/TestDeltaLakeCleanUpGlueMetastore.java</exclude>
                                 <exclude>**/TestDeltaLakeGcsConnectorSmokeTest.java</exclude>
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
                                 <exclude>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
@@ -732,16 +725,7 @@
                             <includes>
                                 <include>**/TestDeltaLakeAdlsStorage.java</include>
                                 <include>**/TestDeltaLakeAdlsConnectorSmokeTest.java</include>
-                                <include>**/TestDeltaLakeGlueMetastore.java</include>
-                                <include>**/TestDeltaS3AndGlueAws.java</include>
-                                <include>**/TestDeltaLakeCleanUpGlueMetastore.java</include>
-                                <include>**/TestDeltaLakeSharedGlueMetastoreViews.java</include>
-                                <include>**/TestDeltaLakeSharedGlueMetastoreWithTableRedirections.java</include>
                                 <include>**/TestDeltaLakeSharedUnityWithTableRedirections.java</include>
-                                <include>**/TestDeltaLakeTableWithCustomLocationUsingGlueMetastore.java</include>
-                                <include>**/TestDeltaLakeRenameToWithGlueMetastore.java</include>
-                                <include>**/TestDeltaLakeRegisterTableProcedureWithGlue.java</include>
-                                <include>**/TestDeltaLakeViewsGlueMetastore.java</include>
                                 <include>**/TestDeltaLakeGcsConnectorSmokeTest.java</include>
                                 <include>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestS3AndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</include>
