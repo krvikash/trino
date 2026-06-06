@@ -984,7 +984,7 @@
                                 <exclude>**/TestIcebergGpuQueries.java</exclude>
                                 <!-- end of gpu profile -->
                                 <exclude>**/Test*Avro*.java</exclude>
-                                <exclude>**/Test*Minio*.java</exclude>
+                                <exclude>**/Test*Floci*.java</exclude>
                                 <exclude>**/TestIcebergGlueCatalogMaterializedViewAutoRefreshTest.java</exclude>
                                 <exclude>**/TestIcebergS3AndGlueAws.java</exclude>
                                 <exclude>**/TestIcebergS3TablesConnectorSmokeTest.java</exclude>
@@ -1055,7 +1055,7 @@
         </profile>
 
         <profile>
-            <id>minio-and-avro</id>
+            <id>floci-and-avro</id>
             <build>
                 <plugins>
                     <plugin>
@@ -1064,7 +1064,7 @@
                         <configuration>
                             <includes>
                                 <include>**/Test*Avro*.java</include>
-                                <include>**/Test*Minio*.java</include>
+                                <include>**/Test*Floci*.java</include>
                             </includes>
                         </configuration>
                     </plugin>
