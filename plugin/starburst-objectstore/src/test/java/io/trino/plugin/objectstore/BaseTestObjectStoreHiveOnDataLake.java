@@ -14,7 +14,7 @@
 package io.trino.plugin.objectstore;
 
 import io.trino.plugin.hive.BaseTestHiveOnDataLake;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -38,7 +38,7 @@ public abstract class BaseTestObjectStoreHiveOnDataLake
 {
     public BaseTestObjectStoreHiveOnDataLake(String bucketName)
     {
-        super(bucketName, new Hive3MinioDataLake(bucketName, HiveHadoop.HIVE3_IMAGE));
+        super(bucketName, new Hive3FlociDataLake(bucketName, HiveHadoop.HIVE3_IMAGE));
     }
 
     @Override
@@ -89,7 +89,7 @@ public abstract class BaseTestObjectStoreHiveOnDataLake
                         "  partition_projection_location_template='" + storageFormat + "' " +
                         ")");
         assertThat(
-                hiveMinioDataLake.getHiveHadoop()
+                hiveFlociDataLake.getHiveHadoop()
                         .runOnHive("SHOW TBLPROPERTIES " + getHiveTestTableName(schemaName, tableName)))
                 .containsPattern("[ |]+projection\\.enabled[ |]+true[ |]+")
                 .containsPattern("[ |]+storage\\.location\\.template[ |]+" + quote(storageFormat) + "[ |]+")
@@ -108,9 +108,9 @@ public abstract class BaseTestObjectStoreHiveOnDataLake
         String viewName = getRandomTestTableName();
         String partitionedViewName = getRandomTestTableName();
 
-        hiveMinioDataLake.runOnHive(format("CREATE TABLE %s(id int, name string) PARTITIONED BY (ds date)", getHiveTestTableName(tableName)));
-        hiveMinioDataLake.runOnHive(format("CREATE VIEW %s(id, name COMMENT 'comment', ds COMMENT 'test comment') AS SELECT * FROM %s", getHiveTestTableName(viewName), getHiveTestTableName(tableName)));
-        hiveMinioDataLake.runOnHive(format("CREATE VIEW %s(name COMMENT 'comment', ds COMMENT 'test comment') PARTITIONED ON (ds) AS SELECT name, ds FROM %s", getHiveTestTableName(partitionedViewName), getHiveTestTableName(tableName)));
+        hiveFlociDataLake.runOnHive(format("CREATE TABLE %s(id int, name string) PARTITIONED BY (ds date)", getHiveTestTableName(tableName)));
+        hiveFlociDataLake.runOnHive(format("CREATE VIEW %s(id, name COMMENT 'comment', ds COMMENT 'test comment') AS SELECT * FROM %s", getHiveTestTableName(viewName), getHiveTestTableName(tableName)));
+        hiveFlociDataLake.runOnHive(format("CREATE VIEW %s(name COMMENT 'comment', ds COMMENT 'test comment') PARTITIONED ON (ds) AS SELECT name, ds FROM %s", getHiveTestTableName(partitionedViewName), getHiveTestTableName(tableName)));
 
         if (isGalaxyMetastore()) {
             computeActual("GRANT ALL PRIVILEGES ON %s TO ROLE accountadmin WITH GRANT OPTION".formatted(getFullyQualifiedTestTableName(viewName)));
@@ -143,7 +143,7 @@ public abstract class BaseTestObjectStoreHiveOnDataLake
     {
         String viewName = getRandomTestTableName();
 
-        hiveMinioDataLake.runOnHive("CREATE VIEW " + getHiveTestTableName(viewName) + " AS SELECT 1 x");
+        hiveFlociDataLake.runOnHive("CREATE VIEW " + getHiveTestTableName(viewName) + " AS SELECT 1 x");
         if (isGalaxyMetastore()) {
             computeActual("ALTER VIEW %s SET AUTHORIZATION ROLE accountadmin".formatted(getFullyQualifiedTestTableName(viewName)));
         }
@@ -152,7 +152,7 @@ public abstract class BaseTestObjectStoreHiveOnDataLake
             assertQueryFails("COMMENT ON COLUMN " + getHiveTestTableName(viewName) + ".x IS NULL", "Hive views are not supported.*");
         }
         finally {
-            hiveMinioDataLake.runOnHive("DROP VIEW " + getHiveTestTableName(viewName));
+            hiveFlociDataLake.runOnHive("DROP VIEW " + getHiveTestTableName(viewName));
         }
     }
 

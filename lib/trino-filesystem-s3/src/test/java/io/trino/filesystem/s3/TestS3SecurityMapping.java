@@ -310,7 +310,7 @@ public class TestS3SecurityMapping
         assertMapping(
                 provider,
                 path("s3://baz_with_custom_credential_provider/bar"),
-                credentials("accesskey", "secretkey"));
+                credentials("floci-access-key", "floci-secret-key"));
 
         // matches prefix -- mapping provides based on CustomCredentialProvider with arguments
         assertMapping(

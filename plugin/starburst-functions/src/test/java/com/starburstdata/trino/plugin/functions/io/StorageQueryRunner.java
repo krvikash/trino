@@ -15,8 +15,7 @@ import com.starburstdata.trino.plugin.functions.FunctionsPlugin;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.plugin.hive.HivePlugin;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
-import io.trino.plugin.hive.containers.HiveMinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.Plugin;
 import io.trino.testing.DistributedQueryRunner;
@@ -100,10 +99,10 @@ public final class StorageQueryRunner
             Logging.initialize();
 
             //noinspection resource
-            HiveMinioDataLake container = new Hive3MinioDataLake("test-bucket");
-            container.start();
+            Hive3FlociDataLake hive3FlociDataLake = new Hive3FlociDataLake("test-bucket");
+            hive3FlociDataLake.start();
 
-            Path credentialsFile = createCredentialsFile(container.getMinio().getMinioAddress());
+            Path credentialsFile = createCredentialsFile(hive3FlociDataLake.floci().endpoint().toString());
 
             //noinspection resource
             DistributedQueryRunner queryRunner = StorageQueryRunner.builder()
@@ -114,12 +113,12 @@ public final class StorageQueryRunner
 
             queryRunner.installPlugin(new HivePlugin());
             queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
-                    .put("hive.metastore.uri", container.getHiveMetastoreEndpoint().toString())
+                    .put("hive.metastore.uri", hive3FlociDataLake.getHiveMetastoreEndpoint().toString())
                     .put("fs.s3.enabled", "true")
                     .put("s3.aws-access-key", MINIO_ROOT_USER)
                     .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                     .put("s3.region", MINIO_REGION)
-                    .put("s3.endpoint", "http://" + container.getMinio().getMinioApiEndpoint())
+                    .put("s3.endpoint", hive3FlociDataLake.floci().endpoint().toString())
                     .put("s3.path-style-access", "true")
                     .buildOrThrow());
             queryRunner.execute("CREATE SCHEMA hive.tpch WITH (location = 's3://test-bucket/tpch')");

@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.hive.s3;
 
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
@@ -25,16 +25,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 final class TestHiveS3DirectTableMetadata
         extends AbstractTestQueryFramework
 {
-    private Hive3MinioDataLake hiveMinioDataLake;
+    private Hive3FlociDataLake hiveFlociDataLake;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        this.hiveMinioDataLake = closeAfterClass(new Hive3MinioDataLake("test-hive-direct-meta-" + randomNameSuffix()));
-        this.hiveMinioDataLake.start();
+        this.hiveFlociDataLake = closeAfterClass(new Hive3FlociDataLake("test-hive-direct-meta-" + randomNameSuffix()));
+        this.hiveFlociDataLake.start();
 
-        return S3HiveQueryRunner.builder(hiveMinioDataLake)
+        return S3HiveQueryRunner.builder(hiveFlociDataLake)
                 .setInitialTables(TpchTable.getTables())
                 .build();
     }
@@ -45,7 +45,7 @@ final class TestHiveS3DirectTableMetadata
         // in case of null table_type, get table metadata call fails on HMS side
         // TODO if this test start failing, it means that incorrect behaviour is fixed on HMS side
         //  and we can remove - hive.metastore.thrift.metastore-supports-table-meta toggle
-        hiveMinioDataLake.getHiveHadoop().runOnMetastore("UPDATE TBLS SET tbl_type = NULL");
+        hiveFlociDataLake.getHiveHadoop().runOnMetastore("UPDATE TBLS SET tbl_type = NULL");
         assertThatThrownBy(() -> computeActual("SHOW TABLES FROM hive.tpch"))
                 .hasStackTraceContaining("Error listing tables for catalog hive");
     }

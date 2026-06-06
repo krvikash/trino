@@ -14,7 +14,7 @@
 package io.trino.plugin.hive;
 
 import io.trino.filesystem.s3.CustomCredentialProviders;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.hive.s3.S3HiveQueryRunner;
 
@@ -27,6 +27,6 @@ public class TestHive3OnDataLakeWithAwsCustomCredentialProvider
 
     public TestHive3OnDataLakeWithAwsCustomCredentialProvider()
     {
-        super(BUCKET_NAME, new Hive3MinioDataLake(BUCKET_NAME, HiveHadoop.HIVE3_IMAGE), hiveMinioDataLake -> S3HiveQueryRunner.builderWithAwsCustomCredentialProvider(hiveMinioDataLake, CustomCredentialProviders.MinIoAwsCredentialsProvider.class.getName()));
+        super(BUCKET_NAME, new Hive3FlociDataLake(BUCKET_NAME, HiveHadoop.HIVE3_IMAGE), hiveFlociDataLake -> S3HiveQueryRunner.builderWithAwsCustomCredentialProvider(hiveFlociDataLake, CustomCredentialProviders.FlociAwsCredentialsProvider.class.getName()));
     }
 }

@@ -25,9 +25,9 @@ import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThri
 import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
-import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_REGION;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestStarburstObjectStoreHiveOnDataLake
@@ -44,10 +44,10 @@ public class TestStarburstObjectStoreHiveOnDataLake
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        this.hiveMinioDataLake.start();
+        this.hiveFlociDataLake.start();
         metastoreClient = new BridgingHiveMetastore(
                 testingThriftHiveMetastoreBuilder()
-                        .metastoreClient(hiveMinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint())
+                        .metastoreClient(hiveFlociDataLake.getHiveHadoop().getHiveMetastoreEndpoint())
                         .build(this::closeAfterClass));
 
         DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(
@@ -65,13 +65,13 @@ public class TestStarburstObjectStoreHiveOnDataLake
                     .put("great-lakes.table-type", TableType.HIVE.name())
                     .put("fs.hadoop.enabled", "false")
                     .put("fs.s3.enabled", "true")
-                    .put("s3.aws-access-key", MINIO_ROOT_USER)
-                    .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                    .put("s3.region", MINIO_REGION)
-                    .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
+                    .put("s3.aws-access-key", FLOCI_ACCESS_KEY)
+                    .put("s3.aws-secret-key", FLOCI_SECRET_KEY)
+                    .put("s3.region", FLOCI_REGION)
+                    .put("s3.endpoint", hiveFlociDataLake.floci().endpoint().toString())
                     .put("s3.path-style-access", "true")
                     // Metastore
-                    .put("hive.metastore.uri", hiveMinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
+                    .put("hive.metastore.uri", hiveFlociDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
                     // Required for tests
                     .put("hive.insert-existing-partitions-behavior", "OVERWRITE")
                     .put("hive.hive-views.enabled", "true")

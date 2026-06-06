@@ -20,22 +20,22 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 import java.util.Map;
 
-import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
-import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 
 public final class CustomCredentialProviders
 {
     private CustomCredentialProviders() {}
 
-    public static class MinIoAwsCredentialsProvider
+    public static class FlociAwsCredentialsProvider
             implements AwsCredentialsProvider
     {
-        public MinIoAwsCredentialsProvider(Map<String, String> properties) {}
+        public FlociAwsCredentialsProvider(Map<String, String> properties) {}
 
         @Override
         public AwsCredentials resolveCredentials()
         {
-            return AwsBasicCredentials.create(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD);
+            return AwsBasicCredentials.create(FLOCI_ACCESS_KEY, FLOCI_SECRET_KEY);
         }
     }
 

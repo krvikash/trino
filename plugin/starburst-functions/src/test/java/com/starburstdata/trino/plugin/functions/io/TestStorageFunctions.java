@@ -26,15 +26,15 @@ import io.trino.plugin.hive.HiveConnector;
 import io.trino.plugin.hive.HivePlugin;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.LocationAccessControl;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
-import io.trino.plugin.hive.containers.HiveMinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
+import io.trino.plugin.hive.containers.HiveFlociDataLake;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
-import io.trino.testing.containers.Minio;
+import io.trino.testing.containers.Floci;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +48,9 @@ import java.util.Optional;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_REGION;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
@@ -65,11 +68,10 @@ final class TestStorageFunctions
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        HiveMinioDataLake container = closeAfterClass(new Hive3MinioDataLake("test-bucket"));
-        container.start();
-        Minio minio = container.getMinio();
+        HiveFlociDataLake hive3FlociDataLake = closeAfterClass(new Hive3FlociDataLake("test-bucket"));
+        hive3FlociDataLake.start();
 
-        Path credentialsFile = createCredentialsFile(minio.getMinioAddress());
+        Path credentialsFile = createCredentialsFile(hive3FlociDataLake.floci().endpoint().toString());
         closeAfterClass(() -> Files.delete(credentialsFile));
 
         DistributedQueryRunner queryRunner = StorageQueryRunner.builder()
@@ -81,12 +83,12 @@ final class TestStorageFunctions
 
         queryRunner.installPlugin(new HivePlugin());
         queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
-                .put("hive.metastore.uri", container.getHiveMetastoreEndpoint().toString())
+                .put("hive.metastore.uri", hive3FlociDataLake.getHiveMetastoreEndpoint().toString())
                 .put("fs.s3.enabled", "true")
                 .put("s3.aws-access-key", MINIO_ROOT_USER)
                 .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                 .put("s3.region", MINIO_REGION)
-                .put("s3.endpoint", "http://" + container.getMinio().getMinioApiEndpoint())
+                .put("s3.endpoint", hive3FlociDataLake.floci().endpoint().toString())
                 .put("s3.path-style-access", "true")
                 .buildOrThrow());
         queryRunner.execute("CREATE SCHEMA hive.tpch WITH (location = 's3://test-bucket/tpch')");
@@ -95,7 +97,7 @@ final class TestStorageFunctions
                 .createMetastore(Optional.empty());
 
         ConnectorSession session = queryRunner.getDefaultSession().toConnectorSession();
-        fileSystem = fileSystem(session, minio);
+        fileSystem = fileSystem(session, hive3FlociDataLake.floci());
 
         return queryRunner;
     }
@@ -565,13 +567,13 @@ final class TestStorageFunctions
         return config;
     }
 
-    private static TrinoFileSystem fileSystem(ConnectorSession session, Minio minio)
+    private static TrinoFileSystem fileSystem(ConnectorSession session, Floci floci)
     {
         S3FileSystemConfig config = new S3FileSystemConfig()
-                .setEndpoint(minio.getMinioAddress())
-                .setAwsAccessKey(MINIO_ROOT_USER)
-                .setAwsSecretKey(MINIO_ROOT_PASSWORD)
-                .setRegion(MINIO_REGION)
+                .setEndpoint(floci.endpoint().toString())
+                .setAwsAccessKey(FLOCI_ACCESS_KEY)
+                .setAwsSecretKey(FLOCI_SECRET_KEY)
+                .setRegion(FLOCI_REGION)
                 .setPathStyleAccess(true);
         S3FileSystemFactory fileSystemFactory = new S3FileSystemFactory(OpenTelemetry.noop(), config, new S3FileSystemStats());
         return fileSystemFactory.create(session);

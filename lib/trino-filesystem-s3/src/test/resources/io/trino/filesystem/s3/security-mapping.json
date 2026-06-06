@@ -100,7 +100,7 @@
     },
     {
       "prefix": "s3://baz_with_custom_credential_provider/",
-      "customCredentialProviderClass": "io.trino.filesystem.s3.CustomCredentialProviders$MinIoAwsCredentialsProvider"
+      "customCredentialProviderClass": "io.trino.filesystem.s3.CustomCredentialProviders$FlociAwsCredentialsProvider"
     },
     {
       "prefix": "s3://baz_with_custom_credential_provider_and_arguments/",

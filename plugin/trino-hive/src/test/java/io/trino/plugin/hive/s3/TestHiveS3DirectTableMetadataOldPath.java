@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.hive.s3;
 
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreConfig;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -25,16 +25,16 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 final class TestHiveS3DirectTableMetadataOldPath
         extends AbstractTestQueryFramework
 {
-    private Hive3MinioDataLake hiveMinioDataLake;
+    private Hive3FlociDataLake hiveFlociDataLake;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        this.hiveMinioDataLake = closeAfterClass(new Hive3MinioDataLake("test-hive-direct-meta-" + randomNameSuffix()));
-        this.hiveMinioDataLake.start();
+        this.hiveFlociDataLake = closeAfterClass(new Hive3FlociDataLake("test-hive-direct-meta-" + randomNameSuffix()));
+        this.hiveFlociDataLake.start();
 
-        return S3HiveQueryRunner.builder(hiveMinioDataLake)
+        return S3HiveQueryRunner.builder(hiveFlociDataLake)
                 .setInitialTables(TpchTable.getTables())
                 // turn on old path of getting table metadata without direct call
                 .setThriftMetastoreConfig(new ThriftMetastoreConfig().setMetastoreSupportsTableMeta(false))
@@ -46,7 +46,7 @@ final class TestHiveS3DirectTableMetadataOldPath
     {
         // in case of null table_type, direct get table metadata call fails on HMS side
         // but old path with hive.metastore.thrift.metastore-supports-table-meta - false, should work
-        hiveMinioDataLake.getHiveHadoop().runOnMetastore("UPDATE TBLS SET tbl_type = NULL");
+        hiveFlociDataLake.getHiveHadoop().runOnMetastore("UPDATE TBLS SET tbl_type = NULL");
         computeActual("SHOW TABLES FROM hive.tpch");
     }
 }
