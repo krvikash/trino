@@ -55,6 +55,7 @@ import java.util.stream.Stream;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -133,17 +134,20 @@ public class TestDispatcherWarmCloudFetcherIT
 
         createWarmRulesFileForCloudFetcher(WarmUpType.WARM_UP_TYPE_DATA);
 
-        String restStrResult = executeRestCommand(
-                WarmupRuleService.WARMUP_PATH,
-                WarmupTask.TASK_NAME_FETCH,
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = jsonMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
-                .readValue(restStrResult);
-        assertThat(workerWarmupColRuleDatasMap).hasSize(1);
-        workerWarmupColRuleDatasMap.forEach((_, value) -> {
-            assertThat(value
+        // The cloud fetcher applies rules asynchronously: a periodic background fetch may hold the
+        // fetcher lock and cause the explicit run-fetcher to be skipped, and its change-detection may
+        // briefly miss the freshly written file. Poll until the rules have actually been applied.
+        assertEventually(() -> {
+            String restStrResult = executeRestCommand(
+                    WarmupRuleService.WARMUP_PATH,
+                    WarmupTask.TASK_NAME_FETCH,
+                    null,
+                    HttpMethod.GET,
+                    HttpURLConnection.HTTP_OK);
+            Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = jsonMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
+                    .readValue(restStrResult);
+            assertThat(workerWarmupColRuleDatasMap).hasSize(1);
+            workerWarmupColRuleDatasMap.forEach((_, value) -> assertThat(value
                     .stream()
                     .map(warmupColRuleData -> new WarmupColRuleData(
                             0,
@@ -155,31 +159,33 @@ public class TestDispatcherWarmCloudFetcherIT
                             warmupColRuleData.getTtl(),
                             warmupColRuleData.getPredicates()))
                     .toList())
-                    .isEqualTo(getRules(WarmUpType.WARM_UP_TYPE_DATA));
+                    .isEqualTo(getRules(WarmUpType.WARM_UP_TYPE_DATA)));
         });
 
         createWarmRulesFileForCloudFetcher(WarmUpType.WARM_UP_TYPE_LUCENE);
 
-        restStrResult = executeRestCommand(
-                WarmupRuleService.WARMUP_PATH,
-                WarmupRuleService.TASK_NAME_GET,
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        List<WarmupColRuleData> warmupColRuleDataList = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
-                .readValue(restStrResult);
-        assertThat(warmupColRuleDataList.stream()
-                .map(warmupColRuleData -> new WarmupColRuleData(
-                        0,
-                        warmupColRuleData.getSchema(),
-                        warmupColRuleData.getTable(),
-                        warmupColRuleData.getColumn(),
-                        warmupColRuleData.getWarmUpType(),
-                        warmupColRuleData.getPriority(),
-                        warmupColRuleData.getTtl(),
-                        warmupColRuleData.getPredicates()))
-                .toList())
-                .isEqualTo(getRules(WarmUpType.WARM_UP_TYPE_LUCENE));
+        assertEventually(() -> {
+            String restStrResult = executeRestCommand(
+                    WarmupRuleService.WARMUP_PATH,
+                    WarmupRuleService.TASK_NAME_GET,
+                    null,
+                    HttpMethod.GET,
+                    HttpURLConnection.HTTP_OK);
+            List<WarmupColRuleData> warmupColRuleDataList = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
+                    .readValue(restStrResult);
+            assertThat(warmupColRuleDataList.stream()
+                    .map(warmupColRuleData -> new WarmupColRuleData(
+                            0,
+                            warmupColRuleData.getSchema(),
+                            warmupColRuleData.getTable(),
+                            warmupColRuleData.getColumn(),
+                            warmupColRuleData.getWarmUpType(),
+                            warmupColRuleData.getPriority(),
+                            warmupColRuleData.getTtl(),
+                            warmupColRuleData.getPredicates()))
+                    .toList())
+                    .isEqualTo(getRules(WarmUpType.WARM_UP_TYPE_LUCENE));
+        });
     }
 
     private void createWarmRulesFileForCloudFetcher(WarmUpType... types)
