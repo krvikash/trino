@@ -9283,83 +9283,83 @@
         ]
       }
     ],
-    "warm_query": "select * from geospatial_basic",
+    "warm_query": "select * from geospatial_basic_updated",
     "queries_data": [
       {
-        "query": "select count(*) from geospatial_basic",
+        "query": "select count(*) from geospatial_basic_updated",
         "query_id": "geospatial_basic_01",
         "expected_result": [
           1000000
         ]
       },
       {
-        "query": "select distinct(ST_IsValid(ST_GeometryFromText(geo_point))) from geospatial_basic",
+        "query": "select distinct(ST_IsValid(ST_GeometryFromText(geo_point))) from geospatial_basic_updated",
         "query_id": "geospatial_basic_02",
         "expected_result": [
           true
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Contains(ST_GeometryFromText(geo_point), ST_GeometryFromText(geo_multipoint))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Contains(ST_GeometryFromText(geo_point), ST_GeometryFromText(geo_multipoint))",
         "query_id": "geospatial_basic_03",
         "expected_result": [
           0
         ]
       },
       {
-        "query": "select max(ST_Area(ST_GeometryFromText(geo_polygon))) from geospatial_basic",
+        "query": "select max(ST_Area(ST_GeometryFromText(geo_polygon))) from geospatial_basic_updated",
         "query_id": "geospatial_basic_04",
         "expected_result": [
-          107835.34246970105
+          6495.184307310037
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Contains(ST_GeometryFromText(geo_multipolygon), st_point(geo_x, geo_y))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Contains(ST_GeometryFromText(geo_multipolygon), st_point(geo_x, geo_y))",
         "query_id": "geospatial_basic_05",
         "expected_result": [
-          189707
+          5450
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Contains(ST_GeometryFromText(geo_polygon), ST_Point(geo_x, geo_y))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Contains(ST_GeometryFromText(geo_polygon), ST_Point(geo_x, geo_y))",
         "query_id": "geospatial_basic_06",
         "expected_result": [
-          189887
+          15825
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Area(ST_GeometryFromText(geo_polygon)) > 100",
+        "query": "select count(*) from geospatial_basic_updated where ST_Area(ST_GeometryFromText(geo_polygon)) > 100",
         "query_id": "geospatial_basic_07",
         "expected_result": [
-          497827
+          894190
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Crosses(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multilinestring))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Crosses(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multilinestring))",
         "query_id": "geospatial_basic_08",
         "expected_result": [
-          990589
+          235435
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Disjoint(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multipolygon))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Disjoint(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multipolygon))",
         "query_id": "geospatial_basic_09",
         "expected_result": [
-          56315
+          946412
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Intersects(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multipolygon)) and ST_Area(ST_GeometryFromText(geo_polygon)) > 100 or ST_Contains(ST_GeometryFromText(geo_multipolygon), st_point(geo_x, geo_y))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Intersects(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multipolygon)) and ST_Area(ST_GeometryFromText(geo_polygon)) > 100 or ST_Contains(ST_GeometryFromText(geo_multipolygon), st_point(geo_x, geo_y))",
         "query_id": "geospatial_basic_10",
         "expected_result": [
-          570770
+          57716
         ]
       },
       {
-        "query": "select count(*) from geospatial_basic where ST_Intersects(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multipolygon)) and ST_Area(ST_GeometryFromText(geo_polygon)) <> 100 or ST_Contains(ST_GeometryFromText(geo_multipolygon), st_point(geo_x, geo_y))",
+        "query": "select count(*) from geospatial_basic_updated where ST_Intersects(ST_GeometryFromText(geo_polygon), ST_GeometryFromText(geo_multipolygon)) and ST_Area(ST_GeometryFromText(geo_polygon)) <> 100 or ST_Contains(ST_GeometryFromText(geo_multipolygon), st_point(geo_x, geo_y))",
         "query_id": "geospatial_basic_11",
         "expected_result": [
-          953410
+          58662
         ]
       }
     ]
