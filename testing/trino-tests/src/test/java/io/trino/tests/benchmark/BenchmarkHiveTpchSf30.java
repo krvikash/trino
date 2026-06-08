@@ -67,7 +67,7 @@ public final class BenchmarkHiveTpchSf30
                     653489379 orders/20260429_165014_00007_ghg4b_0de07670-c9fb-4cc2-932d-8243ea615567
                     975 region/20260429_164938_00001_ghg4b_7a4a7ea1-967e-44b8-aeb7-7c60cd4a1ba0
                     """;
-            BenchmarkRunner.verifyDataListing(Path.of(dataLocation), "Run `testing/benchmark-data/hydrate.sh tpch-sf30` first.", expected);
+            BenchmarkRunner.verifyDataListing(Path.of(dataLocation), "Run `testing/benchmark-data/hydrate.sh hive-tpch-sf30` first.", expected);
         }
     }
 }

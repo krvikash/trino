@@ -111,7 +111,7 @@ public final class BenchmarkHiveTpcdsSf100
                     910248870 inventory/20260528_112220_00011_cwgbm_01ba93f5-3f4b-4193-ab7d-6039fdc5f14a
                     9995 call_center/20260528_111230_00001_cwgbm_baca8512-6983-49e0-9de7-c36f7b874391
                     """;
-            BenchmarkRunner.verifyDataListing(Path.of(dataLocation), "Run `testing/benchmark-data/hydrate.sh tpcds-sf100` first.", expected);
+            BenchmarkRunner.verifyDataListing(Path.of(dataLocation), "Run `testing/benchmark-data/hydrate.sh hive-tpcds-sf100` first.", expected);
         }
     }
 }
