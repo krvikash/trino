@@ -74,6 +74,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -546,6 +547,12 @@ public final class BenchmarkRunner
         for (Throwable current : getCausalChain(queryFailed.getCause())) {
             FailureInfo failureInfo = ((FailureException) current).getFailureInfo();
             if (ExceededMemoryLimitException.class.getName().equals(failureInfo.getType())) {
+                // out of CPU memory
+                return true;
+            }
+            if (OutOfMemoryError.class.getName().equals(failureInfo.getType()) &&
+                    nullToEmpty(failureInfo.getMessage()).startsWith("Could not allocate native memory: std::bad_alloc: out_of_memory: RMM failure")) {
+                // out of GPU memory
                 return true;
             }
         }
