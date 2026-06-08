@@ -21,7 +21,7 @@ import java.util.function.ObjLongConsumer;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.spi.block.BlockUtil.checkArrayRange;
-import static io.trino.spi.block.BlockUtil.checkReadablePosition;
+import static io.trino.spi.block.BlockUtil.checkValidPosition;
 import static io.trino.spi.block.BlockUtil.checkValidRegion;
 import static io.trino.spi.block.BlockUtil.compactArray;
 import static io.trino.spi.block.BlockUtil.compactIsNull;
@@ -113,7 +113,7 @@ public final class ShortArrayBlock
 
     public short getShort(int position)
     {
-        checkReadablePosition(this, position);
+        checkValidPosition(position, positionCount);
         return values[position + arrayOffset];
     }
 
@@ -143,7 +143,7 @@ public final class ShortArrayBlock
         if (!mayHaveNull()) {
             return false;
         }
-        checkReadablePosition(this, position);
+        checkValidPosition(position, positionCount);
         return valueIsNull[position + arrayOffset];
     }
 
@@ -156,7 +156,7 @@ public final class ShortArrayBlock
     @Override
     public ShortArrayBlock getSingleValueBlock(int position)
     {
-        checkReadablePosition(this, position);
+        checkValidPosition(position, positionCount);
         return new ShortArrayBlock(
                 0,
                 1,
@@ -177,7 +177,7 @@ public final class ShortArrayBlock
         short[] newValues = new short[length];
         for (int i = 0; i < length; i++) {
             int position = positions[offset + i];
-            checkReadablePosition(this, position);
+            checkValidPosition(position, positionCount);
             if (valueIsNull != null) {
                 boolean isNull = valueIsNull[position + arrayOffset];
                 newValueIsNull[i] = isNull;
