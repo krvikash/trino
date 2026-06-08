@@ -58,12 +58,6 @@
     - cloud-tests
   runners: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
 - modules:
-    - plugin/starburst-stargate
-  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
-- modules:
-    - plugin/starburst-stargate-parallel
-  runners: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-- modules:
     - plugin/trino-delta-lake
   runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
 - modules:
@@ -102,42 +96,68 @@
     - test-fault-tolerant-iceberg
 - modules:
     - testing/trino-tests
-  runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ]
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
   matrix-properties:
     buildAll: true # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
 - modules:
+    - plugin/trino-ignite
+    - plugin/trino-lakehouse
+    - plugin/trino-postgresql
+    - plugin/trino-redis
+    - plugin/trino-resource-group-managers
+## Nightly
+- modules:
     - plugin/starburst-dynamodb
-    - plugin/starburst-kdb
     - plugin/starburst-oracle
     - plugin/starburst-sap-hana
     - plugin/starburst-sqlserver
-    - plugin/trino-cassandra
-    - plugin/trino-clickhouse
-    - plugin/trino-druid
-    - plugin/trino-duckdb
     - plugin/trino-elasticsearch
-    - plugin/trino-exasol
-    - plugin/trino-hudi
-    - plugin/trino-ignite
+    - plugin/trino-clickhouse
     - plugin/trino-kafka
-    - plugin/trino-lakehouse
     - plugin/trino-mariadb
     - plugin/trino-mysql
-    - plugin/starburst-openapi
-    - plugin/trino-opensearch
     - plugin/trino-oracle
-    - plugin/trino-postgresql
-    - plugin/trino-redis
     - plugin/trino-redshift
-    - plugin/trino-resource-group-managers
-    - plugin/trino-singlestore
     - plugin/trino-sqlserver
-    - plugin/trino-vertica
+  when:
+    scheduled: nightly
+- modules:
+    - plugin/starburst-stargate
+  runners: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
+  when:
+    scheduled: nightly
+- modules:
+    - plugin/starburst-stargate-parallel
+  runners: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
+  when:
+    scheduled: nightly
 - modules:
     - plugin/trino-mongodb
   profiles:
     - ""
     - cloud-tests
+  when:
+    scheduled: nightly
 - modules:
     - plugin/trino-pinot
   runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]
+  when:
+    scheduled: nightly
+## Weekly
+- modules:
+    - plugin/starburst-kdb
+    - plugin/starburst-openapi
+    - plugin/trino-hudi
+    - plugin/trino-opensearch
+    - plugin/trino-singlestore
+    - plugin/trino-vertica
+  when:
+    scheduled: weekly
+## Only if impacted
+- modules:
+    - plugin/trino-cassandra
+    - plugin/trino-druid
+    - plugin/trino-duckdb
+    - plugin/trino-exasol
+  when:
+    scheduled: never
