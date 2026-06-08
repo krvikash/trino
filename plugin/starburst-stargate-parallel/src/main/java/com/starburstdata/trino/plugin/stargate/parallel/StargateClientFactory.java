@@ -19,6 +19,7 @@ import kotlin.jvm.functions.Function0;
 import kotlin.reflect.KClass;
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.EventListener;
 import okhttp3.Request;
 import okhttp3.Response;
 import okio.Timeout;
@@ -58,6 +59,12 @@ public class StargateClientFactory
     {
         return _ -> new Call()
         {
+            @Override
+            public void addEventListener(EventListener eventListener)
+            {
+                throw new UnsupportedOperationException();
+            }
+
             @Override
             public Request request()
             {
