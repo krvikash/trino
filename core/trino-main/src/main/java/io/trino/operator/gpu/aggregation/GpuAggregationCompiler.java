@@ -476,7 +476,6 @@ public final class GpuAggregationCompiler
     {
         return getSingleColumnReference(arguments, sourceLayout)
                 .flatMap(column -> toDType(returnType)
-                        .filter(dType -> !dType.isNestedType())
                         .map(dType -> {
                             if (maskChannel.isPresent()) {
                                 return new AggregateCompilation(

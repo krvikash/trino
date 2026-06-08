@@ -47,6 +47,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
@@ -72,12 +73,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
-import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
 import static io.trino.sql.planner.plan.AggregationNode.Step.FINAL;
@@ -133,7 +129,7 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testCountNonNullForAllTypes(Type type)
     {
         Block block = createBlock(type, 100, RANDOM_NULLS);
@@ -160,7 +156,7 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testGroupByCountNonNullForAllTypes(Type type)
     {
         Block groupByBlock = createGroupByBlock(100, 5);
@@ -262,17 +258,25 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testMinForAllTypes(Type type)
     {
+        if (type == VARBINARY) {
+            assertCompileNotSupported("min", List.of(type), false);
+            return;
+        }
         Block block = createBlock(type, 100, RANDOM_NULLS);
         assertGlobalMatchesCpu(new Page(block), "min", List.of(type));
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testGroupByMinForAllTypes(Type type)
     {
+        if (type == VARBINARY) {
+            assertCompileNotSupported("min", List.of(type), true);
+            return;
+        }
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
         assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "min", List.of(type));
@@ -293,17 +297,25 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testMaxForAllTypes(Type type)
     {
+        if (type == VARBINARY) {
+            assertCompileNotSupported("max", List.of(type), false);
+            return;
+        }
         Block block = createBlock(type, 100, RANDOM_NULLS);
         assertGlobalMatchesCpu(new Page(block), "max", List.of(type));
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testGroupByMaxForAllTypes(Type type)
     {
+        if (type == VARBINARY) {
+            assertCompileNotSupported("max", List.of(type), true);
+            return;
+        }
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
         assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "max", List.of(type));
@@ -647,7 +659,7 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testAnyValueForAllTypes(Type type)
     {
         Block block = createBlock(type, 100, RANDOM_NULLS);
@@ -655,17 +667,12 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("allConvertibleTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testGroupByAnyValueForAllTypes(Type type)
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
         assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "any_value", List.of(type));
-    }
-
-    static Stream<Type> allConvertibleTypes()
-    {
-        return Stream.of(BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT, REAL, DOUBLE, VARCHAR);
     }
 
     static Stream<Type> sumSupportedTypes()
@@ -881,6 +888,19 @@ final class TestGpuAggregationOperator
 
     private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step, boolean masked)
     {
+        return tryCompileAggregation(functionName, argumentTypes, grouped, step, masked)
+                .orElseThrow(() -> new AssertionError("Failed to compile %s over %s".formatted(functionName, argumentTypes)));
+    }
+
+    private static void assertCompileNotSupported(String functionName, List<Type> argumentTypes, boolean grouped)
+    {
+        for (AggregationNode.Step step : AggregationNode.Step.values()) {
+            assertThat(tryCompileAggregation(functionName, argumentTypes, grouped, step, false)).isEmpty();
+        }
+    }
+
+    private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step, boolean masked)
+    {
         ImmutableList.Builder<Symbol> sourceSymbols = ImmutableList.builder();
         List<Symbol> groupingKeys = List.of();
 
@@ -945,8 +965,7 @@ final class TestGpuAggregationOperator
             layoutBuilder.put(allSourceSymbols.get(i), i);
         }
 
-        return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), /*compactionThresholdBytes=*/ 1).orElseThrow(
-                () -> new AssertionError("GpuAggregationCompiler failed to compile " + functionName));
+        return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), /*compactionThresholdBytes=*/ 1);
     }
 
     private static List<Page> runGpuPipeline(Page inputPage, List<Type> inputTypes, CompileResult compiled)
