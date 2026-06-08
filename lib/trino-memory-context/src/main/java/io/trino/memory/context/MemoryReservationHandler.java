@@ -28,4 +28,9 @@ public interface MemoryReservationHandler
      * @return true if reservation is successful, false otherwise.
      */
     boolean tryReserveMemory(String allocationTag, long delta);
+
+    default void transferTags(String fromTag, String toTag, long bytes)
+    {
+        throw new UnsupportedOperationException("transferTags not supported by " + getClass());
+    }
 }

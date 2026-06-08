@@ -31,7 +31,7 @@ class ChildAggregatedMemoryContext
     }
 
     @Override
-    synchronized ListenableFuture<Void> updateBytes(String allocationTag, long delta)
+    public synchronized ListenableFuture<Void> updateBytes(String allocationTag, long delta)
     {
         checkState(!isClosed(), "ChildAggregatedMemoryContext is already closed");
         // update the parent before updating usedBytes as it may throw a runtime exception (e.g., ExceededMemoryLimitException)

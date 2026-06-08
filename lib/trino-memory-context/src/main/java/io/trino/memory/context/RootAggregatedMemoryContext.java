@@ -31,7 +31,7 @@ class RootAggregatedMemoryContext
     }
 
     @Override
-    synchronized ListenableFuture<Void> updateBytes(String allocationTag, long delta)
+    public synchronized ListenableFuture<Void> updateBytes(String allocationTag, long delta)
     {
         checkState(!isClosed(), "RootAggregatedMemoryContext is already closed");
         ListenableFuture<Void> future = reservationHandler.reserveMemory(allocationTag, delta);
@@ -52,6 +52,13 @@ class RootAggregatedMemoryContext
             return true;
         }
         return false;
+    }
+
+    @Override
+    public synchronized void transferTags(String fromTag, String toTag, long bytes)
+    {
+        checkState(!isClosed(), "RootAggregatedMemoryContext is already closed");
+        reservationHandler.transferTags(fromTag, toTag, bytes);
     }
 
     @Override

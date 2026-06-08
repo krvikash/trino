@@ -336,22 +336,28 @@ public class QueryContext
         AggregatedMemoryContext taskUserMemory = newRootAggregatedMemoryContext(
                 new QueryMemoryReservationHandler(
                         (tag, delta) -> updateUserMemory(taskId, tag, delta),
-                        (tag, delta) -> tryUpdateUserMemory(taskId, tag, delta)),
+                        (tag, delta) -> tryUpdateUserMemory(taskId, tag, delta),
+                        transferTagsFunction(memoryPool, taskId)),
                 guaranteedMemory);
         AggregatedMemoryContext taskRevocableMemory = newRootAggregatedMemoryContext(
                 new QueryMemoryReservationHandler(
                         (_, delta) -> updateRevocableMemory(taskId, delta),
-                        (_, _) -> tryReserveMemoryNotSupported()),
+                        (_, _) -> tryReserveMemoryNotSupported(),
+                        (_, _, _) -> {
+                            throw new UnsupportedOperationException("Revocable memory allocations are untagged and cannot be transferred");
+                        }),
                 0L);
         AggregatedMemoryContext taskGpuDeviceMemory = newRootAggregatedMemoryContext(
                 new QueryMemoryReservationHandler(
                         (tag, delta) -> updateGpuMemory(taskId, tag, delta),
-                        (tag, delta) -> tryUpdateGpuMemory(taskId, tag, delta)),
+                        (tag, delta) -> tryUpdateGpuMemory(taskId, tag, delta),
+                        transferTagsFunction(gpuDeviceMemoryPool, taskId)),
                 0L);
         AggregatedMemoryContext taskOffHeapMemory = newRootAggregatedMemoryContext(
                 new QueryMemoryReservationHandler(
                         (tag, delta) -> updateOffHeapMemory(taskId, tag, delta),
-                        (tag, delta) -> tryUpdateOffHeapMemory(taskId, tag, delta)),
+                        (tag, delta) -> tryUpdateOffHeapMemory(taskId, tag, delta),
+                        transferTagsFunction(offHeapMemoryPool, taskId)),
                 0L);
         MemoryTrackingContext taskMemoryContext = new MemoryTrackingContext(taskUserMemory, taskRevocableMemory);
         GpuTaskMemoryContext gpuTaskMemoryContext = new GpuTaskMemoryContext(taskUserMemory, taskGpuDeviceMemory, taskOffHeapMemory);
@@ -425,13 +431,16 @@ public class QueryContext
     {
         private final BiFunction<String, Long, ListenableFuture<Void>> reserveMemoryFunction;
         private final BiPredicate<String, Long> tryReserveMemoryFunction;
+        private final TagTransferFunction tagTransferFunction;
 
         public QueryMemoryReservationHandler(
                 BiFunction<String, Long, ListenableFuture<Void>> reserveMemoryFunction,
-                BiPredicate<String, Long> tryReserveMemoryFunction)
+                BiPredicate<String, Long> tryReserveMemoryFunction,
+                TagTransferFunction tagTransferFunction)
         {
             this.reserveMemoryFunction = requireNonNull(reserveMemoryFunction, "reserveMemoryFunction is null");
             this.tryReserveMemoryFunction = requireNonNull(tryReserveMemoryFunction, "tryReserveMemoryFunction is null");
+            this.tagTransferFunction = requireNonNull(tagTransferFunction, "tagTransferFunction is null");
         }
 
         @Override
@@ -445,6 +454,23 @@ public class QueryContext
         {
             return tryReserveMemoryFunction.test(allocationTag, delta);
         }
+
+        @Override
+        public void transferTags(String fromTag, String toTag, long bytes)
+        {
+            tagTransferFunction.transfer(fromTag, toTag, bytes);
+        }
+    }
+
+    private TagTransferFunction transferTagsFunction(MemoryPool memoryPool, TaskId taskId)
+    {
+        return (fromTag, toTag, bytes) -> memoryPool.transferTags(taskId, fromTag, toTag, bytes);
+    }
+
+    @FunctionalInterface
+    interface TagTransferFunction
+    {
+        void transfer(String fromTag, String toTag, long bytes);
     }
 
     private boolean tryReserveMemoryNotSupported()

@@ -281,6 +281,29 @@ public class MemoryPool
         }
     }
 
+    /// Re-label a previously reserved allocation: subtract `bytes` from the `fromTag`
+    /// bucket and add the same to `toTag`, both for the given task's query. Unlike
+    /// [#free] followed by [#reserve], this does _not_ even temporarily change
+    /// `reservedBytes` and does _not_ wake waiters.
+    public synchronized void transferTags(TaskId taskId, String fromTag, String toTag, long bytes)
+    {
+        checkArgument(bytes >= 0, "bytes is negative: %s", bytes);
+        if (bytes == 0 || fromTag.equals(toTag)) {
+            return;
+        }
+        QueryId queryId = taskId.queryId();
+        Map<String, Long> queryAllocations = taggedMemoryAllocations.get(queryId);
+        checkState(queryAllocations != null, "no tagged allocations for query %s", queryId);
+        Long fromValue = queryAllocations.get(fromTag);
+        checkArgument(fromValue != null && fromValue >= bytes,
+                "tried to transfer more memory (%s) than is tagged under '%s' (%s)",
+                bytes,
+                fromTag,
+                fromValue);
+        updateTaggedMemoryAllocations(queryId, fromTag, -bytes);
+        updateTaggedMemoryAllocations(queryId, toTag, bytes);
+    }
+
     public synchronized void freeRevocable(TaskId taskId, long bytes)
     {
         checkArgument(bytes >= 0, "'%s' is negative", bytes);

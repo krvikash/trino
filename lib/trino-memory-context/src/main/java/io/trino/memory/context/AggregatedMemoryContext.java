@@ -13,6 +13,8 @@
  */
 package io.trino.memory.context;
 
+import com.google.common.util.concurrent.ListenableFuture;
+
 public interface AggregatedMemoryContext
 {
     static AggregatedMemoryContext newSimpleAggregatedMemoryContext()
@@ -28,6 +30,16 @@ public interface AggregatedMemoryContext
     AggregatedMemoryContext newAggregatedMemoryContext();
 
     LocalMemoryContext newLocalMemoryContext(String allocationTag);
+
+    default ListenableFuture<Void> updateBytes(String allocationTag, long delta)
+    {
+        throw new UnsupportedOperationException("updateBytes not supported by " + getClass());
+    }
+
+    default void transferTags(String fromTag, String toTag, long bytes)
+    {
+        throw new UnsupportedOperationException("transferTags not supported by " + getClass());
+    }
 
     long getBytes();
 

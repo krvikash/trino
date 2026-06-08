@@ -223,6 +223,51 @@ class TestMemoryPools
     }
 
     @Test
+    void testTransferTagsAtomicRelabelWithoutReleasing()
+    {
+        TaskId testTask = new TaskId(new StageId(new QueryId("test_query"), 0), 0, 0);
+        MemoryPool testPool = new MemoryPool(DataSize.ofBytes(1000));
+
+        testPool.reserve(testTask, "producer", 200);
+        long reservedBefore = testPool.getReservedBytes();
+        long freeBefore = testPool.getFreeBytes();
+
+        // Transfer 200 bytes from "producer" to "consumer" — no physical change, just relabel.
+        testPool.transferTags(testTask, "producer", "consumer", 200);
+
+        // reservedBytes and free bytes are unchanged: no actual release, no waiter wake.
+        assertThat(testPool.getReservedBytes()).isEqualTo(reservedBefore);
+        assertThat(testPool.getFreeBytes()).isEqualTo(freeBefore);
+
+        // The per-tag map reflects the move: "producer" is gone, "consumer" has the bytes.
+        assertThat(testPool.getTaggedMemoryAllocations().get(new QueryId("test_query")))
+                .isEqualTo(ImmutableMap.of("consumer", 200L));
+
+        // Partial transfer also works.
+        testPool.transferTags(testTask, "consumer", "buffer", 50);
+        assertThat(testPool.getTaggedMemoryAllocations().get(new QueryId("test_query")))
+                .isEqualTo(ImmutableMap.of("consumer", 150L, "buffer", 50L));
+
+        // No-op when fromTag == toTag.
+        testPool.transferTags(testTask, "consumer", "consumer", 100);
+        assertThat(testPool.getTaggedMemoryAllocations().get(new QueryId("test_query")))
+                .isEqualTo(ImmutableMap.of("consumer", 150L, "buffer", 50L));
+
+        // No-op when bytes == 0.
+        testPool.transferTags(testTask, "consumer", "third", 0);
+        assertThat(testPool.getTaggedMemoryAllocations().get(new QueryId("test_query")))
+                .isEqualTo(ImmutableMap.of("consumer", 150L, "buffer", 50L));
+
+        // Transferring more than the source tag holds is rejected.
+        assertThatThrownBy(() -> testPool.transferTags(testTask, "buffer", "consumer", 1000))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        testPool.free(testTask, "consumer", 150);
+        testPool.free(testTask, "buffer", 50);
+        assertThat(testPool.getTaggedMemoryAllocations()).isEmpty();
+    }
+
+    @Test
     void testPerTaskAllocations()
     {
         QueryId query1 = new QueryId("test_query1");

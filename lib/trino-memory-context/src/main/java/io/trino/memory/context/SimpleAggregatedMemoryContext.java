@@ -15,6 +15,7 @@ package io.trino.memory.context;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 /**
@@ -24,7 +25,7 @@ class SimpleAggregatedMemoryContext
         extends AbstractAggregatedMemoryContext
 {
     @Override
-    synchronized ListenableFuture<Void> updateBytes(String allocationTag, long delta)
+    public synchronized ListenableFuture<Void> updateBytes(String allocationTag, long delta)
     {
         checkState(!isClosed(), "SimpleAggregatedMemoryContext is already closed");
         addBytes(delta);
@@ -37,6 +38,14 @@ class SimpleAggregatedMemoryContext
         checkState(!isClosed(), "SimpleAggregatedMemoryContext is already closed");
         addBytes(delta);
         return true;
+    }
+
+    @Override
+    public void transferTags(String fromTag, String toTag, long bytes)
+    {
+        checkState(!isClosed(), "SimpleAggregatedMemoryContext is already closed");
+        checkArgument(bytes >= 0, "bytes is negative: %s", bytes);
+        // no-op, allocation tags are not tracked
     }
 
     @Override
