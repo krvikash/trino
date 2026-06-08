@@ -318,14 +318,6 @@ public final class BenchmarkClickBench
         return queryRunner;
     }
 
-    /**
-     * Path to the {@code hits} parquet files; used by the off-Trino table-scan benchmarks.
-     */
-    public static Path dataLocation()
-    {
-        return Path.of(new ClickBenchWorkload().defaultDataLocation(), "hits");
-    }
-
     public static class CpuBenchmark
     {
         static void main()
