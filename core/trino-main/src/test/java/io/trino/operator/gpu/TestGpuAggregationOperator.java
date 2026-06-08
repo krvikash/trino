@@ -31,9 +31,11 @@ import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler.CompileResult;
 import io.trino.operator.gpu.aggregation.GpuCountNonNull;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Expression;
@@ -49,17 +51,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.FieldSource;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
@@ -69,14 +71,15 @@ import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
+import static io.trino.operator.gpu.GpuTestUtils.assertSameDataWithoutOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
@@ -227,18 +230,26 @@ final class TestGpuAggregationOperator
     }
 
     @ParameterizedTest
-    @MethodSource("sumSupportedTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testSumForAllTypes(Type type)
     {
+        if (type != BIGINT && type != DOUBLE && type != REAL) {
+            assertCompileNotSupported("sum", List.of(type), false, SINGLE);
+            return;
+        }
         Block block = createInputBlockForSum(type, 100);
         Page inputPage = new Page(block);
         assertGlobalMatchesCpu(List.of(inputPage), "sum", List.of(type), SINGLE);
     }
 
     @ParameterizedTest
-    @MethodSource("sumSupportedTypes")
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testGroupBySumForAllTypes(Type type)
     {
+        if (type != BIGINT && type != DOUBLE && type != REAL) {
+            assertCompileNotSupported("sum", List.of(type), true, SINGLE);
+            return;
+        }
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createInputBlockForSum(type, 100);
         Page inputPage = new Page(groupByBlock, valueBlock);
@@ -581,27 +592,6 @@ final class TestGpuAggregationOperator
         assertGroupByMatchesCpu(List.of(inputPage), "bool_and", List.of(BOOLEAN), SINGLE);
     }
 
-    @ParameterizedTest
-    @MethodSource("shortDecimalTypes")
-    void testAvgDecimalPartialGlobal(DecimalType type)
-    {
-        Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
-        Page input = new Page(valueBlock);
-
-        assertGlobalMatchesCpu(List.of(input), "avg", List.of(type), PARTIAL);
-    }
-
-    @ParameterizedTest
-    @MethodSource("shortDecimalTypes")
-    void testAvgDecimalPartialGroupBy(DecimalType type)
-    {
-        Block groupKeys = createGroupByBlock(100, 5);
-        Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
-        Page input = new Page(groupKeys, valueBlock);
-
-        assertGroupByMatchesCpu(List.of(input), "avg", List.of(type), PARTIAL);
-    }
-
     @Test
     void testMaskedCountAllGlobal()
     {
@@ -703,17 +693,126 @@ final class TestGpuAggregationOperator
         assertGroupByMatchesCpu(List.of(inputPage), "any_value", List.of(type), SINGLE);
     }
 
-    static Stream<Type> sumSupportedTypes()
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testCountPartialFinalGlobalForAllTypes(Type type)
     {
-        return Stream.of(BIGINT, DOUBLE);
+        runPartialFinalGlobal("count", type, false);
     }
 
-    static Stream<DecimalType> shortDecimalTypes()
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testSumPartialFinalGlobalForAllTypes(Type type)
     {
-        return Stream.of(
-                createDecimalType(12, 2),
-                createDecimalType(6, 0),
-                createDecimalType(18, 6));
+        runPartialFinalGlobal("sum", type, sumIntermediateMayDiffer(type));
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testMinPartialFinalGlobalForAllTypes(Type type)
+    {
+        runPartialFinalGlobal("min", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testMaxPartialFinalGlobalForAllTypes(Type type)
+    {
+        runPartialFinalGlobal("max", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testAvgPartialFinalGlobalForAllTypes(Type type)
+    {
+        // avg(decimal) uses VARBINARY intermediates with different CPU/GPU layouts.
+        runPartialFinalGlobal("avg", type, type instanceof DecimalType);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testAnyValuePartialFinalGlobalForAllTypes(Type type)
+    {
+        runPartialFinalGlobal("any_value", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testBoolAndPartialFinalGlobalForAllTypes(Type type)
+    {
+        runPartialFinalGlobal("bool_and", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testBoolOrPartialFinalGlobalForAllTypes(Type type)
+    {
+        runPartialFinalGlobal("bool_or", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByCountPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("count", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupBySumPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("sum", type, sumIntermediateMayDiffer(type));
+    }
+
+    private static boolean sumIntermediateMayDiffer(Type type)
+    {
+        // sum(decimal): CPU emits variable-length rows, GPU a uniform 16-byte layout.
+        // sum(double|real): floating-point sum is non-associative, so CPU sequential and GPU parallel
+        //         reductions may produce different last-bit-level bytes that still round to the same
+        //         final value within the verifier's tolerance.
+        return type instanceof DecimalType || type == DOUBLE || type == REAL;
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByMinPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("min", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByMaxPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("max", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByAvgPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("avg", type, type instanceof DecimalType);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByAnyValuePartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("any_value", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByBoolAndPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("bool_and", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByBoolOrPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("bool_or", type, false);
     }
 
     private static Block createGroupByBlock(int positionsCount, int numGroups)
@@ -886,11 +985,30 @@ final class TestGpuAggregationOperator
     private static void assertCompileNotSupported(String functionName, List<Type> argumentTypes, boolean grouped)
     {
         for (Step step : Step.values()) {
-            assertThat(tryCompileAggregation(functionName, argumentTypes, grouped, step, false)).isEmpty();
+            assertCompileNotSupported(functionName, argumentTypes, grouped, step);
         }
     }
 
+    private static void assertCompileNotSupported(String functionName, List<Type> argumentTypes, boolean grouped, Step step)
+    {
+        Optional<CompileResult> compiled;
+        try {
+            compiled = tryCompileAggregation(functionName, argumentTypes, grouped, step, false);
+        }
+        catch (TrinoException e) {
+            // Trino has no such function for these argument types, so the GPU compiler is never invoked.
+            verifyFunctionResolutionError(functionName, e);
+            return;
+        }
+        assertThat(compiled).isEmpty();
+    }
+
     private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
+    {
+        return tryCompileAggregation(functionName, argumentTypes, argumentTypes, grouped, step, masked);
+    }
+
+    private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, List<Type> stepInputTypes, boolean grouped, Step step, boolean masked)
     {
         ImmutableList.Builder<Symbol> sourceSymbols = ImmutableList.builder();
         List<Symbol> groupingKeys = List.of();
@@ -903,9 +1021,9 @@ final class TestGpuAggregationOperator
 
         List<Expression> arguments = ImmutableList.of();
         if (!argumentTypes.isEmpty()) {
-            Symbol val = new Symbol(argumentTypes.getFirst(), "val");
+            Symbol val = new Symbol(stepInputTypes.getFirst(), "val");
             sourceSymbols.add(val);
-            arguments = ImmutableList.of(new Reference(argumentTypes.getFirst(), "val"));
+            arguments = ImmutableList.of(new Reference(stepInputTypes.getFirst(), "val"));
         }
         else {
             sourceSymbols.add(new Symbol(BIGINT, "unused"));
@@ -1116,5 +1234,290 @@ final class TestGpuAggregationOperator
             }
         }
         return builder.build();
+    }
+
+    /**
+     * Verifies the PARTIAL/FINAL split for ({@code functionName}, {@code argumentType}) by running every
+     * combination of {CPU, GPU} PARTIAL × {CPU, GPU} FINAL and checking they all agree with the CPU-only
+     * golden result. Combinations whose GPU leg the compiler doesn't support are skipped. When both GPU
+     * legs are unsupported the test is a no-op (SINGLE-step coverage handles that case separately).
+     *
+     * @param intermediateMayDiffer if true, skip the block-equality check between CPU PARTIAL and GPU
+     *         PARTIAL outputs (e.g. {@code sum(decimal)}/{@code avg(decimal)} where CPU emits variable-
+     *         length intermediates and GPU emits a uniform 16-byte layout)
+     */
+    private void runPartialFinalGlobal(String functionName, Type argumentType, boolean intermediateMayDiffer)
+    {
+        ResolvedFunction resolvedFunction;
+        try {
+            resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentType));
+        }
+        catch (TrinoException e) {
+            // Trino has no such function for this argument type; the GPU compiler is never invoked.
+            verifyFunctionResolutionError(functionName, e);
+            return;
+        }
+        if (!resolvedFunction.signature().getArgumentTypes().equals(List.of(argumentType))) {
+            // Trino's planner would insert a coercion (e.g. sum(tinyint) → sum(bigint)); the GPU
+            // compiler never sees argumentType directly, so there is no PARTIAL/FINAL combination to verify.
+            return;
+        }
+        Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentType)).getIntermediateType();
+
+        boolean gpuPartialSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(argumentType), false, PARTIAL, false).isPresent();
+        boolean gpuFinalSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(intermediateType), false, FINAL, false).isPresent();
+        if (!gpuPartialSupported && !gpuFinalSupported) {
+            // SINGLE-step coverage already asserts no GPU path; nothing to verify here.
+            return;
+        }
+
+        Page rawInput = new Page(generateRawInputBlock(functionName, argumentType));
+
+        Block cpuPartial = runCpuPartialGlobal(functionName, List.of(argumentType), rawInput);
+
+        Optional<Block> gpuPartial = Optional.empty();
+        if (gpuPartialSupported) {
+            Block block = runGpuPartialGlobal(functionName, List.of(argumentType), rawInput);
+            if (!intermediateMayDiffer) {
+                assertBlocksEqual(block, cpuPartial, intermediateType);
+            }
+            gpuPartial = Optional.of(block);
+        }
+
+        Object golden = runCpuFinal(functionName, argumentType, cpuPartial);
+
+        if (gpuFinalSupported) {
+            assertGoldenEqual(runGpuFinalGlobal(functionName, List.of(argumentType), cpuPartial, intermediateType), golden);
+        }
+        if (gpuPartial.isPresent()) {
+            assertGoldenEqual(runCpuFinal(functionName, argumentType, gpuPartial.get()), golden);
+        }
+        if (gpuFinalSupported && gpuPartial.isPresent()) {
+            assertGoldenEqual(runGpuFinalGlobal(functionName, List.of(argumentType), gpuPartial.get(), intermediateType), golden);
+        }
+    }
+
+    private static Block generateRawInputBlock(String functionName, Type type)
+    {
+        if ("sum".equals(functionName) && type == BIGINT) {
+            return createBigintBlock(100, RANDOM_NULLS, -10000, 10001);
+        }
+        if ("sum".equals(functionName) && type instanceof DecimalType decimalType) {
+            // Cap magnitude so 100 random values can't overflow DECIMAL128 when summed.
+            // GpuTestUtils#createBlock would otherwise generate values up to 10^precision, and
+            // 100 random values of precision 38 readily exceed DECIMAL128 capacity.
+            return createSmallDecimalBlock(decimalType, 100);
+        }
+        return createBlock(type, 100, RANDOM_NULLS);
+    }
+
+    private static Block createSmallDecimalBlock(DecimalType type, int positionCount)
+    {
+        Random random = new Random(42);
+        BlockBuilder builder = type.createBlockBuilder(null, positionCount);
+        for (int i = 0; i < positionCount; i++) {
+            if (i % 7 == 0) {
+                builder.appendNull();
+            }
+            else {
+                long unscaled = random.nextLong(-1_000_000L, 1_000_001L);
+                if (type.isShort()) {
+                    type.writeLong(builder, unscaled);
+                }
+                else {
+                    type.writeObject(builder, Int128.valueOf(unscaled));
+                }
+            }
+        }
+        return builder.build();
+    }
+
+    private static Block runCpuPartialGlobal(String functionName, List<Type> argumentTypes, Page rawInput)
+    {
+        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes));
+        int[] channels = IntStream.range(0, argumentTypes.size()).toArray();
+        Aggregator aggregator = function.createAggregatorFactory(PARTIAL, Ints.asList(channels), OptionalInt.empty())
+                .createAggregator(new AggregationMetrics());
+        if (rawInput.getPositionCount() > 0) {
+            aggregator.processPage(rawInput);
+        }
+        return AggregationTestUtils.getFinalBlock(function.getIntermediateType(), aggregator);
+    }
+
+    private Block runGpuPartialGlobal(String functionName, List<Type> argumentTypes, Page rawInput)
+    {
+        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, PARTIAL, false);
+        List<Page> results = runGpuPipeline(List.of(rawInput), argumentTypes, compiled);
+        checkState(results.size() == 1, "Expected single result page");
+        Page resultPage = results.getFirst();
+        checkState(resultPage.getPositionCount() == 1, "Expected single row");
+        return resultPage.getBlock(0);
+    }
+
+    private Object runGpuFinalGlobal(String functionName, List<Type> argumentTypes, Block intermediate, Type intermediateType)
+    {
+        CompileResult compiled = tryCompileAggregation(functionName, argumentTypes, List.of(intermediateType), false, FINAL, false)
+                .orElseThrow(() -> new AssertionError("Failed to compile GPU FINAL for %s over %s".formatted(functionName, argumentTypes)));
+        List<Page> results = runGpuPipeline(List.of(new Page(intermediate)), List.of(intermediateType), compiled);
+        checkState(results.size() == 1, "Expected single result page");
+        Page resultPage = results.getFirst();
+        checkState(resultPage.getPositionCount() == 1, "Expected single row");
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
+        return getOnlyValue(resolvedFunction.signature().getReturnType(), resultPage.getBlock(0));
+    }
+
+    private static void assertBlocksEqual(Block actual, Block expected, Type type)
+    {
+        assertSameDataInOrder(List.of(new Page(actual)), List.of(new Page(expected)), List.of(type));
+    }
+
+    private static void assertGoldenEqual(Object actual, Object golden)
+    {
+        assertThat(AggregationTestUtils.makeValidityAssertion(golden).apply(actual, golden))
+                .as("expected %s but was %s", golden, actual)
+                .isTrue();
+    }
+
+    private void runPartialFinalGrouped(String functionName, Type argumentType, boolean intermediateMayDiffer)
+    {
+        ResolvedFunction resolvedFunction;
+        try {
+            resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentType));
+        }
+        catch (TrinoException e) {
+            verifyFunctionResolutionError(functionName, e);
+            return;
+        }
+        if (!resolvedFunction.signature().getArgumentTypes().equals(List.of(argumentType))) {
+            return;
+        }
+        Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentType)).getIntermediateType();
+
+        boolean gpuPartialSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(argumentType), true, PARTIAL, false).isPresent();
+        boolean gpuFinalSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(intermediateType), true, FINAL, false).isPresent();
+        if (!gpuPartialSupported && !gpuFinalSupported) {
+            return;
+        }
+
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = generateRawInputBlock(functionName, argumentType);
+        Page rawInput = new Page(groupByBlock, valueBlock);
+
+        Page cpuPartial = runCpuPartialGrouped(functionName, List.of(argumentType), rawInput, intermediateType);
+
+        Optional<Page> gpuPartial = Optional.empty();
+        if (gpuPartialSupported) {
+            Page page = runGpuPartialGrouped(functionName, List.of(argumentType), rawInput, intermediateType);
+            if (!intermediateMayDiffer) {
+                assertSameDataWithoutOrder(List.of(page), List.of(cpuPartial), List.of(BIGINT, intermediateType));
+            }
+            gpuPartial = Optional.of(page);
+        }
+
+        Map<Object, Object> golden = runCpuFinalGrouped(functionName, argumentType, cpuPartial);
+
+        if (gpuFinalSupported) {
+            assertGoldenMapEqual(runGpuFinalGrouped(functionName, List.of(argumentType), cpuPartial, intermediateType), golden);
+        }
+        if (gpuPartial.isPresent()) {
+            assertGoldenMapEqual(runCpuFinalGrouped(functionName, argumentType, gpuPartial.get()), golden);
+        }
+        if (gpuFinalSupported && gpuPartial.isPresent()) {
+            assertGoldenMapEqual(runGpuFinalGrouped(functionName, List.of(argumentType), gpuPartial.get(), intermediateType), golden);
+        }
+    }
+
+    private static Page runCpuPartialGrouped(String functionName, List<Type> argumentTypes, Page rawInput, Type intermediateType)
+    {
+        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes));
+        Block groupBlock = rawInput.getBlock(GROUP_KEY_CHANNEL);
+
+        Map<Object, List<Integer>> groupPositions = new LinkedHashMap<>();
+        for (int i = 0; i < rawInput.getPositionCount(); i++) {
+            Object groupKey = BIGINT.getObjectValue(groupBlock, i);
+            groupPositions.computeIfAbsent(groupKey, _ -> new ArrayList<>()).add(i);
+        }
+
+        int dataChannelCount = rawInput.getChannelCount() - 1;
+        BlockBuilder groupBuilder = BIGINT.createBlockBuilder(null, groupPositions.size());
+        BlockBuilder intermediateBuilder = intermediateType.createBlockBuilder(null, groupPositions.size());
+
+        int[] channels = IntStream.range(0, argumentTypes.size()).toArray();
+        for (Map.Entry<Object, List<Integer>> entry : groupPositions.entrySet()) {
+            int[] positions = entry.getValue().stream().mapToInt(Integer::intValue).toArray();
+            Page groupPage = rawInput.getColumns(IntStream.rangeClosed(1, dataChannelCount).toArray())
+                    .getPositions(positions, 0, positions.length);
+            Aggregator aggregator = function.createAggregatorFactory(PARTIAL, Ints.asList(channels), OptionalInt.empty())
+                    .createAggregator(new AggregationMetrics());
+            if (groupPage.getPositionCount() > 0) {
+                aggregator.processPage(groupPage);
+            }
+            Block partial = AggregationTestUtils.getFinalBlock(intermediateType, aggregator);
+            BIGINT.writeLong(groupBuilder, (Long) entry.getKey());
+            intermediateBuilder.appendBlockRange(partial, 0, 1);
+        }
+
+        return new Page(groupBuilder.build(), intermediateBuilder.build());
+    }
+
+    private Page runGpuPartialGrouped(String functionName, List<Type> argumentTypes, Page rawInput, Type intermediateType)
+    {
+        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, PARTIAL, false);
+        List<Type> inputTypes = ImmutableList.<Type>builder()
+                .add(BIGINT)
+                .addAll(argumentTypes.isEmpty() ? List.of(BIGINT) : argumentTypes)
+                .build();
+        List<Page> results = runGpuPipeline(List.of(rawInput), inputTypes, compiled);
+        return mergePages(results, List.of(BIGINT, intermediateType));
+    }
+
+    private static Map<Object, Object> runCpuFinalGrouped(String functionName, Type argumentType, Page intermediatePage)
+    {
+        Map<Object, Object> result = new HashMap<>();
+        Block groupBlock = intermediatePage.getBlock(0);
+        Block intermediateBlock = intermediatePage.getBlock(1);
+        for (int i = 0; i < intermediatePage.getPositionCount(); i++) {
+            Object groupKey = BIGINT.getObjectValue(groupBlock, i);
+            Object value = runCpuFinal(functionName, argumentType, intermediateBlock.getRegion(i, 1));
+            verify(result.put(groupKey, value) == null);
+        }
+        return result;
+    }
+
+    private Map<Object, Object> runGpuFinalGrouped(String functionName, List<Type> argumentTypes, Page intermediatePage, Type intermediateType)
+    {
+        CompileResult compiled = tryCompileAggregation(functionName, argumentTypes, List.of(intermediateType), true, FINAL, false)
+                .orElseThrow(() -> new AssertionError("Failed to compile grouped GPU FINAL for %s over %s".formatted(functionName, argumentTypes)));
+        List<Page> results = runGpuPipeline(List.of(intermediatePage), List.of(BIGINT, intermediateType), compiled);
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
+        Type returnType = resolvedFunction.signature().getReturnType();
+        Map<Object, Object> result = new HashMap<>();
+        for (Page page : results) {
+            for (int i = 0; i < page.getPositionCount(); i++) {
+                Object groupKey = BIGINT.getObjectValue(page.getBlock(0), i);
+                Object value = returnType.getObjectValue(page.getBlock(1), i);
+                verify(result.put(groupKey, value) == null);
+            }
+        }
+        return result;
+    }
+
+    private static void assertGoldenMapEqual(Map<Object, Object> actual, Map<Object, Object> golden)
+    {
+        assertThat(actual.keySet()).isEqualTo(golden.keySet());
+        for (Object groupKey : golden.keySet()) {
+            Object expected = golden.get(groupKey);
+            Object got = actual.get(groupKey);
+            assertThat(AggregationTestUtils.makeValidityAssertion(expected).apply(got, expected))
+                    .as("Group %s: expected %s but was %s", groupKey, expected, got)
+                    .isTrue();
+        }
+    }
+
+    private static void verifyFunctionResolutionError(String functionName, TrinoException e)
+    {
+        assertThat(e)
+                .hasMessageFindingMatch("^Unexpected parameters \\(.*\\) for function \\Q" + functionName)
+                .hasStackTraceContaining("io.trino.metadata.BuiltinFunctionResolver");
     }
 }

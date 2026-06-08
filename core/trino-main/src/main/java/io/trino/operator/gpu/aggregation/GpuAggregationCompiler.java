@@ -24,6 +24,7 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
 import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
@@ -61,13 +62,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static ai.rapids.cudf.DType.FLOAT64;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.collect.Lists.newArrayList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static java.util.Objects.requireNonNull;
 
@@ -318,9 +323,7 @@ public final class GpuAggregationCompiler
 
         Type argumentType = column.get().type();
         return switch (argumentType) {
-            // For bigint, double and real, argument type == intermediate type == return type, so all 4 Steps share the same shape
-            // cuDF SUM yields the correct total whether the rows are raw values (PARTIAL/SINGLE) or already-summed partials (INTERMEDIATE/FINAL).
-            case BigintType _, DoubleType _, RealType _ -> toDType(argumentType).map(dType -> {
+            case BigintType _ -> toDType(argumentType).map(dType -> {
                 if (maskChannel.isPresent()) {
                     return new AggregateCompilation(
                             outputType,
@@ -330,6 +333,37 @@ public final class GpuAggregationCompiler
                 }
                 return AggregateCompilation.simple(outputType, new GpuSum(column.get().channel(), outputType, dType));
             });
+
+            case RealType _, DoubleType _ -> {
+                verify(outputType == REAL || outputType == DOUBLE, "Unexpected outputType for sum with argument type %s: %s", argumentType, outputType);
+                verify(!step.isOutputPartial() || outputType == DOUBLE, "Unexpected outputType for sum with argument type %s at step %s: %s", argumentType, step, outputType);
+
+                List<Integer> inputChannels = newArrayList(column.get().channel());
+                GpuExpression input = inputReference(0);
+                if (maskChannel.isPresent()) {
+                    inputChannels.add(maskChannel.getAsInt());
+                    input = mask(inputReference(1), input);
+                }
+                // sum(REAL) and sum(DOUBLE) both use DOUBLE as accumulator type
+                if (step.isInputRaw() && argumentType == REAL) {
+                    input = new GpuCast(input, FLOAT64);
+                }
+
+                Optional<PostProjection> postProjection = Optional.empty();
+                // for sum(REAL), the final result type is REAL
+                if (outputType == REAL) {
+                    postProjection = Optional.of(new PostProjection(channels -> new CompiledExpression(
+                            new GpuCast(inputReference(0), DType.FLOAT32),
+                            new InputChannels(channels[0]))));
+                }
+
+                yield Optional.of(new AggregateCompilation(
+                        outputType,
+                        ImmutableList.of(new CompiledExpression(input, new InputChannels(inputChannels))),
+                        ImmutableList.of(channel -> new GpuSum(channel, outputType, FLOAT64)),
+                        postProjection));
+            }
+
             case DecimalType _ -> {
                 // Decimal sum uses pre-projections for chunk extraction; composing with mask would require two-stage pre-projections which is not supported yet.
                 if (maskChannel.isPresent()) {
@@ -344,6 +378,7 @@ public final class GpuAggregationCompiler
                             "decimal argument unexpected at sum(decimal) step " + step);
                 };
             }
+
             default -> {
                 // Decimal FINAL/INTERMEDIATE uses chunk extraction pre-projections; composing with mask would require two-stage pre-projections which is not supported yet.
                 if (maskChannel.isPresent()) {
