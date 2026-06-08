@@ -19,7 +19,7 @@ import java.util.function.ObjLongConsumer;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.spi.block.BlockUtil.checkArrayRange;
-import static io.trino.spi.block.BlockUtil.checkReadablePosition;
+import static io.trino.spi.block.BlockUtil.checkValidPosition;
 import static io.trino.spi.block.BlockUtil.checkValidRegion;
 import static io.trino.spi.block.BlockUtil.compactArray;
 import static io.trino.spi.block.BlockUtil.ensureCapacity;
@@ -110,7 +110,7 @@ public final class BooleanArrayBlock
 
     public boolean getBoolean(int position)
     {
-        checkReadablePosition(this, position);
+        checkValidPosition(position, this.getPositionCount());
         return values[position + arrayOffset];
     }
 
@@ -129,7 +129,7 @@ public final class BooleanArrayBlock
     @Override
     public boolean isNull(int position)
     {
-        checkReadablePosition(this, position);
+        checkValidPosition(position, this.getPositionCount());
         return false;
     }
 
@@ -142,7 +142,7 @@ public final class BooleanArrayBlock
     @Override
     public BooleanArrayBlock getSingleValueBlock(int position)
     {
-        checkReadablePosition(this, position);
+        checkValidPosition(position, this.getPositionCount());
         return new BooleanArrayBlock(
                 0,
                 1,
@@ -157,7 +157,7 @@ public final class BooleanArrayBlock
         boolean[] newValues = new boolean[length];
         for (int i = 0; i < length; i++) {
             int position = positions[offset + i];
-            checkReadablePosition(this, position);
+            checkValidPosition(position, this.getPositionCount());
             newValues[i] = values[position + arrayOffset];
         }
         return new BooleanArrayBlock(0, length, newValues);
