@@ -15,8 +15,11 @@ package io.trino.plugin.lakehouse;
 
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.hive.HiveSchemaProperties;
 import io.trino.plugin.iceberg.IcebergMaterializedViewProperties;
+import io.trino.plugin.iceberg.substitution.IcebergSubstitutionMetadata;
+import io.trino.plugin.lakehouse.substitution.LakehouseSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorCapabilities;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -26,6 +29,7 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -87,6 +91,17 @@ public class LakehouseConnector
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transactionHandle)
     {
         return transactionManager.get(transactionHandle, session.getIdentity());
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        // Lakehouse materializations live on Iceberg, so substitution is backed by the Iceberg
+        // connector. LakehouseSubstitutionMetadata guards by handle type so non-Iceberg handles are
+        // reported as non-substitutable.
+        return new ClassLoaderSafeConnectorSubstitutionMetadata(
+                new LakehouseSubstitutionMetadata(new IcebergSubstitutionMetadata()),
+                getClass().getClassLoader());
     }
 
     @Override
