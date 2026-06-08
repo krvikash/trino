@@ -65,8 +65,6 @@ import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.type.DateTimes.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.type.DateTimes.PICOSECONDS_PER_NANOSECOND;
-import static java.lang.Double.longBitsToDouble;
-import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.max;
@@ -83,8 +81,6 @@ public class CopyToBlocks
     private static final int MAX_PAGE_SIZE_IN_BYTES = 8 * 1024 * 1024;
     private static final int INITIAL_BATCH_SIZE = 16;
     private static final int MAX_POSITIONS_PER_PAGE = 128 * 1024;
-    private static final int CANONICAL_NAN_FLOAT_BITS = Float.floatToIntBits(Float.NaN);
-    private static final long CANONICAL_NAN_DOUBLE_BITS = Double.doubleToLongBits(Double.NaN);
 
     private final GpuOperation source;
     private final List<Type> types;
@@ -430,12 +426,6 @@ public class CopyToBlocks
         {
             int[] values = new int[count];
             hostColumnVector.getData().getInts(values, 0, (long) position * Float.BYTES, count);
-            // cuDF preserves raw NaN bits; Trino expects the canonical NaN
-            for (int i = 0; i < count; i++) {
-                if (Float.isNaN(intBitsToFloat(values[i]))) {
-                    values[i] = CANONICAL_NAN_FLOAT_BITS;
-                }
-            }
             return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
     }
@@ -455,12 +445,6 @@ public class CopyToBlocks
         {
             long[] values = new long[count];
             hostColumnVector.getData().getLongs(values, 0, (long) position * Double.BYTES, count);
-            // cuDF preserves raw NaN bits; Trino expects the canonical NaN
-            for (int i = 0; i < count; i++) {
-                if (Double.isNaN(longBitsToDouble(values[i]))) {
-                    values[i] = CANONICAL_NAN_DOUBLE_BITS;
-                }
-            }
             return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
     }
