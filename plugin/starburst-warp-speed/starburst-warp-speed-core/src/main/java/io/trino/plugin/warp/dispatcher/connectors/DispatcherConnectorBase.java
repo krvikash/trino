@@ -20,6 +20,7 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherIndexProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
+import io.trino.plugin.warp.dispatcher.substitution.DispatcherSubstitutionMetadata;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
@@ -31,6 +32,7 @@ import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -191,6 +193,15 @@ public abstract class DispatcherConnectorBase
     public Set<ConnectorCapabilities> getCapabilities()
     {
         return proxiedConnector.getCapabilities();
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        // Delegate to the proxied connector, unwrapping Warp Speed's DispatcherTableHandle. When the
+        // proxied connector does not support substitution it throws UnsupportedOperationException,
+        // which propagates so the engine treats Warp Speed as unsupported too.
+        return new DispatcherSubstitutionMetadata(proxiedConnector.getSubstitutionMetadata());
     }
 
     /**
