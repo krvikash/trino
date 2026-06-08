@@ -26,12 +26,14 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.deltalake.DeltaLakeMetadata;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.TransactionalMetadata;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergMetadata;
+import io.trino.plugin.objectstore.substitution.ObjectStoreSubstitutionMetadata;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
@@ -46,6 +48,7 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -490,6 +493,17 @@ public class ObjectStoreConnector
                         relationTypeCache,
                         parallelInformationSchemaQueryingExecutor,
                         isIcebergRestCatalogUsed),
+                getClass().getClassLoader());
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        // ObjectStore materializations live on Iceberg, so substitution is backed by the Iceberg
+        // connector. ObjectStoreSubstitutionMetadata guards by handle type so non-Iceberg handles
+        // are reported as non-substitutable.
+        return new ClassLoaderSafeConnectorSubstitutionMetadata(
+                new ObjectStoreSubstitutionMetadata(icebergConnector.getSubstitutionMetadata()),
                 getClass().getClassLoader());
     }
 
