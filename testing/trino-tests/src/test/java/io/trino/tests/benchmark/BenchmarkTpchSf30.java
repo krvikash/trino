@@ -70,40 +70,4 @@ public final class BenchmarkTpchSf30
             BenchmarkRunner.verifyDataListing(Path.of(dataLocation), "Run `testing/benchmark-data/hydrate.sh tpch-sf30` first.", expected);
         }
     }
-
-    public static class CpuBenchmark
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(
-                    new String[] {"run", "--mode", "CPU"},
-                    new TpchSf30Workload(),
-                    BenchmarkTpchSf30.class));
-        }
-    }
-
-    public static class GpuBenchmark
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(
-                    new String[] {"run", "--mode", "GPU"},
-                    new TpchSf30Workload(),
-                    BenchmarkTpchSf30.class));
-        }
-    }
-
-    public static class Generate
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(
-                    new String[] {"generate"},
-                    new TpchSf30Workload(),
-                    BenchmarkTpchSf30.class));
-        }
-    }
 }

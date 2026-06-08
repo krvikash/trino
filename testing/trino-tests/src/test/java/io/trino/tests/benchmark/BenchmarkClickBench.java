@@ -317,40 +317,4 @@ public final class BenchmarkClickBench
 
         return queryRunner;
     }
-
-    public static class CpuBenchmark
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(new String[] {"run", "--mode", "CPU"}, new ClickBenchWorkload(), BenchmarkClickBench.class));
-        }
-    }
-
-    public static class GpuBenchmark
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(new String[] {"run", "--mode", "GPU"}, new ClickBenchWorkload(), BenchmarkClickBench.class));
-        }
-    }
-
-    public static class Generate
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(new String[] {"generate"}, new ClickBenchWorkload(), BenchmarkClickBench.class));
-        }
-    }
-
-    public static class Record
-    {
-        static void main()
-                throws Exception
-        {
-            System.exit(BenchmarkRunner.run(new String[] {"record"}, new ClickBenchWorkload(), BenchmarkClickBench.class));
-        }
-    }
 }
