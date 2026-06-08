@@ -13,9 +13,13 @@
  */
 package io.trino.operator.gpu;
 
+import io.airlift.units.DataSize;
+
 public interface GpuNodeSetup
 {
     boolean isNodeGpuExecutionEnabled();
+
+    DataSize getGpuDeviceMemoryPoolSize();
 
     class Disabled
             implements GpuNodeSetup
@@ -24,6 +28,12 @@ public interface GpuNodeSetup
         public boolean isNodeGpuExecutionEnabled()
         {
             return false;
+        }
+
+        @Override
+        public DataSize getGpuDeviceMemoryPoolSize()
+        {
+            return DataSize.ofBytes(0);
         }
     }
 }

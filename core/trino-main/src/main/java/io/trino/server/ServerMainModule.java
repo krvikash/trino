@@ -61,10 +61,13 @@ import io.trino.execution.executor.timesharing.MultilevelSplitQueue;
 import io.trino.execution.executor.timesharing.TimeSharingTaskExecutor;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.json.ir.IrJsonPath;
+import io.trino.memory.ForGpuDevice;
+import io.trino.memory.ForOffHeap;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.LocalMemoryManagerExporter;
 import io.trino.memory.MemoryInfo;
 import io.trino.memory.MemoryManagerConfig;
+import io.trino.memory.MemoryPool;
 import io.trino.memory.MemoryResource;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.memory.RssMonitor;
@@ -579,6 +582,22 @@ public class ServerMainModule
                 internalCommunicationConfig.isHttpsRequired() ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri(),
                 nodeVersion,
                 serverConfig.isCoordinator());
+    }
+
+    @Provides
+    @Singleton
+    @ForGpuDevice
+    public static MemoryPool gpuDeviceMemoryPool(GpuNodeSetup gpuNodeSetup)
+    {
+        return new MemoryPool(gpuNodeSetup.getGpuDeviceMemoryPoolSize());
+    }
+
+    @Provides
+    @Singleton
+    @ForOffHeap
+    public static MemoryPool offHeapMemoryPool(GpuConfig config)
+    {
+        return new MemoryPool(config.getOffHeapMemoryPoolSize());
     }
 
     private static class RegisterFunctionBundles

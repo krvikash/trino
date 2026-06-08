@@ -49,6 +49,8 @@ public class GpuConfigurer
     private final Optional<Path> rmmLogPath;
     private final DataSize aggregationCompactionThreshold;
 
+    private DataSize effectivePoolSizeBytes;
+
     @Inject
     public GpuConfigurer(GpuConfig config, @RmmLogPath Optional<Path> rmmLogPath)
     {
@@ -67,6 +69,10 @@ public class GpuConfigurer
         // PTDS (per thread default stream) affects multi-threading. Fail loud if new cudf dependency is built differently.
         checkState(Cuda.isPtdsEnabled(), "PTDS must be enabled in the cuDF native library; current build uses legacy default stream");
         synchronized (initializationLock) {
+            long poolSize = poolSizeBytes();
+            checkArgument(poolSize >= 0, "GPU pool size must not be negative, got %s bytes", poolSize);
+            effectivePoolSizeBytes = DataSize.ofBytes(poolSize);
+
             if (Rmm.isInitialized()) {
                 // This is normal in tests, but not normal in production
                 log.warn("RMM is already initialized; skipping GPU configuration");
@@ -74,9 +80,6 @@ public class GpuConfigurer
             }
 
             int cudfAllocationMode = allocationMode.cudfAllocationMode();
-            long poolSize = poolSizeBytes();
-            checkArgument(poolSize >= 0, "GPU pool size must not be negative, got %s bytes", poolSize);
-
             long compactionThreshold = aggregationCompactionThreshold.toBytes();
             checkArgument(
                     compactionThreshold <= poolSize,
@@ -122,5 +125,12 @@ public class GpuConfigurer
     public boolean isNodeGpuExecutionEnabled()
     {
         return true;
+    }
+
+    @Override
+    public DataSize getGpuDeviceMemoryPoolSize()
+    {
+        checkState(effectivePoolSizeBytes != null, "effectivePoolSizeBytes not set yet");
+        return effectivePoolSizeBytes;
     }
 }
