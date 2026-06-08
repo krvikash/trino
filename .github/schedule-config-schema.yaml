@@ -13,11 +13,19 @@ items:
   required: [modules]
   properties:
     modules:
-      description: A set of maven modules to test
+      description: >-
+        A set of maven modules to test. Each item in this array expands to one test job (per
+        profile); an item that is itself an array expands to a test job that tests multiple
+        modules in one job.
       type: array
       minItems: 1
       items:
-        type: string
+        anyOf:
+          - type: string
+          - type: array
+            items:
+              type: string
+            minItems: 1
     profiles:
       description: >-
         A set of maven profiles to test. If empty, one job will be run for each module in modules,
@@ -31,7 +39,10 @@ items:
       type: array
       items:
         type: string
-
+    matrix-properties:
+      description: Additional properties to add to each matrix cell. These will be copied verbatim
+      type: object
+      additionalProperties: true
     when:
       type: object
       description: >-
