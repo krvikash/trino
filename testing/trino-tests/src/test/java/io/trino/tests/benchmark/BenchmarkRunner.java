@@ -27,7 +27,7 @@ import io.airlift.units.DataSize;
 import io.trino.ExceededMemoryLimitException;
 import io.trino.Session;
 import io.trino.client.FailureException;
-import io.trino.execution.Failure;
+import io.trino.client.FailureInfo;
 import io.trino.execution.QueryInfo;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.server.testing.TestingTrinoServer;
@@ -36,6 +36,7 @@ import io.trino.sql.planner.planprinter.PlanPrinter;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner.MaterializedResultWithQueryId;
 import one.profiler.AsyncProfiler;
 import picocli.CommandLine;
@@ -73,6 +74,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
@@ -536,19 +538,14 @@ public final class BenchmarkRunner
         }
     }
 
-    private static boolean isOutOfMemory(Throwable error)
+    private static boolean isOutOfMemory(Throwable throwable)
     {
-        String oomType = ExceededMemoryLimitException.class.getName();
-        for (Throwable current = error; current != null; current = current.getCause()) {
-            if (current instanceof ExceededMemoryLimitException) {
-                return true;
-            }
-            if (current instanceof Failure failure
-                    && oomType.equals(failure.getFailureInfo().type())) {
-                return true;
-            }
-            if (current instanceof FailureException failureException
-                    && oomType.equals(failureException.getFailureInfo().getType())) {
+        if (!(throwable instanceof QueryFailedException queryFailed)) {
+            return false;
+        }
+        for (Throwable current : getCausalChain(queryFailed.getCause())) {
+            FailureInfo failureInfo = ((FailureException) current).getFailureInfo();
+            if (ExceededMemoryLimitException.class.getName().equals(failureInfo.getType())) {
                 return true;
             }
         }
