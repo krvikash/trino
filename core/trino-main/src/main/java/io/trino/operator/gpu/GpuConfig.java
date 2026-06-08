@@ -18,6 +18,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -62,6 +63,11 @@ public class GpuConfig
     private Optional<DataSize> poolSize = Optional.empty();
     private DataSize deviceMemoryReserve = DataSize.of(640, MEGABYTE);
     private double deviceMemoryFraction = 1.0;
+
+    private DataSize offHeapMemoryPoolSize = DataSize.of(8, GIGABYTE);
+
+    private Optional<DataSize> maxQueryGpuMemoryPerNode = Optional.empty();
+    private Optional<DataSize> maxQueryOffHeapMemoryPerNode = Optional.empty();
 
     private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
 
@@ -124,6 +130,56 @@ public class GpuConfig
     {
         this.deviceMemoryFraction = deviceMemoryFraction;
         return this;
+    }
+
+    @NotNull
+    public DataSize getOffHeapMemoryPoolSize()
+    {
+        return offHeapMemoryPoolSize;
+    }
+
+    @Config("memory.off-heap.pool-size")
+    @ConfigDescription("Maximum off-heap host memory the worker may reserve across all queries")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setOffHeapMemoryPoolSize(DataSize offHeapMemoryPoolSize)
+    {
+        this.offHeapMemoryPoolSize = offHeapMemoryPoolSize;
+        return this;
+    }
+
+    public Optional<DataSize> getMaxQueryGpuMemoryPerNode()
+    {
+        return maxQueryGpuMemoryPerNode;
+    }
+
+    @Config("query.max-gpu-memory-per-node")
+    @ConfigDescription("Maximum GPU device memory a single query may reserve on this node")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setMaxQueryGpuMemoryPerNode(DataSize maxQueryGpuMemoryPerNode)
+    {
+        this.maxQueryGpuMemoryPerNode = Optional.ofNullable(maxQueryGpuMemoryPerNode);
+        return this;
+    }
+
+    @NotNull
+    public DataSize getMaxQueryOffHeapMemoryPerNode()
+    {
+        return maxQueryOffHeapMemoryPerNode.orElse(offHeapMemoryPoolSize);
+    }
+
+    @Config("query.max-off-heap-memory-per-node")
+    @ConfigDescription("Maximum off-heap host memory a single query may reserve on this node")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setMaxQueryOffHeapMemoryPerNode(DataSize maxQueryOffHeapMemoryPerNode)
+    {
+        this.maxQueryOffHeapMemoryPerNode = Optional.ofNullable(maxQueryOffHeapMemoryPerNode);
+        return this;
+    }
+
+    @AssertTrue(message = "query.max-off-heap-memory-per-node must not exceed memory.off-heap.pool-size")
+    public boolean isOffHeapQueryLimitWithinPool()
+    {
+        return getMaxQueryOffHeapMemoryPerNode().toBytes() <= getOffHeapMemoryPoolSize().toBytes();
     }
 
     @NotNull

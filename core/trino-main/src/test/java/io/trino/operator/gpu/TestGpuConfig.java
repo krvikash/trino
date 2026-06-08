@@ -18,6 +18,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
 import io.trino.operator.gpu.GpuConfig.AllocationMode;
+import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -26,6 +27,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 
@@ -39,6 +41,9 @@ public class TestGpuConfig
                 .setPoolSize(null)
                 .setDeviceMemoryReserve(DataSize.of(640, MEGABYTE))
                 .setDeviceMemoryFraction(1.0)
+                .setOffHeapMemoryPoolSize(DataSize.of(8, GIGABYTE))
+                .setMaxQueryGpuMemoryPerNode(null)
+                .setMaxQueryOffHeapMemoryPerNode(null)
                 .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE)));
     }
 
@@ -50,6 +55,9 @@ public class TestGpuConfig
                 .put("gpu.memory.pool-size", "20GB")
                 .put("gpu.memory.device-memory-reserve", "1GB")
                 .put("gpu.memory.device-memory-fraction", "0.75")
+                .put("memory.off-heap.pool-size", "16GB")
+                .put("query.max-gpu-memory-per-node", "8GB")
+                .put("query.max-off-heap-memory-per-node", "4GB")
                 .put("gpu.aggregation.compaction-threshold", "2GB")
                 .buildOrThrow();
 
@@ -58,9 +66,26 @@ public class TestGpuConfig
                 .setPoolSize(DataSize.of(20, GIGABYTE))
                 .setDeviceMemoryReserve(DataSize.of(1, GIGABYTE))
                 .setDeviceMemoryFraction(0.75)
+                .setOffHeapMemoryPoolSize(DataSize.of(16, GIGABYTE))
+                .setMaxQueryGpuMemoryPerNode(DataSize.of(8, GIGABYTE))
+                .setMaxQueryOffHeapMemoryPerNode(DataSize.of(4, GIGABYTE))
                 .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE));
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testOffHeapQueryLimitMustNotExceedPoolSize()
+    {
+        GpuConfig config = new GpuConfig()
+                .setOffHeapMemoryPoolSize(DataSize.of(4, GIGABYTE))
+                .setMaxQueryOffHeapMemoryPerNode(DataSize.of(8, GIGABYTE));
+
+        assertFailsValidation(
+                config,
+                "offHeapQueryLimitWithinPool",
+                "query.max-off-heap-memory-per-node must not exceed memory.off-heap.pool-size",
+                AssertTrue.class);
     }
 
     @Test
