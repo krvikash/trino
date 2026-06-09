@@ -459,7 +459,9 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "redis.password"))
+                            "redis.password",
+                            "redis.tls.keystore-password",
+                            "redis.tls.truststore-password"))
             .put("redshift",
                     ImmutableSet.of(
                             "connection-password",
