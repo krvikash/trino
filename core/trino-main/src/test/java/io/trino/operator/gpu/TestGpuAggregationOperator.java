@@ -96,7 +96,8 @@ final class TestGpuAggregationOperator
     @Test
     void testCountAllGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of()), "count", List.of());
+        Page inputPage = createEmptyPage(List.of());
+        assertGlobalMatchesCpu(List.of(inputPage), "count", List.of(), SINGLE);
     }
 
     @ParameterizedTest
@@ -104,13 +105,15 @@ final class TestGpuAggregationOperator
     void testCountAllGlobal(NullsProvider nullsProvider)
     {
         Block block = createBigintBlock(100, nullsProvider, 0, 100);
-        assertGlobalMatchesCpu(new Page(block), "count", List.of());
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "count", List.of(), SINGLE);
     }
 
     @Test
     void testGroupByCountAllEmpty()
     {
-        assertGroupByMatchesCpu(createEmptyPage(List.of(BIGINT, BIGINT)), "count", List.of());
+        Page inputPage = createEmptyPage(List.of(BIGINT, BIGINT));
+        assertGroupByMatchesCpu(List.of(inputPage), "count", List.of(), SINGLE);
     }
 
     @Test
@@ -118,7 +121,8 @@ final class TestGpuAggregationOperator
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(BIGINT, 100, RANDOM_NULLS);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "count", List.of());
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "count", List.of(), SINGLE);
     }
 
     @ParameterizedTest
@@ -126,7 +130,8 @@ final class TestGpuAggregationOperator
     void testCountNonNullGlobal(NullsProvider nullsProvider)
     {
         Block block = createBigintBlock(100, nullsProvider, 0, 100);
-        assertGlobalMatchesCpu(new Page(block), "count", List.of(BIGINT));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "count", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -134,7 +139,8 @@ final class TestGpuAggregationOperator
     void testCountNonNullForAllTypes(Type type)
     {
         Block block = createBlock(type, 100, RANDOM_NULLS);
-        assertGlobalMatchesCpu(new Page(block), "count", List.of(type));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "count", List.of(type), SINGLE);
     }
 
     @Test
@@ -162,7 +168,8 @@ final class TestGpuAggregationOperator
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "count", List.of(type));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "count", List.of(type), SINGLE);
     }
 
     @Test
@@ -208,7 +215,8 @@ final class TestGpuAggregationOperator
     @Test
     void testSumGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of(BIGINT)), "sum", List.of(BIGINT));
+        Page inputPage = createEmptyPage(List.of(BIGINT));
+        assertGlobalMatchesCpu(List.of(inputPage), "sum", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -216,7 +224,8 @@ final class TestGpuAggregationOperator
     void testSumGlobal(NullsProvider nullsProvider)
     {
         Block block = createBigintBlock(100, nullsProvider, 1, 10);
-        assertGlobalMatchesCpu(new Page(block), "sum", List.of(BIGINT));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "sum", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -224,7 +233,8 @@ final class TestGpuAggregationOperator
     void testSumForAllTypes(Type type)
     {
         Block block = createInputBlockForSum(type, 100);
-        assertGlobalMatchesCpu(new Page(block), "sum", List.of(type));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "sum", List.of(type), SINGLE);
     }
 
     @ParameterizedTest
@@ -233,7 +243,8 @@ final class TestGpuAggregationOperator
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createInputBlockForSum(type, 100);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "sum", List.of(type));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "sum", List.of(type), SINGLE);
     }
 
     private static Block createInputBlockForSum(Type type, int positionCount)
@@ -247,7 +258,8 @@ final class TestGpuAggregationOperator
     @Test
     void testMinGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of(BIGINT)), "min", List.of(BIGINT));
+        Page inputPage = createEmptyPage(List.of(BIGINT));
+        assertGlobalMatchesCpu(List.of(inputPage), "min", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -255,7 +267,8 @@ final class TestGpuAggregationOperator
     void testMinGlobal(NullsProvider nullsProvider)
     {
         Block block = createBigintBlock(100, nullsProvider, -1000, 1000);
-        assertGlobalMatchesCpu(new Page(block), "min", List.of(BIGINT));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "min", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -267,7 +280,8 @@ final class TestGpuAggregationOperator
             return;
         }
         Block block = createBlock(type, 100, RANDOM_NULLS);
-        assertGlobalMatchesCpu(new Page(block), "min", List.of(type));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "min", List.of(type), SINGLE);
     }
 
     @ParameterizedTest
@@ -280,13 +294,15 @@ final class TestGpuAggregationOperator
         }
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "min", List.of(type));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "min", List.of(type), SINGLE);
     }
 
     @Test
     void testMaxGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of(BIGINT)), "max", List.of(BIGINT));
+        Page inputPage = createEmptyPage(List.of(BIGINT));
+        assertGlobalMatchesCpu(List.of(inputPage), "max", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -294,7 +310,8 @@ final class TestGpuAggregationOperator
     void testMaxGlobal(NullsProvider nullsProvider)
     {
         Block block = createBigintBlock(100, nullsProvider, -1000, 1000);
-        assertGlobalMatchesCpu(new Page(block), "max", List.of(BIGINT));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "max", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -306,7 +323,8 @@ final class TestGpuAggregationOperator
             return;
         }
         Block block = createBlock(type, 100, RANDOM_NULLS);
-        assertGlobalMatchesCpu(new Page(block), "max", List.of(type));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "max", List.of(type), SINGLE);
     }
 
     @ParameterizedTest
@@ -319,7 +337,8 @@ final class TestGpuAggregationOperator
         }
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "max", List.of(type));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "max", List.of(type), SINGLE);
     }
 
     @Test
@@ -329,7 +348,7 @@ final class TestGpuAggregationOperator
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
-        assertGroupByMatchesCpu(inputPages, "count", List.of());
+        assertGroupByMatchesCpu(inputPages, "count", List.of(), SINGLE);
     }
 
     @Test
@@ -339,7 +358,7 @@ final class TestGpuAggregationOperator
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
-        assertGroupByMatchesCpu(inputPages, "count", List.of(BIGINT));
+        assertGroupByMatchesCpu(inputPages, "count", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -349,7 +368,7 @@ final class TestGpuAggregationOperator
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
-        assertGroupByMatchesCpu(inputPages, "sum", List.of(BIGINT));
+        assertGroupByMatchesCpu(inputPages, "sum", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -359,7 +378,7 @@ final class TestGpuAggregationOperator
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
-        assertGroupByMatchesCpu(inputPages, "min", List.of(BIGINT));
+        assertGroupByMatchesCpu(inputPages, "min", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -369,7 +388,7 @@ final class TestGpuAggregationOperator
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
-        assertGroupByMatchesCpu(inputPages, "max", List.of(BIGINT));
+        assertGroupByMatchesCpu(inputPages, "max", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -379,7 +398,7 @@ final class TestGpuAggregationOperator
                 new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
-        assertGlobalMatchesCpu(inputPages, "count", List.of());
+        assertGlobalMatchesCpu(inputPages, "count", List.of(), SINGLE);
     }
 
     @Test
@@ -389,7 +408,7 @@ final class TestGpuAggregationOperator
                 new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)),
                 new Page(createBlock(BIGINT, TARGET_ROW_COUNT, RANDOM_NULLS)));
-        assertGlobalMatchesCpu(inputPages, "count", List.of(BIGINT));
+        assertGlobalMatchesCpu(inputPages, "count", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -399,7 +418,7 @@ final class TestGpuAggregationOperator
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
-        assertGlobalMatchesCpu(inputPages, "sum", List.of(BIGINT));
+        assertGlobalMatchesCpu(inputPages, "sum", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -409,7 +428,7 @@ final class TestGpuAggregationOperator
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
-        assertGlobalMatchesCpu(inputPages, "min", List.of(BIGINT));
+        assertGlobalMatchesCpu(inputPages, "min", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -419,7 +438,7 @@ final class TestGpuAggregationOperator
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)),
                 new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000)));
-        assertGlobalMatchesCpu(inputPages, "max", List.of(BIGINT));
+        assertGlobalMatchesCpu(inputPages, "max", List.of(BIGINT), SINGLE);
     }
 
     @Test
@@ -515,7 +534,8 @@ final class TestGpuAggregationOperator
     @Test
     void testBoolOrGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of(BOOLEAN)), "bool_or", List.of(BOOLEAN));
+        Page inputPage = createEmptyPage(List.of(BOOLEAN));
+        assertGlobalMatchesCpu(List.of(inputPage), "bool_or", List.of(BOOLEAN), SINGLE);
     }
 
     @ParameterizedTest
@@ -523,7 +543,8 @@ final class TestGpuAggregationOperator
     void testBoolOrGlobal(NullsProvider nullsProvider)
     {
         Block block = createBlock(BOOLEAN, 100, nullsProvider);
-        assertGlobalMatchesCpu(new Page(block), "bool_or", List.of(BOOLEAN));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "bool_or", List.of(BOOLEAN), SINGLE);
     }
 
     @ParameterizedTest
@@ -532,13 +553,15 @@ final class TestGpuAggregationOperator
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(BOOLEAN, 100, nullsProvider);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "bool_or", List.of(BOOLEAN));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "bool_or", List.of(BOOLEAN), SINGLE);
     }
 
     @Test
     void testBoolAndGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of(BOOLEAN)), "bool_and", List.of(BOOLEAN));
+        Page inputPage = createEmptyPage(List.of(BOOLEAN));
+        assertGlobalMatchesCpu(List.of(inputPage), "bool_and", List.of(BOOLEAN), SINGLE);
     }
 
     @ParameterizedTest
@@ -546,7 +569,8 @@ final class TestGpuAggregationOperator
     void testBoolAndGlobal(NullsProvider nullsProvider)
     {
         Block block = createBlock(BOOLEAN, 100, nullsProvider);
-        assertGlobalMatchesCpu(new Page(block), "bool_and", List.of(BOOLEAN));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "bool_and", List.of(BOOLEAN), SINGLE);
     }
 
     @ParameterizedTest
@@ -555,7 +579,8 @@ final class TestGpuAggregationOperator
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(BOOLEAN, 100, nullsProvider);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "bool_and", List.of(BOOLEAN));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "bool_and", List.of(BOOLEAN), SINGLE);
     }
 
     @ParameterizedTest
@@ -565,7 +590,7 @@ final class TestGpuAggregationOperator
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
         Page input = new Page(valueBlock);
 
-        assertGlobalMatchesCpu(input, "avg", List.of(type), PARTIAL);
+        assertGlobalMatchesCpu(List.of(input), "avg", List.of(type), PARTIAL);
     }
 
     @ParameterizedTest
@@ -576,7 +601,7 @@ final class TestGpuAggregationOperator
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
         Page input = new Page(groupKeys, valueBlock);
 
-        assertGroupByMatchesCpu(input, "avg", List.of(type), PARTIAL);
+        assertGroupByMatchesCpu(List.of(input), "avg", List.of(type), PARTIAL);
     }
 
     @Test
@@ -648,7 +673,8 @@ final class TestGpuAggregationOperator
     @Test
     void testAnyValueGlobalEmpty()
     {
-        assertGlobalMatchesCpu(createEmptyPage(List.of(BIGINT)), "any_value", List.of(BIGINT));
+        Page inputPage = createEmptyPage(List.of(BIGINT));
+        assertGlobalMatchesCpu(List.of(inputPage), "any_value", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -656,7 +682,8 @@ final class TestGpuAggregationOperator
     void testAnyValueGlobal(NullsProvider nullsProvider)
     {
         Block block = createBigintBlock(100, nullsProvider, -1000, 1000);
-        assertGlobalMatchesCpu(new Page(block), "any_value", List.of(BIGINT));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "any_value", List.of(BIGINT), SINGLE);
     }
 
     @ParameterizedTest
@@ -664,7 +691,8 @@ final class TestGpuAggregationOperator
     void testAnyValueForAllTypes(Type type)
     {
         Block block = createBlock(type, 100, RANDOM_NULLS);
-        assertGlobalMatchesCpu(new Page(block), "any_value", List.of(type));
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "any_value", List.of(type), SINGLE);
     }
 
     @ParameterizedTest
@@ -673,7 +701,8 @@ final class TestGpuAggregationOperator
     {
         Block groupByBlock = createGroupByBlock(100, 5);
         Block valueBlock = createBlock(type, 100, RANDOM_NULLS);
-        assertGroupByMatchesCpu(new Page(groupByBlock, valueBlock), "any_value", List.of(type));
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "any_value", List.of(type), SINGLE);
     }
 
     static Stream<Type> sumSupportedTypes()
@@ -709,24 +738,9 @@ final class TestGpuAggregationOperator
         return new Page(0, blocks);
     }
 
-    private void assertGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
-    {
-        assertGlobalMatchesCpu(inputPage, functionName, argumentTypes, SINGLE);
-    }
-
-    private void assertGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, Step step)
-    {
-        assertGlobalMatchesCpu(List.of(inputPage), functionName, argumentTypes, step);
-    }
-
-    private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes)
-    {
-        assertGlobalMatchesCpu(inputPages, functionName, argumentTypes, SINGLE);
-    }
-
     private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, step);
+        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, step, false);
         List<Type> inputTypes = argumentTypes.isEmpty() ? List.of(BIGINT) : List.copyOf(argumentTypes);
 
         List<Page> results = runGpuPipeline(inputPages, inputTypes, compiled);
@@ -747,24 +761,9 @@ final class TestGpuAggregationOperator
         assertAggregation(FUNCTION_RESOLUTION, functionName, fromTypes(argumentTypes), gpuResult, inputPage);
     }
 
-    private void assertGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
-    {
-        assertGroupByMatchesCpu(List.of(inputPage), functionName, argumentTypes, SINGLE);
-    }
-
-    private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes)
-    {
-        assertGroupByMatchesCpu(inputPages, functionName, argumentTypes, SINGLE);
-    }
-
-    private void assertGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, Step step)
-    {
-        assertGroupByMatchesCpu(List.of(inputPage), functionName, argumentTypes, step);
-    }
-
     private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, step);
+        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, step, false);
         List<Type> inputTypes = ImmutableList.<Type>builder()
                 .add(BIGINT)
                 .addAll(argumentTypes.isEmpty() ? List.of(BIGINT) : argumentTypes)
@@ -781,7 +780,7 @@ final class TestGpuAggregationOperator
                 Object groupKey = BIGINT.getObjectValue(page.getBlock(0), position);
                 Object groupValue;
                 if (step.isOutputPartial()) {
-                    groupValue = runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), page.getBlock(1), position);
+                    groupValue = runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), page.getBlock(1).getRegion(position, 1));
                 }
                 else {
                     groupValue = outputType.getObjectValue(page.getBlock(1), position);
@@ -817,7 +816,7 @@ final class TestGpuAggregationOperator
         inputTypesBuilder.add(BOOLEAN);
         List<Type> inputTypes = inputTypesBuilder.build();
 
-        List<Page> results = runGpuPipeline(inputPage, inputTypes, compiled);
+        List<Page> results = runGpuPipeline(List.of(inputPage), inputTypes, compiled);
         checkState(results.size() == 1, "Expected single result page");
         Page resultPage = results.getFirst();
         checkState(resultPage.getPositionCount() == 1, "Expected single row");
@@ -843,7 +842,7 @@ final class TestGpuAggregationOperator
         inputTypesBuilder.add(BOOLEAN);
         List<Type> inputTypes = inputTypesBuilder.build();
 
-        List<Page> results = runGpuPipeline(inputPage, inputTypes, compiled);
+        List<Page> results = runGpuPipeline(List.of(inputPage), inputTypes, compiled);
 
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
         Type outputType = resolvedFunction.signature().getReturnType();
@@ -880,11 +879,6 @@ final class TestGpuAggregationOperator
                     .as("Group %s: expected %s but was %s", groupKey, cpuValue, gpuValue)
                     .isTrue();
         }
-    }
-
-    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step)
-    {
-        return compileAggregation(functionName, argumentTypes, grouped, step, false);
     }
 
     private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
@@ -967,11 +961,6 @@ final class TestGpuAggregationOperator
         }
 
         return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), /*compactionThresholdBytes=*/ 1);
-    }
-
-    private static List<Page> runGpuPipeline(Page inputPage, List<Type> inputTypes, CompileResult compiled)
-    {
-        return runGpuPipeline(List.of(inputPage), inputTypes, compiled);
     }
 
     private static List<Page> runGpuPipeline(List<Page> inputPages, List<Type> inputTypes, CompileResult compiled)
@@ -1102,11 +1091,6 @@ final class TestGpuAggregationOperator
         aggregator.processPage(new Page(intermediate));
         Block finalBlock = AggregationTestUtils.getFinalBlock(function.getFinalType(), aggregator);
         return getOnlyValue(function.getFinalType(), finalBlock);
-    }
-
-    private static Object runCpuFinal(String functionName, Type paramType, Block intermediate, int position)
-    {
-        return runCpuFinal(functionName, paramType, intermediate.getRegion(position, 1));
     }
 
     private static Page mergePages(List<Page> pages, List<Type> types)
