@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.deltalake.metastore;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
 import java.time.Instant;
@@ -23,19 +24,28 @@ import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SEC
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
-public class AwsVendedCredentials
-        extends BaseVendedFileSystemCredentials
+public record AwsVendedCredentials(
+        @JsonProperty("s3AccessKey") String s3AccessKey,
+        @JsonProperty("s3SecretKey") String s3SecretKey,
+        @JsonProperty("s3SessionToken") String s3SessionToken,
+        @JsonProperty("expireAt") Instant expireAt)
+        implements FileSystemCredentials
 {
-    private final String s3AccessKey;
-    private final String s3SecretKey;
-    private final String s3SessionToken;
+    // TODO: make the time configurable
+    private static final int VALID_BUT_NOT_USABLE_THRESHOLD_SECONDS = 120;
 
-    public AwsVendedCredentials(String s3AccessKey, String s3SecretKey, String s3SessionToken, Instant expiredAt)
+    public AwsVendedCredentials
     {
-        super(expiredAt);
-        this.s3AccessKey = requireNonNull(s3AccessKey, "s3AccessKey is null");
-        this.s3SecretKey = requireNonNull(s3SecretKey, "s3SecretKey is null");
-        this.s3SessionToken = requireNonNull(s3SessionToken, "s3SessionToken is null");
+        requireNonNull(s3AccessKey, "s3AccessKey is null");
+        requireNonNull(s3SecretKey, "s3SecretKey is null");
+        requireNonNull(s3SessionToken, "s3SessionToken is null");
+        requireNonNull(expireAt, "expireAt is null");
+    }
+
+    @Override
+    public boolean isValid()
+    {
+        return Instant.now().isBefore(expireAt.minusSeconds(VALID_BUT_NOT_USABLE_THRESHOLD_SECONDS));
     }
 
     @Override

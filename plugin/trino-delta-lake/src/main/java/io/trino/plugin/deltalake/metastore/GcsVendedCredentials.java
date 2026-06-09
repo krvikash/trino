@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.deltalake.metastore;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
 import java.time.Instant;
@@ -22,15 +23,24 @@ import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_G
 import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
-public class GcsVendedCredentials
-        extends BaseVendedFileSystemCredentials
+public record GcsVendedCredentials(
+        @JsonProperty("gcsOauthToken") String gcsOauthToken,
+        @JsonProperty("expireAt") Instant expireAt)
+        implements FileSystemCredentials
 {
-    private final String gcsOauthToken;
+    // TODO: make the time configurable
+    private static final int VALID_BUT_NOT_USABLE_THRESHOLD_SECONDS = 120;
 
-    public GcsVendedCredentials(String gcsOauthToken, Instant expiredAt)
+    public GcsVendedCredentials
     {
-        super(expiredAt);
-        this.gcsOauthToken = requireNonNull(gcsOauthToken, "gcsOauthToken is null");
+        requireNonNull(gcsOauthToken, "gcsOauthToken is null");
+        requireNonNull(expireAt, "expireAt is null");
+    }
+
+    @Override
+    public boolean isValid()
+    {
+        return Instant.now().isBefore(expireAt.minusSeconds(VALID_BUT_NOT_USABLE_THRESHOLD_SECONDS));
     }
 
     @Override
@@ -38,7 +48,7 @@ public class GcsVendedCredentials
     {
         return ImmutableMap.<String, String>builder()
                 .put(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY, gcsOauthToken)
-                .put(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY, Long.toString(expireAt().toEpochMilli()))
+                .put(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY, Long.toString(expireAt.toEpochMilli()))
                 .buildOrThrow();
     }
 }

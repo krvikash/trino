@@ -13,8 +13,18 @@
  */
 package io.trino.plugin.deltalake.metastore;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+
 import java.util.Map;
 
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        property = "@type")
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = AwsVendedCredentials.class, name = "aws"),
+        @JsonSubTypes.Type(value = GcsVendedCredentials.class, name = "gcs"),
+})
 public interface FileSystemCredentials
 {
     /**
