@@ -63,6 +63,7 @@ import java.util.stream.Stream;
 
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
@@ -782,8 +783,7 @@ final class TestGpuAggregationOperator
                 else {
                     groupValue = outputType.getObjectValue(page.getBlock(1), position);
                 }
-                Object previous = gpuResult.put(groupKey, groupValue);
-                assertThat(previous).as("Duplicate group key in GPU result: %s", groupKey).isNull();
+                verify(gpuResult.put(groupKey, groupValue) == null);
             }
         }
 
@@ -849,8 +849,7 @@ final class TestGpuAggregationOperator
             for (int position = 0; position < page.getPositionCount(); position++) {
                 Object groupKey = BIGINT.getObjectValue(page.getBlock(0), position);
                 Object groupValue = outputType.getObjectValue(page.getBlock(1), position);
-                Object previous = gpuResult.put(groupKey, groupValue);
-                assertThat(previous).as("Duplicate group key in GPU result: %s", groupKey).isNull();
+                verify(gpuResult.put(groupKey, groupValue) == null);
             }
         }
 
@@ -1007,7 +1006,7 @@ final class TestGpuAggregationOperator
             int[] positions = entry.getValue().stream().mapToInt(Integer::intValue).toArray();
             Page groupPage = inputPage.getColumns(IntStream.rangeClosed(1, dataChannelCount).toArray())
                     .getPositions(positions, 0, positions.length);
-            result.put(entry.getKey(), perGroupAggregation.apply(groupPage));
+            verify(result.put(entry.getKey(), perGroupAggregation.apply(groupPage)) == null);
         }
         return result;
     }
