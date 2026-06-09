@@ -63,9 +63,11 @@ import java.util.stream.Stream;
 
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
+import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
@@ -198,18 +200,13 @@ final class TestGpuAggregationOperator
                 BIGINT,
                 new GpuCountNonNull(1, BIGINT, INT64));
 
-        assertThat(results).hasSize(1);
-        Page resultPage = results.getFirst();
-        assertThat(resultPage.getPositionCount()).isEqualTo(2);
-
-        Map<Long, Long> resultMap = new HashMap<>();
-        for (int i = 0; i < resultPage.getPositionCount(); i++) {
-            long groupKey = BIGINT.getLong(resultPage.getBlock(0), i);
-            long count = BIGINT.getLong(resultPage.getBlock(1), i);
-            resultMap.put(groupKey, count);
-        }
-        assertThat(resultMap).containsEntry(0L, 30L);
-        assertThat(resultMap).containsEntry(1L, 20L);
+        assertSameDataInOrder(
+                results,
+                rowPagesBuilder(BIGINT, BIGINT)
+                        .row(0L, 30L)
+                        .row(1L, 20L)
+                        .build(),
+                List.of(BIGINT, BIGINT));
     }
 
     @Test

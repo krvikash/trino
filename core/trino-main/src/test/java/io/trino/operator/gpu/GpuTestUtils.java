@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
@@ -44,6 +45,7 @@ import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
+import io.trino.testing.MaterializedResult;
 import io.trino.testing.TestingSession;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
@@ -735,6 +737,18 @@ public final class GpuTestUtils
                 }
             }
         }
+    }
+
+    public static void assertSameDataWithoutOrder(List<Page> actual, List<Page> expected, List<Type> types)
+    {
+        MaterializedResult actualResult = MaterializedResult.resultBuilder(FULL_CONNECTOR_SESSION, types)
+                .pages(actual)
+                .build();
+        MaterializedResult expectedResult = MaterializedResult.resultBuilder(FULL_CONNECTOR_SESSION, types)
+                .pages(expected)
+                .build();
+        assertThat(ImmutableMultiset.copyOf(actualResult.getMaterializedRows()))
+                .isEqualTo(ImmutableMultiset.copyOf(expectedResult.getMaterializedRows()));
     }
 
     public static void assertSameDataInOrder(List<Page> actual, List<Page> expected, List<Type> types)
