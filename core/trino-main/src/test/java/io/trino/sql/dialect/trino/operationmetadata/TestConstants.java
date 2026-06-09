@@ -14,8 +14,10 @@
 package io.trino.sql.dialect.trino.operationmetadata;
 
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.SqlMap;
 import io.trino.spi.block.SqlRow;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
@@ -29,7 +31,6 @@ import java.lang.invoke.MethodHandle;
 import static io.airlift.slice.Slices.EMPTY_SLICE;
 import static io.trino.block.BlockAssertions.createBooleansBlock;
 import static io.trino.block.BlockAssertions.createDoublesBlock;
-import static io.trino.block.BlockAssertions.createTimestampsWithTimeZoneMillisBlock;
 import static io.trino.spi.block.MapHashTables.HashBuildMode.STRICT_NOT_DISTINCT_FROM;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.DEFAULT_ON_NULL;
@@ -607,5 +608,14 @@ public class TestConstants
         Constant secondConstant = new Constant("%constant", doubleArray, secondValue);
         assertThat(firstConstant.hashCode()).isEqualTo(secondConstant.hashCode());
         assertThat(firstConstant).isEqualTo(secondConstant);
+    }
+
+    private static ValueBlock createTimestampsWithTimeZoneMillisBlock(Long... values)
+    {
+        BlockBuilder builder = TIMESTAMP_TZ_MILLIS.createFixedSizeBlockBuilder(values.length);
+        for (long value : values) {
+            TIMESTAMP_TZ_MILLIS.writeLong(builder, value);
+        }
+        return builder.buildValueBlock();
     }
 }
