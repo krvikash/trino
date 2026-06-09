@@ -69,6 +69,7 @@ import java.util.concurrent.TimeoutException;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Maps.uniqueIndex;
 import static com.google.common.collect.Sets.newConcurrentHashSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -177,12 +178,12 @@ public class TestDirectExchangeClient
         assertThat(status.getBufferedPages()).isEqualTo(0);
 
         // client should have sent only 3 requests: one to get all pages, one to acknowledge and one to get the done signal
-        assertStatus(status.getPageBufferClientStatuses().get(0), location, "closed", 3, 3, 3, "not scheduled");
+        assertStatus(getOnlyElement(status.getPageBufferClientStatuses()), location, "closed", 3, 3, 3, "not scheduled");
         assertThat(status.getRequestDuration().getDigest().getCount()).isEqualTo(2.0);
 
         exchangeClient.close();
 
-        assertEventually(() -> assertThat(exchangeClient.getStatus().getPageBufferClientStatuses().get(0).getHttpRequestState())
+        assertEventually(() -> assertThat(getOnlyElement(exchangeClient.getStatus().getPageBufferClientStatuses()).getHttpRequestState())
                 .describedAs("httpRequestState")
                 .isEqualTo("not scheduled"));
 
@@ -234,7 +235,7 @@ public class TestDirectExchangeClient
         assertThat(status.getBufferedPages()).isEqualTo(0);
 
         // client should have sent only 3 requests: one to get all pages, one to acknowledge and one to get the done signal
-        assertStatus(status.getPageBufferClientStatuses().get(0), location, "closed", 3, 3, 3, "not scheduled");
+        assertStatus(getOnlyElement(status.getPageBufferClientStatuses()), location, "closed", 3, 3, 3, "not scheduled");
 
         exchangeClient.close();
     }
@@ -793,7 +794,7 @@ public class TestDirectExchangeClient
         // client should have sent a single request for a single page
         assertThat(exchangeClient.getStatus().getBufferedPages()).isEqualTo(1);
         assertThat(exchangeClient.getStatus().getBufferedBytes() > 0).isTrue();
-        assertStatus(exchangeClient.getStatus().getPageBufferClientStatuses().get(0), location, "queued", 1, 1, 1, "not scheduled");
+        assertStatus(getOnlyElement(exchangeClient.getStatus().getPageBufferClientStatuses()), location, "queued", 1, 1, 1, "not scheduled");
 
         // remove the page and wait for the client to fetch another page
         assertPageEquals(exchangeClient.pollPage(), createPage(1));
@@ -804,7 +805,7 @@ public class TestDirectExchangeClient
         while (exchangeClient.getStatus().getBufferedPages() == 0);
 
         // client should have sent a single request for a single page
-        assertStatus(exchangeClient.getStatus().getPageBufferClientStatuses().get(0), location, "queued", 2, 2, 2, "not scheduled");
+        assertStatus(getOnlyElement(exchangeClient.getStatus().getPageBufferClientStatuses()), location, "queued", 2, 2, 2, "not scheduled");
         assertThat(exchangeClient.getStatus().getBufferedPages()).isEqualTo(1);
         assertThat(exchangeClient.getStatus().getBufferedBytes() > 0).isTrue();
 
@@ -817,7 +818,7 @@ public class TestDirectExchangeClient
         while (exchangeClient.getStatus().getBufferedPages() == 0);
 
         // client should have sent a single request for a single page
-        assertStatus(exchangeClient.getStatus().getPageBufferClientStatuses().get(0), location, "queued", 3, 3, 3, "not scheduled");
+        assertStatus(getOnlyElement(exchangeClient.getStatus().getPageBufferClientStatuses()), location, "queued", 3, 3, 3, "not scheduled");
         assertThat(exchangeClient.getStatus().getBufferedPages()).isEqualTo(1);
         assertThat(exchangeClient.getStatus().getBufferedBytes() > 0).isTrue();
 
@@ -829,7 +830,7 @@ public class TestDirectExchangeClient
         assertThat(exchangeClient.getStatus().getBufferedPages()).isEqualTo(0);
         assertThat(exchangeClient.isFinished()).isTrue();
         exchangeClient.close();
-        assertStatus(exchangeClient.getStatus().getPageBufferClientStatuses().get(0), location, "closed", 3, 5, 5, "not scheduled");
+        assertStatus(getOnlyElement(exchangeClient.getStatus().getPageBufferClientStatuses()), location, "closed", 3, 5, 5, "not scheduled");
     }
 
     @Test
@@ -863,7 +864,7 @@ public class TestDirectExchangeClient
         assertThat(status.getBufferedPages()).isEqualTo(0);
         assertThat(status.getBufferedBytes()).isEqualTo(0);
 
-        assertStatus(status.getPageBufferClientStatuses().get(0), location, "closed", 2, 4, 4, "not scheduled");
+        assertStatus(getOnlyElement(status.getPageBufferClientStatuses()), location, "closed", 2, 4, 4, "not scheduled");
     }
 
     private DirectExchangeClient setUpDataCorruption(DataIntegrityVerification dataIntegrityVerification, URI location)
@@ -972,7 +973,7 @@ public class TestDirectExchangeClient
         assertThat(exchangeClient.pollPage()).isNull();
         assertThat(exchangeClient.getStatus().getBufferedPages()).isEqualTo(0);
 
-        PageBufferClientStatus clientStatus = exchangeClient.getStatus().getPageBufferClientStatuses().get(0);
+        PageBufferClientStatus clientStatus = getOnlyElement(exchangeClient.getStatus().getPageBufferClientStatuses());
         assertThat(clientStatus.getUri()).isEqualTo(location);
         assertThat(clientStatus.getState())
                 .describedAs("status")
