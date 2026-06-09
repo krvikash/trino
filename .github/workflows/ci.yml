@@ -1110,12 +1110,26 @@ jobs:
       - name: Build matrix
         id: build-synapse-matrix
         env:
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}
           IS_WEEKLY_SCHEDULE: ${{ github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6' }}
           HAS_SYNAPSE_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse') }}
         run: |
+          pool_tags="$(jq -nc \
+            --arg repo "${GH_REPOSITORY}" \
+            --arg event "${GH_EVENT_NAME}" \
+            --arg job_url "${GH_JOB_URL}" \
+          '{
+            "repository": $repo,
+            "event": $event,
+            "job_url": $job_url,
+            "test_type": "smoke"
+          }')"
           matrix=$(jq -nc '{"include": [{"synapse-test": "smoke"}]}')
           pt_matrix="$matrix"
           if [[ "$IS_WEEKLY_SCHEDULE" == "true" || "$HAS_SYNAPSE_LABEL" == 'true' ]]; then
+            pool_tags=$(echo "$pool_tags" | jq -c '.test_type = "full"')
             matrix=$(echo "$matrix" | jq -c '.include += [
               { "synapse-test": "full", "profile": "fte-tests" },
               { "synapse-test": "full", "profile": "long-running-tests" },
@@ -1123,6 +1137,7 @@ jobs:
             ]')
             pt_matrix=$(echo "$matrix" | jq -c '.include += [{"synapse-test": "pt"}]')
           fi
+          echo "pool_tags=$pool_tags" >> $GITHUB_OUTPUT
           echo "MATRIX=$matrix" >> $GITHUB_OUTPUT
           echo "PT_MATRIX=$pt_matrix" >> $GITHUB_OUTPUT
       - name: Azure Login
@@ -1143,6 +1158,7 @@ jobs:
           SYNAPSE_RESOURCE_GROUP: ${{ vars.SYNAPSE_RESOURCE_GROUP }}
           SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE }}
           SYNAPSE_SQL_POOL: ${{ steps.generate-pool-name.outputs.SYNAPSE_SQL_POOL }}
+          SYNAPSE_POOL_TAGS: ${{ steps.build-synapse-matrix.outputs.pool_tags }}
         with:
           inlineScript: |
             "$GITHUB_WORKSPACE"/.github/bin/synapse/start-sql-pool.sh
