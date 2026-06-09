@@ -1671,10 +1671,7 @@ public class TestLocalExchange
     {
         assertThat(source.waitForReading().isDone()).isTrue();
         Page actualPage = source.removePage();
-        assertThat(actualPage).isNotNull();
-
-        assertThat(actualPage.getChannelCount()).isEqualTo(expectedPage.getChannelCount());
-        PageAssertions.assertPageEquals(types, actualPage, expectedPage);
+        assertPageEquals(types, actualPage, expectedPage);
     }
 
     private static void assertPartitionedRemovePage(LocalExchangePageBuffer source, int partition, int partitionCount)
