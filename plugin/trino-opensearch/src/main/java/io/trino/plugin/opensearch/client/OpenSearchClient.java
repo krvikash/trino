@@ -32,6 +32,7 @@ import io.trino.plugin.opensearch.AwsSecurityConfig;
 import io.trino.plugin.opensearch.AwsSecurityConfig.DeploymentType;
 import io.trino.plugin.opensearch.OpenSearchConfig;
 import io.trino.plugin.opensearch.PasswordConfig;
+import io.trino.plugin.opensearch.client.mappings.MergingMappingException;
 import io.trino.spi.TrinoException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -95,6 +96,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.json.JsonCodec.jsonCodec;
@@ -104,6 +106,7 @@ import static io.trino.plugin.opensearch.OpenSearchErrorCode.OPENSEARCH_INVALID_
 import static io.trino.plugin.opensearch.OpenSearchErrorCode.OPENSEARCH_INVALID_RESPONSE;
 import static io.trino.plugin.opensearch.OpenSearchErrorCode.OPENSEARCH_QUERY_FAILURE;
 import static io.trino.plugin.opensearch.OpenSearchErrorCode.OPENSEARCH_SSL_INITIALIZATION_FAILURE;
+import static io.trino.plugin.opensearch.client.mappings.MappingsUtil.union;
 import static java.lang.StrictMath.toIntExact;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -486,36 +489,42 @@ public class OpenSearchClient
 
         return doRequest(path, body -> {
             try {
-                JsonNode mappings = JSON_MAPPER.readTree(body)
-                        .elements().next()
-                        .get("mappings");
+                JsonNode jsonNode = JSON_MAPPER.readTree(body);
+                List<JsonNode> allMappings = jsonNode.valueStream()
+                        .filter(node -> node.has("mappings"))
+                        .map(node -> node.get("mappings"))
+                        .collect(toImmutableList());
 
-                if (!mappings.elements().hasNext()) {
+                List<JsonNode> allProperties = allMappings.stream()
+                        .filter(node -> node.has("properties"))
+                        .map(node -> node.get("properties"))
+                        .collect(toImmutableList());
+
+                if (allProperties.isEmpty()) {
                     return new IndexMetadata(new IndexMetadata.ObjectType(ImmutableList.of()));
                 }
-                if (!mappings.has("properties")) {
-                    // Older versions of OpenSearch supported multiple "type" mappings
-                    // for a given index. Newer versions support only one and don't
-                    // expose it in the document. Here we skip it if it's present.
-                    mappings = mappings.elements().next();
 
-                    if (!mappings.has("properties")) {
-                        return new IndexMetadata(new IndexMetadata.ObjectType(ImmutableList.of()));
+                ImmutableList.Builder<JsonNode> allMetaProperties = ImmutableList.builder();
+                for (JsonNode mappings : allMappings) {
+                    JsonNode metaNode = nullSafeNode(mappings, "_meta");
+                    JsonNode trino = nullSafeNode(metaNode, "trino");
+                    if (trino.isNull()) {
+                        // stay backwards compatible with _meta.presto namespace for meta properties for some releases
+                        trino = nullSafeNode(metaNode, "presto");
+                    }
+                    if (!trino.isNull() && trino.isObject()) {
+                        allMetaProperties.add(trino);
                     }
                 }
 
-                JsonNode metaNode = nullSafeNode(mappings, "_meta");
+                // When using wildcards, multiple indices can be returned.
+                // We need to merge the properties of all indices.
+                JsonNode properties = union(allProperties);
+                JsonNode metaProperties = union(allMetaProperties.build());
 
-                JsonNode metaProperties = nullSafeNode(metaNode, "trino");
-
-                // stay backwards compatible with _meta.presto namespace for meta properties for some releases
-                if (metaProperties.isNull()) {
-                    metaProperties = nullSafeNode(metaNode, "presto");
-                }
-
-                return new IndexMetadata(parseType(mappings.get("properties"), metaProperties));
+                return new IndexMetadata(parseType(properties, metaProperties));
             }
-            catch (IOException e) {
+            catch (IOException | MergingMappingException e) {
                 throw new TrinoException(OPENSEARCH_INVALID_RESPONSE, e);
             }
         });
@@ -530,8 +539,22 @@ public class OpenSearchClient
 
             // default type is object
             String type = "object";
+            boolean mappingConflictField = false;
             if (value.has("type")) {
-                type = value.get("type").asText();
+                JsonNode typeNode = value.get("type");
+                // handle mapping conflicts where multiple types are defined for the same field
+                if (typeNode.isArray()) {
+                    mappingConflictField = true;
+                    type = "text";
+                    // In case of mapping conflicts there could be multiple concrete types for the same field.
+                    // We deliberately treat such fields as "text" because it would map naturally to Trino VARCHAR and can
+                    // accommodate heterogeneous values more safely than a narrower numeric or date type would. This
+                    // avoids failing metadata extraction while still allowing to process the query, even though the
+                    // underlying mapping is inconsistent. However, currently we do not allow such fields to be used in projections or filters.
+                }
+                else {
+                    type = typeNode.asText();
+                }
             }
             JsonNode metaNode = nullSafeNode(metaProperties, name);
             boolean isArray = !metaNode.isNull() && metaNode.has("isArray") && metaNode.get("isArray").asBoolean();
@@ -563,7 +586,7 @@ public class OpenSearchClient
                         LOG.debug("Ignoring empty object field: %s", name);
                     }
                 }
-                default -> result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type)));
+                default -> result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), mappingConflictField));
             }
         }
 

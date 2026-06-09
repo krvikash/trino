@@ -29,9 +29,20 @@ public record OpenSearchColumnHandle(
         Type type,
         IndexMetadata.Type opensearchType,
         DecoderDescriptor decoderDescriptor,
-        boolean supportsPredicates)
+        boolean supportsPredicates,
+        boolean mappingConflict)
         implements ColumnHandle
 {
+    public OpenSearchColumnHandle(
+            List<String> path,
+            Type type,
+            IndexMetadata.Type opensearchType,
+            DecoderDescriptor decoderDescriptor,
+            boolean supportsPredicates)
+    {
+        this(path, type, opensearchType, decoderDescriptor, supportsPredicates, false);
+    }
+
     public OpenSearchColumnHandle
     {
         path = ImmutableList.copyOf(path);

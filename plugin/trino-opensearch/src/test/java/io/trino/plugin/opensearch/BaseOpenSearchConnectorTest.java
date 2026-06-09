@@ -16,8 +16,10 @@ package io.trino.plugin.opensearch;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import io.trino.Session;
+import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.ExchangeNode;
@@ -27,6 +29,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.testing.AbstractTestQueries;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.apache.http.HttpHost;
@@ -48,6 +51,8 @@ import java.util.stream.Stream;
 
 import static io.trino.spi.StandardErrorCode.INVALID_COLUMN_REFERENCE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -2837,6 +2842,557 @@ public abstract class BaseOpenSearchConnectorTest
         finally {
             deleteIndex(firstIndex);
             deleteIndex(secondIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardIndexAndManyMappingsWithAdditionalField()
+            throws IOException
+    {
+        testWildcardIndexAndManyMappingsWithAdditionalField("keyword", VARCHAR, "Yes", "Yes");
+        testWildcardIndexAndManyMappingsWithAdditionalField("text", VARCHAR, "Some text", "Some text");
+        testWildcardIndexAndManyMappingsWithAdditionalField("integer", INTEGER, "42", 42);
+        testWildcardIndexAndManyMappingsWithAdditionalField("date", TIMESTAMP_MILLIS, "2015-01-01T12:10:30Z", LocalDateTime.parse("2015-01-01T12:10:30"));
+    }
+
+    private void testWildcardIndexAndManyMappingsWithAdditionalField(String openSearchType, Type trinoType, String givenValue, Object expectedValue)
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings1 =
+                """
+                {
+                  "properties": {
+                    "id": {
+                      "type": "keyword"
+                    },
+                    "optionalField": {
+                      "type": "%s"
+                    }
+                  }
+                }
+                """.formatted(openSearchType);
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "properties": {
+                    "id": {
+                      "type": "keyword"
+                    }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings1);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id1")
+                .put("optionalField", givenValue)
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id2")
+                .buildOrThrow());
+
+        try {
+            MaterializedResult expectedValues = resultBuilder(getQueryRunner().getDefaultSession(), VARCHAR, trinoType)
+                    .row("id2", null)
+                    .row("id1", expectedValue)
+                    .build();
+            MaterializedResult expectedValues2 = resultBuilder(getQueryRunner().getDefaultSession(), VARCHAR, trinoType)
+                    .row("id1", expectedValue)
+                    .row("id2", null)
+                    .build();
+
+            assertThat(computeActual("SELECT * FROM \"" + wildcardTable + "\""))
+                    .isIn(expectedValues, expectedValues2);
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableWithPartialMetadataConflict()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings1 =
+                """
+                {
+                  "properties": {
+                    "id": {
+                      "type": "text"
+                    },
+                    "conflict": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "properties": {
+                    "id": {
+                      "type": "text"
+                    },
+                    "conflict": {
+                      "type": "text",
+                      "analyzer": "english"
+                    }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings1);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id1")
+                .put("conflict", "Yes")
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id2")
+                .put("conflict", "No")
+                .buildOrThrow());
+
+        try {
+            assertThat(query("SELECT * FROM \"" + wildcardTable + "\""))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('No', 'id2'), ('Yes', 'id1')");
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableInformationSchema()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings =
+                """
+                {
+                  "properties": {
+                    "col_long_%s":     { "type": "long" },
+                    "col_text_%s":     { "type": "text" }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings.formatted("1", "1"));
+        createIndex(secondIndex, mappings.formatted("2", "2"));
+
+        try {
+            assertThat(computeActual("SELECT column_name FROM information_schema.columns WHERE table_name = '" + wildcardTable + "'").getOnlyColumnAsSet())
+                    .isEqualTo(ImmutableSet.of("col_long_1", "col_text_1", "col_long_2", "col_text_2"));
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableInformationSchemaWhenDifferentMappings()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings1 =
+                """
+                {
+                  "properties": {
+                    "col_long_1":     { "type": "long" },
+                    "col_text_1":     { "type": "text" }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "properties": {
+                    "col_long_1":     { "type": "long" }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings1);
+        createIndex(secondIndex, mappings2);
+
+        try {
+            assertThat(computeActual("SELECT column_name FROM information_schema.columns WHERE table_name = '" + wildcardTable + "'").getOnlyColumnAsSet())
+                    .isEqualTo(ImmutableSet.of("col_long_1", "col_text_1"));
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableWithDifferentMetaInformation()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String thirdIndex = format("test_wildcard_%s_3", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings1 =
+                """
+                {
+                  "_meta": {
+                    "description": "This is index one",
+                    "trino": {
+                      "a": {
+                        "isArray": true
+                      }
+                    }
+                  },
+                  "properties": {
+                    "a": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "_meta": {
+                    "description": "This is index two"
+                  },
+                  "properties": {
+                    "a": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings3 =
+                """
+                {
+                  "_meta": {
+                    "description": "This is index three"
+                  },
+                  "properties": {
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings1);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("a", ImmutableList.of("foo", "bar"))
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("a", "aaa")
+                .buildOrThrow());
+
+        createIndex(thirdIndex, mappings3);
+        index(thirdIndex, ImmutableMap.<String, Object>builder()
+                .buildOrThrow());
+
+        try {
+            assertThat(query("SELECT * FROM \"" + wildcardTable + "\""))
+                    .skippingTypesCheck()
+                    .matches("VALUES (null), (ARRAY['aaa']), (ARRAY['foo', 'bar'])");
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+            deleteIndex(thirdIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableWithConflictedMetaInformation()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings1 =
+                """
+                {
+                  "_meta": {
+                    "description": "This is index one",
+                    "trino": {
+                      "a": {
+                        "isArray": true
+                      }
+                    }
+                  },
+                  "properties": {
+                    "a": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "_meta": {
+                    "description": "This is index two",
+                    "trino": {
+                      "a": {
+                        "isArray": false
+                      }
+                    }
+                  },
+                  "properties": {
+                    "a": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings1);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("a", ImmutableList.of("foo", "bar"))
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("a", "aaa")
+                .buildOrThrow());
+
+        try {
+            assertThatThrownBy(() -> computeActual("SELECT * FROM \"" + wildcardTable + "\""))
+                    .hasMessageContaining("Mappings conflict detected. Conflicting values in mappings for field \"isArray\"");
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableWithIncompatibleMappings()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String thirdIndex = format("test_wildcard_%s_3", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings =
+                """
+                {
+                  "properties": {
+                    "id": {
+                      "type": "keyword"
+                    },
+                    "optionalField": {
+                      "type": "keyword"
+                    },
+                    "name": {
+                      "type": "text"
+                    },
+                    "conflict": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "properties": {
+                    "id": {
+                      "type": "keyword"
+                    },
+                    "name": {
+                      "type": "text"
+                    },
+                    "conflict": {
+                      "type": "integer"
+                    }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id1")
+                .put("optionalField", "Yes")
+                .put("name", "a")
+                .put("conflict", "aa")
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id2")
+                .put("name", "b")
+                .put("conflict", 12)
+                .buildOrThrow());
+
+        createIndex(thirdIndex, mappings);
+        index(thirdIndex, ImmutableMap.<String, Object>builder()
+                .put("id", "id4")
+                .put("optionalField", "No")
+                .put("name", "c")
+                .put("conflict", "c")
+                .buildOrThrow());
+
+        try {
+            assertThat(query("SELECT name, optionalField FROM \"" + wildcardTable + "\" where id='id1'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a', 'Yes')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT name, optionalField FROM \"" + wildcardTable + "\" where id='id2'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('b', null)")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT conflict, name FROM \"" + wildcardTable + "\" where id='id1'"))
+                    .failure()
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Querying the following columns is not supported due to type mapping conflicts");
+
+            assertThat(query("SELECT * FROM \"" + wildcardTable + "\" where id='id1'"))
+                    .failure()
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Querying the following columns is not supported due to type mapping conflicts");
+
+            assertThat(query("SELECT name FROM \"" + wildcardTable + "\" where conflict ='id1'"))
+                    .failure()
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Cannot filter on column conflict with mapping conflict (inconsistent types across selected index mappings).");
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+            deleteIndex(thirdIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableWithPartialIncompatibleMappings()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String thirdIndex = format("test_wildcard_%s_3", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings =
+                """
+                {
+                  "properties": {
+                    "date1": {
+                      "type": "date"
+                    },
+                    "date2": {
+                      "type": "date"
+                    },
+                    "name": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 =
+                """
+                {
+                  "properties": {
+                    "date1": {
+                      "type": "text"
+                    },
+                    "date2": {
+                      "type": "date"
+                    },
+                    "name": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("date1", "2015-01-01T12:10:30Z")
+                .put("date2", "2015-02-01")
+                .put("name", "a")
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("date1", "2015-01-01T12:10:30Z")
+                .put("date2", "2015-03-01")
+                .put("name", "b")
+                .buildOrThrow());
+
+        createIndex(thirdIndex, mappings);
+        index(thirdIndex, ImmutableMap.<String, Object>builder()
+                .put("date1", "2014-01-01T12:10:30Z")
+                .put("date2", "2014-02-01")
+                .put("name", "c")
+                .buildOrThrow());
+
+        try {
+            assertThat(query("SELECT name FROM \"" + wildcardTable + "\" where date2 > TIMESTAMP '2015-01-01'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a'), ('b')")
+                    .isFullyPushedDown();
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+            deleteIndex(thirdIndex);
         }
     }
 

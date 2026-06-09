@@ -270,7 +270,8 @@ public class OpenSearchMetadata
                     converted.type(),
                     field.type(),
                     converted.decoderDescriptor(),
-                    supportsPredicates(field.type(), converted.type)));
+                    supportsPredicates(field.type(), converted.type),
+                    field.mappingConflict()));
         }
 
         return result.buildOrThrow();
@@ -515,6 +516,9 @@ public class OpenSearchMetadata
         Map<ColumnHandle, Domain> domains = constraint.getSummary().getDomains().orElseThrow(() -> new IllegalArgumentException("constraint summary is NONE"));
         for (Entry<ColumnHandle, Domain> entry : domains.entrySet()) {
             OpenSearchColumnHandle column = (OpenSearchColumnHandle) entry.getKey();
+            if (column.mappingConflict()) {
+                throw new TrinoException(NOT_SUPPORTED, "Cannot filter on column %s with mapping conflict (inconsistent types across selected index mappings).".formatted(column.name()));
+            }
 
             if (column.supportsPredicates()) {
                 supported.put(column, entry.getValue());
@@ -904,7 +908,7 @@ public class OpenSearchMetadata
         return switch (trinoType) {
             case TimestampType _, BooleanType _, TinyintType _, SmallintType _, IntegerType _, BigintType _, RealType _ -> true;
             case DoubleType _ -> !(type instanceof ScaledFloatType);
-            case VarcharType _ when type instanceof PrimitiveType primitiveType && primitiveType.name().toLowerCase(ENGLISH).equals("keyword") -> true;
+            case VarcharType _ when type instanceof PrimitiveType(String name) && name.toLowerCase(ENGLISH).equals("keyword") -> true;
             default -> false;
         };
     }

@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.plugin.opensearch.decoders.Decoder;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
@@ -42,6 +43,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.opensearch.BuiltinColumns.SOURCE;
 import static io.trino.plugin.opensearch.BuiltinColumns.isBuiltinColumn;
 import static io.trino.plugin.opensearch.OpenSearchQueryBuilder.buildSearchQuery;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.isEqual;
@@ -70,6 +72,9 @@ public abstract class AbstractScanQueryPageSource
         requireNonNull(columns, "columns is null");
 
         this.columns = ImmutableList.copyOf(columns);
+
+        checkTypeMappingConflicts(columns);
+
         this.decoders = createDecoders(columns);
 
         // When the _source field is requested, we need to bypass column pruning when fetching the document
@@ -263,6 +268,18 @@ public abstract class AbstractScanQueryPageSource
         }
         else {
             result.put(fieldName, type);
+        }
+    }
+
+    private static void checkTypeMappingConflicts(List<OpenSearchColumnHandle> columns)
+    {
+        List<String> conflictingColumns = columns.stream()
+                .filter(OpenSearchColumnHandle::mappingConflict)
+                .map(OpenSearchColumnHandle::name)
+                .collect(toImmutableList());
+
+        if (!conflictingColumns.isEmpty()) {
+            throw new TrinoException(NOT_SUPPORTED, "Querying the following columns is not supported due to type mapping conflicts: " + String.join(", ", conflictingColumns));
         }
     }
 
