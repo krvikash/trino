@@ -27,11 +27,14 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
 import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
+import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.expression.GpuExtractDecimalStateChunk;
 import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
 import io.trino.operator.gpu.expression.GpuPackAvgDecimalState;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.BoundSignature;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.CharType;
@@ -58,6 +61,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -503,19 +507,6 @@ public final class GpuAggregationCompiler
         return Optional.of(new ColumnReference(channel, symbol.type()));
     }
 
-    private static CompiledExpression maskExpression(int maskChannel, int valueChannel)
-    {
-        return new CompiledExpression(
-                (_, inputColumns) -> {
-                    ColumnVector mask = inputColumns.get(0);
-                    ColumnVector value = inputColumns.get(1);
-                    try (Scalar nullScalar = Scalar.fromNull(value.getType())) {
-                        return mask.ifElse(value, nullScalar);
-                    }
-                },
-                new InputChannels(ImmutableList.of(maskChannel, valueChannel)));
-    }
-
     private record ColumnReference(int channel, Type type)
     {
         public ColumnReference
@@ -721,5 +712,37 @@ public final class GpuAggregationCompiler
     {
         // Mirrors Trino's signature: sum(decimal(p, s)) returns decimal(38, s).
         return DecimalType.createDecimalType(38, input.getScale());
+    }
+
+    private static CompiledExpression maskExpression(int maskChannel, int valueChannel)
+    {
+        return new CompiledExpression(
+                mask(inputReference(0), inputReference(1)),
+                new InputChannels(ImmutableList.of(maskChannel, valueChannel)));
+    }
+
+    private static GpuExpression mask(GpuExpression mask, GpuExpression value)
+    {
+        requireNonNull(mask, "mask is null");
+        requireNonNull(value, "value is null");
+        return (positionCount, inputColumns) -> {
+            try (ColumnVector maskVector = mask.evaluate(positionCount, inputColumns);
+                    ColumnVector valueVector = value.evaluate(positionCount, inputColumns)) {
+                return mask(maskVector, valueVector);
+            }
+        };
+    }
+
+    private static @Move ColumnVector mask(@Borrow ColumnVector mask, @Borrow ColumnVector value)
+    {
+        checkArgument(mask.getType() == DType.BOOL8, "Unexpected mask type: %s", mask.getType());
+        try (Scalar nullScalar = Scalar.fromNull(value.getType())) {
+            return mask.ifElse(value, nullScalar);
+        }
+    }
+
+    private static GpuExpression inputReference(int inputChannel)
+    {
+        return (_, inputColumns) -> inputColumns.get(inputChannel).incRefCount();
     }
 }
