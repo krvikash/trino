@@ -144,7 +144,7 @@ final class TestGpuAggregationOperator
     }
 
     @Test
-    void testCountNonNullGlobalMerge()
+    void testCountNonNullGlobalFinal()
     {
         // Simulate merging partial COUNT(column) results: 10 + 20 + 5 = 35
         BlockBuilder countBuilder = BIGINT.createBlockBuilder(null, 3);
@@ -154,7 +154,7 @@ final class TestGpuAggregationOperator
 
         Page inputPage = new Page(countBuilder.build());
 
-        Object result = executeGpuGlobalMergeAggregation(
+        Object result = executeGpuGlobalFinalAggregation(
                 inputPage,
                 List.of(BIGINT),
                 new GpuCountNonNull(0, BIGINT, INT64));
@@ -173,7 +173,7 @@ final class TestGpuAggregationOperator
     }
 
     @Test
-    void testGroupByCountNonNullMerge()
+    void testGroupByCountNonNullFinal()
     {
         // Simulate merging partial COUNT(column) results:
         // Group 0: counts 10, 20 -> merged count 30
@@ -192,7 +192,7 @@ final class TestGpuAggregationOperator
 
         Page inputPage = new Page(groupByBuilder.build(), countBuilder.build());
 
-        List<Page> results = executeGpuMergeAggregation(
+        List<Page> results = executeGpuFinalAggregation(
                 inputPage,
                 BIGINT,
                 BIGINT,
@@ -1024,7 +1024,7 @@ final class TestGpuAggregationOperator
         return mask.filterPage(inputPage.getColumns(IntStream.range(0, maskChannel).toArray()));
     }
 
-    private Object executeGpuGlobalMergeAggregation(
+    private Object executeGpuGlobalFinalAggregation(
             Page inputPage,
             List<Type> inputTypes,
             GpuAggregateFunction gpuAggregate)
@@ -1037,7 +1037,7 @@ final class TestGpuAggregationOperator
         return getOnlyValue(gpuAggregate.outputType(), resultPage.getBlock(0));
     }
 
-    private List<Page> executeGpuMergeAggregation(
+    private List<Page> executeGpuFinalAggregation(
             Page inputPage,
             Type groupByKeyType,
             Type groupByValueType,
