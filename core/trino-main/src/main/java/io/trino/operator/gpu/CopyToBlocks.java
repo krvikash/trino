@@ -63,6 +63,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.type.DateTimes.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.type.DateTimes.PICOSECONDS_PER_NANOSECOND;
 import static java.lang.Math.floorDiv;
@@ -258,6 +259,7 @@ public class CopyToBlocks
 
     private static ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)
     {
+        checkType(hostColumnVector.getType(), toDType(type).orElseThrow());
         return switch (type) {
             case BooleanType _ -> new ByteColumnCopier(hostColumnVector);
             case TinyintType _ -> new ByteColumnCopier(hostColumnVector);
@@ -269,7 +271,12 @@ public class CopyToBlocks
             case DecimalType decimalType when decimalType.isShort() -> new LongColumnCopier(hostColumnVector);
             case DecimalType decimalType when !decimalType.isShort() -> new Int128ColumnCopier(hostColumnVector);
             case CharType _, VarcharType _ -> new VariableWidthBlockColumnCopier(hostColumnVector);
-            case VarbinaryType _ -> new VarbinaryColumnCopier(hostColumnVector);
+            case VarbinaryType _ -> {
+                checkType(hostColumnVector.getType(), DType.LIST);
+                checkArgument(hostColumnVector.getNumChildren() == 1, "Unexpected number of child vectors: %s", hostColumnVector.getNumChildren());
+                checkType(hostColumnVector.getChildColumnView(0).getType(), DType.UINT8);
+                yield new VarbinaryColumnCopier(hostColumnVector);
+            }
             case DateType _ -> new IntColumnCopier(hostColumnVector);
             case TimestampType timestampType when timestampType.getPrecision() == 0 -> new RescaledLongColumnCopier(hostColumnVector, 1_000_000L);
             case TimestampType timestampType when timestampType.getPrecision() <= 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
@@ -315,7 +322,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public ByteColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private ByteColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -334,7 +341,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public ShortColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private ShortColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -354,7 +361,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public IntColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private IntColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -373,7 +380,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public LongColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private LongColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -393,7 +400,7 @@ public class CopyToBlocks
         private final @Borrow HostColumnVector hostColumnVector;
         private final long multiplier;
 
-        public RescaledLongColumnCopier(@Borrow HostColumnVector hostColumnVector, long multiplier)
+        private RescaledLongColumnCopier(@Borrow HostColumnVector hostColumnVector, long multiplier)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
             this.multiplier = multiplier;
@@ -416,7 +423,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public RealColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private RealColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -435,7 +442,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public DoubleColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private DoubleColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -459,7 +466,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public Int128ColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private Int128ColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -483,7 +490,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public VariableWidthBlockColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private VariableWidthBlockColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -526,7 +533,7 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public VarbinaryColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        private VarbinaryColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
@@ -561,10 +568,9 @@ public class CopyToBlocks
     {
         private final @Borrow HostColumnVector hostColumnVector;
 
-        public TimestampNanosCopier(@Borrow HostColumnVector hostColumnVector)
+        private TimestampNanosCopier(@Borrow HostColumnVector hostColumnVector)
         {
-            checkArgument(hostColumnVector.getType() == DType.TIMESTAMP_NANOSECONDS, "Unexpected type: %s", hostColumnVector.getType());
-            this.hostColumnVector = hostColumnVector;
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
         }
 
         @Override
@@ -586,5 +592,10 @@ public class CopyToBlocks
     private interface ColumnCopier
     {
         Block buildBlock(int position, int count);
+    }
+
+    private static void checkType(DType type, DType expected)
+    {
+        checkArgument(expected.equals(type), "Unexpected DType: expected %s, got %s", expected, type);
     }
 }
