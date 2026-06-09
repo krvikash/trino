@@ -168,8 +168,7 @@ public class TestMergeOperator
                 .row(2)
                 .row(3)
                 .row(4)
-                .build()
-                .get(0);
+                .buildPage();
         assertPageEquals(ImmutableList.of(BIGINT), getOnlyElement(pullAvailablePages(operator)), expected);
         operator.close();
     }
@@ -218,8 +217,7 @@ public class TestMergeOperator
                 .row(4, 1)
                 .row(3, 2)
                 .row(3, 4)
-                .build()
-                .get(0);
+                .buildPage();
 
         assertPageEquals(outputTypes, getOnlyElement(pullAvailablePages(operator)), expected);
         operator.close();
@@ -351,8 +349,7 @@ public class TestMergeOperator
                 .row(400, 1, 1)
                 .row(401, 1, 7)
                 .row(402, 1, 6)
-                .build()
-                .get(0);
+                .buildPage();
 
         assertPageEquals(types, getOnlyElement(pullAvailablePages(operator)), expected);
         operator.close();

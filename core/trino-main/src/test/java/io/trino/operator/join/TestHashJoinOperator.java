@@ -79,7 +79,6 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
@@ -248,7 +247,7 @@ public class TestHashJoinOperator
 
         // probe matching the above 40 entries
         RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(BIGINT));
-        List<Page> probeInput = probePages.addSequencePage(100, 0).build();
+        Page probeInput = probePages.addSequencePage(100, 0).buildPage();
         OperatorFactory joinOperatorFactory = spillingJoin(
                 innerJoin(false, false),
                 0,
@@ -266,7 +265,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
         Operator operator = joinOperatorFactory.createOperator(driverContext);
         assertThat(operator.needsInput()).isTrue();
-        operator.addInput(probeInput.get(0));
+        operator.addInput(probeInput);
         operator.finish();
 
         // we will yield 40 times due to filterFunction
@@ -1442,8 +1441,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
         Operator operator = joinOperatorFactory.createOperator(taskContext.addPipelineContext(0, true, true, false).addDriverContext());
 
-        List<Page> pages = probePages.row("test").build();
-        operator.addInput(pages.get(0));
+        operator.addInput(probePages.row("test").buildPage());
         Page outputPage = operator.getOutput();
         assertThat(outputPage).isNull();
     }
@@ -1486,8 +1484,7 @@ public class TestHashJoinOperator
         buildLookupSource(executor, buildSideSetup);
         Operator operator = joinOperatorFactory.createOperator(taskContext.addPipelineContext(0, true, true, false).addDriverContext());
 
-        List<Page> pages = probePages.row("test").build();
-        operator.addInput(pages.get(0));
+        operator.addInput(probePages.row("test").buildPage());
         Page outputPage = operator.getOutput();
         assertThat(outputPage).isNull();
     }
@@ -1700,7 +1697,7 @@ public class TestHashJoinOperator
             throws Exception
     {
         RowPagesBuilder probePages = rowPagesBuilder(Ints.asList(0), ImmutableList.of(VARCHAR));
-        Page probePage = getOnlyElement(probePages.addSequencePage(1, 0).build());
+        Page probePage = probePages.addSequencePage(1, 0).buildPage();
 
         // join that waits for build side to be collected
         TaskContext taskContext = createTaskContext();
