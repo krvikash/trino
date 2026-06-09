@@ -41,6 +41,7 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.AggregationNode.Aggregation;
+import io.trino.sql.planner.plan.AggregationNode.Step;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.BeforeAll;
@@ -713,7 +714,7 @@ final class TestGpuAggregationOperator
         assertGlobalMatchesCpu(inputPage, functionName, argumentTypes, SINGLE);
     }
 
-    private void assertGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
+    private void assertGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, Step step)
     {
         assertGlobalMatchesCpu(List.of(inputPage), functionName, argumentTypes, step);
     }
@@ -723,7 +724,7 @@ final class TestGpuAggregationOperator
         assertGlobalMatchesCpu(inputPages, functionName, argumentTypes, SINGLE);
     }
 
-    private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
+    private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
         CompileResult compiled = compileAggregation(functionName, argumentTypes, false, step);
         List<Type> inputTypes = argumentTypes.isEmpty() ? List.of(BIGINT) : List.copyOf(argumentTypes);
@@ -756,12 +757,12 @@ final class TestGpuAggregationOperator
         assertGroupByMatchesCpu(inputPages, functionName, argumentTypes, SINGLE);
     }
 
-    private void assertGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
+    private void assertGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes, Step step)
     {
         assertGroupByMatchesCpu(List.of(inputPage), functionName, argumentTypes, step);
     }
 
-    private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, AggregationNode.Step step)
+    private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
         CompileResult compiled = compileAggregation(functionName, argumentTypes, true, step);
         List<Type> inputTypes = ImmutableList.<Type>builder()
@@ -881,12 +882,12 @@ final class TestGpuAggregationOperator
         }
     }
 
-    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step)
+    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step)
     {
         return compileAggregation(functionName, argumentTypes, grouped, step, false);
     }
 
-    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step, boolean masked)
+    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
     {
         return tryCompileAggregation(functionName, argumentTypes, grouped, step, masked)
                 .orElseThrow(() -> new AssertionError("Failed to compile %s over %s".formatted(functionName, argumentTypes)));
@@ -894,12 +895,12 @@ final class TestGpuAggregationOperator
 
     private static void assertCompileNotSupported(String functionName, List<Type> argumentTypes, boolean grouped)
     {
-        for (AggregationNode.Step step : AggregationNode.Step.values()) {
+        for (Step step : Step.values()) {
             assertThat(tryCompileAggregation(functionName, argumentTypes, grouped, step, false)).isEmpty();
         }
     }
 
-    private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, AggregationNode.Step step, boolean masked)
+    private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
     {
         ImmutableList.Builder<Symbol> sourceSymbols = ImmutableList.builder();
         List<Symbol> groupingKeys = List.of();
