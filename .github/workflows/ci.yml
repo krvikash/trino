@@ -458,97 +458,6 @@ jobs:
         run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
   # ------------------------------------------------------------------------
-  # Only run Google Sheets tests on a schedule, labeled PRs, or workflow_dispatch
-  # ------------------------------------------------------------------------
-  google-sheets-tests:
-    name: google-sheets-tests
-    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-    timeout-minutes: 30
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'google-sheets')) || (github.event_name == 'workflow_dispatch')"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl plugin/trino-google-sheets
-      - name: Run Google Sheets tests
-        id: tests
-        run: |
-          $MAVEN test ${MAVEN_TEST} -pl plugin/trino-google-sheets
-      - name: Cloud Google Sheets Tests
-        id: tests-google-sheets
-        env:
-          SHEETS_CREDENTIALS_KEY: ${{ secrets.SHEETS_CREDENTIALS_KEY }}
-        run: |
-          $MAVEN test ${MAVEN_TEST} -pl :trino-google-sheets -Pcloud-tests \
-            -Dtesting.gsheets.credentials-key="${SHEETS_CREDENTIALS_KEY}"
-      - name: Sanitize artifact name
-        if: always()
-        run: |
-          # Generate a valid artifact name and make it available to next steps as
-          # an environment variable ARTIFACT_NAME
-          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "plugin/trino-google-sheets" | sed -e 's/[":<>|\*\?\\\/]/_/g')
-          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && steps.tests.outcome == 'failure'
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # team-connectors-notify channel ID
-          slack-text: |
-            :boom: Google Sheets tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-
-  # ------------------------------------------------------------------------
   # Only run Iceberg BigLake tests on a schedule, labeled PRs, or workflow_dispatch
   # ------------------------------------------------------------------------
   iceberg-biglake-tests:
@@ -2775,7 +2684,6 @@ jobs:
       - check-commit
       - check-commits-dispatcher
       - error-prone-checks
-      - google-sheets-tests
       - gpu-tests
       - hive-tests
       - iceberg-biglake-tests
@@ -2804,7 +2712,6 @@ jobs:
           echo '${{ needs.check-commit.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit" failed' >&2; exit 1; }
           echo '${{ needs.check-commits-dispatcher.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commits-dispatcher" failed' >&2; exit 1; }
           echo '${{ needs.error-prone-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "error-prone-checks" failed' >&2; exit 1; }
-          echo '${{ needs.google-sheets-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "google-sheets-tests" failed' >&2; exit 1; }
           echo '${{ needs.gpu-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "gpu-tests" failed' >&2; exit 1; }
           echo '${{ needs.hive-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "hive-tests" failed' >&2; exit 1; }
           echo '${{ needs.iceberg-biglake-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "iceberg-biglake-tests" failed' >&2; exit 1; }

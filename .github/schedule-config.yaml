@@ -153,6 +153,16 @@
   when:
     scheduled: nightly
     labeled: [bigquery]
+- modules:
+    - plugin/trino-google-sheets
+  profiles:
+    - ""
+    - cloud-tests
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [google-sheets]
 ## Weekly
 - modules:
     - plugin/starburst-kdb
