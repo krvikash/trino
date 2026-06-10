@@ -120,6 +120,7 @@ class ScheduleConfigItem:
     module_sets: list[list[str]]
     profiles: list[str] = field(default_factory=list)
     runners: list[str] = field(default_factory=list)
+    notify_channels: list[str] = field(default_factory=list)
     when: ScheduleFilter | None = None
     matrix_properties: dict[str, Any] = field(default_factory=dict)
 
@@ -145,14 +146,21 @@ class ScheduleConfigItem:
         self, module_sets: list[list[str]]
     ) -> list[dict[str, str | list[str]]]:
         includes = []
-        for module_set, profile in itertools.product(module_sets, self.profiles or [None]):
+        for module_set, profile in itertools.product(
+            module_sets, self.profiles or [None]
+        ):
             include: dict[str, str | list[str]] = {"modules": ",".join(module_set)}
             if profile:
                 include["profile"] = profile
             if self.runners:
                 include["runners"] = self.runners
+            if self.notify_channels:
+                include["notify-channels"] = self.notify_channels
             if self.matrix_properties:
                 include.update(self.matrix_properties)
+            include["name"] = build_test_name(
+                module_set, profile, self.matrix_properties
+            )
             includes.append(include)
         return includes
 
@@ -173,6 +181,17 @@ def has_impacted_module(module_set: list[str], impacted: set[str]) -> bool:
     return any(module in impacted for module in module_set)
 
 
+def build_test_name(
+    module_set: list[str], profile: str | None, additional_properties: dict[str, Any]
+) -> str:
+    values = list(module_set)
+    if profile:
+        values.append(profile)
+    for key in sorted(additional_properties):
+        values.append(f"{key}={additional_properties[key]}")
+    return f"test ({', '.join(values)})"
+
+
 def load_schedule_configs(stream) -> list[ScheduleConfigItem]:
     """Parses a YAML stream into ScheduleConfigItem objects"""
     config = _require_type(yaml.safe_load(stream), list, "config")
@@ -185,6 +204,7 @@ def load_schedule_configs(stream) -> list[ScheduleConfigItem]:
             raise ValueError("modules should have at least one element")
         profiles = _expect_str_list(item, "profiles")
         runners = _expect_str_list(item, "runners")
+        notify_channels = _expect_str_list(item, "notify-channels")
         when = (
             load_when(_require_type(item["when"], dict, "when"))
             if "when" in item
@@ -194,19 +214,28 @@ def load_schedule_configs(stream) -> list[ScheduleConfigItem]:
             item.get("matrix-properties", {}), dict, "matrix-properties"
         )
         check_matrix_properties(matrix_properties)
-        
+
         configs.append(
-            ScheduleConfigItem(module_sets, profiles, runners, when, matrix_properties)
+            ScheduleConfigItem(
+                module_sets,
+                profiles=profiles,
+                runners=runners,
+                notify_channels=notify_channels,
+                when=when,
+                matrix_properties=matrix_properties,
+            )
         )
     return configs
 
 
 def check_matrix_properties(matrix_properties: dict[str, Any]) -> None:
     """Validate that the matrix-properties object doesn't override reserved matrix keys."""
-    reserved = {"modules", "profile", "runners"}
+    reserved = {"modules", "profile", "runners", "notify-channels", "name"}
     conflicts = reserved.intersection(matrix_properties.keys())
     if conflicts:
-        raise ValueError(f"matrix-properties contains reserved keys: {sorted(conflicts)}")
+        raise ValueError(
+            f"matrix-properties contains reserved keys: {sorted(conflicts)}"
+        )
 
 
 def load_when(item: dict[str, Any]) -> ScheduleFilter:
@@ -392,6 +421,10 @@ class TestBuild(unittest.TestCase):
                                    when:
                                      scheduled: weekly
                                      labeled: [l]
+                                 - modules: [p]
+                                   notify-channels: [foo]
+                                   matrix-properties:
+                                     bar: baz
                                 """)
         with tempfile.TemporaryFile("w+") as config_file:
             config_file.write(configs)
@@ -412,6 +445,9 @@ class TestBuild(unittest.TestCase):
                     [["h"]],
                     runners=["i", "j", "k"],
                     when=ScheduleFilter(scheduled=Schedule.weekly, labeled=["l"]),
+                ),
+                ScheduleConfigItem(
+                    [["p"]], notify_channels=["foo"], matrix_properties={"bar": "baz"}
                 ),
             ],
         )
@@ -485,11 +521,11 @@ class TestBuild(unittest.TestCase):
         configs = [ScheduleConfigItem([["a"], ["b", "c"]])]
         self.assertEqual(
             build_matrix_json(configs, set(), {"event_name": "push"}),
-            {"include": [{"modules": "a"}, {"modules": "b,c"}]},
+            {"include": [{"modules": "a", "name": "test (a)"}, {"modules": "b,c", "name": "test (b, c)"}]},
         )
         self.assertEqual(
             build_matrix_json(configs, {"b"}, {"event_name": "pull_request"}),
-            {"include": [{"modules": "b,c"}]},
+            {"include": [{"modules": "b,c", "name": "test (b, c)"}]},
             "test runs if any module impacted",
         )
         self.assertEqual(
@@ -499,10 +535,27 @@ class TestBuild(unittest.TestCase):
         )
 
     def test_build_matrix_additional_properties(self):
-        configs = [ScheduleConfigItem([["a"]], matrix_properties={"buildAll": True})]
+        configs = [
+            ScheduleConfigItem(
+                [["a"]],
+                profiles=["foo-profile"],
+                notify_channels=["foo", "bar"],
+                matrix_properties={"buildAll": True},
+            )
+        ]
         self.assertEqual(
             build_matrix_json(configs, set(), {"event_name": "push"}),
-            {"include": [{"modules": "a", "buildAll": True}]},
+            {
+                "include": [
+                    {
+                        "modules": "a",
+                        "profile": "foo-profile",
+                        "notify-channels": ["foo", "bar"],
+                        "buildAll": True,
+                        "name": "test (a, foo-profile, buildAll=True)"
+                    }
+                ]
+            },
         )
 
     def test_build_matrix_default_when(self):
@@ -517,12 +570,12 @@ class TestBuild(unittest.TestCase):
             context = {"event_name": event_name}
             self.assertEqual(
                 build_matrix_json(configs, set(), context),
-                {"include": [{"modules": "a"}]},
+                {"include": [{"modules": "a", "name": "test (a)"}]},
                 f"default runs on {event_name} without impact",
             )
             self.assertEqual(
                 build_matrix_json(configs, {"a"}, context),
-                {"include": [{"modules": "a"}]},
+                {"include": [{"modules": "a", "name": "test (a)"}]},
                 f"default runs on {event_name} with impact",
             )
 
@@ -530,12 +583,12 @@ class TestBuild(unittest.TestCase):
             context = {"event_name": "schedule", "event": {"schedule": schedule}}
             self.assertEqual(
                 build_matrix_json(configs, set(), context),
-                {"include": [{"modules": "a"}]},
+                {"include": [{"modules": "a", "name": "test (a)"}]},
                 f"default runs on schedule {schedule} without impact",
             )
             self.assertEqual(
                 build_matrix_json(configs, {"a"}, context),
-                {"include": [{"modules": "a"}]},
+                {"include": [{"modules": "a", "name": "test (a)"}]},
                 f"default runs on schedule {schedule} with impact",
             )
 
@@ -550,7 +603,7 @@ class TestBuild(unittest.TestCase):
         )
         self.assertEqual(
             build_matrix_json(configs, {"a"}, context),
-            {"include": [{"modules": "a"}]},
+            {"include": [{"modules": "a", "name": "test (a)"}]},
             "default runs on pull request with impact",
         )
 
@@ -573,7 +626,7 @@ class TestBuild(unittest.TestCase):
         matrix_other_impacted = build_matrix_json(configs, {"b"}, github_context)
         matrix_not_impacted = build_matrix_json(configs, set(), github_context)
 
-        self.assertEqual(matrix_impacted, {"include": [{"modules": "a"}]})
+        self.assertEqual(matrix_impacted, {"include": [{"modules": "a", "name": "test (a)"}]},)
         self.assertEqual(matrix_other_impacted, {})
         self.assertEqual(matrix_not_impacted, {})
 
@@ -591,7 +644,7 @@ class TestBuild(unittest.TestCase):
         self.assertEqual(matrix_impacted, {})
         self.assertEqual(matrix_other_impacted, {})
         self.assertEqual(matrix_not_impacted, {})
-        self.assertEqual(matrix_dispatched, {"include": [{"modules": "a"}]})
+        self.assertEqual(matrix_dispatched, {"include": [{"modules": "a", "name": "test (a)"}]})
 
 
 if __name__ == "__main__":

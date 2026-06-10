@@ -49,13 +49,16 @@ public class TestCiWorkflow
     public void testUploadTestResultsCondition()
             throws Exception
     {
+        String aggregateTestStatusStepName = "Aggregate test status";
         String uploadTestResultsStepName = "Upload test results";
         String uploadTestResultsToDatadogStepName = "Upload test results to Datadog";
         Set<String> nonTestSteps = ImmutableSet.of(
                 "Cancel merge queue workflow",
+                "Maven Install",
+                "Notify on failed tests",
+                aggregateTestStatusStepName,
                 uploadTestResultsStepName,
-                uploadTestResultsToDatadogStepName,
-                "Maven Install");
+                uploadTestResultsToDatadogStepName);
 
         Yaml yaml = new Yaml();
         Map<?, ?> workflow = yaml.load(Reader.of(Files.readString(findRepositoryRoot().resolve(CI_YML_REPO_PATH))));
@@ -86,19 +89,23 @@ public class TestCiWorkflow
         assertThat(testStepIds)
                 .doesNotHaveDuplicates();
 
-        Map<?, ?> uploadTestResults = findOnly(steps, (Map<?, ?> step) -> Objects.equals(step.get("name"), uploadTestResultsStepName));
-        System.out.println(getString(getMap(uploadTestResults, "with"), "has-failed-tests"));
-        Set<String> conditions = Stream.of(getString(getMap(uploadTestResults, "with"), "has-failed-tests")
+        @SuppressWarnings("unchecked")
+        Map<String, ?> aggregateTestStatus = (Map<String, ?>) findOnly(steps, (Map<?, ?> step) -> Objects.equals(step.get("name"), aggregateTestStatusStepName));
+        assertThat(aggregateTestStatus).containsKey("id");
+        String aggregateTestStatusId = getString(aggregateTestStatus, "id");
+        Set<String> testStatusConditions = Stream.of(getString(aggregateTestStatus, "if")
                         .strip()
-                        .replaceFirst("^\\$\\{\\{", "")
-                        .replaceFirst("}}$", "")
+                        .replaceFirst("^always\\(\\) && \\(", "")
+                        .replaceFirst("\\)$", "")
                         .strip()
                         .split("\\|\\|"))
                 .map(option -> option.strip().replaceFirst("steps\\.([-a-zA-Z0-9]+)\\.outcome == 'failure'", "$1"))
                 .collect(toImmutableSet());
+        assertThat(testStatusConditions).containsExactlyInAnyOrderElementsOf(testStepIds);
 
-        assertThat(conditions)
-                .containsExactlyInAnyOrderElementsOf(testStepIds);
+        Map<?, ?> uploadTestResults = findOnly(steps, (Map<?, ?> step) -> Objects.equals(step.get("name"), uploadTestResultsStepName));
+        assertThat(getString(getMap(uploadTestResults, "with"), "has-failed-tests")).matches(
+                "^\\$\\{\\{\\s*steps\\.%s\\.outputs\\.test_status\\s*==\\s*'failure'\\s*\\}\\}$".formatted(aggregateTestStatusId));
     }
 
     @Test
@@ -153,12 +160,21 @@ public class TestCiWorkflow
     }
 
     private static Path findRepositoryRoot()
+            throws Exception
     {
         Path workingDirectory = Path.of("").toAbsolutePath();
         log.info("Current working directory: %s", workingDirectory);
         for (Path path = workingDirectory; path != null; path = path.getParent()) {
-            if (Files.isDirectory(path.resolve(".git"))) {
+            Path gitPath = path.resolve(".git");
+            if (Files.isDirectory(gitPath)) {
                 return path;
+            }
+            // In git worktrees, .git is just a file which points to the main repo's directory
+            if (Files.isRegularFile(gitPath)) {
+                String gitContents = Files.readString(gitPath);
+                if (gitContents.startsWith("gitdir:")) {
+                    return path;
+                }
             }
         }
         throw new RuntimeException("Failed to find repository root from " + workingDirectory);

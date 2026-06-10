@@ -1874,6 +1874,7 @@ jobs:
           gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
   test:
+    name: ${{ matrix.name != '' && matrix.name || format('test ({0}, {1})', matrix.modules, matrix.profile) }}
     runs-on: ${{ matrix.runners != null && matrix.runners || fromJSON('["self-hosted", "gha-fleet-ec2-4cpu-16gb-amd64", "latest" ]') }}
     needs: build-test-matrix
     if: needs.build-test-matrix.outputs.matrix != '{}'
@@ -2294,30 +2295,35 @@ jobs:
           name=$(echo -n "${{ matrix.modules }}, ${{ matrix.profile }}, ${{ matrix.jdk }}, ${{ matrix.cloud }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
           # final artifact name can't be longer than 128 characters
           echo "ARTIFACT_NAME=${name:0:100}" >> $GITHUB_ENV
+      - name: Aggregate test status
+        id: test-status
+        if: |
+          always() && (
+            steps.tests.outcome == 'failure'
+            || steps.tests-starburst-functions.outcome == 'failure'
+            || steps.tests-hdfs-isolated.outcome == 'failure'
+            || steps.tests-s3.outcome == 'failure'
+            || steps.tests-azure.outcome == 'failure'
+            || steps.tests-buffer-trino-fs-cloud.outcome == 'failure'
+            || steps.tests-filesystem-exchange.outcome == 'failure'
+            || steps.tests-gcs.outcome == 'failure'
+            || steps.tests-delta.outcome == 'failure'
+            || steps.tests-objectstore.outcome == 'failure'
+            || steps.tests-mongodb.outcome == 'failure'
+            || steps.tests-bq.outcome == 'failure'
+            || steps.tests-bq-smoke.outcome == 'failure'
+            || steps.tests-google-sheets.outcome == 'failure'
+            || steps.tests-iceberg.outcome == 'failure'
+            || steps.tests-redshift.outcome == 'failure'
+            || steps.tests-snowflake.outcome == 'failure'
+          )
+        run: echo "test_status=failure" >> ${GITHUB_OUTPUT}
       - name: Upload test results
         uses: ./.github/actions/process-test-results
         if: always()
         with:
           artifact-name: ${{ env.ARTIFACT_NAME }}
-          has-failed-tests: >-
-            ${{ steps.tests.outcome == 'failure'
-              || steps.tests-starburst-functions.outcome == 'failure'
-              || steps.tests-hdfs-isolated.outcome == 'failure'
-              || steps.tests-s3.outcome == 'failure'
-              || steps.tests-azure.outcome == 'failure'
-              || steps.tests-buffer-trino-fs-cloud.outcome == 'failure'
-              || steps.tests-filesystem-exchange.outcome == 'failure'
-              || steps.tests-gcs.outcome == 'failure'
-              || steps.tests-delta.outcome == 'failure'
-              || steps.tests-objectstore.outcome == 'failure'
-              || steps.tests-mongodb.outcome == 'failure'
-              || steps.tests-bq.outcome == 'failure'
-              || steps.tests-bq-smoke.outcome == 'failure'
-              || steps.tests-google-sheets.outcome == 'failure'
-              || steps.tests-iceberg.outcome == 'failure'
-              || steps.tests-redshift.outcome == 'failure'
-              || steps.tests-snowflake.outcome == 'failure'
-            }}
+          has-failed-tests: ${{ steps.test-status.outputs.test_status == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
       - id: upload-test-results-datadog
         name: Upload test results to Datadog
@@ -2325,6 +2331,34 @@ jobs:
         if: always()
         with:
           datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
+      - name: Should notify on failure
+        id: should-notify
+        if: always() && steps.test-status.outputs.test_status == 'failure'
+        run: |
+          # GITHUB_HEAD_REF is only populated for pull request runs. For scheduled runs, extract branch from GITHUB_REF
+          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          echo "Branch: $branch_name"
+          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
+          should_notify=false
+          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
+            should_notify=true
+          fi
+          echo "result=$should_notify" >> "${GITHUB_OUTPUT}"
+      - name: Notify on failed tests
+        if: |
+          always()
+          && steps.should-notify.outputs.result == 'true'
+          && matrix.notify-channels != ''
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
+        with:
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
+          slack-channel: ${{ join(matrix.notify-channels, ',') }}
+          slack-text: >-
+            :boom: tests ${{ matrix.modules }}
+            ${{ matrix.profile != '' && format('(profile {0})', matrix.profile) || '' }}
+            failed on branch: ${{ steps.should-notify.outputs.branch }}
+            (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}|see CI job for details>)
+            (:thumbsup: this message if you will take care of this)
       - name: Launch Flake Tracker
         if: failure() && github.ref == 'refs/heads/master'
         continue-on-error: true

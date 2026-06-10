@@ -39,6 +39,11 @@ items:
       type: array
       items:
         type: string
+    notify-channels:
+      description: Slack channel IDs to notify when tests fail on master or release branches
+      type: array
+      items:
+        type: string
     matrix-properties:
       description: Additional properties to add to each matrix cell. These will be copied verbatim
       type: object
