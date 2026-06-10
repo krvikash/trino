@@ -700,265 +700,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-  # --------------------------------------------------------------
-  # Weekly run all snowflake tests, labeled PRs to limit CI costs
-  # --------------------------------------------------------------
-  snowflake-weekly-tests:
-    name: snowflake-weekly-tests
-    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ]
-    strategy:
-      fail-fast: false
-      matrix:
-        modules: [ plugin/starburst-snowflake ]
-        profile: [ default, smoke-tests, jdbc-integration-tests, parallel-integration-tests, fte-tests ]
-        cloud: [ amazon-web-service, azure ]
-        # Additional job filtering to include Azure only for 'default' and 'smoke-tests' profile
-        exclude:
-          - profile: jdbc-integration-tests
-            cloud: azure
-          - profile: parallel-integration-tests
-            cloud: azure
-          - profile: fte-tests
-            cloud: azure
-
-    timeout-minutes: 90
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'snowflake'))"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
-      - name: Run Snowflake AWS weekly tests
-        id: tests-weekly-snowflake-aws
-        if: >-
-          contains(matrix.modules, 'starburst-snowflake') &&
-          contains(matrix.cloud, 'amazon-web-service') &&
-          (env.SNOWFLAKE_ACCOUNT_NAME != '' || env.SNOWFLAKE_PASSWORD != '' || env.SNOWFLAKE_PRIVATE_KEY != '')
-        env:
-          SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_USER }}
-          SNOWFLAKE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-          SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
-          SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
-          SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
-          -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
-          -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
-          -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
-          -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_PRIVATE_KEY_2}" \
-          -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
-          -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
-          -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
-      - name: Run Snowflake Azure weekly tests
-        id: tests-weekly-snowflake-azure
-        if: >-
-          contains(matrix.modules, 'starburst-snowflake') &&
-          contains(matrix.cloud, 'azure') &&
-          (env.SNOWFLAKE_AZURE_ACCOUNT_NAME != '' || env.SNOWFLAKE_AZURE_PASSWORD != '' || env.SNOWFLAKE_AZURE_PRIVATE_KEY != '' || env.SNOWFLAKE_AZURE_REGION != '')
-        env:
-          SNOWFLAKE_AZURE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_AZURE_ACCOUNT_NAME }}
-          SNOWFLAKE_AZURE_PASSWORD: ${{ secrets.SNOWFLAKE_AZURE_PASSWORD }}
-          SNOWFLAKE_AZURE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY }}
-          SNOWFLAKE_AZURE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY_2 }}
-          SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE }}
-          SNOWFLAKE_AZURE_REGION: ${{ vars.SNOWFLAKE_AZURE_REGION }}
-          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
-          -Dsnowflake.test.server.user=test_user \
-          -Dsnowflake.test.server.password="${SNOWFLAKE_AZURE_PASSWORD}" \
-          -Dsnowflake.test.server.private-key="${SNOWFLAKE_AZURE_PRIVATE_KEY}" \
-          -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_AZURE_PRIVATE_KEY_2}" \
-          -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE}" \
-          -Dsnowflake.test.server.role=test_role \
-          -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
-      - name: Sanitize artifact name
-        if: always()
-        run: |
-          # Generate a valid artifact name and make it available to next steps as
-          # an environment variable ARTIFACT_NAME
-          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
-          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure')
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
-          slack-text: |
-            :boom: Snowflake weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure') && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-  # --------------------------------------------------------------------------------------
-  # Only run smoke-test profile snowflake tests nightly, labeled PRs to limit CI costs.
-  # The release-* branches are excluded
-  # --------------------------------------------------------------------------------------
-  snowflake-nightly-tests:
-    name: snowflake-nightly-tests
-    runs-on: [ self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest ]
-    strategy:
-      fail-fast: false
-      matrix:
-        modules: [ plugin/starburst-snowflake ]
-        profile: [ smoke-tests ]
-        cloud: [ amazon-web-service ]
-    timeout-minutes: 30
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' && !startsWith(github.ref, 'refs/heads/release-')) || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'snowflake'))"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
-      - name: Run Snowflake AWS nightly tests
-        id: tests-nightly-snowflake-aws
-        if: >-
-          contains(matrix.modules, 'starburst-snowflake') &&
-          contains(matrix.cloud, 'amazon-web-service') &&
-          (env.SNOWFLAKE_ACCOUNT_NAME != '' || env.SNOWFLAKE_PASSWORD != '' || env.SNOWFLAKE_PRIVATE_KEY != '')
-        env:
-          SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_USER }}
-          SNOWFLAKE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-          SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
-          SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
-          SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
-          -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
-          -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
-          -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
-          -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_PRIVATE_KEY_2}" \
-          -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
-          -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
-          -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
-      - name: Sanitize artifact name
-        if: always()
-        run: |
-          # Generate a valid artifact name and make it available to next steps as
-          # an environment variable ARTIFACT_NAME
-          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
-          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && steps.tests-nightly-snowflake-aws.outcome == 'failure'
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && steps.tests-nightly-snowflake-aws.outcome && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
-          slack-text: |
-            :boom: Snowflake nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && steps.tests-nightly-snowflake-aws.outcome == 'failure' && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "::error::Cancelling merge queue workflow because hive-tests (${{ matrix.config }}) failed"
-          gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
   test-other-modules:
     needs: path-filters
@@ -1295,6 +1036,7 @@ jobs:
           && matrix.modules != 'plugin/trino-bigquery'
           && ! (contains(matrix.modules, 'starburst-objectstore') && contains(matrix.profile, 'cloud-tests'))
           && ! contains(matrix.modules, 'starburst-salesforce')
+          && ! contains(matrix.modules, 'starburst-snowflake')
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-google-sheets') && contains(matrix.profile, 'cloud-tests'))
@@ -1536,31 +1278,57 @@ jobs:
             -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
             -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
             -Dtesting.alternate-bq-project-id=bigquery-cicd-alternate
-      - name: Cloud Snowflake Tests
-        id: tests-snowflake
+      - name: Snowflake AWS tests
+        id: tests-snowflake-aws
+        if: >-
+          contains(matrix.modules, 'starburst-snowflake') &&
+          contains(matrix.cloud, 'amazon-web-service') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SNOWFLAKE_ACCOUNT_NAME != '' || env.SNOWFLAKE_PASSWORD != '' || env.SNOWFLAKE_PRIVATE_KEY != '')
         env:
-          SNOWFLAKE_URL: ${{ vars.SNOWFLAKE_URL }}
           SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_USER }}
+          SNOWFLAKE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
           SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
           SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
-          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
-          SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
           SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-          SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
-        if: matrix.modules == 'plugin/trino-snowflake' && contains(matrix.profile, 'cloud-tests') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SNOWFLAKE_URL != '')
+          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
         run: |
-          $MAVEN test ${MAVEN_TEST} -pl :trino-snowflake -Pcloud-tests \
-            -Dsnowflake.test.server.url="${SNOWFLAKE_URL}?${SNOWFLAKE_CONNECTION_PARAMS}" \
-            -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
-            -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
-            -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
-            -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_PRIVATE_KEY_2}" \
-            -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
-            -Dsnowflake.test.server.database="${SNOWFLAKE_DATABASE}" \
-            -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
-            -Dsnowflake.test.server.warehouse="${SNOWFLAKE_WAREHOUSE}"
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
+          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
+          -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
+          -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
+          -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
+          -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_PRIVATE_KEY_2}" \
+          -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
+          -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
+          -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH
+      - name: Snowflake Azure tests
+        id: tests-snowflake-azure
+        if: >-
+          contains(matrix.modules, 'starburst-snowflake') &&
+          contains(matrix.cloud, 'azure') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SNOWFLAKE_AZURE_ACCOUNT_NAME != '' || env.SNOWFLAKE_AZURE_PASSWORD != '' || env.SNOWFLAKE_AZURE_PRIVATE_KEY != '' || env.SNOWFLAKE_AZURE_REGION != '')
+        env:
+          SNOWFLAKE_AZURE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_AZURE_ACCOUNT_NAME }}
+          SNOWFLAKE_AZURE_PASSWORD: ${{ secrets.SNOWFLAKE_AZURE_PASSWORD }}
+          SNOWFLAKE_AZURE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY }}
+          SNOWFLAKE_AZURE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY_2 }}
+          SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE }}
+          SNOWFLAKE_AZURE_REGION: ${{ vars.SNOWFLAKE_AZURE_REGION }}
+          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
+          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
+          -Dsnowflake.test.server.user=test_user \
+          -Dsnowflake.test.server.password="${SNOWFLAKE_AZURE_PASSWORD}" \
+          -Dsnowflake.test.server.private-key="${SNOWFLAKE_AZURE_PRIVATE_KEY}" \
+          -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_AZURE_PRIVATE_KEY_2}" \
+          -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE}" \
+          -Dsnowflake.test.server.role=test_role \
+          -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH
       - name: Iceberg Cloud Tests
         id: tests-iceberg
         env:
@@ -1721,7 +1489,8 @@ jobs:
             || steps.tests-iceberg-biglake.outcome == 'failure'
             || steps.tests-redshift.outcome == 'failure'
             || steps.tests-salesforce.outcome == 'failure'
-            || steps.tests-snowflake.outcome == 'failure'
+            || steps.tests-snowflake-aws.outcome == 'failure'
+            || steps.tests-snowflake-azure.outcome == 'failure'
           )
         run: echo "test_status=failure" >> ${GITHUB_OUTPUT}
       - name: Upload test results
@@ -2300,8 +2069,6 @@ jobs:
       - maven-checks
       - path-filters
       - pt
-      - snowflake-nightly-tests
-      - snowflake-weekly-tests
       - starburst-functions-ai-tests
       - synapse-prepare
       - synapse-stop-pool
@@ -2324,8 +2091,6 @@ jobs:
           echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
           echo '${{ needs.path-filters.result }}' | grep -xE 'success|skipped' || { echo 'Job "path-filters" failed' >&2; exit 1; }
           echo '${{ needs.pt.result }}' | grep -xE 'success|skipped' || { echo 'Job "pt" failed' >&2; exit 1; }
-          echo '${{ needs.snowflake-nightly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-nightly-tests" failed' >&2; exit 1; }
-          echo '${{ needs.snowflake-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-weekly-tests" failed' >&2; exit 1; }
           echo '${{ needs.starburst-functions-ai-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "starburst-functions-ai-tests" failed' >&2; exit 1; }
           echo '${{ needs.synapse-prepare.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-prepare" failed' >&2; exit 1; }
           echo '${{ needs.synapse-stop-pool.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-stop-pool" failed' >&2; exit 1; }

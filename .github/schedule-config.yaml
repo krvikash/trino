@@ -190,6 +190,17 @@
   when:
     scheduled: nightly
     labeled: [salesforce]
+- modules:
+    - plugin/starburst-snowflake
+  profiles:
+    - smoke-tests
+  matrix-properties:
+    cloud: amazon-web-service
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [snowflake]
 ## Weekly
 - modules:
     - plugin/starburst-kdb
@@ -200,6 +211,36 @@
     - plugin/trino-vertica
   when:
     scheduled: weekly
+- modules:
+    - plugin/starburst-snowflake
+  profiles:
+    - default
+    # - smoke-tests  # smoke-tests on AWS run nightly
+    - jdbc-integration-tests
+    - parallel-integration-tests
+    - fte-tests
+  matrix-properties:
+    cloud: amazon-web-service
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
+# only run "default" and "smoke-tests" profile tests on Azure
+- modules:
+    - plugin/starburst-snowflake
+  profiles:
+    - default
+    - smoke-tests
+  matrix-properties:
+    cloud: azure
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
 ## Only if impacted
 - modules:
     - plugin/trino-cassandra
