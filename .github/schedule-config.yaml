@@ -86,6 +86,7 @@
 - modules:
     - plugin/trino-hive
   profiles:
+    - cloud-tests
     - fte-tests
     - test-parquet
 - modules:
