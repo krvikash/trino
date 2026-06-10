@@ -1587,6 +1587,7 @@ jobs:
             - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
             - suite-hive-databricks-unity
+            - suite-iceberg-databricks-unity
             #- suite-exasol
             - suite-ranger
             - suite-gcs
@@ -1681,6 +1682,12 @@ jobs:
             - suite: suite-hive-databricks-unity
               config: hdp3
             - suite: suite-hive-databricks-unity
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
+            - suite: suite-iceberg-databricks-unity
               ignore exclusion if: >-
                 ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
                     (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
