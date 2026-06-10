@@ -183,6 +183,13 @@
   when:
     scheduled: nightly
     labeled: [redshift]
+- modules:
+    - plugin/starburst-salesforce
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [salesforce]
 ## Weekly
 - modules:
     - plugin/starburst-kdb
