@@ -118,7 +118,6 @@
     - plugin/trino-mariadb
     - plugin/trino-mysql
     - plugin/trino-oracle
-    - plugin/trino-redshift
     - plugin/trino-sqlserver
   when:
     scheduled: nightly
@@ -173,6 +172,17 @@
   when:
     scheduled: nightly
     labeled: [google-sheets]
+- modules:
+    - plugin/trino-redshift
+  profiles:
+    - ""
+    - cloud-tests
+    - fte-tests
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [redshift]
 ## Weekly
 - modules:
     - plugin/starburst-kdb

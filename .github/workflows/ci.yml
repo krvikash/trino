@@ -457,248 +457,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
-  # ------------------------------------------------------------------------
-  # Only run redshift tests on a schedule, labeled PRs, or workflow_dispatch
-  # ------------------------------------------------------------------------
-  redshift-cloud-tests:
-    name: redshift-cloud-tests
-    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-    strategy:
-      fail-fast: false
-      matrix:
-        modules:
-          - plugin/trino-redshift
-    timeout-minutes: 90
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'redshift')) || (github.event_name == 'workflow_dispatch')"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
-      - name: Run Redshift Cloud tests
-        id: tests
-        if: contains(matrix.modules, 'trino-redshift')
-        env:
-          AWS_REGION: ${{ vars.REDSHIFT_AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_AWS_SECRET_ACCESS_KEY }}
-          ASSUME_IAM_ROLE_AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_ASSUME_IAM_ROLE_AWS_ACCESS_KEY_ID }}
-          ASSUME_IAM_ROLE_AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_ASSUME_IAM_ROLE_AWS_SECRET_ACCESS_KEY }}
-          REDSHIFT_SUBNET_GROUP_NAME: ${{ vars.REDSHIFT_SUBNET_GROUP_NAME }}
-          REDSHIFT_IAM_ROLES: ${{ vars.REDSHIFT_IAM_ROLES }}
-          REDSHIFT_VPC_SECURITY_GROUP_IDS: ${{ vars.REDSHIFT_VPC_SECURITY_GROUP_IDS }}
-          REDSHIFT_S3_TPCH_TABLES_ROOT: ${{ vars.REDSHIFT_S3_TPCH_TABLES_ROOT }}
-          REDSHIFT_S3_EXTERNAL_TABLES_ROOT: ${{ vars.REDSHIFT_S3_EXTERNAL_TABLES_ROOT }}
-          REDSHIFT_S3_UNLOAD_ROOT: ${{ vars.REDSHIFT_S3_UNLOAD_ROOT }}
-        run: |
-          source .github/bin/redshift/setup-aws-redshift.sh
-
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} -P cloud-tests \
-            -Dtest.redshift.jdbc.user="${REDSHIFT_USER}" \
-            -Dtest.redshift.jdbc.password="${REDSHIFT_PASSWORD}" \
-            -Dtest.redshift.jdbc.endpoint="${REDSHIFT_ENDPOINT}:${REDSHIFT_PORT}/" \
-            -Dtest.redshift.s3.tpch.tables.root="${REDSHIFT_S3_TPCH_TABLES_ROOT}" \
-            -Dtest.redshift.s3.external.tables.root="${REDSHIFT_S3_EXTERNAL_TABLES_ROOT}" \
-            -Dtest.redshift.s3.unload.root="${REDSHIFT_S3_UNLOAD_ROOT}" \
-            -Dtest.redshift.iam.role="${REDSHIFT_IAM_ROLES}" \
-            -Dtest.redshift.aws.region="${AWS_REGION}" \
-            -Dtest.redshift.aws.access-key="${AWS_ACCESS_KEY_ID}" \
-            -Dtest.redshift.aws.secret-key="${AWS_SECRET_ACCESS_KEY}" \
-            -Dtest.redshift.assume.iam.role.aws.access-key="${ASSUME_IAM_ROLE_AWS_ACCESS_KEY_ID}" \
-            -Dtest.redshift.assume.iam.role.aws.secret-key="${ASSUME_IAM_ROLE_AWS_SECRET_ACCESS_KEY}"
-      - name: Cleanup ephemeral Redshift Cluster
-        env:
-          AWS_REGION: ${{ vars.REDSHIFT_AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_AWS_SECRET_ACCESS_KEY }}
-        # Cancelled workflows may have left the ephemeral cluster running
-        if: always()
-        run: .github/bin/redshift/delete-aws-redshift.sh
-      - name: Sanitize artifact name
-        if: always()
-        run: |
-          # Generate a valid artifact name and make it available to next steps as
-          # an environment variable ARTIFACT_NAME
-          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
-          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && steps.tests.outcome == 'failure'
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
-          slack-text: |
-            :boom: Redshift cloud tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-
-  # ------------------------------------------------------------------------
-  # Only run redshift tests on a schedule, labeled PRs, or workflow_dispatch
-  # ------------------------------------------------------------------------
-  redshift-fte-tests:
-    name: redshift-fte-tests
-    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-    strategy:
-      fail-fast: false
-      matrix:
-        modules:
-          - plugin/trino-redshift
-    timeout-minutes: 90
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'redshift')) || (github.event_name == 'workflow_dispatch')"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
-      - name: Run Redshift FTE tests
-        id: tests
-        if: contains(matrix.modules, 'trino-redshift')
-        env:
-          AWS_REGION: ${{ vars.REDSHIFT_AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_AWS_SECRET_ACCESS_KEY }}
-          REDSHIFT_SUBNET_GROUP_NAME: ${{ vars.REDSHIFT_SUBNET_GROUP_NAME }}
-          REDSHIFT_IAM_ROLES: ${{ vars.REDSHIFT_IAM_ROLES }}
-          REDSHIFT_VPC_SECURITY_GROUP_IDS: ${{ vars.REDSHIFT_VPC_SECURITY_GROUP_IDS }}
-          REDSHIFT_S3_TPCH_TABLES_ROOT: ${{ vars.REDSHIFT_S3_TPCH_TABLES_ROOT }}
-          REDSHIFT_S3_UNLOAD_ROOT: ${{ vars.REDSHIFT_S3_UNLOAD_ROOT }}
-        run: |
-          source .github/bin/redshift/setup-aws-redshift.sh
-
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} -P fte-tests \
-            -Dtest.redshift.jdbc.user="${REDSHIFT_USER}" \
-            -Dtest.redshift.jdbc.password="${REDSHIFT_PASSWORD}" \
-            -Dtest.redshift.jdbc.endpoint="${REDSHIFT_ENDPOINT}:${REDSHIFT_PORT}/" \
-            -Dtest.redshift.s3.tpch.tables.root="${REDSHIFT_S3_TPCH_TABLES_ROOT}" \
-            -Dtest.redshift.s3.unload.root="${REDSHIFT_S3_UNLOAD_ROOT}" \
-            -Dtest.redshift.iam.role="${REDSHIFT_IAM_ROLES}" \
-            -Dtest.redshift.aws.region="${AWS_REGION}" \
-            -Dtest.redshift.aws.access-key="${AWS_ACCESS_KEY_ID}" \
-            -Dtest.redshift.aws.secret-key="${AWS_SECRET_ACCESS_KEY}"
-      - name: Cleanup ephemeral Redshift Cluster
-        env:
-          AWS_REGION: ${{ vars.REDSHIFT_AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_AWS_SECRET_ACCESS_KEY }}
-        # Cancelled workflows may have left the ephemeral cluster running
-        if: always()
-        run: .github/bin/redshift/delete-aws-redshift.sh
-      - name: Sanitize artifact name
-        if: always()
-        run: |
-          # Generate a valid artifact name and make it available to next steps as
-          # an environment variable ARTIFACT_NAME
-          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
-          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && steps.tests.outcome == 'failure'
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
-          slack-text: |
-            :boom: Redshift FTE tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-
   # ----------------------------------------------------------------------------
   # Only run salesforce tests on a schedule, labeled PRs, or workflow_dispatch to avoid salesforce rate limits
   # ----------------------------------------------------------------------------
@@ -1638,6 +1396,7 @@ jobs:
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-google-sheets') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-iceberg') && (contains(matrix.profile, 'cloud-tests') || contains(matrix.profile, 'biglake-tests')))
+          && ! (contains(matrix.modules, 'trino-redshift') && (contains(matrix.profile, 'cloud-tests') || contains(matrix.profile, 'fte-tests')))
           && ! (contains(matrix.modules, 'trino-snowflake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-exchange-filesystem') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'cloud-tests'))
@@ -1977,10 +1736,13 @@ jobs:
           AWS_REGION: ${{ vars.REDSHIFT_AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_AWS_SECRET_ACCESS_KEY }}
+          ASSUME_IAM_ROLE_AWS_ACCESS_KEY_ID: ${{ vars.REDSHIFT_ASSUME_IAM_ROLE_AWS_ACCESS_KEY_ID }}
+          ASSUME_IAM_ROLE_AWS_SECRET_ACCESS_KEY: ${{ secrets.REDSHIFT_ASSUME_IAM_ROLE_AWS_SECRET_ACCESS_KEY }}
           REDSHIFT_SUBNET_GROUP_NAME: ${{ vars.REDSHIFT_SUBNET_GROUP_NAME }}
           REDSHIFT_IAM_ROLES: ${{ vars.REDSHIFT_IAM_ROLES }}
           REDSHIFT_VPC_SECURITY_GROUP_IDS: ${{ vars.REDSHIFT_VPC_SECURITY_GROUP_IDS }}
           REDSHIFT_S3_TPCH_TABLES_ROOT: ${{ vars.REDSHIFT_S3_TPCH_TABLES_ROOT }}
+          REDSHIFT_S3_EXTERNAL_TABLES_ROOT: ${{ vars.REDSHIFT_S3_EXTERNAL_TABLES_ROOT }}
           REDSHIFT_S3_UNLOAD_ROOT: ${{ vars.REDSHIFT_S3_UNLOAD_ROOT }}
         if: >-
           contains(matrix.modules, 'trino-redshift') &&
@@ -1994,11 +1756,14 @@ jobs:
             -Dtest.redshift.jdbc.password="${REDSHIFT_PASSWORD}" \
             -Dtest.redshift.jdbc.endpoint="${REDSHIFT_ENDPOINT}:${REDSHIFT_PORT}/" \
             -Dtest.redshift.s3.tpch.tables.root="${REDSHIFT_S3_TPCH_TABLES_ROOT}" \
+            -Dtest.redshift.s3.external.tables.root="${REDSHIFT_S3_EXTERNAL_TABLES_ROOT}" \
             -Dtest.redshift.s3.unload.root="${REDSHIFT_S3_UNLOAD_ROOT}" \
             -Dtest.redshift.iam.role="${REDSHIFT_IAM_ROLES}" \
             -Dtest.redshift.aws.region="${AWS_REGION}" \
             -Dtest.redshift.aws.access-key="${AWS_ACCESS_KEY_ID}" \
-            -Dtest.redshift.aws.secret-key="${AWS_SECRET_ACCESS_KEY}"
+            -Dtest.redshift.aws.secret-key="${AWS_SECRET_ACCESS_KEY}" \
+            -Dtest.redshift.assume.iam.role.aws.access-key="${ASSUME_IAM_ROLE_AWS_ACCESS_KEY_ID}" \
+            -Dtest.redshift.assume.iam.role.aws.secret-key="${ASSUME_IAM_ROLE_AWS_SECRET_ACCESS_KEY}"
       - name: Cleanup ephemeral Redshift Cluster
         env:
           AWS_REGION: ${{ vars.REDSHIFT_AWS_REGION }}
@@ -2616,8 +2381,6 @@ jobs:
       - maven-checks
       - path-filters
       - pt
-      - redshift-cloud-tests
-      - redshift-fte-tests
       - salesforce-tests
       - snowflake-nightly-tests
       - snowflake-weekly-tests
@@ -2643,8 +2406,6 @@ jobs:
           echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
           echo '${{ needs.path-filters.result }}' | grep -xE 'success|skipped' || { echo 'Job "path-filters" failed' >&2; exit 1; }
           echo '${{ needs.pt.result }}' | grep -xE 'success|skipped' || { echo 'Job "pt" failed' >&2; exit 1; }
-          echo '${{ needs.redshift-cloud-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "redshift-cloud-tests" failed' >&2; exit 1; }
-          echo '${{ needs.redshift-fte-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "redshift-fte-tests" failed' >&2; exit 1; }
           echo '${{ needs.salesforce-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "salesforce-tests" failed' >&2; exit 1; }
           echo '${{ needs.snowflake-nightly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-nightly-tests" failed' >&2; exit 1; }
           echo '${{ needs.snowflake-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-weekly-tests" failed' >&2; exit 1; }
