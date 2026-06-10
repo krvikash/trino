@@ -56,7 +56,6 @@ public class OpenAiLanguageModelClient
     private final boolean useDeveloperForSystemRole;
     private final String modelName;
     private final Optional<String> endpoint;
-    private final boolean isGeminiEndpoint;
     private final OpenAIClient client;
     private final ObjectMapper objectMapper;
 
@@ -71,7 +70,6 @@ public class OpenAiLanguageModelClient
             ObjectMapper objectMapper,
             Executor executor,
             int batchParallelism,
-            boolean isGeminiEndpoint,
             OpenAIClient client,
             boolean isToolStreamingSupported,
             TokenUsageListener tokenUsageListener)
@@ -83,7 +81,6 @@ public class OpenAiLanguageModelClient
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.endpoint = requireNonNull(endpoint, "endpoint is null");
-        this.isGeminiEndpoint = isGeminiEndpoint;
         this.client = requireNonNull(client, "client is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
@@ -158,9 +155,6 @@ public class OpenAiLanguageModelClient
     {
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
                 .model(modelName);
-        if (!isGeminiEndpoint) {
-            builder.seed(SEED);
-        }
         temperature.ifPresent(builder::temperature);
         topP.ifPresent(builder::topP);
         maxTokens.ifPresent(builder::maxTokens);

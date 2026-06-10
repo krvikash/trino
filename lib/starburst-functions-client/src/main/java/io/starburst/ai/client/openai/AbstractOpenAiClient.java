@@ -43,8 +43,6 @@ import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 public abstract class AbstractOpenAiClient<ResponseType>
         extends AbstractLanguageModelClient
 {
-    protected static final int SEED = 37;
-
     private final boolean isToolStreamingSupported;
     private final RetryPolicy<ResponseType> retryPolicy = RetryPolicy.<ResponseType>builder()
             .handleIf(AbstractOpenAiClient::isRetryable)

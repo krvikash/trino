@@ -85,9 +85,6 @@ public class OpenAiClientFactory
                 .orElse(connectionInfo);
         // Ideally model name should be correctly parsed and populated from UI
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
-        boolean isGeminiEndpoint = updatedConnectionInfo.endpoint()
-                .map(endpoint -> endpoint.toLowerCase(ROOT).startsWith("https://generativelanguage.googleapis.com"))
-                .orElse(false);
         boolean isStreamingToolCallSupported = spec.traits().getOrDefault(STREAMING_TOOL_CALL_SUPPORT, STREAMING_TOOL_CALL_SUPPORTED.name())
                 .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
 
@@ -120,7 +117,6 @@ public class OpenAiClientFactory
                 objectMapper,
                 executor,
                 batchParallelism,
-                isGeminiEndpoint,
                 openAiClient,
                 isStreamingToolCallSupported,
                 tokenUsageListener);
