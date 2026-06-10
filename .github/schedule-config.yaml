@@ -143,6 +143,16 @@
   runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]
   when:
     scheduled: nightly
+- modules:
+    - plugin/trino-bigquery
+  profiles:
+    - cloud-tests-1
+    - cloud-tests-2
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [bigquery]
 ## Weekly
 - modules:
     - plugin/starburst-kdb
