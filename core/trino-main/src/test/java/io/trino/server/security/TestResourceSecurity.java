@@ -1001,6 +1001,7 @@ public class TestResourceSecurity
                 assertThat(challenge).contains("x_token_server=");
                 assertThat(challenge).doesNotContain("x_redirect_server");
                 assertThat(challenge).doesNotContain("x_token_endpoint");
+                assertThat(challenge).doesNotContain("scope=");
             }
         }
     }
