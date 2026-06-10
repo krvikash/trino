@@ -16,7 +16,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.AUTO;
 import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.NO_PARALLELISM;
+import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.ORA_HASH;
 import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.PARTITIONS;
 import static io.airlift.configuration.testing.ConfigAssertions.assertDeprecatedEquivalence;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
@@ -69,6 +71,48 @@ public class TestStarburstOracleConfig
         StarburstOracleConfig expected = new StarburstOracleConfig()
                 .setAuthenticationType("NONE")
                 .setParallelismType(PARTITIONS)
+                .setMaxSplitsPerScan(42)
+                .setKeepAliveEnabled(true)
+                .setKeepAliveInterval(Duration.valueOf("5m"));
+
+        assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testOraHashPropertyMapping()
+    {
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("oracle.authentication.type", "NONE")
+                .put("oracle.parallelism-type", "ORA_HASH")
+                .put("oracle.parallel.max-splits-per-scan", "42")
+                .put("oracle.keep-alive.enabled", "true")
+                .put("oracle.keep-alive.interval", "5m")
+                .buildOrThrow();
+
+        StarburstOracleConfig expected = new StarburstOracleConfig()
+                .setAuthenticationType("NONE")
+                .setParallelismType(ORA_HASH)
+                .setMaxSplitsPerScan(42)
+                .setKeepAliveEnabled(true)
+                .setKeepAliveInterval(Duration.valueOf("5m"));
+
+        assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testAutoPropertyMapping()
+    {
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("oracle.authentication.type", "NONE")
+                .put("oracle.parallelism-type", "AUTO")
+                .put("oracle.parallel.max-splits-per-scan", "42")
+                .put("oracle.keep-alive.enabled", "true")
+                .put("oracle.keep-alive.interval", "5m")
+                .buildOrThrow();
+
+        StarburstOracleConfig expected = new StarburstOracleConfig()
+                .setAuthenticationType("NONE")
+                .setParallelismType(AUTO)
                 .setMaxSplitsPerScan(42)
                 .setKeepAliveEnabled(true)
                 .setKeepAliveInterval(Duration.valueOf("5m"));

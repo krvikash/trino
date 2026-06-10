@@ -17,6 +17,8 @@ public enum OracleParallelismType
 {
     NO_PARALLELISM,
     PARTITIONS,
+    ORA_HASH,
+    AUTO,
     /**/;
 
     public static OracleParallelismType fromString(String value)
@@ -24,6 +26,8 @@ public enum OracleParallelismType
         return switch (requireNonNull(value, "value is null").toLowerCase(ENGLISH)) {
             case "no_concurrency", "no_parallelism" -> NO_PARALLELISM;
             case "partitions" -> PARTITIONS;
+            case "ora_hash" -> ORA_HASH;
+            case "auto" -> AUTO;
             default -> throw new IllegalArgumentException(format("Unrecognized value: '%s'", value));
         };
     }

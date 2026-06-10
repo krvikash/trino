@@ -18,6 +18,7 @@ import io.trino.spi.session.PropertyMetadata;
 
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.NO_PARALLELISM;
 import static io.trino.spi.session.PropertyMetadata.enumProperty;
 import static io.trino.spi.session.PropertyMetadata.integerProperty;
@@ -49,6 +50,7 @@ public final class StarburstOracleSessionProperties
                         MAX_SPLITS_PER_SCAN,
                         "Maximum number of splits for a table scan",
                         starburstOracleConfig.getMaxSplitsPerScan(),
+                        value -> checkArgument(value >= 1, "max_splits_per_scan must be greater than or equal to 1"),
                         false))
                 .build();
     }

@@ -32,7 +32,9 @@ import java.util.stream.IntStream;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.AUTO;
 import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.NO_PARALLELISM;
+import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.ORA_HASH;
 import static com.starburstdata.trino.plugin.oracle.OracleParallelismType.PARTITIONS;
 import static com.starburstdata.trino.plugin.oracle.StarburstOracleSessionProperties.MAX_SPLITS_PER_SCAN;
 import static com.starburstdata.trino.plugin.oracle.StarburstOracleSessionProperties.PARALLELISM_TYPE;
@@ -140,6 +142,116 @@ public class TestOracleParallelQueries
     }
 
     @Test
+    public void testOraHashNonPartitionedTable()
+            throws Exception
+    {
+        String tableName = randomTableName("ora_hash_non_part");
+        try (AutoCloseable ignore = createNonPartitionedTable(tableName, "a NUMBER, b NUMBER")) {
+            insertIntoTable(tableName, "a, b", ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 6, 8, 11));
+
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", NO_PARALLELISM, Optional.empty(), 1);
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", ORA_HASH, Optional.of(1), 1);
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", ORA_HASH, Optional.of(2), 2);
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", ORA_HASH, Optional.of(3), 3);
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", ORA_HASH, Optional.of(4), 4);
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", ORA_HASH, Optional.of(10), 10);
+        }
+    }
+
+    @Test
+    public void testOraHashPartitionedTable()
+            throws Exception
+    {
+        String tableName = randomTableName("ora_hash_part");
+        try (AutoCloseable ignore = createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 4)) {
+            insertIntoTable(tableName,
+                    "a, b, c",
+                    ImmutableList.of(
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            6,
+                            8));
+
+            verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", ORA_HASH, Optional.of(3), 3);
+        }
+    }
+
+    @Test
+    public void testAutoNonPartitionedTable()
+            throws Exception
+    {
+        String tableName = randomTableName("parallel_non_part");
+        try (AutoCloseable ignore = createNonPartitionedTable(tableName, "a NUMBER, b NUMBER")) {
+            insertIntoTable(tableName, "a, b", ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 6, 8, 11));
+
+            verifyTableSplitCount(tableName, "a", "Gv+Z64FGbJw=", AUTO, Optional.of(4), 4);
+        }
+    }
+
+    @Test
+    public void testAutoPartitionedTable()
+            throws Exception
+    {
+        String tableName = randomTableName("parallel_part");
+        try (AutoCloseable ignore = createPartitionedTable(tableName, "a NUMBER, b NUMBER, c NUMBER", "a", 4)) {
+            insertIntoTable(tableName,
+                    "a, b, c",
+                    ImmutableList.of(
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            6,
+                            8));
+
+            // AUTO on partitioned table should use partition-based splits
+            verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", AUTO, Optional.empty(), 4);
+            verifyTableSplitCount(tableName, "c", "/GYVBejTO3U=", AUTO, Optional.of(2), 2);
+        }
+    }
+
+    @Test
+    public void testOraHashSingleColumnTable()
+            throws Exception
+    {
+        String tableName = randomTableName("ora_hash_single_col");
+        try (AutoCloseable ignore = createNonPartitionedTable(tableName, "a NUMBER")) {
+            insertIntoTable(tableName, "a", ImmutableList.of(1));
+            verifySplitCount(tableName, ORA_HASH, Optional.of(4), 4);
+        }
+    }
+
+    @Test
+    public void testOraHashOnViewFallsBackToSingleSplit()
+            throws Exception
+    {
+        String tableName = randomTableName("base_table");
+        String viewName = randomTableName("view");
+        try (AutoCloseable ignore1 = createNonPartitionedTable(tableName, "a NUMBER");
+                AutoCloseable ignore2 = oracleServer.get().withView(viewName, "SELECT * FROM " + tableName)) {
+            insertIntoTable(tableName, "a", ImmutableList.of(1, 2, 3));
+            verifySplitCount(viewName, ORA_HASH, Optional.of(4), 1);
+        }
+    }
+
+    @Test
+    public void testInvalidMaxSplitsPerScan()
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty("oracle", MAX_SPLITS_PER_SCAN, "0")
+                .build();
+        assertQueryFails(session, "SELECT 1", ".*max_splits_per_scan must be greater than or equal to 1.*");
+    }
+
+    @Test
     public void testPartitionNameQuoted()
             throws Exception
     {
@@ -183,6 +295,26 @@ public class TestOracleParallelQueries
     private static String randomTableName(String prefix)
     {
         return format("%s_%d", prefix, Math.abs(ThreadLocalRandom.current().nextLong()));
+    }
+
+    private void verifySplitCount(String tableName, OracleParallelismType parallelismType, Optional<Integer> maxSplits, int expectedSplits)
+    {
+        DistributedQueryRunner queryRunner = (DistributedQueryRunner) getQueryRunner();
+        Session.SessionBuilder sessionBuilder = Session.builder(getSession())
+                .setCatalogSessionProperty("oracle", PARALLELISM_TYPE, parallelismType.name());
+
+        maxSplits.ifPresent(value -> sessionBuilder.setCatalogSessionProperty("oracle", MAX_SPLITS_PER_SCAN, value.toString()));
+
+        Session session = sessionBuilder.build();
+
+        // Use SELECT * to avoid aggregation pushdown rewriting the table handle to a query relation,
+        // which would cause isNamedRelation() to return false and collapse splits to 1.
+        QueryRunner.MaterializedResultWithPlan result = queryRunner.executeWithPlan(session, format("SELECT * FROM %s", tableName));
+        QueryId queryId = result.queryId();
+        QueryInfo fullQueryInfo = queryRunner.getCoordinator().getQueryManager().getFullQueryInfo(queryId);
+
+        OperatorStats scanOperatorStats = findScanOperatorStats(fullQueryInfo);
+        assertThat(scanOperatorStats.getTotalDrivers()).isEqualTo(expectedSplits);
     }
 
     private void verifyTableSplitCount(String tableName, String column, String expectedChecksum, OracleParallelismType parallelismType, Optional<Integer> maxSplits, int expectedSplits)
