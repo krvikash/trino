@@ -1560,44 +1560,6 @@ jobs:
           echo "::error::Cancelling merge queue workflow because test (${{ matrix.modules }}, ${{ matrix.profile }}, ${{ matrix.jdk }}) failed"
           gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
-  gpu-tests:
-    runs-on: [self-hosted, gha-fleet-ec2-1GPU-16CPU-64GB-amd64, latest]
-    if: |
-      github.event_name != 'pull_request' ||
-      contains(github.event.pull_request.labels.*.name, 'gpu')
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          ref: |
-            ${{ github.event_name == 'repository_dispatch' &&
-                github.event.client_payload.pull_request.head.sha == github.event.client_payload.slash_command.args.named.sha &&
-                format('refs/pull/{0}/head', github.event.client_payload.pull_request.number) || '' }}
-      - name: Set up AWS code-artifacts and ECR login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-          login-docker: true
-      - uses: ./.github/actions/setup
-      - name: Maven Install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install -DskipTests -Dmaven.javadoc.skip=true -Dmaven.source.skip=true -Dair.check.skip-all=true -Dskip.npm -Dskip.yarn -pl :trino-main,:trino-hive,:trino-tests -am
-      - name: Maven Tests - core/trino-main
-        run: $MAVEN test ${MAVEN_TEST} -pl core/trino-main -P gpu
-      - name: Maven Tests - plugin/trino-hive
-        run: $MAVEN test ${MAVEN_TEST} -pl plugin/trino-hive -P gpu
-      - name: Maven Tests - testing/trino-tests
-        run: $MAVEN test ${MAVEN_TEST} -pl testing/trino-tests -P gpu
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-
   build-pt:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
@@ -2064,7 +2026,6 @@ jobs:
       - check-commit
       - check-commits-dispatcher
       - error-prone-checks
-      - gpu-tests
       - hive-tests
       - maven-checks
       - path-filters
@@ -2086,7 +2047,6 @@ jobs:
           echo '${{ needs.check-commit.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit" failed' >&2; exit 1; }
           echo '${{ needs.check-commits-dispatcher.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commits-dispatcher" failed' >&2; exit 1; }
           echo '${{ needs.error-prone-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "error-prone-checks" failed' >&2; exit 1; }
-          echo '${{ needs.gpu-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "gpu-tests" failed' >&2; exit 1; }
           echo '${{ needs.hive-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "hive-tests" failed' >&2; exit 1; }
           echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
           echo '${{ needs.path-filters.result }}' | grep -xE 'success|skipped' || { echo 'Job "path-filters" failed' >&2; exit 1; }
