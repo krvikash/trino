@@ -458,88 +458,6 @@ jobs:
         run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
 
   # ------------------------------------------------------------------------
-  # Only run Iceberg BigLake tests on a schedule, labeled PRs, or workflow_dispatch
-  # ------------------------------------------------------------------------
-  iceberg-biglake-tests:
-    name: iceberg-biglake-tests
-    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-    timeout-minutes: 30
-    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'iceberg:biglake')) || (github.event_name == 'workflow_dispatch')"
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
-      - name: Set up AWS code-artifacts login
-        uses: ./.github/actions/starburst-setup
-        with:
-          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
-          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
-      - uses: ./.github/actions/setup
-      - name: Maven install
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl plugin/trino-iceberg
-      - name: Iceberg BigLake Tests
-        id: tests-iceberg-biglake
-        env:
-          GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
-          GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
-        run: |
-          $MAVEN test ${MAVEN_TEST} -pl :trino-iceberg -Pbiglake-tests
-      - name: Sanitize artifact name
-        if: always()
-        run: echo "ARTIFACT_NAME=plugin_trino-iceberg" >> $GITHUB_ENV
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: results ${{ env.ARTIFACT_NAME }}
-          path: |
-            **/target/surefire-reports
-            **/target/checkstyle-*
-            **/*.hprof
-          retention-days: 30
-      - name: Annotate with test report
-        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
-        if: failure()
-        with:
-          # this workflow should never fail, as it is not a quality gateway
-          fail_if_no_tests: false
-          skip_publishing: true
-      - name: Should notify on failure
-        if: always() && steps.tests-iceberg-biglake.outcome == 'failure'
-        run: |
-          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
-          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
-          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
-          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
-            echo "result=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "result=false" >> "${GITHUB_OUTPUT}"
-          fi
-        id: should_notify
-      - name: Slack notify failed tests to Connectors team
-        if: always() && steps.tests-iceberg-biglake.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
-          slack-channel: C09HT9ETS73 # team-connectors-notify channel ID
-          slack-text: |
-            :boom: Iceberg BigLake tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-      - name: Launch Flake Tracker
-        if: failure() && steps.tests-iceberg-biglake.outcome == 'failure' && github.ref == 'refs/heads/master'
-        continue-on-error: true
-        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
-        with:
-          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
-      - name: Cancel merge queue workflow
-        if: ${{ failure() && github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "${GITHUB_RUN_ID}" --repo "${GITHUB_REPOSITORY}"
-
-  # ------------------------------------------------------------------------
   # Only run redshift tests on a schedule, labeled PRs, or workflow_dispatch
   # ------------------------------------------------------------------------
   redshift-cloud-tests:
@@ -1719,7 +1637,7 @@ jobs:
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-google-sheets') && contains(matrix.profile, 'cloud-tests'))
-          && ! (contains(matrix.modules, 'trino-iceberg') && contains(matrix.profile, 'cloud-tests'))
+          && ! (contains(matrix.modules, 'trino-iceberg') && (contains(matrix.profile, 'cloud-tests') || contains(matrix.profile, 'biglake-tests')))
           && ! (contains(matrix.modules, 'trino-snowflake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-exchange-filesystem') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'cloud-tests'))
@@ -2037,6 +1955,14 @@ jobs:
             -Dtesting.snowflake.catalog.s3.secret-key="${SNOWFLAKE_CATALOG_S3_SECRET_ACCESS_KEY}" \
             -Dtesting.snowflake.catalog.s3.external.volume="${SNOWFLAKE_EXTERNAL_VOLUME}" \
             -Dtesting.snowflake.catalog.s3.region="${SNOWFLAKE_CATALOG_S3_REGION}"
+      - name: Iceberg BigLake Tests
+        id: tests-iceberg-biglake
+        if: contains(matrix.modules, 'trino-iceberg') && contains(matrix.profile, 'biglake-tests') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.GCP_CREDENTIALS_KEY != '')
+        env:
+          GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+          GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-iceberg -Pbiglake-tests
       - name: Cloud Google Sheets Tests
         id: tests-google-sheets
         env:
@@ -2109,6 +2035,7 @@ jobs:
             || steps.tests-bq-smoke.outcome == 'failure'
             || steps.tests-google-sheets.outcome == 'failure'
             || steps.tests-iceberg.outcome == 'failure'
+            || steps.tests-iceberg-biglake.outcome == 'failure'
             || steps.tests-redshift.outcome == 'failure'
             || steps.tests-snowflake.outcome == 'failure'
           )
@@ -2686,7 +2613,6 @@ jobs:
       - error-prone-checks
       - gpu-tests
       - hive-tests
-      - iceberg-biglake-tests
       - maven-checks
       - path-filters
       - pt
@@ -2714,7 +2640,6 @@ jobs:
           echo '${{ needs.error-prone-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "error-prone-checks" failed' >&2; exit 1; }
           echo '${{ needs.gpu-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "gpu-tests" failed' >&2; exit 1; }
           echo '${{ needs.hive-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "hive-tests" failed' >&2; exit 1; }
-          echo '${{ needs.iceberg-biglake-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "iceberg-biglake-tests" failed' >&2; exit 1; }
           echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
           echo '${{ needs.path-filters.result }}' | grep -xE 'success|skipped' || { echo 'Job "path-filters" failed' >&2; exit 1; }
           echo '${{ needs.pt.result }}' | grep -xE 'success|skipped' || { echo 'Job "pt" failed' >&2; exit 1; }

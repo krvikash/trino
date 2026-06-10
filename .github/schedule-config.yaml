@@ -87,6 +87,7 @@
     - cloud-tests
     - fte-tests
     - minio-and-avro
+    # biglake-tests runs on nightly schedule only
 - modules:
     - testing/trino-faulttolerant-tests
   profiles:
@@ -121,6 +122,15 @@
     - plugin/trino-sqlserver
   when:
     scheduled: nightly
+- modules:
+    - plugin/trino-iceberg
+  profiles:
+    - biglake-tests
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [iceberg:biglake]
 - modules:
     - plugin/starburst-stargate
   runners: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
