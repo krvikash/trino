@@ -34,6 +34,9 @@ public final class GpuPage
 {
     private final int positionCount;
     private final Column[] columns;
+    private final long retainedHeapMemoryBytes;
+    private final long retainedOffHeapMemoryBytes;
+    private final long retainedDeviceMemoryBytes;
     private boolean closed;
 
     public GpuPage(int positionCount, @Borrow Column[] columns)
@@ -46,10 +49,20 @@ public final class GpuPage
 
         @Own Column[] ownedColumns = new Column[columns.length];
         try {
+            long heap = 0;
+            long offHeap = 0;
+            long device = 0;
             for (int i = 0; i < columns.length; i++) {
-                ownedColumns[i] = columns[i].incRefCount();
+                Column column = columns[i].incRefCount();
+                ownedColumns[i] = column;
+                heap += column.retainedHeapMemoryBytes();
+                offHeap += column.retainedOffHeapMemoryBytes();
+                device += column.retainedDeviceMemoryBytes();
             }
             this.columns = ownedColumns;
+            this.retainedHeapMemoryBytes = heap;
+            this.retainedOffHeapMemoryBytes = offHeap;
+            this.retainedDeviceMemoryBytes = device;
         }
         catch (Throwable e) {
             for (Column column : ownedColumns) {
@@ -88,6 +101,24 @@ public final class GpuPage
     {
         checkState(!closed, "Already closed");
         return columns[index];
+    }
+
+    public long retainedHeapMemoryBytes()
+    {
+        checkState(!closed, "Already closed");
+        return retainedHeapMemoryBytes;
+    }
+
+    public long retainedOffHeapMemoryBytes()
+    {
+        checkState(!closed, "Already closed");
+        return retainedOffHeapMemoryBytes;
+    }
+
+    public long retainedDeviceMemoryBytes()
+    {
+        checkState(!closed, "Already closed");
+        return retainedDeviceMemoryBytes;
     }
 
     // TODO is this API right name?

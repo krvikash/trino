@@ -33,6 +33,12 @@ public sealed interface Column
 {
     int positionCount();
 
+    long retainedHeapMemoryBytes();
+
+    long retainedOffHeapMemoryBytes();
+
+    long retainedDeviceMemoryBytes();
+
     // TODO is this API right name?
     @Unstable
     @Move
@@ -43,17 +49,37 @@ public sealed interface Column
     {
         private final int positionCount;
         private final List<Block> blocks;
+        private final long retainedHeapMemoryBytes;
 
         public Blocks(List<Block> blocks)
         {
             this.positionCount = blocks.stream().mapToInt(Block::getPositionCount).sum();
             this.blocks = List.copyOf(blocks);
+            this.retainedHeapMemoryBytes = blocks.stream().mapToLong(Block::getRetainedSizeInBytes).sum();
         }
 
         @Override
         public int positionCount()
         {
             return positionCount;
+        }
+
+        @Override
+        public long retainedHeapMemoryBytes()
+        {
+            return retainedHeapMemoryBytes;
+        }
+
+        @Override
+        public long retainedOffHeapMemoryBytes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long retainedDeviceMemoryBytes()
+        {
+            return 0;
         }
 
         public List<Block> blocks()
@@ -80,12 +106,14 @@ public sealed interface Column
             implements Column
     {
         private final @Own ColumnVector columnVector;
+        private final long retainedDeviceMemoryBytes;
         private boolean closed;
 
         public DeviceMemory(ColumnVector columnVector)
         {
             checkArgument(columnVector.getRowCount() <= Integer.MAX_VALUE, "Too many rows: %s", columnVector.getRowCount());
             this.columnVector = columnVector;
+            this.retainedDeviceMemoryBytes = columnVector.getDeviceMemorySize();
         }
 
         public @Borrow ColumnVector columnVector()
@@ -99,6 +127,25 @@ public sealed interface Column
         {
             checkState(!closed, "Already closed");
             return (int) columnVector.getRowCount();
+        }
+
+        @Override
+        public long retainedHeapMemoryBytes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long retainedOffHeapMemoryBytes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long retainedDeviceMemoryBytes()
+        {
+            checkState(!closed, "Already closed");
+            return retainedDeviceMemoryBytes;
         }
 
         @Override

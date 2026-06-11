@@ -75,15 +75,4 @@ public final class GpuUtils
         }
         return new Table(selected);
     }
-
-    public static long retainedDeviceBytes(GpuPage page)
-    {
-        long total = 0;
-        for (Column column : page.columns()) {
-            if (column instanceof Column.DeviceMemory deviceMemory) {
-                total += deviceMemory.columnVector().getDeviceMemorySize();
-            }
-        }
-        return total;
-    }
 }

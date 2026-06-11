@@ -19,7 +19,6 @@ import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 
-import static io.trino.plugin.base.gpu.GpuUtils.retainedDeviceBytes;
 import static java.util.Objects.requireNonNull;
 
 final class GpuPassthroughExchanger
@@ -41,7 +40,7 @@ final class GpuPassthroughExchanger
         // completely so all GPU writes are committed to device memory before another thread's
         // PTDS reads from the page.
         Cuda.DEFAULT_STREAM.sync();
-        buffer.add(page, retainedDeviceBytes(page));
+        buffer.add(page, page.retainedDeviceMemoryBytes());
     }
 
     @Override

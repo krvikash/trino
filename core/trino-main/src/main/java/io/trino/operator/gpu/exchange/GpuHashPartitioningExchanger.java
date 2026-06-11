@@ -24,7 +24,6 @@ import io.trino.spi.gpu.borrow.Own;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.base.gpu.GpuUtils.retainedDeviceBytes;
 import static java.util.Objects.requireNonNull;
 
 final class GpuHashPartitioningExchanger
@@ -65,7 +64,7 @@ final class GpuHashPartitioningExchanger
                     // Mirrors host PartitioningExchanger: zero-row partitions don't reach a buffer.
                     continue;
                 }
-                buffers.get(partitionIndex).add(partition, retainedDeviceBytes(partition));
+                buffers.get(partitionIndex).add(partition, partition.retainedDeviceMemoryBytes());
             }
         }
         finally {
