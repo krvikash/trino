@@ -194,4 +194,17 @@ public class TestHiveGpuQueries
 
         assertUpdate("DROP TABLE test_char_trimming");
     }
+
+    @Test
+    public void testNestedColumnProjection()
+    {
+        assertUpdate("CREATE TABLE test_gpu_nested AS SELECT CAST(ROW(1, 'x') AS ROW(a integer, b varchar)) AS col_row", 1);
+
+        assertThat(query("SELECT col_row.a FROM test_gpu_nested"))
+                .executesWithoutGpu();
+        assertThat(query("SELECT col_row.a, col_row.b FROM test_gpu_nested"))
+                .executesWithoutGpu();
+
+        assertUpdate("DROP TABLE test_gpu_nested");
+    }
 }

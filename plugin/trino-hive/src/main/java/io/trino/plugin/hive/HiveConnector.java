@@ -20,6 +20,7 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.spi.cache.ConnectorCacheMetadata;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -149,9 +150,11 @@ public class HiveConnector
         return new ConnectorPageSourceProviderFactory()
         {
             @Override
-            public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle)
+            public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
             {
-                return true;
+                return columns.stream()
+                        .map(HiveColumnHandle.class::cast)
+                        .allMatch(HiveColumnHandle::isBaseColumn);
             }
 
             @Override

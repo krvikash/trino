@@ -2376,7 +2376,7 @@ public class LocalExecutionPlanner
                     sourceOutputTypes = sourceNode.getOutputSymbols().stream()
                             .map(Symbol::type)
                             .collect(toImmutableList());
-                    if (pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle()) &&
+                    if (pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle(), columns) &&
                             // table scan has types supported on the GPU
                             sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
                         // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator?
@@ -2612,7 +2612,7 @@ public class LocalExecutionPlanner
             Optional<ConnectorTableCredentials> tableCredentials = context.getTaskContext().getTableCredentials(node.getId());
             if (isGpuExecutionEnabled(session) &&
                     columnTypes.build().stream().allMatch(GpuTypeConversion::isConvertible) &&
-                    pageSourceManager.supportsConnectorGpuPageSource(node.getTable().catalogHandle(), node.getTable().connectorHandle())) {
+                    pageSourceManager.supportsConnectorGpuPageSource(node.getTable().catalogHandle(), node.getTable().connectorHandle(), columns.build())) {
                 OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
                         context.getNextOperatorId(),
                         planNodeId,

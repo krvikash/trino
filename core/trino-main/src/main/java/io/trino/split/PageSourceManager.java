@@ -56,10 +56,10 @@ public class PageSourceManager
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
     }
 
-    public boolean supportsConnectorGpuPageSource(CatalogHandle catalogHandle, ConnectorTableHandle connectorTableHandle)
+    public boolean supportsConnectorGpuPageSource(CatalogHandle catalogHandle, ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
     {
         ConnectorPageSourceProviderFactory provider = pageSourceProviderFactory.getService(catalogHandle);
-        return provider.supportsConnectorGpuPageSource(connectorTableHandle);
+        return provider.supportsConnectorGpuPageSource(connectorTableHandle, columns);
     }
 
     @Override

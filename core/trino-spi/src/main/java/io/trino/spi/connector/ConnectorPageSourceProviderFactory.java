@@ -13,9 +13,11 @@
  */
 package io.trino.spi.connector;
 
+import java.util.List;
+
 public interface ConnectorPageSourceProviderFactory
 {
-    default boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle)
+    default boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
     {
         return false;
     }
