@@ -265,13 +265,16 @@ public class OpenSearchMetadata
         }
         for (IndexMetadata.Field field : fields) {
             TypeAndDecoder converted = toTrino(field);
-            result.put(field.name(), new OpenSearchColumnHandle(
-                    ImmutableList.of(field.name()),
-                    converted.type(),
-                    field.type(),
-                    converted.decoderDescriptor(),
-                    supportsPredicates(field.type(), converted.type),
-                    field.mappingConflict()));
+            Optional<String> delegate = pushDownDelegateMultiFields(field.type(), converted.type(), field.multiFields());
+            result.put(field.name(),
+                    new OpenSearchColumnHandle(
+                            ImmutableList.of(field.name()),
+                            delegate,
+                            converted.type(),
+                            field.type(),
+                            converted.decoderDescriptor(),
+                            supportsPredicates(field.type(), converted.type) || delegate.isPresent(),
+                            field.mappingConflict()));
         }
 
         return result.buildOrThrow();
@@ -553,8 +556,11 @@ public class OpenSearchMetadata
                         IndexMetadata metadata = client.getIndexMetadata(handle.index());
                         if (metadata.schema()
                                 .fields().stream()
-                                .anyMatch(field -> columnName.equals(field.name()) && field.type() instanceof PrimitiveType && "keyword".equals(((PrimitiveType) field.type()).name()))) {
-                            newRegexes.put(columnName, likeToRegexp(slice, escape));
+                                .anyMatch(field -> columnName.equals(field.name()) &&
+                                        ((field.type() instanceof PrimitiveType(String name) && "keyword".equals(name))
+                                                || column.delegatedField().isPresent()))) {
+                            newRegexes.put(columnName + column.delegatedField().map(delegate -> "." + delegate).orElse(""),
+                                    likeToRegexp(slice, escape));
                             continue;
                         }
                     }
@@ -767,6 +773,7 @@ public class OpenSearchMetadata
         DecoderDescriptor decoderDescriptor = baseColumn.decoderDescriptor();
         IndexMetadata.Type opensearchType = baseColumn.opensearchType();
         Type type = baseColumn.type();
+        List<IndexMetadata.Field> multiFields = ImmutableList.of();
 
         for (int index : indices) {
             checkArgument(type instanceof RowType, "type should be Row type");
@@ -778,15 +785,19 @@ public class OpenSearchMetadata
 
             checkArgument(decoderDescriptor instanceof RowDecoder.Descriptor, "decoderDescriptor should be RowDecoder.Descriptor type");
             decoderDescriptor = ((RowDecoder.Descriptor) decoderDescriptor).getFields().get(index).getDescriptor();
-            opensearchType = ((IndexMetadata.ObjectType) opensearchType).fields().get(index).type();
+            IndexMetadata.Field subField = ((IndexMetadata.ObjectType) opensearchType).fields().get(index);
+            opensearchType = subField.type();
+            multiFields = subField.multiFields();
         }
 
+        Optional<String> delegate = pushDownDelegateMultiFields(opensearchType, projectedColumnType, multiFields);
         return new OpenSearchColumnHandle(
                 path.build(),
+                delegate,
                 projectedColumnType,
                 opensearchType,
                 decoderDescriptor,
-                supportsPredicates(opensearchType, projectedColumnType));
+                supportsPredicates(opensearchType, projectedColumnType) || delegate.isPresent());
     }
 
     @Override
@@ -854,7 +865,8 @@ public class OpenSearchMetadata
         }
         for (ColumnHandle columnHandle : groupingSets.getFirst()) {
             OpenSearchColumnHandle column = (OpenSearchColumnHandle) columnHandle;
-            if (!column.supportsPredicates()) {
+            if (!column.supportsPredicates() || column.delegatedField().isPresent()) {
+                // text fields that support predicates only via a keyword multi-field cannot be aggregated directly in OpenSearch
                 return Optional.empty();
             }
 
@@ -901,6 +913,18 @@ public class OpenSearchMetadata
             case StandardTypes.BOOLEAN -> Optional.of(new BooleanDecoder.Descriptor(name));
             default -> Optional.empty();
         };
+    }
+
+    private static Optional<String> pushDownDelegateMultiFields(IndexMetadata.Type opensearchType, Type trinoType, List<IndexMetadata.Field> multiFields)
+    {
+        if (opensearchType instanceof PrimitiveType(String name) && name.equals("text")) {
+            for (IndexMetadata.Field multiField : multiFields) {
+                if (supportsPredicates(multiField.type(), trinoType)) {
+                    return Optional.of(multiField.name());
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private static boolean supportsPredicates(IndexMetadata.Type type, Type trinoType)

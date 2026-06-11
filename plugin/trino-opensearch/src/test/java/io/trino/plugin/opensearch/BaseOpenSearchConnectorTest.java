@@ -2734,6 +2734,90 @@ public abstract class BaseOpenSearchConnectorTest
     }
 
     @Test
+    public void testAggregationPushdownMultiField()
+            throws IOException
+    {
+        String indexName = "agg_pushdown_multifield_" + randomNameSuffix();
+        @Language("JSON")
+        String properties =
+                """
+                {
+                  "properties": {
+                    "text_multifield": {
+                      "type": "text",
+                      "fields": {
+                        "raw": { "type": "keyword" }
+                      }
+                    },
+                    "keyword_multifield": {
+                      "type": "keyword",
+                      "fields": {
+                        "analyzed": { "type": "text" }
+                      }
+                    },
+                    "custkey": { "type": "integer" },
+                    "name": { "type": "keyword" }
+                  }
+                }
+                """;
+        createIndex(indexName, properties);
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("text_multifield", "alpha")
+                .put("keyword_multifield", "kw_alpha")
+                .put("custkey", 100)
+                .put("name", "name1")
+                .buildOrThrow());
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("text_multifield", "beta")
+                .put("keyword_multifield", "kw_beta")
+                .put("custkey", 200)
+                .put("name", "name2")
+                .buildOrThrow());
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("text_multifield", "gamma")
+                .put("keyword_multifield", "kw_beta")
+                .put("custkey", 200)
+                .put("name", "name3")
+                .buildOrThrow());
+
+        try {
+            // text field with keyword sub-field (multi-field): aggregation is not pushed down because
+            // the field cannot be used directly in OpenSearch terms aggregations — it must delegate to
+            // its keyword sub-field for predicates, but that same sub-field is not used for aggregation
+            assertThat(query("SELECT custkey, count(text_multifield) FROM %s GROUP BY custkey".formatted(indexName)))
+                    .matches("VALUES (200, CAST(2 AS BIGINT)), (100, CAST(1 AS BIGINT))")
+                    .isNotFullyPushedDown(AggregationNode.class);
+
+            assertThat(query("SELECT text_multifield, count(name) FROM %s GROUP BY text_multifield".formatted(indexName)))
+                    .matches("VALUES (VARCHAR 'alpha', CAST(1 AS BIGINT)), (VARCHAR 'beta', CAST(1 AS BIGINT)), (VARCHAR 'gamma', CAST(1 AS BIGINT))")
+                    .isNotFullyPushedDown(AggregationNode.class);
+
+            // predicate on text_multifield is pushed down via its keyword sub-field; aggregation on
+            // non-multifield group-by and count columns is still fully pushed down
+            assertThat(query("SELECT custkey, count(name) FROM %s WHERE text_multifield = 'alpha' GROUP BY custkey".formatted(indexName)))
+                    .matches("VALUES (100, CAST(1 AS BIGINT))")
+                    .isFullyPushedDown();
+
+            // keyword field with text sub-field: root type is keyword, so aggregation pushdown works normally
+            assertThat(query("SELECT custkey, count(keyword_multifield) FROM %s GROUP BY custkey".formatted(indexName)))
+                    .matches("VALUES (200, CAST(2 AS BIGINT)), (100, CAST(1 AS BIGINT))")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT keyword_multifield, count(name) FROM %s GROUP BY keyword_multifield".formatted(indexName)))
+                    .matches("VALUES (VARCHAR 'kw_alpha', CAST(1 AS BIGINT)), (VARCHAR 'kw_beta', CAST(2 AS BIGINT))")
+                    .isFullyPushedDown();
+
+            // filter on the aggregated count is evaluated above the connector and not pushed down
+            assertThat(query("SELECT custkey, cnt FROM (SELECT custkey, count(keyword_multifield) AS cnt FROM %s GROUP BY custkey) WHERE cnt = 1".formatted(indexName)))
+                    .matches("VALUES (100, CAST(1 AS BIGINT))")
+                    .isNotFullyPushedDown(FilterNode.class);
+        }
+        finally {
+            deleteIndex(indexName);
+        }
+    }
+
+    @Test
     public void testDereferencePushdownWithNestedFieldsIncludingArrays()
             throws IOException
     {
@@ -3393,6 +3477,189 @@ public abstract class BaseOpenSearchConnectorTest
             deleteIndex(firstIndex);
             deleteIndex(secondIndex);
             deleteIndex(thirdIndex);
+        }
+    }
+
+    @Test
+    public void testMultiFieldsPushdown()
+            throws IOException
+    {
+        String index = format("test_multi_%s", randomNameSuffix());
+        @Language("JSON")
+        String mappings =
+                """
+                {
+                  "properties": {
+                    "product" : {
+                         "type" : "text",
+                         "fields": {
+                           "product_code": { "type": "keyword" }
+                         }
+                     },
+                    "product_type_keyword" : {
+                         "type" : "keyword",
+                         "fields": {
+                           "product_code": { "type": "text" }
+                         }
+                    },
+                    "field" : {
+                      "type" : "keyword"
+                     },
+                     "no_pushdown_product" : {
+                        "type" : "text",
+                        "fields": {
+                           "product_code": { "type": "text" }
+                        }
+                     },
+                    "no_pushdown_field" : {
+                      "type" : "text"
+                     }
+                  }
+                }
+                """;
+
+        createIndex(index, mappings);
+        index(index, ImmutableMap.<String, Object>builder()
+                .put("product", "P12345")
+                .put("product_type_keyword", "P12345")
+                .put("field", "value1")
+                .put("no_pushdown_product", "P12345")
+                .put("no_pushdown_field", "value1")
+                .buildOrThrow());
+        index(index, ImmutableMap.<String, Object>builder()
+                .put("product", "P11111")
+                .put("product_type_keyword", "P11111")
+                .put("field", "value2")
+                .put("no_pushdown_product", "P11111")
+                .put("no_pushdown_field", "value2")
+                .buildOrThrow());
+        index(index, ImmutableMap.<String, Object>builder()
+                .put("product", "P22222")
+                .put("product_type_keyword", "P22222")
+                .put("field", "value3")
+                .put("no_pushdown_product", "P22222")
+                .put("no_pushdown_field", "value3")
+                .buildOrThrow());
+
+        try {
+            assertThat(query("SELECT product FROM \"" + index + "\" WHERE product='P12345'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('P12345')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT product FROM \"" + index + "\" WHERE product like 'P1%'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('P12345'), ('P11111')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT product_type_keyword FROM \"" + index + "\" WHERE product_type_keyword='P12345'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('P12345')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT product_type_keyword FROM \"" + index + "\" WHERE product_type_keyword like 'P1%'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('P12345'), ('P11111')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT field FROM \"" + index + "\" WHERE field='value1'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('value1')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT field FROM \"" + index + "\" WHERE field like '%alue1'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('value1')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT no_pushdown_product FROM \"" + index + "\" WHERE no_pushdown_product='P12345'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('P12345')")
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query("SELECT no_pushdown_product FROM \"" + index + "\" WHERE no_pushdown_product like 'P1234%'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('P12345')")
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query("SELECT no_pushdown_field FROM \"" + index + "\" WHERE no_pushdown_field='value1'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('value1')")
+                    .isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query("SELECT no_pushdown_field FROM \"" + index + "\" WHERE no_pushdown_field like '%alue1'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('value1')")
+                    .isNotFullyPushedDown(FilterNode.class);
+        }
+        finally {
+            deleteIndex(index);
+        }
+    }
+
+    @Test
+    public void testMultiFieldsPushdownInObject()
+            throws IOException
+    {
+        String index = format("test_multi_object_%s", randomNameSuffix());
+        @Language("JSON")
+        String mappings =
+                """
+                {
+                  "properties": {
+                    "product" : {
+                      "properties": {
+                        "name1": {
+                          "type": "text",
+                          "fields": {
+                            "name1_code": { "type": "keyword" }
+                          }
+                        },
+                        "desc": {
+                          "type": "keyword"
+                        },
+                        "name2": {
+                          "properties": {
+                            "sub_name2":{
+                              "type" : "text",
+                              "fields": {
+                                "sub_name2_code": { "type": "keyword" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+
+        createIndex(index, mappings);
+        index(index, ImmutableMap.of("product", ImmutableMap.<String, Object>builder()
+                .put("name1", "name_1111")
+                .put("desc", "product_1111")
+                .put("name2", ImmutableMap.of("sub_name2", "sub_name2_1111"))
+                .buildOrThrow()));
+
+        index(index, ImmutableMap.of("product", ImmutableMap.<String, Object>builder()
+                .put("name1", "name_1234")
+                .put("desc", "product_1234")
+                .put("name2", ImmutableMap.of("sub_name2", "sub_name2_1234"))
+                .buildOrThrow()));
+
+        try {
+            assertThat(query("SELECT product.name1 FROM \"" + index + "\" WHERE product.name1='name_1234'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('name_1234')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT product.name1 FROM \"" + index + "\" WHERE product.name2.sub_name2='sub_name2_1111'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('name_1111')")
+                    .isFullyPushedDown();
+        }
+        finally {
+            deleteIndex(index);
         }
     }
 

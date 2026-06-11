@@ -21,11 +21,13 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
 public record OpenSearchColumnHandle(
         List<String> path,
+        Optional<String> delegatedField,
         Type type,
         IndexMetadata.Type opensearchType,
         DecoderDescriptor decoderDescriptor,
@@ -35,20 +37,32 @@ public record OpenSearchColumnHandle(
 {
     public OpenSearchColumnHandle(
             List<String> path,
+            Optional<String> delegatedField,
             Type type,
             IndexMetadata.Type opensearchType,
             DecoderDescriptor decoderDescriptor,
             boolean supportsPredicates)
     {
-        this(path, type, opensearchType, decoderDescriptor, supportsPredicates, false);
+        this(path, delegatedField, type, opensearchType, decoderDescriptor, supportsPredicates, false);
     }
 
     public OpenSearchColumnHandle
     {
         path = ImmutableList.copyOf(path);
+        requireNonNull(delegatedField, "delegatedField is null");
         requireNonNull(type, "type is null");
         requireNonNull(opensearchType, "opensearchType is null");
         requireNonNull(decoderDescriptor, "decoderDescriptor is null");
+    }
+
+    public OpenSearchColumnHandle(
+            List<String> path,
+            Type type,
+            IndexMetadata.Type opensearchType,
+            DecoderDescriptor decoderDescriptor,
+            boolean supportsPredicates)
+    {
+        this(path, Optional.empty(), type, opensearchType, decoderDescriptor, supportsPredicates, false);
     }
 
     @JsonIgnore

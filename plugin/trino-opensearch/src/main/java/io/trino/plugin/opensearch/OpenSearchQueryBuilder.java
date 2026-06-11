@@ -156,9 +156,11 @@ public final class OpenSearchQueryBuilder
                 OpenSearchColumnHandle column = entry.getKey();
                 Domain domain = entry.getValue();
 
-                checkArgument(!domain.isNone(), "Unexpected NONE domain for %s", column.name());
+                final String columnName = column.name();
+                checkArgument(!domain.isNone(), "Unexpected NONE domain for %s", columnName);
                 if (!domain.isAll()) {
-                    addPredicateToQueryBuilder(queryBuilder, column.name(), domain, column.type());
+                    String effectiveColumnName = column.delegatedField().map(delegatedField -> "%s.%s".formatted(columnName, delegatedField)).orElse(columnName);
+                    addPredicateToQueryBuilder(queryBuilder, effectiveColumnName, domain, column.type());
                 }
             }
         }

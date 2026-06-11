@@ -95,7 +95,9 @@ public record MetricAggregation(String functionName, Type outputType, Optional<O
         boolean isBigintAggregation = SUPPORTED_AGGREGATION_FUNCTIONS.contains(function.getFunctionName().toLowerCase(ENGLISH)) && columnHandle.type().equals(BIGINT);
         return isBigintAggregation ||
                 !isSupportedType(columnHandle.type()) ||
-                !columnHandle.supportsPredicates();
+                !columnHandle.supportsPredicates() ||
+                // text fields that support predicates only via a keyword multi-field cannot be aggregated directly in OpenSearch
+                columnHandle.delegatedField().isPresent();
     }
 
     private static boolean isSupportedType(Type type)

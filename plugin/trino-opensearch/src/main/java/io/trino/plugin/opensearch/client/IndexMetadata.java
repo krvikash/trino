@@ -29,11 +29,11 @@ public record IndexMetadata(ObjectType schema)
         requireNonNull(schema, "schema is null");
     }
 
-    public record Field(boolean asRawJson, boolean isArray, String name, Type type, boolean mappingConflict)
+    public record Field(boolean asRawJson, boolean isArray, String name, Type type, List<Field> multiFields, boolean mappingConflict)
     {
         public Field(boolean asRawJson, boolean isArray, String name, Type type)
         {
-            this(asRawJson, isArray, name, type, false);
+            this(asRawJson, isArray, name, type, ImmutableList.of(), false);
         }
 
         public Field
@@ -44,6 +44,7 @@ public record IndexMetadata(ObjectType schema)
                     name);
             requireNonNull(name, "name is null");
             requireNonNull(type, "type is null");
+            multiFields = ImmutableList.copyOf(requireNonNull(multiFields, "multiFields is null"));
         }
     }
 

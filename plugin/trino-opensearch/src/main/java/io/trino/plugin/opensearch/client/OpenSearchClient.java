@@ -569,6 +569,10 @@ public class OpenSearchClient
                         format("A column, (%s) cannot be declared as a Trino array and also be rendered as json.", name));
             }
 
+            List<IndexMetadata.Field> multiFields = Optional.ofNullable(value.get("fields"))
+                    .map(node -> parseType(node, metaNode).fields())
+                    .orElse(ImmutableList.of());
+
             switch (type) {
                 case "date" -> {
                     List<String> formats = ImmutableList.of();
@@ -586,7 +590,7 @@ public class OpenSearchClient
                         LOG.debug("Ignoring empty object field: %s", name);
                     }
                 }
-                default -> result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), mappingConflictField));
+                default -> result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), multiFields, mappingConflictField));
             }
         }
 
