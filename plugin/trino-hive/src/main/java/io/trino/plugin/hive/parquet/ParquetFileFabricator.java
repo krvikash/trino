@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.parquet.DiskRange;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
@@ -64,7 +65,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
@@ -129,6 +129,7 @@ public class ParquetFileFabricator
     private final ColumnMatchingStrategy columnMatcher;
     private final DateTimeZone timeZone;
     private final int domainCompactionThreshold;
+    private final AggregatedMemoryContext memoryContext;
     private final ParquetReaderOptions options;
     private final ParquetMetadata parquetMetadata;
 
@@ -143,6 +144,7 @@ public class ParquetFileFabricator
             ColumnMatchingStrategy columnMatcher,
             DateTimeZone timeZone,
             int domainCompactionThreshold,
+            AggregatedMemoryContext memoryContext,
             ParquetReaderOptions options,
             ParquetMetadata parquetMetadata)
     {
@@ -156,6 +158,7 @@ public class ParquetFileFabricator
         this.columnMatcher = requireNonNull(columnMatcher, "columnMatcher is null");
         this.timeZone = requireNonNull(timeZone, "timeZone is null");
         this.domainCompactionThreshold = domainCompactionThreshold;
+        this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.options = requireNonNull(options, "options is null");
         this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
     }
@@ -219,7 +222,7 @@ public class ParquetFileFabricator
             }
         }
 
-        Map<Integer, ChunkedInputStream> chunkStreams = dataSource.planRead(diskRanges, newSimpleAggregatedMemoryContext());
+        Map<Integer, ChunkedInputStream> chunkStreams = dataSource.planRead(diskRanges, memoryContext);
         try {
             return writeFabricatedFile(rowGroups, clippedSchema, originalFileMetadata, chunkStreams, chunkCount);
         }

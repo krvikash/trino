@@ -65,6 +65,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
@@ -206,6 +207,7 @@ public class TestParquetFileFabricator
                 new NameBasedColumnMatcher(),
                 UTC,
                 1000,
+                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 originalMetadata));
 
@@ -407,6 +409,7 @@ public class TestParquetFileFabricator
                 new NameBasedColumnMatcher(),
                 UTC,
                 1000,
+                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
 
@@ -472,6 +475,7 @@ public class TestParquetFileFabricator
                 new NameBasedColumnMatcher(),
                 UTC,
                 1000,
+                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
 
@@ -574,6 +578,7 @@ public class TestParquetFileFabricator
                 new NameBasedColumnMatcher(),
                 UTC,
                 1000,
+                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
 
@@ -655,6 +660,7 @@ public class TestParquetFileFabricator
                 new NameBasedColumnMatcher(),
                 UTC,
                 1000,
+                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
 

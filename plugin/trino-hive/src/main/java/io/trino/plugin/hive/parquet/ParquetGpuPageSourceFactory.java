@@ -74,6 +74,7 @@ public final class ParquetGpuPageSourceFactory
             int domainCompactionThreshold)
     {
         try {
+            // TODO expose memory usage
             AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
             FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
 
@@ -134,6 +135,7 @@ public final class ParquetGpuPageSourceFactory
                     new NameBasedColumnMatcher(),
                     timeZone,
                     domainCompactionThreshold,
+                    memoryContext,
                     options,
                     parquetMetadata);
 

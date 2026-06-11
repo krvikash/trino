@@ -61,6 +61,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
@@ -378,6 +379,7 @@ public class TestGpuParquetPageSource
                 new NameBasedColumnMatcher(),
                 UTC,
                 1000,
+                newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata)) {
             try (GpuParquetPageSource pageSource = new GpuParquetPageSource(
