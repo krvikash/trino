@@ -81,13 +81,13 @@ public class GpuConfigurer
         }
 
         CudaMemInfo info = Cuda.memGetInfo();
-        long reserve = config.getReserve().toBytes();
+        long reserve = config.getDeviceMemoryReserve().toBytes();
         checkArgument(
                 info.total >= reserve,
                 "GPU total memory (%s) is smaller than reserve (%s)",
                 succinctBytes(info.total),
                 succinctBytes(reserve));
-        long poolSize = (long) ((info.total - reserve) * config.getAllocFraction());
+        long poolSize = (long) ((info.total - reserve) * config.getDeviceMemoryFraction());
         poolSize = poolSize & ALIGNMENT_MASK;
         checkState(
                 info.free >= poolSize,

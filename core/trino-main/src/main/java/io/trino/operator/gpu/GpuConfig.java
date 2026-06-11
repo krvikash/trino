@@ -58,9 +58,11 @@ public class GpuConfig
     // Default ASYNC as recommended by NVIDIA team https://starburstdata.slack.com/archives/C0AHAUL34CC/p1776804643112849?thread_ts=1776415978.579519&cid=C0AHAUL34CC
     // according to https://starburstdata.slack.com/archives/C0AHAUL34CC/p1776889382679829?thread_ts=1776415978.579519&cid=C0AHAUL34CC, this does not need to be configurable
     private AllocationMode allocationMode = AllocationMode.ASYNC;
+
     private Optional<DataSize> poolSize = Optional.empty();
-    private double allocFraction = 1.0;
-    private DataSize reserve = DataSize.of(640, MEGABYTE);
+    private DataSize deviceMemoryReserve = DataSize.of(640, MEGABYTE);
+    private double deviceMemoryFraction = 1.0;
+
     private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
 
     @NotNull
@@ -93,34 +95,34 @@ public class GpuConfig
         return this;
     }
 
-    @DecimalMin("0")
-    @DecimalMax("1")
-    public double getAllocFraction()
+    @NotNull
+    public DataSize getDeviceMemoryReserve()
     {
-        return allocFraction;
+        return deviceMemoryReserve;
     }
 
-    @Config("gpu.memory.alloc-fraction")
-    @ConfigDescription("Fraction of (free - reserve) device memory to place in the RMM pool")
+    @Config("gpu.memory.device-memory-reserve")
+    @ConfigDescription("Device memory held back from the pool for non-RMM allocations (kernel launches, cuBLAS workspace, etc.)")
     @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
-    public GpuConfig setAllocFraction(double allocFraction)
+    public GpuConfig setDeviceMemoryReserve(DataSize deviceMemoryReserve)
     {
-        this.allocFraction = allocFraction;
+        this.deviceMemoryReserve = deviceMemoryReserve;
         return this;
     }
 
-    @NotNull
-    public DataSize getReserve()
+    @DecimalMin("0")
+    @DecimalMax("1")
+    public double getDeviceMemoryFraction()
     {
-        return reserve;
+        return deviceMemoryFraction;
     }
 
-    @Config("gpu.memory.reserve")
-    @ConfigDescription("Device memory held back from the pool for non-RMM allocations (kernel launches, cuBLAS workspace, etc.)")
+    @Config("gpu.memory.device-memory-fraction")
+    @ConfigDescription("Fraction of (free - reserve) device memory to place in the RMM pool")
     @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
-    public GpuConfig setReserve(DataSize reserve)
+    public GpuConfig setDeviceMemoryFraction(double deviceMemoryFraction)
     {
-        this.reserve = reserve;
+        this.deviceMemoryFraction = deviceMemoryFraction;
         return this;
     }
 

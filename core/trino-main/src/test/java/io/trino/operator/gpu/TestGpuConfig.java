@@ -37,8 +37,8 @@ public class TestGpuConfig
         assertRecordedDefaults(recordDefaults(GpuConfig.class)
                 .setAllocationMode(AllocationMode.ASYNC)
                 .setPoolSize(null)
-                .setAllocFraction(1.0)
-                .setReserve(DataSize.of(640, MEGABYTE))
+                .setDeviceMemoryReserve(DataSize.of(640, MEGABYTE))
+                .setDeviceMemoryFraction(1.0)
                 .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE)));
     }
 
@@ -48,16 +48,16 @@ public class TestGpuConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("gpu.memory.allocation-mode", "POOL")
                 .put("gpu.memory.pool-size", "20GB")
-                .put("gpu.memory.alloc-fraction", "0.75")
-                .put("gpu.memory.reserve", "1GB")
+                .put("gpu.memory.device-memory-reserve", "1GB")
+                .put("gpu.memory.device-memory-fraction", "0.75")
                 .put("gpu.aggregation.compaction-threshold", "2GB")
                 .buildOrThrow();
 
         GpuConfig expected = new GpuConfig()
                 .setAllocationMode(AllocationMode.POOL)
                 .setPoolSize(DataSize.of(20, GIGABYTE))
-                .setAllocFraction(0.75)
-                .setReserve(DataSize.of(1, GIGABYTE))
+                .setDeviceMemoryReserve(DataSize.of(1, GIGABYTE))
+                .setDeviceMemoryFraction(0.75)
                 .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE));
 
         assertFullMapping(properties, expected);
