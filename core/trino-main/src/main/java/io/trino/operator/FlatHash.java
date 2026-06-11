@@ -59,6 +59,7 @@ public final class FlatHash
     private static final int VECTOR_LENGTH = Long.BYTES;
     private static final VarHandle LONG_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, LITTLE_ENDIAN);
 
+    private final FlatHashStrategy flatHashStrategy;
     private final AppendOnlyVariableWidthData variableWidthData;
     private final UpdateMemory checkMemoryReservation;
 
@@ -80,6 +81,7 @@ public final class FlatHash
 
     public FlatHash(FlatHashStrategy flatHashStrategy, boolean cacheHashValue, int expectedSize, UpdateMemory checkMemoryReservation)
     {
+        this.flatHashStrategy = requireNonNull(flatHashStrategy, "flatHashStrategy is null");
         this.checkMemoryReservation = requireNonNull(checkMemoryReservation, "checkMemoryReservation is null");
         boolean hasVariableData = flatHashStrategy.isAnyVariableWidth();
         this.variableWidthData = hasVariableData ? new AppendOnlyVariableWidthData() : null;
@@ -106,6 +108,7 @@ public final class FlatHash
 
     public FlatHash(FlatHash other)
     {
+        this.flatHashStrategy = other.flatHashStrategy;
         this.checkMemoryReservation = other.checkMemoryReservation;
         this.variableWidthData = other.variableWidthData == null ? null : new AppendOnlyVariableWidthData(other.variableWidthData);
         this.cacheHashValue = other.cacheHashValue;
@@ -224,6 +227,14 @@ public final class FlatHash
                 variableWidthData.freeChunksBefore(fixedSizeRecords, recordOffset + variableWidthOffset);
             }
         }
+    }
+
+    /**
+     * Do not use in performance critical code
+     */
+    public int putIfAbsent(Block[] blocks, int position)
+    {
+        return putIfAbsent(blocks, position, flatHashStrategy);
     }
 
     public int putIfAbsent(Block[] blocks, int position, FlatHashStrategy flatHashStrategy)
