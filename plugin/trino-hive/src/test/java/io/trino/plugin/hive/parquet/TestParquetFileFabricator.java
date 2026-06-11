@@ -69,6 +69,7 @@ import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregate
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DateType.DATE;
@@ -196,15 +197,15 @@ public class TestParquetFileFabricator
         TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource originalDataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
         ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
+        MessageType requestedSchema = createRequestedSchema(originalMetadata.getFileMetaData().getSchema(), requestedColumns);
         ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 Long.MAX_VALUE, // Split start beyond file end
                 100,
                 originalDataSource,
-                requestedColumns,
+                requestedSchema,
                 List.of(),
                 List.of(),
                 Map.of(),
-                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
                 newSimpleAggregatedMemoryContext(),
@@ -398,15 +399,15 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
+        MessageType requestedSchema = createRequestedSchema(schema, columns);
         ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                columns,
+                requestedSchema,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
-                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
                 newSimpleAggregatedMemoryContext(),
@@ -464,15 +465,15 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
         ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                requestedColumns,
+                requestedSchema,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
-                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
                 newSimpleAggregatedMemoryContext(),
@@ -567,15 +568,15 @@ public class TestParquetFileFabricator
                 false,
                 false);
 
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
         ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 splitStart,
                 splitLength,
                 dataSource,
-                requestedColumns,
+                requestedSchema,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
-                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
                 newSimpleAggregatedMemoryContext(),
@@ -649,15 +650,15 @@ public class TestParquetFileFabricator
 
         List<HiveColumnHandle> requestedColumns = List.of(createColumn("col1", 0, BIGINT));
 
+        MessageType requestedSchema = createRequestedSchema(schema, requestedColumns);
         ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                requestedColumns,
+                requestedSchema,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
-                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
                 newSimpleAggregatedMemoryContext(),
@@ -880,5 +881,12 @@ public class TestParquetFileFabricator
                 Optional.empty(),
                 REGULAR,
                 Optional.empty());
+    }
+
+    private static MessageType createRequestedSchema(MessageType schema, List<HiveColumnHandle> requestedColumns)
+    {
+        boolean useColumnNames = true;
+        return getParquetMessageType(requestedColumns, useColumnNames, schema)
+                .orElseThrow(() -> new IllegalStateException("No columns matched in schema for: " + requestedColumns));
     }
 }

@@ -67,6 +67,7 @@ import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
+import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -368,15 +369,15 @@ public class TestGpuParquetPageSource
                 false,
                 false);
 
+        MessageType requestedSchema = createRequestedSchema(schema, columns);
         try (ParquetFileFabricator fabricator = new ParquetFileFabricator(
                 0,
                 Long.MAX_VALUE,
                 dataSource,
-                columns,
+                requestedSchema,
                 List.of(parquetTupleDomain),
                 List.of(predicate),
                 descriptorsByPath,
-                new NameBasedColumnMatcher(),
                 UTC,
                 1000,
                 newSimpleAggregatedMemoryContext(),
@@ -547,6 +548,13 @@ public class TestGpuParquetPageSource
                 Optional.empty(),
                 PARTITION_KEY,
                 Optional.empty());
+    }
+
+    private static MessageType createRequestedSchema(MessageType schema, List<HiveColumnHandle> requestedColumns)
+    {
+        boolean useColumnNames = true;
+        return getParquetMessageType(requestedColumns, useColumnNames, schema)
+                .orElseThrow(() -> new IllegalStateException("No columns matched in schema for: " + requestedColumns));
     }
 
     private record Pages(@Own List<GpuPage> pages)
