@@ -33,9 +33,9 @@ public class DrainService
 {
     private static final Logger log = Logger.get(DrainService.class);
     private static final Duration MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
-    private static final Duration DRAIN_ALL_CHUNKS_TIMEOUT = Duration.succinctDuration(30, TimeUnit.SECONDS);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
+    private final Duration drainAllChunksTimeout;
     private final BufferNodeStateManager bufferNodeStateManager;
     private final AddDataPagesInProgressTracker inProgressTracker;
     private final ChunkManager chunkManager;
@@ -43,11 +43,13 @@ public class DrainService
 
     @Inject
     public DrainService(
+            DataServerConfig dataServerConfig,
             BufferNodeStateManager bufferNodeStateManager,
             AddDataPagesInProgressTracker inProgressTracker,
             ChunkManager chunkManager,
             Optional<DiscoveryBroadcast> discoveryBroadcast)
     {
+        this.drainAllChunksTimeout = requireNonNull(dataServerConfig, "dataServerConfig is null").getDrainAllChunksTimeout();
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.inProgressTracker = requireNonNull(inProgressTracker, "inProgressTracker is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
@@ -63,7 +65,7 @@ public class DrainService
     public void awaitDrain()
     {
         drain();
-        long deadlineMillis = System.currentTimeMillis() + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis() + DRAIN_ALL_CHUNKS_TIMEOUT.toMillis();
+        long deadlineMillis = System.currentTimeMillis() + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis() + drainAllChunksTimeout.toMillis();
         while (bufferNodeStateManager.getState() != BufferNodeState.DRAINED) {
             if (System.currentTimeMillis() > deadlineMillis) {
                 log.warn("Timed out waiting for buffer node to reach DRAINED state");

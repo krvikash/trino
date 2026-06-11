@@ -33,6 +33,7 @@ public class DataServerConfig
     private Duration broadcastFailureInactivityThreshold = succinctDuration(30, SECONDS);
     private int drainingMaxAttempts = 8;
     private Duration minDrainingDuration = succinctDuration(60, SECONDS);
+    private Duration drainAllChunksTimeout = succinctDuration(30, SECONDS);
     private int maxInProgressAddDataPagesRequests = 150;
     private int inProgressAddDataPagesRequestsRateLimitThreshold = 110;
     private Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(5, SECONDS);
@@ -143,6 +144,20 @@ public class DataServerConfig
     public DataServerConfig setDrainingMaxAttempts(int drainingMaxAttempts)
     {
         this.drainingMaxAttempts = drainingMaxAttempts;
+        return this;
+    }
+
+    @NotNull
+    public Duration getDrainAllChunksTimeout()
+    {
+        return drainAllChunksTimeout;
+    }
+
+    @Config("draining.chunks-timeout")
+    @ConfigDescription("Timeout for draining all chunks to remote storage during graceful shutdown")
+    public DataServerConfig setDrainAllChunksTimeout(Duration drainAllChunksTimeout)
+    {
+        this.drainAllChunksTimeout = drainAllChunksTimeout;
         return this;
     }
 
