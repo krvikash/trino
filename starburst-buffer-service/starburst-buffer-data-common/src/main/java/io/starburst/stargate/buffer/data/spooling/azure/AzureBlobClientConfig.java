@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.spooling.azure;
 import com.azure.storage.common.policy.RetryPolicyType;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.units.Duration;
 import jakarta.validation.constraints.NotNull;
 
@@ -28,6 +29,7 @@ public class AzureBlobClientConfig
     private Duration maxRetryDelay;
 
     @Config("spooling.azure.connection-string")
+    @ConfigSecuritySensitive
     public AzureBlobClientConfig setConnectionString(String connectionString)
     {
         this.connectionString = connectionString;
