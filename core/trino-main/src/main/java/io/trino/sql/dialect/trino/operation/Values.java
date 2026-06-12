@@ -118,7 +118,10 @@ public final class Values
 
         this.rows = ImmutableList.of();
 
-        Map<AttributeKey, Object> operationAttributes = CARDINALITY.asMap((long) rows);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        CARDINALITY.putAttribute(operationAttributesBuilder, (long) rows);
+        ROW_TYPE.putAttribute(operationAttributesBuilder, EMPTY_ROW);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
         attributes.putAll(operationAttributes);

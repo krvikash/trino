@@ -1929,6 +1929,11 @@ final class TestRelationalProgramBuilder
                 ImmutableMap.of(
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1));
+
+        assertThat(VALUES_OPERATION.operationAttributes())
+                .isEqualTo(ImmutableMap.of(
+                        new AttributeKey(TRINO, "values:cardinality"), 2L,
+                        new AttributeKey(TRINO, "values:row_type"), anonymousRow(BIGINT, BOOLEAN)));
     }
 
     @Test
@@ -1953,6 +1958,11 @@ final class TestRelationalProgramBuilder
 
         // assert symbol mapping
         assertThat(operationAndMapping.mapping()).isEqualTo(ImmutableMap.of());
+
+        assertThat(valuesOperation.operationAttributes())
+                .isEqualTo(ImmutableMap.of(
+                        new AttributeKey(TRINO, "values:cardinality"), 5L,
+                        new AttributeKey(TRINO, "values:row_type"), EMPTY_ROW));
     }
 
     @Test
