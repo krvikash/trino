@@ -340,7 +340,6 @@ public abstract class BaseCostBasedPlanTest
                     partitioning.getHandle(),
                     partitioning.getArguments().stream()
                             .map(BaseCostBasedPlanTest::argumentBindingToString)
-                            .sorted() // Currently, order of hash columns is not deterministic
                             .collect(joining(", ", "[", "]")));
 
             return visitPlan(node, indent + 1);
@@ -354,7 +353,6 @@ public abstract class BaseCostBasedPlanTest
                     node.getStep().name().toLowerCase(ENGLISH),
                     node.getGroupingKeys().stream()
                             .map(Symbol::name)
-                            .sorted()
                             .collect(joining(", ")));
 
             return visitPlan(node, indent + 1);
@@ -367,17 +365,14 @@ public abstract class BaseCostBasedPlanTest
             String unestimatableInputs = filters.getDynamicConjuncts().stream()
                     .filter(descriptor -> descriptor.getPreferredTimeout().isEmpty())
                     .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
-                    .sorted()
                     .collect(joining(", "));
             String inputs = filters.getDynamicConjuncts().stream()
                     .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() == 0)
                     .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
-                    .sorted()
                     .collect(joining(", "));
             String awaitInputs = filters.getDynamicConjuncts().stream()
                     .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() > 0)
                     .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
-                    .sorted()
                     .collect(joining(", "));
 
             if (!inputs.isEmpty() || !awaitInputs.isEmpty() || !unestimatableInputs.isEmpty()) {

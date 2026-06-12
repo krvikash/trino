@@ -2,10 +2,10 @@ local exchange (GATHER, SINGLE, [])
     remote exchange (GATHER, SINGLE, [])
         local exchange (GATHER, SINGLE, [])
             local exchange (REPARTITION, ROUND_ROBIN, [])
-                final aggregation over (i_brand, i_brand_id, i_manufact, i_manufact_id)
+                final aggregation over (i_brand, i_brand_id, i_manufact_id, i_manufact)
                     local exchange (GATHER, SINGLE, [])
-                        remote exchange (REPARTITION, HASH, [i_brand, i_brand_id, i_manufact, i_manufact_id])
-                            partial aggregation over (i_brand, i_brand_id, i_manufact, i_manufact_id)
+                        remote exchange (REPARTITION, HASH, [i_brand, i_brand_id, i_manufact_id, i_manufact])
+                            partial aggregation over (i_brand, i_brand_id, i_manufact_id, i_manufact)
                                 join (INNER, PARTITIONED):
                                     remote exchange (REPARTITION, HASH, [ca_address_sk])
                                         dynamic filter ([ca_address_sk::EQUAL])
@@ -21,7 +21,7 @@ local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPARTITION, HASH, [ss_customer_sk])
                                                             join (INNER, REPLICATED):
                                                                 join (INNER, REPLICATED):
-                                                                    dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL, ss_store_sk::EQUAL])
+                                                                    dynamic filter ([ss_item_sk::EQUAL], await [ss_store_sk::EQUAL, ss_sold_date_sk::EQUAL])
                                                                         scan store_sales
                                                                     local exchange (GATHER, SINGLE, [])
                                                                         remote exchange (REPLICATE, BROADCAST, [])

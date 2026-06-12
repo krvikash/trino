@@ -4,7 +4,7 @@ final aggregation over ()
             partial aggregation over ()
                 join (INNER, REPLICATED):
                     join (INNER, REPLICATED):
-                        dynamic filter ([Cast(ws_ext_discount_amt::decimal(7,2), decimal(9,3))::GREATER_THAN, ws_item_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
+                        dynamic filter ([ws_item_sk::EQUAL, Cast(ws_ext_discount_amt::decimal(7,2), decimal(9,3))::GREATER_THAN], await [ws_sold_date_sk::EQUAL])
                             scan web_sales
                         local exchange (GATHER, SINGLE, [])
                             remote exchange (REPLICATE, BROADCAST, [])

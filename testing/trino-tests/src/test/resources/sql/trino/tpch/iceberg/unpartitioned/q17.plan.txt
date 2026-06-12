@@ -3,7 +3,7 @@ final aggregation over ()
         remote exchange (GATHER, SINGLE, [])
             partial aggregation over ()
                 join (INNER, REPLICATED):
-                    dynamic filter ([Cast(quantity::decimal(12,2), decimal(13,3))::LESS_THAN, partkey::EQUAL])
+                    dynamic filter ([partkey::EQUAL, Cast(quantity::decimal(12,2), decimal(13,3))::LESS_THAN])
                         scan lineitem
                     local exchange (GATHER, SINGLE, [])
                         remote exchange (REPLICATE, BROADCAST, [])

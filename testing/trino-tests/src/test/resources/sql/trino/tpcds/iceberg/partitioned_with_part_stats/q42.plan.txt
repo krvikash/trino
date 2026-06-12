@@ -2,13 +2,13 @@ local exchange (GATHER, SINGLE, [])
     remote exchange (GATHER, SINGLE, [])
         local exchange (GATHER, SINGLE, [])
             local exchange (REPARTITION, ROUND_ROBIN, [])
-                final aggregation over (d_year, i_category, i_category_id)
+                final aggregation over (d_year, i_category_id, i_category)
                     local exchange (GATHER, SINGLE, [])
-                        remote exchange (REPARTITION, HASH, [d_year, i_category, i_category_id])
-                            intermediate aggregation over (d_year, i_category, i_category_id)
+                        remote exchange (REPARTITION, HASH, [d_year, i_category_id, i_category])
+                            intermediate aggregation over (d_year, i_category_id, i_category)
                                 join (INNER, REPLICATED):
                                     join (INNER, REPLICATED):
-                                        partial aggregation over (ss_item_sk, ss_sold_date_sk)
+                                        partial aggregation over (ss_sold_date_sk, ss_item_sk)
                                             dynamic filter ([ss_item_sk::EQUAL], await [ss_sold_date_sk::EQUAL])
                                                 scan store_sales
                                         local exchange (GATHER, SINGLE, [])
