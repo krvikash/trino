@@ -221,7 +221,7 @@ final class LongTimestampWithTimeZoneType
         return block.getFixed12Second(position);
     }
 
-    @ScalarOperator(READ_VALUE)
+    @ScalarOperator(value = READ_VALUE, neverFails = true)
     private static LongTimestampWithTimeZone readFlat(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -233,7 +233,7 @@ final class LongTimestampWithTimeZoneType
         return LongTimestampWithTimeZone.fromEpochMillisAndFraction(unpackMillisUtc(packedEpochMillis), picosOfMilli, unpackZoneKey(packedEpochMillis));
     }
 
-    @ScalarOperator(READ_VALUE)
+    @ScalarOperator(value = READ_VALUE, neverFails = true)
     private static void readFlatToBlock(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -246,7 +246,7 @@ final class LongTimestampWithTimeZoneType
                 (int) INT_HANDLE.get(fixedSizeSlice, fixedSizeOffset + Long.BYTES));
     }
 
-    @ScalarOperator(READ_VALUE)
+    @ScalarOperator(value = READ_VALUE, neverFails = true)
     private static void writeFlat(
             LongTimestampWithTimeZone value,
             @FlatFixed byte[] fixedSizeSlice,
@@ -258,7 +258,7 @@ final class LongTimestampWithTimeZoneType
         INT_HANDLE.set(fixedSizeSlice, fixedSizeOffset + SIZE_OF_LONG, value.getPicosOfMilli());
     }
 
-    @ScalarOperator(READ_VALUE)
+    @ScalarOperator(value = READ_VALUE, neverFails = true)
     private static void writeBlockFlat(
             @BlockPosition Fixed12Block block,
             @BlockIndex int position,
@@ -271,7 +271,7 @@ final class LongTimestampWithTimeZoneType
         INT_HANDLE.set(fixedSizeSlice, fixedSizeOffset + SIZE_OF_LONG, getPicosOfMilli(block, position));
     }
 
-    @ScalarOperator(EQUAL)
+    @ScalarOperator(value = EQUAL, neverFails = true)
     private static boolean equalOperator(LongTimestampWithTimeZone left, LongTimestampWithTimeZone right)
     {
         return equal(
@@ -281,7 +281,7 @@ final class LongTimestampWithTimeZoneType
                 right.getPicosOfMilli());
     }
 
-    @ScalarOperator(EQUAL)
+    @ScalarOperator(value = EQUAL, neverFails = true)
     private static boolean equalOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return equal(
@@ -291,7 +291,7 @@ final class LongTimestampWithTimeZoneType
                 getPicosOfMilli(rightBlock, rightPosition));
     }
 
-    @ScalarOperator(EQUAL)
+    @ScalarOperator(value = EQUAL, neverFails = true)
     private static boolean equalOperator(
             @FlatFixed byte[] leftFixedSizeSlice,
             @FlatFixedOffset int leftFixedSizeOffset,
@@ -313,13 +313,13 @@ final class LongTimestampWithTimeZoneType
                 leftPicosOfMilli == rightPicosOfMilli;
     }
 
-    @ScalarOperator(XX_HASH_64)
+    @ScalarOperator(value = XX_HASH_64, neverFails = true)
     private static long xxHash64Operator(LongTimestampWithTimeZone value)
     {
         return xxHash64(value.getEpochMillis(), value.getPicosOfMilli());
     }
 
-    @ScalarOperator(XX_HASH_64)
+    @ScalarOperator(value = XX_HASH_64, neverFails = true)
     private static long xxHash64Operator(@BlockPosition Fixed12Block block, @BlockIndex int position)
     {
         return xxHash64(
@@ -327,7 +327,7 @@ final class LongTimestampWithTimeZoneType
                 getPicosOfMilli(block, position));
     }
 
-    @ScalarOperator(XX_HASH_64)
+    @ScalarOperator(value = XX_HASH_64, neverFails = true)
     private static long xxHash64Operator(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -344,13 +344,13 @@ final class LongTimestampWithTimeZoneType
         return XxHash64.hash(epochMillis) ^ XxHash64.hash(picosOfMilli);
     }
 
-    @ScalarOperator(COMPARISON_UNORDERED_LAST)
+    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
     private static long comparisonOperator(LongTimestampWithTimeZone left, LongTimestampWithTimeZone right)
     {
         return comparison(left.getEpochMillis(), left.getPicosOfMilli(), right.getEpochMillis(), right.getPicosOfMilli());
     }
 
-    @ScalarOperator(COMPARISON_UNORDERED_LAST)
+    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
     private static long comparisonOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return comparison(
@@ -369,13 +369,13 @@ final class LongTimestampWithTimeZoneType
         return Integer.compare(leftPicosOfMilli, rightPicosOfMilli);
     }
 
-    @ScalarOperator(LESS_THAN)
+    @ScalarOperator(value = LESS_THAN, neverFails = true)
     private static boolean lessThanOperator(LongTimestampWithTimeZone left, LongTimestampWithTimeZone right)
     {
         return lessThan(left.getEpochMillis(), left.getPicosOfMilli(), right.getEpochMillis(), right.getPicosOfMilli());
     }
 
-    @ScalarOperator(LESS_THAN)
+    @ScalarOperator(value = LESS_THAN, neverFails = true)
     private static boolean lessThanOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return lessThan(
@@ -391,13 +391,13 @@ final class LongTimestampWithTimeZoneType
                 ((leftEpochMillis == rightEpochMillis) && (leftPicosOfMilli < rightPicosOfMilli));
     }
 
-    @ScalarOperator(LESS_THAN_OR_EQUAL)
+    @ScalarOperator(value = LESS_THAN_OR_EQUAL, neverFails = true)
     private static boolean lessThanOrEqualOperator(LongTimestampWithTimeZone left, LongTimestampWithTimeZone right)
     {
         return lessThanOrEqual(left.getEpochMillis(), left.getPicosOfMilli(), right.getEpochMillis(), right.getPicosOfMilli());
     }
 
-    @ScalarOperator(LESS_THAN_OR_EQUAL)
+    @ScalarOperator(value = LESS_THAN_OR_EQUAL, neverFails = true)
     private static boolean lessThanOrEqualOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return lessThanOrEqual(
