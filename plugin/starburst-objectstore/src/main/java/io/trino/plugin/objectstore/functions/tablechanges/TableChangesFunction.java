@@ -75,7 +75,8 @@ public class TableChangesFunction
                         ScalarArgumentSpecification.builder().name(SINCE_VERSION_ARGUMENT).type(BIGINT).defaultValue(null).build(),
                         ScalarArgumentSpecification.builder().name(START_SNAPSHOT_VAR_NAME).type(BIGINT).defaultValue(null).build(),
                         ScalarArgumentSpecification.builder().name(END_SNAPSHOT_VAR_NAME).type(BIGINT).defaultValue(null).build()),
-                GENERIC_TABLE);
+                GENERIC_TABLE,
+                "");
         this.icebergConnector = requireNonNull(icebergConnector, "icebergConnector is null");
         this.deltaConnector = requireNonNull(deltaConnector, "deltaConnector is null");
         this.deltaTableChanges = deltaConnector

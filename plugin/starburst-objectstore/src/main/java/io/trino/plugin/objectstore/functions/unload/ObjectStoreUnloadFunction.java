@@ -86,7 +86,8 @@ public class ObjectStoreUnloadFunction
                                 .type(VARCHAR)
                                 .defaultValue(utf8Slice("CHECK"))
                                 .build()),
-                new ReturnTypeSpecification.DescribedTable(descriptor(ImmutableList.of("path", "count"), ImmutableList.of(VARCHAR, BIGINT))));
+                new ReturnTypeSpecification.DescribedTable(descriptor(ImmutableList.of("path", "count"), ImmutableList.of(VARCHAR, BIGINT))),
+                "");
         this.unload = hiveConnector
                 .getTableFunctions().stream()
                 .filter(connectorTableFunction -> connectorTableFunction.getName().equals("unload"))
