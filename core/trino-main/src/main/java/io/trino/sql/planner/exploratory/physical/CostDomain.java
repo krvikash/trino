@@ -82,6 +82,11 @@ public interface CostDomain<C extends Cost>
      * when comparison returns {@code BETTER}, {@code WORSE}, or
      * {@code INCOMPARABLE}. It need not be transitive and does not add ordering
      * relationships to the partial order.
+     * <p>
+     * The optimizer may suppress propagation of a cost change when the old and
+     * new costs are in the same tier. Implementations must therefore return
+     * {@code true} only when treating the costs as interchangeable cannot
+     * materially affect dependent costing or plan selection.
      */
     boolean sameTier(C left, C right);
 }
