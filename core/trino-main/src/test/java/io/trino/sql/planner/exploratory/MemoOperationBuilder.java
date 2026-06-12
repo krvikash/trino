@@ -13,9 +13,6 @@
  */
 package io.trino.sql.planner.exploratory;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import io.trino.sql.dialect.ir.IrDialect;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -24,36 +21,8 @@ import io.trino.sql.newir.Type;
 import java.util.List;
 import java.util.Set;
 
-import static io.trino.sql.dialect.ir.IrDialect.IR;
-import static io.trino.sql.planner.exploratory.MemoOperation.ParameterLineage.identityRecursive;
-
 public class MemoOperationBuilder
 {
-    public static final String TEST_DIALECT_NAME = "test_dialect";
-    public static final AttributeKey TEST_DERIVED_ATTRIBUTE_KEY = new AttributeKey(TEST_DIALECT_NAME, "derived_attribute_key");
-    public static final AttributeKey TEST_OPERATION_ATTRIBUTE_KEY = new AttributeKey(TEST_DIALECT_NAME, "operation_attribute_key");
-    public static final Type TEST_TYPE = new Type(TEST_DIALECT_NAME, new Object());
-    public static final String TEST_OPERATION_NAME = "test_operation";
-    public static final int TEST_CHILD_GROUP_ID = 42;
-    public static final Object TEST_OPERATION_ATTRIBUTE_OBJECT = new Object();
-    public static final Object TEST_DERIVED_ATTRIBUTE_OBJECT = new Object();
-    public static final MemoOperation TEST_MEMO_OPERATION = new MemoOperation(
-            TEST_DIALECT_NAME,
-            new Operation.OperationId(
-                    TEST_OPERATION_NAME,
-                    ImmutableList.of(TEST_TYPE),
-                    ImmutableList.of(new Type(IR, new IrDialect.FunctionType(ImmutableList.of(TEST_TYPE, TEST_TYPE), TEST_TYPE)))),
-            TEST_TYPE,
-            ImmutableList.of(TEST_TYPE, TEST_TYPE),
-            ImmutableList.of(
-                    new MemoOperation.ParameterChild(1),
-                    new MemoOperation.GroupChild(TEST_CHILD_GROUP_ID, identityRecursive(2, 0, 2))),
-            Attributes.builder()
-                    .putUnchecked(TEST_OPERATION_ATTRIBUTE_KEY, TEST_OPERATION_ATTRIBUTE_OBJECT)
-                    .putUnchecked(TEST_DERIVED_ATTRIBUTE_KEY, TEST_DERIVED_ATTRIBUTE_OBJECT)
-                    .buildOrThrow(),
-            ImmutableSet.of(TEST_OPERATION_ATTRIBUTE_KEY));
-
     private String dialect;
     private Operation.OperationId operationId;
     private Type resultType;

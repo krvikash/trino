@@ -24,14 +24,14 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_CHILD_GROUP_ID;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_DERIVED_ATTRIBUTE_KEY;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_DERIVED_ATTRIBUTE_OBJECT;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_DIALECT_NAME;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_MEMO_OPERATION;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_OPERATION_ATTRIBUTE_KEY;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_OPERATION_ATTRIBUTE_OBJECT;
-import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_TYPE;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_CHILD_GROUP_ID;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_DERIVED_ATTRIBUTE_KEY;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_DERIVED_ATTRIBUTE_OBJECT;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_DIALECT_NAME;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_MEMO_OPERATION;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_OPERATION_ATTRIBUTE_KEY;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_OPERATION_ATTRIBUTE_OBJECT;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_TYPE;
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.attributes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
