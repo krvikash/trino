@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import io.trino.sql.newir.DialectRegistry;
 import io.trino.sql.newir.Program;
 import io.trino.sql.planner.exploratory.MemoOperation.GroupChild;
+import io.trino.sql.planner.exploratory.rule.Context;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -131,6 +132,29 @@ public class Memo
     Map<Integer, MemoGroup> groups()
     {
         return ImmutableMap.copyOf(groups);
+    }
+
+    public DialectRegistry dialectRegistry()
+    {
+        return dialectRegistry;
+    }
+
+    public Context getRuleContext()
+    {
+        return new Context()
+        {
+            @Override
+            public MemoGroup getGroup(int groupId)
+            {
+                return Memo.this.getGroup(groupId);
+            }
+
+            @Override
+            public DialectRegistry getDialectRegistry()
+            {
+                return dialectRegistry();
+            }
+        };
     }
 
     /**
