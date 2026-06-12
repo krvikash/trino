@@ -98,6 +98,7 @@ public class BigQueryConnectorModule
             binder.bind(BigQuerySplitManager.class).in(Scopes.SINGLETON);
             binder.bind(BigQueryPageSourceProvider.class).in(Scopes.SINGLETON);
             binder.bind(BigQueryPageSinkProvider.class).in(Scopes.SINGLETON);
+            binder.bind(BigQueryTableProperties.class).in(Scopes.SINGLETON);
             binder.bind(ViewMaterializationCache.class).in(Scopes.SINGLETON);
             configBinder(binder).bindConfig(BigQueryConfig.class);
             configBinder(binder).bindConfig(BigQueryRpcConfig.class);

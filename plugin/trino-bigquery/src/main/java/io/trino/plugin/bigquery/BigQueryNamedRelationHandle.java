@@ -29,6 +29,7 @@ public class BigQueryNamedRelationHandle
     private final SchemaTableName schemaTableName;
     private final RemoteTableName remoteTableName;
     private final String type;
+    private final Optional<String> partitionColumn;
     private final Optional<BigQueryPartitionType> partitionType;
     private final Optional<String> comment;
     private final boolean useStorageApi;
@@ -38,6 +39,7 @@ public class BigQueryNamedRelationHandle
             @JsonProperty("schemaTableName") SchemaTableName schemaTableName,
             @JsonProperty("remoteTableName") RemoteTableName remoteTableName,
             @JsonProperty("type") String type,
+            @JsonProperty("partitionColumn") Optional<String> partitionColumn,
             @JsonProperty("partitionType") Optional<BigQueryPartitionType> partitionType,
             @JsonProperty("comment") Optional<String> comment,
             @JsonProperty("useStorageApi") boolean useStorageApi)
@@ -45,6 +47,7 @@ public class BigQueryNamedRelationHandle
         this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
         this.remoteTableName = requireNonNull(remoteTableName, "remoteTableName is null");
         this.type = requireNonNull(type, "type is null");
+        this.partitionColumn = requireNonNull(partitionColumn, "partitionColumn is null");
         this.partitionType = requireNonNull(partitionType, "partitionType is null");
         this.comment = requireNonNull(comment, "comment is null");
         this.useStorageApi = useStorageApi;
@@ -66,6 +69,12 @@ public class BigQueryNamedRelationHandle
     public String getType()
     {
         return type;
+    }
+
+    @JsonProperty
+    public Optional<String> getPartitionColumn()
+    {
+        return partitionColumn;
     }
 
     @JsonProperty
@@ -101,6 +110,7 @@ public class BigQueryNamedRelationHandle
         // TODO: Add tests for this (see TestJdbcTableHandle#testEquivalence for reference)
         return Objects.equals(schemaTableName, that.schemaTableName) &&
                 Objects.equals(type, that.type) &&
+                Objects.equals(partitionColumn, that.partitionColumn) &&
                 Objects.equals(partitionType, that.partitionType) &&
                 Objects.equals(comment, that.comment);
     }
@@ -108,7 +118,7 @@ public class BigQueryNamedRelationHandle
     @Override
     public int hashCode()
     {
-        return Objects.hash(schemaTableName, type, partitionType, comment);
+        return Objects.hash(schemaTableName, type, partitionColumn, partitionType, comment);
     }
 
     @Override

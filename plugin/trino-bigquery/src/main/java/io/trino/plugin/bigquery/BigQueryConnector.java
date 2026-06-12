@@ -44,6 +44,7 @@ public class BigQueryConnector
     private final BigQuerySplitManager splitManager;
     private final BigQueryPageSourceProvider pageSourceProvider;
     private final BigQueryPageSinkProvider pageSinkProvider;
+    private final BigQueryTableProperties tableProperties;
     private final Set<ConnectorTableFunction> connectorTableFunctions;
     private final Set<Procedure> procedures;
     private final List<PropertyMetadata<?>> sessionProperties;
@@ -55,6 +56,7 @@ public class BigQueryConnector
             BigQuerySplitManager splitManager,
             BigQueryPageSourceProvider pageSourceProvider,
             BigQueryPageSinkProvider pageSinkProvider,
+            BigQueryTableProperties tableProperties,
             Set<ConnectorTableFunction> connectorTableFunctions,
             Set<Procedure> procedures,
             Set<SessionPropertiesProvider> sessionPropertiesProviders)
@@ -64,6 +66,7 @@ public class BigQueryConnector
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
+        this.tableProperties = requireNonNull(tableProperties, "tableProperties is null");
         this.connectorTableFunctions = requireNonNull(connectorTableFunctions, "connectorTableFunctions is null");
         this.procedures = ImmutableSet.copyOf(requireNonNull(procedures, "procedures is null"));
         this.sessionProperties = sessionPropertiesProviders.stream()
@@ -111,6 +114,12 @@ public class BigQueryConnector
     public ConnectorPageSinkProvider getPageSinkProvider()
     {
         return pageSinkProvider;
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getTableProperties()
+    {
+        return tableProperties.getTableProperties();
     }
 
     @Override

@@ -22,10 +22,12 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.bigquery.ViewDefinition;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
@@ -126,6 +128,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.google.common.util.concurrent.Futures.allAsList;
 import static io.trino.plugin.base.TemporaryTables.generateTemporaryTableName;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
@@ -141,10 +144,14 @@ import static io.trino.plugin.bigquery.BigQuerySessionProperties.isProjectionPus
 import static io.trino.plugin.bigquery.BigQuerySessionProperties.isSkipViewMaterialization;
 import static io.trino.plugin.bigquery.BigQueryTableHandle.BigQueryPartitionType.INGESTION;
 import static io.trino.plugin.bigquery.BigQueryTableHandle.getPartitionType;
+import static io.trino.plugin.bigquery.BigQueryTableProperties.PARTITIONED_BY_PROPERTY;
+import static io.trino.plugin.bigquery.BigQueryTableProperties.getPartitionColumn;
+import static io.trino.plugin.bigquery.BigQueryTableProperties.getPartitionedBy;
 import static io.trino.plugin.bigquery.BigQueryUtil.isWildcardTable;
 import static io.trino.plugin.bigquery.BigQueryUtil.quote;
 import static io.trino.plugin.bigquery.BigQueryUtil.quoted;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.SaveMode.IGNORE;
 import static io.trino.spi.connector.SaveMode.REPLACE;
@@ -346,6 +353,7 @@ public class BigQueryMetadata
                 schemaTableName,
                 new RemoteTableName(tableInfo.get().getTableId()),
                 tableInfo.get().getDefinition().getType().toString(),
+                getPartitionColumn(tableInfo.get().getDefinition()),
                 partitionType,
                 Optional.ofNullable(tableInfo.get().getDescription()),
                 useStorageApi),
@@ -406,7 +414,14 @@ public class BigQueryMetadata
         List<ColumnMetadata> columns = client.getColumns(handle).stream()
                 .map(BigQueryColumnHandle::getColumnMetadata)
                 .collect(toImmutableList());
-        return new ConnectorTableMetadata(getSchemaTableName(handle), columns, ImmutableMap.of(), getTableComment(handle));
+
+        ImmutableMap.Builder<String, Object> properties = ImmutableMap.builder();
+        if (handle.isNamedRelation()) {
+            handle.asPlainTable().getPartitionColumn()
+                    .ifPresent(column -> properties.put(PARTITIONED_BY_PROPERTY, column));
+        }
+
+        return new ConnectorTableMetadata(getSchemaTableName(handle), columns, properties.buildOrThrow(), getTableComment(handle));
     }
 
     @Override
@@ -599,13 +614,13 @@ public class BigQueryMetadata
             }
         });
 
-        TableId tableId = createTable(client, localDatasetId.getProject(), remoteSchemaName, tableName, fields.build(), tableMetadata.getComment());
+        TableId tableId = createTable(client, localDatasetId.getProject(), remoteSchemaName, tableName, fields.build(), tableMetadata.getComment(), tableMetadata.getProperties());
         closer.register(() -> bigQueryClientFactory.create(session).dropTable(tableId));
 
         Optional<String> temporaryTableName = pageSinkIdColumn.map(column -> {
             tempFields.add(typeManager.toField(column.getName(), column.getType(), column.getComment()));
             String tempTableName = generateTemporaryTableName(session);
-            TableId tempTableId = createTable(client, localDatasetId.getProject(), remoteSchemaName, tempTableName, tempFields.build(), tableMetadata.getComment());
+            TableId tempTableId = createTable(client, localDatasetId.getProject(), remoteSchemaName, tempTableName, tempFields.build(), tableMetadata.getComment(), tableMetadata.getProperties());
             closer.register(() -> bigQueryClientFactory.create(session).dropTable(tempTableId));
             return tempTableName;
         });
@@ -618,11 +633,33 @@ public class BigQueryMetadata
                 pageSinkIdColumn.map(ColumnMetadata::getName));
     }
 
-    private TableId createTable(BigQueryClient client, String projectId, String datasetName, String tableName, List<Field> fields, Optional<String> tableComment)
+    private TableId createTable(
+            BigQueryClient client,
+            String projectId,
+            String datasetName,
+            String tableName,
+            List<Field> fields,
+            Optional<String> tableComment,
+            Map<String, Object> properties)
     {
         TableId tableId = TableId.of(projectId, datasetName, tableName);
-        TableDefinition tableDefinition = StandardTableDefinition.of(Schema.of(fields));
-        TableInfo.Builder tableInfo = TableInfo.newBuilder(tableId, tableDefinition);
+        StandardTableDefinition.Builder definition = StandardTableDefinition.newBuilder().setSchema(Schema.of(fields));
+        getPartitionedBy(properties).ifPresent(partitionedBy -> {
+            // TODO Add support for range partitioning, and more time partitioning types such as HOUR, MONTH, YEAR
+            Optional<Field> partitionField = fields.stream()
+                    .filter(field -> field.getName().equals(partitionedBy))
+                    .collect(toOptional());
+            if (partitionField.isEmpty()) {
+                throw new TrinoException(INVALID_TABLE_PROPERTY, "Partition column '%s' not found".formatted(partitionedBy));
+            }
+            StandardSQLTypeName type = partitionField.get().getType().getStandardType();
+            if (!Set.of(StandardSQLTypeName.DATE, StandardSQLTypeName.DATETIME, StandardSQLTypeName.TIMESTAMP).contains(type)) {
+                throw new TrinoException(NOT_SUPPORTED, "Unsupported partition type: " + type);
+            }
+
+            definition.setTimePartitioning(TimePartitioning.newBuilder(TimePartitioning.Type.DAY).setField(partitionedBy).build());
+        });
+        TableInfo.Builder tableInfo = TableInfo.newBuilder(tableId, definition.build());
         tableComment.ifPresent(tableInfo::setDescription);
 
         client.createTable(tableInfo.build());
@@ -727,7 +764,8 @@ public class BigQueryMetadata
         String schemaName = table.asPlainTable().getRemoteTableName().datasetName();
 
         String temporaryTableName = generateTemporaryTableName(session);
-        TableId temporaryTableId = createTable(client, projectId, schemaName, temporaryTableName, tempFields.build(), Optional.empty());
+        // TODO Investigate if partitioning temporary tables improves performance
+        TableId temporaryTableId = createTable(client, projectId, schemaName, temporaryTableName, tempFields.build(), Optional.empty(), ImmutableMap.of());
         setRollback(() -> bigQueryClientFactory.create(session).dropTable(temporaryTableId));
 
         return new BigQueryInsertTableHandle(
@@ -756,7 +794,7 @@ public class BigQueryMetadata
                     targetTable.projectId(),
                     targetTable.datasetName(),
                     generateTemporaryTableName(session));
-            createTable(client, pageSinkTable.projectId(), pageSinkTable.datasetName(), pageSinkTable.tableName(), ImmutableList.of(typeManager.toField(pageSinkIdColumnName, TRINO_PAGE_SINK_ID_COLUMN_TYPE, Optional.empty())), Optional.empty());
+            createTable(client, pageSinkTable.projectId(), pageSinkTable.datasetName(), pageSinkTable.tableName(), ImmutableList.of(typeManager.toField(pageSinkIdColumnName, TRINO_PAGE_SINK_ID_COLUMN_TYPE, Optional.empty())), Optional.empty(), ImmutableMap.of());
             closer.register(() -> bigQueryClientFactory.create(session).dropTable(pageSinkTable.toTableId()));
 
             insertIntoSinkTable(session, pageSinkTable, pageSinkIdColumnName, fragments);

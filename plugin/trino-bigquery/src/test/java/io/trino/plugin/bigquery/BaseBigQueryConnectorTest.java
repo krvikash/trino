@@ -468,6 +468,10 @@ public abstract class BaseBigQueryConnectorTest
 
             // Verify DESCRIBE result doesn't have hidden columns
             assertThat(query("DESCRIBE " + table.getName())).result().projected("Column").skippingTypesCheck().matches("VALUES 'value'");
+
+            // TODO Update this test once the connector supports creating ingestion-time partitioned tables
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .doesNotContain("partitioned_by");
         }
     }
 
@@ -487,6 +491,10 @@ public abstract class BaseBigQueryConnectorTest
 
             // Verify DESCRIBE result doesn't have hidden columns
             assertThat(query("DESCRIBE " + table.getName())).result().projected("Column").skippingTypesCheck().matches("VALUES 'value'");
+
+            // TODO Update this test once the connector supports creating ingestion-time partitioned tables
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .doesNotContain("partitioned_by");
         }
     }
 
@@ -1564,6 +1572,46 @@ public abstract class BaseBigQueryConnectorTest
     public void testSelectInformationSchemaColumns()
     {
         // TODO https://github.com/trinodb/trino/issues/20178 Enable this test after fixing the timeout issue
+    }
+
+    @Test
+    public void testPartitionedByDate()
+    {
+        try (TestTable table = newTrinoTable("test_partitioned_by_date", "(id INT, part DATE) WITH (partitioned_by = 'part')")) {
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("partitioned_by = 'part'");
+        }
+    }
+
+    @Test
+    public void testPartitionedByTimestamp()
+    {
+        try (TestTable table = newTrinoTable("test_partitioned_by_timestamp", "(id INT, part TIMESTAMP(6)) WITH (partitioned_by = 'part')")) {
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("partitioned_by = 'part'");
+        }
+    }
+
+    @Test
+    public void testPartitionedByTimestampWithTimeZone()
+    {
+        try (TestTable table = newTrinoTable("test_partitioned_by_timestamp", "(id INT, part TIMESTAMP(6) WITH TIME ZONE) WITH (partitioned_by = 'part')")) {
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("partitioned_by = 'part'");
+        }
+    }
+
+    @Test
+    public void testInvalidPartitionedBy()
+    {
+        String tableName = "test_invalid_partitioned_" + randomNameSuffix();
+        assertQueryFails("CREATE TABLE " + tableName + "(id INT, part DATE) WITH (partitioned_by = 'missing')", "Partition column 'missing' not found");
+        assertQueryFails("CREATE TABLE " + tableName + "(id INT, part ROW(nested INT)) WITH (partitioned_by = 'part.nested')", "Partition column 'part.nested' not found");
+        assertQueryFails("CREATE TABLE " + tableName + "(id INT, part ROW(nested INT)) WITH (partitioned_by = '\"part.nested\"')", "Partition column '\"part.nested\"' not found");
+
+        assertQueryFails("CREATE TABLE " + tableName + "(id INT, part INT) WITH (partitioned_by = 'part')", "Unsupported partition type: INT64");
+
+        assertQueryFails("CREATE TABLE " + tableName + "(id INT, part INT) WITH (partitioned_by = ARRAY['part'])", ".* \\QCannot convert [ARRAY['part']] to varchar");
     }
 
     @Override
