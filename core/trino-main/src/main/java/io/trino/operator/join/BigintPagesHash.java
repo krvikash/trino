@@ -28,6 +28,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.slice.SizeOf.instanceSize;
@@ -72,8 +73,11 @@ public final class BigintPagesHash
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         requireNonNull(pages, "pages is null");
         IntArrayList positionCounts = new IntArrayList(pages.size());
+        int maxPagePositions = 0;
         for (Page page : pages) {
-            positionCounts.add(page.getPositionCount());
+            int pagePositions = page.getPositionCount();
+            positionCounts.add(pagePositions);
+            maxPagePositions = Math.max(maxPagePositions, pagePositions);
         }
         blockPositionIndex = new BlockPositionIndex(positionCounts);
 
@@ -86,15 +90,22 @@ public final class BigintPagesHash
         Arrays.fill(keys, -1);
 
         // (block, position) come from the page structure.
+        // Per page the non-null positions are pulled out first; the all-non-null case runs the full range
+        // branch-free, otherwise only the non-null positions are processed.
+        int[] hashPositions = new int[maxPagePositions];
+        Block[] nullableBlocks = new Block[1];
         int offset = 0;
         for (Page page : pages) {
             Block block = page.getBlock(joinChannel);
             int pagePositions = page.getPositionCount();
-            for (int position = 0; position < pagePositions; position++) {
-                if (!block.isNull(position)) {
-                    long value = BIGINT.getLong(block, position);
-                    insertValue(positionLinks, offset + position, value, getHashPosition(value, mask));
-                }
+            int nullableCount = block.mayHaveNull() ? 1 : 0;
+            nullableBlocks[0] = block;
+            Optional<int[]> nonNullPositions = NullablePositions.getNonNullPositions(nullableBlocks, nullableCount, pagePositions);
+            if (nonNullPositions.isEmpty()) {
+                indexRange(positionLinks, block, offset, pagePositions, hashPositions);
+            }
+            else {
+                indexPositions(positionLinks, block, offset, nonNullPositions.get(), hashPositions);
             }
             offset += pagePositions;
         }
@@ -103,8 +114,36 @@ public final class BigintPagesHash
                 sizeOf(keys) + sizeOf(values) + blockPositionIndex.getRetainedSizeInBytes();
     }
 
-    private void insertValue(PositionLinks.FactoryBuilder positionLinks, int addressIndex, long value, int pos)
+    // A batched pass materializes values and starting hash buckets (sequential, no hash-table access), then a
+    // separate pass inserts so probe stalls are not serialized behind hash computation.
+    private void indexRange(PositionLinks.FactoryBuilder positionLinks, Block block, int offset, int pagePositions, int[] hashPositions)
     {
+        for (int position = 0; position < pagePositions; position++) {
+            long value = BIGINT.getLong(block, position);
+            values[offset + position] = value;
+            hashPositions[position] = getHashPosition(value, mask);
+        }
+        for (int position = 0; position < pagePositions; position++) {
+            insertValue(positionLinks, offset + position, hashPositions[position]);
+        }
+    }
+
+    private void indexPositions(PositionLinks.FactoryBuilder positionLinks, Block block, int offset, int[] positions, int[] hashPositions)
+    {
+        for (int position : positions) {
+            long value = BIGINT.getLong(block, position);
+            values[offset + position] = value;
+            hashPositions[position] = getHashPosition(value, mask);
+        }
+        for (int position : positions) {
+            insertValue(positionLinks, offset + position, hashPositions[position]);
+        }
+    }
+
+    private void insertValue(PositionLinks.FactoryBuilder positionLinks, int addressIndex, int pos)
+    {
+        // value already materialized by the batched pass
+        long value = values[addressIndex];
         // look for an empty slot or a slot containing this key
         while (keys[pos] != -1) {
             int currentKey = keys[pos];
@@ -121,7 +160,6 @@ public final class BigintPagesHash
         }
 
         keys[pos] = addressIndex;
-        values[addressIndex] = value;
     }
 
     @Override
