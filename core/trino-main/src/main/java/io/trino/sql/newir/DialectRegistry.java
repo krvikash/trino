@@ -13,11 +13,13 @@
  */
 package io.trino.sql.newir;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.TrinoDialect;
 
+import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -51,5 +53,10 @@ public class DialectRegistry
         }
 
         return dialect;
+    }
+
+    public List<Dialect> dialects()
+    {
+        return ImmutableList.copyOf(dialects.values());
     }
 }
