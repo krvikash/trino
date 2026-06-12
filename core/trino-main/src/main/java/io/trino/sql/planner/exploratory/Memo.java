@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -163,6 +164,7 @@ public class Memo
      * All references to component groups are updated to reference the merged group.
      * If some operations in Memo become equivalent after this update, their groups are merged recursively.
      * Returns the resulting merged group id, being the id of the first group.
+     * The method is cycle-proof.
      */
     int mergeGroups(int firstGroupId, int secondGroupId, MemoChangesCollector changesCollector)
     {
@@ -174,7 +176,7 @@ public class Memo
         while (!operationsToUpdate.isEmpty()) {
             MemoOperation operationToUpdate = operationsToUpdate.poll();
             // get the recent version of the operation.
-            // due to the DAG structure of Memo, some operations may be enqueued for update multiple times if they reference multiple merged groups.
+            // due to the non-tree structure of Memo, some operations may be enqueued for update multiple times if they reference multiple merged groups.
             // when the operation is dequeued for update, we must make sure that we use the most recent version of the operation
             // (the most recent version is present in Memo) even though the enqueued operation may be an older version.
             operationToUpdate = getRecentVersion(operationToUpdate);
@@ -220,11 +222,6 @@ public class Memo
         if (firstGroupId == secondGroupId) {
             return firstGroupId;
         }
-        // TODO Remove this temporary guard when Memo merge and traversal become cycle-safe.
-        // It is expensive: it walks the reachable Memo graph and runs for every merge, including recursive merges.
-        checkArgument(
-                !achievableFrom(firstGroupId, secondGroupId, new HashSet<>()) && !achievableFrom(secondGroupId, firstGroupId, new HashSet<>()),
-                "Merging groups would create a cycle");
 
         changesCollector.recordGroupMerge(firstGroupId, secondGroupId);
 
@@ -252,14 +249,27 @@ public class Memo
 
         // update groupToParents mapping for the merged groups and their child groups
         groupToParents.get(firstGroupId).addAll(groupToParents.get(secondGroupId));
+        // in a cyclic memo, either of the merged groups might have secondGroupId as parent
+        // remap those stale references into firstGroupId
+        if (groupToParents.get(firstGroupId).contains(secondGroupId)) {
+            groupToParents.put(firstGroupId, firstGroupId);
+            groupToParents.remove(firstGroupId, secondGroupId);
+        }
         groupToParents.removeAll(secondGroupId);
         firstGroup.getChildGroups()
                 .forEach(childGroupId -> {
+                    // in a cyclic memo, child reference might point back to the same group
+                    // references to secondGroupId are stale and should be translated to firstGroupId
+                    if (childGroupId.equals(secondGroupId)) {
+                        childGroupId = firstGroupId;
+                    }
                     groupToParents.put(childGroupId, firstGroupId);
                     groupToParents.remove(childGroupId, secondGroupId);
                 });
 
         // identify and enqueue operations that need to be updated
+        // in a cyclic memo, parents of firstGroupId might include the same group
+        // in such a case, we will correctly enqueue the current group's operations for update
         groupToParents.get(firstGroupId).stream()
                 .map(groups::get)
                 .flatMap(group -> group.operations().stream())
@@ -268,26 +278,6 @@ public class Memo
                 .forEach(operationsToUpdate::add);
 
         return firstGroupId;
-    }
-
-    private boolean achievableFrom(int sourceGroupId, int searchedGroupId, Set<Integer> visitedGroups)
-    {
-        int recentSourceGroupId = getRecentId(sourceGroupId);
-        int recentSearchedGroupId = getRecentId(searchedGroupId);
-        if (recentSourceGroupId == recentSearchedGroupId) {
-            return true;
-        }
-        if (!visitedGroups.add(recentSourceGroupId)) {
-            return false;
-        }
-
-        MemoGroup sourceGroup = groups.get(recentSourceGroupId);
-        if (sourceGroup == null) {
-            return false;
-        }
-
-        return sourceGroup.getChildGroups().stream()
-                .anyMatch(childGroupId -> achievableFrom(childGroupId, recentSearchedGroupId, visitedGroups));
     }
 
     MemoOperation updateChildren(MemoOperation operation)
@@ -351,7 +341,7 @@ public class Memo
 
     void pruneOrphanedGroups(MemoChangesCollector changesCollector)
     {
-        Set<Integer> referencedGroups = ImmutableSet.copyOf(reverseTopologicalOrder());
+        Set<Integer> referencedGroups = ImmutableSet.copyOf(reachablePostOrder());
         groups.forEach((groupId, group) -> {
             if (!referencedGroups.contains(groupId)) {
                 changesCollector.recordGroupPrune(groupId, group.operations());
@@ -374,28 +364,29 @@ public class Memo
     }
 
     /**
-     * List all groups in memo in topological order without duplicates.
-     * A child group should appear after all references to it.
+     * List all reachable groups in memo in reverse post-order without duplicates,
+     * resulting either from diamond shape or from cycles.
      * Child groups are listed in order of reference.
      */
-    public List<Integer> topologicalOrder()
+    public List<Integer> reachableReversePostOrder()
     {
-        return ((ImmutableList<Integer>) reverseTopologicalOrder()).reverse();
+        return ((ImmutableList<Integer>) reachablePostOrder()).reverse();
     }
 
-    public List<Integer> reverseTopologicalOrder()
+    public List<Integer> reachablePostOrder()
     {
         ImmutableList.Builder<Integer> builder = ImmutableList.builder();
-        getAllGroupsDeduplicated(builder, new HashSet<>(), rootGroup());
+        getReachableGroupsDeduplicated(builder, new HashSet<>(), new HashSet<>(), rootGroup());
         return builder.build();
     }
 
-    private void getAllGroupsDeduplicated(ImmutableList.Builder<Integer> builder, Set<Integer> visitedGroups, int groupId)
+    private void getReachableGroupsDeduplicated(ImmutableList.Builder<Integer> builder, Set<Integer> visitedGroups, Set<Integer> activeGroups, int groupId)
     {
-        if (visitedGroups.contains(groupId)) {
+        if (visitedGroups.contains(groupId) || activeGroups.contains(groupId)) {
             return;
         }
 
+        activeGroups.add(groupId);
         List<Integer> childGroupIds = groups.get(groupId).operations().stream()
                 .map(MemoOperation::children)
                 .flatMap(List::stream)
@@ -405,11 +396,65 @@ public class Memo
                 .collect(toImmutableList());
 
         for (int childGroupId : childGroupIds.reversed()) {
-            getAllGroupsDeduplicated(builder, visitedGroups, childGroupId);
+            getReachableGroupsDeduplicated(builder, visitedGroups, activeGroups, childGroupId);
         }
 
+        activeGroups.remove(groupId);
         builder.add(groupId);
         visitedGroups.add(groupId);
+    }
+
+    /**
+     * List all groups in memo: reachable groups first (in reverse post-order, root first),
+     * then all orphaned (unreachable) groups. Orphaned groups are traversed as a DFS forest -
+     * each subgraph is entered from a group with no parent within the orphaned set (a subgraph
+     * "root") when one exists, falling back to the remaining groups (e.g. purely cyclic
+     * subgraphs, which have no root) in group-id order. Every group appears exactly once.
+     */
+    public List<Integer> fullReversePostOrder()
+    {
+        List<Integer> reachable = reachableReversePostOrder();
+        return ImmutableList.<Integer>builder()
+                .addAll(reachable)
+                .addAll(orphanedReversePostOrder(ImmutableSet.copyOf(reachable)))
+                .build();
+    }
+
+    private List<Integer> orphanedReversePostOrder(Set<Integer> reachable)
+    {
+        Set<Integer> orphaned = new HashSet<>(groups.keySet());
+        orphaned.removeAll(reachable);
+        if (orphaned.isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        // Prefer subgraph roots (no parent within the orphaned set) first, then the rest
+        // (e.g. purely cyclic subgraphs). Sort by id within each part for deterministic output.
+        List<Integer> startOrder = Stream.concat(
+                        orphaned.stream().filter(groupId -> !hasParentIn(groupId, orphaned)).sorted(),
+                        orphaned.stream().filter(groupId -> hasParentIn(groupId, orphaned)).sorted())
+                .collect(toImmutableList());
+
+        // Shared visited seeded with the reachable groups, so cross-edges from an orphan into
+        // the reachable part do not re-list reachable groups. Reverse each subgraph's post-order
+        // so its entry group prints first, and keep subgraphs in startOrder.
+        ImmutableList.Builder<Integer> result = ImmutableList.builder();
+        Set<Integer> visited = new HashSet<>(reachable);
+        Set<Integer> active = new HashSet<>();
+        for (int startGroup : startOrder) {
+            if (visited.contains(startGroup)) {
+                continue;
+            }
+            ImmutableList.Builder<Integer> subgraph = ImmutableList.builder();
+            getReachableGroupsDeduplicated(subgraph, visited, active, startGroup);
+            result.addAll(((ImmutableList<Integer>) subgraph.build()).reverse());
+        }
+        return result.build();
+    }
+
+    private boolean hasParentIn(int groupId, Set<Integer> candidates)
+    {
+        return groupToParents.get(groupId).stream().anyMatch(candidates::contains);
     }
 
     boolean isReuse(int groupId)

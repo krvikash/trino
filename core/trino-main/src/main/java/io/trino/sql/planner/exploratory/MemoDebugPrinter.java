@@ -13,12 +13,14 @@
  */
 package io.trino.sql.planner.exploratory;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.planner.exploratory.MemoOperation.GroupChild;
 import io.trino.sql.planner.exploratory.MemoOperation.ParameterChild;
 import io.trino.sql.planner.exploratory.MemoOperation.ParameterLineage;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -35,7 +37,7 @@ public class MemoDebugPrinter
 
     public static String print(Memo memo, PrintOptions printOptions)
     {
-        List<Integer> printOrder = memo.topologicalOrder();
+        List<Integer> printOrder = memo.fullReversePostOrder();
         checkState(memo.size() == printOrder.size(), "All groups must be listed");
 
         StringBuilder result = new StringBuilder();
@@ -43,10 +45,12 @@ public class MemoDebugPrinter
                 .append(memo.size())
                 .append("\n");
 
+        Set<Integer> reachable = ImmutableSet.copyOf(memo.reachableReversePostOrder());
         checkState(memo.rootGroup() == printOrder.getFirst(), "Root group must be printed first");
         result.append(printRootGroupEntry(printOrder.getFirst(), memo.getGroup(printOrder.getFirst()), printOptions));
         for (int groupId : printOrder.subList(1, printOrder.size())) {
-            result.append(printGroupEntry(groupId, memo.getGroup(groupId), printOptions));
+            String prefix = reachable.contains(groupId) ? "Group" : "Orphaned Group";
+            result.append(printGroupEntry(groupId, memo.getGroup(groupId), prefix, printOptions));
         }
 
         return result.toString();
@@ -55,11 +59,6 @@ public class MemoDebugPrinter
     private static String printRootGroupEntry(int groupId, MemoGroup group, PrintOptions printOptions)
     {
         return printGroupEntry(groupId, group, "Root Group", printOptions);
-    }
-
-    private static String printGroupEntry(int groupId, MemoGroup group, PrintOptions printOptions)
-    {
-        return printGroupEntry(groupId, group, "Group", printOptions);
     }
 
     private static String printGroupEntry(int groupId, MemoGroup group, String prefix, PrintOptions printOptions)

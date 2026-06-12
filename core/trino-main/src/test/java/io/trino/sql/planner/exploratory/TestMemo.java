@@ -33,6 +33,7 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.Operation;
@@ -66,6 +67,7 @@ import static io.trino.sql.planner.exploratory.MemoGroupMatcher.memoGroup;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.GroupChildMatcher.groupChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.ParameterChildMatcher.parameterChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.memoOperation;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_DIALECT_NAME;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_MEMO_OPERATION;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.ignoreChanges;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.program;
@@ -737,8 +739,9 @@ public class TestMemo
     }
 
     @Test
-    public void testMergeGroupsFailsWhenItWouldCreateCycle()
+    public void testMergeCyclicGroupIntoAnotherGroup()
     {
+        // Create a cyclic group by merging a Project into its child Values group, then merge that cyclic group into another compatible group.
         Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
 
         Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(anonymousRow(BIGINT)));
@@ -776,8 +779,275 @@ public class TestMemo
                                         .build())
                                 .build()));
 
-        assertThatThrownBy(() -> memo.mergeGroups(7, 3, ignoreChanges()))
-                .hasMessage("Merging groups would create a cycle");
+        // merge "%values" into "%project", creating a cycle.
+        memo.mergeGroups(7, 3, ignoreChanges());
+        memo.validateGroupToParentsMapping();
+        assertMemoGroupsContains(
+                memo.groups(),
+                ImmutableMap.of(
+                        7, memoGroup()
+                                .withOperations(
+                                        memoOperation()
+                                                .withName("values")
+                                                .withChildren(groupChild(2))
+                                                .build(),
+                                        memoOperation()
+                                                .withName("project")
+                                                .withChildren(
+                                                        groupChild(7), // cycle
+                                                        groupChild(6))
+                                                .build())
+                                .build()));
+
+        // insert another operation into new group
+        MemoOperation testOperation = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_operation", ImmutableList.of(), ImmutableList.of()),
+                memo.getGroup(7).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(),
+                Attributes.empty(),
+                ImmutableSet.of());
+        memo.insertOperation(testOperation, ignoreChanges());
+        assertMemoGroupsContains(
+                memo.groups(),
+                ImmutableMap.of(
+                        10, memoGroup()
+                                .withOperations(
+                                        memoOperation()
+                                                .withName("test_operation")
+                                                .build())
+                                .build()));
+
+        // add two more operations that will be recursively deduplicated after merge
+        // one references group 7
+        MemoOperation firstParentOperation = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_parent_operation", ImmutableList.of(memo.getGroup(7).resultType()), ImmutableList.of()),
+                memo.getGroup(7).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(new MemoOperation.GroupChild(7, ParameterLineage.identity(0))),
+                Attributes.empty(),
+                ImmutableSet.of());
+        memo.insertOperation(firstParentOperation, ignoreChanges());
+
+        // another references group 10
+        MemoOperation secondParentOperation = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_parent_operation", ImmutableList.of(memo.getGroup(10).resultType()), ImmutableList.of()),
+                memo.getGroup(10).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(new MemoOperation.GroupChild(10, ParameterLineage.identity(0))),
+                Attributes.empty(),
+                ImmutableSet.of());
+        memo.insertOperation(secondParentOperation, ignoreChanges());
+
+        assertMemoGroupsContains(
+                memo.groups(),
+                ImmutableMap.of(
+                        11, memoGroup()
+                                .withOperations(
+                                        memoOperation()
+                                                .withName("test_parent_operation")
+                                                .withChildren(groupChild(7))
+                                                .build())
+                                .build(),
+                        12, memoGroup()
+                                .withOperations(
+                                        memoOperation()
+                                                .withName("test_parent_operation")
+                                                .withChildren(groupChild(10))
+                                                .build())
+                                .build()));
+
+        // merge the cyclic group into the new group
+        memo.mergeGroups(10, 7, ignoreChanges());
+        memo.validateGroupToParentsMapping();
+        assertMemoGroupsContains(
+                memo.groups(),
+                ImmutableMap.of(
+                        10, memoGroup()
+                                .withOperations(
+                                        memoOperation()
+                                                .withName("test_operation")
+                                                .build(),
+                                        memoOperation()
+                                                .withName("values")
+                                                .withChildren(groupChild(2))
+                                                .build(),
+                                        memoOperation()
+                                                .withName("project")
+                                                .withChildren(
+                                                        groupChild(10), // cycle
+                                                        groupChild(6))
+                                                .build())
+                                .build(),
+                        12, memoGroup() // groups 11 and 12 merged, and their operation deduplicated
+                                .withOperations(
+                                        memoOperation()
+                                                .withName("test_parent_operation")
+                                                .withChildren(groupChild(10))
+                                                .build())
+                                .build()));
+        assertMemoGroupsDoesNotContain(memo.groups(), 7, 11);
+    }
+
+    @Test
+    public void testReachableTraversalAndPruningOnCyclicMemo()
+    {
+        Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
+
+        Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(anonymousRow(BIGINT)));
+        FieldReference fieldReferenceOperation = new FieldReference("%field_reference_assignments", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperation = new Row("%row_assignments", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
+        Return returnOperation = new Return("%return_assignments", rowOperation.result(), rowOperation.attributes());
+        Project projectOperation = new Project(
+                "%project",
+                valuesOperation.result(),
+                new Block(
+                        Optional.of("^assignments"),
+                        ImmutableList.of(assignmentsParameter),
+                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
+                valuesOperation.attributes());
+
+        Program program = program(ImmutableList.of(valuesOperation, projectOperation));
+        Memo memo = Memo.forProgram(program, TESTING_DIALECT_REGISTRY);
+
+        // merge "%values" into "%project", creating a cycle in the reachable part of Memo.
+        memo.mergeGroups(7, 3, ignoreChanges());
+        memo.validateGroupToParentsMapping();
+
+        MemoOperation orphanOperation = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_orphan_operation", ImmutableList.of(), ImmutableList.of()),
+                memo.getGroup(7).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(),
+                Attributes.empty(),
+                ImmutableSet.of());
+        int orphanGroupId = memo.insertOperation(orphanOperation, ignoreChanges());
+
+        List<Integer> postOrder = memo.reachablePostOrder();
+        List<Integer> reversePostOrder = memo.reachableReversePostOrder();
+
+        // no duplicates
+        assertThat(ImmutableSet.copyOf(postOrder).size()).isEqualTo(postOrder.size());
+        assertThat(ImmutableSet.copyOf(reversePostOrder).size()).isEqualTo(reversePostOrder.size());
+
+        // post-order and reverse post-order return the same list in opposite order
+        assertThat(reversePostOrder).isEqualTo(ImmutableList.copyOf(postOrder).reverse());
+
+        assertThat(reversePostOrder.getFirst()).isEqualTo(memo.rootGroup());
+
+        // group with cyclic dependency included
+        assertThat(postOrder.contains(7)).isTrue();
+        assertThat(reversePostOrder.contains(7)).isTrue();
+
+        // orphan group present in memo but not included in the list as unreachable
+        assertThat(memo.groups().containsKey(orphanGroupId)).isTrue();
+        assertThat(postOrder.contains(orphanGroupId)).isFalse();
+        assertThat(reversePostOrder.contains(orphanGroupId)).isFalse();
+
+        memo.pruneOrphanedGroups(ignoreChanges());
+        memo.validateGroupToParentsMapping();
+
+        assertThat(memo.groups().containsKey(orphanGroupId)).isFalse();
+        assertThat(memo.groups().containsKey(7)).isTrue();
+    }
+
+    @Test
+    public void testFullReversePostOrderIncludesOrphanedGroups()
+    {
+        Memo memo = cyclicReachableMemo();
+
+        MemoOperation orphanOperation = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_orphan_operation", ImmutableList.of(), ImmutableList.of()),
+                memo.getGroup(memo.rootGroup()).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(),
+                Attributes.empty(),
+                ImmutableSet.of());
+        int orphanGroupId = memo.insertOperation(orphanOperation, ignoreChanges());
+
+        List<Integer> reachable = memo.reachableReversePostOrder();
+        List<Integer> full = memo.fullReversePostOrder();
+
+        // every group listed exactly once
+        assertThat(ImmutableSet.copyOf(full).size()).isEqualTo(full.size());
+        assertThat(ImmutableSet.copyOf(full)).isEqualTo(memo.groups().keySet());
+        assertThat(full.size()).isEqualTo(memo.size());
+
+        // reachable groups come first, in their reverse post-order, root first
+        assertThat(full.subList(0, reachable.size())).isEqualTo(reachable);
+        assertThat(full.getFirst()).isEqualTo(memo.rootGroup());
+
+        // orphan group appears in the trailing orphaned section
+        assertThat(reachable.contains(orphanGroupId)).isFalse();
+        assertThat(full.indexOf(orphanGroupId)).isGreaterThanOrEqualTo(reachable.size());
+    }
+
+    @Test
+    public void testFullReversePostOrderOrdersOrphanSubgraphFromRoot()
+    {
+        Memo memo = cyclicReachableMemo();
+
+        // orphaned subgraph: orphanParent -> orphanChild, neither reachable from the root
+        MemoOperation orphanChild = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_orphan_child_operation", ImmutableList.of(), ImmutableList.of()),
+                memo.getGroup(memo.rootGroup()).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(),
+                Attributes.empty(),
+                ImmutableSet.of());
+        int orphanChildGroupId = memo.insertOperation(orphanChild, ignoreChanges());
+
+        MemoOperation orphanParent = new MemoOperation(
+                TEST_DIALECT_NAME,
+                new OperationId("test_orphan_parent_operation", ImmutableList.of(memo.getGroup(orphanChildGroupId).resultType()), ImmutableList.of()),
+                memo.getGroup(orphanChildGroupId).resultType(),
+                ImmutableList.of(),
+                ImmutableList.of(new MemoOperation.GroupChild(orphanChildGroupId, ParameterLineage.identity(0))),
+                Attributes.empty(),
+                ImmutableSet.of());
+        int orphanParentGroupId = memo.insertOperation(orphanParent, ignoreChanges());
+
+        List<Integer> full = memo.fullReversePostOrder();
+        int reachableSize = memo.reachableReversePostOrder().size();
+
+        // both orphaned groups are in the trailing orphaned section
+        assertThat(full.indexOf(orphanParentGroupId)).isGreaterThanOrEqualTo(reachableSize);
+        assertThat(full.indexOf(orphanChildGroupId)).isGreaterThanOrEqualTo(reachableSize);
+
+        // the subgraph root (parent) is listed before its child
+        assertThat(full.indexOf(orphanParentGroupId)).isLessThan(full.indexOf(orphanChildGroupId));
+    }
+
+    private static Memo cyclicReachableMemo()
+    {
+        Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
+
+        Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(anonymousRow(BIGINT)));
+        FieldReference fieldReferenceOperation = new FieldReference("%field_reference_assignments", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperation = new Row("%row_assignments", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
+        Return returnOperation = new Return("%return_assignments", rowOperation.result(), rowOperation.attributes());
+        Project projectOperation = new Project(
+                "%project",
+                valuesOperation.result(),
+                new Block(
+                        Optional.of("^assignments"),
+                        ImmutableList.of(assignmentsParameter),
+                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
+                valuesOperation.attributes());
+
+        Program program = program(ImmutableList.of(valuesOperation, projectOperation));
+        Memo memo = Memo.forProgram(program, TESTING_DIALECT_REGISTRY);
+
+        // merge "%values" into "%project", creating a cycle in the reachable part of Memo.
+        memo.mergeGroups(7, 3, ignoreChanges());
+        memo.validateGroupToParentsMapping();
+        return memo;
     }
 
     @Test
@@ -1021,8 +1291,8 @@ public class TestMemo
     }
 
     /**
-     * Upon merging groups, the Memo DAG  has to be updated downstream to fix all references to the merged groups and merge parent groups recursively if needed.
-     * Due to the DAG structure, some operations may need to be updated multiple times during the merge process.
+     * Upon merging groups, the Memo graph has to be updated downstream to fix all references to the merged groups and merge parent groups recursively if needed.
+     * Due to the non-tree structure, some operations may need to be updated multiple times during the merge process.
      * <p>
      * This test ensures that such multiple updates are handled correctly.
      * <p>
