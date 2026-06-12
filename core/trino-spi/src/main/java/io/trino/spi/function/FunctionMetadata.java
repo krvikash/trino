@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import static io.trino.spi.function.FunctionKind.AGGREGATE;
 import static io.trino.spi.function.FunctionKind.BATCH;
@@ -41,7 +42,7 @@ public class FunctionMetadata
     private final FunctionNullability functionNullability;
     private final boolean hidden;
     private final boolean deterministic;
-    private final boolean neverFails;
+    private final Predicate<BoundSignature> neverFails;
     private final String description;
     private final FunctionKind kind;
     private final boolean deprecated;
@@ -56,7 +57,7 @@ public class FunctionMetadata
             FunctionNullability functionNullability,
             boolean hidden,
             boolean deterministic,
-            boolean neverFails,
+            Predicate<BoundSignature> neverFails,
             String description,
             FunctionKind kind,
             boolean deprecated,
@@ -77,7 +78,7 @@ public class FunctionMetadata
 
         this.hidden = hidden;
         this.deterministic = deterministic;
-        this.neverFails = neverFails;
+        this.neverFails = requireNonNull(neverFails, "neverFails is null");
         this.description = requireNonNull(description, "description is null");
         this.kind = requireNonNull(kind, "kind is null");
         this.deprecated = deprecated;
@@ -136,9 +137,10 @@ public class FunctionMetadata
     }
 
     /**
-     * Whether function never fails for any possible combination of input parameters.
+     * Predicate that returns whether this function never fails for the
+     * given bound signature (call site).
      */
-    public boolean isNeverFails()
+    public Predicate<BoundSignature> getNeverFails()
     {
         return neverFails;
     }
@@ -232,7 +234,7 @@ public class FunctionMetadata
         private List<Boolean> argumentNullability;
         private boolean hidden;
         private boolean deterministic = true;
-        private boolean neverFails;
+        private Predicate<BoundSignature> neverFails = _ -> false;
         private String description;
         private FunctionId functionId;
         private boolean deprecated;
@@ -304,7 +306,12 @@ public class FunctionMetadata
 
         public Builder neverFails()
         {
-            this.neverFails = true;
+            return neverFails(_ -> true);
+        }
+
+        public Builder neverFails(Predicate<BoundSignature> neverFails)
+        {
+            this.neverFails = requireNonNull(neverFails, "neverFails is null");
             return this;
         }
 
