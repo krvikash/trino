@@ -14,9 +14,14 @@
 package io.trino.sql.planner.exploratory;
 
 import io.trino.sql.newir.Attributes;
+import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.DialectRegistry;
+import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Operation.OperationId;
 
 import java.util.List;
+import java.util.Set;
 
 public class AttributeUtils
 {
@@ -76,5 +81,42 @@ public class AttributeUtils
         updatedAttributes.putAll(inherentOperationAttributes);
         dialectRegistry.dialects().forEach(dialect -> updatedAttributes.putAll(dialect.updateOperationAttributes(allOperationAttributes, derivedAttributes)));
         return updatedAttributes.buildKeepingLast();
+    }
+
+    /**
+     * Get inherent attributes of an operation.
+     */
+    public static Attributes getInherentAttributes(Operation operation, DialectRegistry dialectRegistry)
+    {
+        return getInherentAttributes(operation.dialect(), operation.id(), operation.attributes(), dialectRegistry);
+    }
+
+    public static Attributes getInherentAttributes(String dialect, OperationId operationId, Attributes attributes, DialectRegistry dialectRegistry)
+    {
+        return partitionAttributes(dialect, operationId, attributes, dialectRegistry).matching();
+    }
+
+    /**
+     * Get derived attributes of an operation.
+     */
+    public static Attributes getDerivedAttributes(Operation operation, DialectRegistry dialectRegistry)
+    {
+        return getDerivedAttributes(operation.dialect(), operation.id(), operation.attributes(), dialectRegistry);
+    }
+
+    public static Attributes getDerivedAttributes(String dialect, OperationId operationId, Attributes attributes, DialectRegistry dialectRegistry)
+    {
+        return partitionAttributes(dialect, operationId, attributes, dialectRegistry).nonMatching();
+    }
+
+    private static Attributes.Partition partitionAttributes(
+            String dialect,
+            OperationId operationId,
+            Attributes attributes,
+            DialectRegistry dialectRegistry)
+    {
+        Dialect operationDialect = dialectRegistry.dialect(dialect);
+        Set<AttributeKey> inherentAttributeKeys = operationDialect.getInherentOperationAttributeKeys(operationId);
+        return attributes.partitionKeys(inherentAttributeKeys::contains);
     }
 }
