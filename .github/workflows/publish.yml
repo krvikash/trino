@@ -1,0 +1,72 @@
+name: publish
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  MAVEN: ./mvnw -s .github/settings.xml
+  MAVEN_OPTS: "-Xmx512M -XX:+ExitOnOutOfMemoryError"
+  MAVEN_INSTALL_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
+
+jobs:
+  determine-version:
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+        with:
+          cache: restore
+
+      - name: Compute build version
+        id: compute
+        run: |
+          version="$(./bin/determine-build-version)"
+          echo "Build version: ${version}"
+          echo "version=${version}" >> $GITHUB_OUTPUT
+          echo "version: \`${version}\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy-maven:
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
+    timeout-minutes: 60
+    needs: determine-version
+    env:
+      TRINO_VERSION: ${{ needs.determine-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+        with:
+          cache: restore
+
+      - name: Set up AWS CodeArtifact login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
+
+      - name: Maven Deploy
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN deploy -B --strict-checksums -V -T 1C \
+            -DskipTests \
+            -Dair.check.skip-all \
+            -Dgib.disable \
+            -am \
+            -pl :trino-iceberg \
+            -Drevision="${TRINO_VERSION}"

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Computes a release version from the current git state.
+# Output format: {revision-without-SNAPSHOT}-u{commits_since_bump}-g{short_sha}
+# Example: 481-cork-20260517-u42-gabc1234f
+#
+# Mirrors the logic used in galaxy-trino, adapted for cork.releases.
+
+set -euo pipefail
+
+maven_version=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+
+# Find the commit that last changed the <revision> property in pom.xml.
+version_changing_commit=$(git blame pom.xml | grep "<revision>${maven_version}</revision>" | awk '{print $1}')
+
+commits_since_version_change=$(git rev-list "${version_changing_commit}..HEAD" | wc -l | xargs)
+
+current_commit_short=$(git rev-parse --short HEAD)
+
+printf "%s-u%s-g%s" "${maven_version%-SNAPSHOT}" "${commits_since_version_change}" "${current_commit_short}"
