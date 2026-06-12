@@ -13,8 +13,6 @@
  */
 package io.trino.operator.join;
 
-import com.google.common.collect.ImmutableList;
-import io.airlift.units.DataSize;
 import io.trino.operator.HashArraySizeSupplier;
 import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
@@ -36,9 +34,6 @@ import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.SizeOf.sizeOfIntArray;
 import static io.airlift.slice.SizeOf.sizeOfLongArray;
-import static io.airlift.units.DataSize.Unit.KILOBYTE;
-import static io.trino.operator.SyntheticAddress.decodePosition;
-import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static io.trino.operator.join.PagesHash.getHashPosition;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.lang.Math.toIntExact;
@@ -53,10 +48,8 @@ public final class BigintPagesHash
         implements PagesHash
 {
     private static final int INSTANCE_SIZE = instanceSize(BigintPagesHash.class);
-    private static final DataSize CACHE_SIZE = DataSize.of(128, KILOBYTE);
 
-    private final LongArrayList addresses;
-    private final List<Block> joinChannelBlocks;
+    private final int positionCount;
     private final PagesHashStrategy pagesHashStrategy;
 
     private final int mask;
@@ -74,59 +67,40 @@ public final class BigintPagesHash
             List<Page> pages,
             int joinChannel)
     {
-        this.addresses = requireNonNull(addresses, "addresses is null");
+        requireNonNull(addresses, "addresses is null");
+        this.positionCount = addresses.size();
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         requireNonNull(pages, "pages is null");
-        ImmutableList.Builder<Block> joinChannelBlocksBuilder = ImmutableList.builder();
         IntArrayList positionCounts = new IntArrayList(pages.size());
         for (Page page : pages) {
-            joinChannelBlocksBuilder.add(page.getBlock(joinChannel));
             positionCounts.add(page.getPositionCount());
         }
-        joinChannelBlocks = joinChannelBlocksBuilder.build();
         blockPositionIndex = new BlockPositionIndex(positionCounts);
 
         // reserve memory for the arrays
-        int hashSize = hashArraySizeSupplier.getHashArraySize(addresses.size());
+        int hashSize = hashArraySizeSupplier.getHashArraySize(positionCount);
 
         mask = hashSize - 1;
         keys = new int[hashSize];
-        values = new long[addresses.size()];
+        values = new long[positionCount];
         Arrays.fill(keys, -1);
 
-        // We will process addresses in batches, to improve spatial and temporal memory locality
-        int positionsInStep = Math.min(addresses.size() + 1, (int) CACHE_SIZE.toBytes() / Integer.SIZE);
-
-        for (int step = 0; step * positionsInStep <= addresses.size(); step++) {
-            int stepBeginPosition = step * positionsInStep;
-            int stepEndPosition = Math.min((step + 1) * positionsInStep, addresses.size());
-            int stepSize = stepEndPosition - stepBeginPosition;
-
-            indexPages(addresses, positionLinks, stepBeginPosition, stepSize);
+        // (block, position) come from the page structure.
+        int offset = 0;
+        for (Page page : pages) {
+            Block block = page.getBlock(joinChannel);
+            int pagePositions = page.getPositionCount();
+            for (int position = 0; position < pagePositions; position++) {
+                if (!block.isNull(position)) {
+                    long value = BIGINT.getLong(block, position);
+                    insertValue(positionLinks, offset + position, value, getHashPosition(value, mask));
+                }
+            }
+            offset += pagePositions;
         }
 
         size = sizeOf(addresses.elements()) + pagesHashStrategy.getSizeInBytes() +
                 sizeOf(keys) + sizeOf(values) + blockPositionIndex.getRetainedSizeInBytes();
-    }
-
-    private void indexPages(LongArrayList addresses, PositionLinks.FactoryBuilder positionLinks, int stepBeginPosition, int stepSize)
-    {
-        // index pages
-        for (int batchIndex = 0; batchIndex < stepSize; batchIndex++) {
-            int addressIndex = batchIndex + stepBeginPosition;
-            long pageAddress = addresses.getLong(addressIndex);
-            int blockIndex = decodeSliceIndex(pageAddress);
-            int blockPosition = decodePosition(pageAddress);
-            if (isPositionNull(blockIndex, blockPosition)) {
-                continue;
-            }
-
-            long value = BIGINT.getLong(joinChannelBlocks.get(blockIndex), blockPosition);
-
-            int pos = getHashPosition(value, mask);
-
-            insertValue(positionLinks, addressIndex, value, pos);
-        }
     }
 
     private void insertValue(PositionLinks.FactoryBuilder positionLinks, int addressIndex, long value, int pos)
@@ -153,7 +127,7 @@ public final class BigintPagesHash
     @Override
     public int getPositionCount()
     {
-        return addresses.size();
+        return positionCount;
     }
 
     @Override
@@ -301,11 +275,6 @@ public final class BigintPagesHash
         int rowNumber = toIntExact(position);
         int blockIndex = blockPositionIndex.decodeBlockIndex(rowNumber);
         pagesHashStrategy.appendTo(blockIndex, blockPositionIndex.decodePosition(rowNumber, blockIndex), builders);
-    }
-
-    private boolean isPositionNull(int blockIndex, int blockPosition)
-    {
-        return joinChannelBlocks.get(blockIndex).isNull(blockPosition);
     }
 
     public static long getEstimatedRetainedSizeInBytes(
