@@ -16,7 +16,6 @@ package io.trino.operator.join;
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.operator.HashArraySizeSupplier;
-import io.trino.operator.IncrementalLoadFactorHashArraySizeSupplier;
 import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
@@ -40,12 +39,6 @@ import static java.util.Objects.requireNonNull;
 public class JoinHashSupplier
         implements LookupSourceSupplier
 {
-    /**
-     * This value is purposefully identical to that of IncrementalLoadFactorHashArraySizeSupplier#THRESHOLD_50,
-     * as higher load factor means more excessive memory consumption
-     */
-    private static final int JOIN_POSITIONS_ARRAY_CUTOFF = IncrementalLoadFactorHashArraySizeSupplier.THRESHOLD_50;
-
     private final Session session;
     private final PagesHash pagesHash;
     private final LongArrayList addresses;
@@ -93,7 +86,7 @@ public class JoinHashSupplier
         this.pages = channelsToPages(channels);
         this.pageInstancesRetainedSizeInBytes = getPageInstancesRetainedSizeInBytes(channels);
 
-        this.pagesHash = switch (getPagesHashType(addresses, singleBigintJoinChannel)) {
+        this.pagesHash = switch (getPagesHashType(singleBigintJoinChannel)) {
             case BIGINT -> new BigintPagesHash(addresses, pagesHashStrategy, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.getAsInt());
             case DEFAULT -> new DefaultPagesHash(addresses, pagesHashStrategy, channels, positionCounts, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
         };
@@ -142,7 +135,7 @@ public class JoinHashSupplier
             result += ArrayPositionLinks.getEstimatedRetainedSizeInBytes(positionCount);
         }
         result += getPageInstancesRetainedSizeInBytes(channels);
-        result += switch (getPagesHashType(addresses, singleBigintJoinChannel)) {
+        result += switch (getPagesHashType(singleBigintJoinChannel)) {
             case BIGINT -> BigintPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, addresses, channels, blocksSizeInBytes);
             case DEFAULT -> DefaultPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, addresses, channels, blocksSizeInBytes);
         };
@@ -164,9 +157,9 @@ public class JoinHashSupplier
         DEFAULT,
     }
 
-    private static PagesHashType getPagesHashType(LongArrayList addresses, OptionalInt singleBigintJoinChannel)
+    private static PagesHashType getPagesHashType(OptionalInt singleBigintJoinChannel)
     {
-        if (singleBigintJoinChannel.isPresent() && addresses.size() <= JOIN_POSITIONS_ARRAY_CUTOFF) {
+        if (singleBigintJoinChannel.isPresent()) {
             return BIGINT;
         }
         return DEFAULT;

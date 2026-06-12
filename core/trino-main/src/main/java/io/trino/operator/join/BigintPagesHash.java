@@ -24,6 +24,7 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -61,6 +62,8 @@ public final class BigintPagesHash
     private final int mask;
     private final int[] keys;
     private final long[] values;
+    // Resolves a row number to its (block index, position) for output.
+    private final BlockPositionIndex blockPositionIndex;
     private final long size;
 
     public BigintPagesHash(
@@ -75,10 +78,13 @@ public final class BigintPagesHash
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         requireNonNull(pages, "pages is null");
         ImmutableList.Builder<Block> joinChannelBlocksBuilder = ImmutableList.builder();
+        IntArrayList positionCounts = new IntArrayList(pages.size());
         for (Page page : pages) {
             joinChannelBlocksBuilder.add(page.getBlock(joinChannel));
+            positionCounts.add(page.getPositionCount());
         }
         joinChannelBlocks = joinChannelBlocksBuilder.build();
+        blockPositionIndex = new BlockPositionIndex(positionCounts);
 
         // reserve memory for the arrays
         int hashSize = hashArraySizeSupplier.getHashArraySize(addresses.size());
@@ -100,7 +106,7 @@ public final class BigintPagesHash
         }
 
         size = sizeOf(addresses.elements()) + pagesHashStrategy.getSizeInBytes() +
-                sizeOf(keys) + sizeOf(values);
+                sizeOf(keys) + sizeOf(values) + blockPositionIndex.getRetainedSizeInBytes();
     }
 
     private void indexPages(LongArrayList addresses, PositionLinks.FactoryBuilder positionLinks, int stepBeginPosition, int stepSize)
@@ -284,21 +290,17 @@ public final class BigintPagesHash
     @Override
     public void appendTo(long position, PageBuilder pageBuilder, int outputChannelOffset)
     {
-        long pageAddress = addresses.getLong(toIntExact(position));
-        int blockIndex = decodeSliceIndex(pageAddress);
-        int blockPosition = decodePosition(pageAddress);
-
-        pagesHashStrategy.appendTo(blockIndex, blockPosition, pageBuilder, outputChannelOffset);
+        int rowNumber = toIntExact(position);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(rowNumber);
+        pagesHashStrategy.appendTo(blockIndex, blockPositionIndex.decodePosition(rowNumber, blockIndex), pageBuilder, outputChannelOffset);
     }
 
     @Override
     public void appendTo(long position, PreSizedBlockBuilder[] builders)
     {
-        long pageAddress = addresses.getLong(toIntExact(position));
-        int blockIndex = decodeSliceIndex(pageAddress);
-        int blockPosition = decodePosition(pageAddress);
-
-        pagesHashStrategy.appendTo(blockIndex, blockPosition, builders);
+        int rowNumber = toIntExact(position);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(rowNumber);
+        pagesHashStrategy.appendTo(blockIndex, blockPositionIndex.decodePosition(rowNumber, blockIndex), builders);
     }
 
     private boolean isPositionNull(int blockIndex, int blockPosition)
@@ -313,10 +315,16 @@ public final class BigintPagesHash
             List<ObjectArrayList<Block>> channels,
             long blocksSizeInBytes)
     {
+        int blockCount = 0;
+        if (!channels.isEmpty()) {
+            blockCount = channels.getFirst().size();
+        }
+        long blockPositionIndexSize = BlockPositionIndex.getEstimatedRetainedSizeInBytes(blockCount, positionCount);
         return sizeOf(addresses.elements()) +
                 (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
                 blocksSizeInBytes +
                 sizeOfIntArray(hashArraySizeSupplier.getHashArraySize(positionCount)) +
-                sizeOfLongArray(positionCount);
+                sizeOfLongArray(positionCount) +
+                blockPositionIndexSize;
     }
 }
