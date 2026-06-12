@@ -15,6 +15,7 @@ package io.trino.sql.planner.exploratory.rule;
 
 import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
+import io.trino.sql.planner.exploratory.Memo;
 import io.trino.sql.planner.exploratory.MemoOperation;
 
 public interface OperationRule
@@ -22,6 +23,21 @@ public interface OperationRule
     Pattern<MemoOperation> pattern();
 
     Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context);
+
+    /**
+     * Returns the application context relevant to this rule for the given memo operation.
+     * <p>
+     * Rule application is cached by operation, rule, and application context. If the
+     * returned context changes, the rule becomes eligible for re-application.
+     * <p>
+     * The default implementation returns {@link RuleApplicationContext#EMPTY}, which
+     * means the rule is applied at most once per memo operation. If that context is
+     * insufficient for the rule, re-application may be missed when relevant conditions change.
+     */
+    default RuleApplicationContext getApplicationContext(MemoOperation operation, Memo memo)
+    {
+        return RuleApplicationContext.EMPTY;
+    }
 
     /**
      * Indicates whether the source MemoOperation can be removed from Memo.
