@@ -40,6 +40,11 @@ public final class MemoTestingHelper
 {
     private MemoTestingHelper() {}
 
+    public static MemoChangesCollector ignoreChanges()
+    {
+        return new MemoChangesCollector();
+    }
+
     public static List<Operation> singleConstantRow(String suffix, io.trino.spi.type.Type type, Object value)
     {
         Constant constantOperation = new Constant("%constant" + suffix, type, value);

@@ -67,6 +67,7 @@ import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_MEMO_OP
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.GroupChildMatcher.groupChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.ParameterChildMatcher.parameterChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.memoOperation;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.ignoreChanges;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.program;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.query;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.singleConstantRow;
@@ -727,7 +728,7 @@ public class TestMemo
         assertMemoGroupsContains(memo.groups(), ImmutableMap.of(0, constantGroupMatcher)); // "%constant"
 
         // merging a group into itself is a no-op
-        int mergedId = memo.mergeGroups(0, 0);
+        int mergedId = memo.mergeGroups(0, 0, ignoreChanges());
         assertThat(mergedId).isEqualTo(0);
         assertThat(memo.getRecentId(0)).isEqualTo(0);
         memo.validateGroupToParentsMapping();
@@ -775,7 +776,7 @@ public class TestMemo
                                         .build())
                                 .build()));
 
-        assertThatThrownBy(() -> memo.mergeGroups(7, 3))
+        assertThatThrownBy(() -> memo.mergeGroups(7, 3, ignoreChanges()))
                 .hasMessage("Merging groups would create a cycle");
     }
 
@@ -841,7 +842,7 @@ public class TestMemo
                                 .build()));
 
         // merge the two identical but not deduplicated constant groups
-        int mergedId = memo.mergeGroups(0, 3);
+        int mergedId = memo.mergeGroups(0, 3, ignoreChanges());
         assertThat(mergedId).isEqualTo(0);
         memo.validateGroupToParentsMapping();
         assertMemoGroupsContains(
@@ -903,7 +904,7 @@ public class TestMemo
         memo.validateGroupToParentsMapping();
 
         // merge the two groups corresponding to the two identical row operations without merging their children (constants)
-        int mergedId = memo.mergeGroups(1, 4); // "%row1" and "%row2"
+        int mergedId = memo.mergeGroups(1, 4, ignoreChanges()); // "%row1" and "%row2"
         assertThat(mergedId).isEqualTo(1);
         memo.validateGroupToParentsMapping();
 
@@ -957,7 +958,7 @@ public class TestMemo
         assertMemoGroupsDoesNotContain(memo.groups(), 4, 5); // "%row2" and "%return2"
 
         // remove one of the row operations from the merged row group
-        memo.removeOperation(memo.getGroup(1).operations().get(1));
+        memo.removeOperation(memo.getGroup(1).operations().get(1), ignoreChanges());
         memo.validateGroupToParentsMapping();
 
         assertMemoGroupsContains(
@@ -985,7 +986,7 @@ public class TestMemo
                                 .build()));
 
         // remove the unreferenced constant2 group
-        memo.pruneOrphanedGroups();
+        memo.pruneOrphanedGroups(ignoreChanges());
         memo.validateGroupToParentsMapping();
         assertMemoGroupsDoesNotContain(memo.groups(), 3);
     }
@@ -1011,7 +1012,7 @@ public class TestMemo
         assertThat(memo.rootGroup()).isEqualTo(14);
 
         // merge the root group into the other group. the other group becomes the new root.
-        int mergedId = memo.mergeGroups(8, 14);
+        int mergedId = memo.mergeGroups(8, 14, ignoreChanges());
         assertThat(mergedId).isEqualTo(8);
         assertThat(memo.getRecentId(14)).isEqualTo(8);
         memo.validateGroupToParentsMapping();
@@ -1109,7 +1110,7 @@ public class TestMemo
         // 6. dequeue parentRow for update processing, apply groupId mapping, get updated parentRow referencing row1 and constant1
         // 7. dequeue parentRow for update processing again, but no changes needed this time because we find that the most recent version is fully updated
         // 8. queue is empty, finish processing
-        int mergedId = memo.mergeGroups(0, 4); // "%constant1" and "%constant2" and "%constant3"
+        int mergedId = memo.mergeGroups(0, 4, ignoreChanges()); // "%constant1" and "%constant2" and "%constant3"
         assertThat(mergedId).isEqualTo(0);
         memo.validateGroupToParentsMapping();
 
@@ -1226,7 +1227,7 @@ public class TestMemo
         // 6. enqueue parentRow for update again since it references row2
         // 7. dequeue parentRow for update processing, find the most recent version referencing constant1, apply groupId mapping, and get updated parentRow referencing row1 and constant1
         // 8. queue is empty, finish processing
-        int mergedId = memo.mergeGroups(0, 4); // "%constant1" and "%constant2"
+        int mergedId = memo.mergeGroups(0, 4, ignoreChanges()); // "%constant1" and "%constant2"
         assertThat(mergedId).isEqualTo(0);
         memo.validateGroupToParentsMapping();
 
@@ -1309,7 +1310,7 @@ public class TestMemo
                 .build();
 
         // inserting an identical operation returns the existing group's ID
-        assertThat(memo.insertOperation(memoOperation))
+        assertThat(memo.insertOperation(memoOperation, ignoreChanges()))
                 .isEqualTo(0);
         memo.validateGroupToParentsMapping();
 
@@ -1327,7 +1328,7 @@ public class TestMemo
                 .build();
 
         // inserting a new operation returns a new group ID
-        assertThat(memo.insertOperation(memoOperation))
+        assertThat(memo.insertOperation(memoOperation, ignoreChanges()))
                 .isEqualTo(9);
         memo.validateGroupToParentsMapping();
     }
@@ -1380,7 +1381,7 @@ public class TestMemo
                 .build();
 
         // removing the only operation in the group fails
-        assertThatThrownBy(() -> memo.removeOperation(presentMemoOperation))
+        assertThatThrownBy(() -> memo.removeOperation(presentMemoOperation, ignoreChanges()))
                 .hasMessage("Cannot remove the only operation from the group");
 
         // an operation not present in the program
@@ -1397,7 +1398,7 @@ public class TestMemo
                 .build();
 
         // removing an operation not in the program fails
-        assertThatThrownBy(() -> memo.removeOperation(absentMemoOperation))
+        assertThatThrownBy(() -> memo.removeOperation(absentMemoOperation, ignoreChanges()))
                 .hasMessageContaining("Removed operation not found in Memo");
     }
 
@@ -1477,7 +1478,7 @@ public class TestMemo
 
         // prune orphaned groups (unreachable from the root Query operation)
         // first Values operation is unreachable but its first row is reachable via the second Values operation
-        memo.pruneOrphanedGroups();
+        memo.pruneOrphanedGroups(ignoreChanges());
         memo.validateGroupToParentsMapping();
 
         // assert removed groups

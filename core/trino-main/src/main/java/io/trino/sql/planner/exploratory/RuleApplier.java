@@ -15,6 +15,7 @@ package io.trino.sql.planner.exploratory;
 
 import io.trino.matching.Capture;
 import io.trino.matching.Pattern;
+import io.trino.sql.planner.exploratory.MemoChangesCollector.MemoChange;
 import io.trino.sql.planner.exploratory.MemoOperation.Child;
 import io.trino.sql.planner.exploratory.MemoOperation.GroupChild;
 import io.trino.sql.planner.exploratory.MemoOperation.ParameterLineage;
@@ -40,7 +41,15 @@ public class RuleApplier
         this.memo = requireNonNull(memo, "memo is null");
     }
 
-    public void applyRule(MemoOperation operation, OperationRule rule)
+    public List<MemoChange> applyRule(MemoOperation operation, OperationRule rule)
+    {
+        MemoChangesCollector changesCollector = new MemoChangesCollector();
+        applyRule(operation, rule, changesCollector);
+        memo.pruneOrphanedGroups(changesCollector);
+        return changesCollector.getChanges();
+    }
+
+    private void applyRule(MemoOperation operation, OperationRule rule, MemoChangesCollector changesCollector)
     {
         // Apply the rule to the most recent version of the operation. If the operation was already removed, there is nothing to do.
         MemoOperation operationRecent = memo.getRecentVersion(operation);
@@ -64,7 +73,7 @@ public class RuleApplier
 
         List<MemoOperation> resultOperations = new ArrayList<>(results.size());
         for (Result<NewMemoOperation> result : results) {
-            resultOperations.add(insertOperationRuleResult(result.get(), operationRecent));
+            resultOperations.add(insertOperationRuleResult(result.get(), operationRecent, changesCollector));
         }
 
         if (rule.canReplaceSource()) {
@@ -74,7 +83,7 @@ public class RuleApplier
             if (resultOperations.stream()
                     .map(memo::getRecentVersion)
                     .anyMatch(resultOperation -> !resultOperation.equals(recentRoot))) {
-                memo.removeOperation(recentRoot);
+                memo.removeOperation(recentRoot, changesCollector);
             }
         }
     }
@@ -82,12 +91,12 @@ public class RuleApplier
     /**
      * Insert the new operation resulting from applying the rule, and merge its group with the root operation's group.
      */
-    private MemoOperation insertOperationRuleResult(NewMemoOperation newMemoOperation, MemoOperation rootOperation)
+    private MemoOperation insertOperationRuleResult(NewMemoOperation newMemoOperation, MemoOperation rootOperation, MemoChangesCollector changesCollector)
     {
-        MemoOperation newOperation = getOperation(newMemoOperation);
-        int insertedGroupId = memo.insertOperation(newOperation);
+        MemoOperation newOperation = getOperation(newMemoOperation, changesCollector);
+        int insertedGroupId = memo.insertOperation(newOperation, changesCollector);
         // root operation may have changed due to merges in getOperation(), so get the recent ID
-        memo.mergeGroups(memo.getGroupId(memo.getRecentVersion(rootOperation)).orElseThrow(), insertedGroupId);
+        memo.mergeGroups(memo.getGroupId(memo.getRecentVersion(rootOperation)).orElseThrow(), insertedGroupId, changesCollector);
 
         return newOperation;
     }
@@ -99,18 +108,18 @@ public class RuleApplier
      * Note: recursive insertion of children might cause changes in the Memo due to group merges. Any references to operations or group IDs
      * should be updated accordingly through memo.getRecentVersion(), and memo.getRecentId().
      */
-    private MemoOperation getOperation(NewMemoOperation newMemoOperation)
+    private MemoOperation getOperation(NewMemoOperation newMemoOperation, MemoChangesCollector changesCollector)
     {
         List<Child> children = newMemoOperation.children().stream()
                 .map(object -> {
                     if (object instanceof ChildGroupWithParameterLineage(List<NewMemoOperation> operations, ParameterLineage lineage)) {
-                        MemoOperation childOperation = getOperation(operations.getFirst());
-                        int childGroupId = memo.insertOperation(childOperation);
+                        MemoOperation childOperation = getOperation(operations.getFirst(), changesCollector);
+                        int childGroupId = memo.insertOperation(childOperation, changesCollector);
                         for (int i = 1; i < operations.size(); i++) {
-                            childOperation = getOperation(operations.get(i));
-                            int nextChildGroupId = memo.insertOperation(childOperation);
+                            childOperation = getOperation(operations.get(i), changesCollector);
+                            int nextChildGroupId = memo.insertOperation(childOperation, changesCollector);
                             // childGroupId may have changed due to merges in getOperation(), so get the recent ID
-                            childGroupId = memo.mergeGroups(memo.getRecentId(childGroupId), nextChildGroupId);
+                            childGroupId = memo.mergeGroups(memo.getRecentId(childGroupId), nextChildGroupId, changesCollector);
                         }
                         return new GroupChild(childGroupId, lineage);
                     }

@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.DialectRegistry;
 import io.trino.sql.newir.Program;
 import io.trino.sql.planner.exploratory.MemoOperation.GroupChild;
@@ -163,12 +164,12 @@ public class Memo
      * If some operations in Memo become equivalent after this update, their groups are merged recursively.
      * Returns the resulting merged group id, being the id of the first group.
      */
-    int mergeGroups(int firstGroupId, int secondGroupId)
+    int mergeGroups(int firstGroupId, int secondGroupId, MemoChangesCollector changesCollector)
     {
         // a queue of all operations that need to be updated after merge because they reference a group that was merged into another group
         Deque<MemoOperation> operationsToUpdate = new ArrayDeque<>();
 
-        int resultGroupId = mergeGroups(firstGroupId, secondGroupId, operationsToUpdate);
+        int resultGroupId = mergeGroups(firstGroupId, secondGroupId, operationsToUpdate, changesCollector);
 
         while (!operationsToUpdate.isEmpty()) {
             MemoOperation operationToUpdate = operationsToUpdate.poll();
@@ -190,23 +191,31 @@ public class Memo
             if (foundGroupId != null) {
                 // operation already exists in Memo. merge groups recursively and remove previous operation version from the merged group
                 int updatedGroupId = operationToGroup.get(operationToUpdate);
-                mergeGroups(foundGroupId, updatedGroupId, operationsToUpdate);
-                removeOperation(operationToUpdate);
+                mergeGroups(foundGroupId, updatedGroupId, operationsToUpdate, changesCollector);
+                changesCollector.recordOperationSuccession(operationToUpdate, updatedOperation, foundGroupId);
+                removeOperation(operationToUpdate, changesCollector);
             }
             else {
                 // operation not yet in Memo. replace the previous operation version with the updated operation in its group
                 int updatedGroupId = operationToGroup.get(operationToUpdate);
                 MemoGroup updatedGroup = groups.get(updatedGroupId);
+                Attributes attributesBefore = updatedGroup.attributes();
                 updatedGroup.addOperation(updatedOperation, dialectRegistry);
+                Attributes attributesAfter = updatedGroup.attributes();
                 operationToGroup.put(updatedOperation, updatedGroupId);
-                removeOperation(operationToUpdate);
+                changesCollector.recordOperationInsert(updatedOperation, updatedGroupId);
+                if (!attributesBefore.equals(attributesAfter)) {
+                    changesCollector.recordGroupAttributesChange(updatedGroupId);
+                }
+                changesCollector.recordOperationSuccession(operationToUpdate, updatedOperation, updatedGroupId);
+                removeOperation(operationToUpdate, changesCollector);
             }
         }
 
         return resultGroupId;
     }
 
-    private int mergeGroups(int firstGroupId, int secondGroupId, Deque<MemoOperation> operationsToUpdate)
+    private int mergeGroups(int firstGroupId, int secondGroupId, Deque<MemoOperation> operationsToUpdate, MemoChangesCollector changesCollector)
     {
         if (firstGroupId == secondGroupId) {
             return firstGroupId;
@@ -217,10 +226,19 @@ public class Memo
                 !achievableFrom(firstGroupId, secondGroupId, new HashSet<>()) && !achievableFrom(secondGroupId, firstGroupId, new HashSet<>()),
                 "Merging groups would create a cycle");
 
+        changesCollector.recordGroupMerge(firstGroupId, secondGroupId);
+
         MemoGroup firstGroup = groups.get(firstGroupId);
+        Attributes firstGroupAttributesBefore = firstGroup.attributes();
         MemoGroup secondGroup = groups.get(secondGroupId);
+        Attributes secondGroupAttributesBefore = secondGroup.attributes();
+
         // merge second group into first group so that first group becomes the merge result and first group id becomes the merged group id
         firstGroup.mergeWith(secondGroup, dialectRegistry);
+        Attributes mergedGroupAttributes = firstGroup.attributes();
+        if (!mergedGroupAttributes.equals(firstGroupAttributesBefore) || !mergedGroupAttributes.equals(secondGroupAttributesBefore)) {
+            changesCollector.recordGroupAttributesChange(firstGroupId);
+        }
 
         // update root group if needed
         if (rootGroup == secondGroupId) {
@@ -277,7 +295,7 @@ public class Memo
         return operation.remapChildren(groupToRecentId::getOrIdentity);
     }
 
-    int insertOperation(MemoOperation operation)
+    int insertOperation(MemoOperation operation, MemoChangesCollector changesCollector)
     {
         Integer groupId = operationToGroup.get(operation);
         if (groupId == null) {
@@ -286,6 +304,7 @@ public class Memo
             MemoGroup group = singletonGroup(operation, dialectRegistry);
             groups.put(groupId, group);
             operationToGroup.put(operation, groupId);
+            changesCollector.recordSingletonGroupCreate(operation, groupId);
             for (int childGroupId : group.getChildGroups()) {
                 groupToParents.put(childGroupId, groupId);
             }
@@ -293,8 +312,19 @@ public class Memo
         else {
             // found this operation in memo
             MemoGroup group = groups.get(groupId);
+            MemoOperation previousOperation = group.operations().stream()
+                    .filter(existingOperation -> existingOperation.equals(operation))
+                    .findFirst()
+                    .orElseThrow();
             // update group attributes with the new operation's attributes
+            Attributes attributesBefore = group.attributes();
             group.addOperation(operation, dialectRegistry);
+            if (!previousOperation.attributes().equals(operation.attributes())) {
+                changesCollector.recordOperationAttributesChange(previousOperation, operation, groupId);
+            }
+            if (!group.attributes().equals(attributesBefore)) {
+                changesCollector.recordGroupAttributesChange(groupId);
+            }
         }
 
         return groupId;
@@ -304,7 +334,7 @@ public class Memo
      * Remove the given operation from the Memo.
      * Note: this method will remove the operation based on operation equals(), so without considering derived attributes.
      */
-    void removeOperation(MemoOperation operation)
+    void removeOperation(MemoOperation operation, MemoChangesCollector changesCollector)
     {
         checkArgument(operationToGroup.containsKey(operation), "Removed operation not found in Memo: %s", operation);
         int groupId = operationToGroup.get(operation);
@@ -312,15 +342,21 @@ public class Memo
         Set<Integer> childGroups = group.getChildGroups();
         group.removeOperation(operation, dialectRegistry);
         operationToGroup.remove(operation);
+        changesCollector.recordOperationRemove(operation, groupId);
         Set<Integer> remainingChildGroups = group.getChildGroups();
         // update groupToParents mapping for child groups that no longer reference the group after the operation removal
         Sets.difference(childGroups, remainingChildGroups)
                 .forEach(childGroupId -> groupToParents.remove(childGroupId, groupId));
     }
 
-    void pruneOrphanedGroups()
+    void pruneOrphanedGroups(MemoChangesCollector changesCollector)
     {
         Set<Integer> referencedGroups = ImmutableSet.copyOf(reverseTopologicalOrder());
+        groups.forEach((groupId, group) -> {
+            if (!referencedGroups.contains(groupId)) {
+                changesCollector.recordGroupPrune(groupId, group.operations());
+            }
+        });
         groups.keySet().retainAll(referencedGroups);
         operationToGroup.entrySet().removeIf(entry -> !referencedGroups.contains(entry.getValue()));
         groupToParents.entries().removeIf(entry -> !referencedGroups.contains(entry.getKey()) || !referencedGroups.contains(entry.getValue()));
