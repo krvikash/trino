@@ -284,6 +284,34 @@ public final class TrinoDialect
         return operationMetadata.createOperation(resultName, arguments, regions, attributes);
     }
 
+    @Override
+    public Attributes deriveGroupAttributes(Attributes currentGroupAttributes, List<Attributes> operationsAttributes)
+    {
+        // Trino dialect does not support any derived attributes yet.
+        return Attributes.empty();
+    }
+
+    @Override
+    public Attributes mergeGroupAttributes(Attributes firstGroupAttributes, Attributes secondGroupAttributes)
+    {
+        // Trino dialect does not support any derived attributes yet.
+        return Attributes.empty();
+    }
+
+    @Override
+    public Attributes composeOperationAttributes(Attributes operationAttributes, Attributes groupAttributes)
+    {
+        // Trino dialect does not support any derived attributes yet.
+        return Attributes.empty();
+    }
+
+    @Override
+    public Attributes updateOperationAttributes(Attributes operationAttributes, Attributes derivedAttributes)
+    {
+        // Trino dialect does not support any derived attributes yet.
+        return Attributes.empty();
+    }
+
     private static Set<TrinoOperationMetadata> staticOperations()
     {
         return ImmutableSet.of(

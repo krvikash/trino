@@ -188,6 +188,30 @@ public class IrDialect
         throw new UnsupportedOperationException("the ir dialect does not support any operations");
     }
 
+    @Override
+    public Attributes deriveGroupAttributes(Attributes currentGroupAttributes, List<Attributes> operationsAttributes)
+    {
+        return IrAttributeUtils.deriveGroupAttributes(currentGroupAttributes, operationsAttributes);
+    }
+
+    @Override
+    public Attributes mergeGroupAttributes(Attributes firstGroupAttributes, Attributes secondGroupAttributes)
+    {
+        return IrAttributeUtils.mergeGroupAttributes(firstGroupAttributes, secondGroupAttributes);
+    }
+
+    @Override
+    public Attributes composeOperationAttributes(Attributes operationAttributes, Attributes groupAttributes)
+    {
+        return IrAttributeUtils.composeOperationAttributes(operationAttributes, groupAttributes);
+    }
+
+    @Override
+    public Attributes updateOperationAttributes(Attributes operationAttributes, Attributes derivedAttributes)
+    {
+        return IrAttributeUtils.updateOperationAttributes(operationAttributes, derivedAttributes);
+    }
+
     public enum Repeatability
     {
         // The operation always produces the same output for the same input.

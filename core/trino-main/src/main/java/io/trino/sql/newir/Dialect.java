@@ -62,4 +62,12 @@ public abstract class Dialect
     public abstract Set<AttributeKey> getInherentOperationAttributeKeys(OperationId id);
 
     public abstract Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Attributes attributes);
+
+    public abstract Attributes deriveGroupAttributes(Attributes currentGroupAttributes, List<Attributes> operationsAttributes);
+
+    public abstract Attributes mergeGroupAttributes(Attributes firstGroupAttributes, Attributes secondGroupAttributes);
+
+    public abstract Attributes composeOperationAttributes(Attributes operationAttributes, Attributes groupAttributes);
+
+    public abstract Attributes updateOperationAttributes(Attributes operationAttributes, Attributes derivedAttributes);
 }
