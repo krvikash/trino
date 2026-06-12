@@ -17,14 +17,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.MultisetType;
-import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.ir.IrDialect.FunctionType;
 import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Lambda;
-import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
 import io.trino.sql.dialect.trino.operation.Return;
@@ -45,7 +43,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.EMPTY_SLICE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -59,10 +56,8 @@ import static io.trino.sql.dialect.ir.IrDialect.REPEATABILITY;
 import static io.trino.sql.dialect.ir.IrDialect.Repeatability.DETERMINISTIC;
 import static io.trino.sql.dialect.ir.IrDialect.SAFE;
 import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
-import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
-import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.newir.DialectRegistry.TESTING_DIALECT_REGISTRY;
@@ -71,6 +66,10 @@ import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_MEMO_OP
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.GroupChildMatcher.groupChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.ParameterChildMatcher.parameterChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.memoOperation;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.program;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.query;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.singleConstantRow;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.valuesOfRows;
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.assertMemoGroup;
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.assertMemoGroups;
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.assertMemoGroupsContains;
@@ -1021,14 +1020,15 @@ public class TestMemo
      * <p>
      * This test ensures that such multiple updates are handled correctly.
      * <p>
-     * The structure is as follows:
+     * The program involves:
      * <ul>
-     * <li>Two identical constant groups (constant1 and constant2) that cannot be deduplicated (HyperLogLog type)</li>
-     * <li>Two row groups (row1 and row2), each referencing one of the constant groups</li>
-     * <li>A parent row group (parentRow) referencing row2 and constant2</li>
+     * <li>Two identical constant groups (constant2 and constant3) that are deduplicated</li>
+     * <li>Another constant group (constant1)</li>
+     * <li>Two row groups (row1 and row2), each referencing one of the constant groups constant1 and constant2 respectively</li>
+     * <li>A parent row group (parentRow) referencing row2 and constant3</li>
      * </ul>
      * When we enforce merging constant1 and constant2, row1 and row2 should be merged (both referencing the same constant group),
-     * and parentRow should be updated to reference the merged row group (instead of row2) and merged constant group (instead of constant2).
+     * and parentRow should be updated to reference the merged row group (instead of row2) and merged constant group (instead of constant3).
      * <pre>
      * row1
      * └── constant1
@@ -1037,28 +1037,28 @@ public class TestMemo
      * parentRow
      * ├── row2
      * │   └── constant2
-     * └── constant2
+     * └── constant3
      * </pre>
-     * After merging constant1 and constant2:
      */
     @Test
     public void testUpdateOperationMultipleTimesOnMergeV1()
     {
-        List<Operation> row1Operations = singleConstantRow("1", HYPER_LOG_LOG, EMPTY_SLICE);
+        List<Operation> row1Operations = singleConstantRow("1", BIGINT, 0L);
         Values valuesOperation1 = valuesOfRows(ImmutableList.of(row1Operations));
 
-        List<Operation> row2Operations = singleConstantRow("2", HYPER_LOG_LOG, EMPTY_SLICE);
-        Constant constant2 = (Constant) row2Operations.getFirst();
+        List<Operation> row2Operations = singleConstantRow("2", BIGINT, 1L);
         Row row2 = (Row) row2Operations.get(1);
+        Constant constant3 = new Constant("%constant3", BIGINT, 1L);
         Row parentRow = new Row(
                 "%parent_row",
-                ImmutableList.of(row2.result(), constant2.result()),
-                ImmutableList.of(row2.attributes(), constant2.attributes()));
+                ImmutableList.of(row2.result(), constant3.result()),
+                ImmutableList.of(row2.attributes(), constant3.attributes()));
         Return parentReturn = new Return("%parent_return", parentRow.result(), parentRow.attributes());
         Values valuesOperation2 = valuesOfRows(
                 ImmutableList.of(
                         ImmutableList.<Operation>builder()
-                                .addAll(row2Operations)
+                                .addAll(row2Operations.subList(0, row2Operations.size() - 1)) // skip return
+                                .add(constant3)
                                 .add(parentRow)
                                 .add(parentReturn)
                                 .build()));
@@ -1078,14 +1078,14 @@ public class TestMemo
                                         .withChildren(groupChild(0))
                                         .build())
                                 .build(),
-                        4, memoGroup().build(), // "%constant2"
+                        4, memoGroup().build(), // "%constant2" and "%constant3"
                         5, memoGroup() // "%row2"
                                 .withOperations(memoOperation()
                                         .withName("row")
                                         .withChildren(groupChild(4))
                                         .build())
                                 .build(),
-                        7, memoGroup() // "%parent_row"
+                        6, memoGroup() // "%parent_row"
                                 .withOperations(memoOperation()
                                         .withName("row")
                                         .withChildren(
@@ -1104,7 +1104,7 @@ public class TestMemo
         // 6. dequeue parentRow for update processing, apply groupId mapping, get updated parentRow referencing row1 and constant1
         // 7. dequeue parentRow for update processing again, but no changes needed this time because we find that the most recent version is fully updated
         // 8. queue is empty, finish processing
-        int mergedId = memo.mergeGroups(0, 4); // "%constant1" and "%constant2"
+        int mergedId = memo.mergeGroups(0, 4); // "%constant1" and "%constant2" and "%constant3"
         assertThat(mergedId).isEqualTo(0);
         memo.validateGroupToParentsMapping();
 
@@ -1113,7 +1113,7 @@ public class TestMemo
                 memo.groups(),
                 ImmutableMap.of(
                         // merged constant group
-                        0, memoGroup() // "%constant1" and "%constant2"
+                        0, memoGroup() // "%constant1", "%constant2" and "%constant3"
                                 .withOperations(
                                         memoOperation().withName("constant").build(),
                                         memoOperation().withName("constant").build())
@@ -1126,7 +1126,7 @@ public class TestMemo
                                         .build())
                                 .build(),
                         // parent row updated to reference the merged row and constant groups
-                        7, memoGroup() // "%parent_row"
+                        6, memoGroup() // "%parent_row"
                                 .withOperations(memoOperation()
                                         .withName("row")
                                         .withChildren(
@@ -1151,7 +1151,7 @@ public class TestMemo
      * </pre>
      * <pre>
      * parentRow
-     * ├── constant2
+     * ├── constant3
      * └── row2
      *     └── constant2
      * </pre>
@@ -1160,21 +1160,22 @@ public class TestMemo
     @Test
     public void testUpdateOperationMultipleTimesOnMergeV2()
     {
-        List<Operation> row1Operations = singleConstantRow("1", HYPER_LOG_LOG, EMPTY_SLICE);
+        List<Operation> row1Operations = singleConstantRow("1", BIGINT, 0L);
         Values valuesOperation1 = valuesOfRows(ImmutableList.of(row1Operations));
 
-        List<Operation> row2Operations = singleConstantRow("2", HYPER_LOG_LOG, EMPTY_SLICE);
-        Constant constant2 = (Constant) row2Operations.getFirst();
+        List<Operation> row2Operations = singleConstantRow("2", BIGINT, 1L);
         Row row2 = (Row) row2Operations.get(1);
+        Constant constant3 = new Constant("%constant3", BIGINT, 1L);
         Row parentRow = new Row(
                 "%parent_row",
-                ImmutableList.of(constant2.result(), row2.result()),
-                ImmutableList.of(constant2.attributes(), row2.attributes()));
+                ImmutableList.of(constant3.result(), row2.result()),
+                ImmutableList.of(constant3.attributes(), row2.attributes()));
         Return parentReturn = new Return("%parent_return", parentRow.result(), parentRow.attributes());
         Values valuesOperation2 = valuesOfRows(
                 ImmutableList.of(
                         ImmutableList.<Operation>builder()
-                                .addAll(row2Operations)
+                                .addAll(row2Operations.subList(0, row2Operations.size() - 1)) // skip return
+                                .add(constant3)
                                 .add(parentRow)
                                 .add(parentReturn)
                                 .build()));
@@ -1194,14 +1195,14 @@ public class TestMemo
                                         .withChildren(groupChild(0))
                                         .build())
                                 .build(),
-                        4, memoGroup().build(), // "%constant2"
+                        4, memoGroup().build(), // "%constant2" and "%constant3"
                         5, memoGroup() // "%row2"
                                 .withOperations(memoOperation()
                                         .withName("row")
                                         .withChildren(groupChild(4))
                                         .build())
                                 .build(),
-                        7, memoGroup() // "%parent_row"
+                        6, memoGroup() // "%parent_row"
                                 .withOperations(memoOperation()
                                         .withName("row")
                                         .withChildren(
@@ -1229,7 +1230,7 @@ public class TestMemo
                 memo.groups(),
                 ImmutableMap.of(
                         // merged constant group
-                        0, memoGroup() // "%constant1" and "%constant2"
+                        0, memoGroup() // "%constant1" and "%constant2" and "%constant3"
                                 .withOperations(
                                         memoOperation().withName("constant").build(),
                                         memoOperation().withName("constant").build())
@@ -1242,7 +1243,7 @@ public class TestMemo
                                         .build())
                                 .build(),
                         // parent row updated to reference the merged row and constant groups
-                        7, memoGroup() // "%parent_row"
+                        6, memoGroup() // "%parent_row"
                                 .withOperations(memoOperation()
                                         .withName("row")
                                         .withChildren(
@@ -1521,99 +1522,5 @@ public class TestMemo
                                         .build())
                                 .build())
                         .buildOrThrow());
-    }
-
-    private static List<Operation> singleConstantRow(String suffix, io.trino.spi.type.Type type, Object value)
-    {
-        Constant constantOperation = new Constant("%constant" + suffix, type, value);
-        Row rowOperation = new Row("%row" + suffix, ImmutableList.of(constantOperation.result()), ImmutableList.of(constantOperation.attributes()));
-        Return returnOperation = new Return("%return" + suffix, rowOperation.result(), rowOperation.attributes());
-
-        return ImmutableList.of(constantOperation, rowOperation, returnOperation);
-    }
-
-    private static Values valuesOfRows(List<List<Operation>> rows)
-    {
-        return valuesOfRows("", rows);
-    }
-
-    private static Values valuesOfRows(String suffix, List<List<Operation>> rows)
-    {
-        List<Block> blocks = rows.stream()
-                .map(row -> new Block(Optional.of("^row"), ImmutableList.of(), row))
-                .collect(toImmutableList());
-
-        return new Values("%values" + suffix, (RowType) trinoType(blocks.getFirst().getReturnedType()), blocks);
-    }
-
-    private static Program program(Operation operation)
-    {
-        return program("_output", ImmutableList.of(operation));
-    }
-
-    private static Program program(List<Operation> operations)
-    {
-        return program("_output", operations);
-    }
-
-    private static Program program(String suffix, Operation operation)
-    {
-        return program(suffix, ImmutableList.of(operation));
-    }
-
-    /**
-     * Creates a Program using given operations. The last operation is used as the root of the query.
-     */
-    private static Program program(String suffix, List<Operation> operations)
-    {
-        Parameter parameter = new Parameter("%parameter", irType(relationRowType(trinoType(operations.getLast().result().type()))));
-        FieldReference fieldReferenceOperation = new FieldReference("%field_reference" + suffix, parameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Row rowOperation = new Row("%row" + suffix, ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%return" + suffix, rowOperation.result(), rowOperation.attributes());
-        Output outputOperation = new Output(
-                "%output",
-                operations.getLast().result(),
-                new Block(
-                        Optional.of("^outputFieldSelector"),
-                        ImmutableList.of(parameter),
-                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
-                ImmutableList.of("output_column"),
-                operations.getLast().attributes());
-
-        Query queryOperation = new Query(
-                "%query",
-                new Block(
-                        Optional.of("^query"),
-                        ImmutableList.of(),
-                        ImmutableList.<Operation>builder()
-                                .addAll(operations)
-                                .add(outputOperation)
-                                .build()));
-
-        return new Program(queryOperation);
-    }
-
-    private static Query query(String suffix, Operation operation)
-    {
-        Parameter parameter = new Parameter("%parameter", irType(relationRowType(trinoType(operation.result().type()))));
-        FieldReference fieldReferenceOperation = new FieldReference("%field_reference", parameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Row rowOperation = new Row("%row", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%return", rowOperation.result(), rowOperation.attributes());
-        Output outputOperation = new Output(
-                "%output",
-                operation.result(),
-                new Block(
-                        Optional.of("^outputFieldSelector"),
-                        ImmutableList.of(parameter),
-                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
-                ImmutableList.of("output_column"),
-                operation.attributes());
-
-        return new Query(
-                "%query" + suffix,
-                new Block(
-                        Optional.of("^query"),
-                        ImmutableList.of(),
-                        ImmutableList.of(operation, outputOperation)));
     }
 }

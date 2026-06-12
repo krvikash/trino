@@ -25,6 +25,8 @@ import java.util.Map;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.IR_DIALECT;
+import static io.trino.sql.dialect.memo.MemoDialect.MEMO;
+import static io.trino.sql.dialect.memo.MemoDialect.MEMO_DIALECT;
 import static io.trino.sql.dialect.trino.TrinoDialect.TESTING_TRINO_DIALECT;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static java.lang.String.format;
@@ -40,9 +42,11 @@ public class DialectRegistry
     public DialectRegistry(TrinoDialect trinoDialect)
     {
         requireNonNull(trinoDialect, "trinoDialect is null");
+
         this.dialects = ImmutableMap.of(
                 TRINO, trinoDialect,
-                IR, IR_DIALECT);
+                IR, IR_DIALECT,
+                MEMO, MEMO_DIALECT);
     }
 
     public Dialect dialect(String name)

@@ -34,6 +34,9 @@ import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.sql.dialect.memo.MemoDialect.MEMO;
+import static io.trino.sql.dialect.memo.MemoDialect.REUSE;
 import static io.trino.sql.planner.exploratory.MemoGroup.singletonGroup;
 import static java.util.Objects.requireNonNull;
 
@@ -89,7 +92,7 @@ public class Memo
 
     public static Memo forProgram(Program program, DialectRegistry dialectRegistry)
     {
-        MemoBuilder builder = new MemoBuilder(dialectRegistry, new IdAllocator());
+        MemoBuilder builder = new MemoBuilder(dialectRegistry);
         builder.insertProgramRecursively(program);
         return builder.build();
     }
@@ -347,6 +350,23 @@ public class Memo
 
         builder.add(groupId);
         visitedGroups.add(groupId);
+    }
+
+    boolean isReuse(int groupId)
+    {
+        MemoGroup group = groups.get(groupId);
+        if (group.operations().size() > 1) {
+            return false;
+        }
+        MemoOperation operation = getOnlyElement(group.operations());
+        return operation.dialect().equals(MEMO) && operation.operationId().name().equals(REUSE);
+    }
+
+    int reusedGroup(int groupId)
+    {
+        checkArgument(isReuse(groupId), "Group %s is not a reuse group", groupId);
+        MemoOperation operation = getOnlyElement(groups.get(groupId).operations());
+        return ((GroupChild) getOnlyElement(operation.children())).groupId();
     }
 
     public static class IdAllocator
