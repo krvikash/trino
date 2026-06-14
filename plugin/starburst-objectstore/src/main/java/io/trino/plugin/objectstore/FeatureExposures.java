@@ -131,7 +131,7 @@ public final class FeatureExposures
                 .put(ICEBERG, "dynamic_row_filtering_enabled", EXPOSED)
                 .put(ICEBERG, "dynamic_row_filtering_selectivity_threshold", EXPOSED)
                 .put(ICEBERG, "dynamic_row_filtering_wait_timeout", EXPOSED)
-                .put(ICEBERG, "experimental_split_size", EXPOSED)
+                .put(ICEBERG, "max_split_size", EXPOSED)
                 .put(ICEBERG, "expire_snapshots_min_retention", EXPOSED)
                 .put(ICEBERG, "extended_statistics_enabled", EXPOSED)
                 .put(ICEBERG, "file_based_conflict_detection_enabled", EXPOSED)
