@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.filesystem.memory.MemoryFileSystemFactory;
-import io.trino.plugin.hive.parquet.ParquetGpuPageSourceFactory;
+import io.trino.plugin.hive.parquet.HiveGpuParquetPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.spi.Page;
 import io.trino.spi.SplitWeight;
@@ -131,7 +131,7 @@ public class TestHivePageSourceProvider
         pageSourceProvider = new HivePageSourceProvider(
                 TESTING_TYPE_MANAGER,
                 config,
-                new ParquetGpuPageSourceFactory(new ParquetReaderConfig()),
+                new HiveGpuParquetPageSourceFactory(new ParquetReaderConfig()),
                 ImmutableSet.of(),
                 new MemoryFileSystemFactory());
     }

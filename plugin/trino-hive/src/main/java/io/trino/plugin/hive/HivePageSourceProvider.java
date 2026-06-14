@@ -30,7 +30,7 @@ import io.trino.plugin.hive.HiveSplit.BucketValidation;
 import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.hive.coercions.CoercionUtils.CoercionContext;
 import io.trino.plugin.hive.coercions.TypeCoercer;
-import io.trino.plugin.hive.parquet.ParquetGpuPageSourceFactory;
+import io.trino.plugin.hive.parquet.HiveGpuParquetPageSourceFactory;
 import io.trino.plugin.hive.util.HiveBucketing.BucketingVersion;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
@@ -107,7 +107,7 @@ public class HivePageSourceProvider
 
     private final TypeManager typeManager;
     private final int domainCompactionThreshold;
-    private final ParquetGpuPageSourceFactory parquetGpuPageSourceFactory;
+    private final HiveGpuParquetPageSourceFactory parquetGpuPageSourceFactory;
     private final Set<HivePageSourceFactory> pageSourceFactories;
     private final TrinoFileSystemFactory fileSystemFactory;
     private final DateTimeZone parquetDateTimeZone;
@@ -116,7 +116,7 @@ public class HivePageSourceProvider
     public HivePageSourceProvider(
             TypeManager typeManager,
             HiveConfig hiveConfig,
-            ParquetGpuPageSourceFactory parquetGpuPageSourceFactory,
+            HiveGpuParquetPageSourceFactory parquetGpuPageSourceFactory,
             Set<HivePageSourceFactory> pageSourceFactories,
             TrinoFileSystemFactory fileSystemFactory)
     {

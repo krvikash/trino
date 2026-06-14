@@ -84,7 +84,7 @@ import static org.apache.parquet.format.CompressionCodec.ZSTD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.joda.time.DateTimeZone.UTC;
 
-public class TestGpuParquetPageSource
+public class TestHiveGpuParquetPageSource
 {
     @Test
     public void testBasicReadWithAllTypes()
@@ -383,7 +383,7 @@ public class TestGpuParquetPageSource
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata)) {
-            try (GpuParquetPageSource pageSource = new GpuParquetPageSource(
+            try (HiveGpuParquetPageSource pageSource = new HiveGpuParquetPageSource(
                     fabricator,
                     columns,
                     columnMappings)) {

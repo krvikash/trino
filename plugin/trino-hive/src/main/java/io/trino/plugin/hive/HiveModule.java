@@ -49,8 +49,8 @@ import io.trino.plugin.hive.orc.OrcFileWriterFactory;
 import io.trino.plugin.hive.orc.OrcPageSourceFactory;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.hive.parquet.HiveGpuParquetPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetFileWriterFactory;
-import io.trino.plugin.hive.parquet.ParquetGpuPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
@@ -114,7 +114,7 @@ public class HiveModule
         binder.bind(FileFormatDataSourceStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(FileFormatDataSourceStats.class).withGeneratedName();
 
-        binder.bind(ParquetGpuPageSourceFactory.class).in(Scopes.SINGLETON);
+        binder.bind(HiveGpuParquetPageSourceFactory.class).in(Scopes.SINGLETON);
         Multibinder<HivePageSourceFactory> pageSourceFactoryBinder = newSetBinder(binder, HivePageSourceFactory.class);
         pageSourceFactoryBinder.addBinding().to(CsvPageSourceFactory.class).in(Scopes.SINGLETON);
         pageSourceFactoryBinder.addBinding().to(JsonPageSourceFactory.class).in(Scopes.SINGLETON);

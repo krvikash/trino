@@ -52,7 +52,7 @@ import static java.util.Objects.requireNonNull;
  * GPU-accelerated Parquet page source that reads entire fabricated Parquet files
  * using cuDF and returns a single GpuPage per split.
  */
-public class GpuParquetPageSource
+public class HiveGpuParquetPageSource
         implements ConnectorGpuPageSource
 {
     private final ParquetFileFabricator fabricator;
@@ -62,7 +62,7 @@ public class GpuParquetPageSource
     private boolean finished;
     private @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
 
-    public GpuParquetPageSource(
+    public HiveGpuParquetPageSource(
             ParquetFileFabricator fabricator,
             List<HiveColumnHandle> gpuColumns,
             List<ColumnMapping> columnMappings)

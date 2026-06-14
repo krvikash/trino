@@ -49,12 +49,12 @@ import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSo
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetTupleDomain;
 
-public final class ParquetGpuPageSourceFactory
+public final class HiveGpuParquetPageSourceFactory
 {
     private final ParquetReaderOptions options;
 
     @Inject
-    public ParquetGpuPageSourceFactory(ParquetReaderConfig config)
+    public HiveGpuParquetPageSourceFactory(ParquetReaderConfig config)
     {
         this.options = ParquetReaderOptions.builder(config.toParquetReaderOptions())
                 // Raise the size of the max read because we are reading everything up front into an in-memory byte array.
@@ -138,7 +138,7 @@ public final class ParquetGpuPageSourceFactory
                     options,
                     parquetMetadata);
 
-            return new GpuParquetPageSource(fabricator, gpuColumns, columnMappings);
+            return new HiveGpuParquetPageSource(fabricator, gpuColumns, columnMappings);
         }
         catch (IOException e) {
             throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source", e);
