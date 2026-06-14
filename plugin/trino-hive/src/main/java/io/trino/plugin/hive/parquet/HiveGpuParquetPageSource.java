@@ -13,9 +13,7 @@
  */
 package io.trino.plugin.hive.parquet;
 
-import ai.rapids.cudf.BaseDeviceMemoryBuffer;
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
@@ -32,7 +30,6 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarbinaryType;
 
 import java.io.IOException;
 import java.util.List;
@@ -186,7 +183,7 @@ public class HiveGpuParquetPageSource
                         Type trinoType = gpuColumn.getType();
                         DType expectedDType = toDType(trinoType)
                                 .orElseThrow(() -> new TrinoException(HIVE_UNSUPPORTED_FORMAT, "Unsupported type for GPU: " + trinoType));
-                        @Own ColumnVector evolved = evolveColumn(gpuColumn.getBaseColumnName(), cudfColumn, expectedDType, trinoType);
+                        @Own ColumnVector evolved = GpuColumnEvolution.evolveColumn(gpuColumn.getBaseColumnName(), cudfColumn, expectedDType, trinoType);
                         yield new Column.DeviceMemory(evolved);
                     }
 
@@ -221,68 +218,6 @@ public class HiveGpuParquetPageSource
                 .copyToScalar(Optional.ofNullable(mapping.getPrefilledValue().getValue()))) {
             return new Column.DeviceMemory(ColumnVector.fromScalar(scalar, rowCount));
         }
-    }
-
-    /**
-     * Evolve a cuDF column to the expected DType, applying a cast when the Parquet physical type
-     * differs from the Trino logical type.
-     * <ul>
-     *   <li>Timestamp family (any unit → any unit): handles INT96/INT64 MILLIS read as MICROS
-     *       (due to withTimeUnit) being downcast to the precision Trino expects.</li>
-     *   <li>Decimal family (DECIMAL32/64/128 → DECIMAL64/128): Hive writes FIXED_LEN_BYTE_ARRAY
-     *       (read by cuDF as DECIMAL128); external writers may use INT32/INT64-backed decimals.
-     *       The target is DECIMAL64 for short Trino decimals (precision ≤ 18) and DECIMAL128 for
-     *       long Trino decimals.</li>
-     *   <li>Integer widening (INT8/INT16/INT32 → INT16/INT32/INT64): covers schema evolution
-     *       where a column was widened after the table was written.</li>
-     *   <li>Integer → decimal: INT32/INT64-backed Parquet decimals where cuDF returns a plain
-     *       integer type rather than a decimal type.</li>
-     * </ul>
-     */
-    private static @Move ColumnVector evolveColumn(String columnName, @Borrow ColumnVector cudfColumn, DType expectedDType, Type trinoType)
-    {
-        DType actualDType = cudfColumn.getType();
-        if (actualDType.equals(expectedDType)) {
-            return cudfColumn.incRefCount();
-        }
-        if (actualDType.isTimestampType() && expectedDType.isTimestampType()) {
-            return cudfColumn.castTo(expectedDType);
-        }
-        if (actualDType.isDecimalType() && expectedDType.isDecimalType()) {
-            return cudfColumn.castTo(expectedDType);
-        }
-        if (isIntegerType(actualDType) && (isIntegerType(expectedDType) || expectedDType.isDecimalType())
-                && expectedDType.getSizeInBytes() >= actualDType.getSizeInBytes()) {
-            return cudfColumn.castTo(expectedDType);
-        }
-        if (trinoType instanceof VarbinaryType && actualDType.equals(DType.STRING) && expectedDType.equals(DType.LIST)) {
-            // cuDF reads Parquet BINARY as STRING; reinterpret the byte payload as LIST<UINT8>.
-            // The STRING data buffer becomes the child UINT8 column; offsets and validity carry
-            // over unchanged.
-            BaseDeviceMemoryBuffer dataBuffer = cudfColumn.getData();
-            long childRowCount = dataBuffer == null ? 0 : dataBuffer.getLength();
-            try (ColumnView childView = new ColumnView(DType.UINT8, childRowCount, Optional.of(0L), dataBuffer, null);
-                    ColumnView listView = new ColumnView(
-                            DType.LIST,
-                            cudfColumn.getRowCount(),
-                            Optional.of(cudfColumn.getNullCount()),
-                            cudfColumn.getValid(),
-                            cudfColumn.getOffsets(),
-                            new ColumnView[] {childView})) {
-                return listView.copyToColumnVector();
-            }
-        }
-        throw new TrinoException(
-                HIVE_UNSUPPORTED_FORMAT,
-                format("Column %s: cannot evolve cuDF type %s to expected type %s",
-                        columnName,
-                        actualDType,
-                        expectedDType));
-    }
-
-    private static boolean isIntegerType(DType dtype)
-    {
-        return dtype == DType.INT8 || dtype == DType.INT16 || dtype == DType.INT32 || dtype == DType.INT64;
     }
 
     @Override
