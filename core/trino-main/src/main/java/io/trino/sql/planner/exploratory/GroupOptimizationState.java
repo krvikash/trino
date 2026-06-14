@@ -43,11 +43,11 @@ import static java.util.Objects.requireNonNull;
  *     becomes its representative only when it is strictly better; otherwise,
  *     it joins the tier only when it is in the same approximate tier as the
  *     representative. Tier members may have different exact costs and may be
- *     mutually incomparable. During extraction, candidates are tried in a
- *     stable linear extension of the cost order until a non-recursive winner
- *     is found. The XO model relies on the active tier containing at least one
- *     non-recursive candidate. See {@link WinnersTier} for detailed membership
- *     and ordering semantics.</li>
+ *     mutually incomparable. Candidates are exposed in a stable linear
+ *     extension of the cost order. Program extraction currently assumes that
+ *     the first candidate in that order yields a finite acyclic program; it
+ *     does not backtrack to another candidate to resolve cycles.
+ *     See {@link WinnersTier} for detailed membership and ordering semantics.</li>
  *     <li>{@code bestKnownCost} - best winner cost observed during the current
  *     relaxation. It is preserved while current candidates are temporarily
  *     invalidated and can only improve.</li>
