@@ -32,8 +32,6 @@ import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.SizeOf.sizeOfByteArray;
 import static io.airlift.slice.SizeOf.sizeOfIntArray;
-import static io.trino.operator.SyntheticAddress.decodePosition;
-import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static io.trino.operator.join.PagesHash.getHashPosition;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -47,8 +45,10 @@ public final class DefaultPagesHash
         implements PagesHash
 {
     private static final int INSTANCE_SIZE = instanceSize(DefaultPagesHash.class);
-    private final LongArrayList addresses;
+    private final int positionCount;
     private final PagesHashStrategy pagesHashStrategy;
+    // Resolves a row number to its (block index, position) for output.
+    private final BlockPositionIndex blockPositionIndex;
 
     private final int mask;
     private final int[] keys;
@@ -69,18 +69,20 @@ public final class DefaultPagesHash
             PositionLinks.FactoryBuilder positionLinks,
             HashArraySizeSupplier hashArraySizeSupplier)
     {
-        this.addresses = requireNonNull(addresses, "addresses is null");
+        requireNonNull(addresses, "addresses is null");
+        this.positionCount = addresses.size();
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         requireNonNull(positionCounts, "positionCounts is null");
+        blockPositionIndex = new BlockPositionIndex(positionCounts);
 
         // reserve memory for the arrays
-        int hashSize = hashArraySizeSupplier.getHashArraySize(addresses.size());
+        int hashSize = hashArraySizeSupplier.getHashArraySize(positionCount);
 
         mask = hashSize - 1;
         keys = new int[hashSize];
         Arrays.fill(keys, -1);
 
-        positionToHashes = new byte[addresses.size()];
+        positionToHashes = new byte[positionCount];
 
         int pageCount = positionCounts.size();
         int maxPagePositions = 0;
@@ -119,7 +121,7 @@ public final class DefaultPagesHash
         }
 
         size = sizeOf(addresses.elements()) + pagesHashStrategy.getSizeInBytes() +
-                sizeOf(keys) + sizeOf(positionToHashes);
+                sizeOf(keys) + sizeOf(positionToHashes) + blockPositionIndex.getRetainedSizeInBytes();
     }
 
     private void indexRange(PositionLinks.FactoryBuilder positionLinks, int offset, int length, long[] pageHashes)
@@ -167,7 +169,7 @@ public final class DefaultPagesHash
     @Override
     public int getPositionCount()
     {
-        return addresses.size();
+        return positionCount;
     }
 
     @Override
@@ -291,21 +293,17 @@ public final class DefaultPagesHash
     @Override
     public void appendTo(long position, PageBuilder pageBuilder, int outputChannelOffset)
     {
-        long pageAddress = addresses.getLong(toIntExact(position));
-        int blockIndex = decodeSliceIndex(pageAddress);
-        int blockPosition = decodePosition(pageAddress);
-
-        pagesHashStrategy.appendTo(blockIndex, blockPosition, pageBuilder, outputChannelOffset);
+        int rowNumber = toIntExact(position);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(rowNumber);
+        pagesHashStrategy.appendTo(blockIndex, blockPositionIndex.decodePosition(rowNumber, blockIndex), pageBuilder, outputChannelOffset);
     }
 
     @Override
     public void appendTo(long position, PreSizedBlockBuilder[] builders)
     {
-        long pageAddress = addresses.getLong(toIntExact(position));
-        int blockIndex = decodeSliceIndex(pageAddress);
-        int blockPosition = decodePosition(pageAddress);
-
-        pagesHashStrategy.appendTo(blockIndex, blockPosition, builders);
+        int rowNumber = toIntExact(position);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(rowNumber);
+        pagesHashStrategy.appendTo(blockIndex, blockPositionIndex.decodePosition(rowNumber, blockIndex), builders);
     }
 
     private boolean positionEqualsCurrentRowIgnoreNulls(int leftPosition, byte rawHash, int rightPosition, Page rightPage)
@@ -314,22 +312,19 @@ public final class DefaultPagesHash
             return false;
         }
 
-        long pageAddress = addresses.getLong(leftPosition);
-        int blockIndex = decodeSliceIndex(pageAddress);
-        int blockPosition = decodePosition(pageAddress);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(leftPosition);
+        int blockPosition = blockPositionIndex.decodePosition(leftPosition, blockIndex);
 
         return pagesHashStrategy.positionEqualsRowIgnoreNulls(blockIndex, blockPosition, rightPosition, rightPage);
     }
 
     private boolean positionEqualsPositionIgnoreNulls(int leftPosition, int rightPosition)
     {
-        long leftPageAddress = addresses.getLong(leftPosition);
-        int leftBlockIndex = decodeSliceIndex(leftPageAddress);
-        int leftBlockPosition = decodePosition(leftPageAddress);
+        int leftBlockIndex = blockPositionIndex.decodeBlockIndex(leftPosition);
+        int leftBlockPosition = blockPositionIndex.decodePosition(leftPosition, leftBlockIndex);
 
-        long rightPageAddress = addresses.getLong(rightPosition);
-        int rightBlockIndex = decodeSliceIndex(rightPageAddress);
-        int rightBlockPosition = decodePosition(rightPageAddress);
+        int rightBlockIndex = blockPositionIndex.decodeBlockIndex(rightPosition);
+        int rightBlockPosition = blockPositionIndex.decodePosition(rightPosition, rightBlockIndex);
 
         return pagesHashStrategy.positionEqualsPositionIgnoreNulls(leftBlockIndex, leftBlockPosition, rightBlockIndex, rightBlockPosition);
     }
@@ -341,10 +336,15 @@ public final class DefaultPagesHash
             List<ObjectArrayList<Block>> channels,
             long blocksSizeInBytes)
     {
+        int blockCount = 0;
+        if (!channels.isEmpty()) {
+            blockCount = channels.getFirst().size();
+        }
         return sizeOf(addresses.elements()) +
                 (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
                 blocksSizeInBytes +
                 sizeOfIntArray(hashArraySizeSupplier.getHashArraySize(positionCount)) +
-                sizeOfByteArray(positionCount);
+                sizeOfByteArray(positionCount) +
+                BlockPositionIndex.getEstimatedRetainedSizeInBytes(blockCount, positionCount);
     }
 }
