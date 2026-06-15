@@ -54,6 +54,11 @@ public class GlueCatalogIdInterceptor
 {
     private final Optional<String> catalogId;
 
+    public GlueCatalogIdInterceptor(String catalogId)
+    {
+        this.catalogId = Optional.of(catalogId);
+    }
+
     @Inject
     GlueCatalogIdInterceptor(GlueHiveMetastoreConfig config)
     {

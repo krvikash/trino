@@ -42,12 +42,15 @@
         <module>core/trino-spi</module>
         <module>core/trino-web-ui</module>
         <module>docs</module>
+        <module>lib/icehouse-catalog</module>
+        <module>lib/icehouse-io</module>
         <module>lib/sep-license</module>
         <module>lib/starburst-events-model</module>
         <module>lib/starburst-functions-client</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-materialization-metastore-api</module>
         <module>lib/starburst-schema-discovery</module>
+        <module>lib/starburst-table-maintenance</module>
         <module>lib/starburst-testing-auto-configuration</module>
         <module>lib/trino-array</module>
         <module>lib/trino-cache</module>
@@ -261,6 +264,7 @@
         <dep.openai.version>2.8.1</dep.openai.version>
         <dep.parquet.version>1.17.1</dep.parquet.version>
         <dep.protobuf.version>4.34.1</dep.protobuf.version>
+        <dep.starburst-shared.version>stargate-27392-g2197eb71ee</dep.starburst-shared.version>
         <dep.swagger.version>2.2.50</dep.swagger.version>
         <dep.takari.version>2.3.3</dep.takari.version>
         <dep.tcnative.version>2.0.79.Final</dep.tcnative.version>
@@ -1018,6 +1022,37 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <!-- starburst-shared-components: external artifacts from the stargate repo -->
+            <dependency>
+                <groupId>io.starburst.stargate</groupId>
+                <artifactId>icehouse-spi</artifactId>
+                <version>${dep.starburst-shared.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.starburst.stargate</groupId>
+                <artifactId>icehouse-task-primitives</artifactId>
+                <version>${dep.starburst-shared.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.starburst.stargate</groupId>
+                <artifactId>metastore-client</artifactId>
+                <version>${dep.starburst-shared.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.starburst.stargate</groupId>
+                <artifactId>starburst-crypto</artifactId>
+                <version>${dep.starburst-shared.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.starburst.stargate</groupId>
+                <artifactId>stargate-ids</artifactId>
+                <version>${dep.starburst-shared.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>io.starburst.stargate.buffer</groupId>
                 <artifactId>starburst-buffer-client-common</artifactId>
@@ -1716,6 +1751,12 @@
                 <artifactId>trino-sqlserver</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>trino-ssh-tunnel</artifactId>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
