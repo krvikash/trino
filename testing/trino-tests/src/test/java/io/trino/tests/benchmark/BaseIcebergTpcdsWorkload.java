@@ -112,6 +112,9 @@ public abstract class BaseIcebergTpcdsWorkload
         }
         rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         BenchmarkRunner.applyExecutionMode(builder, mode);
+        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+            builder.addIcebergProperty("iceberg.max-split-size", "512MB");
+        }
         DistributedQueryRunner runner = builder.build();
 
         runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpcds");

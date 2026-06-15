@@ -137,6 +137,9 @@ public final class BenchmarkIcebergClickBench
                     .disableSchemaInitializer()
                     .addIcebergProperty("iceberg.register-table-procedure.enabled", "true");
             BenchmarkRunner.applyExecutionMode(builder, mode);
+            if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+                builder.addIcebergProperty("iceberg.max-split-size", "512MB");
+            }
             if (bind8080) {
                 builder.addCoordinatorProperty("http-server.http.port", "8080");
             }
