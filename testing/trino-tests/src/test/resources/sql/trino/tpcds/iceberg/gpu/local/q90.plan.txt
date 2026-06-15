@@ -1,0 +1,47 @@
+- OutputNode
+  - TopNNode (GPU)
+    - ExchangeNode LOCAL (GPU)
+      - TopNNode (GPU)
+        - ProjectNode
+          - JoinNode
+            - ExchangeNode LOCAL (GPU)
+              - AggregationNode (GPU)
+                - ExchangeNode LOCAL (GPU)
+                  - AggregationNode (GPU)
+                    - JoinNode (GPU)
+                      - ProjectNode (GPU)
+                        - FilterNode
+                          - TableScanNode time_dim (GPU)
+                      - ExchangeNode LOCAL (GPU)
+                        - JoinNode (GPU)
+                          - JoinNode (GPU)
+                            - FilterNode (GPU)
+                              - TableScanNode web_sales (GPU)
+                            - ExchangeNode LOCAL (GPU)
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode web_page (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - ProjectNode (GPU)
+                              - FilterNode
+                                - TableScanNode household_demographics (GPU)
+            - AggregationNode (GPU)
+              - ExchangeNode LOCAL (GPU)
+                - AggregationNode (GPU)
+                  - JoinNode (GPU)
+                    - ProjectNode (GPU)
+                      - FilterNode
+                        - TableScanNode time_dim (GPU)
+                    - ExchangeNode LOCAL (GPU)
+                      - JoinNode (GPU)
+                        - JoinNode (GPU)
+                          - FilterNode (GPU)
+                            - TableScanNode web_sales (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - ProjectNode (GPU)
+                              - FilterNode
+                                - TableScanNode web_page (GPU)
+                        - ExchangeNode LOCAL (GPU)
+                          - ProjectNode (GPU)
+                            - FilterNode
+                              - TableScanNode household_demographics (GPU)

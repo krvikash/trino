@@ -1,0 +1,155 @@
+- OutputNode
+  - ProjectNode
+    - JoinNode
+      - JoinNode
+        - JoinNode
+          - JoinNode
+            - JoinNode
+              - JoinNode
+                - JoinNode
+                  - JoinNode
+                    - JoinNode
+                      - JoinNode
+                        - JoinNode
+                          - JoinNode
+                            - JoinNode
+                              - JoinNode
+                                - JoinNode
+                                  - ProjectNode (GPU)
+                                    - FilterNode
+                                      - TableScanNode reason (GPU)
+                                  - ExchangeNode LOCAL
+                                    - ExchangeNode REMOTE
+                                      - AggregationNode (GPU)
+                                        - ExchangeNode LOCAL
+                                          - ExchangeNode REMOTE
+                                            - AggregationNode (GPU)
+                                              - ProjectNode (GPU)
+                                                - FilterNode
+                                                  - TableScanNode store_sales (GPU)
+                                - ExchangeNode LOCAL
+                                  - ExchangeNode REMOTE
+                                    - AggregationNode
+                                      - ExchangeNode LOCAL
+                                        - ExchangeNode REMOTE
+                                          - AggregationNode (GPU)
+                                            - ProjectNode (GPU)
+                                              - FilterNode
+                                                - TableScanNode store_sales (GPU)
+                              - ExchangeNode LOCAL
+                                - ExchangeNode REMOTE
+                                  - AggregationNode
+                                    - ExchangeNode LOCAL
+                                      - ExchangeNode REMOTE
+                                        - AggregationNode (GPU)
+                                          - ProjectNode (GPU)
+                                            - FilterNode
+                                              - TableScanNode store_sales (GPU)
+                            - ExchangeNode LOCAL
+                              - ExchangeNode REMOTE
+                                - AggregationNode (GPU)
+                                  - ExchangeNode LOCAL
+                                    - ExchangeNode REMOTE
+                                      - AggregationNode (GPU)
+                                        - ProjectNode (GPU)
+                                          - FilterNode
+                                            - TableScanNode store_sales (GPU)
+                          - ExchangeNode LOCAL
+                            - ExchangeNode REMOTE
+                              - AggregationNode
+                                - ExchangeNode LOCAL
+                                  - ExchangeNode REMOTE
+                                    - AggregationNode (GPU)
+                                      - ProjectNode (GPU)
+                                        - FilterNode
+                                          - TableScanNode store_sales (GPU)
+                        - ExchangeNode LOCAL
+                          - ExchangeNode REMOTE
+                            - AggregationNode
+                              - ExchangeNode LOCAL
+                                - ExchangeNode REMOTE
+                                  - AggregationNode (GPU)
+                                    - ProjectNode (GPU)
+                                      - FilterNode
+                                        - TableScanNode store_sales (GPU)
+                      - ExchangeNode LOCAL
+                        - ExchangeNode REMOTE
+                          - AggregationNode (GPU)
+                            - ExchangeNode LOCAL
+                              - ExchangeNode REMOTE
+                                - AggregationNode (GPU)
+                                  - ProjectNode (GPU)
+                                    - FilterNode
+                                      - TableScanNode store_sales (GPU)
+                    - ExchangeNode LOCAL
+                      - ExchangeNode REMOTE
+                        - AggregationNode
+                          - ExchangeNode LOCAL
+                            - ExchangeNode REMOTE
+                              - AggregationNode (GPU)
+                                - ProjectNode (GPU)
+                                  - FilterNode
+                                    - TableScanNode store_sales (GPU)
+                  - ExchangeNode LOCAL
+                    - ExchangeNode REMOTE
+                      - AggregationNode
+                        - ExchangeNode LOCAL
+                          - ExchangeNode REMOTE
+                            - AggregationNode (GPU)
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode store_sales (GPU)
+                - ExchangeNode LOCAL
+                  - ExchangeNode REMOTE
+                    - AggregationNode (GPU)
+                      - ExchangeNode LOCAL
+                        - ExchangeNode REMOTE
+                          - AggregationNode (GPU)
+                            - ProjectNode (GPU)
+                              - FilterNode
+                                - TableScanNode store_sales (GPU)
+              - ExchangeNode LOCAL
+                - ExchangeNode REMOTE
+                  - AggregationNode
+                    - ExchangeNode LOCAL
+                      - ExchangeNode REMOTE
+                        - AggregationNode (GPU)
+                          - ProjectNode (GPU)
+                            - FilterNode
+                              - TableScanNode store_sales (GPU)
+            - ExchangeNode LOCAL
+              - ExchangeNode REMOTE
+                - AggregationNode
+                  - ExchangeNode LOCAL
+                    - ExchangeNode REMOTE
+                      - AggregationNode (GPU)
+                        - ProjectNode (GPU)
+                          - FilterNode
+                            - TableScanNode store_sales (GPU)
+          - ExchangeNode LOCAL
+            - ExchangeNode REMOTE
+              - AggregationNode (GPU)
+                - ExchangeNode LOCAL
+                  - ExchangeNode REMOTE
+                    - AggregationNode (GPU)
+                      - ProjectNode (GPU)
+                        - FilterNode
+                          - TableScanNode store_sales (GPU)
+        - ExchangeNode LOCAL
+          - ExchangeNode REMOTE
+            - AggregationNode
+              - ExchangeNode LOCAL
+                - ExchangeNode REMOTE
+                  - AggregationNode (GPU)
+                    - ProjectNode (GPU)
+                      - FilterNode
+                        - TableScanNode store_sales (GPU)
+      - ExchangeNode LOCAL
+        - ExchangeNode REMOTE
+          - AggregationNode
+            - ExchangeNode LOCAL
+              - ExchangeNode REMOTE
+                - AggregationNode (GPU)
+                  - ProjectNode (GPU)
+                    - FilterNode
+                      - TableScanNode store_sales (GPU)

@@ -1,0 +1,42 @@
+- OutputNode
+  - ExchangeNode REMOTE
+    - ExchangeNode LOCAL
+      - SortNode
+        - ExchangeNode REMOTE
+          - AggregationNode (GPU)
+            - ExchangeNode LOCAL
+              - ExchangeNode REMOTE
+                - AggregationNode (GPU)
+                  - ProjectNode (GPU)
+                    - JoinNode (GPU)
+                      - ExchangeNode REMOTE
+                        - JoinNode (GPU)
+                          - ExchangeNode REMOTE
+                            - FilterNode (GPU)
+                              - TableScanNode orders (GPU)
+                          - ExchangeNode LOCAL
+                            - ExchangeNode REMOTE
+                              - JoinNode (GPU)
+                                - ExchangeNode REMOTE
+                                  - FilterNode (GPU)
+                                    - TableScanNode lineitem (GPU)
+                                - ExchangeNode LOCAL
+                                  - ExchangeNode REMOTE
+                                    - JoinNode (GPU)
+                                      - ExchangeNode REMOTE
+                                        - FilterNode (GPU)
+                                          - TableScanNode supplier (GPU)
+                                      - ExchangeNode LOCAL
+                                        - ExchangeNode REMOTE
+                                          - FilterNode (GPU)
+                                            - TableScanNode nation (GPU)
+                      - ExchangeNode LOCAL
+                        - ExchangeNode REMOTE
+                          - JoinNode (GPU)
+                            - ExchangeNode REMOTE
+                              - FilterNode (GPU)
+                                - TableScanNode customer (GPU)
+                            - ExchangeNode LOCAL
+                              - ExchangeNode REMOTE
+                                - FilterNode (GPU)
+                                  - TableScanNode nation (GPU)

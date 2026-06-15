@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
@@ -52,7 +53,10 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.type.TimestampTzBlockTransformer;
 import io.trino.plugin.hive.TransformConnectorPageSource;
 import io.trino.plugin.hive.orc.OrcPageSource;
+import io.trino.plugin.hive.parquet.ParquetFileFabricator;
 import io.trino.plugin.hive.parquet.ParquetPageSource;
+import io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuConstantColumn;
+import io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuOutputColumn;
 import io.trino.plugin.iceberg.IcebergParquetColumnIOConverter.FieldContext;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.plugin.iceberg.delete.DeleteManager;
@@ -84,12 +88,15 @@ import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.connector.SystemColumnHandle;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import jakarta.annotation.Nullable;
@@ -116,6 +123,7 @@ import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
@@ -158,11 +166,14 @@ import static io.trino.parquet.ParquetTypeUtils.getColumnIO;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
+import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSource;
 import static io.trino.plugin.iceberg.ColumnIdentity.TypeCategory.PRIMITIVE;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CANNOT_OPEN_SPLIT;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CURSOR_ERROR;
+import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuParquetFileColumn;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_MODIFIED_TIME;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_PATH;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.PARTITION;
@@ -218,6 +229,8 @@ import static org.joda.time.DateTimeZone.UTC;
 public class IcebergPageSourceProvider
         implements ConnectorPageSourceProvider
 {
+    private static final Logger log = Logger.get(IcebergPageSourceProvider.class);
+
     private static final String AVRO_FIELD_ID = "field-id";
 
     // This is used whenever a query doesn't reference any data columns.
@@ -231,6 +244,7 @@ public class IcebergPageSourceProvider
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
+    private final ParquetReaderOptions gpuParquetReaderOptions;
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
     private final Optional<BlocksHashFactory> blocksHashFactory;
@@ -253,10 +267,190 @@ public class IcebergPageSourceProvider
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = requireNonNull(orcReaderOptions, "orcReaderOptions is null");
         this.parquetReaderOptions = requireNonNull(parquetReaderOptions, "parquetReaderOptions is null");
+        this.gpuParquetReaderOptions = ParquetReaderOptions.builder(parquetReaderOptions)
+                // Raise the size of the max read because we are reading everything up front into an in-memory byte array.
+                // The default for CPU is tailored for lazy materialization and early cut-off of page source.
+                .withMaxBufferSize(DataSize.of(32, MEGABYTE))
+                .withInitialBufferSize(DataSize.of(32, MEGABYTE))
+                .build();
         this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.blocksHashFactory = requireNonNull(blocksHashFactory, "blocksHashFactory is null");
         this.unpartitionedTableDeleteManager = new DeleteManager(typeManager, blocksHashFactory);
+    }
+
+    @Override
+    public Optional<ConnectorGpuPageSource> createGpuPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit connectorSplit,
+            ConnectorTableHandle connectorTableHandle,
+            Optional<ConnectorTableCredentials> connectorTableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
+    {
+        verify(connectorTableCredentials.isPresent(), "connectorTableCredentials is empty");
+        IcebergTableCredentials icebergTableCredentials = connectorTableCredentials.map(IcebergTableCredentials.class::cast).get();
+
+        IcebergSplit icebergSplit = (IcebergSplit) connectorSplit;
+
+        if (icebergSplit.fileFormat() != PARQUET) {
+            log.debug("GPU page source not supported: file format is %s, expected PARQUET", icebergSplit.fileFormat());
+            return Optional.empty();
+        }
+
+        if (!icebergSplit.deletes().isEmpty()) {
+            // TODO: Splits with deletes are not supported: https://starburstdata.atlassian.net/browse/ENG-18065
+            log.debug("GPU page source not supported: split has %d deletes", icebergSplit.deletes().size());
+            return Optional.empty();
+        }
+
+        IcebergTableHandle icebergTable = (IcebergTableHandle) connectorTableHandle;
+
+        Schema tableSchema = SchemaParser.fromJson(icebergTable.getTableSchemaJson());
+        String partitionSpecJson = icebergTable.getPartitionSpecJsons().get(icebergSplit.specId());
+        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
+        org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
+                .map(field -> field.transform().getResultType(tableSchema.findType(field.sourceId())))
+                .toArray(org.apache.iceberg.types.Type[]::new);
+        PartitionData partitionData = PartitionData.fromBlocks(icebergSplit.partitionValues(), partitionColumnTypes, typeManager);
+        Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
+
+        String partition = partitionSpec.partitionToPath(partitionData);
+        TupleDomain<IcebergColumnHandle> effectivePredicate = getUnenforcedPredicate(
+                new SplitSpec(tableSchema, partitionSpec, partitionKeys),
+                icebergTable.getUnenforcedPredicate(),
+                dynamicFilter.getCurrentPredicate(),
+                icebergSplit.fileStatisticsDomain());
+
+        if (effectivePredicate.isNone()) {
+            return Optional.of(new EmptyGpuPageSource());
+        }
+
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session.getIdentity(), icebergTableCredentials);
+        TrinoInputFile inputFile = isUseFileSizeFromMetadata(session)
+                ? fileSystem.newInputFile(Location.of(icebergSplit.path()), icebergSplit.fileSize())
+                : fileSystem.newInputFile(Location.of(icebergSplit.path()));
+
+        return createGpuParquetPageSource(
+                columns,
+                icebergSplit,
+                inputFile,
+                icebergTable,
+                partitionKeys,
+                partition,
+                tableSchema,
+                effectivePredicate,
+                icebergTable.getFormatVersion());
+    }
+
+    private Optional<ConnectorGpuPageSource> createGpuParquetPageSource(
+            List<ColumnHandle> columns,
+            IcebergSplit icebergSplit,
+            TrinoInputFile inputFile,
+            IcebergTableHandle icebergTable,
+            Map<Integer, Optional<String>> partitionKeys,
+            String partition,
+            Schema tableSchema,
+            TupleDomain<IcebergColumnHandle> effectivePredicate,
+            int formatVersion)
+    {
+        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
+        FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
+
+        ParquetDataSource dataSource;
+        try {
+            dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext, stats);
+        }
+        catch (IOException e) {
+            throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create Parquet data source for: " + inputFile.location() + ". " + e.getMessage(), e);
+        }
+        try {
+            ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, gpuParquetReaderOptions, Optional.empty(), Optional.empty());
+            FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
+            MessageType fileSchema = fileMetadata.getSchema();
+
+            Optional<NameMapping> nameMapping = icebergTable.getNameMappingJson().map(NameMappingParser::fromJson);
+            if (nameMapping.isPresent() && !ParquetSchemaUtil.hasIds(fileSchema)) {
+                fileSchema = ParquetSchemaUtil.applyNameMapping(fileSchema, convertToLowercase(nameMapping.get()));
+            }
+
+            List<IcebergColumnHandle> icebergColumns = columns.stream()
+                    .map(IcebergColumnHandle.class::cast)
+                    .collect(toImmutableList());
+            checkForNonMetadataRowId(icebergColumns, formatVersion);
+
+            Map<Integer, org.apache.parquet.schema.Type> parquetIdToField = createParquetIdToFieldMapping(fileSchema);
+
+            ImmutableList.Builder<GpuOutputColumn> outputColumns = ImmutableList.builder();
+            ImmutableList.Builder<IcebergColumnHandle> parquetColumns = ImmutableList.builder();
+            int parquetIndex = 0;
+            for (IcebergColumnHandle column : icebergColumns) {
+                if (partitionKeys.containsKey(column.getId())) {
+                    Object value = deserializePartitionValue(column.getType(), partitionKeys.get(column.getId()).orElse(null), column.getName());
+                    outputColumns.add(new GpuConstantColumn(column, column.getType(), value));
+                }
+                else if (column.isPathColumn()) {
+                    outputColumns.add(new GpuConstantColumn(column, FILE_PATH.getType(), utf8Slice(inputFile.location().toString())));
+                }
+                else if (column.isFileModifiedTimeColumn()) {
+                    outputColumns.add(new GpuConstantColumn(column, FILE_MODIFIED_TIME.getType(), packDateTimeWithZone(inputFile.lastModified().toEpochMilli(), UTC_KEY)));
+                }
+                else if (column.isPartitionColumn()) {
+                    outputColumns.add(new GpuConstantColumn(column, PARTITION.getType(), utf8Slice(partition)));
+                }
+                else if (parquetIdToField.containsKey(column.getBaseColumn().getId())) {
+                    org.apache.parquet.schema.Type parquetType = parquetIdToField.get(column.getBaseColumn().getId());
+                    if (parquetType.isPrimitive() && !isSupportedForGpu(parquetType.asPrimitiveType(), column.getType())) {
+                        log.debug("GPU page source not supported: column '%s' has unsupported Parquet type %s for Trino type %s", column.getName(), parquetType, column.getType());
+                        dataSource.close();
+                        return Optional.empty();
+                    }
+                    outputColumns.add(new GpuParquetFileColumn(column, parquetType.getName(), parquetIndex));
+                    parquetColumns.add(column);
+                    parquetIndex++;
+                }
+                else {
+                    Object defaultValue = getInitialDefault(tableSchema, column.getId());
+                    outputColumns.add(new GpuConstantColumn(column, column.getType(), defaultValue));
+                }
+            }
+
+            MessageType requestedSchema = getMessageType(parquetColumns.build(), fileSchema.getName(), parquetIdToField);
+            Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
+            TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(descriptorsByPath, effectivePredicate);
+            TupleDomainParquetPredicate parquetPredicate = buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, UTC);
+
+            ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                    icebergSplit.start(),
+                    icebergSplit.length(),
+                    dataSource,
+                    requestedSchema,
+                    ImmutableList.of(parquetTupleDomain),
+                    ImmutableList.of(parquetPredicate),
+                    descriptorsByPath,
+                    UTC,
+                    ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
+                    memoryContext,
+                    gpuParquetReaderOptions,
+                    parquetMetadata);
+
+            return Optional.of(new IcebergGpuParquetPageSource(fabricator, outputColumns.build()));
+        }
+        catch (IOException | RuntimeException e) {
+            closeAllSuppress(e, dataSource);
+            throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
+        }
+    }
+
+    private static boolean isSupportedForGpu(PrimitiveType parquetType, Type trinoType)
+    {
+        // INT96 timestamps appear in files migrated from Hive
+        if (parquetType.getPrimitiveTypeName() == PrimitiveTypeName.INT96) {
+            return false;
+        }
+        // Unannotated INT64 has no time unit information; cuDF reads it as plain INT64 rather than a timestamp type
+        return !(trinoType instanceof TimestampType && parquetType.getPrimitiveTypeName() == PrimitiveTypeName.INT64 && parquetType.getLogicalTypeAnnotation() == null);
     }
 
     @Override

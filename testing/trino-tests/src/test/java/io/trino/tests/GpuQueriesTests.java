@@ -151,8 +151,12 @@ final class GpuQueriesTests
                 // in alphabetical order
                 generateGpuPlans(new TestDistributedHiveGpuTpcdsQueries());
                 generateGpuPlans(new TestDistributedHiveGpuTpchQueries());
+                generateGpuPlans(new TestDistributedIcebergGpuTpcdsQueries());
+                generateGpuPlans(new TestDistributedIcebergGpuTpchQueries());
                 generateGpuPlans(new TestHiveGpuTpcdsQueries());
                 generateGpuPlans(new TestHiveGpuTpchQueries());
+                generateGpuPlans(new TestIcebergGpuTpcdsQueries());
+                generateGpuPlans(new TestIcebergGpuTpchQueries());
             }
             catch (Throwable t) {
                 log.error(t);

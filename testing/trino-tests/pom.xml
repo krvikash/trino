@@ -698,6 +698,10 @@
                                 <exclude>**/TestHiveGpuTpcdsQueries.java</exclude>
                                 <exclude>**/TestDistributedHiveGpuTpchQueries.java</exclude>
                                 <exclude>**/TestDistributedHiveGpuTpcdsQueries.java</exclude>
+                                <exclude>**/TestIcebergGpuTpchQueries.java</exclude>
+                                <exclude>**/TestIcebergGpuTpcdsQueries.java</exclude>
+                                <exclude>**/TestDistributedIcebergGpuTpchQueries.java</exclude>
+                                <exclude>**/TestDistributedIcebergGpuTpcdsQueries.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -724,6 +728,10 @@
                                 <include>**/TestHiveGpuTpcdsQueries.java</include>
                                 <include>**/TestDistributedHiveGpuTpchQueries.java</include>
                                 <include>**/TestDistributedHiveGpuTpcdsQueries.java</include>
+                                <include>**/TestIcebergGpuTpchQueries.java</include>
+                                <include>**/TestIcebergGpuTpcdsQueries.java</include>
+                                <include>**/TestDistributedIcebergGpuTpchQueries.java</include>
+                                <include>**/TestDistributedIcebergGpuTpcdsQueries.java</include>
                             </includes>
                         </configuration>
                     </plugin>

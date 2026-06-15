@@ -1,0 +1,17 @@
+- OutputNode
+  - ProjectNode
+    - ExchangeNode LOCAL (GPU)
+      - AggregationNode (GPU)
+        - ExchangeNode LOCAL
+          - ExchangeNode REMOTE
+            - AggregationNode (GPU)
+              - ProjectNode (GPU)
+                - JoinNode (GPU)
+                  - ExchangeNode REMOTE
+                    - FilterNode (GPU)
+                      - TableScanNode part (GPU)
+                  - ExchangeNode LOCAL
+                    - ExchangeNode REMOTE
+                      - ProjectNode (GPU)
+                        - FilterNode
+                          - TableScanNode lineitem (GPU)

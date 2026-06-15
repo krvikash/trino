@@ -1,0 +1,27 @@
+- OutputNode
+  - ExchangeNode LOCAL
+    - SortNode
+      - AggregationNode (GPU)
+        - ExchangeNode LOCAL (GPU)
+          - AggregationNode (GPU)
+            - ProjectNode (GPU)
+              - JoinNode (GPU)
+                - JoinNode (GPU)
+                  - JoinNode (GPU)
+                    - JoinNode (GPU)
+                      - JoinNode (GPU)
+                        - ProjectNode (GPU)
+                          - FilterNode
+                            - TableScanNode part (GPU)
+                        - ExchangeNode LOCAL (GPU)
+                          - FilterNode (GPU)
+                            - TableScanNode lineitem (GPU)
+                      - ExchangeNode LOCAL (GPU)
+                        - FilterNode (GPU)
+                          - TableScanNode supplier (GPU)
+                    - ExchangeNode LOCAL (GPU)
+                      - TableScanNode partsupp (GPU)
+                  - ExchangeNode LOCAL (GPU)
+                    - TableScanNode orders (GPU)
+                - ExchangeNode LOCAL (GPU)
+                  - TableScanNode nation (GPU)

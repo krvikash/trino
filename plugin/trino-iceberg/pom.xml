@@ -358,6 +358,13 @@
         </dependency>
 
         <dependency>
+            <groupId>ai.rapids</groupId>
+            <artifactId>cudf</artifactId>
+            <classifier>cuda13</classifier>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <scope>provided</scope>
@@ -957,6 +964,13 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
+                                <!-- gpu profile -->
+                                <exclude>**/TestIcebergGpuConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestIcebergGpuConnectorTest.java</exclude>
+                                <exclude>**/TestIcebergGpuDistributedAggregations.java</exclude>
+                                <exclude>**/TestIcebergGpuJoinQueries.java</exclude>
+                                <exclude>**/TestIcebergGpuQueries.java</exclude>
+                                <!-- end of gpu profile -->
                                 <exclude>**/Test*Avro*.java</exclude>
                                 <exclude>**/Test*Minio*.java</exclude>
                                 <exclude>**/TestIcebergGlueCatalogConnectorSmokeTest.java</exclude>
@@ -991,6 +1005,27 @@
                                 <exclude>**/TestIcebergCachingGlueCatalogConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergGlueFlushMetadataCacheProcedure.java</exclude>
                             </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>gpu</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/TestIcebergGpuConnectorSmokeTest.java</include>
+                                <include>**/TestIcebergGpuConnectorTest.java</include>
+                                <include>**/TestIcebergGpuDistributedAggregations.java</include>
+                                <include>**/TestIcebergGpuJoinQueries.java</include>
+                                <include>**/TestIcebergGpuQueries.java</include>
+                            </includes>
                         </configuration>
                     </plugin>
                 </plugins>

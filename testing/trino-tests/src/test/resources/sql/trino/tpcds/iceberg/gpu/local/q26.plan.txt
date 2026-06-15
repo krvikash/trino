@@ -1,0 +1,30 @@
+- OutputNode
+  - ProjectNode (GPU)
+    - TopNNode (GPU)
+      - ExchangeNode LOCAL (GPU)
+        - TopNNode (GPU)
+          - AggregationNode
+            - ExchangeNode LOCAL
+              - AggregationNode
+                - JoinNode (GPU)
+                  - AggregationNode (GPU)
+                    - ProjectNode (GPU)
+                      - JoinNode (GPU)
+                        - JoinNode (GPU)
+                          - JoinNode (GPU)
+                            - FilterNode (GPU)
+                              - TableScanNode catalog_sales (GPU)
+                            - ExchangeNode LOCAL (GPU)
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode date_dim (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - ProjectNode (GPU)
+                              - FilterNode
+                                - TableScanNode customer_demographics (GPU)
+                        - ExchangeNode LOCAL (GPU)
+                          - ProjectNode (GPU)
+                            - FilterNode
+                              - TableScanNode promotion (GPU)
+                  - ExchangeNode LOCAL (GPU)
+                    - TableScanNode item (GPU)

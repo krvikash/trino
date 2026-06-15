@@ -1,0 +1,34 @@
+- OutputNode
+  - TopNNode (GPU)
+    - ExchangeNode LOCAL
+      - ExchangeNode REMOTE
+        - TopNNode (GPU)
+          - ExchangeNode LOCAL (GPU)
+            - TopNNode (GPU)
+              - ExchangeNode LOCAL (GPU)
+                - TopNNode (GPU)
+                  - AggregationNode (GPU)
+                    - ExchangeNode LOCAL (GPU)
+                      - JoinNode (GPU)
+                        - ExchangeNode REMOTE
+                          - AggregationNode (GPU)
+                            - FilterNode (GPU)
+                              - TableScanNode lineitem (GPU)
+                        - ExchangeNode LOCAL
+                          - ExchangeNode REMOTE
+                            - JoinNode (GPU)
+                              - ExchangeNode REMOTE
+                                - JoinNode (GPU)
+                                  - ExchangeNode REMOTE
+                                    - FilterNode (GPU)
+                                      - TableScanNode orders (GPU)
+                                  - ProjectNode (GPU)
+                                    - FilterNode
+                                      - AggregationNode (GPU)
+                                        - ExchangeNode LOCAL
+                                          - ExchangeNode REMOTE
+                                            - AggregationNode (GPU)
+                                              - TableScanNode lineitem (GPU)
+                              - ExchangeNode LOCAL
+                                - ExchangeNode REMOTE
+                                  - TableScanNode customer (GPU)

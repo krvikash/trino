@@ -1,0 +1,42 @@
+- OutputNode
+  - ProjectNode (GPU)
+    - ProjectNode (GPU)
+      - TopNNode (GPU)
+        - ExchangeNode LOCAL (GPU)
+          - TopNNode (GPU)
+            - AggregationNode
+              - ExchangeNode LOCAL
+                - AggregationNode
+                  - ProjectNode (GPU)
+                    - JoinNode (GPU)
+                      - FilterNode (GPU)
+                        - TableScanNode item (GPU)
+                      - ExchangeNode LOCAL (GPU)
+                        - JoinNode (GPU)
+                          - JoinNode (GPU)
+                            - JoinNode (GPU)
+                              - FilterNode (GPU)
+                                - TableScanNode catalog_sales (GPU)
+                              - ExchangeNode LOCAL (GPU)
+                                - JoinNode (GPU)
+                                  - JoinNode (GPU)
+                                    - FilterNode (GPU)
+                                      - TableScanNode store_sales (GPU)
+                                    - ExchangeNode LOCAL (GPU)
+                                      - JoinNode (GPU)
+                                        - FilterNode (GPU)
+                                          - TableScanNode store_returns (GPU)
+                                        - ExchangeNode LOCAL (GPU)
+                                          - ProjectNode (GPU)
+                                            - FilterNode
+                                              - TableScanNode date_dim (GPU)
+                                  - ExchangeNode LOCAL (GPU)
+                                    - ProjectNode (GPU)
+                                      - FilterNode
+                                        - TableScanNode date_dim (GPU)
+                            - ExchangeNode LOCAL (GPU)
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode date_dim (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - TableScanNode store (GPU)
