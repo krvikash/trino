@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
+import com.google.common.cache.Cache;
 import com.google.inject.Inject;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.deltalake.DeltaLakeFileSystemFactory;
@@ -27,13 +29,19 @@ import io.trino.spi.security.ConnectorIdentity;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.HOURS;
 
 public class UnityVendedCredentialsFileSystemFactory
         implements DeltaLakeFileSystemFactory
 {
     private final TrinoFileSystemFactory fileSystemFactory;
     private final DeltaLakeTableCredentialsProvider tableCredentialsProvider;
+    private final Cache<CacheKey, DeltaLakeTableCredentials> credentialsCache = EvictableCacheBuilder.newBuilder()
+            .maximumSize(1_000)
+            .expireAfterWrite(1, HOURS)
+            .build();
 
     @Inject
     public UnityVendedCredentialsFileSystemFactory(TrinoFileSystemFactory fileSystemFactory, DeltaLakeTableCredentialsProvider tableCredentialsProvider)
@@ -53,9 +61,8 @@ public class UnityVendedCredentialsFileSystemFactory
             DeltaLakeTableCredentials credentials = tableCredentials.get();
             FileSystemCredentials fileSystemCredentials = credentials.fileSystemCredentials();
             if (!fileSystemCredentials.isValid()) {
-                Optional<DeltaLakeTableCredentials> deltaLakeTableCredentials = tableCredentialsProvider.getTableCredentials(credentials.vendedCredentialsHandle());
-                verify(deltaLakeTableCredentials.isPresent(), "deltaLakeTableCredentials is missing");
-                fileSystemCredentials = deltaLakeTableCredentials.orElseThrow().fileSystemCredentials();
+                DeltaLakeTableCredentials deltaLakeTableCredentials = getTableCredentials(session, credentials.vendedCredentialsHandle());
+                fileSystemCredentials = deltaLakeTableCredentials.fileSystemCredentials();
             }
             return fileSystemFactory.create(createIdentityWithCredentials(identity, fileSystemCredentials));
         });
@@ -64,8 +71,18 @@ public class UnityVendedCredentialsFileSystemFactory
     @Override
     public TrinoFileSystem create(ConnectorSession session, String tableLocation)
     {
-        Optional<DeltaLakeTableCredentials> tableCredentials = tableCredentialsProvider.getTableCredentials(VendedCredentialsHandle.empty(tableLocation));
-        return create(session, tableCredentials);
+        DeltaLakeTableCredentials tableCredentials = getTableCredentials(session, VendedCredentialsHandle.empty(tableLocation));
+        return create(session, Optional.of(tableCredentials));
+    }
+
+    private DeltaLakeTableCredentials getTableCredentials(ConnectorSession session, VendedCredentialsHandle handle)
+    {
+        CacheKey cacheKey = new CacheKey(session.getQueryId(), handle);
+        DeltaLakeTableCredentials cached = credentialsCache.getIfPresent(cacheKey);
+        if (cached != null && !cached.fileSystemCredentials().isValid()) {
+            credentialsCache.invalidate(cacheKey);
+        }
+        return uncheckedCacheGet(credentialsCache, cacheKey, () -> tableCredentialsProvider.getTableCredentials(cacheKey.vendedCredentialsHandle()).orElseThrow());
     }
 
     private static ConnectorIdentity createIdentityWithCredentials(ConnectorIdentity identity, FileSystemCredentials fileSystemCredentials)
@@ -77,5 +94,14 @@ public class UnityVendedCredentialsFileSystemFactory
                 .withConnectorRole(identity.getConnectorRole())
                 .withExtraCredentials(fileSystemCredentials.asExtraCredentials())
                 .build();
+    }
+
+    private record CacheKey(String queryId, VendedCredentialsHandle vendedCredentialsHandle)
+    {
+        CacheKey
+        {
+            requireNonNull(queryId, "queryId is null");
+            requireNonNull(vendedCredentialsHandle, "vendedCredentialsHandle is null");
+        }
     }
 }
