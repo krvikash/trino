@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.operator.DriverContext;
-import io.trino.operator.PagesIndex;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.index.UnloadedIndexKeyRecordSet.UnloadedIndexKeyRecordCursor;
 import io.trino.operator.join.LookupSource;
 import io.trino.spi.Page;
@@ -38,16 +38,15 @@ import static java.util.Objects.requireNonNull;
 public class IndexSnapshotBuilder
 {
     private final Session session;
-    private final int expectedPositions;
     private final List<Type> outputTypes;
     private final List<Type> missingKeysTypes;
     private final List<Integer> keyOutputChannels;
     private final List<Integer> missingKeysChannels;
-    private final PagesIndex.Factory pagesIndexFactory;
+    private final JoinPagesIndex.Factory pagesIndexFactory;
 
     private final long maxMemoryInBytes;
-    private PagesIndex outputPagesIndex;
-    private PagesIndex missingKeysIndex;
+    private JoinPagesIndex outputJoinPagesIndex;
+    private JoinPagesIndex missingKeysIndex;
     private LookupSource missingKeys;
 
     private final List<Page> pages = new ArrayList<>();
@@ -61,7 +60,7 @@ public class IndexSnapshotBuilder
             DriverContext driverContext,
             DataSize maxMemoryInBytes,
             int expectedPositions,
-            PagesIndex.Factory pagesIndexFactory)
+            JoinPagesIndex.Factory pagesIndexFactory)
     {
         requireNonNull(outputTypes, "outputTypes is null");
         requireNonNull(keyOutputChannels, "keyOutputChannels is null");
@@ -73,7 +72,6 @@ public class IndexSnapshotBuilder
         this.pagesIndexFactory = pagesIndexFactory;
         this.session = driverContext.getSession();
         this.outputTypes = ImmutableList.copyOf(outputTypes);
-        this.expectedPositions = expectedPositions;
         this.keyOutputChannels = ImmutableList.copyOf(keyOutputChannels);
         this.maxMemoryInBytes = maxMemoryInBytes.toBytes();
 
@@ -87,8 +85,8 @@ public class IndexSnapshotBuilder
         this.missingKeysTypes = missingKeysTypes.build();
         this.missingKeysChannels = missingKeysChannels.build();
 
-        this.outputPagesIndex = pagesIndexFactory.newPagesIndex(outputTypes, expectedPositions);
-        this.missingKeysIndex = pagesIndexFactory.newPagesIndex(missingKeysTypes.build(), expectedPositions);
+        this.outputJoinPagesIndex = pagesIndexFactory.newJoinPagesIndex(outputTypes);
+        this.missingKeysIndex = pagesIndexFactory.newJoinPagesIndex(missingKeysTypes.build());
         this.missingKeys = missingKeysIndex.createLookupSourceSupplier(session, this.missingKeysChannels).get();
 
         this.missingKeysPageBuilder = new PageBuilder(missingKeysIndex.getTypes());
@@ -124,11 +122,11 @@ public class IndexSnapshotBuilder
         checkArgument(indexKeysRecordSet.getColumnTypes().equals(missingKeysTypes), "indexKeysRecordSet must have same schema as missingKeys");
         checkState(!isMemoryExceeded(), "Max memory exceeded");
         for (Page page : pages) {
-            outputPagesIndex.addPage(page);
+            outputJoinPagesIndex.addPage(page);
         }
         pages.clear();
 
-        LookupSource lookupSource = outputPagesIndex.createLookupSourceSupplier(session, keyOutputChannels, Optional.empty(), OptionalInt.empty(), ImmutableList.of()).get();
+        LookupSource lookupSource = outputJoinPagesIndex.createLookupSourceSupplier(session, keyOutputChannels, Optional.empty(), OptionalInt.empty(), ImmutableList.of()).get();
 
         // Build a page containing the keys that produced no output rows, so in future requests can skip these keys
         verify(missingKeysPageBuilder.isEmpty());
@@ -167,7 +165,7 @@ public class IndexSnapshotBuilder
     {
         memoryInBytes = 0;
         pages.clear();
-        outputPagesIndex = pagesIndexFactory.newPagesIndex(outputTypes, expectedPositions);
-        missingKeysIndex = pagesIndexFactory.newPagesIndex(missingKeysTypes, expectedPositions);
+        outputJoinPagesIndex = pagesIndexFactory.newJoinPagesIndex(outputTypes);
+        missingKeysIndex = pagesIndexFactory.newJoinPagesIndex(missingKeysTypes);
     }
 }

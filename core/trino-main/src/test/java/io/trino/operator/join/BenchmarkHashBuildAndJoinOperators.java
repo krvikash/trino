@@ -20,10 +20,10 @@ import io.airlift.units.DataSize;
 import io.trino.RowPagesBuilder;
 import io.trino.Session;
 import io.trino.operator.DriverContext;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.PartitionFunction;
 import io.trino.operator.TaskContext;
 import io.trino.operator.exchange.LocalPartitionGenerator;
@@ -320,8 +320,7 @@ public class BenchmarkHashBuildAndJoinOperators
                 Optional.empty(),
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                10_000,
-                new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 false,
                 SingleStreamSpillerFactory.unsupportedSingleStreamSpillerFactory(),
                 incrementalLoadFactorHashArraySizeSupplier(buildContext.getSession()));

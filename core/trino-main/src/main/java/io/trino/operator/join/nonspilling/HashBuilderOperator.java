@@ -20,10 +20,10 @@ import com.google.errorprone.annotations.ThreadSafe;
 import io.trino.memory.context.CoarseGrainLocalMemoryContext;
 import io.trino.operator.DriverContext;
 import io.trino.operator.HashArraySizeSupplier;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.join.JoinBridgeManager;
 import io.trino.operator.join.LookupSourceSupplier;
 import io.trino.spi.Page;
@@ -60,9 +60,8 @@ public class HashBuilderOperator
         private final Optional<JoinFilterFunctionFactory> filterFunctionFactory;
         private final OptionalInt sortChannel;
         private final List<JoinFilterFunctionFactory> searchFunctionFactories;
-        private final PagesIndex.Factory pagesIndexFactory;
+        private final JoinPagesIndex.Factory pagesIndexFactory;
 
-        private final int expectedPositions;
         private final HashArraySizeSupplier hashArraySizeSupplier;
 
         private int partitionIndex;
@@ -78,8 +77,7 @@ public class HashBuilderOperator
                 Optional<JoinFilterFunctionFactory> filterFunctionFactory,
                 OptionalInt sortChannel,
                 List<JoinFilterFunctionFactory> searchFunctionFactories,
-                int expectedPositions,
-                PagesIndex.Factory pagesIndexFactory,
+                JoinPagesIndex.Factory pagesIndexFactory,
                 HashArraySizeSupplier hashArraySizeSupplier)
         {
             this.operatorId = operatorId;
@@ -96,8 +94,6 @@ public class HashBuilderOperator
             this.searchFunctionFactories = ImmutableList.copyOf(searchFunctionFactories);
             this.pagesIndexFactory = requireNonNull(pagesIndexFactory, "pagesIndexFactory is null");
             this.hashArraySizeSupplier = requireNonNull(hashArraySizeSupplier, "hashArraySizeSupplier is null");
-
-            this.expectedPositions = expectedPositions;
         }
 
         @Override
@@ -118,7 +114,6 @@ public class HashBuilderOperator
                     filterFunctionFactory,
                     sortChannel,
                     searchFunctionFactories,
-                    expectedPositions,
                     pagesIndexFactory,
                     hashArraySizeSupplier);
         }
@@ -170,7 +165,7 @@ public class HashBuilderOperator
 
     private State state = State.CONSUMING_INPUT;
     @Nullable
-    private PagesIndex index;
+    private JoinPagesIndex index;
     private Optional<ListenableFuture<Void>> lookupSourceNotNeeded = Optional.empty();
     @Nullable
     private LookupSourceSupplier lookupSourceSupplier;
@@ -184,11 +179,10 @@ public class HashBuilderOperator
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
-            int expectedPositions,
-            PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory pagesIndexFactory,
             HashArraySizeSupplier hashArraySizeSupplier)
     {
-        this(operatorContext, lookupSourceFactory, partitionIndex, outputChannels, hashChannels, filterFunctionFactory, sortChannel, searchFunctionFactories, expectedPositions, pagesIndexFactory, hashArraySizeSupplier, DEFAULT_GRANULARITY);
+        this(operatorContext, lookupSourceFactory, partitionIndex, outputChannels, hashChannels, filterFunctionFactory, sortChannel, searchFunctionFactories, pagesIndexFactory, hashArraySizeSupplier, DEFAULT_GRANULARITY);
     }
 
     @VisibleForTesting
@@ -201,8 +195,7 @@ public class HashBuilderOperator
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
-            int expectedPositions,
-            PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory pagesIndexFactory,
             HashArraySizeSupplier hashArraySizeSupplier,
             long memorySyncThreshold)
     {
@@ -215,7 +208,7 @@ public class HashBuilderOperator
         this.searchFunctionFactories = searchFunctionFactories;
         this.localUserMemoryContext = new CoarseGrainLocalMemoryContext(operatorContext.localUserMemoryContext(), memorySyncThreshold);
 
-        this.index = pagesIndexFactory.newPagesIndex(lookupSourceFactory.getTypes(), expectedPositions);
+        this.index = pagesIndexFactory.newJoinPagesIndex(lookupSourceFactory.getTypes());
         this.lookupSourceFactory = lookupSourceFactory;
         lookupSourceFactoryDestroyed = lookupSourceFactory.isDestroyed();
 

@@ -20,8 +20,6 @@ import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.PreSizedBlockBuilder;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Arrays;
@@ -60,21 +58,17 @@ public final class DefaultPagesHash
     private final byte[] positionToHashes;
 
     public DefaultPagesHash(
-            LongArrayList addresses,
             PagesHashStrategy pagesHashStrategy,
             BlockPositionIndex blockPositionIndex,
             List<ObjectArrayList<Block>> channels,
-            IntArrayList positionCounts,
             List<Integer> joinChannels,
             InterpretedHashGenerator hashGenerator,
             PositionLinks.FactoryBuilder positionLinks,
             HashArraySizeSupplier hashArraySizeSupplier)
     {
-        requireNonNull(addresses, "addresses is null");
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
         this.positionCount = blockPositionIndex.getPositionCount();
-        requireNonNull(positionCounts, "positionCounts is null");
 
         // reserve memory for the arrays
         int hashSize = hashArraySizeSupplier.getHashArraySize(positionCount);
@@ -85,10 +79,10 @@ public final class DefaultPagesHash
 
         positionToHashes = new byte[positionCount];
 
-        int pageCount = positionCounts.size();
+        int pageCount = blockPositionIndex.getBlockCount();
         int maxPagePositions = 0;
         for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-            maxPagePositions = Math.max(maxPagePositions, positionCounts.getInt(pageIndex));
+            maxPagePositions = Math.max(maxPagePositions, blockPositionIndex.getBlockPositionCount(pageIndex));
         }
         long[] pageHashes = new long[maxPagePositions];
         Block[] joinBlocks = new Block[joinChannels.size()];
@@ -96,7 +90,7 @@ public final class DefaultPagesHash
 
         int offset = 0;
         for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-            int pagePositions = positionCounts.getInt(pageIndex);
+            int pagePositions = blockPositionIndex.getBlockPositionCount(pageIndex);
             int nullableCount = 0;
             for (int channelIndex = 0; channelIndex < joinChannels.size(); channelIndex++) {
                 Block block = channels.get(joinChannels.get(channelIndex)).get(pageIndex);
@@ -121,7 +115,7 @@ public final class DefaultPagesHash
             offset += pagePositions;
         }
 
-        size = sizeOf(addresses.elements()) + pagesHashStrategy.getSizeInBytes() +
+        size = pagesHashStrategy.getSizeInBytes() +
                 sizeOf(keys) + sizeOf(positionToHashes) + blockPositionIndex.getRetainedSizeInBytes();
     }
 
@@ -333,7 +327,6 @@ public final class DefaultPagesHash
     public static long getEstimatedRetainedSizeInBytes(
             int positionCount,
             HashArraySizeSupplier hashArraySizeSupplier,
-            LongArrayList addresses,
             List<ObjectArrayList<Block>> channels,
             long blocksSizeInBytes)
     {
@@ -341,8 +334,7 @@ public final class DefaultPagesHash
         if (!channels.isEmpty()) {
             blockCount = channels.getFirst().size();
         }
-        return sizeOf(addresses.elements()) +
-                (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
+        return (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
                 blocksSizeInBytes +
                 sizeOfIntArray(hashArraySizeSupplier.getHashArraySize(positionCount)) +
                 sizeOfByteArray(positionCount) +

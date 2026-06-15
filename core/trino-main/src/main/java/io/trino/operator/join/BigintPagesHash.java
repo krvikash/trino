@@ -22,7 +22,6 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Arrays;
@@ -60,7 +59,6 @@ public final class BigintPagesHash
     private final long size;
 
     public BigintPagesHash(
-            LongArrayList addresses,
             PagesHashStrategy pagesHashStrategy,
             BlockPositionIndex blockPositionIndex,
             PositionLinks.FactoryBuilder positionLinks,
@@ -68,7 +66,6 @@ public final class BigintPagesHash
             List<Page> pages,
             int joinChannel)
     {
-        requireNonNull(addresses, "addresses is null");
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
         this.positionCount = blockPositionIndex.getPositionCount();
@@ -107,7 +104,7 @@ public final class BigintPagesHash
             offset += pagePositions;
         }
 
-        size = sizeOf(addresses.elements()) + pagesHashStrategy.getSizeInBytes() +
+        size = pagesHashStrategy.getSizeInBytes() +
                 sizeOf(keys) + sizeOf(values) + blockPositionIndex.getRetainedSizeInBytes();
     }
 
@@ -315,7 +312,6 @@ public final class BigintPagesHash
     public static long getEstimatedRetainedSizeInBytes(
             int positionCount,
             HashArraySizeSupplier hashArraySizeSupplier,
-            LongArrayList addresses,
             List<ObjectArrayList<Block>> channels,
             long blocksSizeInBytes)
     {
@@ -324,8 +320,7 @@ public final class BigintPagesHash
             blockCount = channels.getFirst().size();
         }
         long blockPositionIndexSize = BlockPositionIndex.getEstimatedRetainedSizeInBytes(blockCount, positionCount);
-        return sizeOf(addresses.elements()) +
-                (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
+        return (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
                 blocksSizeInBytes +
                 sizeOfIntArray(hashArraySizeSupplier.getHashArraySize(positionCount)) +
                 sizeOfLongArray(positionCount) +

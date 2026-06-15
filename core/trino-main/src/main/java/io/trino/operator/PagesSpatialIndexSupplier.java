@@ -23,7 +23,6 @@ import io.trino.operator.join.BlockPositionIndex;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.sql.gen.JoinFilterFunctionCompiler;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -44,6 +43,7 @@ import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
 import static io.trino.operator.PagesSpatialIndex.EMPTY_INDEX;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static java.util.Objects.requireNonNull;
 
 public class PagesSpatialIndexSupplier
         implements Supplier<PagesSpatialIndex>
@@ -67,7 +67,7 @@ public class PagesSpatialIndexSupplier
 
     public PagesSpatialIndexSupplier(
             Session session,
-            IntArrayList positionCounts,
+            BlockPositionIndex blockPositionIndex,
             List<Integer> outputChannels,
             List<ObjectArrayList<Block>> channels,
             int geometryChannel,
@@ -79,7 +79,7 @@ public class PagesSpatialIndexSupplier
             Map<Integer, Rectangle> partitions)
     {
         this.session = session;
-        this.blockPositionIndex = new BlockPositionIndex(positionCounts);
+        this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
         this.outputChannels = outputChannels;
         this.channels = channels;
         this.spatialRelationshipTest = spatialRelationshipTest;

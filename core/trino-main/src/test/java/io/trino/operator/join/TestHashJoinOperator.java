@@ -31,12 +31,12 @@ import io.trino.execution.TaskStateMachine;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorAssertion;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.TaskContext;
 import io.trino.operator.ValuesOperator.ValuesOperatorFactory;
 import io.trino.operator.index.PageBuffer;
@@ -1229,8 +1229,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                10_000,
-                new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 spillEnabled,
                 SINGLE_STREAM_SPILLER_FACTORY,
                 defaultHashArraySizeSupplier(),
@@ -1305,8 +1304,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                10_000,
-                new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 true,
                 SINGLE_STREAM_SPILLER_FACTORY,
                 defaultHashArraySizeSupplier(),
@@ -1376,8 +1374,7 @@ public class TestHashJoinOperator
                 Optional.empty(),
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                10_000,
-                new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 true,
                 SINGLE_STREAM_SPILLER_FACTORY,
                 defaultHashArraySizeSupplier(),

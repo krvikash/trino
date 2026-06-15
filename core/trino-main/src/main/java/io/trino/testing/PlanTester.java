@@ -129,6 +129,7 @@ import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OutputFactory;
 import io.trino.operator.PagesIndex;
@@ -894,6 +895,7 @@ public class PlanTester
                 unsupportedSingleStreamSpillerFactory(),
                 unsupportedPartitioningSpillerFactory(),
                 new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 joinCompiler,
                 hashStrategyCompiler,
                 new OrderingCompiler(plannerContext.getTypeOperators()),

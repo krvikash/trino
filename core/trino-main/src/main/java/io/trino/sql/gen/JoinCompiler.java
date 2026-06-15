@@ -41,6 +41,7 @@ import io.trino.operator.HashArraySizeSupplier;
 import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.PagesHashStrategy;
 import io.trino.operator.join.BigintPagesHash;
+import io.trino.operator.join.BlockPositionIndex;
 import io.trino.operator.join.DefaultPagesHash;
 import io.trino.operator.join.JoinHash;
 import io.trino.operator.join.JoinHashSupplier;
@@ -56,8 +57,6 @@ import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
@@ -923,7 +922,7 @@ public class JoinCompiler
         {
             this.pagesHashStrategyFactory = pagesHashStrategyFactory;
             try {
-                constructor = joinHashSupplierClass.getConstructor(Session.class, PagesHashStrategy.class, LongArrayList.class, List.class, IntArrayList.class, Optional.class, OptionalInt.class, List.class, HashArraySizeSupplier.class, OptionalInt.class, List.class, InterpretedHashGenerator.class);
+                constructor = joinHashSupplierClass.getConstructor(Session.class, PagesHashStrategy.class, List.class, BlockPositionIndex.class, Optional.class, OptionalInt.class, List.class, HashArraySizeSupplier.class, OptionalInt.class, List.class, InterpretedHashGenerator.class);
             }
             catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
@@ -933,9 +932,8 @@ public class JoinCompiler
 
         public LookupSourceSupplier createLookupSourceSupplier(
                 Session session,
-                LongArrayList addresses,
                 List<ObjectArrayList<Block>> channels,
-                IntArrayList positionCounts,
+                BlockPositionIndex blockPositionIndex,
                 Optional<JoinFilterFunctionFactory> filterFunctionFactory,
                 OptionalInt sortChannel,
                 List<JoinFilterFunctionFactory> searchFunctionFactories,
@@ -945,7 +943,7 @@ public class JoinCompiler
         {
             PagesHashStrategy pagesHashStrategy = pagesHashStrategyFactory.createPagesHashStrategy(channels);
             try {
-                return constructor.newInstance(session, pagesHashStrategy, addresses, channels, positionCounts, filterFunctionFactory, sortChannel, searchFunctionFactories, hashArraySizeSupplier, singleBigintJoinChannel, joinChannels, hashGenerator);
+                return constructor.newInstance(session, pagesHashStrategy, channels, blockPositionIndex, filterFunctionFactory, sortChannel, searchFunctionFactories, hashArraySizeSupplier, singleBigintJoinChannel, joinChannels, hashGenerator);
             }
             catch (ReflectiveOperationException e) {
                 throw new RuntimeException(e);

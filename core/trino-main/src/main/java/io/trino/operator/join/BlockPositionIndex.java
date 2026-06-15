@@ -85,6 +85,16 @@ public final class BlockPositionIndex
         return positionCount;
     }
 
+    public int getBlockCount()
+    {
+        return blockStarts.length - 1;
+    }
+
+    public int getBlockPositionCount(int blockIndex)
+    {
+        return blockStarts[blockIndex + 1] - blockStarts[blockIndex];
+    }
+
     public long getRetainedSizeInBytes()
     {
         return INSTANCE_SIZE + sizeOf(blockStarts) + sizeOf(windowToBlock);

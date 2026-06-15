@@ -20,12 +20,6 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import io.trino.FeaturesConfig;
-import io.trino.Session;
-import io.trino.geospatial.Rectangle;
-import io.trino.operator.SpatialIndexBuilderOperator.SpatialPredicate;
-import io.trino.operator.join.JoinHashSupplier;
-import io.trino.operator.join.LookupSource;
-import io.trino.operator.join.LookupSourceSupplier;
 import io.trino.spi.Page;
 import io.trino.spi.PreSizedPageBuilder;
 import io.trino.spi.TrinoException;
@@ -35,8 +29,6 @@ import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.JoinCompiler;
-import io.trino.sql.gen.JoinCompiler.LookupSourceSupplierFactory;
-import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
 import io.trino.sql.gen.OrderingCompiler;
 import io.trino.type.BlockTypeOperators;
 import it.unimi.dsi.fastutil.Swapper;
@@ -47,11 +39,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -60,11 +48,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
-import static io.trino.operator.HashArraySizeSupplier.defaultHashArraySizeSupplier;
 import static io.trino.operator.SyntheticAddress.decodePosition;
 import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static io.trino.operator.SyntheticAddress.encodeSyntheticAddress;
-import static io.trino.operator.join.JoinUtils.getSingleBigintJoinChannel;
 import static io.trino.spi.StandardErrorCode.GENERIC_INSUFFICIENT_RESOURCES;
 import static java.util.Objects.requireNonNull;
 
@@ -73,7 +59,6 @@ import static java.util.Objects.requireNonNull;
  * This data structure is not general purpose and is designed for a few specific uses:
  * <ul>
  * <li>Sort via the {@link #sort} method</li>
- * <li>Hash build via the {@link #createLookupSourceSupplier} method</li>
  * <li>Positional output via the {@link #appendTo} method</li>
  * </ul>
  */
@@ -85,7 +70,6 @@ public class PagesIndex
 
     private final OrderingCompiler orderingCompiler;
     private final JoinCompiler joinCompiler;
-    private final NullSafeHashCompiler hashCompiler;
     private final BlockTypeOperators blockTypeOperators;
 
     private final List<Type> types;
@@ -104,7 +88,6 @@ public class PagesIndex
     private PagesIndex(
             OrderingCompiler orderingCompiler,
             JoinCompiler joinCompiler,
-            NullSafeHashCompiler hashCompiler,
             BlockTypeOperators blockTypeOperators,
             List<Type> types,
             int expectedPositions,
@@ -112,7 +95,6 @@ public class PagesIndex
     {
         this.orderingCompiler = requireNonNull(orderingCompiler, "orderingCompiler is null");
         this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
-        this.hashCompiler = requireNonNull(hashCompiler, "hashCompiler is null");
         this.blockTypeOperators = requireNonNull(blockTypeOperators, "blockTypeOperators is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
         this.valueAddresses = new LongArrayList(expectedPositions);
@@ -140,7 +122,6 @@ public class PagesIndex
         public static final TypeOperators TYPE_OPERATORS = new TypeOperators();
         private static final OrderingCompiler ORDERING_COMPILER = new OrderingCompiler(TYPE_OPERATORS);
         private final JoinCompiler joinCompiler;
-        private static final NullSafeHashCompiler NULL_SAFE_HASH_COMPILER = new NullSafeHashCompiler(TYPE_OPERATORS);
         private static final BlockTypeOperators TYPE_OPERATOR_FACTORY = new BlockTypeOperators(TYPE_OPERATORS);
         private final boolean eagerCompact;
 
@@ -158,7 +139,7 @@ public class PagesIndex
         @Override
         public PagesIndex newPagesIndex(List<Type> types, int expectedPositions)
         {
-            return new PagesIndex(ORDERING_COMPILER, joinCompiler, NULL_SAFE_HASH_COMPILER, TYPE_OPERATOR_FACTORY, types, expectedPositions, eagerCompact);
+            return new PagesIndex(ORDERING_COMPILER, joinCompiler, TYPE_OPERATOR_FACTORY, types, expectedPositions, eagerCompact);
         }
     }
 
@@ -167,16 +148,14 @@ public class PagesIndex
     {
         private final OrderingCompiler orderingCompiler;
         private final JoinCompiler joinCompiler;
-        private final NullSafeHashCompiler hashCompiler;
         private final boolean eagerCompact;
         private final BlockTypeOperators blockTypeOperators;
 
         @Inject
-        public DefaultFactory(OrderingCompiler orderingCompiler, JoinCompiler joinCompiler, NullSafeHashCompiler hashCompiler, FeaturesConfig featuresConfig, BlockTypeOperators blockTypeOperators)
+        public DefaultFactory(OrderingCompiler orderingCompiler, JoinCompiler joinCompiler, FeaturesConfig featuresConfig, BlockTypeOperators blockTypeOperators)
         {
             this.orderingCompiler = requireNonNull(orderingCompiler, "orderingCompiler is null");
             this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
-            this.hashCompiler = requireNonNull(hashCompiler, "hashCompiler is null");
             this.eagerCompact = featuresConfig.isPagesIndexEagerCompactionEnabled();
             this.blockTypeOperators = requireNonNull(blockTypeOperators, "blockTypeOperators is null");
         }
@@ -184,7 +163,7 @@ public class PagesIndex
         @Override
         public PagesIndex newPagesIndex(List<Type> types, int expectedPositions)
         {
-            return new PagesIndex(orderingCompiler, joinCompiler, hashCompiler, blockTypeOperators, types, expectedPositions, eagerCompact);
+            return new PagesIndex(orderingCompiler, joinCompiler, blockTypeOperators, types, expectedPositions, eagerCompact);
         }
     }
 
@@ -444,11 +423,6 @@ public class PagesIndex
         return orderingCompiler.compilePagesIndexOrdering(sortTypes, sortChannels, sortOrders);
     }
 
-    public Supplier<LookupSource> createLookupSourceSupplier(Session session, List<Integer> joinChannels)
-    {
-        return createLookupSourceSupplier(session, joinChannels, Optional.empty(), OptionalInt.empty(), ImmutableList.of());
-    }
-
     public PagesHashStrategy createPagesHashStrategy(List<Integer> joinChannels)
     {
         return createPagesHashStrategy(joinChannels, Optional.empty());
@@ -478,60 +452,6 @@ public class PagesIndex
     {
         checkArgument(types.get(leftChannel).equals(types.get(rightChannel)), "comparing channels of different types: %s and %s", types.get(leftChannel), types.get(rightChannel));
         return new SimpleChannelComparator(leftChannel, rightChannel, blockTypeOperators.getComparisonUnorderedLastOperator(types.get(leftChannel)));
-    }
-
-    public LookupSourceSupplier createLookupSourceSupplier(
-            Session session,
-            List<Integer> joinChannels,
-            Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-            OptionalInt sortChannel,
-            List<JoinFilterFunctionFactory> searchFunctionFactories)
-    {
-        return createLookupSourceSupplier(session, joinChannels, filterFunctionFactory, sortChannel, searchFunctionFactories, Optional.empty(), defaultHashArraySizeSupplier());
-    }
-
-    public PagesSpatialIndexSupplier createPagesSpatialIndex(
-            Session session,
-            int geometryChannel,
-            OptionalInt radiusChannel,
-            OptionalDouble constantRadius,
-            OptionalInt partitionChannel,
-            SpatialPredicate spatialRelationshipTest,
-            Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-            List<Integer> outputChannels,
-            Map<Integer, Rectangle> partitions)
-    {
-        // TODO probably shouldn't copy to reduce memory and for memory accounting's sake
-        List<ObjectArrayList<Block>> channels = ImmutableList.copyOf(this.channels);
-        return new PagesSpatialIndexSupplier(session, positionCounts, outputChannels, channels, geometryChannel, radiusChannel, constantRadius, partitionChannel, spatialRelationshipTest, filterFunctionFactory, partitions);
-    }
-
-    public LookupSourceSupplier createLookupSourceSupplier(
-            Session session,
-            List<Integer> joinChannels,
-            Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-            OptionalInt sortChannel,
-            List<JoinFilterFunctionFactory> searchFunctionFactories,
-            Optional<List<Integer>> outputChannels,
-            HashArraySizeSupplier hashArraySizeSupplier)
-    {
-        List<ObjectArrayList<Block>> channels = ImmutableList.copyOf(this.channels);
-        LookupSourceSupplierFactory lookupSourceFactory = joinCompiler.compileLookupSourceFactory(types, joinChannels, sortChannel, outputChannels);
-        int[] joinChannelsArray = joinChannels.stream().mapToInt(Integer::intValue).toArray();
-        List<Type> joinChannelTypes = joinChannels.stream().map(types::get).collect(toImmutableList());
-        InterpretedHashGenerator hashGenerator = InterpretedHashGenerator.createChannelsHashGenerator(
-                joinChannelTypes, joinChannelsArray, hashCompiler);
-        return lookupSourceFactory.createLookupSourceSupplier(
-                session,
-                valueAddresses,
-                channels,
-                positionCounts,
-                filterFunctionFactory,
-                sortChannel,
-                searchFunctionFactories,
-                hashArraySizeSupplier,
-                joinChannels,
-                hashGenerator);
     }
 
     private static List<Integer> rangeList(int endExclusive)
@@ -638,29 +558,5 @@ public class PagesIndex
                 return position;
             }
         };
-    }
-
-    public long getEstimatedMemoryRequiredToCreateLookupSource(
-            HashArraySizeSupplier hashArraySizeSupplier,
-            OptionalInt sortChannel,
-            List<Integer> joinChannels)
-    {
-        // channels and valueAddresses are shared between PagesIndex and JoinHashSupplier and are accounted as part of lookupSourceEstimatedRetainedSizeInBytes
-        long lookupSourceEstimatedRetainedSizeInBytes = JoinHashSupplier.getEstimatedRetainedSizeInBytes(
-                positionCount,
-                valueAddresses,
-                ImmutableList.copyOf(channels),
-                pagesMemorySize,
-                sortChannel,
-                getSingleBigintJoinChannel(joinChannels, types),
-                hashArraySizeSupplier);
-        // PageIndex is retained during LookupSource creation, hence any extra memory retained by the PagesIndex must be accounted here
-        long pagesIndexAdditionalRetainedSizeInBytes = getExtraPagesIndexMemoryWithLookupSourceBuild();
-        return pagesIndexAdditionalRetainedSizeInBytes + lookupSourceEstimatedRetainedSizeInBytes;
-    }
-
-    public long getExtraPagesIndexMemoryWithLookupSourceBuild()
-    {
-        return INSTANCE_SIZE + sizeOf(positionCounts.elements());
     }
 }

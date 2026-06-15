@@ -17,9 +17,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.units.DataSize;
 import io.trino.operator.DriverContext;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorContext;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.TaskContext;
 import io.trino.spi.Page;
 import io.trino.spi.type.Type;
@@ -112,8 +112,7 @@ public class TestHashBuilderOperator
                 Optional.empty(),
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                10_000,
-                new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 defaultHashArraySizeSupplier(),
                 // sync memory usage to delegate memory pool more frequently
                 4096)) {

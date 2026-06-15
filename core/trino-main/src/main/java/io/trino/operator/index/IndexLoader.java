@@ -27,7 +27,7 @@ import io.trino.metadata.Split;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverFactory;
 import io.trino.operator.FlatHashStrategyCompiler;
-import io.trino.operator.PagesIndex;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.PipelineContext;
 import io.trino.operator.TaskContext;
 import io.trino.operator.join.LookupSource;
@@ -71,7 +71,7 @@ public class IndexLoader
     private final List<Integer> keyOutputChannels;
     private final List<Type> keyTypes;
     private final List<BlockPositionEqual> keyEqualOperators;
-    private final PagesIndex.Factory pagesIndexFactory;
+    private final JoinPagesIndex.Factory pagesIndexFactory;
     private final FlatHashStrategyCompiler hashStrategyCompiler;
 
     @GuardedBy("this")
@@ -90,7 +90,7 @@ public class IndexLoader
             int expectedPositions,
             DataSize maxIndexMemorySize,
             IndexJoinLookupStats stats,
-            PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory pagesIndexFactory,
             FlatHashStrategyCompiler hashStrategyCompiler,
             BlockTypeOperators blockTypeOperators)
     {
@@ -284,7 +284,7 @@ public class IndexLoader
                 List<Integer> keyOutputChannels,
                 int expectedPositions,
                 DataSize maxIndexMemorySize,
-                PagesIndex.Factory pagesIndexFactory,
+                JoinPagesIndex.Factory pagesIndexFactory,
                 FlatHashStrategyCompiler hashStrategyCompiler)
         {
             this.pipelineContext = pipelineContext;

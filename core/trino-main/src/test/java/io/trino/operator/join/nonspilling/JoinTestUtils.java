@@ -18,9 +18,9 @@ import io.airlift.units.DataSize;
 import io.trino.RowPagesBuilder;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.PipelineContext;
 import io.trino.operator.TaskContext;
 import io.trino.operator.ValuesOperator;
@@ -212,8 +212,7 @@ public final class JoinTestUtils
                 filterFunctionFactory,
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                100,
-                new PagesIndex.TestingFactory(false, enableSingleChannelBigintLookupSource),
+                new JoinPagesIndex.TestingFactory(false, enableSingleChannelBigintLookupSource),
                 incrementalLoadFactorHashArraySizeSupplier(taskContext.getSession()));
         return new BuildSideSetup(lookupSourceFactoryManager, buildOperatorFactory, sourceOperatorFactory, partitionCount);
     }

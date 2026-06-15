@@ -129,7 +129,7 @@ public class TestPagesIndex
         for (OptionalInt sortChannel : Arrays.asList(OptionalInt.empty(), OptionalInt.of(0), OptionalInt.of(1))) {
             for (int joinChannel : Arrays.asList(0, 1)) {
                 List<Type> types = ImmutableList.of(BIGINT, VARCHAR);
-                PagesIndex pagesIndex = newPagesIndex(types, 50, false);
+                JoinPagesIndex pagesIndex = newJoinPagesIndex(types, false);
                 int pageCount = 100;
                 for (int i = 0; i < pageCount; i++) {
                     pagesIndex.addPage(somePage(types));
@@ -158,7 +158,6 @@ public class TestPagesIndex
                 assertThat(estimatedLookupSourceSize).isGreaterThanOrEqualTo(actualLookupSourceSize);
                 assertThat(estimatedLookupSourceSize).isCloseTo(actualLookupSourceSize, withPercentage(1));
 
-                long addressesSize = sizeOf(pagesIndex.getValueAddresses().elements());
                 long channelsArraySize = sizeOf(pagesIndex.getChannel(0).elements()) * types.size();
                 long blocksSize = 0;
                 for (int channel = 0; channel < 2; channel++) {
@@ -166,7 +165,7 @@ public class TestPagesIndex
                             .mapToLong(Block::getRetainedSizeInBytes)
                             .sum();
                 }
-                long actualAdditionalSize = actualLookupSourceSize - (addressesSize + channelsArraySize + blocksSize);
+                long actualAdditionalSize = actualLookupSourceSize - (channelsArraySize + blocksSize);
                 assertThat(estimatedAdditionalSize).isCloseTo(actualAdditionalSize, withPercentage(2));
             }
         }
@@ -175,6 +174,11 @@ public class TestPagesIndex
     private static PagesIndex newPagesIndex(List<Type> types, int expectedPositions, boolean eagerCompact)
     {
         return new PagesIndex.TestingFactory(eagerCompact).newPagesIndex(types, expectedPositions);
+    }
+
+    private static JoinPagesIndex newJoinPagesIndex(List<Type> types, boolean eagerCompact)
+    {
+        return new JoinPagesIndex.TestingFactory(eagerCompact).newJoinPagesIndex(types);
     }
 
     private static Page somePage(List<Type> types)

@@ -24,9 +24,9 @@ import io.trino.geospatial.KdbTreeUtils;
 import io.trino.geospatial.Rectangle;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
+import io.trino.operator.JoinPagesIndex.TestingFactory;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex.TestingFactory;
 import io.trino.operator.PagesSpatialIndex;
 import io.trino.operator.PagesSpatialIndexFactory;
 import io.trino.operator.PipelineContext;
@@ -488,7 +488,6 @@ public class TestSpatialJoinOperator
                 spatialRelationshipTest,
                 kdbTreeJson,
                 filterFunctionFactory,
-                10_000,
                 new TestingFactory(false));
 
         Driver driver = Driver.createDriver(

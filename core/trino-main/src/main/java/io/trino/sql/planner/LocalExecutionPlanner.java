@@ -79,6 +79,7 @@ import io.trino.operator.GroupIdOperator;
 import io.trino.operator.HashAggregationOperator.HashAggregationOperatorFactory;
 import io.trino.operator.HashSemiJoinOperator;
 import io.trino.operator.JoinOperatorType;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.LeafTableFunctionOperator.LeafTableFunctionOperatorFactory;
 import io.trino.operator.LimitOperator.LimitOperatorFactory;
 import io.trino.operator.MarkDistinctOperator.MarkDistinctOperatorFactory;
@@ -502,6 +503,7 @@ public class LocalExecutionPlanner
     private final SingleStreamSpillerFactory singleStreamSpillerFactory;
     private final PartitioningSpillerFactory partitioningSpillerFactory;
     private final PagesIndex.Factory pagesIndexFactory;
+    private final JoinPagesIndex.Factory joinPagesIndexFactory;
     private final JoinCompiler joinCompiler;
     private final FlatHashStrategyCompiler hashStrategyCompiler;
     private final OrderingCompiler orderingCompiler;
@@ -555,6 +557,7 @@ public class LocalExecutionPlanner
             SingleStreamSpillerFactory singleStreamSpillerFactory,
             PartitioningSpillerFactory partitioningSpillerFactory,
             PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory joinPagesIndexFactory,
             JoinCompiler joinCompiler,
             FlatHashStrategyCompiler hashStrategyCompiler,
             OrderingCompiler orderingCompiler,
@@ -597,6 +600,7 @@ public class LocalExecutionPlanner
         this.maxLocalExchangeBufferSize = taskManagerConfig.getMaxLocalExchangeBufferSize();
         this.gpuLocalExchangeBufferSize = taskManagerConfig.getGpuLocalExchangeBufferSize();
         this.pagesIndexFactory = requireNonNull(pagesIndexFactory, "pagesIndexFactory is null");
+        this.joinPagesIndexFactory = requireNonNull(joinPagesIndexFactory, "joinPagesIndexFactory is null");
         this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
         this.hashStrategyCompiler = requireNonNull(hashStrategyCompiler, "hashStrategyCompiler is null");
         this.orderingCompiler = requireNonNull(orderingCompiler, "orderingCompiler is null");
@@ -2914,7 +2918,7 @@ public class LocalExecutionPlanner
                     maxIndexMemorySize,
                     indexJoinLookupStats,
                     SystemSessionProperties.isShareIndexLoading(session),
-                    pagesIndexFactory,
+                    joinPagesIndexFactory,
                     hashStrategyCompiler,
                     blockTypeOperators);
 
@@ -3296,8 +3300,7 @@ public class LocalExecutionPlanner
                     spatialRelationshipTest,
                     node.getKdbTree(),
                     filterFunctionFactory,
-                    10_000,
-                    pagesIndexFactory);
+                    joinPagesIndexFactory);
 
             context.addDriverFactory(
                     false,
@@ -3447,8 +3450,7 @@ public class LocalExecutionPlanner
                         filterFunctionFactory,
                         sortChannel,
                         searchFunctionFactories,
-                        10_000,
-                        pagesIndexFactory,
+                        joinPagesIndexFactory,
                         spillEnabled && partitionCount > 1,
                         singleStreamSpillerFactory,
                         incrementalLoadFactorHashArraySizeSupplier(
@@ -3501,8 +3503,7 @@ public class LocalExecutionPlanner
                         filterFunctionFactory,
                         sortChannel,
                         searchFunctionFactories,
-                        10_000,
-                        pagesIndexFactory,
+                        joinPagesIndexFactory,
                         incrementalLoadFactorHashArraySizeSupplier(
                                 session,
                                 // scale load factor in case partition count (and number of hash build operators)

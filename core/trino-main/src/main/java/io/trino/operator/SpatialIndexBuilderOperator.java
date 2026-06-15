@@ -58,10 +58,8 @@ public class SpatialIndexBuilderOperator
         private final OptionalInt partitionChannel;
         private final SpatialPredicate spatialRelationshipTest;
         private final Optional<JoinFilterFunctionFactory> filterFunctionFactory;
-        private final PagesIndex.Factory pagesIndexFactory;
+        private final JoinPagesIndex.Factory pagesIndexFactory;
         private final Map<Integer, Rectangle> spatialPartitions = new HashMap<>();
-
-        private final int expectedPositions;
 
         private boolean closed;
 
@@ -77,8 +75,7 @@ public class SpatialIndexBuilderOperator
                 SpatialPredicate spatialRelationshipTest,
                 Optional<Slice> kdbTreeJson,
                 Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-                int expectedPositions,
-                PagesIndex.Factory pagesIndexFactory)
+                JoinPagesIndex.Factory pagesIndexFactory)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -96,7 +93,6 @@ public class SpatialIndexBuilderOperator
             this.spatialRelationshipTest = spatialRelationshipTest;
             this.filterFunctionFactory = requireNonNull(filterFunctionFactory, "filterFunctionFactory is null");
             this.pagesIndexFactory = pagesIndexFactory;
-            this.expectedPositions = expectedPositions;
             kdbTreeJson.ifPresent(json -> this.spatialPartitions.putAll(KdbTreeUtils.fromJson(json).getLeaves()));
         }
 
@@ -120,7 +116,6 @@ public class SpatialIndexBuilderOperator
                     partitionChannel,
                     spatialRelationshipTest,
                     filterFunctionFactory,
-                    expectedPositions,
                     pagesIndexFactory,
                     spatialPartitions);
         }
@@ -151,7 +146,7 @@ public class SpatialIndexBuilderOperator
     private final Optional<JoinFilterFunctionFactory> filterFunctionFactory;
     private final Map<Integer, Rectangle> partitions;
 
-    private final PagesIndex index;
+    private final JoinPagesIndex index;
     private ListenableFuture<Void> indexNotNeeded;
 
     private boolean finishing;
@@ -167,8 +162,7 @@ public class SpatialIndexBuilderOperator
             OptionalInt partitionChannel,
             SpatialPredicate spatialRelationshipTest,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-            int expectedPositions,
-            PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory pagesIndexFactory,
             Map<Integer, Rectangle> partitions)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
@@ -177,7 +171,7 @@ public class SpatialIndexBuilderOperator
         this.filterFunctionFactory = filterFunctionFactory;
 
         this.pagesSpatialIndexFactory = requireNonNull(pagesSpatialIndexFactory, "pagesSpatialIndexFactory is null");
-        this.index = pagesIndexFactory.newPagesIndex(pagesSpatialIndexFactory.getTypes(), expectedPositions);
+        this.index = pagesIndexFactory.newJoinPagesIndex(pagesSpatialIndexFactory.getTypes());
 
         this.outputChannels = requireNonNull(outputChannels, "outputChannels is null");
         this.indexChannel = indexChannel;

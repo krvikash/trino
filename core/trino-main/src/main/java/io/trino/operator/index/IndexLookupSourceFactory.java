@@ -19,7 +19,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.units.DataSize;
 import io.trino.operator.FlatHashStrategyCompiler;
-import io.trino.operator.PagesIndex;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.TaskContext;
 import io.trino.operator.join.LookupSourceFactory;
 import io.trino.operator.join.LookupSourceProvider;
@@ -53,7 +53,7 @@ public class IndexLookupSourceFactory
             DataSize maxIndexMemorySize,
             IndexJoinLookupStats stats,
             boolean shareIndexLoading,
-            PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory pagesIndexFactory,
             FlatHashStrategyCompiler hashStrategyCompiler,
             BlockTypeOperators blockTypeOperators)
     {

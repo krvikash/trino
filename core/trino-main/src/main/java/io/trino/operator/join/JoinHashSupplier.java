@@ -21,8 +21,6 @@ import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.List;
@@ -53,9 +51,8 @@ public class JoinHashSupplier
     public JoinHashSupplier(
             Session session,
             PagesHashStrategy pagesHashStrategy,
-            LongArrayList addresses,
             List<ObjectArrayList<Block>> channels,
-            IntArrayList positionCounts,
+            BlockPositionIndex blockPositionIndex,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
@@ -65,32 +62,31 @@ public class JoinHashSupplier
             InterpretedHashGenerator hashGenerator)
     {
         this.session = requireNonNull(session, "session is null");
-        requireNonNull(addresses, "addresses is null");
         this.filterFunctionFactory = requireNonNull(filterFunctionFactory, "filterFunctionFactory is null");
         this.searchFunctionFactories = ImmutableList.copyOf(searchFunctionFactories);
         requireNonNull(channels, "channels is null");
         requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
-        requireNonNull(positionCounts, "positionCounts is null");
-        this.blockPositionIndex = new BlockPositionIndex(positionCounts);
+        this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
+        int positionCount = blockPositionIndex.getPositionCount();
 
         PositionLinks.FactoryBuilder positionLinksFactoryBuilder;
         if (sortChannel.isPresent()) {
             checkArgument(filterFunctionFactory.isPresent(), "filterFunctionFactory not set while sortChannel set");
             positionLinksFactoryBuilder = SortedPositionLinks.builder(
-                    addresses.size(),
+                    positionCount,
                     pagesHashStrategy,
                     blockPositionIndex);
         }
         else {
-            positionLinksFactoryBuilder = ArrayPositionLinks.builder(addresses.size());
+            positionLinksFactoryBuilder = ArrayPositionLinks.builder(positionCount);
         }
 
         this.pages = channelsToPages(channels);
         this.pageInstancesRetainedSizeInBytes = getPageInstancesRetainedSizeInBytes(channels);
 
         this.pagesHash = switch (getPagesHashType(singleBigintJoinChannel)) {
-            case BIGINT -> new BigintPagesHash(addresses, pagesHashStrategy, blockPositionIndex, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.getAsInt());
-            case DEFAULT -> new DefaultPagesHash(addresses, pagesHashStrategy, blockPositionIndex, channels, positionCounts, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
+            case BIGINT -> new BigintPagesHash(pagesHashStrategy, blockPositionIndex, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.getAsInt());
+            case DEFAULT -> new DefaultPagesHash(pagesHashStrategy, blockPositionIndex, channels, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
         };
         this.positionLinks = positionLinksFactoryBuilder.isEmpty() ? Optional.empty() : Optional.of(positionLinksFactoryBuilder.build());
     }
@@ -122,7 +118,6 @@ public class JoinHashSupplier
 
     public static long getEstimatedRetainedSizeInBytes(
             int positionCount,
-            LongArrayList addresses,
             List<ObjectArrayList<Block>> channels,
             long blocksSizeInBytes,
             OptionalInt sortChannel,
@@ -138,8 +133,8 @@ public class JoinHashSupplier
         }
         result += getPageInstancesRetainedSizeInBytes(channels);
         result += switch (getPagesHashType(singleBigintJoinChannel)) {
-            case BIGINT -> BigintPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, addresses, channels, blocksSizeInBytes);
-            case DEFAULT -> DefaultPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, addresses, channels, blocksSizeInBytes);
+            case BIGINT -> BigintPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, channels, blocksSizeInBytes);
+            case DEFAULT -> DefaultPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, channels, blocksSizeInBytes);
         };
         return result;
     }

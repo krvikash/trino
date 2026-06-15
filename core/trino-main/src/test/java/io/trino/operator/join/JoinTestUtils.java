@@ -21,9 +21,9 @@ import io.trino.RowPagesBuilder;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.PipelineContext;
 import io.trino.operator.SpillContext;
 import io.trino.operator.TaskContext;
@@ -198,8 +198,7 @@ public final class JoinTestUtils
                 filterFunctionFactory,
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                100,
-                new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 spillEnabled,
                 singleStreamSpillerFactory,
                 incrementalLoadFactorHashArraySizeSupplier(taskContext.getSession()));

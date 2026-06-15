@@ -36,6 +36,7 @@ import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.Split;
 import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.gpu.GpuConfig;
@@ -196,6 +197,7 @@ public final class TaskTestUtils
                     throw new UnsupportedOperationException();
                 },
                 new PagesIndex.TestingFactory(false),
+                new JoinPagesIndex.TestingFactory(false),
                 new JoinCompiler(PLANNER_CONTEXT.getTypeOperators()),
                 new FlatHashStrategyCompiler(PLANNER_CONTEXT.getTypeOperators(), hashCompiler),
                 new OrderingCompiler(PLANNER_CONTEXT.getTypeOperators()),

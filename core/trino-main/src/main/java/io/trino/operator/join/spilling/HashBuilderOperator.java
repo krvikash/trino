@@ -26,10 +26,10 @@ import io.trino.memory.context.CoarseGrainLocalMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.DriverContext;
 import io.trino.operator.HashArraySizeSupplier;
+import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
-import io.trino.operator.PagesIndex;
 import io.trino.operator.SpillMetrics;
 import io.trino.operator.join.JoinBridgeManager;
 import io.trino.operator.join.LookupSourceSupplier;
@@ -81,9 +81,8 @@ public class HashBuilderOperator
         private final Optional<JoinFilterFunctionFactory> filterFunctionFactory;
         private final OptionalInt sortChannel;
         private final List<JoinFilterFunctionFactory> searchFunctionFactories;
-        private final PagesIndex.Factory pagesIndexFactory;
+        private final JoinPagesIndex.Factory pagesIndexFactory;
 
-        private final int expectedPositions;
         private final boolean spillEnabled;
         private final SingleStreamSpillerFactory singleStreamSpillerFactory;
         private final HashArraySizeSupplier hashArraySizeSupplier;
@@ -101,8 +100,7 @@ public class HashBuilderOperator
                 Optional<JoinFilterFunctionFactory> filterFunctionFactory,
                 OptionalInt sortChannel,
                 List<JoinFilterFunctionFactory> searchFunctionFactories,
-                int expectedPositions,
-                PagesIndex.Factory pagesIndexFactory,
+                JoinPagesIndex.Factory pagesIndexFactory,
                 boolean spillEnabled,
                 SingleStreamSpillerFactory singleStreamSpillerFactory,
                 HashArraySizeSupplier hashArraySizeSupplier)
@@ -123,8 +121,6 @@ public class HashBuilderOperator
             this.spillEnabled = spillEnabled;
             this.singleStreamSpillerFactory = requireNonNull(singleStreamSpillerFactory, "singleStreamSpillerFactory is null");
             this.hashArraySizeSupplier = requireNonNull(hashArraySizeSupplier, "hashArraySizeSupplier is null");
-
-            this.expectedPositions = expectedPositions;
         }
 
         @Override
@@ -145,7 +141,6 @@ public class HashBuilderOperator
                     filterFunctionFactory,
                     sortChannel,
                     searchFunctionFactories,
-                    expectedPositions,
                     pagesIndexFactory,
                     spillEnabled,
                     singleStreamSpillerFactory,
@@ -220,7 +215,7 @@ public class HashBuilderOperator
     private final OptionalInt sortChannel;
     private final List<JoinFilterFunctionFactory> searchFunctionFactories;
 
-    private final PagesIndex index;
+    private final JoinPagesIndex index;
     private final HashArraySizeSupplier hashArraySizeSupplier;
 
     private final boolean spillEnabled;
@@ -251,8 +246,7 @@ public class HashBuilderOperator
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
-            int expectedPositions,
-            PagesIndex.Factory pagesIndexFactory,
+            JoinPagesIndex.Factory pagesIndexFactory,
             boolean spillEnabled,
             SingleStreamSpillerFactory singleStreamSpillerFactory,
             HashArraySizeSupplier hashArraySizeSupplier,
@@ -268,7 +262,7 @@ public class HashBuilderOperator
         this.localUserMemoryContext = new CoarseGrainLocalMemoryContext(operatorContext.localUserMemoryContext(), memorySyncGranularity);
         this.localRevocableMemoryContext = new CoarseGrainLocalMemoryContext(operatorContext.localRevocableMemoryContext(), memorySyncGranularity);
 
-        this.index = pagesIndexFactory.newPagesIndex(lookupSourceFactory.getTypes(), expectedPositions);
+        this.index = pagesIndexFactory.newJoinPagesIndex(lookupSourceFactory.getTypes());
         this.lookupSourceFactory = lookupSourceFactory;
         lookupSourceFactoryDestroyed = lookupSourceFactory.isDestroyed();
 
