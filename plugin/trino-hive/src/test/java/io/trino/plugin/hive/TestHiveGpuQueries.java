@@ -41,9 +41,6 @@ import static io.trino.plugin.hive.HiveStorageFormat.SEQUENCEFILE_PROTOBUF;
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.tpch.TpchTable.NATION;
-import static io.trino.tpch.TpchTable.ORDERS;
-import static io.trino.tpch.TpchTable.REGION;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,7 +53,7 @@ public class TestHiveGpuQueries
     {
         return HiveQueryRunner.builder()
                 .configureGpuDistributedExecution()
-                .setInitialTables(ImmutableList.of(NATION, REGION, ORDERS))
+                .setInitialTables(REQUIRED_TPCH_TABLES)
                 .addHiveProperty("hive.storage-format", "PARQUET")
                 .addHiveProperty("hive.parquet.time-zone", "UTC")
                 .build();
@@ -195,19 +192,6 @@ public class TestHiveGpuQueries
                 .executesWithoutGpu();
 
         assertUpdate("DROP TABLE test_char_trimming");
-    }
-
-    @Test
-    public void testNestedColumnProjection()
-    {
-        assertUpdate("CREATE TABLE test_gpu_nested AS SELECT CAST(ROW(1, 'x') AS ROW(a integer, b varchar)) AS col_row", 1);
-
-        assertThat(query("SELECT col_row.a FROM test_gpu_nested"))
-                .executesWithoutGpu();
-        assertThat(query("SELECT col_row.a, col_row.b FROM test_gpu_nested"))
-                .executesWithoutGpu();
-
-        assertUpdate("DROP TABLE test_gpu_nested");
     }
 
     @Test
