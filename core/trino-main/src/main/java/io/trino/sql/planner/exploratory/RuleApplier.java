@@ -62,7 +62,7 @@ public class RuleApplier
         Context ruleContext = memo.getRuleContext();
 
         // Collect matches first, then update Memo, so matching never observes a partially modified Memo.
-        List<Result<NewMemoOperation>> results = pattern.match(operationRecent, null)
+        List<Result<NewMemoOperation>> results = pattern.match(operationRecent, ruleContext)
                 .map(match -> {
                     MemoOperation rootOperation = match.capture(rootCapture);
                     checkState(rootOperation == operationRecent, "Expected root operation to be the same as the matched operation");

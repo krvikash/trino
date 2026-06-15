@@ -31,7 +31,7 @@ public class Patterns
         return Pattern.typeOf(MemoOperation.class);
     }
 
-    public static Property<MemoOperation, Void, List<Child>> children()
+    public static Property<MemoOperation, Context, List<Child>> children()
     {
         return property("children", (memoOperation, _) -> memoOperation.children());
     }
