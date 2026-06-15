@@ -31,6 +31,7 @@ import io.trino.cache.CacheStatsMBean;
 import io.trino.cache.NonEvictableCache;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.Metadata;
+import io.trino.operator.join.BlockPositionIndex;
 import io.trino.operator.join.InternalJoinFilterFunction;
 import io.trino.operator.join.JoinFilterFunction;
 import io.trino.operator.join.StandardJoinFilterFunction;
@@ -46,7 +47,6 @@ import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.Symbol;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
@@ -251,7 +251,7 @@ public class JoinFilterFunctionCompiler
 
     public interface JoinFilterFunctionFactory
     {
-        JoinFilterFunction create(ConnectorSession session, LongArrayList addresses, List<Page> pages);
+        JoinFilterFunction create(ConnectorSession session, BlockPositionIndex blockPositionIndex, List<Page> pages);
     }
 
     private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompiler(
@@ -331,7 +331,7 @@ public class JoinFilterFunctionCompiler
                         new DynamicClassLoader(getClass().getClassLoader()),
                         JoinFilterFunction.class,
                         StandardJoinFilterFunction.class);
-                isolatedJoinFilterFunctionConstructor = isolatedJoinFilterFunction.getConstructor(InternalJoinFilterFunction.class, LongArrayList.class, List.class);
+                isolatedJoinFilterFunctionConstructor = isolatedJoinFilterFunction.getConstructor(InternalJoinFilterFunction.class, BlockPositionIndex.class, List.class);
             }
             catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
@@ -339,11 +339,11 @@ public class JoinFilterFunctionCompiler
         }
 
         @Override
-        public JoinFilterFunction create(ConnectorSession session, LongArrayList addresses, List<Page> pages)
+        public JoinFilterFunction create(ConnectorSession session, BlockPositionIndex blockPositionIndex, List<Page> pages)
         {
             try {
                 InternalJoinFilterFunction internalJoinFilterFunction = internalJoinFilterFunctionConstructor.newInstance(session);
-                return isolatedJoinFilterFunctionConstructor.newInstance(internalJoinFilterFunction, addresses, pages);
+                return isolatedJoinFilterFunctionConstructor.newInstance(internalJoinFilterFunction, blockPositionIndex, pages);
             }
             catch (ReflectiveOperationException e) {
                 throw new RuntimeException(e);

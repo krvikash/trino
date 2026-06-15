@@ -15,12 +15,9 @@ package io.trino.operator.join;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.Page;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.List;
 
-import static io.trino.operator.SyntheticAddress.decodePosition;
-import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static java.util.Objects.requireNonNull;
 
 public class StandardJoinFilterFunction
@@ -29,23 +26,22 @@ public class StandardJoinFilterFunction
     private static final Page EMPTY_PAGE = new Page(0);
 
     private final InternalJoinFilterFunction filterFunction;
-    private final LongArrayList addresses;
+    private final BlockPositionIndex blockPositionIndex;
     private final List<Page> pages;
 
-    public StandardJoinFilterFunction(InternalJoinFilterFunction filterFunction, LongArrayList addresses, List<Page> pages)
+    public StandardJoinFilterFunction(InternalJoinFilterFunction filterFunction, BlockPositionIndex blockPositionIndex, List<Page> pages)
     {
         this.filterFunction = requireNonNull(filterFunction, "filterFunction cannot be null");
-        this.addresses = requireNonNull(addresses, "addresses is null");
+        this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
         this.pages = ImmutableList.copyOf(requireNonNull(pages, "pages is null"));
     }
 
     @Override
     public boolean filter(int leftPosition, int rightPosition, Page rightPage)
     {
-        long pageAddress = addresses.getLong(leftPosition);
-        int pageIndex = decodeSliceIndex(pageAddress);
-        int pagePosition = decodePosition(pageAddress);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(leftPosition);
+        int blockPosition = blockPositionIndex.decodePosition(leftPosition, blockIndex);
 
-        return filterFunction.filter(pagePosition, pages.isEmpty() ? EMPTY_PAGE : pages.get(pageIndex), rightPosition, rightPage);
+        return filterFunction.filter(blockPosition, pages.isEmpty() ? EMPTY_PAGE : pages.get(blockIndex), rightPosition, rightPage);
     }
 }

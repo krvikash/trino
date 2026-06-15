@@ -17,6 +17,7 @@ import io.airlift.slice.Slice;
 import io.trino.Session;
 import io.trino.geospatial.Rectangle;
 import io.trino.operator.SpatialIndexBuilderOperator.SpatialPredicate;
+import io.trino.operator.join.BlockPositionIndex;
 import io.trino.operator.join.JoinFilterFunction;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -24,7 +25,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -42,8 +42,6 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.trino.geospatial.GeometryUtils.estimateMemorySize;
 import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
-import static io.trino.operator.SyntheticAddress.decodePosition;
-import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static io.trino.operator.join.JoinUtils.channelsToPages;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -54,7 +52,7 @@ public class PagesRTreeIndex
 {
     private static final int[] EMPTY_ADDRESSES = new int[0];
 
-    private final LongArrayList addresses;
+    private final BlockPositionIndex blockPositionIndex;
     private final List<Integer> outputChannels;
     private final List<ObjectArrayList<Block>> channels;
     private final STRtree rtree;
@@ -102,7 +100,7 @@ public class PagesRTreeIndex
 
     public PagesRTreeIndex(
             Session session,
-            LongArrayList addresses,
+            BlockPositionIndex blockPositionIndex,
             List<Integer> outputChannels,
             List<ObjectArrayList<Block>> channels,
             STRtree rtree,
@@ -112,14 +110,14 @@ public class PagesRTreeIndex
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             Map<Integer, Rectangle> partitions)
     {
-        this.addresses = requireNonNull(addresses, "addresses is null");
+        this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
         this.outputChannels = outputChannels;
         this.channels = requireNonNull(channels, "channels is null");
         this.rtree = requireNonNull(rtree, "rtree is null");
         this.radiusChannel = radiusChannel.orElse(-1);
         this.constantRadius = requireNonNull(constantRadius, "constantRadius is null");
         this.spatialRelationshipTest = requireNonNull(spatialRelationshipTest, "spatialRelationshipTest is null");
-        this.filterFunction = filterFunctionFactory.map(factory -> factory.create(session.toConnectorSession(), addresses, channelsToPages(channels))).orElse(null);
+        this.filterFunction = filterFunctionFactory.map(factory -> factory.create(session.toConnectorSession(), blockPositionIndex, channelsToPages(channels))).orElse(null);
         this.partitions = requireNonNull(partitions, "partitions is null");
 
         checkArgument(!(constantRadius.isPresent() && radiusChannel.isPresent()), "Radius channel and constant radius are mutually exclusive");
@@ -131,11 +129,10 @@ public class PagesRTreeIndex
     }
 
     /**
-     * Returns an array of addresses from {@link PagesIndex#valueAddresses} corresponding
-     * to rows with matching geometries.
+     * Returns an array of build-side row numbers corresponding to rows with matching geometries.
      * <p>
      * The caller is responsible for calling {@link #isJoinPositionEligible(int, int, Page)}
-     * for each of these addresses to apply additional join filters.
+     * for each of these row numbers to apply additional join filters.
      */
     @Override
     public int[] findJoinPositions(int position, Page probe, int probeGeometryChannel, OptionalInt probePartitionChannel)
@@ -203,9 +200,8 @@ public class PagesRTreeIndex
 
     private double getRadius(int joinPosition)
     {
-        long joinAddress = addresses.getLong(joinPosition);
-        int blockIndex = decodeSliceIndex(joinAddress);
-        int blockPosition = decodePosition(joinAddress);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(joinPosition);
+        int blockPosition = blockPositionIndex.decodePosition(joinPosition, blockIndex);
 
         return DOUBLE.getDouble(channels.get(radiusChannel).get(blockIndex), blockPosition);
     }
@@ -219,9 +215,8 @@ public class PagesRTreeIndex
     @Override
     public void appendTo(int joinPosition, PageBuilder pageBuilder, int outputChannelOffset)
     {
-        long joinAddress = addresses.getLong(joinPosition);
-        int blockIndex = decodeSliceIndex(joinAddress);
-        int blockPosition = decodePosition(joinAddress);
+        int blockIndex = blockPositionIndex.decodeBlockIndex(joinPosition);
+        int blockPosition = blockPositionIndex.decodePosition(joinPosition, blockIndex);
 
         for (int outputIndex : outputChannels) {
             List<Block> channel = channels.get(outputIndex);

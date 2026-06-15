@@ -41,7 +41,7 @@ public class JoinHashSupplier
 {
     private final Session session;
     private final PagesHash pagesHash;
-    private final LongArrayList addresses;
+    private final BlockPositionIndex blockPositionIndex;
     private final List<Page> pages;
     // Number of bytes retained by the Page objects excluding retained size of the blocks themselves (as those are accounted as part of PageHash)
     // as when the pages are small and the data set is large the memory footprint of Page objects could be substantial
@@ -65,11 +65,13 @@ public class JoinHashSupplier
             InterpretedHashGenerator hashGenerator)
     {
         this.session = requireNonNull(session, "session is null");
-        this.addresses = requireNonNull(addresses, "addresses is null");
+        requireNonNull(addresses, "addresses is null");
         this.filterFunctionFactory = requireNonNull(filterFunctionFactory, "filterFunctionFactory is null");
         this.searchFunctionFactories = ImmutableList.copyOf(searchFunctionFactories);
         requireNonNull(channels, "channels is null");
         requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
+        requireNonNull(positionCounts, "positionCounts is null");
+        this.blockPositionIndex = new BlockPositionIndex(positionCounts);
 
         PositionLinks.FactoryBuilder positionLinksFactoryBuilder;
         if (sortChannel.isPresent()) {
@@ -77,7 +79,7 @@ public class JoinHashSupplier
             positionLinksFactoryBuilder = SortedPositionLinks.builder(
                     addresses.size(),
                     pagesHashStrategy,
-                    addresses);
+                    blockPositionIndex);
         }
         else {
             positionLinksFactoryBuilder = ArrayPositionLinks.builder(addresses.size());
@@ -87,8 +89,8 @@ public class JoinHashSupplier
         this.pageInstancesRetainedSizeInBytes = getPageInstancesRetainedSizeInBytes(channels);
 
         this.pagesHash = switch (getPagesHashType(singleBigintJoinChannel)) {
-            case BIGINT -> new BigintPagesHash(addresses, pagesHashStrategy, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.getAsInt());
-            case DEFAULT -> new DefaultPagesHash(addresses, pagesHashStrategy, channels, positionCounts, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
+            case BIGINT -> new BigintPagesHash(addresses, pagesHashStrategy, blockPositionIndex, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.getAsInt());
+            case DEFAULT -> new DefaultPagesHash(addresses, pagesHashStrategy, blockPositionIndex, channels, positionCounts, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
         };
         this.positionLinks = positionLinksFactoryBuilder.isEmpty() ? Optional.empty() : Optional.of(positionLinksFactoryBuilder.build());
     }
@@ -105,13 +107,13 @@ public class JoinHashSupplier
         // We need to create new JoinFilterFunction per each thread using it, since those functions
         // are not thread safe...
         Optional<JoinFilterFunction> filterFunction =
-                filterFunctionFactory.map(factory -> factory.create(session.toConnectorSession(), addresses, pages));
+                filterFunctionFactory.map(factory -> factory.create(session.toConnectorSession(), blockPositionIndex, pages));
         return new JoinHash(
                 pagesHash,
                 filterFunction,
                 positionLinks.map(links -> {
                     List<JoinFilterFunction> searchFunctions = searchFunctionFactories.stream()
-                            .map(factory -> factory.create(session.toConnectorSession(), addresses, pages))
+                            .map(factory -> factory.create(session.toConnectorSession(), blockPositionIndex, pages))
                             .collect(toImmutableList());
                     return links.create(searchFunctions);
                 }),

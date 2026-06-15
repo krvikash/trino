@@ -36,6 +36,7 @@ public final class BlockPositionIndex
     // Memory budget for the windowToBlock directory; the window shift is the smallest that keeps the directory within it.
     private static final int WINDOW_TO_BLOCK_BUDGET_BYTES = 512 * 1024;
 
+    private final int positionCount;
     private final int windowShift;
     private final int[] blockStarts;
     private final int[] windowToBlock;
@@ -47,7 +48,7 @@ public final class BlockPositionIndex
         for (int blockIndex = 0; blockIndex < blockCount; blockIndex++) {
             blockStarts[blockIndex + 1] = blockStarts[blockIndex] + positionCounts.getInt(blockIndex);
         }
-        int positionCount = blockStarts[blockCount];
+        positionCount = blockStarts[blockCount];
 
         windowShift = windowShift(positionCount);
         int windowCount = windowCount(positionCount, windowShift);
@@ -77,6 +78,11 @@ public final class BlockPositionIndex
     public int decodePosition(int rowNumber, int blockIndex)
     {
         return rowNumber - blockStarts[blockIndex];
+    }
+
+    public int getPositionCount()
+    {
+        return positionCount;
     }
 
     public long getRetainedSizeInBytes()

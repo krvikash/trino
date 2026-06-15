@@ -21,7 +21,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.Iterator;
 import java.util.List;
@@ -31,8 +30,6 @@ import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.SizeOf.sizeOfIntArray;
 import static io.airlift.slice.SizeOf.sizeOfObjectArray;
-import static io.trino.operator.SyntheticAddress.decodePosition;
-import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -53,14 +50,14 @@ public final class SortedPositionLinks
         private final int size;
         private final PositionComparator comparator;
         private final PagesHashStrategy pagesHashStrategy;
-        private final LongArrayList addresses;
+        private final BlockPositionIndex blockPositionIndex;
 
-        public FactoryBuilder(int size, PagesHashStrategy pagesHashStrategy, LongArrayList addresses)
+        public FactoryBuilder(int size, PagesHashStrategy pagesHashStrategy, BlockPositionIndex blockPositionIndex)
         {
             this.size = size;
-            this.comparator = new PositionComparator(pagesHashStrategy, addresses);
+            this.comparator = new PositionComparator(pagesHashStrategy, blockPositionIndex);
             this.pagesHashStrategy = pagesHashStrategy;
-            this.addresses = addresses;
+            this.blockPositionIndex = blockPositionIndex;
             positionLinks = new Int2ObjectOpenHashMap<>();
         }
 
@@ -98,9 +95,8 @@ public final class SortedPositionLinks
 
         private boolean isNull(int position)
         {
-            long pageAddress = addresses.getLong(position);
-            int blockIndex = decodeSliceIndex(pageAddress);
-            int blockPosition = decodePosition(pageAddress);
+            int blockIndex = blockPositionIndex.decodeBlockIndex(position);
+            int blockPosition = blockPositionIndex.decodePosition(position, blockIndex);
             return pagesHashStrategy.isSortChannelPositionNull(blockIndex, blockPosition);
         }
 
@@ -190,9 +186,9 @@ public final class SortedPositionLinks
         return retainedSize;
     }
 
-    public static FactoryBuilder builder(int size, PagesHashStrategy pagesHashStrategy, LongArrayList addresses)
+    public static FactoryBuilder builder(int size, PagesHashStrategy pagesHashStrategy, BlockPositionIndex blockPositionIndex)
     {
-        return new FactoryBuilder(size, pagesHashStrategy, addresses);
+        return new FactoryBuilder(size, pagesHashStrategy, blockPositionIndex);
     }
 
     @Override
@@ -310,24 +306,22 @@ public final class SortedPositionLinks
             implements IntComparator
     {
         private final PagesHashStrategy pagesHashStrategy;
-        private final LongArrayList addresses;
+        private final BlockPositionIndex blockPositionIndex;
 
-        PositionComparator(PagesHashStrategy pagesHashStrategy, LongArrayList addresses)
+        PositionComparator(PagesHashStrategy pagesHashStrategy, BlockPositionIndex blockPositionIndex)
         {
             this.pagesHashStrategy = pagesHashStrategy;
-            this.addresses = addresses;
+            this.blockPositionIndex = blockPositionIndex;
         }
 
         @Override
         public int compare(int leftPosition, int rightPosition)
         {
-            long leftPageAddress = addresses.getLong(leftPosition);
-            int leftBlockIndex = decodeSliceIndex(leftPageAddress);
-            int leftBlockPosition = decodePosition(leftPageAddress);
+            int leftBlockIndex = blockPositionIndex.decodeBlockIndex(leftPosition);
+            int leftBlockPosition = blockPositionIndex.decodePosition(leftPosition, leftBlockIndex);
 
-            long rightPageAddress = addresses.getLong(rightPosition);
-            int rightBlockIndex = decodeSliceIndex(rightPageAddress);
-            int rightBlockPosition = decodePosition(rightPageAddress);
+            int rightBlockIndex = blockPositionIndex.decodeBlockIndex(rightPosition);
+            int rightBlockPosition = blockPositionIndex.decodePosition(rightPosition, rightBlockIndex);
 
             return pagesHashStrategy.compareSortChannelPositions(leftBlockIndex, leftBlockPosition, rightBlockIndex, rightBlockPosition);
         }

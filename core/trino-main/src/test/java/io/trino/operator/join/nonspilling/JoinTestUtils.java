@@ -146,7 +146,7 @@ public final class JoinTestUtils
             boolean buildOuter)
     {
         Optional<JoinFilterFunctionCompiler.JoinFilterFunctionFactory> filterFunctionFactory = filterFunction
-                .map(function -> (_, addresses, pages) -> new StandardJoinFilterFunction(function, addresses, pages));
+                .map(function -> (_, blockPositionIndex, pages) -> new StandardJoinFilterFunction(function, blockPositionIndex, pages));
 
         int partitionCount = parallelBuild ? PARTITION_COUNT : 1;
         List<Integer> hashChannels = buildPages.getHashChannels().orElseThrow();

@@ -62,6 +62,7 @@ public final class DefaultPagesHash
     public DefaultPagesHash(
             LongArrayList addresses,
             PagesHashStrategy pagesHashStrategy,
+            BlockPositionIndex blockPositionIndex,
             List<ObjectArrayList<Block>> channels,
             IntArrayList positionCounts,
             List<Integer> joinChannels,
@@ -70,10 +71,10 @@ public final class DefaultPagesHash
             HashArraySizeSupplier hashArraySizeSupplier)
     {
         requireNonNull(addresses, "addresses is null");
-        this.positionCount = addresses.size();
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
+        this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
+        this.positionCount = blockPositionIndex.getPositionCount();
         requireNonNull(positionCounts, "positionCounts is null");
-        blockPositionIndex = new BlockPositionIndex(positionCounts);
 
         // reserve memory for the arrays
         int hashSize = hashArraySizeSupplier.getHashArraySize(positionCount);

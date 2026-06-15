@@ -15,6 +15,7 @@ package io.trino.sql.gen;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.operator.join.BlockPositionIndex;
 import io.trino.operator.join.JoinFilterFunction;
 import io.trino.spi.Page;
 import io.trino.spi.block.BlockBuilder;
@@ -24,7 +25,7 @@ import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.Symbol;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -72,9 +73,9 @@ public class TestJoinFilterFunctionCompiler
         JoinFilterFunctionFactory factory = compiler.compileJoinFilterFunction(JOIN_FILTER, layout, 1);
         Page leftPage = createLongBlockPage(10, 1, 5);
         Page rightPage = createLongBlockPage(3, 3, 3);
-        // Addresses: packing (pageIndex=0, positionIndex) for the left page
-        LongArrayList addresses = new LongArrayList(new long[] {0, 1, 2}); // positions 0, 1, 2 of page 0
-        JoinFilterFunction filterFunction = factory.create(SESSION, addresses, List.of(leftPage));
+        // Single build page; row numbers 0, 1, 2 resolve to positions 0, 1, 2 of block 0
+        BlockPositionIndex blockPositionIndex = new BlockPositionIndex(IntArrayList.of(leftPage.getPositionCount()));
+        JoinFilterFunction filterFunction = factory.create(SESSION, blockPositionIndex, List.of(leftPage));
         // left[0]=10 > right[0]=3 → true
         assertThat(filterFunction.filter(0, 0, rightPage)).isTrue();
         // left[1]=1 > right[1]=3 → false

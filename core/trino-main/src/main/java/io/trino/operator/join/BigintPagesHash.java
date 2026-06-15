@@ -22,7 +22,6 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -63,23 +62,21 @@ public final class BigintPagesHash
     public BigintPagesHash(
             LongArrayList addresses,
             PagesHashStrategy pagesHashStrategy,
+            BlockPositionIndex blockPositionIndex,
             PositionLinks.FactoryBuilder positionLinks,
             HashArraySizeSupplier hashArraySizeSupplier,
             List<Page> pages,
             int joinChannel)
     {
         requireNonNull(addresses, "addresses is null");
-        this.positionCount = addresses.size();
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
+        this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
+        this.positionCount = blockPositionIndex.getPositionCount();
         requireNonNull(pages, "pages is null");
-        IntArrayList positionCounts = new IntArrayList(pages.size());
         int maxPagePositions = 0;
         for (Page page : pages) {
-            int pagePositions = page.getPositionCount();
-            positionCounts.add(pagePositions);
-            maxPagePositions = Math.max(maxPagePositions, pagePositions);
+            maxPagePositions = Math.max(maxPagePositions, page.getPositionCount());
         }
-        blockPositionIndex = new BlockPositionIndex(positionCounts);
 
         // reserve memory for the arrays
         int hashSize = hashArraySizeSupplier.getHashArraySize(positionCount);

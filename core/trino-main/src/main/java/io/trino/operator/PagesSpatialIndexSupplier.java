@@ -19,10 +19,11 @@ import io.trino.Session;
 import io.trino.geospatial.Rectangle;
 import io.trino.operator.PagesRTreeIndex.GeometryWithPosition;
 import io.trino.operator.SpatialIndexBuilderOperator.SpatialPredicate;
+import io.trino.operator.join.BlockPositionIndex;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.sql.gen.JoinFilterFunctionCompiler;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -41,8 +42,6 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
 import static io.trino.operator.PagesSpatialIndex.EMPTY_INDEX;
-import static io.trino.operator.SyntheticAddress.decodePosition;
-import static io.trino.operator.SyntheticAddress.decodeSliceIndex;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 
@@ -55,7 +54,7 @@ public class PagesSpatialIndexSupplier
     private static final int ABSTRACT_NODE_INSTANCE_SIZE = instanceSize(AbstractNode.class);
 
     private final Session session;
-    private final LongArrayList addresses;
+    private final BlockPositionIndex blockPositionIndex;
     private final List<Integer> outputChannels;
     private final List<ObjectArrayList<Block>> channels;
     private final OptionalInt radiusChannel;
@@ -68,7 +67,7 @@ public class PagesSpatialIndexSupplier
 
     public PagesSpatialIndexSupplier(
             Session session,
-            LongArrayList addresses,
+            IntArrayList positionCounts,
             List<Integer> outputChannels,
             List<ObjectArrayList<Block>> channels,
             int geometryChannel,
@@ -80,30 +79,30 @@ public class PagesSpatialIndexSupplier
             Map<Integer, Rectangle> partitions)
     {
         this.session = session;
-        this.addresses = addresses;
+        this.blockPositionIndex = new BlockPositionIndex(positionCounts);
         this.outputChannels = outputChannels;
         this.channels = channels;
         this.spatialRelationshipTest = spatialRelationshipTest;
         this.filterFunctionFactory = filterFunctionFactory;
         this.partitions = partitions;
 
-        this.rtree = buildRTree(addresses, channels, geometryChannel, radiusChannel, constantRadius, partitionChannel);
+        this.rtree = buildRTree(blockPositionIndex, channels, geometryChannel, radiusChannel, constantRadius, partitionChannel);
         this.radiusChannel = radiusChannel;
         this.constantRadius = constantRadius;
         this.memorySizeInBytes = INSTANCE_SIZE +
                 (rtree.isEmpty() ? 0 : STRTREE_INSTANCE_SIZE + computeMemorySizeInBytes(rtree.getRoot()));
     }
 
-    private static STRtree buildRTree(LongArrayList addresses, List<ObjectArrayList<Block>> channels, int geometryChannel, OptionalInt radiusChannel, OptionalDouble constantRadius, OptionalInt partitionChannel)
+    private static STRtree buildRTree(BlockPositionIndex blockPositionIndex, List<ObjectArrayList<Block>> channels, int geometryChannel, OptionalInt radiusChannel, OptionalDouble constantRadius, OptionalInt partitionChannel)
     {
         STRtree rtree = new STRtree();
 
-        for (int position = 0; position < addresses.size(); position++) {
-            long pageAddress = addresses.getLong(position);
-            int blockIndex = decodeSliceIndex(pageAddress);
+        int positionCount = blockPositionIndex.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            int blockIndex = blockPositionIndex.decodeBlockIndex(position);
             Block channelBlock = channels.get(geometryChannel).get(blockIndex);
             VariableWidthBlock block = (VariableWidthBlock) channelBlock.getUnderlyingValueBlock();
-            int blockPosition = decodePosition(pageAddress);
+            int blockPosition = blockPositionIndex.decodePosition(position, blockIndex);
             int valueBlockPosition = channelBlock.getUnderlyingValuePosition(blockPosition);
 
             // TODO Consider pushing is-null and is-empty checks into a filter below the join
@@ -181,6 +180,6 @@ public class PagesSpatialIndexSupplier
         if (rtree.isEmpty()) {
             return EMPTY_INDEX;
         }
-        return new PagesRTreeIndex(session, addresses, outputChannels, channels, rtree, radiusChannel, constantRadius, spatialRelationshipTest, filterFunctionFactory, partitions);
+        return new PagesRTreeIndex(session, blockPositionIndex, outputChannels, channels, rtree, radiusChannel, constantRadius, spatialRelationshipTest, filterFunctionFactory, partitions);
     }
 }

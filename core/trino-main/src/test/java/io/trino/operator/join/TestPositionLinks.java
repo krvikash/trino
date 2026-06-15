@@ -20,14 +20,13 @@ import io.trino.operator.SimplePagesHashStrategy;
 import io.trino.spi.Page;
 import io.trino.spi.type.TypeOperators;
 import io.trino.type.BlockTypeOperators;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.operator.SyntheticAddress.encodeSyntheticAddress;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -286,7 +285,7 @@ public class TestPositionLinks
         SortedPositionLinks.FactoryBuilder builder = SortedPositionLinks.builder(
                 1000,
                 pagesHashStrategy(),
-                addresses());
+                blockPositionIndex());
 
         /*
          * Built sorted positions links
@@ -319,12 +318,8 @@ public class TestPositionLinks
                 new BlockTypeOperators(new TypeOperators()));
     }
 
-    private static LongArrayList addresses()
+    private static BlockPositionIndex blockPositionIndex()
     {
-        LongArrayList addresses = new LongArrayList();
-        for (int i = 0; i < TEST_PAGE.getPositionCount(); ++i) {
-            addresses.add(encodeSyntheticAddress(0, i));
-        }
-        return addresses;
+        return new BlockPositionIndex(IntArrayList.of(TEST_PAGE.getPositionCount()));
     }
 }
