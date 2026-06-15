@@ -67,6 +67,7 @@
         <module>lib/trino-parquet</module>
         <module>lib/trino-plugin-toolkit</module>
         <module>lib/trino-record-decoder</module>
+        <module>lib/trino-ssh-tunnel</module>
         <module>plugin/starburst-base-jdbc</module>
         <module>plugin/starburst-dynamodb</module>
         <module>plugin/starburst-functions</module>
@@ -259,6 +260,7 @@
         <dep.hudi.version>1.1.1</dep.hudi.version>
         <dep.jna.version>5.18.1</dep.jna.version>
         <dep.jsonwebtoken.version>0.13.0</dep.jsonwebtoken.version>
+        <dep.jsch.version>0.2.5</dep.jsch.version>
         <dep.jts.version>1.20.0</dep.jts.version>
         <dep.lucene.version>10.4.0</dep.lucene.version>
         <dep.okhttp.version>5.3.2</dep.okhttp.version>
@@ -550,6 +552,12 @@
                         <artifactId>commons-validator</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.mwiede</groupId>
+                <artifactId>jsch</artifactId>
+                <version>${dep.jsch.version}</version>
             </dependency>
 
             <dependency>
