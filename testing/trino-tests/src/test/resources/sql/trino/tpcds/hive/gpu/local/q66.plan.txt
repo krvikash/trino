@@ -20,10 +20,10 @@
                                       - JoinNode (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode web_sales (GPU)
-                                        - ExchangeNode LOCAL (GPU)
-                                          - ProjectNode (GPU)
+                                        - ExchangeNode LOCAL
+                                          - ProjectNode
                                             - FilterNode
-                                              - TableScanNode ship_mode (GPU)
+                                              - TableScanNode ship_mode
                                       - ExchangeNode LOCAL (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode date_dim (GPU)
@@ -49,10 +49,10 @@
                                       - JoinNode (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode catalog_sales (GPU)
-                                        - ExchangeNode LOCAL (GPU)
-                                          - ProjectNode (GPU)
+                                        - ExchangeNode LOCAL
+                                          - ProjectNode
                                             - FilterNode
-                                              - TableScanNode ship_mode (GPU)
+                                              - TableScanNode ship_mode
                                       - ExchangeNode LOCAL (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode date_dim (GPU)

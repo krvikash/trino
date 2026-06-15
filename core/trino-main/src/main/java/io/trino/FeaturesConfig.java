@@ -143,6 +143,10 @@ public class FeaturesConfig
 
     private boolean parallelizeLookupOuterOperator = true;
 
+    // TODO:  https://starburstdata.atlassian.net/browse/ENG-21276
+    //  Remove this once all customers have migrated to the new char/varchar coercion behavior.
+    private boolean legacyVarcharToCharCoercion = true;
+
     public boolean isRedistributeWrites()
     {
         return redistributeWrites;
@@ -514,6 +518,19 @@ public class FeaturesConfig
     public FeaturesConfig setLegacyCatalogRoles(boolean legacyCatalogRoles)
     {
         this.legacyCatalogRoles = legacyCatalogRoles;
+        return this;
+    }
+
+    public boolean isLegacyVarcharToCharCoercion()
+    {
+        return legacyVarcharToCharCoercion;
+    }
+
+    @Config("deprecated.legacy-varchar-to-char-coercion")
+    @ConfigDescription("Implicitly coerce varchar to char, instead of char to varchar")
+    public FeaturesConfig setLegacyVarcharToCharCoercion(boolean legacyVarcharToCharCoercion)
+    {
+        this.legacyVarcharToCharCoercion = legacyVarcharToCharCoercion;
         return this;
     }
 

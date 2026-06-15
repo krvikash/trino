@@ -26,17 +26,17 @@
                                       - JoinNode (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode store_returns (GPU)
-                                        - ExchangeNode LOCAL (GPU)
-                                          - ProjectNode (GPU)
+                                        - ExchangeNode LOCAL
+                                          - ProjectNode
                                             - FilterNode
-                                              - TableScanNode date_dim (GPU)
+                                              - TableScanNode date_dim
                                   - ExchangeNode LOCAL (GPU)
                                     - ProjectNode (GPU)
                                       - FilterNode
                                         - TableScanNode date_dim (GPU)
-                            - ExchangeNode LOCAL (GPU)
-                              - ProjectNode (GPU)
+                            - ExchangeNode LOCAL
+                              - ProjectNode
                                 - FilterNode
-                                  - TableScanNode date_dim (GPU)
+                                  - TableScanNode date_dim
                           - ExchangeNode LOCAL (GPU)
                             - TableScanNode store (GPU)

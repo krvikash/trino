@@ -334,6 +334,7 @@ public final class DistributedQueryRunner
     {
         long start = System.nanoTime();
         ImmutableMap.Builder<String, String> propertiesBuilder = ImmutableMap.<String, String>builder()
+                .put("deprecated.legacy-varchar-to-char-coercion", "false")
                 .put("query.client.timeout", "10m")
                 // Use few threads in tests to preserve resources on CI
                 .put("exchange.http-client.min-threads", "1") // default 8

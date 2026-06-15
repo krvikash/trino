@@ -85,6 +85,7 @@ public final class StandaloneQueryRunner
         TestingTrinoServer.Builder builder = TestingTrinoServer.builder()
                 .setSpanProcessor(SimpleSpanProcessor.create(spanExporter))
                 .setProperties(ImmutableMap.<String, String>builder()
+                        .put("deprecated.legacy-varchar-to-char-coercion", "false")
                         .put("query.client.timeout", "10m")
                         .put("exchange.http-client.idle-timeout", "1h")
                         .put("node-scheduler.min-candidates", "1")

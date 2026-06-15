@@ -19,10 +19,10 @@
                             - ProjectNode (GPU)
                               - FilterNode
                                 - TableScanNode date_dim (GPU)
-                        - ExchangeNode LOCAL (GPU)
-                          - ProjectNode (GPU)
+                        - ExchangeNode LOCAL
+                          - ProjectNode
                             - FilterNode
-                              - TableScanNode household_demographics (GPU)
+                              - TableScanNode household_demographics
                       - ExchangeNode LOCAL (GPU)
                         - ProjectNode (GPU)
                           - FilterNode

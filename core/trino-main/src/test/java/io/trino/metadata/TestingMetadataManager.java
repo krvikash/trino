@@ -84,6 +84,8 @@ public final class TestingMetadataManager
 
         public MetadataManager build()
         {
+            FeaturesConfig featuresConfig = new FeaturesConfig()
+                    .setLegacyVarcharToCharCoercion(false);
             TransactionManager transactionManager = this.transactionManager;
             if (transactionManager == null) {
                 transactionManager = createTestTransactionManager();
@@ -96,7 +98,7 @@ public final class TestingMetadataManager
                         () -> { throw new UnsupportedOperationException(); },
                         () -> { throw new UnsupportedOperationException(); });
                 TypeOperators typeOperators = new TypeOperators();
-                globalFunctionCatalog.addFunctions(SystemFunctionBundle.create(new FeaturesConfig(), typeOperators, new BlockTypeOperators(typeOperators), UNKNOWN));
+                globalFunctionCatalog.addFunctions(SystemFunctionBundle.create(featuresConfig, typeOperators, new BlockTypeOperators(typeOperators), UNKNOWN));
             }
 
             if (languageFunctionManager == null) {
@@ -116,7 +118,8 @@ public final class TestingMetadataManager
                     tableFunctionRegistry,
                     typeManager,
                     NO_CATALOGS,
-                    () -> { throw new UnsupportedOperationException(); });
+                    () -> { throw new UnsupportedOperationException(); },
+                    featuresConfig);
         }
     }
 

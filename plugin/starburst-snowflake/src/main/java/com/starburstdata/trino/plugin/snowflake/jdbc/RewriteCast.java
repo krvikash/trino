@@ -13,7 +13,6 @@ import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.expression.AbstractRewriteCast;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.BigintType;
-import io.trino.spi.type.CharType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.IntegerType;
@@ -63,13 +62,6 @@ public class RewriteCast
                     Optional.of(decimalType.getScale()),
                     Optional.empty(),
                     Optional.empty()));
-            case CharType charType -> Optional.of(new JdbcTypeHandle(
-                    CHAR,
-                    Optional.of(charType.getBaseName()),
-                    Optional.of(charType.getLength()),
-                    Optional.empty(),
-                    Optional.empty(),
-                    Optional.empty()));
             case VarcharType varcharType -> Optional.of(new JdbcTypeHandle(VARCHAR, Optional.of(varcharType.getBaseName()), varcharType.getLength(), Optional.empty(), Optional.empty(), Optional.empty()));
             case DateType dateType -> Optional.of(new JdbcTypeHandle(DATE, Optional.of(dateType.getBaseName()), Optional.of(10), Optional.empty(), Optional.empty(), Optional.empty()));
             case TimestampType timestampType -> Optional.of(new JdbcTypeHandle(
@@ -97,9 +89,13 @@ public class RewriteCast
                     default -> false;
                 };
             };
-            case CharType _, VarcharType _ -> switch (sourceType.jdbcType()) {
+            // Casts to char(n) are not pushed down: Trino char values are unpadded after the
+            // char/varchar coercion reversal, while Snowflake CHAR-typed results come back
+            // space-padded through the parallel reader, yielding values that differ from the
+            // engine's own cast
+            case VarcharType varcharType -> switch (sourceType.jdbcType()) {
                 case CHAR, VARCHAR -> {
-                    if ((targetType instanceof VarcharType varcharType) && varcharType.isUnbounded()) {
+                    if (varcharType.isUnbounded()) {
                         yield false;
                     }
                     yield sourceType.jdbcTypeName().map(name -> name.equals("CHAR") || name.equals("VARCHAR")).orElse(false);

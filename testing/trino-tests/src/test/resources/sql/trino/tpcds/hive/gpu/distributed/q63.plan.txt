@@ -26,14 +26,14 @@
                                                   - TableScanNode store_sales (GPU)
                                               - ExchangeNode LOCAL
                                                 - ExchangeNode REMOTE
-                                                  - ProjectNode (GPU)
+                                                  - ProjectNode
                                                     - FilterNode
-                                                      - TableScanNode item (GPU)
+                                                      - TableScanNode item
                                           - ExchangeNode LOCAL
                                             - ExchangeNode REMOTE
-                                              - TableScanNode store (GPU)
+                                              - ProjectNode (GPU)
+                                                - FilterNode
+                                                  - TableScanNode date_dim (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE
-                                          - ProjectNode (GPU)
-                                            - FilterNode
-                                              - TableScanNode date_dim (GPU)
+                                          - TableScanNode store (GPU)

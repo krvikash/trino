@@ -11,7 +11,7 @@
                     - AssignUniqueId
                       - FilterNode (GPU)
                         - TableScanNode item (GPU)
-                    - ExchangeNode LOCAL (GPU)
-                      - ProjectNode (GPU)
+                    - ExchangeNode LOCAL
+                      - ProjectNode
                         - FilterNode
-                          - TableScanNode item (GPU)
+                          - TableScanNode item

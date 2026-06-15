@@ -44,9 +44,9 @@
                                                                     - TableScanNode store_returns (GPU)
                                                                 - ExchangeNode LOCAL
                                                                   - ExchangeNode REMOTE
-                                                                    - ProjectNode (GPU)
+                                                                    - ProjectNode
                                                                       - FilterNode
-                                                                        - TableScanNode date_dim (GPU)
+                                                                        - TableScanNode date_dim
                                                       - ExchangeNode LOCAL
                                                         - ExchangeNode REMOTE
                                                           - ProjectNode (GPU)
@@ -54,9 +54,9 @@
                                                               - TableScanNode date_dim (GPU)
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE
-                                                - ProjectNode (GPU)
+                                                - ProjectNode
                                                   - FilterNode
-                                                    - TableScanNode date_dim (GPU)
+                                                    - TableScanNode date_dim
                                         - ExchangeNode LOCAL
                                           - ExchangeNode REMOTE
                                             - TableScanNode store (GPU)

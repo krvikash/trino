@@ -71,10 +71,10 @@
                                                       - TableScanNode date_dim (GPU)
                                                   - ExchangeNode LOCAL (GPU)
                                                     - TableScanNode date_dim (GPU)
-                                        - ExchangeNode LOCAL (GPU)
-                                          - ProjectNode (GPU)
+                                        - ExchangeNode LOCAL
+                                          - ProjectNode
                                             - FilterNode
-                                              - TableScanNode item (GPU)
+                                              - TableScanNode item
                                       - ExchangeNode LOCAL (GPU)
                                         - TableScanNode promotion (GPU)
                                 - ExchangeNode LOCAL (GPU)
@@ -150,10 +150,10 @@
                                                         - TableScanNode date_dim (GPU)
                                                     - ExchangeNode LOCAL (GPU)
                                                       - TableScanNode date_dim (GPU)
-                                          - ExchangeNode LOCAL (GPU)
-                                            - ProjectNode (GPU)
+                                          - ExchangeNode LOCAL
+                                            - ProjectNode
                                               - FilterNode
-                                                - TableScanNode item (GPU)
+                                                - TableScanNode item
                                         - ExchangeNode LOCAL (GPU)
                                           - TableScanNode promotion (GPU)
                                   - ExchangeNode LOCAL (GPU)

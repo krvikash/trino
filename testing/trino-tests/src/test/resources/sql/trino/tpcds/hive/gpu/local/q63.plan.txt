@@ -13,13 +13,13 @@
                         - JoinNode (GPU)
                           - FilterNode (GPU)
                             - TableScanNode store_sales (GPU)
-                          - ExchangeNode LOCAL (GPU)
-                            - ProjectNode (GPU)
+                          - ExchangeNode LOCAL
+                            - ProjectNode
                               - FilterNode
-                                - TableScanNode item (GPU)
+                                - TableScanNode item
                         - ExchangeNode LOCAL (GPU)
-                          - TableScanNode store (GPU)
+                          - ProjectNode (GPU)
+                            - FilterNode
+                              - TableScanNode date_dim (GPU)
                       - ExchangeNode LOCAL (GPU)
-                        - ProjectNode (GPU)
-                          - FilterNode
-                            - TableScanNode date_dim (GPU)
+                        - TableScanNode store (GPU)

@@ -123,7 +123,8 @@ public final class TestingPlannerContext
 
         public PlannerContext build()
         {
-            FeaturesConfig featuresConfig = new FeaturesConfig();
+            FeaturesConfig featuresConfig = new FeaturesConfig()
+                    .setLegacyVarcharToCharCoercion(false);
             TypeOperators typeOperators = new TypeOperators();
 
             TypeRegistry typeRegistry = new TypeRegistry(typeOperators, featuresConfig);
@@ -189,7 +190,8 @@ public final class TestingPlannerContext
                     functionManager,
                     languageFunctionManager,
                     noopTracer(),
-                    codecFactory.jsonCodec(Expression.class));
+                    codecFactory.jsonCodec(Expression.class),
+                    featuresConfig);
         }
     }
 }

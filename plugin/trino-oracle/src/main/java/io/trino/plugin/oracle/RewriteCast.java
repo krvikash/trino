@@ -48,6 +48,11 @@ public class RewriteCast
                 // Do not cast unnecessary with extra space padding when target char type has more length than source char type
                 return expression;
             }
+            if (targetType instanceof VarcharType) {
+                // Trino coerces char to varchar by trimming trailing spaces, but Oracle's CAST(CHAR AS VARCHAR2) keeps
+                // the blank padding. RTRIM the source so the pushed-down result matches the engine's NO PAD value.
+                return "CAST(RTRIM(%s) AS %s)".formatted(expression, castType);
+            }
         }
         if (sourceTypeJdbcHandle.jdbcType() == OracleTypes.NUMBER) {
             Optional<Integer> numberDefaultScale = getNumberDefaultScale(session);
@@ -121,6 +126,8 @@ public class RewriteCast
     {
         return switch (sourceType.jdbcType()) {
             case OracleTypes.NUMBER,
+                 OracleTypes.CHAR,
+                 OracleTypes.NCHAR,
                  OracleTypes.VARCHAR,
                  OracleTypes.NVARCHAR,
                  OracleTypes.CLOB,

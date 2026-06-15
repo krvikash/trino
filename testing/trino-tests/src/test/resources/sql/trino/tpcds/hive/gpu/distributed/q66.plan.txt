@@ -36,9 +36,9 @@
                                                                       - TableScanNode web_sales (GPU)
                                                                   - ExchangeNode LOCAL
                                                                     - ExchangeNode REMOTE
-                                                                      - ProjectNode (GPU)
+                                                                      - ProjectNode
                                                                         - FilterNode
-                                                                          - TableScanNode ship_mode (GPU)
+                                                                          - TableScanNode ship_mode
                                                               - ExchangeNode LOCAL
                                                                 - ExchangeNode REMOTE
                                                                   - FilterNode (GPU)
@@ -78,9 +78,9 @@
                                                                       - TableScanNode catalog_sales (GPU)
                                                                   - ExchangeNode LOCAL
                                                                     - ExchangeNode REMOTE
-                                                                      - ProjectNode (GPU)
+                                                                      - ProjectNode
                                                                         - FilterNode
-                                                                          - TableScanNode ship_mode (GPU)
+                                                                          - TableScanNode ship_mode
                                                               - ExchangeNode LOCAL
                                                                 - ExchangeNode REMOTE
                                                                   - FilterNode (GPU)

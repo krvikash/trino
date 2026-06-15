@@ -15,9 +15,9 @@
                             - AggregationNode (GPU)
                               - FilterNode (GPU)
                                 - TableScanNode store_sales (GPU)
-                            - ExchangeNode LOCAL (GPU)
-                              - FilterNode (GPU)
-                                - TableScanNode item (GPU)
+                            - ExchangeNode LOCAL
+                              - FilterNode
+                                - TableScanNode item
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
                               - FilterNode

@@ -29,9 +29,9 @@
                             - AggregationNode (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - AggregationNode (GPU)
-                                  - ProjectNode (GPU)
+                                  - ProjectNode
                                     - FilterNode
-                                      - TableScanNode item (GPU)
+                                      - TableScanNode item
             - ProjectNode (GPU)
               - AggregationNode (GPU)
                 - AggregationNode (GPU)
@@ -53,9 +53,9 @@
                               - AggregationNode (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - AggregationNode (GPU)
-                                    - ProjectNode (GPU)
+                                    - ProjectNode
                                       - FilterNode
-                                        - TableScanNode item (GPU)
+                                        - TableScanNode item
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
                             - FilterNode
@@ -85,6 +85,6 @@
                                 - AggregationNode (GPU)
                                   - ExchangeNode LOCAL (GPU)
                                     - AggregationNode (GPU)
-                                      - ProjectNode (GPU)
+                                      - ProjectNode
                                         - FilterNode
-                                          - TableScanNode item (GPU)
+                                          - TableScanNode item

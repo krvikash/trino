@@ -95,6 +95,10 @@ public record MockPlanAlternativeTableHandle(ConnectorTableHandle delegate, Colu
         public BiPredicate<Block, Integer> asPredicate(ConnectorSession session)
         {
             return (block, position) -> {
+                // getSlice on a null position returns an empty slice which would wrongly match an empty string value
+                if (block.isNull(position)) {
+                    return false;
+                }
                 for (int i = 0; i < values.getPositionCount(); i++) {
                     if (VARCHAR.getSlice(block, position).equals(VARCHAR.getSlice(values, i))) {
                         return true;
@@ -123,6 +127,9 @@ public record MockPlanAlternativeTableHandle(ConnectorTableHandle delegate, Colu
         public BiPredicate<Block, Integer> asPredicate(ConnectorSession session)
         {
             return (block, position) -> {
+                if (block.isNull(position)) {
+                    return false;
+                }
                 long value = BIGINT.getLong(block, position);
                 for (int i = 0; i < values.length; i++) {
                     if (value == values[i]) {
@@ -152,6 +159,9 @@ public record MockPlanAlternativeTableHandle(ConnectorTableHandle delegate, Colu
         public BiPredicate<Block, Integer> asPredicate(ConnectorSession session)
         {
             return (block, position) -> {
+                if (block.isNull(position)) {
+                    return false;
+                }
                 int value = INTEGER.getInt(block, position);
                 for (int i = 0; i < values.length; i++) {
                     if (value == values[i]) {

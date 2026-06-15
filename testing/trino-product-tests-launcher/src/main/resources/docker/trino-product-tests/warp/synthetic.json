@@ -946,6 +946,16 @@
         "comment": "2500 predicates IN",
         "expected_result": [
           [
+            207942
+          ]
+        ],
+        "expected_dl_result": [
+          [
+            284502
+          ]
+        ],
+        "expected_iceberg_result": [
+          [
             284502
           ]
         ]
@@ -1744,7 +1754,7 @@
       {
         "query": "select count(*) from similarc_one_other  where char_1 = 'null                '",
         "expected_result": [
-          21334
+          0
         ],
         "query_id": "similarc_one_other_4"
       }
@@ -6192,9 +6202,6 @@
         "query_id": "trim_slices_2",
         "expected_result": [
           [
-            "00020Kz "
-          ],
-          [
             null
           ],
           [
@@ -6232,7 +6239,13 @@
       {
         "query": "select char_1 from trim_slices where char_1='00031d  '",
         "query_id": "trim_slices_5",
-        "expected_result": [
+        "expected_result": [],
+        "expected_dl_result": [
+          [
+            "00031d  "
+          ]
+        ],
+        "expected_iceberg_result": [
           [
             "00031d  "
           ]

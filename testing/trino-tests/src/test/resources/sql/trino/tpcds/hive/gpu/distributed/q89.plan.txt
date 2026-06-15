@@ -30,8 +30,8 @@
                                                           - TableScanNode store_sales (GPU)
                                                     - ExchangeNode LOCAL
                                                       - ExchangeNode REMOTE
-                                                        - FilterNode (GPU)
-                                                          - TableScanNode item (GPU)
+                                                        - FilterNode
+                                                          - TableScanNode item
                                               - ExchangeNode LOCAL
                                                 - ExchangeNode REMOTE
                                                   - ProjectNode (GPU)

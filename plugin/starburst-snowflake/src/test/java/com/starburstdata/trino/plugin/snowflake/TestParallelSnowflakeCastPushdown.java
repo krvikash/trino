@@ -463,17 +463,11 @@ public class TestParallelSnowflakeCastPushdown
     protected List<CastTestCase> supportedCastTypePushdown()
     {
         return ImmutableList.of(
-                new CastTestCase("c_char_10", "char(50)", "c_char_50"),
-                new CastTestCase("c_char_5_unicode", "char(50)", "c_char_50_unicode"),
                 new CastTestCase("c_char_5_unicode", "varchar(5)", "c_varchar_5_unicode"),
                 new CastTestCase("c_char_10", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_char_5_unicode", "varchar(50)", "c_varchar_50_unicode"),
-                new CastTestCase("c_char_50", "char(10)", "c_char_10"),
                 new CastTestCase("c_varchar_10", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_varchar_5_unicode", "varchar(50)", "c_varchar_50_unicode"),
-                new CastTestCase("c_varchar_10", "char(50)", "c_char_50"),
-                new CastTestCase("c_varchar_5_unicode", "char(50)", "c_char_50_unicode"),
-                new CastTestCase("c_varchar_5_unicode", "char(5)", "c_char_5_unicode"),
                 new CastTestCase("c_varchar_50", "varchar(10)", "c_varchar_10"),
 
                 new CastTestCase("c_decimal_3_0", "decimal(38, 5)", "c_decimal_38_5"),
@@ -521,7 +515,16 @@ public class TestParallelSnowflakeCastPushdown
                 new CastTestCase("c_timestamp_9", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_timestamp_6", "timestamp(3)", "c_timestamp_3"),
                 new CastTestCase("c_timestamp_9", "timestamp(3)", "c_timestamp_3"),
-                new CastTestCase("c_timestamp_9", "timestamp(6)", "c_timestamp_6"));
+                new CastTestCase("c_timestamp_9", "timestamp(6)", "c_timestamp_6"),
+                // casts to char(n) are no longer pushed down: Snowflake CHAR-typed results come back
+                // space-padded, which no longer matches Trino's unpadded char values after the
+                // char/varchar coercion direction reversal
+                new CastTestCase("c_char_10", "char(50)", "c_char_50"),
+                new CastTestCase("c_char_5_unicode", "char(50)", "c_char_50_unicode"),
+                new CastTestCase("c_char_50", "char(10)", "c_char_10"),
+                new CastTestCase("c_varchar_10", "char(50)", "c_char_50"),
+                new CastTestCase("c_varchar_5_unicode", "char(50)", "c_char_50_unicode"),
+                new CastTestCase("c_varchar_5_unicode", "char(5)", "c_char_5_unicode"));
     }
 
     @Override

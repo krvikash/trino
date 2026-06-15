@@ -109,9 +109,9 @@
                                                                                   - TableScanNode date_dim (GPU)
                                                               - ExchangeNode LOCAL
                                                                 - ExchangeNode REMOTE
-                                                                  - ProjectNode (GPU)
+                                                                  - ProjectNode
                                                                     - FilterNode
-                                                                      - TableScanNode item (GPU)
+                                                                      - TableScanNode item
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - TableScanNode promotion (GPU)
@@ -226,9 +226,9 @@
                                                                                     - TableScanNode date_dim (GPU)
                                                                 - ExchangeNode LOCAL
                                                                   - ExchangeNode REMOTE
-                                                                    - ProjectNode (GPU)
+                                                                    - ProjectNode
                                                                       - FilterNode
-                                                                        - TableScanNode item (GPU)
+                                                                        - TableScanNode item
                                                             - ExchangeNode LOCAL
                                                               - ExchangeNode REMOTE
                                                                 - TableScanNode promotion (GPU)
