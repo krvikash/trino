@@ -49,10 +49,6 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.Utils;
-import io.trino.spi.type.ArrayType;
-import io.trino.spi.type.MapType;
-import io.trino.spi.type.RowType;
-import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
@@ -76,6 +72,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Maps.uniqueIndex;
+import static io.trino.plugin.base.util.TimestampTypeUtil.containsTimestamp;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.SYNTHESIZED;
@@ -180,7 +177,7 @@ public class HivePageSourceProvider
 
         // cuDF reads INT96 timestamps as raw UTC; the CPU Hive reader adjusts by hive.parquet.time-zone.
         boolean hasTimestampGpuColumns = gpuColumns.stream()
-                .anyMatch(col -> containsTimestampType(col.getType()));
+                .anyMatch(col -> containsTimestamp(col.getType()));
         if (hasTimestampGpuColumns && !parquetDateTimeZone.equals(DateTimeZone.UTC)) {
             log.debug("GPU table scan is supported only when Parquet time zone is set to UTC, got: %s", parquetDateTimeZone);
             return Optional.empty();
@@ -204,20 +201,6 @@ public class HivePageSourceProvider
         String serializationLibrary = split.getSchema().serializationLibraryName();
         return serializationLibrary.equals("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe") ||
                 serializationLibrary.equals("parquet.hive.serde.ParquetHiveSerDe");
-    }
-
-    private static boolean containsTimestampType(Type type)
-    {
-        if (type instanceof ArrayType arrayType) {
-            return containsTimestampType(arrayType.getElementType());
-        }
-        if (type instanceof MapType mapType) {
-            return containsTimestampType(mapType.getKeyType()) || containsTimestampType(mapType.getValueType());
-        }
-        if (type instanceof RowType rowType) {
-            return rowType.getFields().stream().anyMatch(field -> containsTimestampType(field.getType()));
-        }
-        return type instanceof TimestampType;
     }
 
     private ConnectorGpuPageSource createGpuParquetPageSource(
