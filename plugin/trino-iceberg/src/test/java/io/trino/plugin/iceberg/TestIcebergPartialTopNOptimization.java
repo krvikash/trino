@@ -64,15 +64,11 @@ public class TestIcebergPartialTopNOptimization
     @Test
     public void testPartialTopNOptimization()
     {
-        Session withSmallFileSize = Session.builder(getSession())
-                .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
-                .build();
         try (TestTable table = new TestTable(
                 getQueryRunner()::execute,
                 "test_sorted_lineitem_table",
-                "WITH (sorted_by = ARRAY['orderkey ASC NULLS FIRST', 'linenumber ASC NULLS FIRST'], format = '" + PARQUET + "') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
+                "WITH (sorted_by = ARRAY['orderkey ASC NULLS FIRST', 'linenumber ASC NULLS FIRST'], format = '" + PARQUET + "', target_max_file_size = '20kB') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
             assertUpdate(
-                    withSmallFileSize,
                     "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
                     "VALUES 60175");
 
@@ -176,16 +172,12 @@ public class TestIcebergPartialTopNOptimization
     @Test
     public void testPartialTopNWithMixedSortedAndUnsortedFiles()
     {
-        Session withSmallFileSize = Session.builder(getSession())
-                .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
-                .build();
         try (TestTable table = new TestTable(
                 getQueryRunner()::execute,
                 "test_mixed_sorted_table",
-                "WITH (format = '" + PARQUET + "') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
+                "WITH (format = '" + PARQUET + "', target_max_file_size = '20kB') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
             // Insert data without sort order - files will have sortOrderId=0 (unsorted)
             assertUpdate(
-                    withSmallFileSize,
                     "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
                     "VALUES 60175");
             int unsortedFilesCount = computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet().size();
@@ -196,7 +188,6 @@ public class TestIcebergPartialTopNOptimization
 
             // Insert more data with sort order - files will have the table's sortOrderId
             assertUpdate(
-                    withSmallFileSize,
                     "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
                     "VALUES 60175");
             int totalFilesCount = computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet().size();

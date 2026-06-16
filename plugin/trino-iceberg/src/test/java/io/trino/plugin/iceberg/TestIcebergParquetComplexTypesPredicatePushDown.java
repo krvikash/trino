@@ -61,9 +61,8 @@ public class TestIcebergParquetComplexTypesPredicatePushDown
             throws IOException
     {
         String tableName = "test_nested_column_pruning_" + randomNameSuffix();
-        assertUpdate("CREATE TABLE " + tableName + " (col1Row ROW(a BIGINT, b BIGINT), col2 BIGINT) WITH (sorted_by=ARRAY['col2'])");
+        assertUpdate("CREATE TABLE " + tableName + " (col1Row ROW(a BIGINT, b BIGINT), col2 BIGINT) WITH (sorted_by=ARRAY['col2'], parquet_writer_row_group_size = '200B')");
         Session withSmallRowGroups = Session.builder(getSession())
-                .setCatalogSessionProperty("iceberg", "parquet_writer_block_size", "200B")
                 .setCatalogSessionProperty("iceberg", "parquet_writer_batch_size", "10")
                 .build();
         assertUpdate(withSmallRowGroups, "INSERT INTO " + tableName + " SELECT * FROM unnest(transform(SEQUENCE(1, 500), x -> ROW(ROW(x*2, 100), x)))", 500);

@@ -61,8 +61,6 @@ abstract class BaseIcebergCompositeSplitsConnectorTest
                 .addIcebergProperty("iceberg.experimental.composite-splits.enabled", "true")
                 .amendSession(session -> session
                         .setCatalogSessionProperty("iceberg", "max_split_size", "100MB")
-                        .setCatalogSessionProperty("iceberg", "target_max_file_size", "1kB")
-                        .setCatalogSessionProperty("iceberg", "parquet_writer_row_group_size", "1kB")
                         .setCatalogSessionProperty("iceberg", "parquet_writer_batch_size", "20"));
     }
 
@@ -273,10 +271,9 @@ abstract class BaseIcebergCompositeSplitsConnectorTest
                 .setSystemProperty("task_min_writer_count", "1")
                 // task scale writers should be disabled since we want to write with a single task writer
                 .setSystemProperty("task_scale_writers_enabled", "false")
-                .setCatalogSessionProperty("iceberg", "target_max_file_size", maxSize.toString())
                 .build();
 
-        assertUpdate(session, createTableSql, 200000);
+        assertUpdate(session, format("CREATE TABLE %s WITH (target_max_file_size = '%s') AS SELECT * FROM tpch.sf1.lineitem LIMIT 200000", tableName, maxSize), 200000);
         assertThat(query(format("SELECT count(*) FROM %s", tableName))).matches("VALUES BIGINT '200000'");
         List<String> updatedFiles = getActiveFiles(tableName);
         assertThat(updatedFiles.size()).isGreaterThan(10);
@@ -310,10 +307,9 @@ abstract class BaseIcebergCompositeSplitsConnectorTest
                 .setSystemProperty("task_min_writer_count", "1")
                 // task scale writers should be disabled since we want to write with a single task writer
                 .setSystemProperty("task_scale_writers_enabled", "false")
-                .setCatalogSessionProperty("iceberg", "target_max_file_size", maxSize.toString())
                 .build();
 
-        assertUpdate(session, createTableSql, 200000);
+        assertUpdate(session, format("CREATE TABLE %s WITH (sorted_by = ARRAY['shipdate'], target_max_file_size = '%s') AS SELECT * FROM tpch.sf1.lineitem LIMIT 200000", tableName, maxSize), 200000);
         assertThat(query(format("SELECT count(*) FROM %s", tableName))).matches("VALUES BIGINT '200000'");
         List<String> updatedFiles = getActiveFiles(tableName);
         assertThat(updatedFiles.size()).isGreaterThan(5);
@@ -370,10 +366,10 @@ abstract class BaseIcebergCompositeSplitsConnectorTest
     {
         try (TestTable table = newTrinoTable(
                 "test_table_changes_function_multi_row_groups_",
-                "AS SELECT orderkey, partkey, suppkey FROM tpch.tiny.lineitem WITH NO DATA")) {
+                "WITH (parquet_writer_row_group_size = '" + getTableChangesParquetRowGroupSize() + "') AS SELECT orderkey, partkey, suppkey FROM tpch.tiny.lineitem WITH NO DATA")) {
             long initialSnapshot = getMostRecentSnapshotId(table.getName());
             assertUpdate(
-                    withTableChangesRowGroups(getFileCountSensitiveWriterSession()),
+                    getFileCountSensitiveWriterSession(),
                     "INSERT INTO %s SELECT orderkey, partkey, suppkey FROM tpch.tiny.lineitem".formatted(table.getName()),
                     60175L);
             long snapshotAfterInsert = getMostRecentSnapshotId(table.getName());
@@ -432,12 +428,7 @@ abstract class BaseIcebergCompositeSplitsConnectorTest
 
     private Session getFileCountSensitiveWriterSession()
     {
-        // The default session uses target_max_file_size=1kB to produce many small files for
-        // composite split testing. Reset write settings to defaults so that tests asserting
-        // exact file counts are not broken by the small file size.
         return Session.builder(getSession())
-                .setCatalogSessionProperty("iceberg", "target_max_file_size", "128MB")
-                .setCatalogSessionProperty("iceberg", "parquet_writer_row_group_size", "128MB")
                 .setCatalogSessionProperty("iceberg", "parquet_writer_batch_size", "10000")
                 .build();
     }

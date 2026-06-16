@@ -29,6 +29,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
+import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.iceberg.DefaultIcebergFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergFileFormat;
@@ -104,7 +105,8 @@ public final class TestIcebergPartitionStatistics
                     new NodeVersion("test_version"),
                     new FileFormatDataSourceStats(),
                     new IcebergConfig(),
-                    new OrcWriterConfig()),
+                    new OrcWriterConfig(),
+                    new ParquetWriterConfig()),
             PARTITION_STATISTICS_READER,
             newDirectExecutorService());
 

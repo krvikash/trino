@@ -116,6 +116,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.iceberg.FileContent.DATA;
+import static org.apache.iceberg.TableProperties.WRITE_TARGET_FILE_SIZE_BYTES;
 
 public class IcebergPageSink
         implements ConnectorPageSink
@@ -133,7 +134,7 @@ public class IcebergPageSink
     private final IcebergFileFormat fileFormat;
     private final MetricsConfig metricsConfig;
     private final PagePartitioner pagePartitioner;
-    private final long targetMaxFileSize;
+    private final long targetMaxFileSizeBytes;
     private final long idleWriterMinFileSize;
     private final Map<String, String> storageProperties;
     private final List<TrinoSortField> sortFields;
@@ -176,6 +177,7 @@ public class IcebergPageSink
             int maxOpenWriters,
             List<TrinoSortField> sortFields,
             int sortOrderId,
+            DataSize targetMaxFileSize,
             DataSize sortingFileWriterBufferSize,
             int sortingFileWriterMaxOpenFiles,
             Optional<String> sortedWritingLocalStagingPath,
@@ -195,7 +197,7 @@ public class IcebergPageSink
         this.metricsConfig = MetricsConfig.from(requireNonNull(storageProperties, "storageProperties is null"), null, null);
         this.maxOpenWriters = maxOpenWriters;
         this.pagePartitioner = new PagePartitioner(pageIndexerFactory, toPartitionColumns(partitionColumns, partitionSpec, outputSchema));
-        this.targetMaxFileSize = IcebergSessionProperties.getTargetMaxFileSize(session);
+        this.targetMaxFileSizeBytes = getTargetMaxFileSizeBytes(storageProperties, targetMaxFileSize);
         this.idleWriterMinFileSize = IcebergSessionProperties.getIdleWriterMinFileSize(session);
         this.storageProperties = requireNonNull(storageProperties, "storageProperties is null");
         this.sortFields = requireNonNull(sortFields, "sortFields is null");
@@ -514,7 +516,7 @@ public class IcebergPageSink
             int writerIndex = writerIndexes[position];
             WriteContext writer = writers.get(writerIndex);
             if (writer != null) {
-                if (writer.getWrittenBytes() <= targetMaxFileSize) {
+                if (writer.getWrittenBytes() <= targetMaxFileSizeBytes) {
                     continue;
                 }
                 closeWriter(writerIndex);
@@ -796,6 +798,20 @@ public class IcebergPageSink
             return location;
         }
         return Location.of("local:///" + location.path());
+    }
+
+    static long getTargetMaxFileSizeBytes(Map<String, String> storageProperties, DataSize targetMaxFileSize)
+    {
+        String tableProperty = storageProperties.get(WRITE_TARGET_FILE_SIZE_BYTES);
+        if (tableProperty == null) {
+            return targetMaxFileSize.toBytes();
+        }
+        try {
+            return Long.parseLong(tableProperty);
+        }
+        catch (NumberFormatException e) {
+            throw new TrinoException(ICEBERG_INVALID_METADATA, format("Invalid value for Iceberg table property %s: %s", WRITE_TARGET_FILE_SIZE_BYTES, tableProperty), e);
+        }
     }
 
     private static class WriteContext

@@ -83,6 +83,7 @@ public class IcebergPageSinkProvider
     private final int sortingFileWriterMaxOpenFiles;
     private final Optional<String> sortingFileWriterLocalStagingPath;
     private final SortTempFileFactory sortTempFileFactory;
+    private final DataSize targetMaxFileSize;
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
     private final ModelClientProvider embeddingClientProvider;
@@ -110,6 +111,7 @@ public class IcebergPageSinkProvider
         this.sortingFileWriterMaxOpenFiles = sortingFileWriterConfig.getMaxOpenSortFiles();
         this.sortingFileWriterLocalStagingPath = icebergConfig.getSortedWritingLocalStagingPath();
         this.sortTempFileFactory = requireNonNull(sortTempFileFactory, "sortTempFileFactory is null");
+        this.targetMaxFileSize = icebergConfig.getTargetMaxFileSize();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.embeddingClientProvider = requireNonNull(embeddingClientProvider, "embeddingClientProvider is null");
@@ -157,6 +159,7 @@ public class IcebergPageSinkProvider
                 maxPartitionsPerWriter(session),
                 tableHandle.sortFields(),
                 tableHandle.sortOrderId(),
+                targetMaxFileSize,
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,
@@ -196,6 +199,7 @@ public class IcebergPageSinkProvider
                         maxPartitionsPerWriter(session),
                         optimizeHandle.sortFields(),
                         optimizeHandle.sortOrderId(),
+                        targetMaxFileSize,
                         sortingFileWriterBufferSize,
                         sortingFileWriterMaxOpenFiles,
                         sortingFileWriterLocalStagingPath,
@@ -344,6 +348,7 @@ public class IcebergPageSinkProvider
                 maxPartitionsPerWriter(session),
                 generateEmbeddingsHandle.sortOrder(),
                 SortOrder.unsorted().orderId(),
+                targetMaxFileSize,
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,

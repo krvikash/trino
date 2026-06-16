@@ -136,7 +136,8 @@ public final class IcebergTestUtils
                     new NodeVersion("test_version"),
                     new FileFormatDataSourceStats(),
                     new IcebergConfig(),
-                    new OrcWriterConfig()),
+                    new OrcWriterConfig(),
+                    new ParquetWriterConfig()),
             new NodeVersion("test_version"));
 
     public static final RemoveDanglingDeleteFiles REMOVE_DANGLING_DELETE_FILES = new RemoveDanglingDeleteFiles(newDirectExecutorService());
@@ -149,7 +150,6 @@ public final class IcebergTestUtils
     {
         return Session.builder(session)
                 .setCatalogSessionProperty("iceberg", "orc_writer_max_stripe_rows", "20")
-                .setCatalogSessionProperty("iceberg", "parquet_writer_row_group_size", "1kB")
                 .setCatalogSessionProperty("iceberg", "parquet_writer_batch_size", "20")
                 .build();
     }
