@@ -31,9 +31,7 @@
         plugin/starburst-warp-speed/starburst-warp-speed-plugin,
       ]
 - modules:
-    - core/trino-main
-    - plugin/trino-hive
-    - testing/trino-tests
+    - [core/trino-main, plugin/trino-hive, testing/trino-tests]
   profiles:
     - gpu
   runners: [self-hosted, gha-fleet-ec2-1GPU-16CPU-64GB-amd64, latest]
