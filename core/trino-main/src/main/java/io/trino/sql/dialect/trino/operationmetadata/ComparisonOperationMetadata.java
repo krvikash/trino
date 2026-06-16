@@ -16,7 +16,6 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
-import io.trino.sql.ir.Comparison.Operator;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -108,7 +107,7 @@ public class ComparisonOperationMetadata
             return value;
         }
 
-        public static ComparisonOperator of(Operator operator)
+        public static ComparisonOperator of(io.trino.sql.ir.ComparisonOperator operator)
         {
             return switch (operator) {
                 case EQUAL -> EQUAL;

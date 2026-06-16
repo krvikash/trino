@@ -276,16 +276,16 @@ public class ToOldIrScalarRewriter
             return new io.trino.sql.ir.Comparison(rewriteOperator(COMPARISON_OPERATOR.getAttribute(operation.attributes())), left, right);
         }
 
-        private io.trino.sql.ir.Comparison.Operator rewriteOperator(ComparisonOperator operator)
+        private io.trino.sql.ir.ComparisonOperator rewriteOperator(ComparisonOperator operator)
         {
             return switch (operator) {
-                case EQUAL -> io.trino.sql.ir.Comparison.Operator.EQUAL;
-                case NOT_EQUAL -> io.trino.sql.ir.Comparison.Operator.NOT_EQUAL;
-                case LESS_THAN -> io.trino.sql.ir.Comparison.Operator.LESS_THAN;
-                case LESS_THAN_OR_EQUAL -> io.trino.sql.ir.Comparison.Operator.LESS_THAN_OR_EQUAL;
-                case GREATER_THAN -> io.trino.sql.ir.Comparison.Operator.GREATER_THAN;
-                case GREATER_THAN_OR_EQUAL -> io.trino.sql.ir.Comparison.Operator.GREATER_THAN_OR_EQUAL;
-                case IDENTICAL -> io.trino.sql.ir.Comparison.Operator.IDENTICAL;
+                case EQUAL -> io.trino.sql.ir.ComparisonOperator.EQUAL;
+                case NOT_EQUAL -> io.trino.sql.ir.ComparisonOperator.NOT_EQUAL;
+                case LESS_THAN -> io.trino.sql.ir.ComparisonOperator.LESS_THAN;
+                case LESS_THAN_OR_EQUAL -> io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
+                case GREATER_THAN -> io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
+                case GREATER_THAN_OR_EQUAL -> io.trino.sql.ir.ComparisonOperator.GREATER_THAN_OR_EQUAL;
+                case IDENTICAL -> io.trino.sql.ir.ComparisonOperator.IDENTICAL;
             };
         }
 

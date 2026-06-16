@@ -35,6 +35,7 @@ import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
@@ -99,7 +100,7 @@ public final class GpuExpressionAstCompiler
                                 new CudfAstExpression.BinaryOperation(operator, left, right))));
     }
 
-    private static Optional<BinaryOperator> mapComparisonOperator(Comparison.Operator op)
+    private static Optional<BinaryOperator> mapComparisonOperator(ComparisonOperator op)
     {
         return switch (op) {
             case EQUAL -> Optional.of(BinaryOperator.EQUAL);
@@ -159,7 +160,7 @@ public final class GpuExpressionAstCompiler
         }
         ImmutableList.Builder<Expression> equals = ImmutableList.builderWithExpectedSize(valueList.size());
         for (Expression item : valueList) {
-            equals.add(new Comparison(Comparison.Operator.EQUAL, in.value(), item));
+            equals.add(new Comparison(ComparisonOperator.EQUAL, in.value(), item));
         }
         List<Expression> terms = equals.build();
         Expression rewritten = terms.size() == 1
@@ -176,8 +177,8 @@ public final class GpuExpressionAstCompiler
         Expression rewritten = new Logical(
                 Logical.Operator.AND,
                 ImmutableList.of(
-                        new Comparison(Comparison.Operator.LESS_THAN_OR_EQUAL, between.min(), between.value()),
-                        new Comparison(Comparison.Operator.LESS_THAN_OR_EQUAL, between.value(), between.max())));
+                        new Comparison(ComparisonOperator.LESS_THAN_OR_EQUAL, between.min(), between.value()),
+                        new Comparison(ComparisonOperator.LESS_THAN_OR_EQUAL, between.value(), between.max())));
         return translate(rewritten, context);
     }
 

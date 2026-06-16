@@ -34,6 +34,7 @@ import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
@@ -93,71 +94,71 @@ class TestGpuExpressionAstCompiler
     @Test
     void testBooleanComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.EQUAL, field(0, BOOLEAN), new Constant(BOOLEAN, true));
+        Expression expression = new Comparison(ComparisonOperator.EQUAL, field(0, BOOLEAN), new Constant(BOOLEAN, true));
         assertCompilesAndExecutes(expression, List.of(BOOLEAN));
     }
 
     @Test
     void testTinyintComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.EQUAL, field(0, TINYINT), new Constant(TINYINT, 7L));
+        Expression expression = new Comparison(ComparisonOperator.EQUAL, field(0, TINYINT), new Constant(TINYINT, 7L));
         assertCompilesAndExecutes(expression, List.of(TINYINT));
     }
 
     @Test
     void testSmallintComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.LESS_THAN, field(0, SMALLINT), new Constant(SMALLINT, 100L));
+        Expression expression = new Comparison(ComparisonOperator.LESS_THAN, field(0, SMALLINT), new Constant(SMALLINT, 100L));
         assertCompilesAndExecutes(expression, List.of(SMALLINT));
     }
 
     @Test
     void testIntegerComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.GREATER_THAN_OR_EQUAL, field(0, INTEGER), new Constant(INTEGER, 10L));
+        Expression expression = new Comparison(ComparisonOperator.GREATER_THAN_OR_EQUAL, field(0, INTEGER), new Constant(INTEGER, 10L));
         assertCompilesAndExecutes(expression, List.of(INTEGER));
     }
 
     @Test
     void testBigintComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.NOT_EQUAL, field(0, BIGINT), new Constant(BIGINT, 1234567890123L));
+        Expression expression = new Comparison(ComparisonOperator.NOT_EQUAL, field(0, BIGINT), new Constant(BIGINT, 1234567890123L));
         assertCompilesAndExecutes(expression, List.of(BIGINT));
     }
 
     @Test
     void testRealComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.LESS_THAN_OR_EQUAL, field(0, REAL), new Constant(REAL, (long) floatToIntBits(1.5f)));
+        Expression expression = new Comparison(ComparisonOperator.LESS_THAN_OR_EQUAL, field(0, REAL), new Constant(REAL, (long) floatToIntBits(1.5f)));
         assertCompilesAndExecutes(expression, List.of(REAL));
     }
 
     @Test
     void testDoubleComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.GREATER_THAN, field(0, DOUBLE), new Constant(DOUBLE, 0.5));
+        Expression expression = new Comparison(ComparisonOperator.GREATER_THAN, field(0, DOUBLE), new Constant(DOUBLE, 0.5));
         assertCompilesAndExecutes(expression, List.of(DOUBLE));
     }
 
     @Test
     void testDateComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.LESS_THAN, field(0, DATE), new Constant(DATE, 18000L));
+        Expression expression = new Comparison(ComparisonOperator.LESS_THAN, field(0, DATE), new Constant(DATE, 18000L));
         assertCompilesAndExecutes(expression, List.of(DATE));
     }
 
     @Test
     void testVarcharComparison()
     {
-        Expression expression = new Comparison(Comparison.Operator.EQUAL, field(0, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice("foo")));
+        Expression expression = new Comparison(ComparisonOperator.EQUAL, field(0, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice("foo")));
         assertCompilesAndExecutes(expression, List.of(VARCHAR));
     }
 
     @Test
     void testAllComparisonOperators()
     {
-        for (Comparison.Operator operator : Comparison.Operator.values()) {
-            if (operator == Comparison.Operator.IDENTICAL) {
+        for (ComparisonOperator operator : ComparisonOperator.values()) {
+            if (operator == ComparisonOperator.IDENTICAL) {
                 continue;
             }
             Expression expression = new Comparison(operator, field(0, BIGINT), new Constant(BIGINT, 0L));
@@ -168,7 +169,7 @@ class TestGpuExpressionAstCompiler
     @Test
     void testIdenticalNotCompiled()
     {
-        assertDoesNotCompile(new Comparison(Comparison.Operator.IDENTICAL, field(0, BIGINT), field(1, BIGINT)));
+        assertDoesNotCompile(new Comparison(ComparisonOperator.IDENTICAL, field(0, BIGINT), field(1, BIGINT)));
     }
 
     @Test
@@ -176,7 +177,7 @@ class TestGpuExpressionAstCompiler
     {
         DecimalType decimalType = createDecimalType(10, 2);
         assertDoesNotCompile(new Comparison(
-                Comparison.Operator.EQUAL,
+                ComparisonOperator.EQUAL,
                 new Constant(decimalType, 100L),
                 new Constant(decimalType, 200L)));
     }
@@ -190,16 +191,16 @@ class TestGpuExpressionAstCompiler
     @Test
     void testLogicalAnd()
     {
-        Expression a = new Comparison(Comparison.Operator.GREATER_THAN, field(0, BIGINT), new Constant(BIGINT, 0L));
-        Expression b = new Comparison(Comparison.Operator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 10L));
+        Expression a = new Comparison(ComparisonOperator.GREATER_THAN, field(0, BIGINT), new Constant(BIGINT, 0L));
+        Expression b = new Comparison(ComparisonOperator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 10L));
         assertCompilesAndExecutes(new Logical(Logical.Operator.AND, List.of(a, b)), List.of(BIGINT));
     }
 
     @Test
     void testLogicalOr()
     {
-        Expression a = new Comparison(Comparison.Operator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 0L));
-        Expression b = new Comparison(Comparison.Operator.GREATER_THAN, field(0, BIGINT), new Constant(BIGINT, 10L));
+        Expression a = new Comparison(ComparisonOperator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 0L));
+        Expression b = new Comparison(ComparisonOperator.GREATER_THAN, field(0, BIGINT), new Constant(BIGINT, 10L));
         assertCompilesAndExecutes(new Logical(Logical.Operator.OR, List.of(a, b)), List.of(BIGINT));
     }
 
@@ -222,7 +223,7 @@ class TestGpuExpressionAstCompiler
         DecimalType decimalType = createDecimalType(10, 2);
         Expression supported = new IsNull(field(0, BIGINT));
         Expression unsupported = new Comparison(
-                Comparison.Operator.EQUAL,
+                ComparisonOperator.EQUAL,
                 new Constant(decimalType, 1L),
                 new Constant(decimalType, 2L));
         assertDoesNotCompile(new Logical(Logical.Operator.AND, List.of(supported, unsupported)));

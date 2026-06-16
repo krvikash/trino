@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.sql.ir.Comparison.Operator.EQUAL;
+import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static java.lang.Double.NaN;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 

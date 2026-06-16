@@ -28,6 +28,7 @@ import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
@@ -117,12 +118,12 @@ public sealed interface FilterEvaluator
     {
         return switch (expression) {
             case Constant constant when constant.value() instanceof Boolean booleanValue -> booleanValue ? Optional.of(SelectAllEvaluator::new) : Optional.of(SelectNoneEvaluator::new);
-            case Comparison comparison when comparison.operator() == Comparison.Operator.NOT_EQUAL -> {
+            case Comparison comparison when comparison.operator() == ComparisonOperator.NOT_EQUAL -> {
                 // Lower NOT_EQUAL to NOT(EQUAL) so it goes through the same Call sub-expression evaluation
                 // path that handled it in the old RowExpression IR (where NOT_EQUAL was translated to
                 // Call($not, Call(EQUAL, ...)) by SqlToRowExpressionTranslator).
                 ResolvedFunction notFunction = compiler.getMetadata().resolveBuiltinFunction("$not", fromTypes(BOOLEAN));
-                Call wrapped = new Call(notFunction, ImmutableList.of(new Comparison(Comparison.Operator.EQUAL, comparison.left(), comparison.right())));
+                Call wrapped = new Call(notFunction, ImmutableList.of(new Comparison(ComparisonOperator.EQUAL, comparison.left(), comparison.right())));
                 yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, wrapped, layout, classNameSuffix);
             }
             case Comparison comparison -> createComparisonExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, comparison, layout, classNameSuffix);

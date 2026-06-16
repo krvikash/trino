@@ -54,6 +54,7 @@ import io.trino.sql.gen.columnar.FilterEvaluator;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Coalesce;
 import io.trino.sql.ir.Comparison;
+import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
@@ -91,13 +92,13 @@ import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.columnar.FilterEvaluator.createColumnarFilterEvaluator;
-import static io.trino.sql.ir.Comparison.Operator.EQUAL;
-import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN;
-import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN_OR_EQUAL;
-import static io.trino.sql.ir.Comparison.Operator.IDENTICAL;
-import static io.trino.sql.ir.Comparison.Operator.LESS_THAN;
-import static io.trino.sql.ir.Comparison.Operator.LESS_THAN_OR_EQUAL;
-import static io.trino.sql.ir.Comparison.Operator.NOT_EQUAL;
+import static io.trino.sql.ir.ComparisonOperator.EQUAL;
+import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
+import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN_OR_EQUAL;
+import static io.trino.sql.ir.ComparisonOperator.IDENTICAL;
+import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
+import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
+import static io.trino.sql.ir.ComparisonOperator.NOT_EQUAL;
 import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.sql.ir.IrExpressions.constantNull;
 import static io.trino.testing.DataProviders.cartesianProduct;
@@ -336,11 +337,10 @@ public class TestColumnarFilters
     public void testNotEqual()
     {
         List<Page> inputPages = createInputPages(NullsProvider.RANDOM_NULLS, false);
-        // NOT (constant = col)
-        Expression notEqualFilter = createNotExpression(new Comparison(
-                EQUAL,
+        Expression notEqualFilter = new Comparison(
+                NOT_EQUAL,
                 new Constant(INTEGER, CONSTANT),
-                new Reference(INTEGER, COL_INT_A)));
+                new Reference(INTEGER, COL_INT_A));
         assertThatColumnarFilterEvaluationIsSupported(notEqualFilter);
         verifyFilter(inputPages, notEqualFilter);
 
@@ -374,7 +374,7 @@ public class TestColumnarFilters
     public void testComparison(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
-        for (Comparison.Operator operator : List.of(
+        for (ComparisonOperator operator : List.of(
                 EQUAL,
                 LESS_THAN,
                 LESS_THAN_OR_EQUAL,

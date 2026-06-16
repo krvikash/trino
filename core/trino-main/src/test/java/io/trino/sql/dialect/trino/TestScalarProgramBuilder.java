@@ -150,7 +150,7 @@ final class TestScalarProgramBuilder
                 new io.trino.sql.ir.Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "x")),
                         new io.trino.sql.ir.Comparison(
-                                io.trino.sql.ir.Comparison.Operator.LESS_THAN,
+                                io.trino.sql.ir.ComparisonOperator.LESS_THAN,
                                 new Reference(BIGINT, "x"),
                                 new io.trino.sql.ir.Constant(BIGINT, 0L))));
 
@@ -318,7 +318,7 @@ final class TestScalarProgramBuilder
     public void testComparison()
     {
         io.trino.sql.ir.Comparison comparisonExpression = new io.trino.sql.ir.Comparison(
-                io.trino.sql.ir.Comparison.Operator.GREATER_THAN,
+                io.trino.sql.ir.ComparisonOperator.GREATER_THAN,
                 new io.trino.sql.ir.Constant(BIGINT, 0L),
                 new io.trino.sql.ir.Constant(BIGINT, 1L));
 
@@ -466,7 +466,7 @@ final class TestScalarProgramBuilder
         io.trino.sql.ir.Lambda lambdaExpression = new io.trino.sql.ir.Lambda(
                 ImmutableList.of(new Symbol(BIGINT, "x")),
                 new io.trino.sql.ir.Comparison(
-                        io.trino.sql.ir.Comparison.Operator.LESS_THAN,
+                        io.trino.sql.ir.ComparisonOperator.LESS_THAN,
                         new Reference(BIGINT, "x"),
                         new io.trino.sql.ir.Constant(BIGINT, 0L)));
 
@@ -507,7 +507,7 @@ final class TestScalarProgramBuilder
                                 new Reference(BOOLEAN, "b"), // correlated symbol
                                 new Reference(BOOLEAN, "x"), // lambda argument
                                 new io.trino.sql.ir.Comparison(
-                                        io.trino.sql.ir.Comparison.Operator.LESS_THAN,
+                                        io.trino.sql.ir.ComparisonOperator.LESS_THAN,
                                         new Reference(BIGINT, "a"), // correlated symbol
                                         new Reference(BIGINT, "y"))))); // lambda argument
 
