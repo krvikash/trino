@@ -51,6 +51,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
@@ -75,6 +76,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_WRITER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.INTEGER;
 import static org.joda.time.DateTimeZone.UTC;
 
 public class TestTrinoRestCatalog
@@ -239,6 +241,27 @@ public class TestTrinoRestCatalog
         TrinoCatalog catalog = createTrinoRestCatalog(false, new NamespaceDeletedDuringRecursiveListingCatalog(), false, true);
 
         assertThat(catalog.namespaceExists(SESSION, "existing")).isTrue();
+    }
+
+    @Test
+    public void testNestedListNamespacesReusesSessionContext()
+    {
+        Map<String, Integer> sessionIdCounts = new ConcurrentHashMap<>();
+        RESTSessionCatalog restSessionCatalog = new NamespaceDeletedDuringRecursiveListingCatalog()
+        {
+            @Override
+            public List<Namespace> listNamespaces(SessionContext context, Namespace namespace)
+            {
+                sessionIdCounts.merge(context.sessionId(), 1, Integer::sum);
+                return super.listNamespaces(context, namespace);
+            }
+        };
+
+        TrinoRestCatalog catalog = createTrinoRestCatalog(false, restSessionCatalog, true, false);
+
+        catalog.listNamespaces(SESSION);
+
+        assertThat(sessionIdCounts.values()).singleElement(INTEGER).isGreaterThan(1);
     }
 
     @Test
