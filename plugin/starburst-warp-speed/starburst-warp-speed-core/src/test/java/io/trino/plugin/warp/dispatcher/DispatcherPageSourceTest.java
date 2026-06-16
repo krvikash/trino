@@ -722,6 +722,7 @@ public class DispatcherPageSourceTest
     }
 
     @Test
+    @SuppressWarnings("JUnitMethodInvoked")
     public void testAddWithSmallPage()
     {
         assertNextPageMetrics = false;

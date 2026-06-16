@@ -132,7 +132,7 @@ public class AzureBlobSpoolingStorage
 
                 MemoryChunkDataLease memoryLease = switch (chunkDataLease) {
                     case MemoryChunkDataLease lease -> lease;
-                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
+                    case DiskChunkDataLease _ -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
                 };
                 SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
                 sliceOutput.writeLong(memoryLease.getChecksum());

@@ -500,7 +500,7 @@ class RangesConverterTest
 
     private void validateResults(ByteBuffer byteBuffer, List<? extends Pair<? extends Number, Byte>> expectedResult, Type type)
     {
-        if (type == BIGINT) {
+        if (type.equals(BIGINT)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.getLong(pos)).isEqualTo(expected.getKey());
@@ -510,7 +510,7 @@ class RangesConverterTest
             }
             return;
         }
-        else if (type == TINYINT) {
+        else if (type.equals(TINYINT)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.get(pos)).isEqualTo(expected.getKey());
@@ -520,7 +520,7 @@ class RangesConverterTest
             }
             return;
         }
-        else if (type == SMALLINT) {
+        else if (type.equals(SMALLINT)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.getShort(pos)).isEqualTo(expected.getKey());
@@ -530,7 +530,7 @@ class RangesConverterTest
             }
             return;
         }
-        else if (type == DoubleType.DOUBLE) {
+        else if (type.equals(DoubleType.DOUBLE)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.getDouble(pos)).isEqualTo(expected.getKey());
@@ -540,7 +540,7 @@ class RangesConverterTest
             }
             return;
         }
-        else if (type == RealType.REAL) {
+        else if (type.equals(RealType.REAL)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.getLong(pos)).isEqualTo(expected.getKey());
@@ -550,7 +550,7 @@ class RangesConverterTest
             }
             return;
         }
-        else if (type == IntegerType.INTEGER) {
+        else if (type.equals(IntegerType.INTEGER)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.getInt(pos)).isEqualTo(expected.getKey());

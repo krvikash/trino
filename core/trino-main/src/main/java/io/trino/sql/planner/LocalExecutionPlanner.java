@@ -1822,7 +1822,7 @@ public class LocalExecutionPlanner
                                 VARCHAR,
                                 pointer.getLogicalIndexPointer().toLogicalIndexNavigation(mapping)));
                     }
-                    case MatchNumberValuePointer pointer -> {
+                    case MatchNumberValuePointer _ -> {
                         valueAccessors.add(new PhysicalValuePointer(MATCH_NUMBER, BIGINT, LogicalIndexNavigation.NO_OP));
                     }
                     case ScalarValuePointer pointer -> {

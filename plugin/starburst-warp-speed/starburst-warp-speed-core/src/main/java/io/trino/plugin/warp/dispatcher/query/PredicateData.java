@@ -82,7 +82,7 @@ public class PredicateData
         }
         return (predicateHashCode == that.predicateHashCode &&
                 collectNulls == that.collectNulls &&
-                columnType == that.columnType &&
+                columnType.equals(that.columnType) &&
                 predicateInfo == null) ? that.predicateInfo == null : predicateInfo.predicateType() == that.predicateInfo.predicateType();
     }
 

@@ -100,7 +100,7 @@ class InNativeRewriter
             }
             else {
                 Type castType = inConstantValues.getFirst().getType();
-                boolean isCastExpression = columnType != castType;
+                boolean isCastExpression = !columnType.equals(castType);
                 if (isCastExpression) {
                     boolean isCastToVarchar = castType instanceof VarcharType;
                     if (isCastToVarchar) {

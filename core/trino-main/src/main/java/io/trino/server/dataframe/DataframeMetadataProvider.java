@@ -125,7 +125,7 @@ public class DataframeMetadataProvider
                                             querySpecification.getSelect().isDistinct(),
                                             querySpecification.getSelect().getSelectItems().stream()
                                                     .map(selectItem -> {
-                                                        if (selectItem instanceof AllColumns ignored) {
+                                                        if (selectItem instanceof AllColumns) {
                                                             return selectItem;
                                                         }
                                                         if (selectItem instanceof SingleColumn singleColumn) {
@@ -151,7 +151,7 @@ public class DataframeMetadataProvider
                     return resolve(rewrittenQueryString).map(rewrittenQueryAnalysis -> {
                         // now we take care of the remaining unnamed fields
                         Collection<Field> visibleFieldsRewrittenQuery = rewrittenQueryAnalysis.getRootScope().getRelationType().getVisibleFields();
-                        if (rewrittenQueryAnalysis.getStatement() instanceof Query ignored &&
+                        if (rewrittenQueryAnalysis.getStatement() instanceof Query &&
                                 visibleFieldsRewrittenQuery.stream().anyMatch(field -> field.getName().isEmpty())) {
                             ImmutableList.Builder<String> identifiers = ImmutableList.builder();
                             int counter = 0;

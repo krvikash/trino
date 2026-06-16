@@ -151,7 +151,7 @@ final class LuceneElementsMatcher
         boolean isValid = false;
         WarpExpression warpExpression = expressionPredicateContext.getExpression();
         if (warpExpression instanceof WarpConstant warpConstant) {
-            if (warpConstant.getType() == BooleanType.BOOLEAN && !Boolean.parseBoolean(String.valueOf(warpConstant.getValue()))) {
+            if (warpConstant.getType().equals(BooleanType.BOOLEAN) && !Boolean.parseBoolean(String.valueOf(warpConstant.getValue()))) {
                 isValid = true;
             }
         }

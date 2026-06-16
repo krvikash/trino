@@ -92,7 +92,7 @@ public class LocalSpoolingStorage
                 sliceOutput.writeInt(chunkDataLease.getNumDataPages());
                 switch (chunkDataLease) {
                     case MemoryChunkDataLease memoryLease -> memoryLease.getChunkSlices().forEach(sliceOutput::writeBytes);
-                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
+                    case DiskChunkDataLease _ -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
                 }
             }
         }

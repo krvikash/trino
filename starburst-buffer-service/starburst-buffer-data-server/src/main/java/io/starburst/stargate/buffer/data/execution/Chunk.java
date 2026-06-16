@@ -74,7 +74,7 @@ public class Chunk
         return switch (chunkData) {
             case null -> false;
             case DiskChunkData diskChunkData -> diskChunkData.hasRecoverableIoFailure();
-            case MemoryChunkData ignored -> false;
+            case MemoryChunkData _ -> false;
         };
     }
 

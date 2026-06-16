@@ -64,7 +64,7 @@ class MatchClassifier
         PredicateContextData predicateContextData = queryContext.getPredicateContextData();
         ImmutableMap<WarpExpression, PredicateContext> leaves = predicateContextData.getLeaves();
         WarpExpression rootExpression = queryContext.getPredicateContextData().getRootExpression();
-        if (rootExpression == WarpPrimitiveConstant.FALSE) {
+        if (rootExpression.equals(WarpPrimitiveConstant.FALSE)) {
             return queryContext.asBuilder()
                     .isNone(true)
                     .build();

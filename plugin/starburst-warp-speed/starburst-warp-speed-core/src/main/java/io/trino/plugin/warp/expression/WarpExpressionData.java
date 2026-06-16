@@ -88,7 +88,7 @@ public class WarpExpressionData
     private boolean calcIsAll(WarpExpression expression)
     {
         return expression instanceof WarpConstant warpConstant &&
-                expression.getType() == BooleanType.BOOLEAN &&
+                expression.getType().equals(BooleanType.BOOLEAN) &&
                 Boolean.parseBoolean(String.valueOf(warpConstant.getValue()));
     }
 

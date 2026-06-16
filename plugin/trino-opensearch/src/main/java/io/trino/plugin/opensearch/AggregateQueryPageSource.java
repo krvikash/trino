@@ -221,7 +221,7 @@ public class AggregateQueryPageSource
 
         for (Aggregation aggregation : aggregations) {
             switch (aggregation) {
-                case CompositeAggregation ignored -> hasComposite = true;
+                case CompositeAggregation _ -> hasComposite = true;
                 case NumericMetricsAggregation.SingleValue _, Stats _ -> hasMetric = true;
                 case null, default -> throw new IllegalStateException(
                         "Unrecognized aggregation type: " + (aggregation == null ? "null" : aggregation.getType()));

@@ -31,14 +31,12 @@ public class DictionaryConfig
     private DataSize maxDictionaryCacheWeight = DataSize.of(16, DataSize.Unit.MEGABYTE);
     private int dictionaryCacheConcurrencyLevel = 4;
 
-    //////////////////////////// Enable flags and lists ///////////////////////////////
+    // Enable flags and lists
     // Exceptional Lists of record types is optional and not used for all features
     // If exists, the exceptional list contains exceptions to the general rule:
     //     In case the general rule is Enable, the exceptional list will contain Disabled record types
     //     In case the general rule is Disable, the exceptional list will contain Enabled record types
     // With this approach field engineers can very easily disable/enable fully or partially any supported feature
-
-    ///////////////////////////////////////////////////////////////////////////////////
     private boolean enableDictionary = true;
     private Set<RecTypeCode> exceptionalListDictionary;
 

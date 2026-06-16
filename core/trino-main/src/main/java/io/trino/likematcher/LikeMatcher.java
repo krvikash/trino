@@ -77,7 +77,7 @@ public class LikeMatcher
                     minSize += length;
                     maxSize += length;
                 }
-                case Pattern.ZeroOrMore zeroOrMore -> {
+                case Pattern.ZeroOrMore _ -> {
                     unbounded = true;
                 }
                 case Any any -> {

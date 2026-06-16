@@ -119,7 +119,7 @@ public class MergedChunkDataAsyncRequestBody
                                 ChunkDataLease rawLease = entry.getValue();
                                 MemoryChunkDataLease chunkDataLease = switch (rawLease) {
                                     case MemoryChunkDataLease lease -> lease;
-                                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
+                                    case DiskChunkDataLease _ -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
                                 };
                                 int localSliceOffset = sliceOffset.get();
                                 if (localSliceOffset == 0) {

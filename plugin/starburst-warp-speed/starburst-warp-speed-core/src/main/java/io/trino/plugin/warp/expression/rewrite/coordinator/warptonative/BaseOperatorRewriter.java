@@ -62,7 +62,7 @@ abstract class BaseOperatorRewriter
     {
         WarpConstant warpConstant = ((WarpConstant) warpExpression.getChildren().get(1));
         Type constantType = warpConstant.getType();
-        if (constantType == BooleanType.BOOLEAN && warpConstant.getValue() == (Object) false) {
+        if (constantType.equals(BooleanType.BOOLEAN) && Boolean.FALSE.equals(warpConstant.getValue())) {
             rewriteContext.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
             pushdownPredicatesStats.incunsupported_functions_native();
             return false;

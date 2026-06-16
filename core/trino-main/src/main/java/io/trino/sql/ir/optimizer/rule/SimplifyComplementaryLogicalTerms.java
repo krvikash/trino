@@ -59,7 +59,7 @@ public class SimplifyComplementaryLogicalTerms
     @Override
     public Optional<Expression> apply(Expression expression, Session session, Map<Symbol, Expression> bindings)
     {
-        if (!(expression instanceof Logical(Logical.Operator operator, List<Expression> terms, boolean canSplit))) {
+        if (!(expression instanceof Logical(Logical.Operator operator, List<Expression> terms, _))) {
             return Optional.empty();
         }
 

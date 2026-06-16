@@ -73,7 +73,7 @@ public class EqualityValueRewriter
         if (warpCall.getFunctionName().equals(STRPOS.getName())) {
             WarpExpression positionValue = expression.getChildren().get(1);
             if (positionValue instanceof WarpPrimitiveConstant warpPrimitiveConstant) {
-                if (warpPrimitiveConstant.getValue() == Integer.valueOf(0)) {
+                if (Integer.valueOf(0).equals(warpPrimitiveConstant.getValue())) {
                     // See https://stackoverflow.com/a/16091066, =false->false, =true->true, !=true->false, !=false->true
                     context.queryBuilder().add(MatchAllDocsQuery.INSTANCE, BooleanClause.Occur.SHOULD);
                     context = createContext(context, BooleanClause.Occur.MUST_NOT);
