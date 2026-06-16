@@ -47,17 +47,16 @@ import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Coalesce;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.FieldReference;
 import io.trino.sql.ir.In;
+import io.trino.sql.ir.IrExpressions;
 import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Match;
-import io.trino.sql.ir.NullIf;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
@@ -82,13 +81,13 @@ import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
@@ -306,6 +305,11 @@ public final class GpuExpressionCompiler
             }
             String name = functionName.functionName();
 
+            IrExpressions.Comparison comparison = matchComparison(call);
+            if (comparison != null) {
+                return compileComparison(comparison, context);
+            }
+
             if (name.equals(LIKE_FUNCTION_NAME) &&
                     call.arguments().size() == 2 &&
                     call.arguments().get(1) instanceof Constant(Type patternType, Object likePattern) &&
@@ -354,6 +358,43 @@ public final class GpuExpressionCompiler
             }
 
             return Optional.empty();
+        }
+
+        private Optional<GpuExpression> compileComparison(IrExpressions.Comparison comparison, Void context)
+        {
+            switch (comparison.left().type()) {
+                case BooleanType _,
+                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
+                     RealType _, DoubleType _,
+                     DecimalType _,
+                     CharType _, VarcharType _, DateType _ -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                default -> {
+                    return Optional.empty();
+                }
+            }
+            Optional<GpuExpression> leftCompiled = comparison.left().accept(this, context);
+            if (leftCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+            Optional<GpuExpression> rightCompiled = comparison.right().accept(this, context);
+            if (rightCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+
+            GpuExpression left = leftCompiled.get();
+            GpuExpression right = rightCompiled.get();
+            return switch (comparison) {
+                case IrExpressions.Comparison.Equal _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
+                case IrExpressions.Comparison.NotEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
+                case IrExpressions.Comparison.LessThan _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
+                case IrExpressions.Comparison.LessThanOrEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
+                case IrExpressions.Comparison.Identical _ -> Optional.empty();
+            };
         }
 
         private Optional<GpuExpression> compileBinaryArithmetic(Call call, OperatorType operatorType, Void context)
@@ -671,47 +712,6 @@ public final class GpuExpressionCompiler
         }
 
         @Override
-        protected Optional<GpuExpression> visitComparison(Comparison comparison, Void context)
-        {
-            verify(comparison.type() == BOOLEAN, "Unexpected comparison type: %s", comparison.type());
-            switch (comparison.left().type()) {
-                case BooleanType _,
-                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
-                     RealType _, DoubleType _,
-                     DecimalType _,
-                     CharType _, VarcharType _, DateType _ -> {
-                    // cudf comparison semantics for carrier DType match those of Trino Type
-                }
-                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
-                    // cudf comparison semantics for carrier DType match those of Trino Type
-                }
-                default -> {
-                    return Optional.empty();
-                }
-            }
-            Optional<GpuExpression> leftCompiled = comparison.left().accept(this, context);
-            if (leftCompiled.isEmpty()) {
-                return Optional.empty();
-            }
-            Optional<GpuExpression> rightCompiled = comparison.right().accept(this, context);
-            if (rightCompiled.isEmpty()) {
-                return Optional.empty();
-            }
-
-            GpuExpression left = leftCompiled.get();
-            GpuExpression right = rightCompiled.get();
-            return switch (comparison.operator()) {
-                case EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
-                case NOT_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
-                case LESS_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
-                case LESS_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
-                case GREATER_THAN -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER, DType.BOOL8));
-                case GREATER_THAN_OR_EQUAL -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.GREATER_EQUAL, DType.BOOL8));
-                case IDENTICAL -> Optional.empty();
-            };
-        }
-
-        @Override
         protected Optional<GpuExpression> visitBetween(Between between, Void context)
         {
             switch (between.value().type()) {
@@ -822,13 +822,6 @@ public final class GpuExpressionCompiler
         protected Optional<GpuExpression> visitCoalesce(Coalesce coalesce, Void context)
         {
             return compileNary(coalesce.operands(), GpuCoalesce::new, context);
-        }
-
-        @Override
-        protected Optional<GpuExpression> visitNullIf(NullIf node, Void context)
-        {
-            // TODO support NULLIF on GPU
-            return Optional.empty();
         }
 
         private Optional<GpuExpression> compileNary(

@@ -20,13 +20,11 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.ProgramBuilder.ValueNameAllocator;
 import io.trino.sql.dialect.trino.operation.Array;
-import io.trino.sql.dialect.trino.operation.Between;
 import io.trino.sql.dialect.trino.operation.Bind;
 import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Case;
 import io.trino.sql.dialect.trino.operation.Cast;
 import io.trino.sql.dialect.trino.operation.Coalesce;
-import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.In;
@@ -34,10 +32,8 @@ import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
-import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
-import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrVisitor;
@@ -108,24 +104,6 @@ public class ScalarProgramBuilder
                         .collect(toImmutableList()));
         context.block().addOperation(array);
         return array;
-    }
-
-    @Override
-    protected Operation visitBetween(io.trino.sql.ir.Between node, Context context)
-    {
-        Operation input = node.value().accept(this, context);
-        Operation min = node.min().accept(this, context);
-        Operation max = node.max().accept(this, context);
-
-        String resultName = nameAllocator.newName();
-        Between between = new Between(
-                resultName,
-                input.result(),
-                min.result(),
-                max.result(),
-                ImmutableList.of(input.attributes(), min.attributes(), max.attributes()));
-        context.block().addOperation(between);
-        return between;
     }
 
     @Override
@@ -246,23 +224,6 @@ public class ScalarProgramBuilder
                         .collect(toImmutableList()));
         context.block().addOperation(coalesce);
         return coalesce;
-    }
-
-    @Override
-    protected Operation visitComparison(io.trino.sql.ir.Comparison node, Context context)
-    {
-        Operation left = node.left().accept(this, context);
-        Operation right = node.right().accept(this, context);
-
-        String resultName = nameAllocator.newName();
-        Comparison comparison = new Comparison(
-                resultName,
-                left.result(),
-                right.result(),
-                ComparisonOperator.of(node.operator()),
-                ImmutableList.of(left.attributes(), right.attributes()));
-        context.block().addOperation(comparison);
-        return comparison;
     }
 
     @Override
@@ -435,22 +396,6 @@ public class ScalarProgramBuilder
                 sourceAttributes.build());
         context.block().addOperation(matchOperation);
         return matchOperation;
-    }
-
-    @Override
-    protected Operation visitNullIf(io.trino.sql.ir.NullIf node, Context context)
-    {
-        Operation first = node.first().accept(this, context);
-        Operation second = node.second().accept(this, context);
-
-        String resultName = nameAllocator.newName();
-        NullIf nullIf = new NullIf(
-                resultName,
-                first.result(),
-                second.result(),
-                ImmutableList.of(first.attributes(), second.attributes()));
-        context.block().addOperation(nullIf);
-        return nullIf;
     }
 
     @Override

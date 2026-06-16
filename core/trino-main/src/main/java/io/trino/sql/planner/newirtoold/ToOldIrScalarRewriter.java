@@ -15,30 +15,27 @@ package io.trino.sql.planner.newirtoold;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.metadata.Metadata;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.dialect.trino.operation.Array;
-import io.trino.sql.dialect.trino.operation.Between;
 import io.trino.sql.dialect.trino.operation.Bind;
 import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Case;
 import io.trino.sql.dialect.trino.operation.Cast;
 import io.trino.sql.dialect.trino.operation.Coalesce;
-import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.In;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Logical;
-import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
-import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Match;
@@ -64,7 +61,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.COMPARISON_OPERATOR;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.FIELD_INDEX;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LOGICAL_OPERATOR;
@@ -82,10 +78,10 @@ public class ToOldIrScalarRewriter
 {
     private final Rewriter rewriter;
 
-    public ToOldIrScalarRewriter(SymbolAllocator symbolAllocator)
+    public ToOldIrScalarRewriter(SymbolAllocator symbolAllocator, Metadata metadata)
     {
         requireNonNull(symbolAllocator, "symbolAllocator is null");
-        this.rewriter = new Rewriter(symbolAllocator);
+        this.rewriter = new Rewriter(symbolAllocator, metadata);
     }
 
     public Expression toOldIr(Block block, List<List<Symbol>> inputSymbols)
@@ -165,10 +161,12 @@ public class ToOldIrScalarRewriter
             extends TrinoOperationVisitor<Expression, Context>
     {
         private final SymbolAllocator symbolAllocator;
+        private final Metadata metadata;
 
-        public Rewriter(SymbolAllocator symbolAllocator)
+        public Rewriter(SymbolAllocator symbolAllocator, Metadata metadata)
         {
             this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
+            this.metadata = requireNonNull(metadata, "metadata is null");
         }
 
         public Expression toOldIr(Block block, Context context)
@@ -193,16 +191,6 @@ public class ToOldIrScalarRewriter
                     .collect(toImmutableList());
 
             return new io.trino.sql.ir.Array(elementType, elements);
-        }
-
-        @Override
-        public Expression visitBetween(Between operation, Context context)
-        {
-            Expression input = context.getOperation(operation.arguments().get(0)).accept(this, context);
-            Expression min = context.getOperation(operation.arguments().get(1)).accept(this, context);
-            Expression max = context.getOperation(operation.arguments().get(2)).accept(this, context);
-
-            return new io.trino.sql.ir.Between(input, min, max);
         }
 
         @Override
@@ -265,28 +253,6 @@ public class ToOldIrScalarRewriter
                     .collect(toImmutableList());
 
             return new io.trino.sql.ir.Coalesce(arguments);
-        }
-
-        @Override
-        public Expression visitComparison(Comparison operation, Context context)
-        {
-            Expression left = context.getOperation(operation.arguments().get(0)).accept(this, context);
-            Expression right = context.getOperation(operation.arguments().get(1)).accept(this, context);
-
-            return new io.trino.sql.ir.Comparison(rewriteOperator(COMPARISON_OPERATOR.getAttribute(operation.attributes())), left, right);
-        }
-
-        private io.trino.sql.ir.ComparisonOperator rewriteOperator(ComparisonOperator operator)
-        {
-            return switch (operator) {
-                case EQUAL -> io.trino.sql.ir.ComparisonOperator.EQUAL;
-                case NOT_EQUAL -> io.trino.sql.ir.ComparisonOperator.NOT_EQUAL;
-                case LESS_THAN -> io.trino.sql.ir.ComparisonOperator.LESS_THAN;
-                case LESS_THAN_OR_EQUAL -> io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
-                case GREATER_THAN -> io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
-                case GREATER_THAN_OR_EQUAL -> io.trino.sql.ir.ComparisonOperator.GREATER_THAN_OR_EQUAL;
-                case IDENTICAL -> io.trino.sql.ir.ComparisonOperator.IDENTICAL;
-            };
         }
 
         @Override
@@ -371,15 +337,6 @@ public class ToOldIrScalarRewriter
                 case AND -> io.trino.sql.ir.Logical.Operator.AND;
                 case OR -> io.trino.sql.ir.Logical.Operator.OR;
             };
-        }
-
-        @Override
-        public Expression visitNullIf(NullIf operation, Context context)
-        {
-            Expression first = context.getOperation(operation.arguments().get(0)).accept(this, context);
-            Expression second = context.getOperation(operation.arguments().get(1)).accept(this, context);
-
-            return new io.trino.sql.ir.NullIf(first, second);
         }
 
         @Override

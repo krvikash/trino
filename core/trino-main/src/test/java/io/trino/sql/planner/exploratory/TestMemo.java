@@ -16,9 +16,12 @@ package io.trino.sql.planner.exploratory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.metadata.ResolvedFunction;
+import io.trino.metadata.TestingFunctionResolution;
+import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.MultisetType;
 import io.trino.sql.dialect.ir.IrDialect.FunctionType;
-import io.trino.sql.dialect.trino.operation.Comparison;
+import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Join;
@@ -58,8 +61,6 @@ import static io.trino.sql.dialect.ir.IrDialect.SAFE;
 import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.newir.DialectRegistry.TESTING_DIALECT_REGISTRY;
 import static io.trino.sql.planner.exploratory.MemoGroupMatcher.memoGroup;
 import static io.trino.sql.planner.exploratory.MemoOperationBuilder.TEST_MEMO_OPERATION;
@@ -80,6 +81,10 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 public class TestMemo
 {
+    private static final ResolvedFunction LESS_THAN_BIGINT = new TestingFunctionResolution().resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction LESS_THAN_OR_EQUAL_BIGINT = new TestingFunctionResolution().resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, ImmutableList.of(BIGINT, BIGINT));
+
     @Test
     public void testSimpleProgram()
     {
@@ -360,7 +365,7 @@ public class TestMemo
         // first row
         Constant constantOperation1 = new Constant("%constant1", BIGINT, 1L);
         Constant constantOperation2 = new Constant("%constant2", BIGINT, 2L);
-        Comparison comparisonOperation1 = new Comparison("%comparison1", constantOperation1.result(), constantOperation2.result(), GREATER_THAN, ImmutableList.of(constantOperation1.attributes(), constantOperation2.attributes()));
+        Call comparisonOperation1 = new Call("%comparison1", ImmutableList.of(constantOperation1.result(), constantOperation2.result()), LESS_THAN_BIGINT, ImmutableList.of(constantOperation1.attributes(), constantOperation2.attributes()));
         Row rowOperation1 = new Row("%row1", ImmutableList.of(comparisonOperation1.result()), ImmutableList.of(comparisonOperation1.attributes()));
         Return returnOperation1 = new Return("%return1", rowOperation1.result(), rowOperation1.attributes());
         List<Operation> firstRowOperations = ImmutableList.of(constantOperation1, constantOperation2, comparisonOperation1, rowOperation1, returnOperation1);
@@ -368,7 +373,7 @@ public class TestMemo
         // second row
         Constant constantOperation3 = new Constant("%constant3", BIGINT, 1L);
         Constant constantOperation4 = new Constant("%constant4", BIGINT, 3L);
-        Comparison comparisonOperation2 = new Comparison("%comparison2", constantOperation3.result(), constantOperation4.result(), GREATER_THAN, ImmutableList.of(constantOperation3.attributes(), constantOperation4.attributes()));
+        Call comparisonOperation2 = new Call("%comparison2", ImmutableList.of(constantOperation3.result(), constantOperation4.result()), LESS_THAN_BIGINT, ImmutableList.of(constantOperation3.attributes(), constantOperation4.attributes()));
         Row rowOperation2 = new Row("%row2", ImmutableList.of(comparisonOperation2.result()), ImmutableList.of(comparisonOperation2.attributes()));
         Return returnOperation2 = new Return("%return2", rowOperation2.result(), rowOperation2.attributes());
         List<Operation> secondRowOperations = ImmutableList.of(constantOperation3, constantOperation4, comparisonOperation2, rowOperation2, returnOperation2);
@@ -407,14 +412,14 @@ public class TestMemo
                         2, memoGroup() // "%comparison1"
                                 .withGroupParameterTypes()
                                 .withOperations(memoOperation()
-                                        .withName("comparison")
+                                        .withName("call")
                                         .withChildren(groupChild(0), groupChild(1))
                                         .build())
                                 .build(),
                         6, memoGroup() // "%comparison2"
                                 .withGroupParameterTypes()
                                 .withOperations(memoOperation()
-                                        .withName("comparison")
+                                        .withName("call")
                                         .withChildren(groupChild(0), groupChild(5))
                                         .build())
                                 .build()));
@@ -426,7 +431,7 @@ public class TestMemo
         // first row
         Constant constantOperation1 = new Constant("%constant1", BIGINT, 1L);
         Constant constantOperation2 = new Constant("%constant2", BIGINT, 2L);
-        Comparison comparisonOperation1 = new Comparison("%comparison1", constantOperation1.result(), constantOperation2.result(), GREATER_THAN, ImmutableList.of(constantOperation1.attributes(), constantOperation2.attributes()));
+        Call comparisonOperation1 = new Call("%comparison1", ImmutableList.of(constantOperation1.result(), constantOperation2.result()), LESS_THAN_BIGINT, ImmutableList.of(constantOperation1.attributes(), constantOperation2.attributes()));
         Row rowOperation1 = new Row("%row1", ImmutableList.of(comparisonOperation1.result()), ImmutableList.of(comparisonOperation1.attributes()));
         Return returnOperation1 = new Return("%return1", rowOperation1.result(), rowOperation1.attributes());
         List<Operation> firstRowOperations = ImmutableList.of(constantOperation1, constantOperation2, comparisonOperation1, rowOperation1, returnOperation1);
@@ -434,7 +439,7 @@ public class TestMemo
         // second row
         Constant constantOperation3 = new Constant("%constant3", BIGINT, 1L);
         Constant constantOperation4 = new Constant("%constant4", BIGINT, 2L);
-        Comparison comparisonOperation2 = new Comparison("%comparison2", constantOperation3.result(), constantOperation4.result(), LESS_THAN, ImmutableList.of(constantOperation3.attributes(), constantOperation4.attributes()));
+        Call comparisonOperation2 = new Call("%comparison2", ImmutableList.of(constantOperation3.result(), constantOperation4.result()), LESS_THAN_OR_EQUAL_BIGINT, ImmutableList.of(constantOperation3.attributes(), constantOperation4.attributes()));
         Row rowOperation2 = new Row("%row2", ImmutableList.of(comparisonOperation2.result()), ImmutableList.of(comparisonOperation2.attributes()));
         Return returnOperation2 = new Return("%return2", rowOperation2.result(), rowOperation2.attributes());
         List<Operation> secondRowOperations = ImmutableList.of(constantOperation3, constantOperation4, comparisonOperation2, rowOperation2, returnOperation2);
@@ -463,18 +468,18 @@ public class TestMemo
                                         .withChildren()
                                         .build())
                                 .build(),
-                        // Comparison operations are not deduplicated because their attributes are different (GREATER_THAN vs LESS_THAN), even though both children are the same
+                        // call operations are not deduplicated because their functions differ ($less_than vs $less_than_or_equal), even though both children are the same
                         2, memoGroup() // "%comparison1"
                                 .withGroupParameterTypes()
                                 .withOperations(memoOperation()
-                                        .withName("comparison")
+                                        .withName("call")
                                         .withChildren(groupChild(0), groupChild(1))
                                         .build())
                                 .build(),
                         5, memoGroup() // "%comparison2"
                                 .withGroupParameterTypes()
                                 .withOperations(memoOperation()
-                                        .withName("comparison")
+                                        .withName("call")
                                         .withChildren(groupChild(0), groupChild(1))
                                         .build())
                                 .build()));

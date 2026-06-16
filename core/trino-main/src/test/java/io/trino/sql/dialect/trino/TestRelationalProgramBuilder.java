@@ -26,6 +26,7 @@ import io.trino.metadata.TableHandle;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.function.OperatorType;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.MultisetType;
@@ -35,7 +36,7 @@ import io.trino.sql.dialect.trino.RelationalProgramBuilder.OperationAndMapping;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.AssignUniqueId;
-import io.trino.sql.dialect.trino.operation.Comparison;
+import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
@@ -77,7 +78,6 @@ import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortO
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
-import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
@@ -149,7 +149,6 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep.SINGLE;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata.VERBOSE;
@@ -161,7 +160,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationM
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.FOLLOWING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.PRECEDING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
-import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
 import static java.lang.Boolean.TRUE;
@@ -178,6 +176,8 @@ final class TestRelationalProgramBuilder
     private static final Values SECOND_VALUES_OPERATION = secondValuesOperation();
     private static final Type SECOND_VALUES_OPERATION_ROW_TYPE = irType(relationRowType(trinoType(SECOND_VALUES_OPERATION.result().type())));
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
 
     private static Attributes attributes(Consumer<Attributes.Builder> attributesConsumer)
     {
@@ -897,21 +897,19 @@ final class TestRelationalProgramBuilder
         FilterNode filterNode = new FilterNode(
                 new PlanNodeId("filter"),
                 VALUES_NODE,
-                comparison(
-                        ComparisonOperator.GREATER_THAN,
-                        new Reference(BIGINT, "a"),
-                        new io.trino.sql.ir.Constant(BIGINT, 5L)));
+                new io.trino.sql.ir.Call(
+                        LESS_THAN_BIGINT,
+                        ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 5L), new Reference(BIGINT, "a"))));
 
         Block.Parameter predicateParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
         Constant constantOperation = new Constant("%11", BIGINT, 5L);
         FieldReference fieldReferenceOperation = new FieldReference("%12", predicateParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%13",
-                constantOperation.result(),
-                fieldReferenceOperation.result(),
-                LESS_THAN,
+                ImmutableList.of(constantOperation.result(), fieldReferenceOperation.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(constantOperation.attributes(), fieldReferenceOperation.attributes()));
         Return returnOperation = new Return("%14", comparisonOperation.result(), comparisonOperation.attributes());
         Filter filterOperation = new Filter(
@@ -1401,10 +1399,9 @@ final class TestRelationalProgramBuilder
                 VALUES_NODE,
                 Assignments.copyOf(ImmutableMap.of(
                         new Symbol(BOOLEAN, "b"), new Reference(BOOLEAN, "b"),
-                        new Symbol(BOOLEAN, "c"), comparison(
-                                ComparisonOperator.GREATER_THAN,
-                                new Reference(BIGINT, "a"),
-                                new io.trino.sql.ir.Constant(BIGINT, 5L)))));
+                        new Symbol(BOOLEAN, "c"), new io.trino.sql.ir.Call(
+                                LESS_THAN_BIGINT,
+                                ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 5L), new Reference(BIGINT, "a"))))));
 
         Block.Parameter assignmentsParameter = new Block.Parameter(
                 "%10",
@@ -1412,11 +1409,10 @@ final class TestRelationalProgramBuilder
         FieldReference fieldReferenceOperationB = new FieldReference("%11", assignmentsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%12", BIGINT, 5L);
         FieldReference fieldReferenceOperationA = new FieldReference("%13", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%14",
-                constantOperation.result(),
-                fieldReferenceOperationA.result(),
-                LESS_THAN,
+                ImmutableList.of(constantOperation.result(), fieldReferenceOperationA.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(constantOperation.attributes(), fieldReferenceOperationA.attributes()));
         Row rowOperation = new Row(
                 "%15",

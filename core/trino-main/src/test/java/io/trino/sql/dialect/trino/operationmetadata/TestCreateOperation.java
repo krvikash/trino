@@ -41,7 +41,6 @@ import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Case;
 import io.trino.sql.dialect.trino.operation.Cast;
 import io.trino.sql.dialect.trino.operation.Coalesce;
-import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
@@ -118,9 +117,6 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep.SINGLE;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.EQUAL;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
@@ -146,6 +142,10 @@ class TestCreateOperation
             "%input_row",
             irType(anonymousRow(BIGINT, BOOLEAN)));
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(BIGINT, BIGINT));
 
     @Test
     public void testAggregateCallAndAggregation()
@@ -1006,90 +1006,6 @@ class TestCreateOperation
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Coalesce operation does not have regions");
-    }
-
-    @Test
-    public void testComparison()
-    {
-        Constant constantOperationLeft = new Constant("%0", BIGINT, 0L);
-        Constant constantOperationRight = new Constant("%1", BIGINT, 1L);
-        Comparison comparisonOperation = new Comparison(
-                "%2",
-                constantOperationLeft.result(),
-                constantOperationRight.result(),
-                GREATER_THAN,
-                ImmutableList.of(constantOperationLeft.attributes(), constantOperationRight.attributes()));
-
-        Operation actualComparisonOperation = TESTING_TRINO_DIALECT.createOperation(
-                ComparisonOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
-                ImmutableList.of(),
-                attributes(
-                        new AttributeKey(TRINO, "comparison:operator"),
-                        GREATER_THAN,
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false));
-
-        assertThat(actualComparisonOperation).isEqualTo(comparisonOperation);
-        assertThat(actualComparisonOperation.result().type()).isEqualTo(irType(BOOLEAN));
-
-        // wrong argument count
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                ComparisonOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationLeft.result()),
-                ImmutableList.of(),
-                attributes(
-                        new AttributeKey(TRINO, "comparison:operator"),
-                        GREATER_THAN,
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("Comparison operation must have exactly two arguments");
-
-        // wrong region count
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                ComparisonOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
-                ImmutableList.of(SOME_REGION),
-                attributes(
-                        new AttributeKey(TRINO, "comparison:operator"),
-                        GREATER_THAN,
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("Comparison operation does not have regions");
-
-        // missing required attribute
-        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
-                ComparisonOperationMetadata.NAME,
-                "%2",
-                ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
-                ImmutableList.of(),
-                attributes(
-                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"),
-                        DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
-                        new AttributeKey(IR, "has_side_effects"),
-                        false)))
-                .hasMessage("comparisonOperator is null");
     }
 
     @Test
@@ -1966,11 +1882,10 @@ class TestCreateOperation
                 VALUES_OPERATION_ROW_TYPE);
         FieldReference fieldReferenceOperation = new FieldReference("%11", predicateParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%12", BIGINT, 5L);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%13",
-                fieldReferenceOperation.result(),
-                constantOperation.result(),
-                GREATER_THAN,
+                ImmutableList.of(fieldReferenceOperation.result(), constantOperation.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation.attributes(), constantOperation.attributes()));
         Return returnOperation = new Return("%14", comparisonOperation.result(), comparisonOperation.attributes());
         Block predicateBlock = new Block(
@@ -1997,8 +1912,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -2015,8 +1928,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Filter operation must have exactly one argument: the input relation");
@@ -2031,8 +1942,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Filter operation must have exactly one region: the predicate");
@@ -2704,11 +2613,10 @@ class TestCreateOperation
         Parameter lambdaArgument = new Parameter("%1", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperationX = new FieldReference("%2", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%3", BIGINT, 0L);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%4",
-                fieldReferenceOperationX.result(),
-                constantOperation.result(),
-                LESS_THAN,
+                ImmutableList.of(fieldReferenceOperationX.result(), constantOperation.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperationX.attributes(), constantOperation.attributes()));
         Return returnOperation = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         Block lambdaBlock = new Block(
@@ -2733,8 +2641,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -3185,11 +3091,10 @@ class TestCreateOperation
         FieldReference fieldReferenceOperationB = new FieldReference("%11", assignmentsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperationA = new FieldReference("%12", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%13", BIGINT, 5L);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%14",
-                fieldReferenceOperationA.result(),
-                constantOperation.result(),
-                GREATER_THAN,
+                ImmutableList.of(fieldReferenceOperationA.result(), constantOperation.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperationA.attributes(), constantOperation.attributes()));
         Row rowOperation = new Row(
                 "%15",
@@ -3222,8 +3127,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -3240,8 +3143,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Project operation must have exactly one argument: the input relation");
@@ -3256,8 +3157,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Project operation must have exactly one region: the assignments");
@@ -3688,11 +3587,10 @@ class TestCreateOperation
         Block.Parameter lambdaArgument1 = new Block.Parameter("%2", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperation1 = new FieldReference("%3", lambdaArgument1, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation1 = new Constant("%4", BIGINT, 1L);
-        Comparison comparisonOperation1 = new Comparison(
+        Call comparisonOperation1 = new Call(
                 "%5",
-                fieldReferenceOperation1.result(),
-                constantOperation1.result(),
-                EQUAL,
+                ImmutableList.of(fieldReferenceOperation1.result(), constantOperation1.result()),
+                EQUAL_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), constantOperation1.attributes()));
         Return returnOperation1 = new Return("%6", comparisonOperation1.result(), comparisonOperation1.attributes());
         Lambda lambdaOperation1 = new Lambda(
@@ -3709,11 +3607,10 @@ class TestCreateOperation
         Block.Parameter lambdaArgument2 = new Block.Parameter("%8", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperation2 = new FieldReference("%9", lambdaArgument2, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation2 = new Constant("%10", BIGINT, 2L);
-        Comparison comparisonOperation2 = new Comparison(
+        Call comparisonOperation2 = new Call(
                 "%11",
-                fieldReferenceOperation2.result(),
-                constantOperation2.result(),
-                EQUAL,
+                ImmutableList.of(fieldReferenceOperation2.result(), constantOperation2.result()),
+                EQUAL_BIGINT,
                 ImmutableList.of(fieldReferenceOperation2.attributes(), constantOperation2.attributes()));
         Return returnOperation2 = new Return("%12", comparisonOperation2.result(), comparisonOperation2.attributes());
         Lambda lambdaOperation2 = new Lambda(
@@ -3759,8 +3656,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -3779,8 +3674,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Switch operation must have at least four arguments");
@@ -3799,8 +3692,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Switch operation must have even number of arguments");
@@ -3821,8 +3712,6 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
-                        new AttributeKey(IR, "safe"),
-                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Switch operation does not have regions");

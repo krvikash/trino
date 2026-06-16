@@ -29,13 +29,11 @@ import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetada
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AssignUniqueIdOperationMetadata;
-import io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CaseOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CoalesceOperationMetadata;
-import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
@@ -54,7 +52,6 @@ import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata;
-import io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata;
@@ -317,12 +314,10 @@ public final class TrinoDialect
         return ImmutableSet.of(
                 new AggregationOperationMetadata(),
                 new AssignUniqueIdOperationMetadata(),
-                new BetweenOperationMetadata(),
                 new BindOperationMetadata(),
                 new CallOperationMetadata(),
                 new CaseOperationMetadata(),
                 new CoalesceOperationMetadata(),
-                new ComparisonOperationMetadata(),
                 new CorrelatedJoinOperationMetadata(),
                 new DynamicFilterSourceOperationMetadata(),
                 new EnforceSingleRowOperationMetadata(),
@@ -339,7 +334,6 @@ public final class TrinoDialect
                 new LimitOperationMetadata(),
                 new LogicalOperationMetadata(),
                 new MatchOperationMetadata(),
-                new NullIfOperationMetadata(),
                 new OutputOperationMetadata(),
                 new ProjectOperationMetadata(),
                 new QueryOperationMetadata(),

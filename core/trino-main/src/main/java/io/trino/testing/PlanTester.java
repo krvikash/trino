@@ -696,7 +696,7 @@ public class PlanTester
         StatsNormalizer normalizer = new StatsNormalizer();
         ScalarStatsCalculator scalarStatsCalculator = new ScalarStatsCalculator(plannerContext);
         FilterStatsCalculator filterStatsCalculator = new FilterStatsCalculator(plannerContext, scalarStatsCalculator, normalizer);
-        return new ComposableStatsCalculator(new StatsRulesProvider(scalarStatsCalculator, filterStatsCalculator, normalizer).get());
+        return new ComposableStatsCalculator(new StatsRulesProvider(scalarStatsCalculator, filterStatsCalculator, normalizer, plannerContext.getMetadata()).get());
     }
 
     @Override

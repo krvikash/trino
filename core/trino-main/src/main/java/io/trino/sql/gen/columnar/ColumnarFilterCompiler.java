@@ -15,7 +15,6 @@ package io.trino.sql.gen.columnar;
 
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.inject.Inject;
 import io.airlift.bytecode.BytecodeBlock;
@@ -33,19 +32,16 @@ import io.trino.cache.CacheStatsMBean;
 import io.trino.cache.NonEvictableCache;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.Metadata;
-import io.trino.metadata.ResolvedFunction;
 import io.trino.operator.project.InputChannels;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.ValueBlock;
-import io.trino.spi.function.OperatorType;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.gen.CallSiteBinder;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
@@ -184,7 +180,6 @@ public class ColumnarFilterCompiler
     {
         try {
             return switch (filter) {
-                case Comparison comparison -> generateComparisonFilter(comparison, layout);
                 case Call call -> {
                     if (call.function().functionKind() == BATCH) {
                         // Batch functions are not supported in columnar filter evaluation
@@ -211,27 +206,6 @@ public class ColumnarFilterCompiler
             }
             return Optional.empty();
         }
-    }
-
-    private Optional<Class<? extends ColumnarFilter>> generateComparisonFilter(Comparison comparison, Map<Symbol, Integer> layout)
-    {
-        Expression left = comparison.left();
-        Expression right = comparison.right();
-
-        return switch (comparison.operator()) {
-            case NOT_EQUAL -> Optional.empty();
-            case EQUAL -> generateCallFilter(metadata.resolveOperator(OperatorType.EQUAL, ImmutableList.of(left.type(), right.type())), ImmutableList.of(left, right), layout);
-            case LESS_THAN -> generateCallFilter(metadata.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(left.type(), right.type())), ImmutableList.of(left, right), layout);
-            case LESS_THAN_OR_EQUAL -> generateCallFilter(metadata.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, ImmutableList.of(left.type(), right.type())), ImmutableList.of(left, right), layout);
-            case GREATER_THAN -> generateCallFilter(metadata.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(right.type(), left.type())), ImmutableList.of(right, left), layout);
-            case GREATER_THAN_OR_EQUAL -> generateCallFilter(metadata.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, ImmutableList.of(right.type(), left.type())), ImmutableList.of(right, left), layout);
-            case IDENTICAL -> generateCallFilter(metadata.resolveOperator(OperatorType.IDENTICAL, ImmutableList.of(left.type(), right.type())), ImmutableList.of(left, right), layout);
-        };
-    }
-
-    private Optional<Class<? extends ColumnarFilter>> generateCallFilter(ResolvedFunction function, List<Expression> arguments, Map<Symbol, Integer> layout)
-    {
-        return Optional.of(new CallColumnarFilterGenerator(function, arguments, layout, functionManager).generateColumnarFilter());
     }
 
     static FieldDefinition generateGetInputChannels(ClassDefinition classDefinition)

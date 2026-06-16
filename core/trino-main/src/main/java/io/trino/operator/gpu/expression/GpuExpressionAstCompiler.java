@@ -21,6 +21,7 @@ import com.google.common.primitives.Shorts;
 import com.google.common.primitives.SignedBytes;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.trino.metadata.Metadata;
 import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.BigintType;
@@ -32,13 +33,12 @@ import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.VarcharType;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
+import io.trino.sql.ir.IrExpressions;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
@@ -53,6 +53,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.sql.ir.IrExpressions.comparison;
+import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.toIntExact;
 
@@ -68,18 +70,16 @@ public final class GpuExpressionAstCompiler
     // The value picked arbitrarily
     private static final int MAX_IN_LIST_SIZE_FOR_OR_REWRITE = 20;
 
-    public static Optional<CudfAstExpression> compile(Expression filter)
+    public static Optional<CudfAstExpression> compile(Metadata metadata, Expression filter)
     {
-        return translate(filter, new Context());
+        return translate(filter, new Context(metadata));
     }
 
     private static Optional<CudfAstExpression> translate(Expression expression, Context context)
     {
         Optional<CudfAstExpression> translated = switch (expression) {
-            case Comparison comparison -> translateComparison(comparison, context);
             case Logical logical -> translateLogical(logical, context);
             case In in -> translateIn(in, context);
-            case Between between -> translateBetween(between, context);
             case IsNull isNull -> translateIsNull(isNull, context);
             case Constant constant -> translateConstant(constant);
             case Call call -> translateCall(call, context);
@@ -90,14 +90,6 @@ public final class GpuExpressionAstCompiler
             log.debug("Expression unsupported in GPU AST expression: %s", expression);
         }
         return translated;
-    }
-
-    private static Optional<CudfAstExpression> translateComparison(Comparison comparison, Context context)
-    {
-        return mapComparisonOperator(comparison.operator()).flatMap(operator ->
-                translate(comparison.left(), context).flatMap(left ->
-                        translate(comparison.right(), context).map(right ->
-                                new CudfAstExpression.BinaryOperation(operator, left, right))));
     }
 
     private static Optional<BinaryOperator> mapComparisonOperator(ComparisonOperator op)
@@ -160,25 +152,12 @@ public final class GpuExpressionAstCompiler
         }
         ImmutableList.Builder<Expression> equals = ImmutableList.builderWithExpectedSize(valueList.size());
         for (Expression item : valueList) {
-            equals.add(new Comparison(ComparisonOperator.EQUAL, in.value(), item));
+            equals.add(comparison(context.metadata(), ComparisonOperator.EQUAL, in.value(), item));
         }
         List<Expression> terms = equals.build();
         Expression rewritten = terms.size() == 1
                 ? getOnlyElement(terms)
                 : new Logical(Logical.Operator.OR, terms);
-        return translate(rewritten, context);
-    }
-
-    private static Optional<CudfAstExpression> translateBetween(Between between, Context context)
-    {
-        if (!isCheapDeterministic(between.value())) {
-            return Optional.empty();
-        }
-        Expression rewritten = new Logical(
-                Logical.Operator.AND,
-                ImmutableList.of(
-                        new Comparison(ComparisonOperator.LESS_THAN_OR_EQUAL, between.min(), between.value()),
-                        new Comparison(ComparisonOperator.LESS_THAN_OR_EQUAL, between.value(), between.max())));
         return translate(rewritten, context);
     }
 
@@ -213,6 +192,14 @@ public final class GpuExpressionAstCompiler
         }
         String name = functionName.functionName();
 
+        IrExpressions.Comparison comparison = matchComparison(call);
+        if (comparison != null) {
+            return mapComparisonOperator(comparison.operator()).flatMap(operator ->
+                    translate(comparison.left(), context).flatMap(left ->
+                            translate(comparison.right(), context).map(right ->
+                                    new CudfAstExpression.BinaryOperation(operator, left, right))));
+        }
+
         if (name.equals("$not") && call.arguments().size() == 1) {
             return translate(getOnlyElement(call.arguments()), context).map(value ->
                     new CudfAstExpression.UnaryOperation(UnaryOperator.NOT, value));
@@ -225,11 +212,11 @@ public final class GpuExpressionAstCompiler
         return expression instanceof Reference;
     }
 
-    private record Context(AtomicBoolean loggedUnsupportedLeaf)
+    private record Context(Metadata metadata, AtomicBoolean loggedUnsupportedLeaf)
     {
-        private Context()
+        private Context(Metadata metadata)
         {
-            this(new AtomicBoolean());
+            this(metadata, new AtomicBoolean());
         }
     }
 }

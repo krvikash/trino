@@ -27,8 +27,6 @@ import io.trino.sql.PlannerContext;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
-import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
@@ -49,8 +47,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpressions;
 import static io.trino.sql.gen.columnar.AndFilterEvaluator.createAndExpressionEvaluator;
 import static io.trino.sql.gen.columnar.DynamicPageFilter.DynamicFilterEvaluator;
@@ -118,15 +114,6 @@ public sealed interface FilterEvaluator
     {
         return switch (expression) {
             case Constant constant when constant.value() instanceof Boolean booleanValue -> booleanValue ? Optional.of(SelectAllEvaluator::new) : Optional.of(SelectNoneEvaluator::new);
-            case Comparison comparison when comparison.operator() == ComparisonOperator.NOT_EQUAL -> {
-                // Lower NOT_EQUAL to NOT(EQUAL) so it goes through the same Call sub-expression evaluation
-                // path that handled it in the old RowExpression IR (where NOT_EQUAL was translated to
-                // Call($not, Call(EQUAL, ...)) by SqlToRowExpressionTranslator).
-                ResolvedFunction notFunction = compiler.getMetadata().resolveBuiltinFunction("$not", fromTypes(BOOLEAN));
-                Call wrapped = new Call(notFunction, ImmutableList.of(new Comparison(ComparisonOperator.EQUAL, comparison.left(), comparison.right())));
-                yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, wrapped, layout, classNameSuffix);
-            }
-            case Comparison comparison -> createComparisonExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, comparison, layout, classNameSuffix);
             case Call call -> {
                 if (call.function().functionKind() == BATCH) {
                     // Batch functions are not supported in columnar filter evaluation
@@ -327,25 +314,6 @@ public sealed interface FilterEvaluator
         return createReferenceValueFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, isNull.value(), IsNull::new, layout, classNameSuffix);
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createComparisonExpressionEvaluator(
-            boolean columnarFilterSubexpressionEvaluationEnabled,
-            boolean isDebugOutputEnabled,
-            ColumnarFilterCompiler compiler,
-            PageFunctionCompiler pageFunctionCompiler,
-            Comparison comparison,
-            Map<Symbol, Integer> layout,
-            Optional<String> classNameSuffix)
-    {
-        Optional<ProjectedArguments> projected = projectFilterArguments(columnarFilterSubexpressionEvaluationEnabled, pageFunctionCompiler, ImmutableList.of(comparison.left(), comparison.right()), layout, classNameSuffix);
-        if (projected.isEmpty()) {
-            return Optional.empty();
-        }
-        ProjectedArguments arguments = projected.get();
-        Comparison rewrittenComparison = new Comparison(comparison.operator(), arguments.rewrittenArguments().get(0), arguments.rewrittenArguments().get(1));
-        // comparison operators are always deterministic
-        return toFilterEvaluator(compiler.generateFilter(rewrittenComparison, arguments.rewrittenLayout()), arguments, true, layout, rewrittenComparison, isDebugOutputEnabled);
-    }
-
     private static FilterEvaluator createDictionaryAwareEvaluator(ColumnarFilter filter)
     {
         checkArgument(filter.getInputChannels().size() == 1, "filter should have 1 input channel");
@@ -375,7 +343,7 @@ public sealed interface FilterEvaluator
      * references; constants pass through unchanged.
      *
      * <p>{@link #rewrittenArguments} is the argument list to feed back into the parent
-     * filter expression (e.g. {@link Call} or {@link Comparison}). {@link #rewrittenLayout}
+     * filter expression (e.g. {@link Call}). {@link #rewrittenLayout}
      * is the layout to compile the rewritten filter against. {@link #argumentProjections}
      * and {@link #argumentExpressions} are empty when no projection was needed.
      */

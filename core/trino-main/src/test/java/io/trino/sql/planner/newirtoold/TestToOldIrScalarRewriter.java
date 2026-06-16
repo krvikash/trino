@@ -15,19 +15,20 @@ package io.trino.sql.planner.newirtoold;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.metadata.MetadataManager;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.metadata.TestingMetadataManager;
+import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Between;
-import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
-import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Array;
 import io.trino.sql.ir.Bind;
@@ -42,6 +43,7 @@ import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Match;
+import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
@@ -67,11 +69,8 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
-import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
-import static io.trino.sql.ir.IrExpressions.equalityClause;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
-import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -91,6 +90,13 @@ class TestToOldIrScalarRewriter
     private static final Map<Symbol, RowField> SYMBOL_MAPPING = getSymbolMapping();
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    private static final MetadataManager TESTING_METADATA_MANAGER = TestingMetadataManager.builder().build();
+    private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction EQUAL_BOOLEAN = FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(BOOLEAN, BOOLEAN));
 
     @Test
     public void testArray()
@@ -169,18 +175,17 @@ class TestToOldIrScalarRewriter
                 ImmutableList.of(new Reference(BIGINT, "b"), new Constant(BOOLEAN, true)),
                 new Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "lambda_parameter"), new Symbol(BOOLEAN, "lambda_parameter_0"), new Symbol(BIGINT, "lambda_parameter_1")),
-                        comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "lambda_parameter_1"))));
+                        new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "lambda_parameter_1"), new Reference(BIGINT, "lambda_parameter")))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%3", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%1", BOOLEAN, true);
         FieldReference fieldReferenceOperation2 = new FieldReference("%4", lambdaParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation3 = new FieldReference("%5", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%6",
-                fieldReferenceOperation2.result(),
-                fieldReferenceOperation3.result(),
-                ComparisonOperator.LESS_THAN,
+                ImmutableList.of(fieldReferenceOperation2.result(), fieldReferenceOperation3.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation2.attributes(), fieldReferenceOperation3.attributes()));
         Return returnOperation1 = new Return("%7", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -219,16 +224,15 @@ class TestToOldIrScalarRewriter
                 ImmutableList.of(),
                 new Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "lambda_parameter"), new Symbol(BOOLEAN, "lambda_parameter_0"), new Symbol(BIGINT, "lambda_parameter_1")),
-                        comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "lambda_parameter_1"))));
+                        new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "lambda_parameter_1"), new Reference(BIGINT, "lambda_parameter")))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
         FieldReference fieldReferenceOperation1 = new FieldReference("%2", lambdaParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%3", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%4",
-                fieldReferenceOperation1.result(),
-                fieldReferenceOperation2.result(),
-                ComparisonOperator.LESS_THAN,
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation2.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         Return returnOperation1 = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -386,15 +390,16 @@ class TestToOldIrScalarRewriter
     @Test
     public void testComparison()
     {
-        Expression comparison = comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a"));
+        // the canonical form of a comparison is a Call to the operator function (see IrExpressions.comparison).
+        // It maps 1-1 to a new IR call operation: there is no dedicated comparison operation.
+        Expression comparison = new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BIGINT, "b")));
 
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%2",
-                fieldReferenceOperation1.result(),
-                fieldReferenceOperation2.result(),
-                ComparisonOperator.LESS_THAN,
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation2.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         Return returnOperation = new Return("%3", comparisonOperation.result(), comparisonOperation.attributes());
         Block rewritten = new Block(
@@ -554,17 +559,16 @@ class TestToOldIrScalarRewriter
                 new Logical(
                         AND,
                         ImmutableList.of(
-                                comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "b")),
+                                new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "b"), new Reference(BIGINT, "lambda_parameter"))),
                                 new Reference(BOOLEAN, "lambda_parameter_0"))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN)));
         FieldReference fieldReferenceOperation1 = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%3", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%4",
-                fieldReferenceOperation1.result(),
-                fieldReferenceOperation2.result(),
-                ComparisonOperator.LESS_THAN,
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation2.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         FieldReference fieldReferenceOperation3 = new FieldReference("%5", lambdaParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Logical logicalOperation = new io.trino.sql.dialect.trino.operation.Logical(
@@ -599,16 +603,15 @@ class TestToOldIrScalarRewriter
     @Test
     public void testLambdaWithoutArguments()
     {
-        Lambda lambda = new Lambda(ImmutableList.of(), comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "b")));
+        Lambda lambda = new Lambda(ImmutableList.of(), new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "b"), new Reference(BIGINT, "a"))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%1", irType(EMPTY_ROW));
         FieldReference fieldReferenceOperation1 = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%4",
-                fieldReferenceOperation1.result(),
-                fieldReferenceOperation2.result(),
-                ComparisonOperator.LESS_THAN,
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation2.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         Return returnOperation1 = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -646,7 +649,7 @@ class TestToOldIrScalarRewriter
                                 new Logical(
                                         AND,
                                         ImmutableList.of(
-                                                comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter_1"), new Reference(BIGINT, "b")),
+                                                new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "b"), new Reference(BIGINT, "lambda_parameter_1"))),
                                                 new Reference(BOOLEAN, "lambda_parameter_0"))))));
 
         Block.Parameter outerLambdaParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN)));
@@ -656,11 +659,10 @@ class TestToOldIrScalarRewriter
         FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation3 = new FieldReference("%6", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation4 = new FieldReference("%7", innerLambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation = new io.trino.sql.dialect.trino.operation.Call(
                 "%8",
-                fieldReferenceOperation3.result(),
-                fieldReferenceOperation4.result(),
-                ComparisonOperator.LESS_THAN,
+                ImmutableList.of(fieldReferenceOperation3.result(), fieldReferenceOperation4.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperation3.attributes(), fieldReferenceOperation4.attributes()));
         FieldReference fieldReferenceOperation5 = new FieldReference("%9", outerLambdaParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Logical logicalOperation = new io.trino.sql.dialect.trino.operation.Logical(
@@ -791,8 +793,16 @@ class TestToOldIrScalarRewriter
         Match matchExpression = new Match(
                 new Reference(BOOLEAN, "c"),
                 ImmutableList.of(
-                        equalityClause(new Symbol(BOOLEAN, "lambda_parameter"), new Constant(BOOLEAN, true), new Reference(BIGINT, "a")),
-                        equalityClause(new Symbol(BOOLEAN, "lambda_parameter_0"), new Constant(BOOLEAN, false), new Reference(BIGINT, "b"))),
+                        new MatchClause(
+                                new Lambda(
+                                        ImmutableList.of(new Symbol(BOOLEAN, "lambda_parameter")),
+                                        new Call(EQUAL_BOOLEAN, ImmutableList.of(new Reference(BOOLEAN, "lambda_parameter"), new Constant(BOOLEAN, true)))),
+                                new Reference(BIGINT, "a")),
+                        new MatchClause(
+                                new Lambda(
+                                        ImmutableList.of(new Symbol(BOOLEAN, "lambda_parameter_0")),
+                                        new Call(EQUAL_BOOLEAN, ImmutableList.of(new Reference(BOOLEAN, "lambda_parameter_0"), new Constant(BOOLEAN, false)))),
+                                new Reference(BIGINT, "b"))),
                 new Constant(BIGINT, 0L));
 
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
@@ -800,11 +810,10 @@ class TestToOldIrScalarRewriter
         Block.Parameter lambdaArgument1 = new Block.Parameter("%2", irType(anonymousRow(BOOLEAN)));
         FieldReference lamdaFieldReference1 = new FieldReference("%3", lambdaArgument1, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation1 = new io.trino.sql.dialect.trino.operation.Constant("%4", BOOLEAN, true);
-        Comparison comparisonOperation1 = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation1 = new io.trino.sql.dialect.trino.operation.Call(
                 "%5",
-                lamdaFieldReference1.result(),
-                constantOperation1.result(),
-                ComparisonOperator.EQUAL,
+                ImmutableList.of(lamdaFieldReference1.result(), constantOperation1.result()),
+                EQUAL_BOOLEAN,
                 ImmutableList.of(lamdaFieldReference1.attributes(), constantOperation1.attributes()));
 
         Return returnOperation1 = new Return("%6", comparisonOperation1.result(), comparisonOperation1.attributes());
@@ -822,11 +831,10 @@ class TestToOldIrScalarRewriter
         Block.Parameter lambdaArgument2 = new Block.Parameter("%8", irType(anonymousRow(BOOLEAN)));
         FieldReference lamdaFieldReference2 = new FieldReference("%9", lambdaArgument2, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation2 = new io.trino.sql.dialect.trino.operation.Constant("%10", BOOLEAN, false);
-        Comparison comparisonOperation2 = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation2 = new io.trino.sql.dialect.trino.operation.Call(
                 "%11",
-                lamdaFieldReference2.result(),
-                constantOperation2.result(),
-                ComparisonOperator.EQUAL,
+                ImmutableList.of(lamdaFieldReference2.result(), constantOperation2.result()),
+                EQUAL_BOOLEAN,
                 ImmutableList.of(lamdaFieldReference2.attributes(), constantOperation2.attributes()));
         Return returnOperation2 = new Return("%12", comparisonOperation2.result(), comparisonOperation2.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation2 = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -911,7 +919,7 @@ class TestToOldIrScalarRewriter
         Block block = blockBuilder.build();
         assertThat(block).isEqualTo(rewritten);
 
-        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator());
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER);
         Expression roundtripExpression = scalarRewriter.toOldIr(block, ImmutableList.of(INPUT_SYMBOLS, anotherSymbolList));
         assertThat(roundtripExpression).isEqualTo(coalesce);
     }
@@ -923,7 +931,7 @@ class TestToOldIrScalarRewriter
                 "^emptyFieldSelector",
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
-        Expression expression = new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(emptyFieldSelector, ImmutableList.of(INPUT_SYMBOLS));
+        Expression expression = new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(emptyFieldSelector, ImmutableList.of(INPUT_SYMBOLS));
 
         assertThat(expression).isEqualTo(new Constant(EMPTY_ROW, null));
     }
@@ -947,7 +955,7 @@ class TestToOldIrScalarRewriter
                         rowOperation,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(fieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getSelectedSymbols(fieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(new Symbol(BOOLEAN, "c"), new Symbol(BIGINT, "a")));
 
         // empty field selector
@@ -956,7 +964,7 @@ class TestToOldIrScalarRewriter
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(emptyFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getSelectedSymbols(emptyFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of());
 
         // block is not a field selector
@@ -968,7 +976,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         returnOperation2));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(notAFieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getSelectedSymbols(notAFieldSelector, INPUT_SYMBOLS))
                 .hasMessage("Expected field selector block");
     }
 
@@ -990,7 +998,7 @@ class TestToOldIrScalarRewriter
                         rowOperation1,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(oneFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(oneFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(Optional.of(new Symbol(BOOLEAN, "c")));
 
         // empty field selector
@@ -999,7 +1007,7 @@ class TestToOldIrScalarRewriter
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(emptyFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(emptyFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(Optional.empty());
 
         // multiple symbols selected
@@ -1017,7 +1025,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation2,
                         rowOperation2,
                         returnOperation2));
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(fieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(fieldSelector, INPUT_SYMBOLS))
                 .hasMessage("expected one element but was: <c::[boolean], a::[bigint]>");
 
         // block is not a field selector
@@ -1029,7 +1037,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         returnOperation3));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(notAFieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getOptionalSelectedSymbol(notAFieldSelector, INPUT_SYMBOLS))
                 .hasMessage("Expected field selector block");
     }
 
@@ -1039,12 +1047,11 @@ class TestToOldIrScalarRewriter
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation3 = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation1 = new Comparison(
+        io.trino.sql.dialect.trino.operation.Call comparisonOperation1 = new io.trino.sql.dialect.trino.operation.Call(
                 "%3",
-                fieldReferenceOperation3.result(),
-                fieldReferenceOperation1.result(),
-                ComparisonOperator.GREATER_THAN,
-                ImmutableList.of(fieldReferenceOperation3.attributes(), fieldReferenceOperation1.attributes()));
+                ImmutableList.of(fieldReferenceOperation1.result(), fieldReferenceOperation3.result()),
+                LESS_THAN_BIGINT,
+                ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation3.attributes()));
         io.trino.sql.dialect.trino.operation.Constant constantOperation1 = new io.trino.sql.dialect.trino.operation.Constant("%4", BIGINT, 0L);
         io.trino.sql.dialect.trino.operation.Row rowOperation = new io.trino.sql.dialect.trino.operation.Row(
                 "%5",
@@ -1063,10 +1070,10 @@ class TestToOldIrScalarRewriter
                         rowOperation,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(block, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getExpressions(block, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(
                         new Constant(BIGINT, 0L),
-                        comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")),
+                        new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BIGINT, "b"))),
                         new Reference(BOOLEAN, "c")));
 
         // block does not select expressions
@@ -1079,7 +1086,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation4,
                         returnOperation2));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(notARowOfExpressions, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).getExpressions(notARowOfExpressions, INPUT_SYMBOLS))
                 .hasMessage("Expected block returning a row");
     }
 
@@ -1097,7 +1104,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation,
                         returnOperation));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(invalidReferenceBlock1, ImmutableList.of(INPUT_SYMBOLS)))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(invalidReferenceBlock1, ImmutableList.of(INPUT_SYMBOLS)))
                 .hasMessage("Could not resolve reference %unmapped[0] as block parameter field");
     }
 
@@ -1119,7 +1126,7 @@ class TestToOldIrScalarRewriter
         // the symbols lists must match block parameters in size and types
 
         // too few symbol lists
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting 2 lists for 2 block parameters, got 1
@@ -1127,7 +1134,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // too many symbol lists
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting 2 lists for 2 block parameters, got 3
@@ -1137,7 +1144,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // symbol list size mismatch
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
                 block,
                 ImmutableList.of(
                         ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
@@ -1146,7 +1153,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // type mismatch
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting BIGINT, BOOLEAN
@@ -1163,7 +1170,7 @@ class TestToOldIrScalarRewriter
                         constantOperation,
                         returnOperation));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER).toOldIr(
                 bigintBlock,
                 ImmutableList.of(ImmutableList.of(new Symbol(BIGINT, "a")))))
                 .hasMessage("Type mismatch");
@@ -1178,7 +1185,7 @@ class TestToOldIrScalarRewriter
         Block block = blockBuilder.build();
         assertThat(block).isEqualTo(rewritten);
 
-        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator());
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator(), TESTING_METADATA_MANAGER);
         Expression roundtripExpression = scalarRewriter.toOldIr(block, ImmutableList.of(INPUT_SYMBOLS));
         assertThat(roundtripExpression).isEqualTo(expression);
     }

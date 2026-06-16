@@ -69,6 +69,7 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.TestingIr.comparison;
+import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static java.lang.Float.floatToIntBits;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -348,6 +349,6 @@ class TestGpuExpressionAstCompiler
 
     private static Optional<CudfAstExpression> compile(Expression expression)
     {
-        return GpuExpressionAstCompiler.compile(expression);
+        return GpuExpressionAstCompiler.compile(PLANNER_CONTEXT.getMetadata(), expression);
     }
 }

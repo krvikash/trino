@@ -252,10 +252,10 @@ import io.trino.sql.gen.OrderingCompiler;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.DynamicPageFilter;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.IrExpressions.Comparison;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.optimizer.IrExpressionEvaluator;
@@ -433,6 +433,7 @@ import static io.trino.sql.gen.LambdaBytecodeGenerator.compileLambdaProvider;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
+import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.sql.ir.IrUtils.combineConjuncts;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
 import static io.trino.sql.planner.ExpressionNodeInliner.replaceExpression;
@@ -3007,14 +3008,15 @@ public class LocalExecutionPlanner
                 }
             }
 
-            List<Comparison> spatialComparisons = extractSupportedSpatialComparisons(filterExpression);
-            for (Comparison spatialComparison : spatialComparisons) {
-                if (spatialComparison.operator() == LESS_THAN || spatialComparison.operator() == LESS_THAN_OR_EQUAL) {
-                    // ST_Distance(a, b) <= r
-                    Expression radius = spatialComparison.right();
+            List<Call> spatialComparisons = extractSupportedSpatialComparisons(filterExpression);
+            for (Call spatialComparison : spatialComparisons) {
+                Comparison comparison = matchComparison(spatialComparison);
+                // ExtractSpatialJoins canonicalizes these into ST_Distance(a, b) <= r, with the ST_Distance call on the left
+                if ((comparison instanceof Comparison.LessThan || comparison instanceof Comparison.LessThanOrEqual)
+                        && comparison.left() instanceof Call spatialFunction) {
+                    Expression radius = comparison.right();
                     if (radius instanceof Reference && getSymbolReferences(node.getRight().getOutputSymbols()).contains(radius) || radius instanceof Constant) {
-                        Call spatialFunction = (Call) spatialComparison.left();
-                        Optional<PhysicalOperation> operation = tryCreateSpatialJoin(context, node, removeExpressionFromFilter(filterExpression, spatialComparison), spatialFunction, Optional.of(radius), Optional.of(spatialComparison.operator()));
+                        Optional<PhysicalOperation> operation = tryCreateSpatialJoin(context, node, removeExpressionFromFilter(filterExpression, spatialComparison), spatialFunction, Optional.of(radius), Optional.of(comparison.operator()));
                         if (operation.isPresent()) {
                             return operation.get();
                         }
@@ -3384,7 +3386,7 @@ public class LocalExecutionPlanner
                             buildLayout));
 
             Optional<SortExpressionContext> sortExpressionContext = node.getFilter()
-                    .flatMap(filter -> extractSortExpression(ImmutableSet.copyOf(node.getRight().getOutputSymbols()), filter));
+                    .flatMap(filter -> extractSortExpression(ImmutableSet.copyOf(node.getRight().getOutputSymbols()), filter, metadata));
 
             OptionalInt sortChannel = sortExpressionContext
                     .map(SortExpressionContext::getSortExpression)
@@ -4714,7 +4716,7 @@ public class LocalExecutionPlanner
             Optional<CudfAstExpression> compiledFilter;
             if (node.getFilter().isPresent()) {
                 Expression filter = node.getFilter().get();
-                compiledFilter = GpuExpressionAstCompiler.compile(filter);
+                compiledFilter = GpuExpressionAstCompiler.compile(metadata, filter);
                 if (compiledFilter.isEmpty()) {
                     log.debug("Could not compile join filter for GPU execution for join type %s: %s", node.getType(), filter);
                     return Optional.empty();

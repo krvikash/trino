@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.connector.CatalogHandle;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
+import io.trino.metadata.Metadata;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
@@ -87,7 +88,7 @@ import static io.trino.spi.type.RowType.rowType;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
-import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
+import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.ir.Logical.Operator.OR;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -499,7 +500,8 @@ class TestToOldIrRelationalRewriter
                 new PlanNodeId("0"),
                 VALUES_NODE,
                 Assignments.builder()
-                        .put(new Symbol(BOOLEAN, "operator_less_than"), comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Constant(BIGINT, 0L)))
+                        // the roundtrip regenerates assignment symbols; the name hint comes from the $operator$less_than function
+                        .put(new Symbol(BOOLEAN, "operator_less_than"), comparison(LESS_THAN, new Constant(BIGINT, 0L), new Reference(BIGINT, "a")))
                         .put(new Symbol(BIGINT, "sign"), new Call(signFunction, ImmutableList.of(new Reference(BIGINT, "a"))))
                         .put(new Symbol(BIGINT, "expr"), new Constant(BIGINT, 5L))
                         .build());
@@ -510,7 +512,8 @@ class TestToOldIrRelationalRewriter
                 new PlanNodeId("0"),
                 VALUES_NODE,
                 Assignments.builder()
-                        .put(new Symbol(BOOLEAN, "operator_less_than"), comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Constant(BIGINT, 0L)))
+                        // the roundtrip regenerates assignment symbols; the name hint comes from the $operator$less_than function
+                        .put(new Symbol(BOOLEAN, "operator_less_than"), comparison(LESS_THAN, new Constant(BIGINT, 0L), new Reference(BIGINT, "a")))
                         .put(B, new Reference(BOOLEAN, "b"))
                         .put(new Symbol(BIGINT, "sign"), new Call(signFunction, ImmutableList.of(new Reference(BIGINT, "a"))))
                         .put(A, new Reference(BIGINT, "a"))
@@ -697,7 +700,8 @@ class TestToOldIrRelationalRewriter
 
         // rewrite of TableScan involves a metadata call to resolve column names. This test uses the test metadata manager, which does not support it, so we don't test TableScan rewrite.
         // TODO test TableScan rewrite
-        ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator), testSession(), createTestingMetadataManager());
+        Metadata metadata = createTestingMetadataManager();
+        ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator, metadata), testSession(), metadata);
         return ((TrinoOperation) rewrittenOperation).accept(rewriter, planNode.getSources());
     }
 }

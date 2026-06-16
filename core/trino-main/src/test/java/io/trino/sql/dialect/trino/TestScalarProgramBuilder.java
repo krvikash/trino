@@ -30,7 +30,6 @@ import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Case;
 import io.trino.sql.dialect.trino.operation.Cast;
 import io.trino.sql.dialect.trino.operation.Coalesce;
-import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.In;
@@ -41,9 +40,7 @@ import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
-import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Expression;
-import io.trino.sql.ir.IrExpressions;
 import io.trino.sql.ir.Logical.Operator;
 import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
@@ -67,12 +64,8 @@ import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.EQUAL;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
-import static io.trino.sql.ir.TestingIr.comparison;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -87,6 +80,10 @@ final class TestScalarProgramBuilder
             new Symbol(BOOLEAN, "b"), new RowField(INPUT_ROW_PARAMETER, 1));
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    private static final ResolvedFunction LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
+
+    private static final ResolvedFunction EQUAL_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(BIGINT, BIGINT));
 
     @Test
     public void testArray()
@@ -152,20 +149,18 @@ final class TestScalarProgramBuilder
                 ImmutableList.of(new Reference(BIGINT, "a")),
                 new io.trino.sql.ir.Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "x")),
-                        comparison(
-                                ComparisonOperator.LESS_THAN,
-                                new Reference(BIGINT, "x"),
-                                new io.trino.sql.ir.Constant(BIGINT, 0L))));
+                        new io.trino.sql.ir.Call(
+                                LESS_THAN_BIGINT,
+                                ImmutableList.of(new Reference(BIGINT, "x"), new io.trino.sql.ir.Constant(BIGINT, 0L)))));
 
         FieldReference fieldReferenceOperationA = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Block.Parameter lambdaArgument = new Block.Parameter("%2", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperationX = new FieldReference("%3", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%4", BIGINT, 0L);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%5",
-                fieldReferenceOperationX.result(),
-                constantOperation.result(),
-                LESS_THAN,
+                ImmutableList.of(fieldReferenceOperationX.result(), constantOperation.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperationX.attributes(), constantOperation.attributes()));
         Return returnOperation = new Return("%6", comparisonOperation.result(), comparisonOperation.attributes());
         Lambda lambdaOperation = new Lambda(
@@ -320,18 +315,18 @@ final class TestScalarProgramBuilder
     @Test
     public void testComparison()
     {
-        Expression comparisonExpression = comparison(
-                ComparisonOperator.GREATER_THAN,
-                new io.trino.sql.ir.Constant(BIGINT, 0L),
-                new io.trino.sql.ir.Constant(BIGINT, 1L));
+        // the canonical form of a comparison is a Call to the operator function (see IrExpressions.comparison).
+        // It maps 1-1 to a new IR call operation: there is no dedicated comparison operation.
+        Expression comparisonExpression = new io.trino.sql.ir.Call(
+                LESS_THAN_BIGINT,
+                ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 1L), new io.trino.sql.ir.Constant(BIGINT, 0L)));
 
         Constant constantOperationLeft = new Constant("%0", BIGINT, 1L);
         Constant constantOperationRight = new Constant("%1", BIGINT, 0L);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%2",
-                constantOperationLeft.result(),
-                constantOperationRight.result(),
-                LESS_THAN,
+                ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(constantOperationLeft.attributes(), constantOperationRight.attributes()));
 
         assertProgram(
@@ -468,19 +463,17 @@ final class TestScalarProgramBuilder
     {
         io.trino.sql.ir.Lambda lambdaExpression = new io.trino.sql.ir.Lambda(
                 ImmutableList.of(new Symbol(BIGINT, "x")),
-                comparison(
-                        ComparisonOperator.LESS_THAN,
-                        new Reference(BIGINT, "x"),
-                        new io.trino.sql.ir.Constant(BIGINT, 0L)));
+                new io.trino.sql.ir.Call(
+                        LESS_THAN_BIGINT,
+                        ImmutableList.of(new Reference(BIGINT, "x"), new io.trino.sql.ir.Constant(BIGINT, 0L))));
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperationX = new FieldReference("%2", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%3", BIGINT, 0L);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%4",
-                fieldReferenceOperationX.result(),
-                constantOperation.result(),
-                LESS_THAN,
+                ImmutableList.of(fieldReferenceOperationX.result(), constantOperation.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperationX.attributes(), constantOperation.attributes()));
         Return returnOperation = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         Lambda lambdaOperation = new Lambda(
@@ -509,21 +502,21 @@ final class TestScalarProgramBuilder
                         ImmutableList.of(
                                 new Reference(BOOLEAN, "b"), // correlated symbol
                                 new Reference(BOOLEAN, "x"), // lambda argument
-                                comparison(
-                                        ComparisonOperator.LESS_THAN,
-                                        new Reference(BIGINT, "a"), // correlated symbol
-                                        new Reference(BIGINT, "y"))))); // lambda argument
+                                new io.trino.sql.ir.Call(
+                                        LESS_THAN_BIGINT,
+                                        ImmutableList.of(
+                                                new Reference(BIGINT, "a"), // correlated symbol
+                                                new Reference(BIGINT, "y")))))); // lambda argument
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BOOLEAN, BIGINT)));
         FieldReference fieldReferenceOperationB = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperationX = new FieldReference("%3", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperationA = new FieldReference("%4", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperationY = new FieldReference("%5", lambdaArgument, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Comparison comparisonOperation = new Comparison(
+        Call comparisonOperation = new Call(
                 "%6",
-                fieldReferenceOperationA.result(),
-                fieldReferenceOperationY.result(),
-                LESS_THAN,
+                ImmutableList.of(fieldReferenceOperationA.result(), fieldReferenceOperationY.result()),
+                LESS_THAN_BIGINT,
                 ImmutableList.of(fieldReferenceOperationA.attributes(), fieldReferenceOperationY.attributes()));
         Logical logicalOperation = new Logical(
                 "%7",
@@ -674,11 +667,10 @@ final class TestScalarProgramBuilder
         Block.Parameter lambdaArgument1 = new Block.Parameter("%2", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperation1 = new FieldReference("%3", lambdaArgument1, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation1 = new Constant("%4", BIGINT, 1L);
-        Comparison comparisonOperation1 = new Comparison(
+        Call comparisonOperation1 = new Call(
                 "%5",
-                fieldReferenceOperation1.result(),
-                constantOperation1.result(),
-                EQUAL,
+                ImmutableList.of(fieldReferenceOperation1.result(), constantOperation1.result()),
+                EQUAL_BIGINT,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), constantOperation1.attributes()));
         Return returnOperation1 = new Return("%6", comparisonOperation1.result(), comparisonOperation1.attributes());
         Lambda lambdaOperation1 = new Lambda(
@@ -695,11 +687,10 @@ final class TestScalarProgramBuilder
         Block.Parameter lambdaArgument2 = new Block.Parameter("%8", irType(anonymousRow(BIGINT)));
         FieldReference fieldReferenceOperation2 = new FieldReference("%9", lambdaArgument2, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation2 = new Constant("%10", BIGINT, 2L);
-        Comparison comparisonOperation2 = new Comparison(
+        Call comparisonOperation2 = new Call(
                 "%11",
-                fieldReferenceOperation2.result(),
-                constantOperation2.result(),
-                EQUAL,
+                ImmutableList.of(fieldReferenceOperation2.result(), constantOperation2.result()),
+                EQUAL_BIGINT,
                 ImmutableList.of(fieldReferenceOperation2.attributes(), constantOperation2.attributes()));
         Return returnOperation2 = new Return("%12", comparisonOperation2.result(), comparisonOperation2.attributes());
         Lambda lambdaOperation2 = new Lambda(
@@ -800,6 +791,11 @@ final class TestScalarProgramBuilder
 
     private static MatchClause equalityClause(Expression value, Expression result)
     {
-        return IrExpressions.equalityClause(new Symbol(value.type(), "operand"), value, result);
+        Symbol operand = new Symbol(value.type(), "operand");
+        return new MatchClause(
+                new io.trino.sql.ir.Lambda(
+                        ImmutableList.of(operand),
+                        new io.trino.sql.ir.Call(EQUAL_BIGINT, ImmutableList.of(operand.toSymbolReference(), value))),
+                result);
     }
 }

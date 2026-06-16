@@ -62,11 +62,6 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
-    public R visitComparison(Comparison operation, C context)
-    {
-        return visitOperation(operation, context);
-    }
-
     public R visitConstant(Constant operation, C context)
     {
         return visitOperation(operation, context);

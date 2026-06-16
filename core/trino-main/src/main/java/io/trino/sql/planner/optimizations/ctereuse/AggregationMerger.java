@@ -21,17 +21,17 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.spi.function.OperatorType;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
-import io.trino.sql.dialect.trino.operation.Comparison;
+import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep;
-import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
@@ -533,7 +533,8 @@ public class AggregationMerger
                     Block aggregatePredicate = createCountGreaterThanZeroPredicate(
                             mergedAggregationRowType,
                             countAllIndex,
-                            nameAllocator);
+                            nameAllocator,
+                            metadata);
 
                     finalPredicate = isTrue(rebasedGroupingPredicate)
                             ? aggregatePredicate
@@ -672,7 +673,8 @@ public class AggregationMerger
     private static Block createCountGreaterThanZeroPredicate(
             io.trino.spi.type.Type inputRowType,
             int countAllIndex,
-            ProgramBuilder.ValueNameAllocator nameAllocator)
+            ProgramBuilder.ValueNameAllocator nameAllocator,
+            Metadata metadata)
     {
         Block.Parameter parameter = new Block.Parameter(nameAllocator.newName(), irType(inputRowType));
         Block.Builder builder = new Block.Builder(Optional.of("^predicate"), ImmutableList.of(parameter));
@@ -687,12 +689,12 @@ public class AggregationMerger
         Constant zeroConstant = new Constant(nameAllocator.newName(), BIGINT, 0L);
         builder.addOperation(zeroConstant);
 
-        Comparison comparison = new Comparison(
+        // count > 0 in the canonical form of the old IR: $less_than(0, count)
+        Call comparison = new Call(
                 nameAllocator.newName(),
-                countReference.result(),
-                zeroConstant.result(),
-                ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN,
-                ImmutableList.of(countReference.attributes(), zeroConstant.attributes()));
+                ImmutableList.of(zeroConstant.result(), countReference.result()),
+                metadata.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT)),
+                ImmutableList.of(zeroConstant.attributes(), countReference.attributes()));
         builder.addOperation(comparison);
 
         builder.addOperation(new Return(nameAllocator.newName(), comparison.result(), comparison.attributes()));
