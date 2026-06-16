@@ -851,7 +851,7 @@ class QueryPlanner
                         if (defaultColumnValues.containsKey(dataColumnHandle)) {
                             io.trino.sql.tree.Expression defaultExpression = defaultColumnValues.get(dataColumnHandle);
                             expression = subPlan.rewrite(defaultExpression);
-                            expression = noTruncationCast(metadata, expression, expression.type(), columnSchema.getType());
+                            expression = noTruncationCast(metadata, symbolAllocator, expression, expression.type(), columnSchema.getType());
                         }
                         if (nonNullableColumnHandles.contains(dataColumnHandle)) {
                             String columnName = columnSchema.getName();
