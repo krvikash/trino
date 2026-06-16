@@ -32,7 +32,6 @@ import io.trino.plugin.tpch.TpchTableHandle;
 import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
@@ -69,6 +68,7 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.ir.Booleans.FALSE;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.chooseAlternativeNode;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.expression;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.strictProject;
@@ -241,7 +241,7 @@ public class TestAlternativesOptimizer
         PlanBuilder planBuilder = new PlanBuilder(idAllocator, getPlanTester().getPlannerContext(), session);
         Symbol symbol = planBuilder.symbol(columnName, BOOLEAN);
         ProjectNode plan = planBuilder.project(
-                Assignments.of(symbol, new Comparison(EQUAL, new Reference(BIGINT, columnName), new Constant(BIGINT, 1L))),
+                Assignments.of(symbol, comparison(EQUAL, new Reference(BIGINT, columnName), new Constant(BIGINT, 1L))),
                 planBuilder.filter(
                         idAllocator.getNextId(),
                         TRUE,
@@ -253,31 +253,31 @@ public class TestAlternativesOptimizer
         PlanNode optimized = runOptimizer(
                 plan,
                 ImmutableSet.of(
-                        new CreateAlternativesForProject(new Comparison(EQUAL, new Reference(BIGINT, columnName), new Constant(BIGINT, 2L))),
-                        new CreateAlternativesForProject(new Comparison(EQUAL, new Reference(BIGINT, columnName), new Constant(BIGINT, 3L)))));
+                        new CreateAlternativesForProject(comparison(EQUAL, new Reference(BIGINT, columnName), new Constant(BIGINT, 2L))),
+                        new CreateAlternativesForProject(comparison(EQUAL, new Reference(BIGINT, columnName), new Constant(BIGINT, 3L)))));
 
         assertPlan(
                 optimized,
                 chooseAlternativeNode(
                         strictProject(
-                                ImmutableMap.of(columnName, expression(new Comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 1L)))),
+                                ImmutableMap.of(columnName, expression(comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 1L)))),
                                 PlanMatchPattern.filter(
                                         TRUE,
                                         PlanMatchPattern.tableScan(tableName, ImmutableMap.of("nationkey", "nationkey")))),
                         strictProject(
-                                ImmutableMap.of(columnName, expression(new Comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 2L)))),
+                                ImmutableMap.of(columnName, expression(comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 2L)))),
                                 PlanMatchPattern.filter(
                                         TRUE,
                                         PlanMatchPattern.tableScan(tableName, ImmutableMap.of("nationkey", "nationkey")))),
                         // Each rule returns the original plan. Since the results are accumulated, it's expected to have the same alternative twice.
                         // This might be improved in the future (see AlternativesOptimizer.exploreNode)
                         strictProject(
-                                ImmutableMap.of(columnName, expression(new Comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 1L)))),
+                                ImmutableMap.of(columnName, expression(comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 1L)))),
                                 PlanMatchPattern.filter(
                                         TRUE,
                                         PlanMatchPattern.tableScan(tableName, ImmutableMap.of("nationkey", "nationkey")))),
                         strictProject(
-                                ImmutableMap.of(columnName, expression(new Comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 3L)))),
+                                ImmutableMap.of(columnName, expression(comparison(EQUAL, new Reference(BIGINT, "nationkey"), new Constant(BIGINT, 3L)))),
                                 PlanMatchPattern.filter(
                                         TRUE,
                                         PlanMatchPattern.tableScan(tableName, ImmutableMap.of("nationkey", "nationkey"))))));

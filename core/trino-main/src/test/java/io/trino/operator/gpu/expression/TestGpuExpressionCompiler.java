@@ -21,7 +21,6 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.ir.Between;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -58,6 +57,7 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -85,7 +85,7 @@ class TestGpuExpressionCompiler
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1);
-        assertThat(compileExpression(new Comparison(ComparisonOperator.EQUAL, left, right), layout).isPresent())
+        assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, left, right), layout).isPresent())
                 .as("Comparison on %s", type)
                 .isEqualTo(expectGpuCompile);
     }

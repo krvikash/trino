@@ -45,7 +45,6 @@ import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Coalesce;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -114,6 +113,7 @@ import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Math.clamp;
@@ -801,7 +801,7 @@ public class TestGpuExpressions
         List<Type> inputTypes = List.of(type, type);
         int channelA = 0;
         int channelB = 1;
-        Expression expression = new Comparison(operator, field(channelA, type), field(channelB, type));
+        Expression expression = comparison(operator, field(channelA, type), field(channelB, type));
         Set<Integer> inputChannels = Set.of(channelA, channelB);
 
         int positionsCount = 64;
@@ -857,11 +857,11 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // AND of two comparisons: a < 50 AND b > 0
-        Expression left = new Comparison(
+        Expression left = comparison(
                 ComparisonOperator.LESS_THAN,
                 field(channelA, BIGINT),
                 new Constant(BIGINT, 50L));
-        Expression right = new Comparison(
+        Expression right = comparison(
                 ComparisonOperator.LESS_THAN,
                 new Constant(BIGINT, 0L),
                 field(channelB, BIGINT));
@@ -884,11 +884,11 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // OR of two comparisons: a < 50 OR b > 0
-        Expression left = new Comparison(
+        Expression left = comparison(
                 ComparisonOperator.LESS_THAN,
                 field(channelA, BIGINT),
                 new Constant(BIGINT, 50L));
-        Expression right = new Comparison(
+        Expression right = comparison(
                 ComparisonOperator.LESS_THAN,
                 new Constant(BIGINT, 0L),
                 field(channelB, BIGINT));
@@ -909,7 +909,7 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // NOT of a comparison: NOT(a < 50)
-        Expression comparison = new Comparison(
+        Expression comparison = comparison(
                 ComparisonOperator.LESS_THAN,
                 field(channelA, BIGINT),
                 new Constant(BIGINT, 50L));
@@ -988,7 +988,7 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // IF(a < 50, a, b)
-        Expression condition = new Comparison(ComparisonOperator.LESS_THAN, field(channelA, BIGINT), new Constant(BIGINT, 50L));
+        Expression condition = comparison(ComparisonOperator.LESS_THAN, field(channelA, BIGINT), new Constant(BIGINT, 50L));
         Expression expression = new Case(
                 ImmutableList.of(new WhenClause(condition, field(channelA, BIGINT))),
                 field(channelB, BIGINT));
@@ -1021,7 +1021,7 @@ public class TestGpuExpressions
 
         Expression bNotZero = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
-                ImmutableList.of(new Comparison(ComparisonOperator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
+                ImmutableList.of(comparison(ComparisonOperator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
         Expression aDivB = new Call(
                 FUNCTION_RESOLUTION.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
                 ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
@@ -1060,7 +1060,7 @@ public class TestGpuExpressions
 
         Expression bNotZero = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
-                ImmutableList.of(new Comparison(ComparisonOperator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
+                ImmutableList.of(comparison(ComparisonOperator.EQUAL, field(channelB, BIGINT), new Constant(BIGINT, 0L))));
         Expression coalesceB = new Coalesce(ImmutableList.of(field(channelB, BIGINT), new Constant(BIGINT, 0L)));
         Expression divide = new Call(
                 FUNCTION_RESOLUTION.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),

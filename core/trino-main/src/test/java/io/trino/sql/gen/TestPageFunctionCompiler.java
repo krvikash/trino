@@ -53,7 +53,6 @@ import io.trino.spi.type.TypeOperators;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.FieldReference;
@@ -95,6 +94,7 @@ import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.IrExpressions.call;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.TestingPlannerContext.plannerContextBuilder;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
@@ -389,7 +389,7 @@ public class TestPageFunctionCompiler
     public void testFilterCache()
     {
         PageFunctionCompiler cacheCompiler = FUNCTION_RESOLUTION.getPageFunctionCompiler(100);
-        Expression filter = new Comparison(GREATER_THAN, new Reference(BIGINT, "$col_0"), new Constant(BIGINT, 2L));
+        Expression filter = comparison(GREATER_THAN, new Reference(BIGINT, "$col_0"), new Constant(BIGINT, 2L));
         Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(BIGINT, "$col_0"), 2);
 
         // First compile: cache miss
@@ -420,7 +420,7 @@ public class TestPageFunctionCompiler
     {
         // Filter: $col_0 > 2, with column at different positions in each layout
         PageFunctionCompiler cacheCompiler = FUNCTION_RESOLUTION.getPageFunctionCompiler(100);
-        Expression filter = new Comparison(GREATER_THAN, new Reference(BIGINT, "$col_0"), new Constant(BIGINT, 2L));
+        Expression filter = comparison(GREATER_THAN, new Reference(BIGINT, "$col_0"), new Constant(BIGINT, 2L));
 
         Map<Symbol, Integer> layout1 = ImmutableMap.of(new Symbol(BIGINT, "$col_0"), 2);
         Map<Symbol, Integer> layout2 = ImmutableMap.of(new Symbol(BIGINT, "$col_0"), 3);
@@ -485,7 +485,7 @@ public class TestPageFunctionCompiler
         }
         assertThat(BIGINT.getLong(projectionResult, inputPage.getPositionCount() - 1)).isEqualTo(-1);
 
-        Expression filterExpression = new Comparison(EQUAL, caseWhen, new Constant(BIGINT, -1L));
+        Expression filterExpression = comparison(EQUAL, caseWhen, new Constant(BIGINT, -1L));
         Supplier<PageFilter> filterSupplier = functionCompiler.compileFilter(filterExpression, sourceLayout, Optional.empty());
         SelectedPositions filterResult = filterSupplier.get().filter(SESSION, SourcePage.create(inputPage));
         assertThat(filterResult.getPositions()).containsExactly(100);
@@ -525,7 +525,7 @@ public class TestPageFunctionCompiler
     private static WhenClause whenClause(Expression left, long right, long result)
     {
         return new WhenClause(
-                new Comparison(EQUAL, left, new Constant(BIGINT, right)),
+                comparison(EQUAL, left, new Constant(BIGINT, right)),
                 new Constant(BIGINT, result));
     }
 

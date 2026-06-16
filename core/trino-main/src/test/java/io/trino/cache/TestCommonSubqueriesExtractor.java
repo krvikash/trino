@@ -40,7 +40,6 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.Type;
 import io.trino.sql.analyzer.TypeDescriptorProvider;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Logical;
@@ -90,6 +89,7 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.ir.Logical.Operator.AND;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
 import static io.trino.sql.planner.SymbolsExtractor.extractOutputSymbols;
 import static io.trino.sql.planner.SymbolsExtractor.extractUnique;
@@ -240,7 +240,7 @@ public class TestCommonSubqueriesExtractor
                         .maxRankingPerPartition(1)
                         .partial(true),
                 filter(
-                        new Comparison(LESS_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
+                        comparison(LESS_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
                         tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "REGIONKEY", "regionkey"))));
         PlanMatchPattern commonSubplanB = topNRanking(
                 pattern -> pattern.specification(
@@ -251,7 +251,7 @@ public class TestCommonSubqueriesExtractor
                         .maxRankingPerPartition(1)
                         .partial(true),
                 filter(
-                        new Comparison(LESS_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 11L)),
+                        comparison(LESS_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 11L)),
                         tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "REGIONKEY", "regionkey"))));
         assertTpchPlan(topNRankingB.getCommonSubplan(), commonSubplanA);
         assertTpchPlan(topNRankingA.getCommonSubplan(), commonSubplanB);
@@ -285,7 +285,7 @@ public class TestCommonSubqueriesExtractor
                                 "NAME", PlanMatchPattern.expression(new Reference(createVarcharType(25), "NAME")),
                                 "REGIONKEY", PlanMatchPattern.expression(new Reference(BIGINT, "REGIONKEY"))),
                         filter(
-                                new Comparison(GREATER_THAN, new Reference(BIGINT, "NATIONKEY"), new Constant(BIGINT, 10L)),
+                                comparison(GREATER_THAN, new Reference(BIGINT, "NATIONKEY"), new Constant(BIGINT, 10L)),
                                 tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "NAME", "name", "REGIONKEY", "regionkey")))));
         assertTpchPlan(topNRanking.getCommonSubplan(), commonSubplan);
 
@@ -377,8 +377,8 @@ public class TestCommonSubqueriesExtractor
                 TopNNode.Step.PARTIAL,
                 filter(
                         new Logical(AND, ImmutableList.of(
-                                new Comparison(GREATER_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
-                                new Comparison(GREATER_THAN, new Reference(BIGINT, "NATIONKEY"), new Constant(BIGINT, 2L)))),
+                                comparison(GREATER_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
+                                comparison(GREATER_THAN, new Reference(BIGINT, "NATIONKEY"), new Constant(BIGINT, 2L)))),
                         tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "NAME", "name", "REGIONKEY", "regionkey"))));
         assertTpchPlan(topN.getCommonSubplan(), commonSubplan);
 
@@ -426,7 +426,7 @@ public class TestCommonSubqueriesExtractor
                 AggregationNode.Step.PARTIAL,
                 identityProject(
                         filter(
-                                new Comparison(GREATER_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
+                                comparison(GREATER_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
                                 tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "NAME", "name", "REGIONKEY", "regionkey")))));
 
         // validate common subplan
@@ -469,7 +469,7 @@ public class TestCommonSubqueriesExtractor
         PlanMatchPattern commonSubplan =
                 identityProject(
                         filter(
-                                new Comparison(GREATER_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
+                                comparison(GREATER_THAN, new Reference(BIGINT, "REGIONKEY"), new Constant(BIGINT, 10L)),
                                 tableScan("nation", ImmutableMap.of("NATIONKEY", "nationkey", "NAME", "name", "REGIONKEY", "regionkey"))));
 
         // validate common subplan

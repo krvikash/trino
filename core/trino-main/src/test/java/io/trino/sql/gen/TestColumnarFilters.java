@@ -53,7 +53,6 @@ import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
 import io.trino.sql.gen.columnar.FilterEvaluator;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Coalesce;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -101,6 +100,7 @@ import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.NOT_EQUAL;
 import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.sql.ir.IrExpressions.constantNull;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.DataProviders.cartesianProduct;
 import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.DataProviders.trueFalse;
@@ -161,7 +161,7 @@ public class TestColumnarFilters
     {
         List<Page> inputPages = createInputPages(NullsProvider.RANDOM_NULLS, false);
         // col IS DISTINCT FROM constant
-        Expression isDistinctFromFilter = createNotExpression(new Comparison(
+        Expression isDistinctFromFilter = createNotExpression(comparison(
                 IDENTICAL,
                 new Constant(INTEGER, CONSTANT),
                 new Reference(INTEGER, COL_INT_A)));
@@ -169,7 +169,7 @@ public class TestColumnarFilters
         verifyFilter(inputPages, isDistinctFromFilter);
 
         // colA IS DISTINCT FROM colB
-        isDistinctFromFilter = createNotExpression(new Comparison(
+        isDistinctFromFilter = createNotExpression(comparison(
                 IDENTICAL,
                 new Reference(INTEGER, COL_INT_B),
                 new Reference(INTEGER, COL_INT_A)));
@@ -337,7 +337,7 @@ public class TestColumnarFilters
     public void testNotEqual()
     {
         List<Page> inputPages = createInputPages(NullsProvider.RANDOM_NULLS, false);
-        Expression notEqualFilter = new Comparison(
+        Expression notEqualFilter = comparison(
                 NOT_EQUAL,
                 new Constant(INTEGER, CONSTANT),
                 new Reference(INTEGER, COL_INT_A));
@@ -345,7 +345,7 @@ public class TestColumnarFilters
         verifyFilter(inputPages, notEqualFilter);
 
         // NOT (constant = col + 1)
-        notEqualFilter = createNotExpression(new Comparison(
+        notEqualFilter = createNotExpression(comparison(
                 EQUAL,
                 new Constant(INTEGER, CONSTANT),
                 call(
@@ -382,7 +382,7 @@ public class TestColumnarFilters
                 GREATER_THAN_OR_EQUAL,
                 IDENTICAL)) {
             // constant OP col
-            Expression filter = new Comparison(
+            Expression filter = comparison(
                     operator,
                     new Constant(INTEGER, CONSTANT),
                     new Reference(INTEGER, COL_INT_A));
@@ -390,7 +390,7 @@ public class TestColumnarFilters
             verifyFilter(inputPages, filter);
 
             // col OP constant
-            filter = new Comparison(
+            filter = comparison(
                     operator,
                     new Reference(DOUBLE, COL_DOUBLE),
                     new Constant(DOUBLE, (double) CONSTANT));
@@ -398,7 +398,7 @@ public class TestColumnarFilters
             verifyFilter(inputPages, filter);
 
             // colA OP colB
-            filter = new Comparison(
+            filter = comparison(
                     operator,
                     new Reference(INTEGER, COL_INT_C),
                     new Reference(INTEGER, COL_INT_A));
@@ -406,7 +406,7 @@ public class TestColumnarFilters
             verifyFilter(inputPages, filter);
 
             // colA + 1 OP colB - 1 — sub-expressions on both sides
-            filter = new Comparison(
+            filter = comparison(
                     operator,
                     call(
                             FUNCTION_RESOLUTION.resolveOperator(ADD, ImmutableList.of(INTEGER, INTEGER)),
@@ -420,8 +420,8 @@ public class TestColumnarFilters
             verifyFilter(inputPages, filter);
         }
 
-        // IDENTICAL against NULL — only IDENTICAL meaningfully compares against NULL
-        Expression identicalNullFilter = new Comparison(
+        // colA IS NOT DISTINCT FROM NULL — only IDENTICAL meaningfully compares against NULL
+        Expression identicalNullFilter = comparison(
                 IDENTICAL,
                 constantNull(INTEGER),
                 new Reference(INTEGER, COL_INT_A));
@@ -429,7 +429,7 @@ public class TestColumnarFilters
         verifyFilter(inputPages, identicalNullFilter);
 
         // coalesce(colC, 0) = colA
-        Expression eqFilter = new Comparison(
+        Expression eqFilter = comparison(
                 EQUAL,
                 new Coalesce(new Reference(INTEGER, COL_INT_C), new Constant(INTEGER, 0L)),
                 new Reference(INTEGER, COL_INT_A));
@@ -437,7 +437,7 @@ public class TestColumnarFilters
         verifyFilter(inputPages, eqFilter);
 
         // cast(colA AS VARCHAR) = trim(col_string)
-        eqFilter = new Comparison(
+        eqFilter = comparison(
                 EQUAL,
                 call(
                         FUNCTION_RESOLUTION.getCoercion(INTEGER, VARCHAR),
@@ -516,14 +516,14 @@ public class TestColumnarFilters
         orFilter = new Logical(
                 Logical.Operator.OR,
                 ImmutableList.of(
-                        new Comparison(
+                        comparison(
                                 LESS_THAN,
                                 call(
                                         FUNCTION_RESOLUTION.resolveOperator(SUBTRACT, ImmutableList.of(INTEGER, INTEGER)),
                                         new Reference(INTEGER, COL_INT_A),
                                         new Constant(INTEGER, 5L)),
                                 new Reference(INTEGER, COL_INT_C)),
-                        new Comparison(
+                        comparison(
                                 LESS_THAN,
                                 new Reference(INTEGER, COL_INT_B),
                                 call(
@@ -572,7 +572,7 @@ public class TestColumnarFilters
 
         Expression andFilter = new Logical(Logical.Operator.AND, ImmutableList.of(
                 new Constant(BOOLEAN, false),
-                new Comparison(
+                comparison(
                         EQUAL,
                         new Reference(BIGINT, colB),
                         new Constant(BIGINT, CONSTANT))));
@@ -600,11 +600,11 @@ public class TestColumnarFilters
                 new Symbol(BIGINT, colB), 1);
 
         Expression orFilter = new Logical(Logical.Operator.OR, ImmutableList.of(
-                new Comparison(
+                comparison(
                         EQUAL,
                         new Reference(BIGINT, colA),
                         new Reference(BIGINT, colA)),
-                new Comparison(
+                comparison(
                         EQUAL,
                         new Reference(BIGINT, colB),
                         new Constant(BIGINT, CONSTANT))));
@@ -769,7 +769,7 @@ public class TestColumnarFilters
                 new Reference(ARRAY_CHANNEL_TYPE, COL_ARRAY),
                 new Lambda(
                         ImmutableList.of(new Symbol(INTEGER, "x")),
-                        new Comparison(LESS_THAN, new Constant(INTEGER, (long) CONSTANT), new Reference(INTEGER, "x"))));
+                        comparison(LESS_THAN, new Constant(INTEGER, (long) CONSTANT), new Reference(INTEGER, "x"))));
         assertThatColumnarFilterEvaluationIsNotSupported(lambdaExpression);
     }
 
@@ -777,7 +777,7 @@ public class TestColumnarFilters
     public void testFilterWithoutInputChannels()
     {
         // rand() < constant
-        Expression filter = new Comparison(
+        Expression filter = comparison(
                 LESS_THAN,
                 call(FUNCTION_RESOLUTION.functionCallBuilder("rand").build().function()),
                 new Constant(DOUBLE, (double) CONSTANT));
@@ -797,7 +797,7 @@ public class TestColumnarFilters
                 .addArgument(ARRAY_CHANNEL_TYPE, new Reference(ARRAY_CHANNEL_TYPE, "symbol"))
                 .build()
                 .function();
-        Expression cardinalityFilter = new Comparison(
+        Expression cardinalityFilter = comparison(
                 LESS_THAN,
                 new Constant(BIGINT, 0L),
                 call(cardinality, new Reference(ARRAY_CHANNEL_TYPE, COL_ARRAY)));
@@ -805,7 +805,7 @@ public class TestColumnarFilters
         verifyFilter(inputPages, cardinalityFilter);
 
         // constant < col_array[1]
-        Expression subscriptFilter = new Comparison(
+        Expression subscriptFilter = comparison(
                 LESS_THAN,
                 new Constant(INTEGER, CONSTANT),
                 call(
@@ -827,7 +827,7 @@ public class TestColumnarFilters
         // rand() < constant — exercises sub-expression eval for Comparison nodes (vs the Call path
         // covered by testFilterWithoutInputChannels). In Expression IR, the LESS_THAN operator is
         // a Comparison node, not a Call, so this routes through createComparisonExpressionEvaluator.
-        Expression filter = new Comparison(
+        Expression filter = comparison(
                 LESS_THAN,
                 call(FUNCTION_RESOLUTION.functionCallBuilder("rand").build().function()),
                 new Constant(DOUBLE, (double) CONSTANT));
@@ -848,7 +848,7 @@ public class TestColumnarFilters
                 .addArgument(ARRAY_CHANNEL_TYPE, new Reference(ARRAY_CHANNEL_TYPE, "symbol"))
                 .build()
                 .function();
-        Expression filter = new Comparison(
+        Expression filter = comparison(
                 NOT_EQUAL,
                 call(cardinality, new Reference(ARRAY_CHANNEL_TYPE, COL_ARRAY)),
                 new Constant(BIGINT, 0L));

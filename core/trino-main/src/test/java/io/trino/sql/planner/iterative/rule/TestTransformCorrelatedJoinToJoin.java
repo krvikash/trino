@@ -14,7 +14,6 @@
 package io.trino.sql.planner.iterative.rule;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
@@ -30,6 +29,7 @@ import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.ir.Logical.Operator.AND;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.filter;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.join;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
@@ -52,7 +52,7 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
@@ -60,7 +60,7 @@ public class TestTransformCorrelatedJoinToJoin
                 })
                 .matches(
                         join(JoinType.INNER, builder -> builder
-                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")))
+                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")))
                                 .left(values("a"))
                                 .right(
                                         filter(
@@ -75,12 +75,12 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             INNER,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
@@ -88,7 +88,7 @@ public class TestTransformCorrelatedJoinToJoin
                 })
                 .matches(
                         join(JoinType.INNER, builder -> builder
-                                .filter(new Logical(AND, ImmutableList.of(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")), new Comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
+                                .filter(new Logical(AND, ImmutableList.of(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")), comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
                                 .left(values("a"))
                                 .right(
                                         filter(
@@ -106,17 +106,17 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             c.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(INNER,
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             c.toSymbolReference(),
                                                             a.toSymbolReference()),
                                                     p.values(b, c)),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -134,12 +134,12 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(INNER,
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             c.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -158,13 +158,13 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(LEFT,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -182,13 +182,13 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(RIGHT,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -206,13 +206,13 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(FULL,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -234,7 +234,7 @@ public class TestTransformCorrelatedJoinToJoin
                             LEFT,
                             TRUE,
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
@@ -242,7 +242,7 @@ public class TestTransformCorrelatedJoinToJoin
                 })
                 .matches(
                         join(JoinType.LEFT, builder -> builder
-                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")))
+                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")))
                                 .left(values("a"))
                                 .right(
                                         filter(
@@ -257,12 +257,12 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
@@ -270,7 +270,7 @@ public class TestTransformCorrelatedJoinToJoin
                 })
                 .matches(
                         join(JoinType.LEFT, builder -> builder
-                                .filter(new Logical(AND, ImmutableList.of(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")), new Comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
+                                .filter(new Logical(AND, ImmutableList.of(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")), comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
                                 .left(values("a"))
                                 .right(
                                         filter(
@@ -288,22 +288,22 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             c.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(INNER,
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             c.toSymbolReference(),
                                                             a.toSymbolReference()),
                                                     p.values(b, c)),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -321,17 +321,17 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             c.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(LEFT,
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             c.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -350,18 +350,18 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(INNER,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -379,18 +379,18 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             c.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(LEFT,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -408,18 +408,18 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(RIGHT,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -437,18 +437,18 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(FULL,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -470,18 +470,18 @@ public class TestTransformCorrelatedJoinToJoin
                             ImmutableList.of(a),
                             p.values(a),
                             LEFT,
-                            new Comparison(
+                            comparison(
                                     LESS_THAN,
                                     b.toSymbolReference(),
                                     new Constant(BIGINT, 3L)),
                             p.filter(
-                                    new Comparison(
+                                    comparison(
                                             GREATER_THAN,
                                             b.toSymbolReference(),
                                             a.toSymbolReference()),
                                     p.join(INNER,
                                             p.values(b),
-                                            p.filter(new Comparison(
+                                            p.filter(comparison(
                                                             GREATER_THAN,
                                                             d.toSymbolReference(),
                                                             a.toSymbolReference()),
@@ -491,9 +491,9 @@ public class TestTransformCorrelatedJoinToJoin
                         join(LEFT, builder -> builder
                                 .filter(new Logical(AND,
                                         ImmutableList.of(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "d"), new Reference(BIGINT, "a")),
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")),
-                                                new Comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "d"), new Reference(BIGINT, "a")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")),
+                                                comparison(LESS_THAN, new Reference(BIGINT, "b"), new Constant(BIGINT, 3L)))))
                                 .left(values("a"))
                                 .right(
                                         filter(
@@ -516,7 +516,7 @@ public class TestTransformCorrelatedJoinToJoin
                         TRUE,
                         p.enforceSingleRow(
                                 p.filter(
-                                        new Comparison(EQUAL, new Reference(BIGINT, "corr"), new Reference(BIGINT, "a")),
+                                        comparison(EQUAL, new Reference(BIGINT, "corr"), new Reference(BIGINT, "a")),
                                         p.values(p.symbol("a"))))))
                 .doesNotFire();
     }

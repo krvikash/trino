@@ -23,7 +23,6 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.assertions.BasePlanTest;
@@ -35,6 +34,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.exchange;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.filter;
@@ -74,7 +74,7 @@ public class TestTableFunctionFilterPushDown
                                 builder -> builder.name("$json_table"),
                                 project(
                                         filter(
-                                                new Comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
+                                                comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
                                                 tableScan("orders", ImmutableMap.of("comment", "comment", "orderkey", "orderkey")))))));
     }
 
@@ -97,7 +97,7 @@ public class TestTableFunctionFilterPushDown
                                 builder -> builder.name("$json_table"),
                                 project(
                                         filter(
-                                                new Comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
+                                                comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
                                                 tableScan("orders", ImmutableMap.of("comment", "comment", "orderkey", "orderkey")))))));
     }
 
@@ -115,7 +115,7 @@ public class TestTableFunctionFilterPushDown
         assertPlan(sql,
                 output(
                         filter(
-                                new Comparison(EQUAL, new Reference(BIGINT, "x"), new Constant(BIGINT, 1L)),
+                                comparison(EQUAL, new Reference(BIGINT, "x"), new Constant(BIGINT, 1L)),
                                 tableFunctionProcessor(
                                         builder -> builder
                                                 .name("$json_table")
@@ -140,7 +140,7 @@ public class TestTableFunctionFilterPushDown
         assertPlan(sql,
                 anyTree(
                         filter(
-                                new Comparison(
+                                comparison(
                                         GREATER_THAN,
                                         new Call(addFunction, ImmutableList.of(new Reference(BIGINT, "orderkey"), new Reference(BIGINT, "x"))),
                                         new Constant(BIGINT, 0L)),
@@ -166,7 +166,7 @@ public class TestTableFunctionFilterPushDown
         assertPlan(sql,
                 anyTree(
                         filter(
-                                new Comparison(EQUAL, new Reference(BIGINT, "x"), new Constant(BIGINT, 2L)),
+                                comparison(EQUAL, new Reference(BIGINT, "x"), new Constant(BIGINT, 2L)),
                                 tableFunctionProcessor(
                                         builder -> builder
                                                 .name("$json_table")
@@ -174,7 +174,7 @@ public class TestTableFunctionFilterPushDown
                                                 .properOutputs(ImmutableList.of("x")),
                                         project(
                                                 filter(
-                                                        new Comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
+                                                        comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
                                                         tableScan("orders", ImmutableMap.of("comment", "comment", "orderkey", "orderkey"))))))));
     }
 
@@ -197,7 +197,7 @@ public class TestTableFunctionFilterPushDown
                                         .name("pass_through_function"),
                                 exchange(
                                         filter(
-                                                new Comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
+                                                comparison(EQUAL, new Reference(BIGINT, "orderkey"), new Constant(BIGINT, 1L)),
                                                 tableScan("orders", ImmutableMap.of("totalprice", "totalprice", "orderkey", "orderkey")))))));
     }
 
@@ -216,7 +216,7 @@ public class TestTableFunctionFilterPushDown
         assertPlan(sql,
                 output(
                         filter(
-                                new Comparison(GREATER_THAN, new Reference(DOUBLE, "totalprice"), new Constant(DOUBLE, 100e0)),
+                                comparison(GREATER_THAN, new Reference(DOUBLE, "totalprice"), new Constant(DOUBLE, 100e0)),
                                 tableFunctionProcessor(
                                         builder -> builder
                                                 .name("pass_through_function"),

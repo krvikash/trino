@@ -77,6 +77,7 @@ import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortO
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
+import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
@@ -148,7 +149,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep.SINGLE;
-import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
+import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata.VERBOSE;
@@ -160,6 +161,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationM
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.FOLLOWING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.PRECEDING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
 import static java.lang.Boolean.TRUE;
@@ -895,22 +897,22 @@ final class TestRelationalProgramBuilder
         FilterNode filterNode = new FilterNode(
                 new PlanNodeId("filter"),
                 VALUES_NODE,
-                new io.trino.sql.ir.Comparison(
-                        io.trino.sql.ir.ComparisonOperator.GREATER_THAN,
+                comparison(
+                        ComparisonOperator.GREATER_THAN,
                         new Reference(BIGINT, "a"),
                         new io.trino.sql.ir.Constant(BIGINT, 5L)));
 
         Block.Parameter predicateParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperation = new FieldReference("%11", predicateParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Constant constantOperation = new Constant("%12", BIGINT, 5L);
+        Constant constantOperation = new Constant("%11", BIGINT, 5L);
+        FieldReference fieldReferenceOperation = new FieldReference("%12", predicateParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Comparison comparisonOperation = new Comparison(
                 "%13",
-                fieldReferenceOperation.result(),
                 constantOperation.result(),
-                GREATER_THAN,
-                ImmutableList.of(fieldReferenceOperation.attributes(), constantOperation.attributes()));
+                fieldReferenceOperation.result(),
+                LESS_THAN,
+                ImmutableList.of(constantOperation.attributes(), fieldReferenceOperation.attributes()));
         Return returnOperation = new Return("%14", comparisonOperation.result(), comparisonOperation.attributes());
         Filter filterOperation = new Filter(
                 "%9",
@@ -919,8 +921,8 @@ final class TestRelationalProgramBuilder
                         Optional.of("^predicate"),
                         ImmutableList.of(predicateParameter),
                         ImmutableList.of(
-                                fieldReferenceOperation,
                                 constantOperation,
+                                fieldReferenceOperation,
                                 comparisonOperation,
                                 returnOperation)),
                 VALUES_OPERATION.attributes());
@@ -1399,8 +1401,8 @@ final class TestRelationalProgramBuilder
                 VALUES_NODE,
                 Assignments.copyOf(ImmutableMap.of(
                         new Symbol(BOOLEAN, "b"), new Reference(BOOLEAN, "b"),
-                        new Symbol(BOOLEAN, "c"), new io.trino.sql.ir.Comparison(
-                                io.trino.sql.ir.ComparisonOperator.GREATER_THAN,
+                        new Symbol(BOOLEAN, "c"), comparison(
+                                ComparisonOperator.GREATER_THAN,
                                 new Reference(BIGINT, "a"),
                                 new io.trino.sql.ir.Constant(BIGINT, 5L)))));
 
@@ -1408,14 +1410,14 @@ final class TestRelationalProgramBuilder
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
         FieldReference fieldReferenceOperationB = new FieldReference("%11", assignmentsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperationA = new FieldReference("%12", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Constant constantOperation = new Constant("%13", BIGINT, 5L);
+        Constant constantOperation = new Constant("%12", BIGINT, 5L);
+        FieldReference fieldReferenceOperationA = new FieldReference("%13", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Comparison comparisonOperation = new Comparison(
                 "%14",
-                fieldReferenceOperationA.result(),
                 constantOperation.result(),
-                GREATER_THAN,
-                ImmutableList.of(fieldReferenceOperationA.attributes(), constantOperation.attributes()));
+                fieldReferenceOperationA.result(),
+                LESS_THAN,
+                ImmutableList.of(constantOperation.attributes(), fieldReferenceOperationA.attributes()));
         Row rowOperation = new Row(
                 "%15",
                 ImmutableList.of(fieldReferenceOperationB.result(), comparisonOperation.result()),
@@ -1429,8 +1431,8 @@ final class TestRelationalProgramBuilder
                         ImmutableList.of(assignmentsParameter),
                         ImmutableList.of(
                                 fieldReferenceOperationB,
-                                fieldReferenceOperationA,
                                 constantOperation,
+                                fieldReferenceOperationA,
                                 comparisonOperation,
                                 rowOperation,
                                 returnOperation)),

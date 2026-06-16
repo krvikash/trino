@@ -27,7 +27,6 @@ import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.assertions.BasePlanTest;
@@ -58,6 +57,7 @@ import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN_OR_EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy.NONE;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregation;
@@ -488,7 +488,7 @@ public class TestDeterminePreferredDynamicFilterTimeout
                                         tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))),
                                 node(ExchangeNode.class,
                                         filter(
-                                                new Comparison(EQUAL, new Reference(INTEGER, "B_1"), new Call(RANDOM, ImmutableList.of(new Constant(INTEGER, 5L)))),
+                                                comparison(EQUAL, new Reference(INTEGER, "B_1"), new Call(RANDOM, ImmutableList.of(new Constant(INTEGER, 5L)))),
                                                 tableScan("table_small_b", ImmutableMap.of("B_1", "b_1")))))));
     }
 
@@ -504,7 +504,7 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         anyTree(
                                 filter(
-                                        new Comparison(GREATER_THAN, new Reference(BIGINT, "A_1"), new Reference(BIGINT, "MAX_1")),
+                                        comparison(GREATER_THAN, new Reference(BIGINT, "A_1"), new Reference(BIGINT, "MAX_1")),
                                         join(INNER, builder -> builder
                                                 .addDynamicFilter("DF", "MAX_1")
                                                 .left(

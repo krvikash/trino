@@ -29,7 +29,6 @@ import io.trino.sql.dialect.trino.RelationalProgramBuilder;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
@@ -90,6 +89,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.Logical.Operator.OR;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.FrameBoundType.FOLLOWING;
 import static io.trino.sql.planner.plan.FrameBoundType.PRECEDING;
@@ -499,9 +499,9 @@ class TestToOldIrRelationalRewriter
                 new PlanNodeId("0"),
                 VALUES_NODE,
                 Assignments.builder()
-                        .put(new Symbol(BOOLEAN, "expr"), new Comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Constant(BIGINT, 0L)))
+                        .put(new Symbol(BOOLEAN, "operator_less_than"), comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Constant(BIGINT, 0L)))
                         .put(new Symbol(BIGINT, "sign"), new Call(signFunction, ImmutableList.of(new Reference(BIGINT, "a"))))
-                        .put(new Symbol(BIGINT, "expr_0"), new Constant(BIGINT, 5L))
+                        .put(new Symbol(BIGINT, "expr"), new Constant(BIGINT, 5L))
                         .build());
         assertRoundtrip(computingProjection);
 
@@ -510,11 +510,11 @@ class TestToOldIrRelationalRewriter
                 new PlanNodeId("0"),
                 VALUES_NODE,
                 Assignments.builder()
-                        .put(new Symbol(BOOLEAN, "expr"), new Comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Constant(BIGINT, 0L)))
+                        .put(new Symbol(BOOLEAN, "operator_less_than"), comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Constant(BIGINT, 0L)))
                         .put(B, new Reference(BOOLEAN, "b"))
                         .put(new Symbol(BIGINT, "sign"), new Call(signFunction, ImmutableList.of(new Reference(BIGINT, "a"))))
                         .put(A, new Reference(BIGINT, "a"))
-                        .put(new Symbol(BIGINT, "expr_0"), new Constant(BIGINT, 5L))
+                        .put(new Symbol(BIGINT, "expr"), new Constant(BIGINT, 5L))
                         .build());
         assertRoundtrip(mixedProjection);
     }

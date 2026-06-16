@@ -19,7 +19,6 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
@@ -39,6 +38,7 @@ import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.Logical.Operator.AND;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregation;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregationFunction;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.assignUniqueId;
@@ -325,7 +325,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.aggregation(innerBuilder -> innerBuilder
                                         .singleGroupingSet(p.symbol("a"))
                                         .source(p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.values(p.symbol("a"), p.symbol("b")))))))))
                 .matches(
                         project(ImmutableMap.of("corr", expression(new Reference(BIGINT, "corr")), "sum_agg", expression(new Reference(BIGINT, "sum_agg")), "count_agg", expression(new Reference(BIGINT, "count_agg"))),
@@ -342,7 +342,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                                 Optional.empty(),
                                                 SINGLE,
                                                 join(LEFT, builder -> builder
-                                                        .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                        .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                         .left(
                                                                 assignUniqueId(
                                                                         "unique",
@@ -371,7 +371,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.aggregation(innerBuilder -> innerBuilder
                                         .singleGroupingSet(p.symbol("a"))
                                         .source(p.filter(
-                                                new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.values(p.symbol("a"), p.symbol("b")))))))))
                 .matches(
                         project(ImmutableMap.of("corr", expression(new Reference(BIGINT, "corr")), "sum_agg", expression(new Reference(BIGINT, "sum_agg")), "count_agg", expression(new Reference(BIGINT, "count_agg"))),
@@ -383,7 +383,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -441,7 +441,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.values(p.symbol("a"), p.symbol("b"))),
                                         p.values(p.symbol("c"), p.symbol("d")))))))
                 .matches(
@@ -454,7 +454,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -475,11 +475,11 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .globalGrouping()
                                 .source(p.filter(
                                         new Logical(AND, ImmutableList.of(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))),
                                         p.join(INNER,
                                                 p.project(Assignments.identity(p.symbol("b")),
-                                                        p.filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "corr")),
+                                                        p.filter(comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "corr")),
                                                                 p.values(p.symbol("a"), p.symbol("b")))),
                                                 p.values(p.symbol("c"), p.symbol("d"))))))))
                 .matches(
@@ -493,9 +493,9 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         SINGLE,
                                         join(LEFT, builder -> builder
                                                 .filter(new Logical(AND, ImmutableList.of(
-                                                        new Comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "corr")),
-                                                        new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
-                                                        new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))))
+                                                        comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "corr")),
+                                                        comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                        comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -519,7 +519,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(INNER,
                                         p.values(p.symbol("a"), p.symbol("b")),
                                         p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")),
                                                 p.values(p.symbol("c"), p.symbol("d"))))))))
                 .matches(
                         project(ImmutableMap.of("corr", expression(new Reference(BIGINT, "corr")), "sum", expression(new Reference(BIGINT, "sum_agg"))),
@@ -531,7 +531,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "c"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -554,7 +554,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(INNER,
                                                         p.values(p.symbol("a"), p.symbol("key_a")),
                                                         p.values(p.symbol("b"), p.symbol("key_b")),
@@ -570,7 +570,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -594,7 +594,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(LEFT,
                                                         p.values(p.symbol("a"), p.symbol("key_a")),
                                                         p.values(p.symbol("b"), p.symbol("key_b")),
@@ -610,7 +610,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -634,7 +634,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(RIGHT,
                                                         p.values(p.symbol("a"), p.symbol("key_a")),
                                                         p.values(p.symbol("b"), p.symbol("key_b")),
@@ -650,7 +650,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -674,7 +674,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.filter(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                 p.join(FULL,
                                                         p.values(p.symbol("a"), p.symbol("key_a")),
                                                         p.values(p.symbol("b"), p.symbol("key_b")),
@@ -690,7 +690,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                         Optional.empty(),
                                         SINGLE,
                                         join(LEFT, builder -> builder
-                                                .filter(new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
+                                                .filter(comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")))
                                                 .left(
                                                         assignUniqueId(
                                                                 "unique",
@@ -748,7 +748,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.join(LEFT,
-                                                p.filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                p.filter(comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         p.values(p.symbol("a"), p.symbol("b"))),
                                                 p.values(p.symbol("e"), p.symbol("f")),
                                                 new JoinNode.EquiJoinClause(p.symbol("a"), p.symbol("e"))),
@@ -765,7 +765,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.join(RIGHT,
-                                                p.filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                p.filter(comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         p.values(p.symbol("a"), p.symbol("b"))),
                                                 p.values(p.symbol("e"), p.symbol("f")),
                                                 new JoinNode.EquiJoinClause(p.symbol("a"), p.symbol("e"))),
@@ -782,7 +782,7 @@ public class TestTransformCorrelatedGlobalAggregationWithoutProjection
                                 .source(p.join(
                                         INNER,
                                         p.join(FULL,
-                                                p.filter(new Comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
+                                                p.filter(comparison(EQUAL, new Reference(BIGINT, "b"), new Reference(BIGINT, "corr")),
                                                         p.values(p.symbol("a"), p.symbol("b"))),
                                                 p.values(p.symbol("e"), p.symbol("f")),
                                                 new JoinNode.EquiJoinClause(p.symbol("a"), p.symbol("e"))),

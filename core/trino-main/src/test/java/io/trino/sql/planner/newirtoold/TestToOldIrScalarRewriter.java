@@ -22,18 +22,19 @@ import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
+import io.trino.sql.dialect.trino.operation.Between;
+import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.FieldReference;
+import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Array;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Bind;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Coalesce;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
@@ -41,7 +42,6 @@ import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Match;
-import io.trino.sql.ir.NullIf;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
@@ -67,11 +67,11 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
-import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.IrExpressions.equalityClause;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -137,12 +137,12 @@ class TestToOldIrScalarRewriter
     @Test
     public void testBetween()
     {
-        Between between = new Between(new Reference(BIGINT, "b"), new Constant(BIGINT, 0L), new Reference(BIGINT, "a"));
+        Expression between = new io.trino.sql.ir.Between(new Reference(BIGINT, "b"), new Constant(BIGINT, 0L), new Reference(BIGINT, "a"));
 
         FieldReference firstFieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%1", BIGINT, 0L);
         FieldReference secondFieldReferenceOperation = new FieldReference("%2", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Between betweenOperation = new io.trino.sql.dialect.trino.operation.Between(
+        Between betweenOperation = new Between(
                 "%3",
                 firstFieldReferenceOperation.result(),
                 constantOperation.result(),
@@ -169,18 +169,18 @@ class TestToOldIrScalarRewriter
                 ImmutableList.of(new Reference(BIGINT, "b"), new Constant(BOOLEAN, true)),
                 new Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "lambda_parameter"), new Symbol(BOOLEAN, "lambda_parameter_0"), new Symbol(BIGINT, "lambda_parameter_1")),
-                        new Comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "lambda_parameter_1"))));
+                        comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "lambda_parameter_1"))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%3", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%1", BOOLEAN, true);
-        FieldReference fieldReferenceOperation2 = new FieldReference("%4", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation3 = new FieldReference("%5", lambdaParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation = new io.trino.sql.dialect.trino.operation.Comparison(
+        FieldReference fieldReferenceOperation2 = new FieldReference("%4", lambdaParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation3 = new FieldReference("%5", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Comparison comparisonOperation = new Comparison(
                 "%6",
                 fieldReferenceOperation2.result(),
                 fieldReferenceOperation3.result(),
-                ComparisonOperator.GREATER_THAN,
+                ComparisonOperator.LESS_THAN,
                 ImmutableList.of(fieldReferenceOperation2.attributes(), fieldReferenceOperation3.attributes()));
         Return returnOperation1 = new Return("%7", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -219,16 +219,16 @@ class TestToOldIrScalarRewriter
                 ImmutableList.of(),
                 new Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "lambda_parameter"), new Symbol(BOOLEAN, "lambda_parameter_0"), new Symbol(BIGINT, "lambda_parameter_1")),
-                        new Comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "lambda_parameter_1"))));
+                        comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "lambda_parameter_1"))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
-        FieldReference fieldReferenceOperation1 = new FieldReference("%2", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation2 = new FieldReference("%3", lambdaParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation = new io.trino.sql.dialect.trino.operation.Comparison(
+        FieldReference fieldReferenceOperation1 = new FieldReference("%2", lambdaParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation2 = new FieldReference("%3", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Comparison comparisonOperation = new Comparison(
                 "%4",
                 fieldReferenceOperation1.result(),
                 fieldReferenceOperation2.result(),
-                ComparisonOperator.GREATER_THAN,
+                ComparisonOperator.LESS_THAN,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         Return returnOperation1 = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -386,15 +386,15 @@ class TestToOldIrScalarRewriter
     @Test
     public void testComparison()
     {
-        Comparison comparison = new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a"));
+        Expression comparison = comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a"));
 
-        FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation = new io.trino.sql.dialect.trino.operation.Comparison(
+        FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Comparison comparisonOperation = new Comparison(
                 "%2",
                 fieldReferenceOperation1.result(),
                 fieldReferenceOperation2.result(),
-                ComparisonOperator.GREATER_THAN,
+                ComparisonOperator.LESS_THAN,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         Return returnOperation = new Return("%3", comparisonOperation.result(), comparisonOperation.attributes());
         Block rewritten = new Block(
@@ -554,17 +554,17 @@ class TestToOldIrScalarRewriter
                 new Logical(
                         AND,
                         ImmutableList.of(
-                                new Comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "b")),
+                                comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter"), new Reference(BIGINT, "b")),
                                 new Reference(BOOLEAN, "lambda_parameter_0"))));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN)));
-        FieldReference fieldReferenceOperation1 = new FieldReference("%2", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation = new io.trino.sql.dialect.trino.operation.Comparison(
+        FieldReference fieldReferenceOperation1 = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation2 = new FieldReference("%3", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Comparison comparisonOperation = new Comparison(
                 "%4",
                 fieldReferenceOperation1.result(),
                 fieldReferenceOperation2.result(),
-                ComparisonOperator.GREATER_THAN,
+                ComparisonOperator.LESS_THAN,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         FieldReference fieldReferenceOperation3 = new FieldReference("%5", lambdaParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Logical logicalOperation = new io.trino.sql.dialect.trino.operation.Logical(
@@ -599,16 +599,16 @@ class TestToOldIrScalarRewriter
     @Test
     public void testLambdaWithoutArguments()
     {
-        Lambda lambda = new Lambda(ImmutableList.of(), new Comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "b")));
+        Lambda lambda = new Lambda(ImmutableList.of(), comparison(GREATER_THAN, new Reference(BIGINT, "a"), new Reference(BIGINT, "b")));
 
         Block.Parameter lambdaParameter = new Block.Parameter("%1", irType(EMPTY_ROW));
-        FieldReference fieldReferenceOperation1 = new FieldReference("%2", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation = new io.trino.sql.dialect.trino.operation.Comparison(
+        FieldReference fieldReferenceOperation1 = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Comparison comparisonOperation = new Comparison(
                 "%4",
                 fieldReferenceOperation1.result(),
                 fieldReferenceOperation2.result(),
-                ComparisonOperator.GREATER_THAN,
+                ComparisonOperator.LESS_THAN,
                 ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes()));
         Return returnOperation1 = new Return("%5", comparisonOperation.result(), comparisonOperation.attributes());
         io.trino.sql.dialect.trino.operation.Lambda lambdaOperation = new io.trino.sql.dialect.trino.operation.Lambda(
@@ -646,7 +646,7 @@ class TestToOldIrScalarRewriter
                                 new Logical(
                                         AND,
                                         ImmutableList.of(
-                                                new Comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter_1"), new Reference(BIGINT, "b")),
+                                                comparison(GREATER_THAN, new Reference(BIGINT, "lambda_parameter_1"), new Reference(BIGINT, "b")),
                                                 new Reference(BOOLEAN, "lambda_parameter_0"))))));
 
         Block.Parameter outerLambdaParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN)));
@@ -654,13 +654,13 @@ class TestToOldIrScalarRewriter
 
         FieldReference fieldReferenceOperation1 = new FieldReference("%2", outerLambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%3", INPUT_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation3 = new FieldReference("%6", innerLambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        FieldReference fieldReferenceOperation4 = new FieldReference("%7", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation = new io.trino.sql.dialect.trino.operation.Comparison(
+        FieldReference fieldReferenceOperation3 = new FieldReference("%6", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperation4 = new FieldReference("%7", innerLambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Comparison comparisonOperation = new Comparison(
                 "%8",
                 fieldReferenceOperation3.result(),
                 fieldReferenceOperation4.result(),
-                ComparisonOperator.GREATER_THAN,
+                ComparisonOperator.LESS_THAN,
                 ImmutableList.of(fieldReferenceOperation3.attributes(), fieldReferenceOperation4.attributes()));
         FieldReference fieldReferenceOperation5 = new FieldReference("%9", outerLambdaParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Logical logicalOperation = new io.trino.sql.dialect.trino.operation.Logical(
@@ -739,11 +739,11 @@ class TestToOldIrScalarRewriter
     @Test
     public void testNullIf()
     {
-        NullIf nullIf = new NullIf(new Reference(BIGINT, "b"), new Reference(BIGINT, "a"));
+        Expression nullIf = new io.trino.sql.ir.NullIf(new Reference(BIGINT, "b"), new Reference(BIGINT, "a"));
 
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.NullIf nullIfOperation = new io.trino.sql.dialect.trino.operation.NullIf(
+        NullIf nullIfOperation = new NullIf(
                 "%2",
                 fieldReferenceOperation1.result(),
                 fieldReferenceOperation2.result(),
@@ -800,7 +800,7 @@ class TestToOldIrScalarRewriter
         Block.Parameter lambdaArgument1 = new Block.Parameter("%2", irType(anonymousRow(BOOLEAN)));
         FieldReference lamdaFieldReference1 = new FieldReference("%3", lambdaArgument1, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation1 = new io.trino.sql.dialect.trino.operation.Constant("%4", BOOLEAN, true);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation1 = new io.trino.sql.dialect.trino.operation.Comparison(
+        Comparison comparisonOperation1 = new Comparison(
                 "%5",
                 lamdaFieldReference1.result(),
                 constantOperation1.result(),
@@ -822,7 +822,7 @@ class TestToOldIrScalarRewriter
         Block.Parameter lambdaArgument2 = new Block.Parameter("%8", irType(anonymousRow(BOOLEAN)));
         FieldReference lamdaFieldReference2 = new FieldReference("%9", lambdaArgument2, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation2 = new io.trino.sql.dialect.trino.operation.Constant("%10", BOOLEAN, false);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation2 = new io.trino.sql.dialect.trino.operation.Comparison(
+        Comparison comparisonOperation2 = new Comparison(
                 "%11",
                 lamdaFieldReference2.result(),
                 constantOperation2.result(),
@@ -1039,7 +1039,7 @@ class TestToOldIrScalarRewriter
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation3 = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Comparison comparisonOperation1 = new io.trino.sql.dialect.trino.operation.Comparison(
+        Comparison comparisonOperation1 = new Comparison(
                 "%3",
                 fieldReferenceOperation3.result(),
                 fieldReferenceOperation1.result(),
@@ -1066,7 +1066,7 @@ class TestToOldIrScalarRewriter
         assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(block, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(
                         new Constant(BIGINT, 0L),
-                        new Comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")),
+                        comparison(GREATER_THAN, new Reference(BIGINT, "b"), new Reference(BIGINT, "a")),
                         new Reference(BOOLEAN, "c")));
 
         // block does not select expressions

@@ -41,8 +41,10 @@ import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrExpressions;
+import io.trino.sql.ir.Logical.Operator;
 import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
@@ -70,6 +72,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMe
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -149,8 +152,8 @@ final class TestScalarProgramBuilder
                 ImmutableList.of(new Reference(BIGINT, "a")),
                 new io.trino.sql.ir.Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "x")),
-                        new io.trino.sql.ir.Comparison(
-                                io.trino.sql.ir.ComparisonOperator.LESS_THAN,
+                        comparison(
+                                ComparisonOperator.LESS_THAN,
                                 new Reference(BIGINT, "x"),
                                 new io.trino.sql.ir.Constant(BIGINT, 0L))));
 
@@ -317,18 +320,18 @@ final class TestScalarProgramBuilder
     @Test
     public void testComparison()
     {
-        io.trino.sql.ir.Comparison comparisonExpression = new io.trino.sql.ir.Comparison(
-                io.trino.sql.ir.ComparisonOperator.GREATER_THAN,
+        Expression comparisonExpression = comparison(
+                ComparisonOperator.GREATER_THAN,
                 new io.trino.sql.ir.Constant(BIGINT, 0L),
                 new io.trino.sql.ir.Constant(BIGINT, 1L));
 
-        Constant constantOperationLeft = new Constant("%0", BIGINT, 0L);
-        Constant constantOperationRight = new Constant("%1", BIGINT, 1L);
+        Constant constantOperationLeft = new Constant("%0", BIGINT, 1L);
+        Constant constantOperationRight = new Constant("%1", BIGINT, 0L);
         Comparison comparisonOperation = new Comparison(
                 "%2",
                 constantOperationLeft.result(),
                 constantOperationRight.result(),
-                GREATER_THAN,
+                LESS_THAN,
                 ImmutableList.of(constantOperationLeft.attributes(), constantOperationRight.attributes()));
 
         assertProgram(
@@ -465,8 +468,8 @@ final class TestScalarProgramBuilder
     {
         io.trino.sql.ir.Lambda lambdaExpression = new io.trino.sql.ir.Lambda(
                 ImmutableList.of(new Symbol(BIGINT, "x")),
-                new io.trino.sql.ir.Comparison(
-                        io.trino.sql.ir.ComparisonOperator.LESS_THAN,
+                comparison(
+                        ComparisonOperator.LESS_THAN,
                         new Reference(BIGINT, "x"),
                         new io.trino.sql.ir.Constant(BIGINT, 0L)));
 
@@ -502,12 +505,12 @@ final class TestScalarProgramBuilder
                         new Symbol(BOOLEAN, "x"),
                         new Symbol(BIGINT, "y")),
                 new io.trino.sql.ir.Logical(
-                        io.trino.sql.ir.Logical.Operator.OR,
+                        Operator.OR,
                         ImmutableList.of(
                                 new Reference(BOOLEAN, "b"), // correlated symbol
                                 new Reference(BOOLEAN, "x"), // lambda argument
-                                new io.trino.sql.ir.Comparison(
-                                        io.trino.sql.ir.ComparisonOperator.LESS_THAN,
+                                comparison(
+                                        ComparisonOperator.LESS_THAN,
                                         new Reference(BIGINT, "a"), // correlated symbol
                                         new Reference(BIGINT, "y"))))); // lambda argument
 
@@ -573,7 +576,7 @@ final class TestScalarProgramBuilder
     public void testLogical()
     {
         io.trino.sql.ir.Logical logicalExpression = new io.trino.sql.ir.Logical(
-                io.trino.sql.ir.Logical.Operator.AND,
+                Operator.AND,
                 ImmutableList.of(
                         new io.trino.sql.ir.Constant(BOOLEAN, true),
                         new io.trino.sql.ir.Constant(BOOLEAN, true),

@@ -13,7 +13,6 @@
  */
 package io.trino.cost;
 
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
@@ -26,6 +25,7 @@ import java.util.Optional;
 
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static java.lang.Double.NaN;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -40,10 +40,10 @@ class TestChooseAlternativeRule
                         .chooseAlternative(
                                 List.of(
                                         pb.filter(
-                                                new Comparison(EQUAL, new Reference(BIGINT, "i1"), new Constant(BIGINT, 5L)),
+                                                comparison(EQUAL, new Reference(BIGINT, "i1"), new Constant(BIGINT, 5L)),
                                                 pb.values(pb.symbol("i1"), pb.symbol("i2"))),
                                         pb.filter(
-                                                new Comparison(EQUAL, new Reference(BIGINT, "i1"), new Constant(BIGINT, 10L)),
+                                                comparison(EQUAL, new Reference(BIGINT, "i1"), new Constant(BIGINT, 10L)),
                                                 pb.values(pb.symbol("i1"), pb.symbol("i2")))),
                                 new FilteredTableScan(pb.tableScan(List.of(pb.symbol("i1"), pb.symbol("i2")), false), Optional.empty())))
                 .withSourceStats(0, PlanNodeStatsEstimate.builder()

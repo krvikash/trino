@@ -46,7 +46,6 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.DynamicFilters;
 import io.trino.sql.analyzer.TypeDescriptorProvider;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
@@ -91,6 +90,7 @@ import static io.trino.sql.DynamicFilters.createDynamicFilterExpression;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.IrUtils.and;
+import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.sql.planner.plan.TopNRankingNode.RankingType.RANK;
@@ -157,8 +157,8 @@ public class TestCanonicalSubplanExtractor
         assertThat(subplans).hasSize(2);
 
         CacheTableId tableId = new CacheTableId(tpchCatalogId + ":tiny:nation:0.01");
-        Expression nonPullableConjunct = new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L));
-        Expression pullableConjunct = new Comparison(EQUAL, NAME_REF, new Constant(createVarcharType(25), utf8Slice("0123456789012345689012345")));
+        Expression nonPullableConjunct = comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L));
+        Expression pullableConjunct = comparison(EQUAL, NAME_REF, new Constant(createVarcharType(25), utf8Slice("0123456789012345689012345")));
         CanonicalSubplan nonAggregatedSubplan = subplans.get(0);
         ScanFilterProjectKey scanFilterProjectKey = new ScanFilterProjectKey(tableId, ImmutableSet.of(nonPullableConjunct, pullableConjunct));
         assertThat(nonAggregatedSubplan.getKeyChain()).containsExactly(scanFilterProjectKey);
@@ -168,11 +168,11 @@ public class TestCanonicalSubplanExtractor
         assertThat(nonAggregatedSubplan.getDynamicConjuncts()).isEmpty();
         assertThat(nonAggregatedSubplan.getTableScan()).isPresent();
         assertThat(nonAggregatedSubplan.getChildSubplan()).isEmpty();
-        CacheColumnId regionKeyGreaterThan10 = canonicalExpressionToColumnId(new Comparison(GREATER_THAN, NATIONKEY_REF, new Constant(BIGINT, 10L)));
+        CacheColumnId regionKeyGreaterThan10 = canonicalExpressionToColumnId(comparison(GREATER_THAN, NATIONKEY_REF, new Constant(BIGINT, 10L)));
         CacheColumnId regionKeyMultiplyBy2 = canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(REGIONKEY_REF, new Constant(BIGINT, 2L))));
         assertThat(nonAggregatedSubplan.getAssignments()).containsExactly(
                 entry(NATIONKEY_ID, CacheExpression.ofProjection(NATIONKEY_REF)),
-                entry(regionKeyGreaterThan10, CacheExpression.ofProjection(new Comparison(GREATER_THAN, NATIONKEY_REF, new Constant(BIGINT, 10L)))),
+                entry(regionKeyGreaterThan10, CacheExpression.ofProjection(comparison(GREATER_THAN, NATIONKEY_REF, new Constant(BIGINT, 10L)))),
                 entry(NAME_ID, CacheExpression.ofProjection(NAME_REF)),
                 entry(regionKeyMultiplyBy2, CacheExpression.ofProjection(new Call(MULTIPLY_BIGINT, ImmutableList.of(REGIONKEY_REF, new Constant(BIGINT, 2L))))));
         assertThat(nonAggregatedSubplan.getTableScan().get().getColumnHandles()).containsExactly(
@@ -200,7 +200,7 @@ public class TestCanonicalSubplanExtractor
                 NATIONKEY_ID,
                 NAME_ID,
                 REGIONKEY_ID,
-                canonicalExpressionToColumnId(new Comparison(GREATER_THAN, NATIONKEY_REF, new Constant(BIGINT, 10L))),
+                canonicalExpressionToColumnId(comparison(GREATER_THAN, NATIONKEY_REF, new Constant(BIGINT, 10L))),
                 canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(REGIONKEY_REF, new Constant(BIGINT, 2L)))),
                 canonicalAggregationToColumnId(filteredSum),
                 canonicalAggregationToColumnId(sum));
@@ -275,7 +275,7 @@ public class TestCanonicalSubplanExtractor
         assertThat(subplans).hasSize(2);
 
         Expression nationKeyMultiplyBy2 = new Call(MULTIPLY_BIGINT, ImmutableList.of(NATIONKEY_REF, new Constant(BIGINT, 2L)));
-        Expression regionKeyPredicate = new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L));
+        Expression regionKeyPredicate = comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L));
         CacheTableId tableId = new CacheTableId(tpchCatalogId + ":tiny:nation:0.01");
         CanonicalSubplan nestedSubplan = subplans.get(0);
         ScanFilterProjectKey scanFilterProjectKey = new ScanFilterProjectKey(tableId, ImmutableSet.of(regionKeyPredicate));
@@ -292,7 +292,7 @@ public class TestCanonicalSubplanExtractor
         assertThat(nestedSubplan.getTableScan().get().getTableId()).isEqualTo(tableId);
 
         Reference nationKeyMultiplyBy2Reference = columnIdToSymbol(canonicalExpressionToColumnId(nationKeyMultiplyBy2), BIGINT).toSymbolReference();
-        Expression nationKeyPredicate = new Comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(nationKeyMultiplyBy2Reference, nationKeyMultiplyBy2Reference)), new Constant(BIGINT, 10L));
+        Expression nationKeyPredicate = comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(nationKeyMultiplyBy2Reference, nationKeyMultiplyBy2Reference)), new Constant(BIGINT, 10L));
         CanonicalSubplan topSubplan = subplans.get(1);
         assertThat(topSubplan.getKeyChain()).containsExactly(scanFilterProjectKey, new FilterProjectKey(ImmutableSet.of()));
         assertThat(topSubplan.getConjuncts()).containsExactly(nationKeyPredicate);
@@ -311,7 +311,7 @@ public class TestCanonicalSubplanExtractor
         assertRequiredConjuncts(
                 "SELECT nationkey * 2 FROM nation WHERE regionkey > 10",
                 ScanFilterProjectKey.class,
-                new Comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L)));
+                comparison(GREATER_THAN, REGIONKEY_REF, new Constant(BIGINT, 10L)));
         // safe expressions
         assertRequiredConjuncts(
                 "SELECT nationkey, 42 FROM nation WHERE regionkey > 10",
@@ -327,7 +327,7 @@ public class TestCanonicalSubplanExtractor
         assertRequiredConjuncts(
                 "SELECT nationkey_mul * nationkey_mul FROM (SELECT nationkey * nationkey as nationkey_mul FROM nation) WHERE nationkey_mul * nationkey_mul > 10",
                 FilterProjectKey.class,
-                new Comparison(GREATER_THAN, nationKeyMulMul, new Constant(BIGINT, 10L)));
+                comparison(GREATER_THAN, nationKeyMulMul, new Constant(BIGINT, 10L)));
     }
 
     private void assertRequiredConjuncts(@Language("SQL") String query, Class<? extends Key> keyType, Expression... expectedConjuncts)
@@ -641,7 +641,7 @@ public class TestCanonicalSubplanExtractor
 
         assertThat(subplan.getConjuncts()).hasSize(1);
         Expression predicate = getOnlyElement(subplan.getConjuncts());
-        assertThat(predicate).isEqualTo(new Comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(CACHE_COL1_REF, CACHE_COL2_REF)), new Constant(BIGINT, 0L)));
+        assertThat(predicate).isEqualTo(comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(CACHE_COL1_REF, CACHE_COL2_REF)), new Constant(BIGINT, 0L)));
 
         assertThat(subplan.getDynamicConjuncts()).hasSize(1);
         Expression dynamicFilterExpression = getOnlyElement(subplan.getDynamicConjuncts());
@@ -679,7 +679,7 @@ public class TestCanonicalSubplanExtractor
 
         assertThat(subplan.getConjuncts()).hasSize(1);
         Expression predicate = getOnlyElement(subplan.getConjuncts());
-        assertThat(predicate).isEqualTo(new Comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(CACHE_COL1_REF, CACHE_COL2_REF)), new Constant(BIGINT, 0L)));
+        assertThat(predicate).isEqualTo(comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(CACHE_COL1_REF, CACHE_COL2_REF)), new Constant(BIGINT, 0L)));
 
         assertThat(subplan.getDynamicConjuncts()).hasSize(1);
         Expression dynamicFilterExpression = getOnlyElement(subplan.getDynamicConjuncts());
@@ -920,7 +920,7 @@ public class TestCanonicalSubplanExtractor
                 new PlanNodeId("filter_node"),
                 createTableScan(),
                 and(
-                        new Comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "symbol1"), new Reference(BIGINT, "symbol2"))), new Constant(BIGINT, 0L)),
+                        comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "symbol1"), new Reference(BIGINT, "symbol2"))), new Constant(BIGINT, 0L)),
                         createDynamicFilterExpression(
                                 metadataManager,
                                 new DynamicFilterId("dynamic_filter_id"),
