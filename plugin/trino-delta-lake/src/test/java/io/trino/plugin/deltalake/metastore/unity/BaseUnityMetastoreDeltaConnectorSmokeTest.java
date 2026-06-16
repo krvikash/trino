@@ -67,7 +67,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     private static final RetryPolicy<Object> DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(BaseUnityMetastoreDeltaConnectorSmokeTest::isClusterUnavailable)
             .withDelay(Duration.of(30, ChronoUnit.SECONDS))
-            .withMaxRetries(40)
+            .withMaxRetries(80)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (cluster unavailable).", event.getAttemptCount()))
             .build();
 
