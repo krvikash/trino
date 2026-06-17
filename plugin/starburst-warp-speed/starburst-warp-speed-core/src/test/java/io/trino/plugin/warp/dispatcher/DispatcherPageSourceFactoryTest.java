@@ -261,7 +261,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
         assertThat(pageSource).isNull(); // not mocked but not DispatcherPageSource
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
@@ -321,7 +322,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle),
                         eq(Optional.empty()),
                         anyList(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
         assertThat(pageSource).isInstanceOf(EmptyPageSource.class);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getcached_proxied_files()).isZero();
@@ -372,7 +374,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
         verifyWarmCalled(
                 connectorPageSourceProvider,
                 proxiedTransactionHandle,
@@ -387,7 +390,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
     }
 
     @Test
@@ -413,7 +417,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
         verifyWarmCalled(
                 connectorPageSourceProvider,
                 proxiedTransactionHandle,
@@ -428,7 +433,8 @@ public class DispatcherPageSourceFactoryTest
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
         assertThat(stats.getexternal_match_columns()).isZero();
@@ -466,7 +472,8 @@ public class DispatcherPageSourceFactoryTest
                 isA(ConnectorTableHandle.class),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class)))
+                any(DynamicFilter.class),
+                any()))
                 .thenReturn(proxiedPageSource);
         List<ColumnHandle> columnHandles = Stream.concat(columnHandleList.stream(), warmedColumnHandleList.stream()).collect(Collectors.toList());
         pageSourceFactory.createConnectorPageSource(
@@ -490,7 +497,8 @@ public class DispatcherPageSourceFactoryTest
                         any(),
                         eq(Optional.empty()),
                         any(),
-                        any(DynamicFilter.class));
+                        any(DynamicFilter.class),
+                        any());
     }
 
     /**
@@ -645,7 +653,7 @@ public class DispatcherPageSourceFactoryTest
                 new FilteringStats(),
                 customStatsContext);
 
-        verify(connectorPageSourceProvider, times(1)).createPageSource(any(), any(), any(), any(), eq(Optional.empty()), anyList(), any());
+        verify(connectorPageSourceProvider, times(1)).createPageSource(any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), any());
         verify(workerWarmingService, never()).warm(any(), any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), anyInt());
     }
 

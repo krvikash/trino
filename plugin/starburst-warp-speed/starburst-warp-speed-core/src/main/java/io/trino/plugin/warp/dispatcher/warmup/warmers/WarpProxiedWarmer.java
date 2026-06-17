@@ -58,6 +58,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
@@ -178,7 +179,9 @@ public class WarpProxiedWarmer
                                 nonFilterTableHandle,
                                 tableCredentials,
                                 List.of(pair.getValue()),
-                                DynamicFilter.EMPTY);
+                                DynamicFilter.EMPTY,
+                                // TODO report memory usage
+                                MemoryContext.NO_LIMIT);
                         logger.debug("create connectorPageSource for element %s offset %d connector %s", pair.getValue(), fileOffset, catalogNameProvider.get());
 
                         PageSink pageSink = null;

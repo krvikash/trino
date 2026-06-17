@@ -195,6 +195,7 @@ public class ScanFilterAndProjectOperator
         final List<ColumnHandle> columns;
         final InternalDynamicFilter dynamicFilter;
         final List<Type> types;
+        final LocalMemoryContext pageSourceProviderMemoryContext;
         final LocalMemoryContext pageSourceMemoryContext;
         final LocalMemoryContext memoryContext;
         final AggregatedMemoryContext localAggregatedMemoryContext;
@@ -221,7 +222,8 @@ public class ScanFilterAndProjectOperator
             this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
             this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
             this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
-            this.pageSourceMemoryContext = aggregatedMemoryContext.newLocalMemoryContext(ScanFilterAndProjectOperator.class.getSimpleName());
+            this.pageSourceProviderMemoryContext = aggregatedMemoryContext.newLocalMemoryContext(ScanFilterAndProjectOperator.class.getSimpleName() + "-PageSourceProvider");
+            this.pageSourceMemoryContext = aggregatedMemoryContext.newLocalMemoryContext(ScanFilterAndProjectOperator.class.getSimpleName() + "-ConnectorPageSource");
             this.memoryContext = aggregatedMemoryContext.newLocalMemoryContext(ScanFilterAndProjectOperator.class.getSimpleName());
             this.localAggregatedMemoryContext = newSimpleAggregatedMemoryContext();
             this.outputMemoryContext = localAggregatedMemoryContext.newLocalMemoryContext(ScanFilterAndProjectOperator.class.getSimpleName());
@@ -248,7 +250,7 @@ public class ScanFilterAndProjectOperator
                 source = new EmptyPageSource();
             }
             else {
-                source = pageSourceProvider.createPageSource(session, split, columns, dynamicFilter);
+                source = pageSourceProvider.createPageSource(session, split, columns, dynamicFilter, pageSourceMemoryContext::setBytes);
             }
 
             pageSource = source;
@@ -259,7 +261,7 @@ public class ScanFilterAndProjectOperator
         {
             ConnectorSession connectorSession = session.toConnectorSession();
             return WorkProcessor
-                    .create(new ConnectorPageSourceToPages(pageSourceMemoryContext))
+                    .create(new ConnectorPageSourceToPages(pageSourceProviderMemoryContext))
                     .yielding(yieldSignal::isSet)
                     .flatMap(page -> {
                         WorkProcessor<Page> workProcessor = pageProcessor.createWorkProcessor(
@@ -308,11 +310,11 @@ public class ScanFilterAndProjectOperator
     private class ConnectorPageSourceToPages
             implements WorkProcessor.Process<SourcePage>
     {
-        final LocalMemoryContext pageSourceMemoryContext;
+        final LocalMemoryContext pageSourceProviderMemoryContext;
 
-        ConnectorPageSourceToPages(LocalMemoryContext pageSourceMemoryContext)
+        ConnectorPageSourceToPages(LocalMemoryContext pageSourceProviderMemoryContext)
         {
-            this.pageSourceMemoryContext = pageSourceMemoryContext;
+            this.pageSourceProviderMemoryContext = pageSourceProviderMemoryContext;
         }
 
         @Override
@@ -328,7 +330,7 @@ public class ScanFilterAndProjectOperator
             }
 
             SourcePage page = pageSource.getNextSourcePage();
-            pageSourceMemoryContext.setBytes(pageSource.getMemoryUsage() + pageSourceProvider.getMemoryUsage());
+            pageSourceProviderMemoryContext.setBytes(pageSourceProvider.getMemoryUsage());
 
             // update operator stats
             processedPositions += page == null ? 0 : page.getPositionCount();

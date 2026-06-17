@@ -56,6 +56,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
@@ -183,7 +184,8 @@ public class DispatcherPageSourceProviderTest
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class))).thenReturn(mock(TestingConnectorPageSource.class));
+                any(DynamicFilter.class),
+                any())).thenReturn(mock(TestingConnectorPageSource.class));
 
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
@@ -195,7 +197,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columnHandles,
-                dynamicFilter)) {
+                dynamicFilter,
+                MemoryContext.NO_LIMIT)) {
             assertThat(((DispatcherWrapperPageSource) wrapperPageSource).getConnectorPageSource())
                     .isInstanceOf(TestingConnectorPageSource.class);
         }
@@ -215,7 +218,8 @@ public class DispatcherPageSourceProviderTest
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class))).thenReturn(mock(TestingConnectorPageSource.class));
+                any(DynamicFilter.class),
+                any())).thenReturn(mock(TestingConnectorPageSource.class));
 
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
@@ -227,7 +231,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columnHandles,
-                dynamicFilter);
+                dynamicFilter,
+                MemoryContext.NO_LIMIT);
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(TestingConnectorPageSource.class);
     }
@@ -250,7 +255,8 @@ public class DispatcherPageSourceProviderTest
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class))).thenReturn(mock(TestingConnectorPageSource.class));
+                any(DynamicFilter.class),
+                any())).thenReturn(mock(TestingConnectorPageSource.class));
 
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
@@ -262,7 +268,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columnHandles,
-                dynamicFilter)) {
+                dynamicFilter,
+                MemoryContext.NO_LIMIT)) {
             assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource())
                     .isInstanceOf(TestingConnectorPageSource.class);
             verify(workerWarmingService, times(1))
@@ -291,7 +298,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 allColumns,
-                dynamicFilter)) {
+                dynamicFilter,
+                MemoryContext.NO_LIMIT)) {
             assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource())
                     .isInstanceOf(DispatcherPageSource.class);
 
@@ -317,7 +325,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 Collections.emptyList(),
-                DynamicFilter.EMPTY);
+                DynamicFilter.EMPTY,
+                MemoryContext.NO_LIMIT);
 
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
@@ -353,7 +362,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columns,
-                new CompletedDynamicFilter(predicate));
+                new CompletedDynamicFilter(predicate),
+                MemoryContext.NO_LIMIT);
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
         assertThat(((DispatcherPageSource) pageSource).getPageSourceDecision())
@@ -394,7 +404,8 @@ public class DispatcherPageSourceProviderTest
                 isA(TestingMetadata.TestingTableHandle.class),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class)))
+                any(DynamicFilter.class),
+                any()))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
         ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
@@ -404,7 +415,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columns,
-                new CompletedDynamicFilter(predicate));
+                new CompletedDynamicFilter(predicate),
+                MemoryContext.NO_LIMIT);
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
         assertThat(((DispatcherPageSource) pageSource).getPageSourceDecision())
@@ -431,7 +443,8 @@ public class DispatcherPageSourceProviderTest
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class)))
+                any(DynamicFilter.class),
+                any()))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
         ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
@@ -441,7 +454,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columns,
-                dynamicFilter);
+                dynamicFilter,
+                MemoryContext.NO_LIMIT);
 
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
@@ -473,7 +487,8 @@ public class DispatcherPageSourceProviderTest
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),
-                any(DynamicFilter.class)))
+                any(DynamicFilter.class),
+                any()))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
         ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
@@ -483,7 +498,8 @@ public class DispatcherPageSourceProviderTest
                 dispatcherTableHandle,
                 Optional.empty(),
                 columns,
-                new CompletedDynamicFilter(predicate));
+                new CompletedDynamicFilter(predicate),
+                MemoryContext.NO_LIMIT);
 
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);

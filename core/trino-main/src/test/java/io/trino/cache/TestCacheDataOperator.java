@@ -48,6 +48,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedPageSource;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.split.PageSourceProvider;
@@ -381,7 +382,8 @@ public class TestCacheDataOperator
                 TableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
-                DynamicFilter dynamicFilter)
+                DynamicFilter dynamicFilter,
+                MemoryContext memoryContext)
         {
             return new FixedPageSource(ImmutableList.of());
         }

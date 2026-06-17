@@ -25,6 +25,7 @@ import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
+import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
@@ -32,7 +33,6 @@ import io.trino.split.EmptySplit;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.PageSourceProviderFactory;
 import io.trino.split.TableAwarePageSourceProvider;
-import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
@@ -122,7 +122,8 @@ public class TableScanOperator
     private final PlanNodeId sourceId;
     private final TableAwarePageSourceProvider pageSourceProvider;
     private final List<ColumnHandle> columns;
-    private final LocalMemoryContext memoryContext;
+    private final LocalMemoryContext pageSourceProviderMemoryContext;
+    private final LocalMemoryContext pageSourceMemoryContext;
     private final SettableFuture<Void> blocked = SettableFuture.create();
 
     @Nullable
@@ -161,7 +162,8 @@ public class TableScanOperator
         this.sourceId = requireNonNull(sourceId, "planNodeId is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
-        this.memoryContext = operatorContext.newLocalUserMemoryContext(TableScanOperator.class.getSimpleName());
+        this.pageSourceProviderMemoryContext = operatorContext.newLocalUserMemoryContext(TableScanOperator.class.getSimpleName() + "-PageSourceProvider");
+        this.pageSourceMemoryContext = operatorContext.newLocalUserMemoryContext(TableScanOperator.class.getSimpleName() + "-ConnectorPageSource");
     }
 
     @Override
@@ -223,7 +225,7 @@ public class TableScanOperator
                 catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
-                memoryContext.setBytes(source.getMemoryUsage() + pageSourceProvider.getMemoryUsage());
+                pageSourceProviderMemoryContext.setBytes(pageSourceProvider.getMemoryUsage());
                 operatorContext.setLatestConnectorMetrics(source.getMetrics());
             }
         }
@@ -238,7 +240,7 @@ public class TableScanOperator
         if (!finished) {
             finished = (source != null) && source.isFinished();
             if (source != null) {
-                memoryContext.setBytes(source.getMemoryUsage() + pageSourceProvider.getMemoryUsage());
+                pageSourceProviderMemoryContext.setBytes(pageSourceProvider.getMemoryUsage());
             }
         }
 
@@ -282,7 +284,7 @@ public class TableScanOperator
             return null;
         }
         if (source == null) {
-            source = pageSourceProvider.createPageSource(operatorContext.getSession(), split, columns, InternalDynamicFilter.EMPTY);
+            source = pageSourceProvider.createPageSource(operatorContext.getSession(), split, columns, DynamicFilter.EMPTY, pageSourceMemoryContext::setBytes);
         }
 
         SourcePage sourcePage = source.getNextSourcePage();
@@ -307,7 +309,7 @@ public class TableScanOperator
         readTimeNanos = endReadTimeNanos;
 
         // updating memory usage should happen after page is loaded.
-        memoryContext.setBytes(source.getMemoryUsage() + pageSourceProvider.getMemoryUsage());
+        pageSourceProviderMemoryContext.setBytes(pageSourceProvider.getMemoryUsage());
         operatorContext.setLatestConnectorMetrics(source.getMetrics());
         return page;
     }

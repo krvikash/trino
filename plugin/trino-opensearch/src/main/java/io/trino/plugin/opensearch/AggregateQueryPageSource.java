@@ -120,6 +120,7 @@ public class AggregateQueryPageSource
     }
 
     @Override
+    @SuppressWarnings("deprecation") // TODO (https://github.com/trinodb/trino/issues/29959) migrate to MemoryContext
     public long getMemoryUsage()
     {
         return 0;

@@ -143,7 +143,8 @@ public class WarpProxiedWarmerTest
                 any(),
                 any(),
                 any(),
-                isA(DynamicFilter.class))).thenReturn(connectorPageSource);
+                isA(DynamicFilter.class),
+                any())).thenReturn(connectorPageSource);
     }
 
     @Test
@@ -212,7 +213,8 @@ public class WarpProxiedWarmerTest
                     any(),
                     any(),
                     eq(List.of(columnHandles)),
-                    isA(DynamicFilter.class))).thenReturn(connectorPageSource);
+                    isA(DynamicFilter.class),
+                    any())).thenReturn(connectorPageSource);
             return connectorPageSource;
         }).toList();
     }

@@ -21,6 +21,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.MemoryContext;
 
 import java.io.Closeable;
 import java.util.List;
@@ -45,12 +46,12 @@ public class TableAwarePageSourceProvider
         this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
     }
 
-    public ConnectorPageSource createPageSource(Session session, Split split, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
+    public ConnectorPageSource createPageSource(Session session, Split split, List<ColumnHandle> columns, DynamicFilter dynamicFilter, MemoryContext memoryContext)
     {
         if (split.getConnectorSplit() instanceof EmptySplit) {
             return new EmptyPageSource();
         }
-        return pageSourceProvider.createPageSource(session, split, tableHandle, tableCredentials, columns, dynamicFilter);
+        return pageSourceProvider.createPageSource(session, split, tableHandle, tableCredentials, columns, dynamicFilter, memoryContext);
     }
 
     @Override

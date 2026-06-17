@@ -193,6 +193,7 @@ public class StargateParallelPageSource
     }
 
     @Override
+    @SuppressWarnings("deprecation") // TODO (https://github.com/trinodb/trino/issues/29959) migrate to MemoryContext
     public long getMemoryUsage()
     {
         return dataSizeBytes + pageBuilder.getRetainedSizeInBytes();

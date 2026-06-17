@@ -53,6 +53,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.type.Type;
 
 import java.util.List;
@@ -153,7 +154,9 @@ public class WarpDispatcherPageSourceFactory
                     dispatcherTableHandle.getProxyConnectorTableHandle(),
                     tableCredentials,
                     columns,
-                    dynamicFilter);
+                    dynamicFilter,
+                    // TODO report memory usage
+                    MemoryContext.NO_LIMIT);
         }
 
         ConnectorPageSource connectorPageSource = getConnectorPageSource(
@@ -419,7 +422,9 @@ public class WarpDispatcherPageSourceFactory
                 connectorTableHandle,
                 tableCredentials,
                 columns,
-                dynamicFilter);
+                dynamicFilter,
+                // TODO report memory usage
+                MemoryContext.NO_LIMIT);
     }
 
     private ConnectorPageSource createMixedPageSource(

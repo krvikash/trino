@@ -29,6 +29,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -74,11 +75,19 @@ public class ObjectStorePageSourceProviderFactory
             private volatile PageSourceProvider delegate;
 
             @Override
-            public ConnectorPageSource createPageSource(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorSplit split, ConnectorTableHandle table, Optional<ConnectorTableCredentials> tableCredentials, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
+            public ConnectorPageSource createPageSource(
+                    ConnectorTransactionHandle transaction,
+                    ConnectorSession session,
+                    ConnectorSplit split,
+                    ConnectorTableHandle table,
+                    Optional<ConnectorTableCredentials> tableCredentials,
+                    List<ColumnHandle> columns,
+                    DynamicFilter dynamicFilter,
+                    MemoryContext memoryContext)
             {
                 PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
                 return pageSourceProvider.pageSourceProvider()
-                        .createPageSource(transaction, unwrap(pageSourceProvider.tableType(), session), split, table, tableCredentials, columns, dynamicFilter);
+                        .createPageSource(transaction, unwrap(pageSourceProvider.tableType(), session), split, table, tableCredentials, columns, dynamicFilter, memoryContext);
             }
 
             @Override

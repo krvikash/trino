@@ -33,6 +33,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 
 import java.util.List;
 import java.util.Map;
@@ -65,7 +66,8 @@ public class StargateParallelPageSourceProvider
             ConnectorTableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            MemoryContext memoryContext)
     {
         JdbcTableHandle tableHandle = (JdbcTableHandle) table;
 

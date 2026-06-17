@@ -51,6 +51,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.FixedPageSource;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
@@ -380,7 +381,7 @@ public class TestCacheDriverFactory
         }
 
         @Override
-        public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, Optional<ConnectorTableCredentials> tableCredentials, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
+        public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, Optional<ConnectorTableCredentials> tableCredentials, List<ColumnHandle> columns, DynamicFilter dynamicFilter, MemoryContext memoryContext)
         {
             throw new UnsupportedOperationException();
         }
@@ -446,7 +447,8 @@ public class TestCacheDriverFactory
                 TableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
-                DynamicFilter dynamicFilter)
+                DynamicFilter dynamicFilter,
+                MemoryContext memoryContext)
         {
             return new FixedPageSource(rowPagesBuilder(BIGINT).build());
         }

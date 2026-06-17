@@ -27,6 +27,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
@@ -80,7 +81,8 @@ public class MockPlanAlternativeChooser
                 ConnectorTableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
-                DynamicFilter dynamicFilter)
+                DynamicFilter dynamicFilter,
+                MemoryContext memoryContext)
         {
             ConnectorSplit unwrappedSplit = split instanceof MockPlanAlternativeSplit mockSplit ? mockSplit.getDelegate() : split;
 
@@ -95,11 +97,11 @@ public class MockPlanAlternativeChooser
                             .add(handle.filterColumn())
                             .build();
                 }
-                ConnectorPageSource pageSource = delegate.createPageSource(transaction, session, unwrappedSplit, handle.delegate(), tableCredentials, columns, dynamicFilter);
+                ConnectorPageSource pageSource = delegate.createPageSource(transaction, session, unwrappedSplit, handle.delegate(), tableCredentials, columns, dynamicFilter, memoryContext);
                 return new PlanAlternativePageSource(pageSource, handle.filterDefinition().asPredicate(session), filterColumnIndex, returnFilterColumn);
             }
             log.debug("NOT filtering table %s, split %s by mock plan alternative connector. df: %s", table, split, dynamicFilter.getCurrentPredicate());
-            return delegate.createPageSource(transaction, session, unwrappedSplit, table, tableCredentials, columns, dynamicFilter);
+            return delegate.createPageSource(transaction, session, unwrappedSplit, table, tableCredentials, columns, dynamicFilter, memoryContext);
         }
     }
 

@@ -27,6 +27,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -68,7 +69,8 @@ public class DispatcherPageSourceProvider
             ConnectorTableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            MemoryContext memoryContext)
     {
         try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
             if (logger.isDebugEnabled()) {
@@ -89,7 +91,8 @@ public class DispatcherPageSourceProvider
                         table,
                         tableCredentials,
                         columns,
-                        dynamicFilter);
+                        dynamicFilter,
+                        memoryContext);
             }
 
             DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;

@@ -21,6 +21,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
@@ -49,7 +50,8 @@ public interface PageSourceProvider
             TableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter);
+            DynamicFilter dynamicFilter,
+            MemoryContext memoryContext);
 
     default TupleDomain<ColumnHandle> getUnenforcedPredicate(
             Session session,
@@ -69,6 +71,7 @@ public interface PageSourceProvider
         throw new UnsupportedOperationException();
     }
 
+    // TODO (https://github.com/trinodb/trino/issues/29955) replace with MemoryContext
     default long getMemoryUsage()
     {
         return 0;

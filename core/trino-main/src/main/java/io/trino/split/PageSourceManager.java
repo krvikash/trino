@@ -34,6 +34,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.gpu.IoExecutor;
@@ -131,7 +132,9 @@ public class PageSourceManager
                                         table.connectorHandle(),
                                         tableCredentials,
                                         columns,
-                                        finalDynamicFilter),
+                                        finalDynamicFilter,
+                                        // the adapter never reported the fallback source's memory usage, so keep it unaccounted
+                                        MemoryContext.NO_LIMIT),
                                 columnTypes);
                     });
         }
@@ -143,7 +146,8 @@ public class PageSourceManager
                 TableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
-                DynamicFilter dynamicFilter)
+                DynamicFilter dynamicFilter,
+                MemoryContext memoryContext)
         {
             requireNonNull(columns, "columns is null");
             checkArgument(split.getCatalogHandle().equals(table.catalogHandle()), "mismatched split and table");
@@ -162,7 +166,8 @@ public class PageSourceManager
                     table.connectorHandle(),
                     tableCredentials,
                     columns,
-                    dynamicFilter);
+                    dynamicFilter,
+                    memoryContext);
         }
 
         @Override

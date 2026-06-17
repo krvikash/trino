@@ -44,6 +44,7 @@ public class TestingConnectorPageSource
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public long getMemoryUsage()
     {
         return 0;

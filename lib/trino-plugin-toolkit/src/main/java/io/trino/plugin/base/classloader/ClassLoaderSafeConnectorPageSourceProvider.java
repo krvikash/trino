@@ -24,6 +24,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.IoExecutor;
@@ -67,6 +68,22 @@ public class ClassLoaderSafeConnectorPageSourceProvider
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             return delegate.createPageSource(transaction, session, split, table, tableCredentials, columns, dynamicFilter);
+        }
+    }
+
+    @Override
+    public ConnectorPageSource createPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter,
+            MemoryContext memoryContext)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.createPageSource(transaction, session, split, table, tableCredentials, columns, dynamicFilter, memoryContext);
         }
     }
 
