@@ -348,6 +348,79 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
     }
 
     @Test
+    public void testIncrementalColumnRejectedOnAggregatingMV()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".agg_src_" + randomNameSuffix();
+        String mvName = ICEBERG_TEST_SCHEMA + ".agg_mv_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, region VARCHAR, ts BIGINT)");
+        String errorPattern = ".*CREATE MATERIALIZED VIEW with incremental_column is not supported when the MV definition contains aggregations or GROUP BY.*";
+
+        // GROUP BY with aggregation.
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'max_ts') AS " +
+                        "SELECT region, max(ts) AS max_ts FROM " + source + " GROUP BY region",
+                errorPattern);
+
+        // Scalar aggregation (no GROUP BY).
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'max_ts') AS " +
+                        "SELECT max(ts) AS max_ts FROM " + source,
+                errorPattern);
+
+        // No aggregation: same query without GROUP BY and without aggregate functions must succeed.
+        assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                "SELECT id, region, ts FROM " + source);
+        assertUpdate("DROP MATERIALIZED VIEW " + mvName);
+
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testIncrementalColumnRejectedOnNestedAggregatingMV()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".nested_agg_src_" + randomNameSuffix();
+        String mvName = ICEBERG_TEST_SCHEMA + ".nested_agg_mv_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, region VARCHAR, ts BIGINT)");
+        String errorPattern = ".*CREATE MATERIALIZED VIEW with incremental_column is not supported when the MV definition contains aggregations or GROUP BY.*";
+
+        // UNION ALL where one branch has GROUP BY with aggregation.
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'max_ts') AS " +
+                        "SELECT region, max(ts) AS max_ts FROM " + source + " GROUP BY region " +
+                        "UNION ALL " +
+                        "SELECT region, ts AS max_ts FROM " + source,
+                errorPattern);
+
+        // CTE that aggregates.
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'max_ts') AS " +
+                        "WITH a AS (SELECT region, max(ts) AS max_ts FROM " + source + " GROUP BY region) " +
+                        "SELECT region, max_ts FROM a",
+                errorPattern);
+
+        // FROM-subquery that aggregates.
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'max_ts') AS " +
+                        "SELECT * FROM (SELECT region, max(ts) AS max_ts FROM " + source + " GROUP BY region)",
+                errorPattern);
+
+        // GROUP BY in a FROM-subquery with no top-level aggregation.
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'region') AS " +
+                        "SELECT region FROM (SELECT region FROM " + source + " GROUP BY region)",
+                errorPattern);
+
+        // Positive control: UNION ALL of two plain non-aggregating selects must succeed.
+        assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                "SELECT id, region, ts FROM " + source + " WHERE id < 10 " +
+                "UNION ALL " +
+                "SELECT id, region, ts FROM " + source + " WHERE id >= 10");
+        assertUpdate("DROP MATERIALIZED VIEW " + mvName);
+
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
     public void testIncrementalColumnRefreshDoesNotCausePerpetuallyStaleMV()
     {
         String source = ICEBERG_TEST_SCHEMA + ".staleness_src_" + randomNameSuffix();

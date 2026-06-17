@@ -147,6 +147,7 @@ import io.trino.sql.tree.CreateTable;
 import io.trino.sql.tree.CreateTableAsSelect;
 import io.trino.sql.tree.CreateView;
 import io.trino.sql.tree.Deallocate;
+import io.trino.sql.tree.DefaultTraversalVisitor;
 import io.trino.sql.tree.Delete;
 import io.trino.sql.tree.Deny;
 import io.trino.sql.tree.DereferenceExpression;
@@ -1528,6 +1529,11 @@ class StatementAnalyzer
                         || containsCurrentTimeFunctions(node.getQuery());
                 if (hasNonDeterministicFunctions) {
                     throw semanticException(NOT_SUPPORTED, node, "CREATE MATERIALIZED VIEW with incremental_column is not supported when non-deterministic functions used in MV definition");
+                }
+                boolean hasAggregateFunction = analysis.getResolvedFunctions().stream()
+                        .anyMatch(function -> function.functionKind() == FunctionKind.AGGREGATE);
+                if (hasAggregateFunction || containsGroupBy(node.getQuery())) {
+                    throw semanticException(NOT_SUPPORTED, node, "CREATE MATERIALIZED VIEW with incremental_column is not supported when the MV definition contains aggregations or GROUP BY");
                 }
             }
 
@@ -4965,6 +4971,23 @@ class StatementAnalyzer
             List<FunctionCall> aggregates = extractAggregateFunctions(toExtract, session, functionResolver, accessControl);
 
             return !aggregates.isEmpty();
+        }
+
+        private static boolean containsGroupBy(Query query)
+        {
+            boolean[] found = {false};
+            new DefaultTraversalVisitor<Void>()
+            {
+                @Override
+                protected Void visitQuerySpecification(QuerySpecification node, Void context)
+                {
+                    if (node.getGroupBy().isPresent()) {
+                        found[0] = true;
+                    }
+                    return super.visitQuerySpecification(node, context);
+                }
+            }.process(query, null);
+            return found[0];
         }
 
         private Scope computeAndAssignOutputScope(QuerySpecification node, Optional<Scope> scope, Scope sourceScope)

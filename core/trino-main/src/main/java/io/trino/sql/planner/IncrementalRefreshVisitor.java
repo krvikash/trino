@@ -38,11 +38,10 @@ public class IncrementalRefreshVisitor
     }
 
     /**
-     * Variant that prioritizes the user-set {@code incremental_column} MV property
-     * over the plan-shape heuristic. When that property is present, the engine has
-     * already wrapped the source query with a {@code col > (SELECT max(col) FROM mv)}
-     * predicate; we trust the predicate and force {@link RefreshType#INCREMENTAL_COLUMN}
-     * regardless of plan shape (joins, aggregations, multiple sources are all fine).
+     * Variant used when the MV has a user-set {@code incremental_column} property. The engine has
+     * already wrapped the source query with a {@code col > (SELECT max(col) FROM mv)} predicate, so
+     * we force {@link RefreshType#INCREMENTAL_COLUMN} instead of consulting the plan-shape heuristic.
+     * Joins and multiple sources are fine; aggregations/GROUP BY are rejected earlier, at CREATE time.
      */
     public static RefreshType canIncrementallyRefresh(PlanNode root, boolean hasIncrementalColumn)
     {
