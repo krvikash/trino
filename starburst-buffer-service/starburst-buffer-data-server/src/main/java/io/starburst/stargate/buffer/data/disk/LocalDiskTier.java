@@ -13,12 +13,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.starburst.stargate.buffer.data.disk.DiskDirectoryInitializer.DirectoryOwnership;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
+import jakarta.annotation.PreDestroy;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -34,6 +37,8 @@ public class LocalDiskTier
     private final Path directory;
     private final LocalDiskAllocator diskAllocator;
     private final DiskDirectoryTracker directoryTracker;
+    private final DiskDirectoryLock directoryLock;
+    private final Future<?> initCleanup;
     private final double memoryHighWatermarkPercent;
     private final double memoryLowWatermarkPercent;
     private final int maxOpenDiskChunks;
@@ -49,7 +54,9 @@ public class LocalDiskTier
         this.directory = rootDirectory.resolve(String.valueOf(bufferNodeId.getLongValue()));
         this.diskAllocator = requireNonNull(allocator, "allocator is null");
         this.directoryTracker = new DiskDirectoryTracker();
-        initializeDirectories(rootDirectory, this.directory, directoryTracker, config.isAllowDirectoryCreation());
+        DirectoryOwnership initResult = initializeDirectories(rootDirectory, this.directory, directoryTracker, config.isAllowDirectoryCreation());
+        this.directoryLock = initResult.directoryLock();
+        this.initCleanup = initResult.cleanup();
         this.memoryHighWatermarkPercent = config.getMemoryHighWatermark() * 100.0;
         this.memoryLowWatermarkPercent = config.getMemoryLowWatermark() * 100.0;
         checkState(memoryLowWatermarkPercent <= memoryHighWatermarkPercent,
@@ -58,6 +65,24 @@ public class LocalDiskTier
                 config.getMemoryHighWatermark());
         this.maxOpenDiskChunks = config.getMaxOpenDiskChunks();
         this.exchangeMemoryFraction = config.getExchangeMemoryFraction();
+    }
+
+    @PreDestroy
+    public void close()
+    {
+        // Wait for startup cleanup before releasing the lock
+        try {
+            initCleanup.get();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn(e, "Interrupted while waiting for startup cleanup to finish");
+        }
+        catch (Exception e) {
+            log.warn(e, "Startup cleanup did not finish cleanly");
+        }
+        directoryTracker.shutdown();
+        directoryLock.close();
     }
 
     public Optional<DiskChunkSlot> tryReserveChunkSlot(
