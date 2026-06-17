@@ -21,7 +21,9 @@ import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
+import io.airlift.units.MinDuration;
 import io.trino.execution.buffer.CompressionCodec;
 import io.trino.plugin.base.configuration.ThreadCountParser;
 import io.trino.sql.analyzer.RegexLibrary;
@@ -40,6 +42,7 @@ import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.execution.buffer.CompressionCodec.LZ4;
 import static io.trino.execution.buffer.CompressionCodec.NONE;
 import static io.trino.sql.analyzer.RegexLibrary.JONI;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 @DefunctConfig({
         "analyzer.experimental-syntax-enabled",
@@ -144,6 +147,7 @@ public class FeaturesConfig
     private boolean parallelizeLookupOuterOperator = true;
     private boolean materializedViewSubstitutionSupportEnabled;
     private boolean materializedViewSubstitutionEnabled;
+    private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
 
     public boolean isRedistributeWrites()
     {
@@ -665,6 +669,20 @@ public class FeaturesConfig
     public FeaturesConfig setMaterializedViewSubstitutionEnabled(boolean value)
     {
         this.materializedViewSubstitutionEnabled = value;
+        return this;
+    }
+
+    @MinDuration("1s")
+    public Duration getMaterializedViewSubstitutionMetastoreRefreshInterval()
+    {
+        return materializedViewSubstitutionMetastoreRefreshInterval;
+    }
+
+    @Config("materialized-view-substitution.metastore-refresh-interval")
+    @ConfigDescription("How often the in-memory materialization index is rebuilt from the underlying materialization metastore, picking up changes made by other clusters")
+    public FeaturesConfig setMaterializedViewSubstitutionMetastoreRefreshInterval(Duration value)
+    {
+        this.materializedViewSubstitutionMetastoreRefreshInterval = value;
         return this;
     }
 }

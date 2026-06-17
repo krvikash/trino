@@ -542,7 +542,8 @@ public class PlanTester
                 new InMemoryRawMaterializationMetastore(),
                 new JsonCodecFactory(mapper).jsonCodec(io.starburst.materialization.ir.Output.class),
                 new SubstitutionMetadataManager(CatalogServiceProvider.fail()),
-                NO_CATALOGS));
+                NO_CATALOGS),
+                new FeaturesConfig());
         this.substitutionMetadata = new SubstitutionMetadataManager(createSubstitutionMetadata(catalogManager));
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);
         ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(plannerContext, 0);

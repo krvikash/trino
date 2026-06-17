@@ -25,6 +25,7 @@ import io.trino.tracing.TracingSubstitutionMetadata;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class MvSubstitutionModule
         extends AbstractConfigurationAwareModule
@@ -57,6 +58,7 @@ public class MvSubstitutionModule
         binder.bind(VersionAwareMaterializationMetastore.class).in(Scopes.SINGLETON);
         binder.bind(MaterializationIndex.class).in(Scopes.SINGLETON);
         binder.bind(MaterializationMetastore.class).to(MaterializationIndex.class);
+        newExporter(binder).export(MaterializationIndex.class).withGeneratedName();
         binder.bind(MaterializationService.class).to(DefaultMaterializationService.class).in(Scopes.SINGLETON);
         binder.bind(MaterializationIrExtractor.class).in(Scopes.SINGLETON);
         jsonCodecBinder(binder).bindJsonCodec(Output.class);

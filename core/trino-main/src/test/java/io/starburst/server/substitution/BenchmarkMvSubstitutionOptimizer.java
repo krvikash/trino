@@ -23,6 +23,7 @@ import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastor
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
+import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.connector.MockConnectorColumnHandle;
@@ -336,11 +337,13 @@ public class BenchmarkMvSubstitutionOptimizer
                     .withJsonDeserializers(ImmutableMap.of(Type.class, new TypeDeserializer(typeManager)))
                     .get())
                     .jsonCodec(Output.class);
-            return new MaterializationIndex(new VersionAwareMaterializationMetastore(
-                    new InMemoryRawMaterializationMetastore(),
-                    irJsonCodec,
-                    substitutionMetadata,
-                    planTester.getCatalogManager()));
+            return new MaterializationIndex(
+                    new VersionAwareMaterializationMetastore(
+                            new InMemoryRawMaterializationMetastore(),
+                            irJsonCodec,
+                            substitutionMetadata,
+                            planTester.getCatalogManager()),
+                    new FeaturesConfig());
         }
 
         /**

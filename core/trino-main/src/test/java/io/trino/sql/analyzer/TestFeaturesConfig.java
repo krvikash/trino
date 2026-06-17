@@ -16,6 +16,7 @@ package io.trino.sql.analyzer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.trino.FeaturesConfig;
 import io.trino.FeaturesConfig.DataIntegrityVerification;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,8 @@ import static io.trino.execution.buffer.CompressionCodec.LZ4;
 import static io.trino.execution.buffer.CompressionCodec.ZSTD;
 import static io.trino.sql.analyzer.RegexLibrary.JONI;
 import static io.trino.sql.analyzer.RegexLibrary.RE2J;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestFeaturesConfig
 {
@@ -76,7 +79,8 @@ public class TestFeaturesConfig
                 .setExternalExchangeEncryptionEnabled(true)
                 .setParallelizeLookupOuterOperator(true)
                 .setMaterializedViewSubstitutionSupportEnabled(false)
-                .setMaterializedViewSubstitutionEnabled(false));
+                .setMaterializedViewSubstitutionEnabled(false)
+                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES)));
     }
 
     @Test
@@ -121,6 +125,7 @@ public class TestFeaturesConfig
                 .put("parallelize-lookup-outer-operator", "false")
                 .put("materialized-view-substitution.support.enabled", "true")
                 .put("materialized-view-substitution.enabled", "true")
+                .put("materialized-view-substitution.metastore-refresh-interval", "30s")
                 .buildOrThrow();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -161,7 +166,8 @@ public class TestFeaturesConfig
                 .setExternalExchangeEncryptionEnabled(false)
                 .setParallelizeLookupOuterOperator(false)
                 .setMaterializedViewSubstitutionSupportEnabled(true)
-                .setMaterializedViewSubstitutionEnabled(true);
+                .setMaterializedViewSubstitutionEnabled(true)
+                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS));
         assertFullMapping(properties, expected);
     }
 }
