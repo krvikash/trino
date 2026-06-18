@@ -26,6 +26,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -57,7 +58,8 @@ public class StoragePageSourceProvider
             ConnectorTableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            MemoryContext memoryContext)
     {
         if (table instanceof LoadTableHandle) {
             HiveSplit hiveSplit = (HiveSplit) split;
@@ -76,7 +78,8 @@ public class StoragePageSourceProvider
                         hiveSplit.getAcidInfo(),
                         OptionalInt.empty(),
                         true,
-                        NO_ACID_TRANSACTION);
+                        NO_ACID_TRANSACTION,
+                        memoryContext);
 
                 if (pageSource.isPresent()) {
                     return pageSource.get();

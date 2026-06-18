@@ -43,6 +43,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
@@ -245,7 +246,8 @@ public class HivePageSourceProvider
             ConnectorTableHandle tableHandle,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            MemoryContext memoryContext)
     {
         HiveTableHandle hiveTable = (HiveTableHandle) tableHandle;
         HiveSplit hiveSplit = (HiveSplit) split;
@@ -289,7 +291,8 @@ public class HivePageSourceProvider
                 hiveSplit.getAcidInfo(),
                 originalFile,
                 hiveTable.getTransaction(),
-                columnMappings);
+                columnMappings,
+                memoryContext);
 
         if (pageSource.isPresent()) {
             return pageSource.get();
@@ -385,7 +388,8 @@ public class HivePageSourceProvider
             Optional<AcidInfo> acidInfo,
             boolean originalFile,
             AcidTransaction transaction,
-            List<ColumnMapping> columnMappings)
+            List<ColumnMapping> columnMappings,
+            MemoryContext memoryContext)
     {
         if (effectivePredicate.isNone()) {
             return Optional.of(new EmptyPageSource());
@@ -414,7 +418,8 @@ public class HivePageSourceProvider
                     acidInfo,
                     tableBucketNumber,
                     originalFile,
-                    transaction);
+                    transaction,
+                    memoryContext);
 
             if (pageSource.isPresent()) {
                 return Optional.of(createHivePageSource(
