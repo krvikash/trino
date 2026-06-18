@@ -19,6 +19,7 @@ import io.airlift.slice.Slice;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorPageSink;
@@ -51,6 +52,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -217,6 +219,8 @@ public class CopyOnWriteIcebergMergeSink
         IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider();
         TrinoInputFile inputFile = fileSystem.newInputFile(path);
         long fileSize = inputFile.length();
+        // TODO (https://github.com/trinodb/trino/issues/29958) memory usage reporting
+        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
         return icebergPageSourceProvider.createPageSource(
                 session,
                 supportsRowLineage(formatVersion) ? withRowLineageColumns(columns) : columns,
@@ -238,6 +242,7 @@ public class CopyOnWriteIcebergMergeSink
                 firstRowIds.containsKey(path.toString()) ? OptionalLong.of(firstRowIds.get(path.toString())) : OptionalLong.empty(),
                 nameMapping.map(NameMappingParser::fromJson),
                 formatVersion,
-                false);
+                false,
+                memoryContext);
     }
 }

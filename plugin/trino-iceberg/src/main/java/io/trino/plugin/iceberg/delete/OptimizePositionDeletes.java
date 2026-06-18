@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergFileFormat;
@@ -66,6 +67,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.airlift.slice.Slices.EMPTY_SLICE;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
@@ -342,6 +344,8 @@ public class OptimizePositionDeletes
             throw new TrinoException(NOT_SUPPORTED, "Unsupported file format: " + deleteFile.format());
         }
 
+        // TODO (https://github.com/trinodb/trino/issues/29958) memory usage reporting
+        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
         return pageSourceProviderFactory.createPageSourceProvider().openDeleteFile(
                 session,
                 fileSystem,
@@ -351,7 +355,8 @@ public class OptimizePositionDeletes
                         .add(IcebergColumnHandle.builder(primitiveColumnIdentity(DELETE_FILE_POS.fieldId(), DELETE_FILE_POS.name())).columnType(BIGINT).build())
                         .build(),
                 TupleDomain.all(),
-                formatVersion(table));
+                formatVersion(table),
+                memoryContext);
     }
 
     private static PartitionInfo getPartitionInfoFromDeleteFile(Table table, DeleteFile deleteFile)

@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.MustBeClosed;
 import com.google.inject.Inject;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.plugin.iceberg.IcebergFileFormat.fromIceberg;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
 import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
@@ -77,6 +79,8 @@ public final class PartitionStatisticsReader
                 .map(column -> getColumnHandle(column, typeManager))
                 .collect(toImmutableList());
 
+        // TODO (https://github.com/trinodb/trino/issues/29958) memory usage reporting
+        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
         ConnectorPageSource pageSource = pageSourceProvider.createPageSource(
                 session,
                 projectedColumns,
@@ -99,7 +103,8 @@ public final class PartitionStatisticsReader
                 OptionalLong.empty(),
                 Optional.empty(),
                 formatVersion(table),
-                false);
+                false,
+                memoryContext);
 
         return new PartitionStatsIterator(pageSource, schema);
     }

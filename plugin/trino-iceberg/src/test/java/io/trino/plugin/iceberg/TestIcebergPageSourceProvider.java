@@ -71,6 +71,7 @@ import java.util.OptionalLong;
 import static io.airlift.units.DataSize.Unit.BYTE;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_ENVIRONMENT;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_STATS;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTestUtils.writeParquetFile;
 import static io.trino.plugin.iceberg.ColumnIdentity.TypeCategory.PRIMITIVE;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
@@ -171,7 +172,8 @@ class TestIcebergPageSourceProvider
                 OptionalLong.empty(), // firstRowId
                 Optional.empty(),
                 new IcebergConfig().getFormatVersion(),
-                false)) {
+                false,
+                newSimpleAggregatedMemoryContext())) {
             // Memory should still be 0 before reading any pages (lazy loading)
             assertThat(provider.getMemoryUsage()).isEqualTo(0);
 

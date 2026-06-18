@@ -14,12 +14,18 @@
 package io.trino.memory.context;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.trino.spi.connector.MemoryContext;
 
 public interface AggregatedMemoryContext
 {
     static AggregatedMemoryContext newSimpleAggregatedMemoryContext()
     {
         return new SimpleAggregatedMemoryContext();
+    }
+
+    static AggregatedMemoryContext newAggregatedMemoryContext(MemoryContext memoryContext)
+    {
+        return newRootAggregatedMemoryContext(new MemoryContextReservationHandler(memoryContext), 0);
     }
 
     static AggregatedMemoryContext newRootAggregatedMemoryContext(MemoryReservationHandler reservationHandler, long guaranteedMemoryInBytes)

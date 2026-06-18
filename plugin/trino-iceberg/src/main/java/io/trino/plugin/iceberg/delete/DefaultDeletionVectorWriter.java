@@ -62,6 +62,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static com.google.common.base.Verify.verify;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_WRITER_DATA_ERROR;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
@@ -310,6 +311,7 @@ public class DefaultDeletionVectorWriter
         }
     }
 
+    // TODO (https://github.com/trinodb/trino/issues/29957) memory usage reporting
     private ConnectorPageSource openDeleteFilePageSource(ConnectorSession session, DeleteFile deleteFile, TrinoFileSystem fileSystem, int formatVersion)
     {
         return pageSourceProviderFactory.createPageSourceProvider().openDeleteFile(
@@ -318,7 +320,8 @@ public class DefaultDeletionVectorWriter
                 io.trino.plugin.iceberg.delete.DeleteFile.fromIceberg(deleteFile),
                 List.of(deleteFilePathColumnHandle, deleteFilePositionColumnHandle),
                 TupleDomain.all(),
-                formatVersion);
+                formatVersion,
+                newSimpleAggregatedMemoryContext());
     }
 
     static boolean isDeletionVector(DeleteFile deleteFile)
