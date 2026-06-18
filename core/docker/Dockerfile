@@ -67,8 +67,13 @@ RUN \
 
 COPY --chown=trino:trino trino-cli.jar /usr/bin/trino
 COPY --chown=trino:trino cudf-layer/ /usr/lib/trino/lib/
-COPY --chown=trino:trino --exclude=bin/darwin-* --exclude=bin/linux-* trino-server /usr/lib/trino
-COPY --chown=trino:trino trino-server/bin/linux-${ARCH} /usr/lib/trino/bin/linux-${ARCH}
+# Layer 1: base (lib/, bin/, and cross-cluster plugin files hardlinked to lib/)
+COPY --chown=trino:trino --exclude=bin/darwin-* --exclude=bin/linux-* base-layer/ /usr/lib/trino/
+COPY --chown=trino:trino base-layer/bin/linux-${ARCH} /usr/lib/trino/bin/linux-${ARCH}
+# Layer 2: data-lake plugins (galaxy-objectstore, hive, iceberg, starburst-functions, warp-speed)
+COPY --chown=trino:trino data-lake-layer/ /usr/lib/trino/plugin/
+# Layer 3: unique plugins (single-path files in all other plugins)
+COPY --chown=trino:trino unique-layer/ /usr/lib/trino/plugin/
 COPY --chown=trino:trino default/etc /etc/trino
 COPY --chown=trino:trino --from=jvmkill /libjvmkill.so /usr/lib/trino/bin
 

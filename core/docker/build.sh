@@ -14,6 +14,7 @@ Builds the Trino Docker image
 -r       Build the specified Trino release version, downloads all required artifacts
 -j       Build the Trino release with specified JDK distribution
 -x       Skip image tests
+-l       Split image into 4 parallel-pull layers using the inode classifier (base/data-lake/unique/cudf)
 EOF
 }
 
@@ -35,8 +36,9 @@ TEMURIN_RELEASE=$("${SOURCE_DIR}/mvnw" -f "${SOURCE_DIR}/pom.xml" --quiet help:e
 TEMURIN_DOWNLOAD_URL="https://api.adoptium.net/v3/binary/version/{release_name}/linux/{arch}/jdk/hotspot/normal/eclipse?project=jdk"
 
 SKIP_TESTS=false
+USE_LAYERS=false
 
-while getopts ":a:h:r:p:t:j:x" o; do
+while getopts ":a:h:r:p:t:j:xl" o; do
     case "${o}" in
         a)
             IFS=, read -ra ARCH_ARG <<< "$OPTARG"
@@ -67,6 +69,9 @@ while getopts ":a:h:r:p:t:j:x" o; do
         x)
            SKIP_TESTS=true
            ;;
+        l)
+            USE_LAYERS=true
+            ;;
         *)
             usage
             exit 1
@@ -119,7 +124,27 @@ mv "${WORK_DIR}/${SERVER_ARTIFACT}-${TRINO_VERSION}" "${WORK_DIR}/trino-server"
 cp -R bin "${WORK_DIR}/trino-server"
 
 mkdir -p "${WORK_DIR}/cudf-layer"
-find "${WORK_DIR}/trino-server/lib/" -name '*cudf*.jar' -exec mv {} "${WORK_DIR}/cudf-layer/" \;
+if [[ "${USE_LAYERS}" == "true" ]]; then
+    mkdir -p "${WORK_DIR}/base-layer" "${WORK_DIR}/data-lake-layer" "${WORK_DIR}/unique-layer"
+    # Split trino-server into parallel-pullable Docker layers.
+    # Hardlinks are preserved within each layer by an inode-aware classifier;
+    # splitting them across layers would inflate the image by ~7.8 GiB.
+    echo "Classifying trino-server into parallel layers"
+    python3 classify-layers.py \
+        "${WORK_DIR}/trino-server" \
+        "${WORK_DIR}/base-layer" \
+        "${WORK_DIR}/data-lake-layer" \
+        "${WORK_DIR}/unique-layer" \
+        "${WORK_DIR}/cudf-layer"
+    rm -rf "${WORK_DIR}/trino-server"
+else
+    # `mv` to preserve hardlinks; empty sibling dirs make the Dockerfile's
+    # data-lake-layer/ and unique-layer/ COPYs no-ops.
+    mv "${WORK_DIR}/trino-server" "${WORK_DIR}/base-layer"
+    mkdir -p "${WORK_DIR}/data-lake-layer" "${WORK_DIR}/unique-layer"
+    find "${WORK_DIR}/base-layer/lib/" -name '*cudf*.jar' -exec mv {} "${WORK_DIR}/cudf-layer/" \;
+fi
+
 cp -R default "${WORK_DIR}/"
 if [ "${SERVER_ARTIFACT}" != "trino-server" ]; then
     rm -rf "${WORK_DIR}"/default/etc/catalog/*.properties
