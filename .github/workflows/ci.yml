@@ -166,7 +166,7 @@ jobs:
           image: 843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/tonistiigi/binfmt:latest
           platforms: arm64,ppc64le
       - name: Build and Test Docker Image
-        run: core/docker/build.sh
+        run: core/docker/build.sh -l
       - name: Cancel merge queue workflow
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
