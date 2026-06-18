@@ -44,7 +44,6 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.profile.GCProfiler;
 import org.openjdk.jmh.profile.MemPoolProfiler;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -127,7 +126,7 @@ public class BenchmarkSortingFileWriter
     }
 
     @Benchmark
-    public Closeable write()
+    public RollbackAction write()
             throws IOException
     {
         List<Page> inputPages = data.pages();
@@ -358,7 +357,7 @@ public class BenchmarkSortingFileWriter
         public void appendRows(Page dataPage) {}
 
         @Override
-        public Closeable commit()
+        public RollbackAction commit()
         {
             return () -> {};
         }

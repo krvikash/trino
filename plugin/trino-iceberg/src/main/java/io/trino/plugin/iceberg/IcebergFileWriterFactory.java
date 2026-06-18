@@ -32,6 +32,7 @@ import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveCompressionOption;
+import io.trino.plugin.hive.RollbackAction;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.iceberg.fileio.ForwardingOutputFile;
 import io.trino.spi.NodeVersion;
@@ -52,7 +53,6 @@ import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DeleteFileSet;
 import org.weakref.jmx.Managed;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
@@ -190,7 +190,7 @@ public class IcebergFileWriterFactory
         try {
             TrinoOutputFile outputFile = fileSystem.newOutputFile(outputPath);
 
-            Closeable rollbackAction = () -> fileSystem.deleteFile(outputPath);
+            RollbackAction rollbackAction = () -> fileSystem.deleteFile(outputPath);
 
             ParquetWriterOptions parquetWriterOptions = ParquetWriterOptions.builder()
                     .setMaxPageSize(getParquetWriterPageSize(session))
@@ -236,7 +236,7 @@ public class IcebergFileWriterFactory
         try {
             OrcDataSink orcDataSink = OutputStreamOrcDataSink.create(fileSystem.newOutputFile(outputPath));
 
-            Closeable rollbackAction = () -> fileSystem.deleteFile(outputPath);
+            RollbackAction rollbackAction = () -> fileSystem.deleteFile(outputPath);
 
             List<Types.NestedField> columnFields = icebergSchema.columns();
             List<String> fileColumnNames = columnFields.stream()
@@ -319,7 +319,7 @@ public class IcebergFileWriterFactory
             Schema icebergSchema,
             Map<String, String> storageProperties)
     {
-        Closeable rollbackAction = () -> fileSystem.deleteFile(outputPath);
+        RollbackAction rollbackAction = () -> fileSystem.deleteFile(outputPath);
 
         List<Type> columnTypes = icebergSchema.columns().stream()
                 .map(column -> toTrinoType(column.type(), typeManager))

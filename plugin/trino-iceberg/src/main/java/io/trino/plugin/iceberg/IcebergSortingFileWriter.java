@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.plugin.hive.RollbackAction;
 import io.trino.plugin.hive.SortingFileWriter;
 import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.spi.Page;
@@ -24,7 +25,6 @@ import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 
-import java.io.Closeable;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -88,7 +88,7 @@ public final class IcebergSortingFileWriter
     }
 
     @Override
-    public Closeable commit()
+    public RollbackAction commit()
     {
         return sortingFileWriter.commit();
     }

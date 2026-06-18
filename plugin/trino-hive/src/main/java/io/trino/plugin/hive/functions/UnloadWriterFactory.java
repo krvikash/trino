@@ -26,13 +26,13 @@ import io.trino.plugin.hive.HiveWriter;
 import io.trino.plugin.hive.HiveWriterFactory;
 import io.trino.plugin.hive.HiveWriterStats;
 import io.trino.plugin.hive.PartitionUpdate;
+import io.trino.plugin.hive.RollbackAction;
 import io.trino.plugin.hive.WriterFactory;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.type.Type;
 
-import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,9 +140,9 @@ public class UnloadWriterFactory
                 hiveWriterStats)
         {
             @Override
-            public Closeable commit()
+            public RollbackAction commit()
             {
-                Closeable rollbackAction = super.commit();
+                RollbackAction rollbackAction = super.commit();
                 onCommit.accept(this);
                 return rollbackAction;
             }
