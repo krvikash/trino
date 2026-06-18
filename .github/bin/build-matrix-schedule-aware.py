@@ -521,7 +521,12 @@ class TestBuild(unittest.TestCase):
         configs = [ScheduleConfigItem([["a"], ["b", "c"]])]
         self.assertEqual(
             build_matrix_json(configs, set(), {"event_name": "push"}),
-            {"include": [{"modules": "a", "name": "test (a)"}, {"modules": "b,c", "name": "test (b, c)"}]},
+            {
+                "include": [
+                    {"modules": "a", "name": "test (a)"},
+                    {"modules": "b,c", "name": "test (b, c)"},
+                ]
+            },
         )
         self.assertEqual(
             build_matrix_json(configs, {"b"}, {"event_name": "pull_request"}),
@@ -552,7 +557,7 @@ class TestBuild(unittest.TestCase):
                         "profile": "foo-profile",
                         "notify-channels": ["foo", "bar"],
                         "buildAll": True,
-                        "name": "test (a, foo-profile, buildAll=True)"
+                        "name": "test (a, foo-profile, buildAll=True)",
                     }
                 ]
             },
@@ -626,7 +631,10 @@ class TestBuild(unittest.TestCase):
         matrix_other_impacted = build_matrix_json(configs, {"b"}, github_context)
         matrix_not_impacted = build_matrix_json(configs, set(), github_context)
 
-        self.assertEqual(matrix_impacted, {"include": [{"modules": "a", "name": "test (a)"}]},)
+        self.assertEqual(
+            matrix_impacted,
+            {"include": [{"modules": "a", "name": "test (a)"}]},
+        )
         self.assertEqual(matrix_other_impacted, {})
         self.assertEqual(matrix_not_impacted, {})
 
@@ -644,7 +652,9 @@ class TestBuild(unittest.TestCase):
         self.assertEqual(matrix_impacted, {})
         self.assertEqual(matrix_other_impacted, {})
         self.assertEqual(matrix_not_impacted, {})
-        self.assertEqual(matrix_dispatched, {"include": [{"modules": "a", "name": "test (a)"}]})
+        self.assertEqual(
+            matrix_dispatched, {"include": [{"modules": "a", "name": "test (a)"}]}
+        )
 
 
 if __name__ == "__main__":
