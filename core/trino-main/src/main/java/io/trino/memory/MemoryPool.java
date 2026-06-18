@@ -109,7 +109,7 @@ public class MemoryPool
                 maxBytes,
                 reservedBytes,
                 reservedRevocableBytes,
-                queryMemoryReservations,
+                ImmutableMap.copyOf(queryMemoryReservations),
                 memoryAllocations,
                 stringKeyedTaskMemoryReservations,
                 stringKeyedTaskRevocableMemoryReservations);
