@@ -862,6 +862,52 @@ public class TestRedshiftConnectorTest
         }
     }
 
+    // override because we enabled the varchar unsafe pushdown
+    @Test
+    public void testVarcharCharComparison()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_varchar_char",
+                "(k, v) AS VALUES" +
+                        "   (-1, CAST(NULL AS varchar(3))), " +
+                        "   (0, CAST('' AS varchar(3)))," +
+                        "   (1, CAST(' ' AS varchar(3))), " +
+                        "   (2, CAST('  ' AS varchar(3))), " +
+                        "   (3, CAST('   ' AS varchar(3)))," +
+                        "   (4, CAST('x' AS varchar(3)))," +
+                        "   (5, CAST('x ' AS varchar(3)))," +
+                        "   (6, CAST('x  ' AS varchar(3)))")) {
+            assertQuery(
+                    "SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS char(2))",
+                    // With unsafe varchar pushdown, Redshift compares ignoring trailing spaces, producing the legacy (pre-NO-PAD) results
+                    "VALUES (0, ''), (1, ' '), (2, '  '), (3, '   ')");
+
+            // value that's not all-spaces
+            assertQuery(
+                    "SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x ' AS char(2))",
+                    // With unsafe varchar pushdown, Redshift compares ignoring trailing spaces, producing the legacy (pre-NO-PAD) results
+                    "VALUES (4, 'x'), (5, 'x '), (6, 'x  ')");
+        }
+    }
+
+    // override because we enabled the varchar unsafe pushdown
+    @Test
+    @Override
+    public void testVarcharEqualityPushdownIgnoresTrailingSpaces()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_varchar_pad_space",
+                "(v varchar(5))",
+                List.of("'a'", "'a '"))) {
+            assertThat(query("SELECT v FROM " + table.getName() + " WHERE v = 'a'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a'), ('a ')");
+            assertThat(query("SELECT v FROM " + table.getName() + " WHERE v = 'a '"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a'), ('a ')");
+        }
+    }
+
     @Test
     public void testIsNullPredicatePushdown()
     {

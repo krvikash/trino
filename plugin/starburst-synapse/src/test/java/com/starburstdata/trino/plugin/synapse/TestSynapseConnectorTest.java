@@ -23,6 +23,7 @@ import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.query.QueryAssertions.QueryAssert;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
@@ -75,7 +76,6 @@ public class TestSynapseConnectorTest
         return switch (connectorBehavior) {
             // Overriden because Synapse disables connector expression pushdown due to correctness issues with varchar pushdown because of default case-insensitive collation
             case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN,
-                 SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY,
                  SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY -> false;
             case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
                  SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY -> true;
@@ -419,7 +419,8 @@ public class TestSynapseConnectorTest
                     .isFullyPushedDown();
             // GROUP BY with WHERE on neither grouping nor aggregation column
             assertThat(query(getSession(), format("SELECT nationkey, min(regionkey) FROM %s WHERE name = 'ARGENTINA' GROUP BY nationkey", caseSensitiveNation)))
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
             // GROUP BY with WHERE complex predicate
             assertThat(query(getSession(), "SELECT regionkey, sum(nationkey) FROM nation WHERE name LIKE '%N%' GROUP BY regionkey"))
                     .isNotFullyPushedDown(node(FilterNode.class, node(TableScanNode.class)));
@@ -429,7 +430,8 @@ public class TestSynapseConnectorTest
             assertThat(query("SELECT nationkey, count(name) FROM nation GROUP BY nationkey")).isFullyPushedDown();
             // aggregation on varchar column with WHERE
             assertThat(query(getSession(), format("SELECT count(name) FROM %s WHERE name = 'ARGENTINA'", caseSensitiveNation)))
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
 
             // pruned away aggregation
             assertThat(query("SELECT -13 FROM (SELECT count(*) FROM nation)"))
@@ -572,11 +574,13 @@ public class TestSynapseConnectorTest
                     // Join over a varchar equality predicate
                     assertThat(query(session, format("SELECT c.name, n.name FROM (SELECT * FROM %s WHERE address = 'TcGe5gaZNgVePxU5kRrvXBfkasDTea') c " +
                             "%s nation n ON c.custkey = n.nationkey", caseSensitiveCustomer, joinOperator)))
-                            .isFullyPushedDown();
+                            .skipResultsCorrectnessCheckForPushdown()
+                            .joinIsNotFullyPushedDown();
 
                     // Join over a varchar inequality predicate
                     assertThat(query(session, format("SELECT c.name, n.name FROM (SELECT * FROM %s WHERE address < 'TcGe5gaZNgVePxU5kRrvXBfkasDTea') c " +
                             "%s nation n ON c.custkey = n.nationkey", caseSensitiveCustomer, joinOperator)))
+                            .skipResultsCorrectnessCheckForPushdown()
                             .joinIsNotFullyPushedDown();
 
                     // join over aggregation
@@ -603,6 +607,27 @@ public class TestSynapseConnectorTest
         finally {
             dropTable(caseSensitiveNation);
             dropTable(caseSensitiveCustomer);
+        }
+    }
+
+    @Override
+    protected QueryAssert assertJoinConditionallyPushedDown(
+            Session session,
+            String query,
+            boolean condition)
+    {
+        try {
+            QueryAssert queryAssert = assertThat(query(session, query));
+            if (condition) {
+                return queryAssert.isFullyPushedDown();
+            }
+            return queryAssert
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .joinIsNotFullyPushedDown();
+        }
+        catch (Throwable e) {
+            e.addSuppressed(new Exception("Query: " + query));
+            throw e;
         }
     }
 
@@ -646,12 +671,14 @@ public class TestSynapseConnectorTest
                     "Latin1_General_CS_AS");
             // varchar inequality
             assertThat(query(format("SELECT regionkey, nationkey, name FROM %s WHERE name != 'ROMANIA' AND name != 'ALGERIA'", caseSensitiveNation)))
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
 
             // varchar equality
             assertThat(query(format("SELECT regionkey, nationkey, name FROM %s WHERE name = 'ROMANIA'", caseSensitiveNation)))
                     .matches("VALUES (BIGINT '3', BIGINT '19', CAST('ROMANIA' AS varchar(25)))")
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
 
             // varchar range
             assertThat(query(format("SELECT regionkey, nationkey, name FROM %s WHERE name BETWEEN 'POLAND' AND 'RPA'", caseSensitiveNation)))
@@ -661,7 +688,8 @@ public class TestSynapseConnectorTest
 
             // varchar NOT IN
             assertThat(query(format("SELECT regionkey, nationkey, name FROM %s WHERE name NOT IN ('POLAND', 'ROMANIA', 'VIETNAM')", caseSensitiveNation)))
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
 
             // varchar NOT IN with small compaction threshold
             assertThat(query(
@@ -684,7 +712,8 @@ public class TestSynapseConnectorTest
                     .matches("VALUES " +
                             "(BIGINT '3', BIGINT '19', CAST('ROMANIA' AS varchar(25))), " +
                             "(BIGINT '2', BIGINT '21', CAST('VIETNAM' AS varchar(25)))")
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
 
             // varchar IN with small compaction threshold
             assertThat(query(
@@ -708,7 +737,8 @@ public class TestSynapseConnectorTest
             // varchar different case
             assertThat(query(format("SELECT regionkey, nationkey, name FROM %s WHERE name = 'romania'", caseSensitiveNation)))
                     .returnsEmptyResult()
-                    .isFullyPushedDown();
+                    .skipResultsCorrectnessCheckForPushdown()
+                    .isNotFullyPushedDown(FilterNode.class);
 
             // bigint equality
             assertThat(query("SELECT regionkey, nationkey, name FROM nation WHERE nationkey = 19"))
@@ -777,10 +807,12 @@ public class TestSynapseConnectorTest
                 // varchar predicate over join
                 Session joinPushdownEnabled = joinPushdownEnabled(getSession());
                 assertThat(query(joinPushdownEnabled, format("SELECT c.name, n.name FROM customer c JOIN %s n ON c.custkey = n.nationkey WHERE n.name = 'POLAND'", caseSensitiveNation)))
-                        .isFullyPushedDown();
+                        .skipResultsCorrectnessCheckForPushdown()
+                        .isNotFullyPushedDown(FilterNode.class);
 
-                // join on varchar columns is not pushed down
+                // join on varchar columns is pushed down
                 assertThat(query(joinPushdownEnabled, format("SELECT n.name, n2.regionkey FROM %1$s n JOIN %1$s n2 ON n.name = n2.name", caseSensitiveNation)))
+                        .skipResultsCorrectnessCheckForPushdown()
                         .isFullyPushedDown();
             }
         }
@@ -814,28 +846,6 @@ public class TestSynapseConnectorTest
     private void dropTable(String tableName)
     {
         onRemoteDatabase().execute(format("DROP TABLE %s", tableName));
-    }
-
-    @Test
-    @Override
-    public void testDeleteWithVarcharInequalityPredicate()
-    {
-        // overriding this method, because default collation is case insensitive comparing to SqlServer
-        try (TestTable table = new TestTable(onRemoteDatabase(), "test_delete_varchar", "(col varchar(1) COLLATE Latin1_General_CS_AS)", ImmutableList.of("'a'", "'A'", "null"))) {
-            assertUpdate("DELETE FROM " + table.getName() + " WHERE col != 'A'", 1);
-            assertQuery("SELECT * FROM " + table.getName(), "VALUES 'A', null");
-        }
-    }
-
-    @Test
-    @Override
-    public void testDeleteWithVarcharEqualityPredicate()
-    {
-        // overriding this method, because default collation is case insensitive comparing to SqlServer
-        try (TestTable table = new TestTable(onRemoteDatabase(), "test_delete_varchar", "(col varchar(1) COLLATE Latin1_General_CS_AS)", ImmutableList.of("'a'", "'A'", "null"))) {
-            assertUpdate("DELETE FROM " + table.getName() + " WHERE col = 'A'", 1);
-            assertQuery("SELECT * FROM " + table.getName(), "VALUES 'a', null");
-        }
     }
 
     @Test

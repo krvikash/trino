@@ -2194,6 +2194,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
+    public void testVarcharEqualityPushdownIgnoresTrailingSpaces()
+    {
+        skipDuplicateTestCoverage("testVarcharEqualityPushdownIgnoresTrailingSpaces");
+    }
+
+    @Test
+    @Override
     public void testView()
     {
         skipDuplicateTestCoverage("testView");

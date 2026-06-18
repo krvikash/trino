@@ -1740,6 +1740,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
+    public void testVarcharEqualityPushdownIgnoresTrailingSpaces()
+    {
+        skipDuplicateTestCoverage("testVarcharEqualityPushdownIgnoresTrailingSpaces");
+    }
+
+    @Test
+    @Override
     public void testView()
     {
         skipDuplicateTestCoverage("testView");
