@@ -686,6 +686,7 @@
                                 <exclude>**/TestGcsAndUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestAzureUnityMetastoreWithCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -722,6 +723,7 @@
                                 <include>**/TestGcsAndUnityMetastoreDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</include>
+                                <include>**/TestAzureUnityMetastoreWithCredentialsVendingDeltaConnectorSmokeTest.java</include>
                             </includes>
                         </configuration>
                     </plugin>

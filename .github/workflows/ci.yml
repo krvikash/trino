@@ -1586,6 +1586,7 @@ jobs:
             - suite-delta-lake-databricks-unity
             - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
+            - suite-delta-lake-databricks-unity-azure-credentials-vending
             - suite-hive-databricks-unity
             - suite-iceberg-databricks-unity
             #- suite-exasol
@@ -1679,6 +1680,14 @@ jobs:
                     (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
                     (github.event_name == 'workflow_dispatch') ||
                     (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.GCS_DATABRICKS_TOKEN == '') }}
+            - suite: suite-delta-lake-databricks-unity-azure-credentials-vending
+              config: hdp3
+            - suite: suite-delta-lake-databricks-unity-azure-credentials-vending
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.AZURE_DATABRICKS_TOKEN == '') }}
             - suite: suite-hive-databricks-unity
               config: hdp3
             - suite: suite-hive-databricks-unity
@@ -1878,6 +1887,12 @@ jobs:
           GCS_DATABRICKS_HOST: ${{ vars.GCS_DATABRICKS_HOST }}
           GCS_DATABRICKS_LOGIN: token
           GCS_DATABRICKS_TOKEN: ${{ secrets.GCS_DATABRICKS_TOKEN }}
+          AZURE_DATABRICKS_UNITY_JDBC_URL: ${{ vars.AZURE_DATABRICKS_UNITY_JDBC_URL }}
+          AZURE_DATABRICKS_UNITY_CATALOG_NAME: ${{ vars.AZURE_DATABRICKS_UNITY_CATALOG_NAME }}
+          AZURE_DATABRICKS_UNITY_EXTERNAL_LOCATION: ${{ vars.AZURE_DATABRICKS_UNITY_EXTERNAL_LOCATION }}
+          AZURE_DATABRICKS_HOST: ${{ vars.AZURE_DATABRICKS_HOST }}
+          AZURE_DATABRICKS_LOGIN: token
+          AZURE_DATABRICKS_TOKEN: ${{ secrets.AZURE_DATABRICKS_TOKEN }}
           SNOWFLAKE_ACCOUNT_NAME: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
           GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}

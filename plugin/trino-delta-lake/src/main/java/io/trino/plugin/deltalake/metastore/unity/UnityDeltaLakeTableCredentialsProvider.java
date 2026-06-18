@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import io.trino.plugin.deltalake.DeltaLakeTableCredentials;
 import io.trino.plugin.deltalake.DeltaLakeTableCredentialsProvider;
 import io.trino.plugin.deltalake.metastore.AwsVendedCredentials;
+import io.trino.plugin.deltalake.metastore.AzureVendedCredentials;
 import io.trino.plugin.deltalake.metastore.FileSystemCredentials;
 import io.trino.plugin.deltalake.metastore.GcsVendedCredentials;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
@@ -30,11 +31,14 @@ import io.unitycatalog.client.model.PathOperation;
 import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class UnityDeltaLakeTableCredentialsProvider
@@ -63,21 +67,24 @@ public class UnityDeltaLakeTableCredentialsProvider
             temporaryCredentials = unityMetastore.getTemporaryPathCredentials(handle.tableLocation(), PathOperation.PATH_READ_WRITE);
         }
 
-        FileSystemCredentials credentials = fromTemporaryCredentials(temporaryCredentials);
+        FileSystemCredentials credentials = fromTemporaryCredentials(temporaryCredentials, handle.tableLocation());
         verify(credentials.isValid(), "vended credentials is not valid");
         return Optional.of(new DeltaLakeTableCredentials(handle, credentials));
     }
 
-    private static FileSystemCredentials fromTemporaryCredentials(TemporaryCredentials credentials)
+    private static FileSystemCredentials fromTemporaryCredentials(TemporaryCredentials credentials, String tableLocation)
     {
+        Instant expireAt = Optional.ofNullable(credentials.getExpirationTime()).map(Instant::ofEpochMilli).orElse(Instant.MAX);
+
         AzureUserDelegationSAS azureUserDelegationSas = credentials.getAzureUserDelegationSas();
         if (azureUserDelegationSas != null) {
-            // TODO: support azure vended credentials https://starburstdata.atlassian.net/browse/SEP-18169
-            throw new TrinoException(NOT_SUPPORTED, "Azure vended credentials are not supported yet");
+            return new AzureVendedCredentials(
+                    azureUserDelegationSas.getSasToken(),
+                    storageAccountFromLocation(tableLocation),
+                    expireAt);
         }
 
         AwsCredentials awsTempCredentials = credentials.getAwsTempCredentials();
-        Instant expireAt = Optional.ofNullable(credentials.getExpirationTime()).map(Instant::ofEpochMilli).orElse(Instant.MAX);
         if (awsTempCredentials != null) {
             return new AwsVendedCredentials(
                     awsTempCredentials.getAccessKeyId(),
@@ -94,5 +101,19 @@ public class UnityDeltaLakeTableCredentialsProvider
         }
 
         throw new TrinoException(NOT_SUPPORTED, "No supported cloud credentials returned from Unity Catalog");
+    }
+
+    private static String storageAccountFromLocation(String tableLocation)
+    {
+        URI uri = URI.create(tableLocation);
+        String host = uri.getHost();
+        if (host == null) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Cannot extract storage account from Azure location: %s", tableLocation));
+        }
+        int dotIndex = host.indexOf('.');
+        if (dotIndex <= 0) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Cannot extract storage account from Azure location: %s", tableLocation));
+        }
+        return host.substring(0, dotIndex);
     }
 }

@@ -1,0 +1,13 @@
+databases:
+  trino:
+    jdbc_user: root
+  delta:
+    jdbc_driver_class: com.databricks.client.jdbc.Driver
+    jdbc_jar: /docker/jdbc/databricks-jdbc.jar
+    schema: default
+    prepare_statement:
+      - USE ${databases.delta.schema}
+    table_manager_type: jdbc
+    jdbc_url: ${AZURE_DATABRICKS_UNITY_JDBC_URL};SocketTimeout=120
+    jdbc_user: ${AZURE_DATABRICKS_LOGIN}
+    jdbc_password: ${AZURE_DATABRICKS_TOKEN}

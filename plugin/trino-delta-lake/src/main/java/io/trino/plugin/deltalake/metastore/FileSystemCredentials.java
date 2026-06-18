@@ -24,6 +24,7 @@ import java.util.Map;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = AwsVendedCredentials.class, name = "aws"),
         @JsonSubTypes.Type(value = GcsVendedCredentials.class, name = "gcs"),
+        @JsonSubTypes.Type(value = AzureVendedCredentials.class, name = "azure"),
 })
 public interface FileSystemCredentials
 {
