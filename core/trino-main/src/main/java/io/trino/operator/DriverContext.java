@@ -25,12 +25,12 @@ import io.trino.execution.TaskId;
 import io.trino.memory.QueryContextVisitor;
 import io.trino.memory.context.MemoryTrackingContext;
 import io.trino.operator.OperationTimer.OperationTiming;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -84,7 +84,7 @@ public class DriverContext
     private final List<OperatorContext> operatorContexts = new CopyOnWriteArrayList<>();
     private final long splitWeight;
 
-    private final AtomicReference<Optional<AlternativePlanContext>> alternativePlanContext = new AtomicReference<>(Optional.empty());
+    private final AtomicReference<OptionalInt> alternativeId = new AtomicReference<>(OptionalInt.empty());
     private final AtomicReference<Optional<CacheDriverContext>> cacheDriverContext = new AtomicReference<>(Optional.empty());
 
     public DriverContext(
@@ -457,22 +457,17 @@ public class DriverContext
         return yieldExecutor;
     }
 
-    public Optional<ConnectorPageSourceProvider> getAlternativePageSourceProvider()
+    public OptionalInt getAlternativeId()
     {
-        return alternativePlanContext.get().map(AlternativePlanContext::pageSourceProvider);
+        return alternativeId.get();
     }
 
-    public Optional<Integer> getAlternativeId()
+    public DriverContext setAlternativeId(int alternativeId)
     {
-        return alternativePlanContext.get().map(AlternativePlanContext::alternativeId);
-    }
-
-    public DriverContext setAlternativePlanContext(ConnectorPageSourceProvider pageSourceProvider, int alternativeId)
-    {
-        if (!alternativePlanContext.compareAndSet(
-                Optional.empty(),
-                Optional.of(new AlternativePlanContext(pageSourceProvider, alternativeId)))) {
-            throw new IllegalStateException("alternativePlanContext was already set to " + alternativePlanContext.get());
+        if (!this.alternativeId.compareAndSet(
+                OptionalInt.empty(),
+                OptionalInt.of(alternativeId))) {
+            throw new IllegalStateException("alternativeId was already set to " + this.alternativeId.get());
         }
 
         return this;
@@ -508,15 +503,6 @@ public class DriverContext
     private static long nanosBetween(long start, long end)
     {
         return max(0, end - start);
-    }
-
-    private record AlternativePlanContext(ConnectorPageSourceProvider pageSourceProvider, int alternativeId)
-    {
-        private AlternativePlanContext(ConnectorPageSourceProvider pageSourceProvider, int alternativeId)
-        {
-            this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
-            this.alternativeId = alternativeId;
-        }
     }
 
     private class BlockedMonitor

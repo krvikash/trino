@@ -20,22 +20,11 @@ import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
-import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
-import io.trino.spi.connector.ConnectorPageSource;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
-import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.ConnectorSplit;
-import io.trino.spi.connector.ConnectorTableCredentials;
-import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.EmptyPageSource;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
@@ -50,10 +39,10 @@ public class AlternativeChooser
         this.alternativeChooserProvider = requireNonNull(alternativeChooserProvider, "alternativeChooserProvider is null");
     }
 
-    public Choice chooseAlternative(Session session, Split split, Collection<TableHandle> alternatives)
+    public TableHandle chooseAlternative(Session session, Split split, Collection<TableHandle> alternatives)
     {
         if (split.getConnectorSplit() instanceof EmptySplit) {
-            return new Choice(alternatives.iterator().next(), EmptyPageSourceProvider::new);
+            return alternatives.iterator().next();
         }
         CatalogHandle catalogHandle = split.getCatalogHandle();
         ConnectorAlternativeChooser alternativeChooser = alternativeChooserProvider.getService(catalogHandle);
@@ -64,32 +53,6 @@ public class AlternativeChooser
                 connectorSession,
                 split.getConnectorSplit(),
                 orderedAlternatives.stream().map(TableHandle::connectorHandle).collect(toImmutableList()));
-        return new Choice(orderedAlternatives.get(choice.chosenTableHandleIndex()), choice.pageSourceProviderFactory());
-    }
-
-    public record Choice(TableHandle tableHandle, ConnectorPageSourceProviderFactory pageSourceProviderFactory)
-    {
-        public Choice
-        {
-            requireNonNull(tableHandle, "tableHandle is null");
-            requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-        }
-    }
-
-    private static class EmptyPageSourceProvider
-            implements ConnectorPageSourceProvider
-    {
-        @Override
-        public ConnectorPageSource createPageSource(
-                ConnectorTransactionHandle transaction,
-                ConnectorSession session,
-                ConnectorSplit split,
-                ConnectorTableHandle table,
-                Optional<ConnectorTableCredentials> tableCredentials,
-                List<ColumnHandle> columns,
-                DynamicFilter dynamicFilter)
-        {
-            return new EmptyPageSource();
-        }
+        return orderedAlternatives.get(choice.chosenTableHandleIndex());
     }
 }

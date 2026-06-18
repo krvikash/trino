@@ -173,7 +173,7 @@ public class IcebergConnector
     @Override
     public ConnectorAlternativeChooser getAlternativeChooser()
     {
-        return new IcebergAlternativeChooser(pageSourceProviderFactory);
+        return new IcebergAlternativeChooser();
     }
 
     @Override

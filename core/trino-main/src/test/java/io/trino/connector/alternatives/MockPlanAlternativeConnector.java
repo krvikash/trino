@@ -84,18 +84,13 @@ public class MockPlanAlternativeConnector
     @Override
     public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return pageSourceProviderFactory();
+        return () -> new MockPlanAlternativeChooser.MockPlanAlternativePageSourceProvider(getDelegatePageSourceProvider());
     }
 
     @Override
     public ConnectorAlternativeChooser getAlternativeChooser()
     {
-        return new MockPlanAlternativeChooser(pageSourceProviderFactory());
-    }
-
-    private ConnectorPageSourceProviderFactory pageSourceProviderFactory()
-    {
-        return () -> new MockPlanAlternativeChooser.MockPlanAlternativePageSourceProvider(getDelegatePageSourceProvider());
+        return new MockPlanAlternativeChooser();
     }
 
     private ConnectorPageSourceProvider getDelegatePageSourceProvider()

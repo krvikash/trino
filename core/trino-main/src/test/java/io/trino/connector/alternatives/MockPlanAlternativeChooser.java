@@ -21,7 +21,6 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
-import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -49,13 +48,6 @@ import static java.util.Objects.requireNonNull;
 public class MockPlanAlternativeChooser
         implements ConnectorAlternativeChooser
 {
-    private final ConnectorPageSourceProviderFactory pageSourceProviderFactory;
-
-    public MockPlanAlternativeChooser(ConnectorPageSourceProviderFactory pageSourceProviderFactory)
-    {
-        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-    }
-
     @Override
     public Choice chooseAlternative(ConnectorSession session, ConnectorSplit split, List<ConnectorTableHandle> alternatives)
     {
@@ -65,7 +57,7 @@ public class MockPlanAlternativeChooser
         int alternative = (planAlternativeSplit.getSplitNumber() + 1) % alternatives.size();
         ConnectorTableHandle table = alternatives.get(alternative);
         checkArgument(alternative == 0 || table instanceof MockPlanAlternativeTableHandle, "Not the trivial alternative, expected a MockPlanAlternativeTableHandle");
-        return new Choice(alternative, pageSourceProviderFactory);
+        return new Choice(alternative);
     }
 
     public static class MockPlanAlternativePageSourceProvider

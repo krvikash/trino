@@ -99,7 +99,7 @@ public class TableScanOperator
             TableScanOperator operator = new TableScanOperator(
                     operatorContext,
                     sourceId,
-                    TableAwarePageSourceProvider.create(operatorContext, table, tableCredentials, pageSourceProvider),
+                    new TableAwarePageSourceProvider(pageSourceProvider, table, tableCredentials),
                     columns);
 
             if (isSourcePagesValidationEnabled(operatorContext.getSession())) {
@@ -147,7 +147,7 @@ public class TableScanOperator
     {
         this(operatorContext,
                 sourceId,
-                TableAwarePageSourceProvider.create(operatorContext, table, tableCredentials, pageSourceProvider),
+                new TableAwarePageSourceProvider(pageSourceProvider, table, tableCredentials),
                 columns);
     }
 

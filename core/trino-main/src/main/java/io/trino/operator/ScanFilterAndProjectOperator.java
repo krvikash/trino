@@ -452,7 +452,7 @@ public class ScanFilterAndProjectOperator
                     memoryTrackingContext,
                     yieldSignal,
                     split,
-                    TableAwarePageSourceProvider.create(operatorContext, table, tableCredentials, pageSourceProvider),
+                    new TableAwarePageSourceProvider(pageSourceProvider, table, tableCredentials),
                     pageProcessor.apply(splitDynamicFilter),
                     columns,
                     splitDynamicFilter,

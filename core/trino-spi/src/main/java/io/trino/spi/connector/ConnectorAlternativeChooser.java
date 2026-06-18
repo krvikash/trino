@@ -15,12 +15,10 @@ package io.trino.spi.connector;
 
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
 public interface ConnectorAlternativeChooser
 {
     /**
-     * Chooses a page source from provided alternatives for a given split.
+     * Chooses a table handle from provided alternatives for a given split.
      * Preferable the chosen alternative is the best performant one.
      */
     Choice chooseAlternative(
@@ -28,11 +26,5 @@ public interface ConnectorAlternativeChooser
             ConnectorSplit split,
             List<ConnectorTableHandle> alternatives);
 
-    record Choice(int chosenTableHandleIndex, ConnectorPageSourceProviderFactory pageSourceProviderFactory)
-    {
-        public Choice
-        {
-            requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-        }
-    }
+    record Choice(int chosenTableHandleIndex) {}
 }

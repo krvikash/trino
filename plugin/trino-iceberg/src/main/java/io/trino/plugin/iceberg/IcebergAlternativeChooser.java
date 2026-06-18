@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg;
 
 import io.trino.spi.connector.ConnectorAlternativeChooser;
-import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -22,18 +21,9 @@ import org.apache.iceberg.SortOrder;
 
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
 public class IcebergAlternativeChooser
         implements ConnectorAlternativeChooser
 {
-    private final ConnectorPageSourceProviderFactory pageSourceProviderFactory;
-
-    public IcebergAlternativeChooser(ConnectorPageSourceProviderFactory pageSourceProviderFactory)
-    {
-        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-    }
-
     @Override
     public Choice chooseAlternative(
             ConnectorSession session,
@@ -46,11 +36,11 @@ public class IcebergAlternativeChooser
                 IcebergTableHandle tableHandle = (IcebergTableHandle) alternatives.get(i);
                 if (tableHandle.getSortOrderId().isPresent()
                         && tableHandle.getSortOrderId().getAsInt() == splitSortOrderId) {
-                    return new Choice(i, pageSourceProviderFactory);
+                    return new Choice(i);
                 }
             }
         }
 
-        return new Choice(0, pageSourceProviderFactory);
+        return new Choice(0);
     }
 }

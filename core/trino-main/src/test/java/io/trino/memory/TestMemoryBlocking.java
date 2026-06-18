@@ -103,17 +103,16 @@ public class TestMemoryBlocking
         TableScanOperator source = new TableScanOperator(
                 operatorContext,
                 sourceId,
-                TableAwarePageSourceProvider.create(
-                        operatorContext,
-                        TEST_TABLE_HANDLE,
-                        Optional.empty(),
+                new TableAwarePageSourceProvider(
                         (_, _, _, _, _, _) -> new FixedPageSource(rowPagesBuilder(types)
                                 .addSequencePage(10, 1)
                                 .addSequencePage(10, 1)
                                 .addSequencePage(10, 1)
                                 .addSequencePage(10, 1)
                                 .addSequencePage(10, 1)
-                                .build())),
+                                .build()),
+                        TEST_TABLE_HANDLE,
+                        Optional.empty()),
                 ImmutableList.of());
         PageConsumerOperator sink = createSinkOperator(types);
         Driver driver = Driver.createDriver(driverContext, source, sink);
