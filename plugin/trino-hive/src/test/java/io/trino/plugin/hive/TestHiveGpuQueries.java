@@ -14,6 +14,7 @@
 package io.trino.plugin.hive;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.plugin.hive.HiveStorageFormat.ESRI;
 import static io.trino.plugin.hive.HiveStorageFormat.ESRI_GEO_JSON;
 import static io.trino.plugin.hive.HiveStorageFormat.REGEX;
@@ -206,5 +208,110 @@ public class TestHiveGpuQueries
                 .executesWithoutGpu();
 
         assertUpdate("DROP TABLE test_gpu_nested");
+    }
+
+    @Test
+    public void testTimestampNanosecondPrecision()
+    {
+        String catalog = getSession().getCatalog().orElseThrow();
+        Session nanoSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "timestamp_precision", "NANOSECONDS")
+                .build();
+
+        String tableName = "test_gpu_int96_nanos_" + randomNameSuffix();
+        assertUpdate(
+                nanoSession,
+                "CREATE TABLE " + tableName + "(ts timestamp(9)) WITH (format = 'PARQUET')");
+        assertUpdate(
+                nanoSession,
+                "INSERT INTO " + tableName + " VALUES " +
+                        "(TIMESTAMP '2024-01-15 12:30:45.123456789'), " +
+                        "(TIMESTAMP '1970-01-01 00:00:00.000000001'), " +
+                        "(TIMESTAMP '2000-06-15 23:59:59.999999999'), " +
+                        "(NULL)",
+                4);
+
+        assertThat(query(nanoSession, "SELECT ts FROM " + tableName))
+                .executesWithoutGpu();
+
+        assertUpdate(nanoSession, "DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testTimestampMicrosecondPrecisionFromNanosecondData()
+    {
+        String catalog = getSession().getCatalog().orElseThrow();
+        Session nanoSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "timestamp_precision", "NANOSECONDS")
+                .build();
+        Session microSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "timestamp_precision", "MICROSECONDS")
+                .build();
+
+        String tableName = "test_gpu_int96_micros_" + randomNameSuffix();
+        assertUpdate(
+                nanoSession,
+                "CREATE TABLE " + tableName + "(ts timestamp(9)) WITH (format = 'PARQUET')");
+        // Values have sub-microsecond parts < 500ns so CPU rounding and GPU truncation agree.
+        // cuDF's withTimeUnit(TIMESTAMP_MICROSECONDS) truncates, while Trino's CPU reader rounds half-up.
+        assertUpdate(
+                nanoSession,
+                "INSERT INTO " + tableName + " VALUES " +
+                        "(TIMESTAMP '2024-01-15 12:30:45.123456499'), " +
+                        "(TIMESTAMP '1970-01-01 00:00:00.000000001'), " +
+                        "(TIMESTAMP '2000-06-15 23:59:59.999999000'), " +
+                        "(NULL)",
+                4);
+
+        assertThat(query(microSession, "SELECT ts FROM " + tableName))
+                .executesWithGpu(TableScanNode.class);
+
+        assertUpdate(nanoSession, "DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testTimestampRoundingDisparityBetweenGpuAndCpu()
+    {
+        String catalog = getSession().getCatalog().orElseThrow();
+        Session nanoSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "timestamp_precision", "NANOSECONDS")
+                .build();
+        Session microSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "timestamp_precision", "MICROSECONDS")
+                .build();
+        Session microSessionGpuDisabled = Session.builder(microSession)
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
+
+        String tableName = "test_gpu_rounding_disparity_" + randomNameSuffix();
+        assertUpdate(
+                nanoSession,
+                "CREATE TABLE " + tableName + "(ts timestamp(9)) WITH (format = 'PARQUET')");
+        // Sub-microsecond parts >= 500ns: CPU (half-up) and GPU (cuDF truncation) diverge
+        assertUpdate(
+                nanoSession,
+                "INSERT INTO " + tableName + " VALUES " +
+                        "(TIMESTAMP '2024-01-15 12:30:45.123456789'), " +
+                        "(TIMESTAMP '2000-06-15 23:59:59.999999500'), " +
+                        "(TIMESTAMP '2000-06-15 23:59:59.999999999')",
+                3);
+
+        String selectQuery = "SELECT ts FROM " + tableName + " ORDER BY ts";
+
+        // GPU truncates: .123456789 → .123456, .999999500 → .999999, .999999999 → .999999
+        assertThat(query(microSession, selectQuery))
+                .matches("VALUES " +
+                        "(TIMESTAMP '2000-06-15 23:59:59.999999'), " +
+                        "(TIMESTAMP '2000-06-15 23:59:59.999999'), " +
+                        "(TIMESTAMP '2024-01-15 12:30:45.123456')");
+
+        // CPU rounds half-up: .123456789 → .123457, .999999500 → next second, .999999999 → next second
+        assertThat(query(microSessionGpuDisabled, selectQuery))
+                .matches("VALUES " +
+                        "(TIMESTAMP '2000-06-16 00:00:00.000000'), " +
+                        "(TIMESTAMP '2000-06-16 00:00:00.000000'), " +
+                        "(TIMESTAMP '2024-01-15 12:30:45.123457')");
+
+        assertUpdate(nanoSession, "DROP TABLE " + tableName);
     }
 }

@@ -36,4 +36,18 @@ public final class TimestampTypeUtil
         }
         return type instanceof TimestampType;
     }
+
+    public static boolean containsNanosecondTimestamp(Type type)
+    {
+        if (type instanceof ArrayType arrayType) {
+            return containsNanosecondTimestamp(arrayType.getElementType());
+        }
+        if (type instanceof MapType mapType) {
+            return containsNanosecondTimestamp(mapType.getKeyType()) || containsNanosecondTimestamp(mapType.getValueType());
+        }
+        if (type instanceof RowType rowType) {
+            return rowType.getFields().stream().anyMatch(field -> containsNanosecondTimestamp(field.getType()));
+        }
+        return type instanceof TimestampType timestampType && timestampType.getPrecision() > 6;
+    }
 }
