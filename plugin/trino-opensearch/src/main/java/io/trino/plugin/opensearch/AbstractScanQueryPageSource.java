@@ -159,12 +159,6 @@ public abstract class AbstractScanQueryPageSource
     }
 
     @Override
-    public long getMemoryUsage()
-    {
-        return 0;
-    }
-
-    @Override
     public void close()
     {
         iterator.close();
