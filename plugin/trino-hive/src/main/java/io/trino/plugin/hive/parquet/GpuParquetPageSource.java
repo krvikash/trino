@@ -113,10 +113,10 @@ public class GpuParquetPageSource
             return createGpuPageFromPrefilledColumns(toIntExact(fabricatedParquet.rowCount()));
         }
 
-        // Force timestamp columns (including INT96) to be read at microsecond precision. cuDF's default
-        // decodes INT96 as int64 nanoseconds and silently wraps values outside ~1677..2262; with
-        // TIMESTAMP_MICROSECONDS the reader produces valid micros across the full INT96 range. All
-        // Trino short-timestamp precisions fit in microseconds, so no precision is lost.
+        // Force timestamp columns (including INT96) to be read at microsecond precision.
+        // cuDF's INT96 decode silently overflows int64 (https://github.com/rapidsai/cudf/issues/22930):
+        // with TIMESTAMP_NANOSECONDS the valid range is only ~1677..2262;
+        // with TIMESTAMP_MICROSECONDS it extends to ~year ±292,271.
         ParquetOptions.Builder optionsBuilder = ParquetOptions.builder()
                 .withTimeUnit(DType.TIMESTAMP_MICROSECONDS);
         for (HiveColumnHandle col : gpuColumns) {
