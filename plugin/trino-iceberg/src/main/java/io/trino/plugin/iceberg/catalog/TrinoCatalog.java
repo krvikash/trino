@@ -93,7 +93,7 @@ public interface TrinoCatalog
 
     List<TableInfo> listTables(ConnectorSession session, Optional<String> namespace);
 
-    List<SchemaTableName> listIcebergTables(ConnectorSession session, Optional<String> namespace);
+    List<SchemaTableName> listIcebergTables(ConnectorSession session, List<String> filter);
 
     default List<SchemaTableName> listViews(ConnectorSession session, Optional<String> namespace)
     {

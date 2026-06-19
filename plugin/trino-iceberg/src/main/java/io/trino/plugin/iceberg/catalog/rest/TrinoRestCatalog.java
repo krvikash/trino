@@ -357,10 +357,12 @@ public class TrinoRestCatalog
     }
 
     @Override
-    public List<SchemaTableName> listIcebergTables(ConnectorSession session, Optional<String> namespace)
+    public List<SchemaTableName> listIcebergTables(ConnectorSession session, List<String> filter)
     {
         SessionContext sessionContext = convert(session);
-        List<Namespace> namespaces = listNamespaces(session, namespace);
+        List<Namespace> namespaces = filter.isEmpty()
+                ? listNamespaces(session).stream().map(this::toNamespace).collect(toImmutableList())
+                : filter.stream().map(this::toNamespace).collect(toImmutableList());
 
         ImmutableList.Builder<SchemaTableName> tables = ImmutableList.builder();
         for (Namespace restNamespace : namespaces) {
@@ -464,7 +466,7 @@ public class TrinoRestCatalog
             BiFunction<SchemaTableName, Table, T> forTable,
             BiFunction<SchemaTableName, ConnectorViewDefinition, T> forView)
     {
-        Set<SchemaTableName> filteredTables = relationFilter.apply(ImmutableSet.copyOf(listIcebergTables(session, namespace)));
+        Set<SchemaTableName> filteredTables = relationFilter.apply(ImmutableSet.copyOf(listIcebergTables(session, namespace.map(ImmutableList::of).orElse(ImmutableList.of()))));
         Set<SchemaTableName> filteredViews = viewEndpointsEnabled
                 ? relationFilter.apply(listViews(session, namespace).stream().collect(toImmutableSet()))
                 : ImmutableSet.of();

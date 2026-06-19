@@ -133,7 +133,7 @@ public class TrinoUnityCatalog
     }
 
     @Override
-    public List<SchemaTableName> listIcebergTables(ConnectorSession session, Optional<String> namespace)
+    public List<SchemaTableName> listIcebergTables(ConnectorSession session, List<String> filter)
     {
         throw new UnsupportedOperationException("listIcebergTables is not supported");
     }

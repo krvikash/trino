@@ -239,9 +239,11 @@ public class TrinoJdbcCatalog
     }
 
     @Override
-    public List<SchemaTableName> listIcebergTables(ConnectorSession session, Optional<String> namespace)
+    public List<SchemaTableName> listIcebergTables(ConnectorSession session, List<String> filter)
     {
-        List<String> namespaces = listNamespaces(session, namespace);
+        List<String> namespaces = filter.isEmpty()
+                ? listNamespaces(session)
+                : filter.stream().filter(namespace -> namespaceExists(session, namespace)).collect(toImmutableList());
 
         // Build as a set and convert to list for removing duplicate entries due to case difference
         Set<SchemaTableName> tablesListBuilder = new HashSet<>();
@@ -329,7 +331,7 @@ public class TrinoJdbcCatalog
             BiFunction<SchemaTableName, org.apache.iceberg.Table, T> forTable,
             BiFunction<SchemaTableName, ConnectorViewDefinition, T> forView)
     {
-        Set<SchemaTableName> filteredTables = relationFilter.apply(ImmutableSet.copyOf(listIcebergTables(session, namespace)));
+        Set<SchemaTableName> filteredTables = relationFilter.apply(ImmutableSet.copyOf(listIcebergTables(session, namespace.map(ImmutableList::of).orElse(ImmutableList.of()))));
         Set<SchemaTableName> filteredViews = relationFilter.apply(listViews(session, namespace).stream().collect(toImmutableSet()));
 
         ImmutableList.Builder<Callable<Optional<T>>> tasks = ImmutableList.builder();
