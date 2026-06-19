@@ -47,6 +47,7 @@ import io.trino.node.InternalNode;
 import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.TaskContext;
 import io.trino.operator.TaskStats;
+import io.trino.plugin.base.util.Lazy;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spiller.SpillSpaceTracker;
@@ -245,7 +246,7 @@ public class MockRemoteTaskFactory
                     executor,
                     DataSize.ofBytes(1),
                     DataSize.ofBytes(1),
-                    () -> new SimpleLocalMemoryContext(newSimpleAggregatedMemoryContext(), "test"),
+                    Lazy.from(() -> new SimpleLocalMemoryContext(newSimpleAggregatedMemoryContext(), "test")),
                     () -> {},
                     new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()));
 
