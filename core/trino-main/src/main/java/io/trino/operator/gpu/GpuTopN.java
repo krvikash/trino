@@ -79,7 +79,8 @@ public final class GpuTopN
     private final int[] sortChannels;
     private final List<SortOrder> sortOrders;
 
-    private final ClosingRef<Table> partialTopN = ClosingRef.empty();
+    // Partial Top N data. Temporarily unsorted when handing new input.
+    private final ClosingRef<Table> buffered = ClosingRef.empty();
     private boolean finished;
 
     private GpuTopN(Context context, GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders)
@@ -104,14 +105,15 @@ public final class GpuTopN
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (memory; page) {
-                    bufferPage(page);
+                    accumulate(page);
                 }
+                sortAndTruncate();
                 yield new Yielded();
             }
             case Finished() -> {
                 finished = true;
-                if (!partialTopN.isEmpty()) {
-                    try (Table table = partialTopN.take()) {
+                if (!buffered.isEmpty()) {
+                    try (Table table = buffered.take()) {
                         yield new Data(AllocatedMemory.untracked(), toGpuPage(table));
                     }
                 }
@@ -120,30 +122,27 @@ public final class GpuTopN
         };
     }
 
-    private void bufferPage(@Borrow GpuPage page)
-    {
-        try (Table concatenated = accumulate(page)) {
-            partialTopN.set(sortAndTruncate(concatenated));
-        }
-    }
-
-    private @Move Table accumulate(@Borrow GpuPage page)
+    private void accumulate(@Borrow GpuPage page)
     {
         try (ClosingRef<Table> incoming = ClosingRef.own(toTable(page))) {
-            if (partialTopN.isEmpty()) {
-                return incoming.take();
+            if (buffered.isEmpty()) {
+                buffered.set(incoming.take());
+                return;
             }
 
-            try (Table accumulated = partialTopN.take()) {
-                return Table.concatenate(accumulated, incoming.borrow());
+            try (Table accumulated = buffered.take()) {
+                buffered.set(Table.concatenate(accumulated, incoming.borrow()));
             }
         }
     }
 
-    private @Move Table sortAndTruncate(@Borrow Table table)
+    private void sortAndTruncate()
     {
-        try (Table sorted = table.orderBy(toOrderByArgs())) {
-            return applyLimit(sorted, limit);
+        try (Table unsorted = buffered.take()) {
+            buffered.set(unsorted.orderBy(toOrderByArgs()));
+        }
+        try (Table sorted = buffered.take()) {
+            buffered.set(applyLimit(sorted, limit));
         }
     }
 
@@ -183,7 +182,7 @@ public final class GpuTopN
     {
         try (var closer = UncheckedCloser.create()) {
             closer.register(source);
-            closer.register(partialTopN);
+            closer.register(buffered);
         }
     }
 }
