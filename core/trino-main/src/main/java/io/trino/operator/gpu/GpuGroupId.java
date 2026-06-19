@@ -69,7 +69,7 @@ public class GpuGroupId
                     groupingSetInputs[s][entry.getKey()] = entry.getValue();
                 }
             }
-            return new GpuGroupId(source, groupingSetInputs, outputTypes);
+            return new GpuGroupId(context, source, groupingSetInputs, outputTypes);
         }
 
         @Override
@@ -85,8 +85,9 @@ public class GpuGroupId
     private int currentGroupingSet;
     private boolean finished;
 
-    public GpuGroupId(GpuOperation source, int[][] groupingSetInputs, List<DType> outputTypes)
+    public GpuGroupId(Context context, GpuOperation source, int[][] groupingSetInputs, List<DType> outputTypes)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.groupingSetInputs = requireNonNull(groupingSetInputs, "groupingSetInputs is null");
         this.outputTypes = requireNonNull(outputTypes, "outputTypes is null");

@@ -92,9 +92,9 @@ public abstract class GpuAggregation
         public GpuOperation create(Context context, GpuOperation source)
         {
             if (groupByChannels.length == 0) {
-                return new GpuGlobalAggregation(source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
+                return new GpuGlobalAggregation(context, source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
             }
-            return new GpuGroupByAggregation(source, aggregates, groupByChannels, inputRaw, compactionThresholdBytes, inputColumnCount);
+            return new GpuGroupByAggregation(context, source, aggregates, groupByChannels, inputRaw, compactionThresholdBytes, inputColumnCount);
         }
 
         @Override
@@ -106,6 +106,7 @@ public abstract class GpuAggregation
         }
     }
 
+    protected final Context context;
     private final GpuOperation source;
     protected final List<GpuAggregateFunction> aggregates;
     protected final boolean inputRaw;
@@ -120,12 +121,14 @@ public abstract class GpuAggregation
     private boolean finished;
 
     protected GpuAggregation(
+            Context context,
             GpuOperation source,
             List<GpuAggregateFunction> aggregates,
             boolean inputRaw,
             long compactionThresholdBytes,
             int inputColumnCount)
     {
+        this.context = requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.aggregates = ImmutableList.copyOf(requireNonNull(aggregates, "aggregates is null"));
         this.inputRaw = inputRaw;

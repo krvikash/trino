@@ -65,7 +65,7 @@ public final class GpuSemiJoin
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuSemiJoin(source, setSupplier, probeKeyChannel);
+            return new GpuSemiJoin(context, source, setSupplier, probeKeyChannel);
         }
 
         @Override
@@ -82,8 +82,9 @@ public final class GpuSemiJoin
     private final ListenableFuture<GpuSemiJoinSet> setFuture;
     private final int probeKeyChannel;
 
-    private GpuSemiJoin(GpuOperation source, GpuSemiJoinSetSupplier setSupplier, int probeKeyChannel)
+    private GpuSemiJoin(Context context, GpuOperation source, GpuSemiJoinSetSupplier setSupplier, int probeKeyChannel)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.setFuture = setSupplier.getSetFuture();
         this.probeKeyChannel = probeKeyChannel;

@@ -66,7 +66,7 @@ public final class GpuTopN
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuTopN(source, limit, sortChannels, sortOrders);
+            return new GpuTopN(context, source, limit, sortChannels, sortOrders);
         }
 
         @Override
@@ -81,8 +81,9 @@ public final class GpuTopN
     private final ClosingRef<Table> partialTopN = ClosingRef.empty();
     private boolean finished;
 
-    private GpuTopN(GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders)
+    private GpuTopN(Context context, GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.limit = limit;
         this.sortChannels = requireNonNull(sortChannels, "sortChannels is null");

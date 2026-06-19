@@ -74,7 +74,7 @@ public final class GpuJoinBuild
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels, filter, dynamicFilter);
+            return new GpuJoinBuild(context, source, bridgeManager, buildKeyChannels, buildOutputChannels, filter, dynamicFilter);
         }
 
         @Override
@@ -106,6 +106,7 @@ public final class GpuJoinBuild
     private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
     private GpuJoinBuild(
+            Context context,
             GpuOperation source,
             GpuJoinBridgeManager bridgeManager,
             int[] buildKeyChannels,
@@ -113,6 +114,7 @@ public final class GpuJoinBuild
             Optional<AstExpression> filter,
             Optional<GpuDynamicFilterCollector> dynamicFilter)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
         this.buildKeyChannels = buildKeyChannels;

@@ -55,7 +55,7 @@ public class GpuProject
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuProject(source, projections);
+            return new GpuProject(context, source, projections);
         }
 
         @Override
@@ -66,9 +66,11 @@ public class GpuProject
     private final List<Projection> projections;
 
     public GpuProject(
+            Context context,
             GpuOperation source,
             List<Projection> projections)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.projections = ImmutableList.copyOf(requireNonNull(projections, "projections is null"));
     }

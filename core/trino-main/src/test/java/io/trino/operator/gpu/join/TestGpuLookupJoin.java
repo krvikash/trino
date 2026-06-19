@@ -214,7 +214,7 @@ final class TestGpuLookupJoin
             this.bufferPages = new BufferPages();
             Set<Integer> deviceChannels = IntStream.range(0, buildTypes.size()).boxed().collect(toImmutableSet());
             GpuOperation.Context context = new TestingGpuOperationContext();
-            CopyToDevice copyToDevice = new CopyToDevice(bufferPages, buildTypes, deviceChannels);
+            CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, buildTypes, deviceChannels);
             GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels, Optional.empty(), Optional.empty());
             this.build = factory.create(context, copyToDevice);
         }

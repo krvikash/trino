@@ -21,6 +21,7 @@ import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.scan.ConnectorGpuPageSourceAdapter;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -80,6 +81,7 @@ public class PageSourceManager
 
         @Override
         public ConnectorGpuPageSource createGpuPageSource(
+                GpuOperation.Context gpuOperationContext,
                 Session session,
                 Split split,
                 TableHandle table,
@@ -111,6 +113,7 @@ public class PageSourceManager
                     .orElseGet(() -> {
                         log.debug("GPU page source was requested but not provided, falling back to CPU scan with adaptation for %s", table.connectorHandle());
                         return new ConnectorGpuPageSourceAdapter(
+                                gpuOperationContext,
                                 pageSourceProvider.createPageSource(
                                         table.transaction(),
                                         connectorSession,

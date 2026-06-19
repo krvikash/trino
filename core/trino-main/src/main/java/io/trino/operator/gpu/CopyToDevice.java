@@ -40,8 +40,9 @@ public class CopyToDevice
     private final int columnCount;
     private final Set<Integer> copyColumns;
 
-    public CopyToDevice(GpuOperation source, List<Type> types, Set<Integer> copyColumns)
+    public CopyToDevice(Context context, GpuOperation source, List<Type> types, Set<Integer> copyColumns)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
         this.columnCount = types.size();

@@ -99,6 +99,7 @@ public final class GpuLookupJoin
         public GpuOperation create(Context context, GpuOperation source)
         {
             return new GpuLookupJoin(
+                    context,
                     source,
                     bridgeManager,
                     probeKeyChannels,
@@ -127,6 +128,7 @@ public final class GpuLookupJoin
     private final boolean filteredJoin;
 
     private GpuLookupJoin(
+            Context context,
             GpuOperation source,
             GpuJoinBridgeManager bridgeManager,
             int[] probeKeyChannels,
@@ -135,6 +137,7 @@ public final class GpuLookupJoin
             List<Type> buildOutputTypes,
             boolean filteredJoin)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.bridgeFuture = bridgeManager.getBridgeFuture();
         this.probeKeyChannels = probeKeyChannels;

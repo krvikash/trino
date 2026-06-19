@@ -41,11 +41,12 @@ public class ConnectorGpuPageSourceAdapter
     private final GpuOperation output;
     private boolean sourceExhausted;
 
-    public ConnectorGpuPageSourceAdapter(ConnectorPageSource source, List<Type> types)
+    public ConnectorGpuPageSourceAdapter(GpuOperation.Context gpuOperationContext, ConnectorPageSource source, List<Type> types)
     {
         this.source = requireNonNull(source, "source is null");
         this.bufferPages = new BufferPages();
         this.output = new CopyToDevice(
+                gpuOperationContext,
                 bufferPages,
                 types,
                 IntStream.range(0, types.size())

@@ -16,6 +16,7 @@ package io.trino.split;
 import io.trino.Session;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -30,6 +31,7 @@ import java.util.Optional;
 public interface PageSourceProvider
 {
     default ConnectorGpuPageSource createGpuPageSource(
+            GpuOperation.Context gpuOperationContext,
             Session session,
             Split split,
             TableHandle table,

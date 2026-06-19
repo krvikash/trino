@@ -52,7 +52,7 @@ import jakarta.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -84,7 +84,7 @@ public abstract class GpuOperator
         protected final PlanNodeId planNodeId;
         // Plan nodes whose operations have been fused into this operator above the primary.
         protected final List<PlanNodeId> fusedPlanNodeIds;
-        protected final Supplier<GpuOperatorSource> sourceFactory;
+        protected final Function<GpuOperation.Context, GpuOperatorSource> sourceFactory;
         protected final List<GpuOperation.Factory> operations;
         protected final List<Type> outputTypes;
 
@@ -94,7 +94,7 @@ public abstract class GpuOperator
                 int operatorId,
                 PlanNodeId planNodeId,
                 List<PlanNodeId> fusedPlanNodeIds,
-                Supplier<GpuOperatorSource> sourceFactory,
+                Function<GpuOperation.Context, GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
                 List<Type> outputTypes)
         {
@@ -147,8 +147,9 @@ public abstract class GpuOperator
             this(operatorId,
                     planNodeId,
                     ImmutableList.of(),
-                    () -> {
+                    context -> {
                         GpuTableScan tableScan = new GpuTableScan(
+                                context,
                                 pageSourceProvider,
                                 session,
                                 table,
@@ -166,7 +167,7 @@ public abstract class GpuOperator
                 int operatorId,
                 PlanNodeId planNodeId,
                 List<PlanNodeId> fusedPlanNodeIds,
-                Supplier<GpuOperatorSource> sourceFactory,
+                Function<GpuOperation.Context, GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
                 List<Type> outputTypes)
         {
@@ -203,7 +204,7 @@ public abstract class GpuOperator
             checkState(!closed, "Already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
             GpuOperation.Context context = new OperationContext();
-            GpuOperatorSource operatorSource = sourceFactory.get();
+            GpuOperatorSource operatorSource = sourceFactory.apply(context);
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
             RefillSignal refillSignal = new RefillSignal();
@@ -225,13 +226,14 @@ public abstract class GpuOperator
             this(operatorId,
                     planNodeId,
                     ImmutableList.of(),
-                    () -> {
+                    context -> {
                         BufferPages sourceOperation = new BufferPages();
                         if (inputTypes.isEmpty()) {
                             // Skip CopyToDevice when there are no columns (e.g., projection with only COUNT(*))
                             return new GpuOperatorSource(sourceOperation, sourceOperation);
                         }
                         CopyToDevice copyToDevice = new CopyToDevice(
+                                context,
                                 sourceOperation,
                                 inputTypes,
                                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) copy to device only necessary columns
@@ -247,7 +249,7 @@ public abstract class GpuOperator
             this(operatorId,
                     planNodeId,
                     ImmutableList.of(),
-                    () -> {
+                    _ -> {
                         GpuSourceOperation source = sourceFactory.create();
                         return new GpuOperatorSource(source, source);
                     },
@@ -259,7 +261,7 @@ public abstract class GpuOperator
                 int operatorId,
                 PlanNodeId planNodeId,
                 List<PlanNodeId> fusedPlanNodeIds,
-                Supplier<GpuOperatorSource> sourceFactory,
+                Function<GpuOperation.Context, GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
                 List<Type> outputTypes)
         {
@@ -290,7 +292,7 @@ public abstract class GpuOperator
             checkState(!closed, "Already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
             GpuOperation.Context context = new OperationContext();
-            GpuOperatorSource operatorSource = sourceFactory.get();
+            GpuOperatorSource operatorSource = sourceFactory.apply(context);
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
             RefillSignal refillSignal = new RefillSignal();

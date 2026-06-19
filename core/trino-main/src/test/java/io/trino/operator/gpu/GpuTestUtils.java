@@ -686,8 +686,9 @@ public final class GpuTestUtils
         Set<Integer> deviceChannels = IntStream.range(0, types.size()).boxed().collect(toImmutableSet());
         Iterator<Page> input = pages.iterator();
         @Own List<GpuPage> result = new ArrayList<>();
+        GpuOperation.Context context = new TestingGpuOperationContext();
         try (BufferPages bufferPages = new BufferPages();
-                CopyToDevice copyToDevice = new CopyToDevice(bufferPages, types, deviceChannels)) {
+                CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, types, deviceChannels)) {
             while (true) {
                 switch (copyToDevice.execute()) {
                     case Yielded() -> {
@@ -735,7 +736,7 @@ public final class GpuTestUtils
         Iterator<Page> input = inputPages.iterator();
         GpuOperation.Context context = new TestingGpuOperationContext();
         try (BufferPages bufferPages = new BufferPages();
-                CopyToDevice copyToDevice = new CopyToDevice(bufferPages, inputTypes, deviceChannels);
+                CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, inputTypes, deviceChannels);
                 GpuOperation operation = operationFactory.apply(context, copyToDevice);
                 CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes)) {
             return drainToPages(

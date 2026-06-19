@@ -40,13 +40,14 @@ final class GpuGlobalAggregation
         extends GpuAggregation
 {
     GpuGlobalAggregation(
+            Context context,
             GpuOperation source,
             List<GpuAggregateFunction> aggregates,
             boolean inputRaw,
             long compactionThresholdBytes,
             int inputColumnCount)
     {
-        super(source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
+        super(context, source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
     }
 
     @Override

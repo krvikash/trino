@@ -55,7 +55,7 @@ public final class GpuSemiJoinBuild
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuSemiJoinBuild(source, setSupplier, buildKeyChannel);
+            return new GpuSemiJoinBuild(context, source, setSupplier, buildKeyChannel);
         }
 
         @Override
@@ -75,8 +75,9 @@ public final class GpuSemiJoinBuild
     private boolean published;
     private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
-    private GpuSemiJoinBuild(GpuOperation source, GpuSemiJoinSetSupplier setSupplier, int buildKeyChannel)
+    private GpuSemiJoinBuild(Context context, GpuOperation source, GpuSemiJoinSetSupplier setSupplier, int buildKeyChannel)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.setSupplier = requireNonNull(setSupplier, "setSupplier is null");
         this.buildKeyChannel = buildKeyChannel;

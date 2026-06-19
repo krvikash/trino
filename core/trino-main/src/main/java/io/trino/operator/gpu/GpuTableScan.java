@@ -42,6 +42,7 @@ import static java.util.Objects.requireNonNull;
 public class GpuTableScan
         implements GpuSourceOperation
 {
+    private final Context context;
     private final PageSourceProvider pageSourceProvider;
     private final Session session;
     private final TableHandle table;
@@ -55,6 +56,7 @@ public class GpuTableScan
     private @Nullable ConnectorGpuPageSource pageSource;
 
     public GpuTableScan(
+            GpuOperation.Context context,
             PageSourceProvider pageSourceProvider,
             Session session,
             TableHandle table,
@@ -63,6 +65,7 @@ public class GpuTableScan
             List<Type> columnTypes,
             DynamicFilter dynamicFilter)
     {
+        this.context = requireNonNull(context, "context is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.session = requireNonNull(session, "session is null");
         this.table = requireNonNull(table, "table is null");
@@ -110,6 +113,7 @@ public class GpuTableScan
 
         if (pageSource == null) {
             pageSource = pageSourceProvider.createGpuPageSource(
+                    context,
                     session,
                     split,
                     table,

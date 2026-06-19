@@ -72,7 +72,7 @@ public class GpuFilter
         public GpuOperation create(Context context, GpuOperation source)
         {
             dynamicFilter.ifPresent(GpuDynamicFilterProvider::operatorCreated);
-            return new GpuFilter(source, staticFilter, dynamicFilter, passThroughThreshold);
+            return new GpuFilter(context, source, staticFilter, dynamicFilter, passThroughThreshold);
         }
 
         @Override
@@ -88,11 +88,13 @@ public class GpuFilter
     private final OptionalDouble passThroughThreshold;
 
     private GpuFilter(
+            Context context,
             GpuOperation source,
             Optional<CompiledExpression> staticFilter,
             Optional<GpuDynamicFilterProvider> dynamicFilter,
             OptionalDouble passThroughThreshold)
     {
+        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.staticFilter = requireNonNull(staticFilter, "staticFilter is null");
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");

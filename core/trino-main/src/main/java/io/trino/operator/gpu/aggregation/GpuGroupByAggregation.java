@@ -45,6 +45,7 @@ final class GpuGroupByAggregation
     private final int[] mergeGroupByChannels;
 
     GpuGroupByAggregation(
+            Context context,
             GpuOperation source,
             List<GpuAggregateFunction> aggregates,
             int[] groupByChannels,
@@ -52,7 +53,7 @@ final class GpuGroupByAggregation
             long compactionThresholdBytes,
             int inputColumnCount)
     {
-        super(source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
+        super(context, source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
         this.groupByChannels = requireNonNull(groupByChannels, "groupByChannels is null");
         this.mergeGroupByChannels = IntStream.range(0, groupByChannels.length).toArray();
     }

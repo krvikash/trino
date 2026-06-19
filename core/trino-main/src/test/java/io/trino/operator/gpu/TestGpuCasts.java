@@ -722,7 +722,7 @@ public class TestGpuCasts
                         List.of(inputPage),
                         List.of(from),
                         List.of(to),
-                        (_, copyToDevice) -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))),
+                        (context, copyToDevice) -> new GpuProject(context, copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))),
                         ImmutableSet.copyOf(gpuExpression.inputChannels().getInputChannels()));
                 Page page = getOnlyElement(outputPages);
                 checkState(page.getChannelCount() == 1 && page.getPositionCount() == 1,
