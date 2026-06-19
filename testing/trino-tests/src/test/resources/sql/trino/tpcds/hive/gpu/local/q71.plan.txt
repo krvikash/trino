@@ -1,37 +1,37 @@
 - OutputNode
-  - ExchangeNode
+  - ExchangeNode LOCAL
     - SortNode
       - AggregationNode (GPU)
-        - ExchangeNode (GPU)
+        - ExchangeNode LOCAL (GPU)
           - AggregationNode (GPU)
             - JoinNode (GPU)
               - ProjectNode (GPU)
                 - FilterNode
-                  - TableScanNode (GPU)
+                  - TableScanNode time_dim (GPU)
               - JoinNode (GPU)
-                - ExchangeNode (GPU)
+                - ExchangeNode LOCAL (GPU)
                   - JoinNode (GPU)
                     - FilterNode (GPU)
-                      - TableScanNode (GPU)
-                    - ExchangeNode (GPU)
+                      - TableScanNode web_sales (GPU)
+                    - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
                         - FilterNode
-                          - TableScanNode (GPU)
+                          - TableScanNode date_dim (GPU)
                   - JoinNode (GPU)
                     - FilterNode (GPU)
-                      - TableScanNode (GPU)
-                    - ExchangeNode (GPU)
+                      - TableScanNode catalog_sales (GPU)
+                    - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
                         - FilterNode
-                          - TableScanNode (GPU)
+                          - TableScanNode date_dim (GPU)
                   - JoinNode (GPU)
                     - FilterNode (GPU)
-                      - TableScanNode (GPU)
-                    - ExchangeNode (GPU)
+                      - TableScanNode store_sales (GPU)
+                    - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
                         - FilterNode
-                          - TableScanNode (GPU)
-                - ExchangeNode (GPU)
+                          - TableScanNode date_dim (GPU)
+                - ExchangeNode LOCAL (GPU)
                   - ProjectNode (GPU)
                     - FilterNode
-                      - TableScanNode (GPU)
+                      - TableScanNode item (GPU)

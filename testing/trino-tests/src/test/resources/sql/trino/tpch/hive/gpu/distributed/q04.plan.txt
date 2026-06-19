@@ -1,22 +1,22 @@
 - OutputNode
-  - ExchangeNode
-    - ExchangeNode
+  - ExchangeNode REMOTE
+    - ExchangeNode LOCAL
       - SortNode
-        - ExchangeNode
+        - ExchangeNode REMOTE
           - AggregationNode (GPU)
-            - ExchangeNode
-              - ExchangeNode
+            - ExchangeNode LOCAL
+              - ExchangeNode REMOTE
                 - AggregationNode (GPU)
                   - JoinNode (GPU)
                     - AggregationNode (GPU)
-                      - ExchangeNode
-                        - ExchangeNode
+                      - ExchangeNode LOCAL
+                        - ExchangeNode REMOTE
                           - AggregationNode (GPU)
                             - ProjectNode (GPU)
                               - FilterNode
-                                - TableScanNode (GPU)
-                    - ExchangeNode
-                      - ExchangeNode
+                                - TableScanNode lineitem (GPU)
+                    - ExchangeNode LOCAL
+                      - ExchangeNode REMOTE
                         - ProjectNode (GPU)
                           - FilterNode
-                            - TableScanNode (GPU)
+                            - TableScanNode orders (GPU)

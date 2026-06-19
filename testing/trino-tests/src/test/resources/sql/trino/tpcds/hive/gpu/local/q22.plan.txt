@@ -1,10 +1,10 @@
 - OutputNode
   - TopNNode (GPU)
-    - ExchangeNode (GPU)
+    - ExchangeNode LOCAL (GPU)
       - TopNNode (GPU)
         - ProjectNode
           - AggregationNode
-            - ExchangeNode
+            - ExchangeNode LOCAL
               - AggregationNode
                 - ProjectNode (GPU)
                   - GroupIdNode (GPU)
@@ -12,10 +12,10 @@
                       - JoinNode (GPU)
                         - JoinNode (GPU)
                           - FilterNode (GPU)
-                            - TableScanNode (GPU)
-                          - ExchangeNode (GPU)
+                            - TableScanNode inventory (GPU)
+                          - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
                               - FilterNode
-                                - TableScanNode (GPU)
-                        - ExchangeNode (GPU)
-                          - TableScanNode (GPU)
+                                - TableScanNode date_dim (GPU)
+                        - ExchangeNode LOCAL (GPU)
+                          - TableScanNode item (GPU)

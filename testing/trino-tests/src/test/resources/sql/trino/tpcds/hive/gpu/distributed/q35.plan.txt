@@ -1,16 +1,16 @@
 - OutputNode
   - ProjectNode (GPU)
     - TopNNode (GPU)
-      - ExchangeNode
-        - ExchangeNode
+      - ExchangeNode LOCAL
+        - ExchangeNode REMOTE
           - TopNNode (GPU)
-            - ExchangeNode (GPU)
+            - ExchangeNode LOCAL (GPU)
               - TopNNode (GPU)
-                - ExchangeNode (GPU)
+                - ExchangeNode LOCAL (GPU)
                   - TopNNode (GPU)
                     - AggregationNode (GPU)
-                      - ExchangeNode
-                        - ExchangeNode
+                      - ExchangeNode LOCAL
+                        - ExchangeNode REMOTE
                           - AggregationNode (GPU)
                             - ProjectNode (GPU)
                               - ProjectNode (GPU)
@@ -18,60 +18,60 @@
                                   - JoinNode (GPU)
                                     - ProjectNode (GPU)
                                       - JoinNode (GPU)
-                                        - ExchangeNode
+                                        - ExchangeNode REMOTE
                                           - JoinNode (GPU)
-                                            - ExchangeNode
+                                            - ExchangeNode REMOTE
                                               - FilterNode (GPU)
-                                                - TableScanNode (GPU)
-                                            - ExchangeNode
-                                              - ExchangeNode
+                                                - TableScanNode customer_demographics (GPU)
+                                            - ExchangeNode LOCAL
+                                              - ExchangeNode REMOTE
                                                 - JoinNode (GPU)
-                                                  - ExchangeNode
+                                                  - ExchangeNode REMOTE
                                                     - JoinNode (GPU)
-                                                      - ExchangeNode
+                                                      - ExchangeNode REMOTE
                                                         - FilterNode (GPU)
-                                                          - TableScanNode (GPU)
-                                                      - ExchangeNode
-                                                        - ExchangeNode
-                                                          - TableScanNode (GPU)
+                                                          - TableScanNode customer (GPU)
+                                                      - ExchangeNode LOCAL
+                                                        - ExchangeNode REMOTE
+                                                          - TableScanNode customer_address (GPU)
                                                   - AggregationNode (GPU)
-                                                    - ExchangeNode
-                                                      - ExchangeNode
+                                                    - ExchangeNode LOCAL
+                                                      - ExchangeNode REMOTE
                                                         - AggregationNode (GPU)
                                                           - JoinNode (GPU)
-                                                            - ExchangeNode
+                                                            - ExchangeNode REMOTE
                                                               - FilterNode (GPU)
-                                                                - TableScanNode (GPU)
-                                                            - ExchangeNode
-                                                              - ExchangeNode
+                                                                - TableScanNode store_sales (GPU)
+                                                            - ExchangeNode LOCAL
+                                                              - ExchangeNode REMOTE
                                                                 - ProjectNode (GPU)
                                                                   - FilterNode
-                                                                    - TableScanNode (GPU)
+                                                                    - TableScanNode date_dim (GPU)
                                         - ProjectNode (GPU)
                                           - AggregationNode (GPU)
-                                            - ExchangeNode
-                                              - ExchangeNode
+                                            - ExchangeNode LOCAL
+                                              - ExchangeNode REMOTE
                                                 - AggregationNode (GPU)
                                                   - JoinNode (GPU)
-                                                    - ExchangeNode
+                                                    - ExchangeNode REMOTE
                                                       - FilterNode (GPU)
-                                                        - TableScanNode (GPU)
-                                                    - ExchangeNode
-                                                      - ExchangeNode
+                                                        - TableScanNode web_sales (GPU)
+                                                    - ExchangeNode LOCAL
+                                                      - ExchangeNode REMOTE
                                                         - ProjectNode (GPU)
                                                           - FilterNode
-                                                            - TableScanNode (GPU)
+                                                            - TableScanNode date_dim (GPU)
                                     - ProjectNode (GPU)
                                       - AggregationNode (GPU)
-                                        - ExchangeNode
-                                          - ExchangeNode
+                                        - ExchangeNode LOCAL
+                                          - ExchangeNode REMOTE
                                             - AggregationNode (GPU)
                                               - JoinNode (GPU)
-                                                - ExchangeNode
+                                                - ExchangeNode REMOTE
                                                   - FilterNode (GPU)
-                                                    - TableScanNode (GPU)
-                                                - ExchangeNode
-                                                  - ExchangeNode
+                                                    - TableScanNode catalog_sales (GPU)
+                                                - ExchangeNode LOCAL
+                                                  - ExchangeNode REMOTE
                                                     - ProjectNode (GPU)
                                                       - FilterNode
-                                                        - TableScanNode (GPU)
+                                                        - TableScanNode date_dim (GPU)

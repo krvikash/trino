@@ -1,16 +1,16 @@
 - OutputNode
-  - ExchangeNode
+  - ExchangeNode LOCAL
     - SortNode
       - AggregationNode (GPU)
-        - ExchangeNode (GPU)
+        - ExchangeNode LOCAL (GPU)
           - AggregationNode (GPU)
             - ProjectNode (GPU)
               - AggregationNode (GPU)
-                - ExchangeNode (GPU)
+                - ExchangeNode LOCAL (GPU)
                   - AggregationNode (GPU)
                     - JoinNode (GPU)
-                      - TableScanNode (GPU)
-                      - ExchangeNode (GPU)
+                      - TableScanNode customer (GPU)
+                      - ExchangeNode LOCAL (GPU)
                         - ProjectNode (GPU)
                           - FilterNode
-                            - TableScanNode (GPU)
+                            - TableScanNode orders (GPU)

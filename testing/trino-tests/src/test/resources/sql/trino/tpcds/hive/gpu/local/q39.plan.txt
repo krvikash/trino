@@ -1,6 +1,6 @@
 - OutputNode
   - ProjectNode
-    - ExchangeNode
+    - ExchangeNode LOCAL
       - SortNode
         - ProjectNode
           - JoinNode (GPU)
@@ -8,42 +8,42 @@
               - FilterNode
                 - ProjectNode
                   - AggregationNode
-                    - ExchangeNode
+                    - ExchangeNode LOCAL
                       - JoinNode
                         - JoinNode
                           - JoinNode
                             - AggregationNode
                               - ProjectNode (GPU)
                                 - FilterNode
-                                  - TableScanNode (GPU)
-                            - ExchangeNode (GPU)
+                                  - TableScanNode inventory (GPU)
+                            - ExchangeNode LOCAL (GPU)
                               - ProjectNode (GPU)
                                 - FilterNode
-                                  - TableScanNode (GPU)
-                          - ExchangeNode (GPU)
+                                  - TableScanNode date_dim (GPU)
+                          - ExchangeNode LOCAL (GPU)
                             - FilterNode (GPU)
-                              - TableScanNode (GPU)
-                        - ExchangeNode (GPU)
+                              - TableScanNode item (GPU)
+                        - ExchangeNode LOCAL (GPU)
                           - FilterNode (GPU)
-                            - TableScanNode (GPU)
-            - ExchangeNode
+                            - TableScanNode warehouse (GPU)
+            - ExchangeNode LOCAL
               - ProjectNode
                 - FilterNode
                   - ProjectNode
                     - AggregationNode
-                      - ExchangeNode
+                      - ExchangeNode LOCAL
                         - JoinNode
                           - JoinNode
                             - JoinNode
                               - AggregationNode
                                 - ProjectNode (GPU)
                                   - FilterNode
-                                    - TableScanNode (GPU)
-                              - ExchangeNode (GPU)
+                                    - TableScanNode inventory (GPU)
+                              - ExchangeNode LOCAL (GPU)
                                 - ProjectNode (GPU)
                                   - FilterNode
-                                    - TableScanNode (GPU)
-                            - ExchangeNode (GPU)
-                              - TableScanNode (GPU)
-                          - ExchangeNode (GPU)
-                            - TableScanNode (GPU)
+                                    - TableScanNode date_dim (GPU)
+                            - ExchangeNode LOCAL (GPU)
+                              - TableScanNode item (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - TableScanNode warehouse (GPU)

@@ -17,8 +17,13 @@ import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
 import io.trino.execution.QueryStats;
+import io.trino.plugin.hive.HiveTableHandle;
+import io.trino.plugin.iceberg.IcebergTableHandle;
+import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
@@ -90,6 +95,18 @@ final class GpuQueriesTests
     {
         String indent = "  ".repeat(indentLevel);
         output.append(indent).append("- ").append(planNode.getClass().getSimpleName());
+        switch (planNode) {
+            case ExchangeNode exchange -> output.append(" ").append(exchange.getScope());
+            case TableScanNode tableScan -> {
+                String tableName = switch (tableScan.getTable().connectorHandle()) {
+                    case HiveTableHandle hiveTableHandle -> hiveTableHandle.getTableName();
+                    case IcebergTableHandle icebergTableHandle -> icebergTableHandle.getTableName();
+                    case ConnectorTableHandle other -> throw new UnsupportedOperationException("Unsupported connector handle type: %s [%s]".formatted(other.getClass(), other));
+                };
+                output.append(" ").append(tableName);
+            }
+            default -> {}
+        }
         if (onGpu.test(planNode.getId())) {
             output.append(" (GPU)");
         }
