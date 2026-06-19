@@ -22,7 +22,6 @@ import io.trino.server.starburst.security.GalaxyAuthenticationHelper.IdentityPar
 import io.trino.server.starburst.security.GalaxyAuthenticationHelper.RequestBodyHashing;
 import io.trino.spi.security.Identity;
 
-import java.security.PublicKey;
 import java.util.Optional;
 
 import static io.trino.server.starburst.security.GalaxyAuthenticationHelper.parseClaimsWithoutValidation;
@@ -33,9 +32,9 @@ public final class GalaxyAuthenticatorController
 {
     private static final Logger log = Logger.get(GalaxyAuthenticatorController.class);
 
-    public GalaxyAuthenticatorController(String issuer, String audience, String subject, PublicKey publicKey)
+    public GalaxyAuthenticatorController(String issuer, String audience, JwtClaimsParser jwtClaimsParser)
     {
-        super(ImmutableMap.of(issuer, ImmutableSet.of(audience)), subject, publicKey);
+        super(ImmutableMap.of(issuer, ImmutableSet.of(audience)), jwtClaimsParser);
     }
 
     public Identity authenticate(String token, Optional<RequestBodyHashing> requestBodyHashing)

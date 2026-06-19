@@ -13,11 +13,13 @@
  */
 package io.trino.server.starburst.security;
 
+import io.jsonwebtoken.JwtParser;
 import org.junit.jupiter.api.Test;
 
 import java.security.KeyPair;
 import java.util.Optional;
 
+import static io.trino.server.security.jwt.JwtUtil.newJwtParserBuilder;
 import static io.trino.server.starburst.security.GalaxyIdentity.GalaxyIdentityType.PORTAL;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,7 +33,12 @@ public class TestGalaxyTrinoAuthenticator
             throws Exception
     {
         KeyPair keyPair = generateKeyPair();
-        GalaxyTrinoAuthenticator authenticator = new GalaxyTrinoAuthenticator(new GalaxyAuthenticatorController(TOKEN_ISSUER, ACCOUNT_ID, DEPLOYMENT_ID, keyPair.getPublic()));
+        JwtParser parser = newJwtParserBuilder()
+                .setSigningKey(keyPair.getPublic())
+                .requireSubject(DEPLOYMENT_ID)
+                .build();
+        GalaxyTrinoAuthenticator authenticator = new GalaxyTrinoAuthenticator(
+                new GalaxyAuthenticatorController(TOKEN_ISSUER, ACCOUNT_ID, token -> parser.parseClaimsJws(token).getBody()));
         test(DEPLOYMENT_ID, keyPair, authenticator::authenticate);
 
         // Test missing identity_type assignment still works (is assigned the portal identity_type)

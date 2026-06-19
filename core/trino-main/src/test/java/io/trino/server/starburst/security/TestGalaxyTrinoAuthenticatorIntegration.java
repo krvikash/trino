@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import com.google.inject.Module;
 import io.airlift.security.pem.PemReader;
+import io.jsonwebtoken.JwtParser;
 import io.trino.server.security.Authenticator;
 import io.trino.server.security.PortalAuthenticator;
 import io.trino.server.security.TestResourceSecurity;
@@ -44,6 +45,7 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.trino.client.OkHttpUtil.setupSsl;
 import static io.trino.server.security.jwt.JwtUtil.newJwtBuilder;
+import static io.trino.server.security.jwt.JwtUtil.newJwtParserBuilder;
 import static jakarta.servlet.http.HttpServletResponse.SC_OK;
 import static jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -375,7 +377,12 @@ public class TestGalaxyTrinoAuthenticatorIntegration
 
     private static Module testModule()
     {
-        GalaxyTrinoAuthenticator authenticator = new GalaxyTrinoAuthenticator(new GalaxyAuthenticatorController(TEST_ISSUER, TEST_ACCOUNT_ID, TEST_DEPLOYMENT_ID, PUBLIC_KEY));
+        JwtParser parser = newJwtParserBuilder()
+                .setSigningKey(PUBLIC_KEY)
+                .requireSubject(TEST_DEPLOYMENT_ID)
+                .build();
+        GalaxyTrinoAuthenticator authenticator = new GalaxyTrinoAuthenticator(
+                new GalaxyAuthenticatorController(TEST_ISSUER, TEST_ACCOUNT_ID, token -> parser.parseClaimsJws(token).getBody()));
         return binder -> {
             jaxrsBinder(binder).bind(TestResourceSecurity.TestResource.class);
             newMapBinder(binder, String.class, Authenticator.class)

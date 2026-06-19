@@ -16,8 +16,6 @@ package io.trino.server.starburst.security;
 
 import io.airlift.log.Logger;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.JwtParserBuilder;
 import io.starburst.stargate.id.AccountId;
 import io.starburst.stargate.id.RoleId;
 import io.starburst.stargate.id.UserId;
@@ -26,7 +24,6 @@ import io.trino.server.starburst.security.GalaxyAuthenticationHelper.IdentityPar
 import io.trino.server.starburst.security.GalaxyAuthenticationHelper.RequestBodyHashing;
 import io.trino.server.starburst.security.GalaxyIdentity.EmbeddedActiveRoleSet;
 
-import java.security.PublicKey;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
@@ -39,7 +36,6 @@ import static io.jsonwebtoken.ClaimJwtException.INCORRECT_EXPECTED_CLAIM_MESSAGE
 import static io.jsonwebtoken.ClaimJwtException.MISSING_EXPECTED_CLAIM_MESSAGE_TEMPLATE;
 import static io.jsonwebtoken.Claims.AUDIENCE;
 import static io.jsonwebtoken.Claims.ISSUER;
-import static io.trino.server.security.jwt.JwtUtil.newJwtParserBuilder;
 import static io.trino.server.starburst.security.GalaxyIdentity.parseEmbeddedEnabledRoles;
 import static io.trino.server.starburst.security.GalaxyIdentity.toGalaxyIdentityType;
 import static java.time.Instant.now;
@@ -49,23 +45,20 @@ public abstract class AbstractGalaxyAuthenticatorController
 {
     static final String REQUEST_EXPIRATION_CLAIM = "request_expiry";
     private static final Logger log = Logger.get(AbstractGalaxyAuthenticatorController.class);
-    protected final JwtParser jwtParser;
+    private final JwtClaimsParser jwtClaimsParser;
     private final Map<String, Set<String>> issuerAudienceMapping;
 
-    protected AbstractGalaxyAuthenticatorController(Map<String, Set<String>> issuerAudienceMapping, String subject, PublicKey publicKey)
+    protected AbstractGalaxyAuthenticatorController(Map<String, Set<String>> issuerAudienceMapping, JwtClaimsParser jwtClaimsParser)
     {
         this.issuerAudienceMapping = requireNonNull(issuerAudienceMapping, "issuerAudienceMapping is null");
         checkArgument(issuerAudienceMapping.size() > 0, "issuerAudienceMapping requires at least 1 issuer");
-        JwtParserBuilder builder = newJwtParserBuilder()
-                .setSigningKey(publicKey)
-                .requireSubject(subject);
-        this.jwtParser = builder.build();
+        this.jwtClaimsParser = requireNonNull(jwtClaimsParser, "jwtClaimsParser is null");
     }
 
     protected IdentityParams commonAuthenticate(String token, Optional<RequestBodyHashing> requestBodyHashing)
             throws AuthenticationException
     {
-        Claims claims = jwtParser.parseClaimsJws(token).getBody();
+        Claims claims = jwtClaimsParser.claims(token);
         String username = claims.get("username", String.class);
         if (username == null) {
             throw new AuthenticationException("Invalid username", "Galaxy");
