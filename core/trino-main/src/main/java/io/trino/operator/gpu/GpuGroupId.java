@@ -19,6 +19,7 @@ import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.operator.GroupIdOperator;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -101,7 +102,7 @@ public class GpuGroupId
         }
 
         if (currentPage != null) {
-            return new Data(generateNextPage());
+            return new Data(AllocatedMemory.untracked(), generateNextPage());
         }
 
         @Own Result sourceResult = source.execute();
@@ -112,9 +113,10 @@ public class GpuGroupId
                 yield new Finished();
             }
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
+            case Data(AllocatedMemory memory, GpuPage page) -> {
                 currentPage = page;
-                yield new Data(generateNextPage());
+                memory.close();
+                yield new Data(AllocatedMemory.untracked(), generateNextPage());
             }
         };
     }

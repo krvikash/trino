@@ -32,6 +32,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.plugin.base.metrics.LongCount;
@@ -410,8 +411,8 @@ public abstract class GpuOperator
             }
         }
         Page operatorResult = switch (topGpuOperationResult) {
-            case Data(GpuPage gpuPage) -> {
-                try (gpuPage) {
+            case Data(AllocatedMemory memory, GpuPage gpuPage) -> {
+                try (memory; gpuPage) {
                     gpuPageToPages.add(gpuPage);
                 }
                 yield gpuPageToPages.poll().orElse(null);
@@ -598,7 +599,10 @@ public abstract class GpuOperator
                     case Blocked _, Yielded _, Finished _ -> {
                         // nothing to close
                     }
-                    case Data(GpuPage page) -> closer.register(page);
+                    case Data(AllocatedMemory memory, GpuPage page) -> {
+                        closer.register(memory);
+                        closer.register(page);
+                    }
                 }
                 bufferedResult = null;
             }

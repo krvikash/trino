@@ -24,12 +24,21 @@ public final class AllocatedMemory
         implements MemoryAllocation,
                    RuntimeCloseable
 {
+    private static final AllocatedMemory UNTRACKED = new AllocatedMemory(
+            MemoryAmount.ZERO);
+
     static @Move AllocatedMemory allocate(GpuTaskMemoryContext memoryContext, String allocationTag, MemoryAmount amount)
     {
         requireNonNull(memoryContext, "memoryContext is null");
         requireNonNull(allocationTag, "allocationTag is null");
         // TODO implement actual allocations
         return new AllocatedMemory(amount);
+    }
+
+    @Deprecated(forRemoval = true)
+    public static AllocatedMemory untracked()
+    {
+        return UNTRACKED;
     }
 
     private MemoryAmount amount;

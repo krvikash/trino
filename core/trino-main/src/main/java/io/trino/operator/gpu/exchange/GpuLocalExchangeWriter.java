@@ -18,6 +18,7 @@ import io.trino.operator.ReferenceCount;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSink;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSinkFactory;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -105,8 +106,8 @@ public final class GpuLocalExchangeWriter
 
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
-            case Data(GpuPage page) -> {
-                try (page) {
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
                     exchanger.accept(page);
                 }
                 yield new Yielded();

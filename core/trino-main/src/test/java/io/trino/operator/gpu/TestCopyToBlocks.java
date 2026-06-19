@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.RunLengthEncodedBlock;
@@ -84,7 +85,7 @@ class TestCopyToBlocks
                 }
                 GpuPage next = pending;
                 pending = null;
-                return new Data(next);
+                return new Data(AllocatedMemory.untracked(), next);
             }
 
             @Override

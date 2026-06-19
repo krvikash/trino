@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.OrderByArg;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.connector.SortOrder;
@@ -101,8 +102,8 @@ public final class GpuTopN
         return switch (sourceResult) {
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
-                try (page) {
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
                     bufferPage(page);
                 }
                 yield new Yielded();
@@ -111,7 +112,7 @@ public final class GpuTopN
                 finished = true;
                 if (!partialTopN.isEmpty()) {
                     try (Table table = partialTopN.take()) {
-                        yield new Data(toGpuPage(table));
+                        yield new Data(AllocatedMemory.untracked(), toGpuPage(table));
                     }
                 }
                 yield new Finished();

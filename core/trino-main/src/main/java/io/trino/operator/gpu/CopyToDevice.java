@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -63,9 +64,9 @@ public class CopyToDevice
             case Blocked blocked -> blocked;
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
-                try (page) {
-                    yield new Data(processPage(page));
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
+                    yield new Data(AllocatedMemory.untracked(), processPage(page));
                 }
             }
         };

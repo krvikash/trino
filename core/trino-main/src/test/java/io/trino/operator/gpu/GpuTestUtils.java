@@ -27,6 +27,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -701,7 +702,10 @@ public final class GpuTestUtils
                     }
 
                     case Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
-                    case Data(var page) -> result.add(page);
+                    case Data(var allocation, var page) -> {
+                        allocation.close(); // The test does not track memory usage
+                        result.add(page);
+                    }
                     case Finished() -> {
                         return result;
                     }
@@ -765,9 +769,9 @@ public final class GpuTestUtils
             @Own GpuOperation.Result result = outout.execute();
             switch (result) {
                 case Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
-                case Data(GpuPage gpuPage) -> {
-                    try (gpuPage) {
-                        gpuPageToPages.add(gpuPage);
+                case Data(AllocatedMemory memory, GpuPage page) -> {
+                    try (memory; page) {
+                        gpuPageToPages.add(page);
                     }
                 }
                 case Yielded() -> {

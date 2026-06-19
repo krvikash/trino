@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.trino.metadata.Split;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
@@ -86,7 +87,7 @@ public class BufferPages
                             .toArray(Column[]::new));
             bufferedPages.clear();
             bufferedPagesPositions = 0;
-            return new Data(gpuPage);
+            return new Data(AllocatedMemory.untracked(), gpuPage);
         }
         return new Yielded();
     }

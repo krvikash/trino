@@ -20,6 +20,7 @@ import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier.GpuSemiJoinSet;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
@@ -106,9 +107,9 @@ public final class GpuSemiJoin
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
             case Finished finished -> finished;
-            case Data(GpuPage page) -> {
-                try (page) {
-                    yield new Data(processProbePage(page, set));
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
+                    yield new Data(AllocatedMemory.untracked(), processProbePage(page, set));
                 }
             }
         };

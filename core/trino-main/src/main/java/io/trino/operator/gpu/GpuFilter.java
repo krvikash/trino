@@ -20,6 +20,7 @@ import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import io.trino.operator.gpu.GpuDynamicFilterProvider.CompiledDynamicFilter;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -109,8 +110,8 @@ public class GpuFilter
             case Blocked blocked -> blocked;
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
-                try (page) {
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
                     yield processPage(page);
                 }
             }
@@ -130,11 +131,11 @@ public class GpuFilter
         return switch (currentDynamicFilter) {
             case CompiledDynamicFilter.All() -> {
                 if (staticFilter.isEmpty()) {
-                    yield new Data(page.shallowCopy());
+                    yield new Data(AllocatedMemory.untracked(), page.shallowCopy());
                 }
                 try (ColumnVector mask = computeMask(page, staticFilter.get())) {
                     yield applyMask(page, mask, OptionalDouble.empty())
-                            .<Result>map(Data::new)
+                            .<Result>map(maskedPage -> new Data(AllocatedMemory.untracked(), maskedPage))
                             .orElseGet(Yielded::new);
                 }
             }
@@ -143,7 +144,7 @@ public class GpuFilter
                 try (ClosingOnce<ColumnVector> dynamicFilterMask = ClosingOnce.own(computeMask(page, expression))) {
                     if (staticFilter.isEmpty()) {
                         yield applyMask(page, dynamicFilterMask.borrow(), passThroughThreshold)
-                                .<Result>map(Data::new)
+                                .<Result>map(maskedPage -> new Data(AllocatedMemory.untracked(), maskedPage))
                                 .orElseGet(Yielded::new);
                     }
                     try (ClosingOnce<ColumnVector> staticFilterMask = ClosingOnce.own(computeMask(page, staticFilter.get()))) {
@@ -151,7 +152,7 @@ public class GpuFilter
                             dynamicFilterMask.close();
                             staticFilterMask.close();
                             yield applyMask(page, mask, OptionalDouble.empty())
-                                    .<Result>map(Data::new)
+                                    .<Result>map(maskedPage -> new Data(AllocatedMemory.untracked(), maskedPage))
                                     .orElseGet(Yielded::new);
                         }
                     }

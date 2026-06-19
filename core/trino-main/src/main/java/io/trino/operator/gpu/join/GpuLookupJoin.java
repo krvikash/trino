@@ -27,6 +27,7 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
 import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.operator.gpu.join.GpuJoinBridge.HashJoinBridge;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -165,10 +166,10 @@ public final class GpuLookupJoin
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
             case Finished finished -> finished;
-            case Data(GpuPage page) -> {
-                try (page) {
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
                     yield processProbePage(page, bridge)
-                            .<Result>map(Data::new)
+                            .<Result>map(joinPage -> new Data(AllocatedMemory.untracked(), joinPage))
                             .orElseGet(Yielded::new);
                 }
             }

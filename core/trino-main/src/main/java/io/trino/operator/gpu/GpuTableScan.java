@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.trino.Session;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -126,7 +127,7 @@ public class GpuTableScan
         @Own ConnectorGpuPageSource.Result result = pageSource.readNext();
         return switch (result) {
             case ConnectorGpuPageSource.Blocked(CompletableFuture<Void> future) -> new Blocked(future.isDone() ? NOT_BLOCKED : toListenableFuture(future));
-            case ConnectorGpuPageSource.Data(GpuPage page) -> new Data(page);
+            case ConnectorGpuPageSource.Data(GpuPage page) -> new Data(AllocatedMemory.untracked(), page);
             case ConnectorGpuPageSource.Finished() -> new Finished();
             case ConnectorGpuPageSource.Yielded() -> new Yielded();
         };

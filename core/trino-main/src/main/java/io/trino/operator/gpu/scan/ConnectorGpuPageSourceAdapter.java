@@ -60,7 +60,10 @@ public class ConnectorGpuPageSourceAdapter
         @Own GpuOperation.Result result = output.execute();
         return switch (result) {
             case GpuOperation.Blocked(var future) -> new Blocked(toCompletableFuture(future));
-            case GpuOperation.Data(var gpuPage) -> new Data(gpuPage);
+            case GpuOperation.Data(var memory, var gpuPage) -> {
+                memory.close(); // TODO pass it on
+                yield new Data(gpuPage);
+            }
             case GpuOperation.Finished() -> new Finished();
             case GpuOperation.Yielded() -> {
                 if (sourceExhausted || !bufferPages.needsInput()) {

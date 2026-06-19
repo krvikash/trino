@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -83,9 +84,9 @@ public class GpuProject
             case Blocked blocked -> blocked;
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
-                try (page) {
-                    yield new Data(processPage(page));
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
+                    yield new Data(AllocatedMemory.untracked(), processPage(page));
                 }
             }
         };

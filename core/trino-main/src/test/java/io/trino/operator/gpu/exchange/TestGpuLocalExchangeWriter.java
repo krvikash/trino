@@ -16,6 +16,7 @@ package io.trino.operator.gpu.exchange;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSink;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSinkFactory;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import org.junit.jupiter.api.Test;
@@ -50,7 +51,7 @@ public class TestGpuLocalExchangeWriter
     {
         GpuLocalExchangeSink sink = newRealSink();
         FakeSource source = new FakeSource();
-        source.results.add(new GpuOperation.Data(new GpuPage(0, new Column[0])));
+        source.results.add(new GpuOperation.Data(AllocatedMemory.untracked(), new GpuPage(0, new Column[0])));
         GpuLocalExchangeWriter writer = new GpuLocalExchangeWriter(source, sink);
 
         GpuOperation.Result result = writer.execute();

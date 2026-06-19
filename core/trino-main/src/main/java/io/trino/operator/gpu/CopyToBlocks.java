@@ -18,6 +18,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -100,9 +101,9 @@ public class CopyToBlocks
             case Blocked blocked -> blocked;
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
-            case Data(GpuPage page) -> {
-                try (page) {
-                    yield new Data(processPage(page));
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
+                    yield new Data(AllocatedMemory.untracked(), processPage(page));
                 }
             }
         };

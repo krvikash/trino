@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.annotation.NotThreadSafe;
 import io.trino.operator.Operator;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.RuntimeCloseable;
@@ -89,11 +90,12 @@ public interface GpuOperation
     /**
      * Operation produced data in the form of a GpuPage.
      */
-    record Data(@Own GpuPage page)
+    record Data(@Own AllocatedMemory memory, @Own GpuPage page)
             implements Result
     {
         public Data
         {
+            requireNonNull(memory, "memory is null");
             requireNonNull(page, "page is null");
         }
     }
