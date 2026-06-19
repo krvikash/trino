@@ -27,12 +27,14 @@ import io.trino.spi.metrics.Metrics;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -122,6 +124,9 @@ public class CompressingEncryptingPageSerializer
     {
         private static final int INSTANCE_SIZE = instanceSize(SerializedPageOutput.class);
         private static final int ENCRYPTION_KEY_RETAINED_SIZE = toIntExact(instanceSize(SecretKeySpec.class) + sizeOfByteArray(256 / 8));
+
+        // ThreadLocal SecureRandom avoids contention on the global PRNG lock when generating AES/CBC IVs
+        private static final ThreadLocal<SecureRandom> SECURE_RANDOM = ThreadLocal.withInitial(SecureRandom::new);
 
         private static final double MINIMUM_COMPRESSION_RATIO = 0.8;
 
@@ -489,7 +494,9 @@ public class CompressingEncryptingPageSerializer
         {
             Cipher cipher = this.cipher.orElseThrow(() -> new VerifyException("cipher is expected to be present"));
             try {
-                cipher.init(ENCRYPT_MODE, key);
+                byte[] iv = new byte[16]; // AES/CBC block size
+                SECURE_RANDOM.get().nextBytes(iv);
+                cipher.init(ENCRYPT_MODE, key, new IvParameterSpec(iv));
             }
             catch (GeneralSecurityException e) {
                 throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to init cipher: " + e.getMessage(), e);
