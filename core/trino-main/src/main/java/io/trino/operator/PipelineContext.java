@@ -111,6 +111,7 @@ public class PipelineContext
     private final ConcurrentMap<Integer, Metrics> pipelineOperatorMetrics = new ConcurrentHashMap<>();
 
     private final MemoryTrackingContext pipelineMemoryContext;
+    private final LocalMemoryContext pipelineLocalMemoryContext;
 
     public PipelineContext(int pipelineId, TaskContext taskContext, Executor notificationExecutor, ScheduledExecutorService yieldExecutor, ScheduledExecutorService timeoutExecutor, MemoryTrackingContext pipelineMemoryContext, boolean inputPipeline, boolean outputPipeline, boolean partitioned)
     {
@@ -124,7 +125,8 @@ public class PipelineContext
         this.timeoutExecutor = requireNonNull(timeoutExecutor, "timeoutExecutor is null");
         this.pipelineMemoryContext = requireNonNull(pipelineMemoryContext, "pipelineMemoryContext is null");
         // Initialize the local memory contexts with the ExchangeOperator tag as ExchangeOperator will do the local memory allocations
-        pipelineMemoryContext.initializeLocalMemoryContexts(ExchangeOperator.class.getSimpleName());
+        // TODO move the tagging to the caller
+        this.pipelineLocalMemoryContext = pipelineMemoryContext.aggregateUserMemoryContext().newLocalMemoryContext(ExchangeOperator.class.getSimpleName());
     }
 
     public TaskContext getTaskContext()
@@ -278,7 +280,7 @@ public class PipelineContext
 
     public LocalMemoryContext localMemoryContext()
     {
-        return pipelineMemoryContext.localUserMemoryContext();
+        return pipelineLocalMemoryContext;
     }
 
     public boolean isPerOperatorCpuTimerEnabled()
