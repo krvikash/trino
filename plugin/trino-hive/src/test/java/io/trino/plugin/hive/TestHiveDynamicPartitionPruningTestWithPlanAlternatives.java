@@ -177,7 +177,6 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
 
         long peakUserMemory = max(left.getPeakUserMemoryReservation().toBytes(), operator.getPeakUserMemoryReservation().toBytes());
         long peakRevocableMemory = max(left.getPeakRevocableMemoryReservation().toBytes(), operator.getPeakRevocableMemoryReservation().toBytes());
-        long peakTotalMemory = max(left.getPeakTotalMemoryReservation().toBytes(), operator.getPeakTotalMemoryReservation().toBytes());
 
         long spilledDataSize = left.getSpilledDataSize().toBytes() + operator.getSpilledDataSize().toBytes();
 
@@ -239,7 +238,6 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
                 DataSize.ofBytes(revocableMemoryReservation),
                 DataSize.ofBytes(peakUserMemory),
                 DataSize.ofBytes(peakRevocableMemory),
-                DataSize.ofBytes(peakTotalMemory),
 
                 DataSize.ofBytes(spilledDataSize),
 

@@ -108,7 +108,6 @@ public class OperatorContext
 
     private final AtomicLong peakUserMemoryReservation = new AtomicLong();
     private final AtomicLong peakRevocableMemoryReservation = new AtomicLong();
-    private final AtomicLong peakTotalMemoryReservation = new AtomicLong();
 
     @GuardedBy("this")
     private boolean memoryRevokingRequested;
@@ -362,18 +361,11 @@ public class OperatorContext
     {
         long userMemory = operatorMemoryContext.getUserMemory();
         long revocableMemory = operatorMemoryContext.getRevocableMemory();
-        // TODO on cluster level, "total memory" means "user memory + revocable", and used to include the system memory.
-        //   Here, the total memory used to be user+system, and sans revocable. This apparent inconsistency should be removed.
-        //   Perhaps, we don't need to track "total memory" here.
-        long totalMemory = userMemory;
         if (userMemory > peakUserMemoryReservation.get()) {
             peakUserMemoryReservation.accumulateAndGet(userMemory, Math::max);
         }
         if (revocableMemory > peakRevocableMemoryReservation.get()) {
             peakRevocableMemoryReservation.accumulateAndGet(revocableMemory, Math::max);
-        }
-        if (totalMemory > peakTotalMemoryReservation.get()) {
-            peakTotalMemoryReservation.accumulateAndGet(totalMemory, Math::max);
         }
     }
 
@@ -598,7 +590,6 @@ public class OperatorContext
 
                 DataSize.ofBytes(peakUserMemoryReservation.get()),
                 DataSize.ofBytes(peakRevocableMemoryReservation.get()),
-                DataSize.ofBytes(peakTotalMemoryReservation.get()),
 
                 DataSize.ofBytes(spillContext.getSpilledBytes()),
 

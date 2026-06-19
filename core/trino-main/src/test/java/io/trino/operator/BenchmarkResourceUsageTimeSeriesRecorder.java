@@ -233,7 +233,6 @@ public class BenchmarkResourceUsageTimeSeriesRecorder
                     DataSize.ofBytes(0),
                     DataSize.ofBytes(0),
                     DataSize.ofBytes(0),
-                    DataSize.ofBytes(0),
                     Optional.empty(),
                     null);
         }
