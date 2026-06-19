@@ -16,6 +16,7 @@ package io.trino.execution.buffer;
 import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.compress.v3.Compressor;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -60,6 +62,7 @@ import static javax.crypto.Cipher.ENCRYPT_MODE;
 public class CompressingEncryptingPageSerializer
         implements PageSerializer
 {
+    private static final Logger log = Logger.get(CompressingEncryptingPageSerializer.class);
     private static final int INSTANCE_SIZE = instanceSize(CompressingEncryptingPageSerializer.class);
 
     private long inputBytes;
@@ -125,8 +128,16 @@ public class CompressingEncryptingPageSerializer
         private static final int INSTANCE_SIZE = instanceSize(SerializedPageOutput.class);
         private static final int ENCRYPTION_KEY_RETAINED_SIZE = toIntExact(instanceSize(SecretKeySpec.class) + sizeOfByteArray(256 / 8));
 
-        // ThreadLocal SecureRandom avoids contention on the global PRNG lock when generating AES/CBC IVs
-        private static final ThreadLocal<SecureRandom> SECURE_RANDOM = ThreadLocal.withInitial(SecureRandom::new);
+        // ThreadLocal DRBG avoids contention on the global NativePRNG lock when generating AES/CBC IVs
+        private static final ThreadLocal<SecureRandom> SECURE_RANDOM = ThreadLocal.withInitial(() -> {
+            try {
+                return SecureRandom.getInstance("DRBG");
+            }
+            catch (NoSuchAlgorithmException e) {
+                log.warn(e, "DRBG SecureRandom not available, falling back to default SecureRandom");
+                return new SecureRandom();
+            }
+        });
 
         private static final double MINIMUM_COMPRESSION_RATIO = 0.8;
 
