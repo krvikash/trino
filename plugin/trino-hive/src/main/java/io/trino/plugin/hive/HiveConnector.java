@@ -45,9 +45,9 @@ import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.plugin.base.util.TimestampTypeUtil.containsNanosecondTimestamp;
 import static io.trino.spi.transaction.IsolationLevel.READ_UNCOMMITTED;
 import static io.trino.spi.transaction.IsolationLevel.checkConnectorSupports;
+import static io.trino.spi.type.TypeUtils.containsNanosecondTimestamp;
 import static java.util.Objects.requireNonNull;
 
 public class HiveConnector
