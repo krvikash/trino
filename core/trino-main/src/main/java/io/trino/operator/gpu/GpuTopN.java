@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.DType;
 import ai.rapids.cudf.OrderByArg;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
@@ -21,7 +22,9 @@ import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -81,15 +84,16 @@ public final class GpuTopN
 
     // Partial Top N data. Temporarily unsorted when handing new input.
     private final ClosingRef<Table> buffered = ClosingRef.empty();
+    private final ClosingRef<AllocatedMemory> allocated;
     private boolean finished;
 
     private GpuTopN(Context context, GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
-        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.limit = limit;
         this.sortChannels = requireNonNull(sortChannels, "sortChannels is null");
         this.sortOrders = ImmutableList.copyOf(requireNonNull(sortOrders, "sortOrders is null"));
+        allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
 
     @Override
@@ -103,23 +107,43 @@ public final class GpuTopN
         return switch (sourceResult) {
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
-            case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
+            case Data(AllocatedMemory allocation, GpuPage page) -> {
+                // Absorb reservation -- we will take or close the page
+                try (allocation) {
+                    allocated.borrow().transferFrom(allocation);
+                }
+                long combinedBytes = allocated.borrow().amount().gpuDeviceBytes();
+                // Reserve enough to cover orderBy's peak. cuDF runs a radix sort or comparison sort
+                long workBytes = isRadixSortableSingleKey(page)
+                        ? 5 * combinedBytes
+                        : (5 * combinedBytes) / 2;
+                allocated.borrow().update(MemoryAmount.gpuDevice(workBytes));
+                try (page) {
                     accumulate(page);
                 }
                 sortAndTruncate();
+                allocated.borrow().update(MemoryAmount.gpuDevice(buffered.borrow().getDeviceMemorySize()));
                 yield new Yielded();
             }
             case Finished() -> {
                 finished = true;
                 if (!buffered.isEmpty()) {
                     try (Table table = buffered.take()) {
-                        yield new Data(AllocatedMemory.untracked(), toGpuPage(table));
+                        yield new Data(allocated.take(), toGpuPage(table));
                     }
                 }
                 yield new Finished();
             }
         };
+    }
+
+    private boolean isRadixSortableSingleKey(@Borrow GpuPage page)
+    {
+        if (sortChannels.length != 1) {
+            return false;
+        }
+        DType type = ((Column.DeviceMemory) page.column(sortChannels[0])).columnVector().getType();
+        return !type.isNestedType() && type.getTypeId() != DType.DTypeEnum.STRING;
     }
 
     private void accumulate(@Borrow GpuPage page)
@@ -182,6 +206,7 @@ public final class GpuTopN
     {
         try (var closer = UncheckedCloser.create()) {
             closer.register(source);
+            closer.register(allocated); // release after buffered is closed
             closer.register(buffered);
         }
     }
