@@ -325,7 +325,7 @@ public class TaskContext
 
     public AggregatedMemoryContext newAggregateMemoryContext()
     {
-        return taskMemoryContext.newAggregateUserMemoryContext();
+        return taskMemoryContext.aggregateUserMemoryContext().newAggregatedMemoryContext();
     }
 
     public boolean isPerOperatorCpuTimerEnabled()
