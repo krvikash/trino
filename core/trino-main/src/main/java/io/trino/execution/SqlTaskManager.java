@@ -42,11 +42,16 @@ import io.trino.execution.buffer.PipelinedOutputBuffers;
 import io.trino.execution.executor.RunningSplitInfo;
 import io.trino.execution.executor.TaskExecutor;
 import io.trino.execution.executor.timesharing.PrioritizedSplitRunner;
+import io.trino.memory.ForGpuDevice;
+import io.trino.memory.ForOffHeap;
 import io.trino.memory.LocalMemoryManager;
+import io.trino.memory.MemoryPool;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.memory.QueryContext;
 import io.trino.metadata.LanguageFunctionProvider;
 import io.trino.operator.RetryPolicy;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.operator.scalar.JoniRegexpFunctions;
 import io.trino.operator.scalar.JoniRegexpReplaceLambdaFunction;
 import io.trino.spi.QueryId;
@@ -152,9 +157,13 @@ public class SqlTaskManager
             TaskExecutor taskExecutor,
             NodeInfo nodeInfo,
             LocalMemoryManager localMemoryManager,
+            @ForGpuDevice MemoryPool gpuDeviceMemoryPool,
+            @ForOffHeap MemoryPool offHeapMemoryPool,
             TaskManagementExecutor taskManagementExecutor,
             TaskManagerConfig config,
             NodeMemoryConfig nodeMemoryConfig,
+            GpuNodeSetup gpuNodeSetup,
+            GpuConfig gpuConfig,
             LocalSpillManager localSpillManager,
             NodeSpillConfig nodeSpillConfig,
             GcMonitor gcMonitor,
@@ -169,9 +178,13 @@ public class SqlTaskManager
                 taskExecutor,
                 nodeInfo,
                 localMemoryManager,
+                gpuDeviceMemoryPool,
+                offHeapMemoryPool,
                 taskManagementExecutor,
                 config,
                 nodeMemoryConfig,
+                gpuNodeSetup,
+                gpuConfig,
                 localSpillManager,
                 nodeSpillConfig,
                 gcMonitor,
@@ -190,9 +203,13 @@ public class SqlTaskManager
             TaskExecutor taskExecutor,
             NodeInfo nodeInfo,
             LocalMemoryManager localMemoryManager,
+            MemoryPool gpuDeviceMemoryPool,
+            MemoryPool offHeapMemoryPool,
             TaskManagementExecutor taskManagementExecutor,
             TaskManagerConfig config,
             NodeMemoryConfig nodeMemoryConfig,
+            GpuNodeSetup gpuNodeSetup,
+            GpuConfig gpuConfig,
             LocalSpillManager localSpillManager,
             NodeSpillConfig nodeSpillConfig,
             GcMonitor gcMonitor,
@@ -221,12 +238,24 @@ public class SqlTaskManager
         SqlTaskExecutionFactory sqlTaskExecutionFactory = new SqlTaskExecutionFactory(taskNotificationExecutor, taskExecutor, planner, tracer, config);
 
         DataSize maxQueryMemoryPerNode = nodeMemoryConfig.getMaxQueryMemoryPerNode();
+        DataSize maxQueryGpuMemoryPerNode = gpuConfig.getMaxQueryGpuMemoryPerNode().orElseGet(gpuNodeSetup::getGpuDeviceMemoryPoolSize);
+        DataSize maxQueryOffHeapMemoryPerNode = gpuConfig.getMaxQueryOffHeapMemoryPerNode();
         DataSize maxQuerySpillPerNode = nodeSpillConfig.getQueryMaxSpillPerNode();
 
         queryMaxMemoryPerNode = maxQueryMemoryPerNode.toBytes();
 
         queryContexts = buildNonEvictableCache(CacheBuilder.newBuilder().weakValues(), CacheLoader.from(
-                queryId -> createQueryContext(queryId, localMemoryManager, localSpillManager, gcMonitor, maxQueryMemoryPerNode, maxQuerySpillPerNode)));
+                queryId -> createQueryContext(
+                        queryId,
+                        localMemoryManager,
+                        gpuDeviceMemoryPool,
+                        offHeapMemoryPool,
+                        localSpillManager,
+                        gcMonitor,
+                        maxQueryMemoryPerNode,
+                        maxQueryGpuMemoryPerNode,
+                        maxQueryOffHeapMemoryPerNode,
+                        maxQuerySpillPerNode)));
 
         tasks = buildNonEvictableCache(CacheBuilder.newBuilder(), CacheLoader.from(
                 taskId -> {
@@ -261,15 +290,23 @@ public class SqlTaskManager
     private QueryContext createQueryContext(
             QueryId queryId,
             LocalMemoryManager localMemoryManager,
+            MemoryPool gpuDeviceMemoryPool,
+            MemoryPool offHeapMemoryPool,
             LocalSpillManager localSpillManager,
             GcMonitor gcMonitor,
             DataSize maxQueryUserMemoryPerNode,
+            DataSize maxQueryGpuMemoryPerNode,
+            DataSize maxQueryOffHeapMemoryPerNode,
             DataSize maxQuerySpillPerNode)
     {
         return new QueryContext(
                 queryId,
                 maxQueryUserMemoryPerNode,
+                maxQueryGpuMemoryPerNode,
+                maxQueryOffHeapMemoryPerNode,
                 localMemoryManager.getMemoryPool(),
+                gpuDeviceMemoryPool,
+                offHeapMemoryPool,
                 gcMonitor,
                 taskNotificationExecutor,
                 driverYieldExecutor,

@@ -43,6 +43,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -94,7 +95,11 @@ public class TestMemoryTracking
         queryContext = new QueryContext(
                 new QueryId("test_query"),
                 queryMaxMemory,
+                DataSize.ofBytes(0),
+                DataSize.ofBytes(0),
                 memoryPool,
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TestingGcMonitor(),
                 notificationExecutor,
                 yieldExecutor,

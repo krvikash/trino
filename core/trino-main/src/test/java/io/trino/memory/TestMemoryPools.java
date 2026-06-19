@@ -53,6 +53,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.execution.buffer.CompressionCodec.LZ4;
 import static io.trino.execution.buffer.TestingPagesSerdes.createTestingPagesSerdeFactory;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.testing.TestingTaskContext.createTaskContext;
 import static java.lang.String.format;
 import static java.util.concurrent.Executors.newCachedThreadPool;
@@ -86,7 +87,11 @@ class TestMemoryPools
         QueryContext queryContext = new QueryContext(
                 new QueryId("query"),
                 TEN_MEGABYTES,
+                DataSize.ofBytes(0),
+                DataSize.ofBytes(0),
                 userPool,
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TestingGcMonitor(),
                 executor,
                 scheduler,

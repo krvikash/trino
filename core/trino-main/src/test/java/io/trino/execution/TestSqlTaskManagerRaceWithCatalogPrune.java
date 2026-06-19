@@ -46,6 +46,8 @@ import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.LanguageFunctionEngineManager;
 import io.trino.metadata.WorkerLanguageFunctionProvider;
 import io.trino.node.TestingInternalNodeManager;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.CatalogVersion;
@@ -87,6 +89,7 @@ import static io.trino.execution.TaskTestUtils.PLAN_FRAGMENT;
 import static io.trino.execution.TaskTestUtils.TABLE_SCAN_NODE_ID;
 import static io.trino.execution.TaskTestUtils.createTestingPlanner;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.metadata.CatalogManager.NO_CATALOGS;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -265,6 +268,7 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
 
     private static SqlTaskManager getWorkerTaskManagerWithConnectorServiceProvider(ConnectorServicesProvider workerConnectorServiceProvider)
     {
+        GpuConfig gpuConfig = new GpuConfig();
         return new SqlTaskManager(
                 new EmbedVersion("testversion"),
                 workerConnectorServiceProvider,
@@ -274,9 +278,13 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
                 NOOP_TASK_EXECUTOR,
                 new NodeInfo("testversion"),
                 new LocalMemoryManager(new NodeMemoryConfig()),
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TaskManagementExecutor(),
                 new TaskManagerConfig().setInfoMaxAge(Duration.ZERO),
                 new NodeMemoryConfig(),
+                new GpuNodeSetup.Disabled(),
+                gpuConfig,
                 new LocalSpillManager(new NodeSpillConfig()),
                 new NodeSpillConfig(),
                 new TestingGcMonitor(),

@@ -39,6 +39,8 @@ import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.LanguageFunctionEngineManager;
 import io.trino.metadata.WorkerLanguageFunctionProvider;
 import io.trino.node.TestingInternalNodeManager;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spiller.LocalSpillManager;
 import io.trino.spiller.NodeSpillConfig;
@@ -56,6 +58,7 @@ import java.util.function.Predicate;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.trino.execution.TaskTestUtils.createTestingPlanner;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,6 +128,7 @@ public class TestTaskExecutorStuckSplits
             TaskManagementExecutor taskManagementExecutor,
             Predicate<List<StackTraceElement>> stuckSplitStackTracePredicate)
     {
+        GpuConfig gpuConfig = new GpuConfig();
         return new SqlTaskManager(
                 new EmbedVersion("testversion"),
                 new NoConnectorServicesProvider(),
@@ -134,9 +138,13 @@ public class TestTaskExecutorStuckSplits
                 taskExecutor,
                 new NodeInfo("test"),
                 new LocalMemoryManager(new NodeMemoryConfig()),
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 taskManagementExecutor,
                 taskManagerConfig,
                 nodeMemoryConfig,
+                new GpuNodeSetup.Disabled(),
+                gpuConfig,
                 new LocalSpillManager(new NodeSpillConfig()),
                 new NodeSpillConfig(),
                 new TestingGcMonitor(),

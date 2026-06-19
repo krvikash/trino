@@ -85,7 +85,11 @@ public class QueryContext
     public QueryContext(
             QueryId queryId,
             DataSize maxUserMemory,
+            DataSize maxGpuMemory,
+            DataSize maxOffHeapMemory,
             MemoryPool memoryPool,
+            MemoryPool gpuDeviceMemoryPool,
+            MemoryPool offHeapMemoryPool,
             GcMonitor gcMonitor,
             Executor notificationExecutor,
             ScheduledExecutorService yieldExecutor,
@@ -95,7 +99,11 @@ public class QueryContext
     {
         this(queryId,
                 maxUserMemory,
+                maxGpuMemory,
+                maxOffHeapMemory,
                 memoryPool,
+                gpuDeviceMemoryPool,
+                offHeapMemoryPool,
                 GUARANTEED_MEMORY,
                 gcMonitor,
                 notificationExecutor,
@@ -108,7 +116,11 @@ public class QueryContext
     public QueryContext(
             QueryId queryId,
             DataSize maxUserMemory,
+            DataSize maxGpuMemory,
+            DataSize maxOffHeapMemory,
             MemoryPool memoryPool,
+            MemoryPool gpuDeviceMemoryPool,
+            MemoryPool offHeapMemoryPool,
             long guaranteedMemory,
             GcMonitor gcMonitor,
             Executor notificationExecutor,
@@ -119,7 +131,11 @@ public class QueryContext
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.maxUserMemory = maxUserMemory.toBytes();
+        requireNonNull(maxGpuMemory, "maxGpuMemory is null"); // TODO currently unused
+        requireNonNull(maxOffHeapMemory, "maxOffHeapMemory is null"); // TODO currently unused
         this.memoryPool = requireNonNull(memoryPool, "memoryPool is null");
+        requireNonNull(gpuDeviceMemoryPool, "gpuDeviceMemoryPool is null"); // TODO currently unused
+        requireNonNull(offHeapMemoryPool, "offHeapMemoryPool is null"); // TODO currently unused
         this.gcMonitor = requireNonNull(gcMonitor, "gcMonitor is null");
         this.notificationExecutor = requireNonNull(notificationExecutor, "notificationExecutor is null");
         this.yieldExecutor = requireNonNull(yieldExecutor, "yieldExecutor is null");

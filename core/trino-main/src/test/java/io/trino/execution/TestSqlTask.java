@@ -76,6 +76,7 @@ import static io.trino.execution.TaskTestUtils.createTestingPlanner;
 import static io.trino.execution.TaskTestUtils.updateTask;
 import static io.trino.execution.buffer.PagesSerdeUtil.getSerializedPagePositionCount;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -448,7 +449,11 @@ public class TestSqlTask
         QueryContext queryContext = new QueryContext(
                 new QueryId("query"),
                 DataSize.of(1, MEGABYTE),
+                DataSize.ofBytes(0),
+                DataSize.ofBytes(0),
                 new MemoryPool(DataSize.of(1, GIGABYTE)),
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TestingGcMonitor(),
                 taskNotificationExecutor,
                 driverYieldExecutor,

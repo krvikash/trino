@@ -43,6 +43,11 @@ import static java.util.Objects.requireNonNull;
 
 public class MemoryPool
 {
+    public static MemoryPool newEmptyMemoryPool()
+    {
+        return new MemoryPool(DataSize.ofBytes(0));
+    }
+
     private final long maxBytes;
 
     @GuardedBy("this")

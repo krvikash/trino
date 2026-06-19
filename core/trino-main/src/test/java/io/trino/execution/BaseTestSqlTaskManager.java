@@ -47,6 +47,8 @@ import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.DirectExchangeClient;
 import io.trino.operator.DirectExchangeClientSupplier;
 import io.trino.operator.RetryPolicy;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.spi.QueryId;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.exchange.ExchangeId;
@@ -80,6 +82,7 @@ import static io.trino.execution.TaskTestUtils.TABLE_SCAN_NODE_ID;
 import static io.trino.execution.TaskTestUtils.createTestingPlanner;
 import static io.trino.execution.buffer.PagesSerdeUtil.getSerializedPagePositionCount;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -326,6 +329,7 @@ public abstract class BaseTestSqlTaskManager
 
     private SqlTaskManager createSqlTaskManager(TaskManagerConfig taskManagerConfig, NodeMemoryConfig nodeMemoryConfig)
     {
+        GpuConfig gpuConfig = new GpuConfig();
         return new SqlTaskManager(
                 new EmbedVersion("testversion"),
                 new NoConnectorServicesProvider(),
@@ -335,9 +339,13 @@ public abstract class BaseTestSqlTaskManager
                 taskExecutor,
                 new NodeInfo("test"),
                 new LocalMemoryManager(nodeMemoryConfig),
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 taskManagementExecutor,
                 taskManagerConfig,
                 nodeMemoryConfig,
+                new GpuNodeSetup.Disabled(),
+                gpuConfig,
                 new LocalSpillManager(new NodeSpillConfig()),
                 new NodeSpillConfig(),
                 new TestingGcMonitor(),

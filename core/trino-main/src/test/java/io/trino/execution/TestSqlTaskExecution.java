@@ -75,6 +75,7 @@ import static io.trino.execution.TaskTestUtils.TABLE_SCAN_NODE_ID;
 import static io.trino.execution.buffer.PagesSerdeUtil.getSerializedPagePositionCount;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
 import static io.trino.execution.buffer.TestingPagesSerdes.createTestingPagesSerdeFactory;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
 import static java.util.Objects.requireNonNull;
@@ -203,7 +204,11 @@ public class TestSqlTaskExecution
         QueryContext queryContext = new QueryContext(
                 new QueryId("queryid"),
                 DataSize.of(1, MEGABYTE),
+                DataSize.ofBytes(0),
+                DataSize.ofBytes(0),
                 new MemoryPool(DataSize.of(1, GIGABYTE)),
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TestingGcMonitor(),
                 taskNotificationExecutor,
                 driverYieldExecutor,

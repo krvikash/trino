@@ -38,6 +38,7 @@ import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.operator.OperatorAssertion.finishOperator;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -80,7 +81,11 @@ public final class GroupByHashYieldAssertion
         QueryContext queryContext = new QueryContext(
                 queryId,
                 DataSize.of(512, MEGABYTE),
+                DataSize.ofBytes(0),
+                DataSize.ofBytes(0),
                 memoryPool,
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TestingGcMonitor(),
                 EXECUTOR,
                 SCHEDULED_EXECUTOR,

@@ -66,6 +66,7 @@ import static io.trino.execution.TaskTestUtils.createTestingPlanner;
 import static io.trino.execution.TaskTestUtils.updateTask;
 import static io.trino.execution.TestSqlTask.OUT;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -293,7 +294,11 @@ public class TestMemoryRevokingScheduler
         return queryContexts.computeIfAbsent(queryId, id -> new QueryContext(
                 id,
                 DataSize.of(1, MEGABYTE),
+                DataSize.ofBytes(0),
+                DataSize.ofBytes(0),
                 memoryPool,
+                newEmptyMemoryPool(),
+                newEmptyMemoryPool(),
                 new TestingGcMonitor(),
                 executor,
                 scheduledExecutor,

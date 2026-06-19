@@ -18,7 +18,9 @@ import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 
 import static io.trino.spi.StandardErrorCode.EXCEEDED_GLOBAL_MEMORY_LIMIT;
+import static io.trino.spi.StandardErrorCode.EXCEEDED_LOCAL_GPU_MEMORY_LIMIT;
 import static io.trino.spi.StandardErrorCode.EXCEEDED_LOCAL_MEMORY_LIMIT;
+import static io.trino.spi.StandardErrorCode.EXCEEDED_LOCAL_OFF_HEAP_MEMORY_LIMIT;
 import static java.lang.String.format;
 
 public class ExceededMemoryLimitException
@@ -39,6 +41,20 @@ public class ExceededMemoryLimitException
         return new ExceededMemoryLimitException(
                 EXCEEDED_LOCAL_MEMORY_LIMIT,
                 format("Query exceeded per-node memory limit of %s [%s]", maxMemory, additionalFailureInfo));
+    }
+
+    public static ExceededMemoryLimitException exceededLocalGpuMemoryLimit(DataSize maxMemory, String additionalFailureInfo)
+    {
+        return new ExceededMemoryLimitException(
+                EXCEEDED_LOCAL_GPU_MEMORY_LIMIT,
+                format("Query exceeded per-node GPU memory limit of %s [%s]", maxMemory, additionalFailureInfo));
+    }
+
+    public static ExceededMemoryLimitException exceededLocalOffHeapMemoryLimit(DataSize maxMemory, String additionalFailureInfo)
+    {
+        return new ExceededMemoryLimitException(
+                EXCEEDED_LOCAL_OFF_HEAP_MEMORY_LIMIT,
+                format("Query exceeded per-node off-heap memory limit of %s [%s]", maxMemory, additionalFailureInfo));
     }
 
     private ExceededMemoryLimitException(StandardErrorCode errorCode, String message)

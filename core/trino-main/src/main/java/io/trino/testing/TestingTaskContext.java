@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 
 public final class TestingTaskContext
 {
@@ -168,7 +169,11 @@ public final class TestingTaskContext
             QueryContext queryContext = new QueryContext(
                     queryId,
                     queryMaxMemory,
+                    DataSize.ofBytes(0),
+                    DataSize.ofBytes(0),
                     memoryPool,
+                    newEmptyMemoryPool(),
+                    newEmptyMemoryPool(),
                     0L,
                     GC_MONITOR,
                     notificationExecutor,

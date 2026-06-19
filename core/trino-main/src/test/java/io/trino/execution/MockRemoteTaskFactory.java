@@ -87,6 +87,7 @@ import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.execution.DynamicFiltersCollector.INITIAL_DYNAMIC_FILTERS_VERSION;
 import static io.trino.execution.StateMachine.StateChangeListener;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.BROADCAST;
+import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SOURCE_DISTRIBUTION;
@@ -223,7 +224,11 @@ public class MockRemoteTaskFactory
             QueryContext queryContext = new QueryContext(
                     taskId.queryId(),
                     DataSize.of(1, MEGABYTE),
+                    DataSize.ofBytes(0),
+                    DataSize.ofBytes(0),
                     memoryPool,
+                    newEmptyMemoryPool(),
+                    newEmptyMemoryPool(),
                     new TestingGcMonitor(),
                     executor,
                     scheduledExecutor,
