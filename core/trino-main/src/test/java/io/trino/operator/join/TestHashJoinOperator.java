@@ -1241,7 +1241,7 @@ public class TestHashJoinOperator
             }
 
             // occupy the whole memory pool with another operator so finish() has to wait
-            anotherOperatorContext.getOperatorMemoryContext().localUserMemoryContext().setBytes(SMALL_MEMORY_POOL_BYTES);
+            anotherOperatorContext.localUserMemoryContext().setBytes(SMALL_MEMORY_POOL_BYTES);
             operator.finish();
             assertThat(operator.getState()).isEqualTo(HashBuilderOperator.State.CONSUMING_INPUT);
             assertThat(operator.isFinished()).isFalse();
@@ -1264,7 +1264,7 @@ public class TestHashJoinOperator
             }
 
             // free memory and let finish() proceed
-            anotherOperatorContext.getOperatorMemoryContext().localUserMemoryContext().setBytes(0);
+            anotherOperatorContext.localUserMemoryContext().setBytes(0);
             operator.finish();
             assertThat(operator.getState()).isEqualTo(HashBuilderOperator.State.LOOKUP_SOURCE_BUILT);
             assertThat(operator.isFinished()).isFalse();
@@ -1329,14 +1329,14 @@ public class TestHashJoinOperator
             assertThat(operator.getState()).isEqualTo(HashBuilderOperator.State.INPUT_UNSPILLING);
 
             // block memory so unspilling cannot reserve memory
-            anotherOperatorContext.getOperatorMemoryContext().localUserMemoryContext().setBytes(SMALL_MEMORY_POOL_BYTES);
+            anotherOperatorContext.localUserMemoryContext().setBytes(SMALL_MEMORY_POOL_BYTES);
             operator.finish();
             assertThat(operator.getState()).isEqualTo(HashBuilderOperator.State.INPUT_UNSPILLING);
             assertThat(operatorContext.isWaitingForMemory()).isNotDone();
             assertThat(lookupSourceFuture).isNotDone();
 
             // release memory and continue
-            anotherOperatorContext.getOperatorMemoryContext().localUserMemoryContext().setBytes(0);
+            anotherOperatorContext.localUserMemoryContext().setBytes(0);
             operator.finish();
             assertThat(operator.getState()).isEqualTo(HashBuilderOperator.State.INPUT_UNSPILLED_AND_BUILT);
 
