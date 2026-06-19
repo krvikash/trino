@@ -1678,7 +1678,7 @@ jobs:
                 ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
                     (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
                     (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.GCS_DATABRICKS_TOKEN == '') }}
             - suite: suite-hive-databricks-unity
               config: hdp3
             - suite: suite-hive-databricks-unity
