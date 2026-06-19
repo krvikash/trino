@@ -53,7 +53,7 @@ public class GpuProject
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             return new GpuProject(source, projections);
         }

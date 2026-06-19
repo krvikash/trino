@@ -1083,10 +1083,10 @@ final class TestGpuAggregationOperator
                 inputPages,
                 inputTypes,
                 compiled.finalOutputTypes(),
-                copyToDevice -> {
+                (context, copyToDevice) -> {
                     GpuOperation current = copyToDevice;
                     for (GpuOperation.Factory factory : compiled.stages()) {
-                        current = factory.create(current);
+                        current = factory.create(context, current);
                     }
                     return current;
                 });
@@ -1191,9 +1191,9 @@ final class TestGpuAggregationOperator
                 List.of(inputPage),
                 inputTypes,
                 outputTypesBuilder.build(),
-                copyToDevice -> {
+                (context, copyToDevice) -> {
                     GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw, /*compactionThresholdBytes=*/ 1, inputTypes.size());
-                    return factory.create(copyToDevice);
+                    return factory.create(context, copyToDevice);
                 });
     }
 

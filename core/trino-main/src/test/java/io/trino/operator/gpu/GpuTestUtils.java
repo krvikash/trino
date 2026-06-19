@@ -64,7 +64,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -717,7 +717,7 @@ public final class GpuTestUtils
             List<Page> inputPages,
             List<Type> inputTypes,
             List<Type> outputTypes,
-            Function<CopyToDevice, GpuOperation> operationFactory)
+            BiFunction<GpuOperation.Context, CopyToDevice, GpuOperation> operationFactory)
     {
         Set<Integer> deviceChannels = IntStream.range(0, inputTypes.size())
                 .boxed()
@@ -729,13 +729,14 @@ public final class GpuTestUtils
             List<Page> inputPages,
             List<Type> inputTypes,
             List<Type> outputTypes,
-            Function<CopyToDevice, GpuOperation> operationFactory,
+            BiFunction<GpuOperation.Context, CopyToDevice, GpuOperation> operationFactory,
             Set<Integer> deviceChannels)
     {
         Iterator<Page> input = inputPages.iterator();
+        GpuOperation.Context context = new TestingGpuOperationContext();
         try (BufferPages bufferPages = new BufferPages();
                 CopyToDevice copyToDevice = new CopyToDevice(bufferPages, inputTypes, deviceChannels);
-                GpuOperation operation = operationFactory.apply(copyToDevice);
+                GpuOperation operation = operationFactory.apply(context, copyToDevice);
                 CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes)) {
             return drainToPages(
                     () -> {

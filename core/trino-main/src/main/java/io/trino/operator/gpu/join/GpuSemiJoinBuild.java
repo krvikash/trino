@@ -53,7 +53,7 @@ public final class GpuSemiJoinBuild
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             return new GpuSemiJoinBuild(source, setSupplier, buildKeyChannel);
         }

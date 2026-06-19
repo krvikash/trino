@@ -69,7 +69,7 @@ public class GpuFilter
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             dynamicFilter.ifPresent(GpuDynamicFilterProvider::operatorCreated);
             return new GpuFilter(source, staticFilter, dynamicFilter, passThroughThreshold);

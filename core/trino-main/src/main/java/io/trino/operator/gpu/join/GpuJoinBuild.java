@@ -72,7 +72,7 @@ public final class GpuJoinBuild
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             return new GpuJoinBuild(source, bridgeManager, buildKeyChannels, buildOutputChannels, filter, dynamicFilter);
         }

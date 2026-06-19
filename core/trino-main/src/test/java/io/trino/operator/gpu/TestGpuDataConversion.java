@@ -521,7 +521,7 @@ public class TestGpuDataConversion
                 inputPages,
                 types,
                 types,
-                copyToDevice -> copyToDevice,
+                (_, copyToDevice) -> copyToDevice,
                 channelsToTransfer);
     }
 

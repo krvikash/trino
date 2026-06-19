@@ -234,7 +234,7 @@ final class TestGpuSumDecimalAggregation
                 List.of(input),
                 List.of(type),
                 List.of(VARBINARY),
-                copyToDevice -> chainGpuPartialPipeline(copyToDevice, type, decimal128Type, /*sourceChannel=*/ 0, /*groupByChannels=*/ new int[0], List.of()));
+                (context, copyToDevice) -> chainGpuPartialPipeline(context, copyToDevice, type, decimal128Type, /*sourceChannel=*/ 0, /*groupByChannels=*/ new int[0], List.of()));
         return concatBlocks(output, VARBINARY);
     }
 
@@ -246,7 +246,7 @@ final class TestGpuSumDecimalAggregation
                 List.of(new Page(intermediate)),
                 List.of(VARBINARY),
                 List.of(outputType),
-                copyToDevice -> chainGpuFinalPipeline(copyToDevice, decimal128Type, /*sourceChannel=*/ 0, /*groupByChannels=*/ new int[0], List.of()));
+                (context, copyToDevice) -> chainGpuFinalPipeline(context, copyToDevice, decimal128Type, /*sourceChannel=*/ 0, /*groupByChannels=*/ new int[0], List.of()));
         checkState(output.size() == 1 && output.getFirst().getPositionCount() == 1, "Expected single result row");
         return getOnlyValue(outputType, output.getFirst().getBlock(0));
     }
@@ -258,7 +258,7 @@ final class TestGpuSumDecimalAggregation
                 List.of(input),
                 List.of(BIGINT, type),
                 List.of(BIGINT, VARBINARY),
-                copyToDevice -> chainGpuPartialPipeline(copyToDevice, type, decimal128Type, /*sourceChannel=*/ 1, /*groupByChannels=*/ new int[] {0}, List.of(BIGINT)));
+                (context, copyToDevice) -> chainGpuPartialPipeline(context, copyToDevice, type, decimal128Type, /*sourceChannel=*/ 1, /*groupByChannels=*/ new int[] {0}, List.of(BIGINT)));
         return concatPages(output, List.of(BIGINT, VARBINARY));
     }
 
@@ -270,7 +270,7 @@ final class TestGpuSumDecimalAggregation
                 List.of(intermediate),
                 List.of(BIGINT, VARBINARY),
                 List.of(BIGINT, outputType),
-                copyToDevice -> chainGpuFinalPipeline(copyToDevice, decimal128Type, /*sourceChannel=*/ 1, /*groupByChannels=*/ new int[] {0}, List.of(BIGINT)));
+                (context, copyToDevice) -> chainGpuFinalPipeline(context, copyToDevice, decimal128Type, /*sourceChannel=*/ 1, /*groupByChannels=*/ new int[] {0}, List.of(BIGINT)));
         Map<Long, Object> result = new HashMap<>();
         for (Page page : output) {
             for (int i = 0; i < page.getPositionCount(); i++) {
@@ -283,6 +283,7 @@ final class TestGpuSumDecimalAggregation
     }
 
     private static GpuOperation chainGpuPartialPipeline(
+            GpuOperation.Context context,
             GpuOperation source,
             DecimalType inputDecimalType,
             DType decimal128Type,
@@ -345,13 +346,14 @@ final class TestGpuSumDecimalAggregation
         }
 
         List<Projection> preProjectionList = preProjections.build();
-        GpuOperation op = new GpuProject.Factory(preProjectionList).create(source);
-        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ true, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(op);
-        op = new GpuProject.Factory(postProjections.build()).create(op);
+        GpuOperation op = new GpuProject.Factory(preProjectionList).create(context, source);
+        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ true, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(context, op);
+        op = new GpuProject.Factory(postProjections.build()).create(context, op);
         return op;
     }
 
     private static GpuOperation chainGpuFinalPipeline(
+            GpuOperation.Context context,
             GpuOperation source,
             DType decimal128Type,
             int sourceChannel,
@@ -396,9 +398,9 @@ final class TestGpuSumDecimalAggregation
                         aggResultStart + 4)))));
 
         List<Projection> preProjectionList = preProjections.build();
-        GpuOperation op = new GpuProject.Factory(preProjectionList).create(source);
-        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ false, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(op);
-        op = new GpuProject.Factory(postProjections.build()).create(op);
+        GpuOperation op = new GpuProject.Factory(preProjectionList).create(context, source);
+        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ false, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(context, op);
+        op = new GpuProject.Factory(postProjections.build()).create(context, op);
         return op;
     }
 

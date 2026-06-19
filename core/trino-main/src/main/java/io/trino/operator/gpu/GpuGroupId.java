@@ -60,7 +60,7 @@ public class GpuGroupId
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             int[][] groupingSetInputs = new int[groupingSetMappings.size()][outputTypes.size() - 1];
             for (int s = 0; s < groupingSetInputs.length; s++) {

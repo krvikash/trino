@@ -163,7 +163,7 @@ class TestGpuOperator
             return new GpuOperation.Factory()
             {
                 @Override
-                public GpuOperation create(GpuOperation source)
+                public GpuOperation create(Context context, GpuOperation source)
                 {
                     checkState(WorkMock.this.source == null, "Can create only one operator");
                     WorkMock.this.source = requireNonNull(source, "source is null");

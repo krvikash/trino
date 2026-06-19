@@ -230,9 +230,9 @@ final class TestGpuTopNOperator
                 inputPages,
                 types,
                 types,
-                copyToDevice -> {
+                (context, copyToDevice) -> {
                     GpuTopN.Factory factory = new GpuTopN.Factory(limit, sortChannels, sortOrders);
-                    return factory.create(copyToDevice);
+                    return factory.create(context, copyToDevice);
                 });
     }
 }

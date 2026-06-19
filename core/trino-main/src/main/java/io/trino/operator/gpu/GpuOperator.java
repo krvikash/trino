@@ -201,16 +201,17 @@ public abstract class GpuOperator
         public SourceOperator createOperator(DriverContext driverContext)
         {
             checkState(!closed, "Already closed");
+            OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
+            GpuOperation.Context context = new OperationContext();
             GpuOperatorSource operatorSource = sourceFactory.get();
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
             RefillSignal refillSignal = new RefillSignal();
             for (GpuOperation.Factory factory : this.operations) {
                 head = new PullCircuitBreaker(head, refillSignal);
-                head = factory.create(head);
+                head = factory.create(context, head);
             }
             head = new CopyToBlocks(head, outputTypes);
-            OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
             operatorContext.setLatestMetrics(initialMetrics());
             return new GpuSourceOperator(planNodeId, operatorContext, head, source, refillSignal);
         }
@@ -287,16 +288,17 @@ public abstract class GpuOperator
         public Operator createOperator(DriverContext driverContext)
         {
             checkState(!closed, "Already closed");
+            OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
+            GpuOperation.Context context = new OperationContext();
             GpuOperatorSource operatorSource = sourceFactory.get();
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
             RefillSignal refillSignal = new RefillSignal();
             for (GpuOperation.Factory factory : this.operations) {
                 head = new PullCircuitBreaker(head, refillSignal);
-                head = factory.create(head);
+                head = factory.create(context, head);
             }
             head = new CopyToBlocks(head, outputTypes);
-            OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
             operatorContext.setLatestMetrics(initialMetrics());
             return new GpuIntermediateOperator(operatorContext, head, source, refillSignal);
         }
@@ -599,4 +601,7 @@ public abstract class GpuOperator
             }
         }
     }
+
+    private record OperationContext()
+            implements GpuOperation.Context {}
 }

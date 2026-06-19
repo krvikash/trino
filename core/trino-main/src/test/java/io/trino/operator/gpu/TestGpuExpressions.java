@@ -1491,7 +1491,7 @@ public class TestGpuExpressions
                 inputPages,
                 inputTypes,
                 List.of(expression.type()),
-                copyToDevice -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
+                (_, copyToDevice) -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
     }
 
     private Expression createLikeExpression(int channel, String pattern, Optional<Character> escape)

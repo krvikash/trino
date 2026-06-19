@@ -99,7 +99,7 @@ public interface GpuOperation
 
     interface Factory
     {
-        GpuOperation create(GpuOperation source);
+        GpuOperation create(Context context, GpuOperation source);
 
         Factory duplicate();
 
@@ -109,4 +109,6 @@ public interface GpuOperation
          */
         void noMoreOperators();
     }
+
+    interface Context {}
 }

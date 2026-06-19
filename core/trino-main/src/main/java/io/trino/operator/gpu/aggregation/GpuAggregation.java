@@ -89,7 +89,7 @@ public abstract class GpuAggregation
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             if (groupByChannels.length == 0) {
                 return new GpuGlobalAggregation(source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);

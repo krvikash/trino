@@ -96,7 +96,7 @@ public final class GpuLookupJoin
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             return new GpuLookupJoin(
                     source,

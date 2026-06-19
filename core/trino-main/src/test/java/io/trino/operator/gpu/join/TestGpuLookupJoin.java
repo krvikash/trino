@@ -20,6 +20,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -212,9 +213,10 @@ final class TestGpuLookupJoin
             this.input = buildPages.iterator();
             this.bufferPages = new BufferPages();
             Set<Integer> deviceChannels = IntStream.range(0, buildTypes.size()).boxed().collect(toImmutableSet());
+            GpuOperation.Context context = new TestingGpuOperationContext();
             CopyToDevice copyToDevice = new CopyToDevice(bufferPages, buildTypes, deviceChannels);
             GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels, Optional.empty(), Optional.empty());
-            this.build = factory.create(copyToDevice);
+            this.build = factory.create(context, copyToDevice);
         }
 
         /**

@@ -59,7 +59,7 @@ public final class GpuLocalExchangeWriter
         }
 
         @Override
-        public GpuOperation create(GpuOperation source)
+        public GpuOperation create(Context context, GpuOperation source)
         {
             return new GpuLocalExchangeWriter(source, sinkFactory.createSink());
         }

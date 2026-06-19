@@ -311,7 +311,7 @@ class TestGpuExpressionAstCompiler
                 inputPages,
                 inputTypes,
                 List.of(expression.type()),
-                copyToDevice -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
+                (_, copyToDevice) -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
 
         assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
     }
