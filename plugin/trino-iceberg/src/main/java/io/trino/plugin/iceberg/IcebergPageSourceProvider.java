@@ -88,6 +88,7 @@ import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.connector.SystemColumnHandle;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.Domain;
@@ -287,7 +288,8 @@ public class IcebergPageSourceProvider
             ConnectorTableHandle connectorTableHandle,
             Optional<ConnectorTableCredentials> connectorTableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            ConnectorGpuMemoryContext memoryContext)
     {
         verify(connectorTableCredentials.isPresent(), "connectorTableCredentials is empty");
         IcebergTableCredentials icebergTableCredentials = connectorTableCredentials.map(IcebergTableCredentials.class::cast).get();

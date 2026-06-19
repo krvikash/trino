@@ -43,6 +43,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.Domain;
@@ -136,7 +137,8 @@ public class HivePageSourceProvider
             ConnectorTableHandle tableHandle,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            ConnectorGpuMemoryContext memoryContext)
     {
         HiveSplit hiveSplit = (HiveSplit) split;
 

@@ -14,6 +14,7 @@
 package io.trino.spi.connector;
 
 import io.trino.spi.TrinoException;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
@@ -33,7 +34,8 @@ public interface ConnectorPageSourceProvider
             ConnectorTableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+            DynamicFilter dynamicFilter,
+            ConnectorGpuMemoryContext memoryContext)
     {
         return Optional.empty();
     }
