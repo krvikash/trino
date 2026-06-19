@@ -14,7 +14,9 @@
 package io.trino.operator.gpu.memory;
 
 import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,5 +49,10 @@ public class GpuTaskMemoryContext
     public @Borrow AggregatedMemoryContext taskOffHeapMemory()
     {
         return taskOffHeapMemory;
+    }
+
+    public @Move AllocatedMemory allocate(String allocationTag, MemoryAmount amount)
+    {
+        return AllocatedMemory.allocate(this, allocationTag, amount);
     }
 }

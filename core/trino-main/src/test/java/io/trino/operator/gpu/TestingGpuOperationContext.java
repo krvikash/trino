@@ -13,5 +13,21 @@
  */
 package io.trino.operator.gpu;
 
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+
 public class TestingGpuOperationContext
-        implements GpuOperation.Context {}
+        implements GpuOperation.Context
+{
+    private final GpuTaskMemoryContext taskMemoryContext = new GpuTaskMemoryContext(
+            newSimpleAggregatedMemoryContext(),
+            newSimpleAggregatedMemoryContext(),
+            newSimpleAggregatedMemoryContext());
+
+    @Override
+    public GpuTaskMemoryContext taskMemoryContext()
+    {
+        return taskMemoryContext;
+    }
+}

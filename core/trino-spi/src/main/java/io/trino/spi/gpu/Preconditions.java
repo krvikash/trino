@@ -21,6 +21,13 @@ final class Preconditions
 {
     private Preconditions() {}
 
+    static void checkNonNegative(long value, String name)
+    {
+        if (value < 0) {
+            throw new IllegalArgumentException("%s cannot be negative: %s".formatted(name, value));
+        }
+    }
+
     @FormatMethod
     static void checkArgument(boolean test, String message, Object... args)
     {

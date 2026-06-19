@@ -32,6 +32,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
@@ -203,7 +204,7 @@ public abstract class GpuOperator
         {
             checkState(!closed, "Already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
-            GpuOperation.Context context = new OperationContext();
+            GpuOperation.Context context = new OperationContext(operatorContext.getDriverContext().getPipelineContext().getTaskContext().getGpuTaskMemoryContext());
             GpuOperatorSource operatorSource = sourceFactory.apply(context);
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
@@ -291,7 +292,7 @@ public abstract class GpuOperator
         {
             checkState(!closed, "Already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
-            GpuOperation.Context context = new OperationContext();
+            GpuOperation.Context context = new OperationContext(operatorContext.getDriverContext().getPipelineContext().getTaskContext().getGpuTaskMemoryContext());
             GpuOperatorSource operatorSource = sourceFactory.apply(context);
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
@@ -604,6 +605,12 @@ public abstract class GpuOperator
         }
     }
 
-    private record OperationContext()
-            implements GpuOperation.Context {}
+    private record OperationContext(GpuTaskMemoryContext taskMemoryContext)
+            implements GpuOperation.Context
+    {
+        OperationContext
+        {
+            requireNonNull(taskMemoryContext, "taskMemoryContext is null");
+        }
+    }
 }

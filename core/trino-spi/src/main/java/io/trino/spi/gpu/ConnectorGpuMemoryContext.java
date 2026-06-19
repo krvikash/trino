@@ -13,4 +13,11 @@
  */
 package io.trino.spi.gpu;
 
-public interface ConnectorGpuMemoryContext {}
+import io.trino.spi.gpu.borrow.Move;
+
+public interface ConnectorGpuMemoryContext
+{
+    /// Reserve memory before using it or declare already used memory.
+    @Move
+    MemoryAllocation allocate(MemoryAmount amount);
+}

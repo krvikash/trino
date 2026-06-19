@@ -22,6 +22,7 @@ import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.memory.DefaultConnectorGpuMemoryContext;
 import io.trino.operator.gpu.scan.ConnectorGpuPageSourceAdapter;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -32,7 +33,6 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
-import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
@@ -111,7 +111,7 @@ public class PageSourceManager
                             tableCredentials,
                             columns,
                             finalDynamicFilter,
-                            new ConnectorGpuMemoryContext() {})
+                            new DefaultConnectorGpuMemoryContext(gpuOperationContext.taskMemoryContext(), "ConnectorGpuPageSource"))
                     .orElseGet(() -> {
                         log.debug("GPU page source was requested but not provided, falling back to CPU scan with adaptation for %s", table.connectorHandle());
                         return new ConnectorGpuPageSourceAdapter(
