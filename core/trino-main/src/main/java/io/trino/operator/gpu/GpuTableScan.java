@@ -25,6 +25,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAllocation;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
@@ -127,7 +128,7 @@ public class GpuTableScan
         @Own ConnectorGpuPageSource.Result result = pageSource.readNext();
         return switch (result) {
             case ConnectorGpuPageSource.Blocked(CompletableFuture<Void> future) -> new Blocked(future.isDone() ? NOT_BLOCKED : toListenableFuture(future));
-            case ConnectorGpuPageSource.Data(GpuPage page) -> new Data(AllocatedMemory.untracked(), page);
+            case ConnectorGpuPageSource.Data(MemoryAllocation allocation, GpuPage page) -> new Data((AllocatedMemory) allocation, page);
             case ConnectorGpuPageSource.Finished() -> new Finished();
             case ConnectorGpuPageSource.Yielded() -> new Yielded();
         };

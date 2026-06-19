@@ -20,10 +20,12 @@ import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.hive.parquet.Buffers;
 import io.trino.plugin.hive.parquet.ParquetFileFabricator;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -72,6 +74,7 @@ public class IcebergGpuParquetPageSource
         }
     }
 
+    private final ConnectorGpuMemoryContext memoryContext;
     private final ParquetFileFabricator fabricator;
     private final List<GpuOutputColumn> outputColumns;
     private final String[] parquetColumnNames;
@@ -79,8 +82,9 @@ public class IcebergGpuParquetPageSource
     private boolean finished;
     private @Nullable @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
 
-    public IcebergGpuParquetPageSource(ParquetFileFabricator fabricator, List<GpuOutputColumn> outputColumns)
+    public IcebergGpuParquetPageSource(ConnectorGpuMemoryContext memoryContext, ParquetFileFabricator fabricator, List<GpuOutputColumn> outputColumns)
     {
+        this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.fabricator = requireNonNull(fabricator, "fabricator is null");
         this.parquetColumnNames = outputColumns.stream()
                 .filter(GpuParquetFileColumn.class::isInstance)
@@ -109,9 +113,12 @@ public class IcebergGpuParquetPageSource
                 return new Finished();
             }
 
-            @Own GpuPage page = readAndConvert();
-            finished = true;
-            return new Data(page);
+            try (var page = ClosingRef.own(readAndConvert());
+                    // TODO pre-allocate before the page gets into GPU memory
+                    var allocation = ClosingRef.own(memoryContext.allocate(page.borrow().retainedMemory()))) {
+                finished = true;
+                return new Data(allocation.take(), page.take());
+            }
         }
         finally {
             fabricatedParquet.close();

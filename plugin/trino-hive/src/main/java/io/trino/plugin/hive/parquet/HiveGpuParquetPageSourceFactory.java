@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.memory.context.gpu.HeapMemoryReservationHandler;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
 import io.trino.parquet.metadata.FileMetadata;
@@ -28,6 +29,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping;
 import io.trino.spi.TrinoException;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -41,7 +43,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
@@ -65,6 +67,7 @@ public final class HiveGpuParquetPageSourceFactory
     }
 
     public ConnectorGpuPageSource createGpuPageSource(
+            ConnectorGpuMemoryContext gpuMemoryContext,
             TrinoInputFile inputFile,
             long start,
             long length,
@@ -74,8 +77,7 @@ public final class HiveGpuParquetPageSourceFactory
             int domainCompactionThreshold)
     {
         try {
-            // TODO expose memory usage
-            AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
+            AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
             FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
 
             // Hardcoded UTC: cuDF reads timestamps as raw UTC without applying hive.parquet.time-zone.
@@ -89,7 +91,7 @@ public final class HiveGpuParquetPageSourceFactory
                     inputFile,
                     OptionalLong.empty(),
                     options,
-                    memoryContext,
+                    memoryContext.newAggregatedMemoryContext(),
                     stats);
 
             // Read footer and get schema
@@ -134,11 +136,12 @@ public final class HiveGpuParquetPageSourceFactory
                     descriptorsByPath,
                     timeZone,
                     domainCompactionThreshold,
-                    memoryContext,
+                    gpuMemoryContext,
+                    memoryContext.newAggregatedMemoryContext(),
                     options,
                     parquetMetadata);
 
-            return new HiveGpuParquetPageSource(fabricator, gpuColumns, columnMappings);
+            return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings);
         }
         catch (IOException e) {
             throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source", e);

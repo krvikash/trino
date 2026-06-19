@@ -28,6 +28,7 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInput;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.memory.context.gpu.HeapMemoryReservationHandler;
 import io.trino.orc.OrcColumn;
 import io.trino.orc.OrcCorruptionException;
 import io.trino.orc.OrcDataSource;
@@ -159,6 +160,7 @@ import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.orc.OrcReader.INITIAL_BATCH_SIZE;
 import static io.trino.orc.OrcReader.ProjectedLayout;
@@ -335,6 +337,7 @@ public class IcebergPageSourceProvider
                 : fileSystem.newInputFile(Location.of(icebergSplit.path()));
 
         return createGpuParquetPageSource(
+                memoryContext,
                 columns,
                 icebergSplit,
                 inputFile,
@@ -347,6 +350,7 @@ public class IcebergPageSourceProvider
     }
 
     private Optional<ConnectorGpuPageSource> createGpuParquetPageSource(
+            ConnectorGpuMemoryContext gpuMemoryContext,
             List<ColumnHandle> columns,
             IcebergSplit icebergSplit,
             TrinoInputFile inputFile,
@@ -357,12 +361,12 @@ public class IcebergPageSourceProvider
             TupleDomain<IcebergColumnHandle> effectivePredicate,
             int formatVersion)
     {
-        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
+        AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
         FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
 
         ParquetDataSource dataSource;
         try {
-            dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext, stats);
+            dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext.newAggregatedMemoryContext(), stats);
         }
         catch (IOException e) {
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create Parquet data source for: " + inputFile.location() + ". " + e.getMessage(), e);
@@ -433,11 +437,12 @@ public class IcebergPageSourceProvider
                     descriptorsByPath,
                     UTC,
                     ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
-                    memoryContext,
+                    gpuMemoryContext,
+                    memoryContext.newAggregatedMemoryContext(),
                     gpuParquetReaderOptions,
                     parquetMetadata);
 
-            return Optional.of(new IcebergGpuParquetPageSource(fabricator, outputColumns.build()));
+            return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build()));
         }
         catch (IOException | RuntimeException e) {
             closeAllSuppress(e, dataSource);

@@ -17,6 +17,7 @@ import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
+import com.google.common.io.Closer;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
 import io.trino.memory.context.AggregatedMemoryContext;
@@ -33,6 +34,9 @@ import io.trino.parquet.writer.MessageTypeConverter;
 import io.trino.parquet.writer.ParquetTypeConverter;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
+import io.trino.spi.gpu.MemoryAllocation;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -63,6 +67,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
@@ -87,13 +92,15 @@ public class ParquetFileFabricator
     public static final class FabricatedParquet
             implements RuntimeCloseable
     {
+        private final @Own MemoryAllocation allocation;
         private final @Own Optional<Buffers> data;
         private final long rowCount;
 
-        public FabricatedParquet(Optional<Buffers> data, long rowCount)
+        public FabricatedParquet(MemoryAllocation allocation, Optional<Buffers> data, long rowCount)
         {
-            requireNonNull(data, "data is null");
-            this.data = data;
+            this.allocation = requireNonNull(allocation, "allocation is null");
+            this.data = requireNonNull(data, "data is null");
+            checkArgument(rowCount >= 0, "rowCount must be non-negative: %s", rowCount);
             this.rowCount = rowCount;
         }
 
@@ -110,6 +117,7 @@ public class ParquetFileFabricator
         @Override
         public void close()
         {
+            allocation.close();
             data.ifPresent(Buffers::close);
         }
     }
@@ -127,6 +135,7 @@ public class ParquetFileFabricator
     private final Map<List<String>, ColumnDescriptor> descriptorsByPath;
     private final DateTimeZone timeZone;
     private final int domainCompactionThreshold;
+    private final ConnectorGpuMemoryContext gpuMemoryContext;
     private final AggregatedMemoryContext memoryContext;
     private final ParquetReaderOptions options;
     private final ParquetMetadata parquetMetadata;
@@ -141,6 +150,7 @@ public class ParquetFileFabricator
             Map<List<String>, ColumnDescriptor> descriptorsByPath,
             DateTimeZone timeZone,
             int domainCompactionThreshold,
+            ConnectorGpuMemoryContext gpuMemoryContext,
             AggregatedMemoryContext memoryContext,
             ParquetReaderOptions options,
             ParquetMetadata parquetMetadata)
@@ -154,6 +164,7 @@ public class ParquetFileFabricator
         this.descriptorsByPath = requireNonNull(descriptorsByPath, "descriptorsByPath is null");
         this.timeZone = requireNonNull(timeZone, "timeZone is null");
         this.domainCompactionThreshold = domainCompactionThreshold;
+        this.gpuMemoryContext = requireNonNull(gpuMemoryContext, "gpuMemoryContext is null");
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.options = requireNonNull(options, "options is null");
         this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
@@ -162,8 +173,9 @@ public class ParquetFileFabricator
     @Override
     public void close()
     {
-        try {
-            dataSource.close();
+        try (var closer = Closer.create()) {
+            closer.register(memoryContext::close);
+            closer.register(dataSource);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -186,7 +198,7 @@ public class ParquetFileFabricator
                     options);
 
             if (filteredRowGroups.isEmpty()) {
-                return new FabricatedParquet(Optional.empty(), 0);
+                return new FabricatedParquet(gpuMemoryContext.allocate(MemoryAmount.ZERO), Optional.empty(), 0);
             }
 
             return writeFabricatedFile(filteredRowGroups, requestedSchema, parquetMetadata.getFileMetaData());
@@ -231,11 +243,23 @@ public class ParquetFileFabricator
             int expectedChunkCount)
             throws IOException
     {
+        int originalFooterSize = parquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
+
+        long estimateBuffersSize = PARQUET_MAGIC_LENGTH;
+        for (RowGroupInfo rowGroupInfo : rowGroups) {
+            for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
+                if (isColumnInSchema(column.getPath(), clippedSchema)) {
+                    estimateBuffersSize += toIntExact(column.getTotalSize());
+                }
+            }
+        }
+        estimateBuffersSize += originalFooterSize + FOOTER_LENGTH_SIZE + PARQUET_MAGIC_LENGTH;
+
         // Build the fabricated Parquet as a list of host buffers — one for the magic header,
         // one per column chunk, and one for the footer + footer length + trailing magic. cuDF
         // logically concatenates these in readParquet(opts, HostMemoryBuffer...).
         List<HostMemoryBuffer> buffers = new ArrayList<>();
-        try {
+        try (ClosingRef<MemoryAllocation> allocation = ClosingRef.own(gpuMemoryContext.allocate(MemoryAmount.offHeap(estimateBuffersSize)))) {
             buffers.add(allocateAndCopy(PARQUET_MAGIC, 0, PARQUET_MAGIC_LENGTH));
             long currentOffset = PARQUET_MAGIC_LENGTH;
 
@@ -319,7 +343,7 @@ public class ParquetFileFabricator
 
             verify(chunkIndex == expectedChunkCount, "Expected %s chunks but processed %s", expectedChunkCount, chunkIndex);
 
-            DynamicSliceOutput footerThrift = new DynamicSliceOutput(parquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown")));
+            DynamicSliceOutput footerThrift = new DynamicSliceOutput(originalFooterSize);
             writeFooter(footerThrift, fabricatedRowGroups, clippedSchema, originalFileMetadata);
             Slice footerSlice = footerThrift.slice();
             int footerSize = footerSlice.length();
@@ -334,7 +358,13 @@ public class ParquetFileFabricator
                 trailer.borrow().setBytes(footerSize + FOOTER_LENGTH_SIZE, PARQUET_MAGIC, 0, PARQUET_MAGIC_LENGTH);
                 buffers.add(trailer.take());
             }
-            return new FabricatedParquet(Optional.of(new Buffers(buffers)), totalRowCount);
+
+            long totalBuffersSize = buffers.stream().mapToLong(HostMemoryBuffer::getLength).sum();
+            allocation.borrow().update(MemoryAmount.offHeap(totalBuffersSize));
+            return new FabricatedParquet(
+                    allocation.take(),
+                    Optional.of(new Buffers(buffers)),
+                    totalRowCount);
         }
         catch (Throwable t) {
             closeAllSuppress(t, buffers.toArray(HostMemoryBuffer[]::new));

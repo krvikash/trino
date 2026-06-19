@@ -34,6 +34,7 @@ import io.trino.parquet.writer.ParquetWriter;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.util.AutoCloseableCloser;
+import io.trino.plugin.hive.DummyConnectorGpuMemoryContext;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.parquet.ParquetFileFabricator.FabricatedParquet;
 import io.trino.spi.Page;
@@ -208,6 +209,7 @@ public class TestParquetFileFabricator
                 Map.of(),
                 UTC,
                 1000,
+                new DummyConnectorGpuMemoryContext(),
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 originalMetadata));
@@ -410,6 +412,7 @@ public class TestParquetFileFabricator
                 descriptorsByPath,
                 UTC,
                 1000,
+                new DummyConnectorGpuMemoryContext(),
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
@@ -476,6 +479,7 @@ public class TestParquetFileFabricator
                 descriptorsByPath,
                 UTC,
                 1000,
+                new DummyConnectorGpuMemoryContext(),
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
@@ -579,6 +583,7 @@ public class TestParquetFileFabricator
                 descriptorsByPath,
                 UTC,
                 1000,
+                new DummyConnectorGpuMemoryContext(),
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));
@@ -661,6 +666,7 @@ public class TestParquetFileFabricator
                 descriptorsByPath,
                 UTC,
                 1000,
+                new DummyConnectorGpuMemoryContext(),
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata));

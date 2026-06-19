@@ -121,6 +121,12 @@ public final class GpuPage
         return retainedDeviceMemoryBytes;
     }
 
+    public MemoryAmount retainedMemory()
+    {
+        checkState(!closed, "Already closed");
+        return new MemoryAmount(retainedHeapMemoryBytes, retainedDeviceMemoryBytes, retainedOffHeapMemoryBytes);
+    }
+
     // TODO is this API right name?
     @Unstable
     @Move

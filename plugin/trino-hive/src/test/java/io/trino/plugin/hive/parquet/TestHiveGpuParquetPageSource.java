@@ -30,17 +30,20 @@ import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.writer.ParquetWriter;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
+import io.trino.plugin.hive.DummyConnectorGpuMemoryContext;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Blocked;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Data;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Finished;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Result;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Yielded;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAllocation;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -349,6 +352,8 @@ public class TestHiveGpuParquetPageSource
             List<ColumnMapping> columnMappings)
             throws IOException
     {
+        ConnectorGpuMemoryContext gpuMemoryContext = new DummyConnectorGpuMemoryContext();
+
         TrinoInputFile inputFile = new MemoryInputFile(
                 Location.of("memory:///test.parquet"),
                 Slices.wrappedBuffer(parquetFile.getBytes()));
@@ -382,10 +387,12 @@ public class TestHiveGpuParquetPageSource
                 descriptorsByPath,
                 UTC,
                 1000,
+                gpuMemoryContext,
                 newSimpleAggregatedMemoryContext(),
                 ParquetReaderOptions.builder().build(),
                 metadata)) {
             try (HiveGpuParquetPageSource pageSource = new HiveGpuParquetPageSource(
+                    gpuMemoryContext,
                     fabricator,
                     columns,
                     columnMappings)) {
@@ -396,7 +403,10 @@ public class TestHiveGpuParquetPageSource
                         @Own Result next = pageSource.readNext();
                         switch (next) {
                             case Blocked _ -> throw new IllegalStateException("Blocking not supported");
-                            case Data(GpuPage page) -> pages.add(page);
+                            case Data(MemoryAllocation allocation, GpuPage page) -> {
+                                allocation.close(); // The test does not track memory usage
+                                pages.add(page);
+                            }
                             case Finished() -> finished = true;
                             case Yielded() -> {
                                 /* continue */

@@ -187,6 +187,7 @@ public class HivePageSourceProvider
 
         try {
             return Optional.of(createGpuParquetPageSource(
+                    memoryContext,
                     session,
                     hiveSplit,
                     effectivePredicate.transformKeys(HiveColumnHandle.class::cast),
@@ -206,6 +207,7 @@ public class HivePageSourceProvider
     }
 
     private ConnectorGpuPageSource createGpuParquetPageSource(
+            ConnectorGpuMemoryContext memoryContext,
             ConnectorSession session,
             HiveSplit split,
             TupleDomain<HiveColumnHandle> effectivePredicate,
@@ -220,6 +222,7 @@ public class HivePageSourceProvider
                 Instant.ofEpochMilli(split.getFileModifiedTime()));
 
         return parquetGpuPageSourceFactory.createGpuPageSource(
+                memoryContext,
                 inputFile,
                 split.getStart(),
                 split.getLength(),

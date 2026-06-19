@@ -20,10 +20,12 @@ import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.base.Throwables;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HivePageSourceProvider;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -51,6 +53,7 @@ import static java.util.Objects.requireNonNull;
 public class HiveGpuParquetPageSource
         implements ConnectorGpuPageSource
 {
+    private final ConnectorGpuMemoryContext memoryContext;
     private final ParquetFileFabricator fabricator;
     private final List<HiveColumnHandle> gpuColumns;
     private final List<ColumnMapping> columnMappings;
@@ -59,10 +62,12 @@ public class HiveGpuParquetPageSource
     private @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
 
     public HiveGpuParquetPageSource(
+            ConnectorGpuMemoryContext memoryContext,
             ParquetFileFabricator fabricator,
             List<HiveColumnHandle> gpuColumns,
             List<ColumnMapping> columnMappings)
     {
+        this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.fabricator = requireNonNull(fabricator, "fabricator is null");
         this.gpuColumns = requireNonNull(gpuColumns, "gpuColumns is null");
         this.columnMappings = requireNonNull(columnMappings, "columnMappings is null");
@@ -87,9 +92,12 @@ public class HiveGpuParquetPageSource
                 return new Finished();
             }
 
-            @Own GpuPage page = readAndConvert();
-            finished = true;
-            return new Data(page);
+            try (var page = ClosingRef.own(readAndConvert());
+                    // TODO pre-allocate before the page gets into GPU memory
+                    var allocation = ClosingRef.own(memoryContext.allocate(page.borrow().retainedMemory()))) {
+                finished = true;
+                return new Data(allocation.take(), page.take());
+            }
         }
         finally {
             fabricatedParquet.close();

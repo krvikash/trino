@@ -78,11 +78,12 @@ public interface ConnectorGpuPageSource
     /**
      * Operation produced data in the form of a GpuPage.
      */
-    record Data(@Own GpuPage page)
+    record Data(@Own MemoryAllocation allocation, @Own GpuPage page)
             implements Result
     {
         public Data
         {
+            requireNonNull(allocation, "allocation is null");
             requireNonNull(page, "page is null");
         }
     }
