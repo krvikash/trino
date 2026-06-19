@@ -56,7 +56,7 @@ public class TestGpuLocalExchangeSingleNode
                 // One worker so per-task operator stats translate directly into total counts.
                 .setWorkerCount(1)
                 .addExtraProperty("gpu-execution", "true")
-                .addExtraProperty("task.gpu-execution.enabled", "true")
+                .addWorkerProperty("task.gpu-execution.enabled", "true")
                 .addWorkerProperty("gpu.memory.pool-size", "4GB")
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
                 // Keep everything in one fragment so local exchanges aren't replaced by remote ones.

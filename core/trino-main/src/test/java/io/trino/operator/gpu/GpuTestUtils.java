@@ -136,7 +136,8 @@ public final class GpuTestUtils
         new GpuConfigurer(new GpuConfig()
                 .setPoolSize(DataSize.of(1, DataSize.Unit.GIGABYTE))
                 .setAggregationCompactionThreshold(DataSize.of(512, DataSize.Unit.MEGABYTE)),
-                Optional.empty());
+                Optional.empty())
+                .setup();
     }
 
     /**

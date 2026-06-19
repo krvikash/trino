@@ -19,6 +19,9 @@ import ai.rapids.cudf.Rmm;
 import ai.rapids.cudf.Rmm.LogConf;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
+import io.trino.operator.gpu.GpuConfig.AllocationMode;
+import jakarta.annotation.PostConstruct;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -29,19 +32,37 @@ import static io.airlift.units.DataSize.succinctBytes;
 import static java.util.Objects.requireNonNull;
 
 public class GpuConfigurer
+        implements GpuNodeSetup
 {
     private static final Logger log = Logger.get(GpuConfigurer.class);
 
+    // Static lock for tests' sake. Outside of tests there is single Guice context within a JVM.
     private static final Object initializationLock = new Object();
 
     // 512-byte alignment allegedly required by some RMM allocators
     private static final long ALIGNMENT_MASK = ~511L;
 
+    private final AllocationMode allocationMode;
+    private final Optional<DataSize> poolSize;
+    private final DataSize deviceMemoryReserve;
+    private final double deviceMemoryFraction;
+    private final Optional<Path> rmmLogPath;
+    private final DataSize aggregationCompactionThreshold;
+
     @Inject
     public GpuConfigurer(GpuConfig config, @RmmLogPath Optional<Path> rmmLogPath)
     {
-        requireNonNull(config, "config is null");
+        this.allocationMode = config.getAllocationMode();
+        this.poolSize = config.getPoolSize();
+        this.deviceMemoryReserve = config.getDeviceMemoryReserve();
+        this.deviceMemoryFraction = config.getDeviceMemoryFraction();
+        this.rmmLogPath = requireNonNull(rmmLogPath, "rmmLogPath is null");
+        this.aggregationCompactionThreshold = config.getAggregationCompactionThreshold();
+    }
 
+    @PostConstruct
+    void setup()
+    {
         var _ = Rmm.isInitialized(); // trigger static initializer before taking the lock
         // PTDS (per thread default stream) affects multi-threading. Fail loud if new cudf dependency is built differently.
         checkState(Cuda.isPtdsEnabled(), "PTDS must be enabled in the cuDF native library; current build uses legacy default stream");
@@ -52,42 +73,42 @@ public class GpuConfigurer
                 return;
             }
 
-            int allocationMode = config.getAllocationMode().cudfAllocationMode();
-            long poolSize = poolSizeBytes(config);
+            int cudfAllocationMode = allocationMode.cudfAllocationMode();
+            long poolSize = poolSizeBytes();
             checkArgument(poolSize >= 0, "GPU pool size must not be negative, got %s bytes", poolSize);
 
-            long compactionThreshold = config.getAggregationCompactionThreshold().toBytes();
+            long compactionThreshold = aggregationCompactionThreshold.toBytes();
             checkArgument(
                     compactionThreshold <= poolSize,
                     "gpu.aggregation.compaction-threshold (%s) must not exceed GPU pool size (%s)",
                     succinctBytes(compactionThreshold),
                     succinctBytes(poolSize));
 
-            log.info("Initializing RMM: allocationMode=%s, poolSize=%s", config.getAllocationMode(), succinctBytes(poolSize));
+            log.info("Initializing RMM: allocationMode=%s, poolSize=%s", allocationMode, succinctBytes(poolSize));
             LogConf logConf = rmmLogPath
                     .map(path -> {
                         log.info("RMM log: %s", path);
                         return Rmm.logTo(path.toFile());
                     })
                     .orElse(null);
-            Rmm.initialize(allocationMode, logConf, poolSize);
+            Rmm.initialize(cudfAllocationMode, logConf, poolSize);
         }
     }
 
-    private static long poolSizeBytes(GpuConfig config)
+    private long poolSizeBytes()
     {
-        if (config.getPoolSize().isPresent()) {
-            return config.getPoolSize().get().toBytes();
+        if (poolSize.isPresent()) {
+            return poolSize.get().toBytes();
         }
 
         CudaMemInfo info = Cuda.memGetInfo();
-        long reserve = config.getDeviceMemoryReserve().toBytes();
+        long reserve = deviceMemoryReserve.toBytes();
         checkArgument(
                 info.total >= reserve,
                 "GPU total memory (%s) is smaller than reserve (%s)",
                 succinctBytes(info.total),
                 succinctBytes(reserve));
-        long poolSize = (long) ((info.total - reserve) * config.getDeviceMemoryFraction());
+        long poolSize = (long) ((info.total - reserve) * deviceMemoryFraction);
         poolSize = poolSize & ALIGNMENT_MASK;
         checkState(
                 info.free >= poolSize,
@@ -95,5 +116,11 @@ public class GpuConfigurer
                 succinctBytes(info.free),
                 succinctBytes(poolSize));
         return poolSize;
+    }
+
+    @Override
+    public boolean isNodeGpuExecutionEnabled()
+    {
+        return true;
     }
 }

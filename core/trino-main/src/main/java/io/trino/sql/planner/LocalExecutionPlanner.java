@@ -133,6 +133,7 @@ import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuDynamicFilterProvider;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuGroupId;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperator;
 import io.trino.operator.gpu.GpuProject;
@@ -144,7 +145,6 @@ import io.trino.operator.gpu.exchange.GpuLocalExchangeWriter;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionAstCompiler;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
-import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.operator.gpu.join.GpuDynamicFilterCollector;
 import io.trino.operator.gpu.join.GpuJoinBridgeManager;
@@ -308,8 +308,11 @@ import io.trino.sql.planner.plan.TableFunctionProcessorNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableUpdateNode;
 import io.trino.sql.planner.plan.TableWriterNode;
+import io.trino.sql.planner.plan.TableWriterNode.CreateTarget;
+import io.trino.sql.planner.plan.TableWriterNode.InsertTarget;
 import io.trino.sql.planner.plan.TableWriterNode.MergeTarget;
 import io.trino.sql.planner.plan.TableWriterNode.TableExecuteTarget;
+import io.trino.sql.planner.plan.TableWriterNode.WriterTarget;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.TopNRankingNode;
 import io.trino.sql.planner.plan.UnionNode;
@@ -448,9 +451,6 @@ import static io.trino.sql.planner.plan.JoinType.LEFT;
 import static io.trino.sql.planner.plan.JoinType.RIGHT;
 import static io.trino.sql.planner.plan.RowsPerMatch.ONE;
 import static io.trino.sql.planner.plan.SkipToPosition.LAST;
-import static io.trino.sql.planner.plan.TableWriterNode.CreateTarget;
-import static io.trino.sql.planner.plan.TableWriterNode.InsertTarget;
-import static io.trino.sql.planner.plan.TableWriterNode.WriterTarget;
 import static io.trino.sql.planner.plan.WindowFrameType.ROWS;
 import static io.trino.util.MoreLists.mappedCopy;
 import static io.trino.util.MoreMath.previousPowerOfTwo;
@@ -545,7 +545,7 @@ public class LocalExecutionPlanner
             DirectExchangeClientSupplier directExchangeClientSupplier,
             ExpressionCompiler expressionCompiler,
             PageFunctionCompiler pageFunctionCompiler,
-            @NodeGpuExecutionEnabled boolean nodeGpuExecutionEnabled,
+            GpuNodeSetup gpuNodeSetup,
             GpuConfig gpuConfig,
             JoinFilterFunctionCompiler joinFilterFunctionCompiler,
             IndexJoinLookupStats indexJoinLookupStats,
@@ -583,7 +583,7 @@ public class LocalExecutionPlanner
         this.directExchangeClientSupplier = requireNonNull(directExchangeClientSupplier, "directExchangeClientSupplier is null");
         this.pageSinkManager = requireNonNull(pageSinkManager, "pageSinkManager is null");
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
-        this.nodeGpuExecutionEnabled = nodeGpuExecutionEnabled;
+        this.nodeGpuExecutionEnabled = gpuNodeSetup.isNodeGpuExecutionEnabled();
         this.gpuAggregationCompactionThreshold = gpuConfig.getAggregationCompactionThreshold();
         this.pageFunctionCompiler = requireNonNull(pageFunctionCompiler, "pageFunctionCompiler is null");
         this.joinFilterFunctionCompiler = requireNonNull(joinFilterFunctionCompiler, "joinFilterFunctionCompiler is null");

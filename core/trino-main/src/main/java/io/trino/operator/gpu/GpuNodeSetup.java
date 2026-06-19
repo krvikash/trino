@@ -11,18 +11,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu.expression;
+package io.trino.operator.gpu;
 
-import com.google.inject.BindingAnnotation;
+public interface GpuNodeSetup
+{
+    boolean isNodeGpuExecutionEnabled();
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.ElementType.PARAMETER;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
-@Retention(RUNTIME)
-@Target({PARAMETER, METHOD})
-@BindingAnnotation
-public @interface NodeGpuExecutionEnabled {}
+    class Disabled
+            implements GpuNodeSetup
+    {
+        @Override
+        public boolean isNodeGpuExecutionEnabled()
+        {
+            return false;
+        }
+    }
+}

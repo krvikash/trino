@@ -100,8 +100,8 @@ import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.RetryPolicy;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.operator.gpu.RmmLogPath;
-import io.trino.operator.gpu.expression.NodeGpuExecutionEnabled;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
@@ -187,6 +187,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -309,15 +310,20 @@ public class ServerMainModule
         binder.bind(ExpressionCompiler.class).in(Scopes.SINGLETON);
         binder.bind(PageFunctionCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
-        configBinder(binder).bindConfig(GpuConfig.class);
-        newOptionalBinder(binder, GpuConfigurer.class);
-        newOptionalBinder(binder, Key.get(Path.class, RmmLogPath.class));
+        boolean isWorker = !serverConfig.isCoordinator() || buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator();
+        boolean gpuExecutionRequested = buildConfigObject(TaskManagerConfig.class).isGpuExecutionEnabled();
         // Disable GPU execution on coordinator. It's unlikely beneficial but may still cause coordinator instability.
-        boolean gpuExecutionEnabled = (!serverConfig.isCoordinator() || buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) &&
-                buildConfigObject(TaskManagerConfig.class).isGpuExecutionEnabled();
-        binder.bind(Key.get(boolean.class, NodeGpuExecutionEnabled.class)).toInstance(gpuExecutionEnabled);
-        if (gpuExecutionEnabled) {
+        if (isWorker && gpuExecutionRequested) {
+            configBinder(binder).bindConfig(GpuConfig.class);
+            binder.bind(GpuNodeSetup.class).to(GpuConfigurer.class);
             binder.bind(GpuConfigurer.class).asEagerSingleton();
+            newOptionalBinder(binder, Key.get(Path.class, RmmLogPath.class));
+        }
+        else {
+            checkState(!gpuExecutionRequested, "GPU execution is not supported on the coordinator");
+            // Allow binding GpuConfig, but don't allow configuring it.
+            binder.bind(GpuConfig.class).toInstance(new GpuConfig());
+            binder.bind(GpuNodeSetup.class).toInstance(new GpuNodeSetup.Disabled());
         }
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ColumnarFilterCompiler.class).withGeneratedName();

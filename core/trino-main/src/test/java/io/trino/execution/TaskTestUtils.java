@@ -40,6 +40,7 @@ import io.trino.operator.JoinPagesIndex;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.server.protocol.spooling.QueryDataEncoders;
@@ -179,7 +180,7 @@ public final class TaskTestUtils
                 new MockDirectExchangeClientSupplier(),
                 new ExpressionCompiler(pageFunctionCompiler, columnarFilterCompiler),
                 pageFunctionCompiler,
-                /* node GPU execution enabled */ false,
+                new GpuNodeSetup.Disabled(),
                 new GpuConfig(),
                 new JoinFilterFunctionCompiler(PLANNER_CONTEXT.getFunctionManager(), PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), new CompilerConfig()),
                 new IndexJoinLookupStats(),
