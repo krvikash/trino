@@ -82,6 +82,8 @@ final class HiveOzoneConnectorSmokeTest
                 .setMetastore(_ -> metastore)
                 .amendSession(sessionBuilder -> sessionBuilder.setCatalog(CATALOG_NAME).setSchema(SCHEMA_NAME))
                 .setHiveProperties(ImmutableMap.<String, String>builder()
+                        // ofs:// locations are served by the Hadoop file system
+                        .put("fs.hadoop.enabled", "true")
                         .put("hive.non-managed-table-writes-enabled", "true")
                         .put("hive.security", "allow-all")
                         // Do not use temporary directory as rename is not supported

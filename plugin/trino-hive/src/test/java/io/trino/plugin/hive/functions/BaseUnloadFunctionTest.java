@@ -74,6 +74,8 @@ abstract class BaseUnloadFunctionTest
         DistributedQueryRunner queryRunner = HiveQueryRunner.builder()
                 .setHiveProperties(getAdditionalConnectorProperties())
                 .addHiveProperty("parquet.writer.validation-percentage", "100")
+                // unload locations are file:// URIs served by the Hadoop file system
+                .addHiveProperty("fs.hadoop.enabled", "true")
                 .build();
         directory = queryRunner.getCoordinator().getBaseDataDir().resolve("unload");
         Files.createDirectory(directory);

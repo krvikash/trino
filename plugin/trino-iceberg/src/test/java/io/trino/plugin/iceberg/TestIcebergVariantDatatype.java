@@ -110,6 +110,7 @@ final class TestIcebergVariantDatatype
                         .put("iceberg.legacy-variant-type-mapping", "JSON")
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.format-version", "3")
+                        .put("fs.hadoop.enabled", "true")
                         .put("hive.metastore.catalog.dir", metastoreDir.getPath())
                         .buildOrThrow())
                 .setMetastoreDirectory(metastoreDir)

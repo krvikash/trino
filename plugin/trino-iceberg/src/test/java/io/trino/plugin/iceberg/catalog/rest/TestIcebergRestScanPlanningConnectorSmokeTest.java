@@ -93,6 +93,7 @@ final class TestIcebergRestScanPlanningConnectorSmokeTest
                         ImmutableMap.<String, String>builder()
                                 .put("iceberg.file-format", format.name())
                                 .put("iceberg.catalog.type", "rest")
+                                .put("fs.hadoop.enabled", "true")
                                 .put("iceberg.rest-catalog.uri", restServer.getBaseUrl().toString())
                                 .put("iceberg.register-table-procedure.enabled", "true")
                                 .put("iceberg.writer-sort-buffer-size", "1MB")

@@ -236,6 +236,7 @@ public abstract class BaseIcebergConnectorTest
                         // Disable partition statistics to make diff from Trino smaller
                         .put("iceberg.partition-statistics.enabled", "false")
                         .buildOrThrow())
+                .addIcebergProperty("fs.hadoop.enabled", "true")
                 .setInitialTables(REQUIRED_TPCH_TABLES);
     }
 

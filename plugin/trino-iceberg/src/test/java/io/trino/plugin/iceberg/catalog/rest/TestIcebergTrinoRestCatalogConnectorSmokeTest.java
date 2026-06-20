@@ -106,6 +106,7 @@ public class TestIcebergTrinoRestCatalogConnectorSmokeTest
                                 .put("iceberg.register-view-procedure.enabled", "true")
                                 .put("iceberg.writer-sort-buffer-size", "1MB")
                                 .buildOrThrow())
+                .addIcebergProperty("fs.hadoop.enabled", "true")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
     }

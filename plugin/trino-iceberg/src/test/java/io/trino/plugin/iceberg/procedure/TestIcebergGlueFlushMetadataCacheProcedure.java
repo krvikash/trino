@@ -49,6 +49,7 @@ final class TestIcebergGlueFlushMetadataCacheProcedure
                 .setIcebergProperties(
                         ImmutableMap.<String, String>builder()
                                 .put("iceberg.catalog.type", "glue")
+                                .put("fs.hadoop.enabled", "true")
                                 .put("hive.metastore.glue.default-warehouse-dir", schemaDirectory.getAbsolutePath())
                                 .put("iceberg.glue.metastore-cache.ttl", "10m")
                                 .buildOrThrow())

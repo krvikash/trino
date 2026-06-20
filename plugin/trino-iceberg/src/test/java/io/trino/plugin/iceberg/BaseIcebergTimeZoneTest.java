@@ -101,6 +101,7 @@ public abstract class BaseIcebergTimeZoneTest
                         .put("iceberg.legacy-variant-type-mapping", "JSON")
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.time-zone", "Asia/Kolkata")
+                        .put("fs.hadoop.enabled", "true")
                         .put("hive.metastore.catalog.dir", dataDirectory.getPath())
                         .buildOrThrow())
                 .setMetastoreDirectory(dataDirectory)

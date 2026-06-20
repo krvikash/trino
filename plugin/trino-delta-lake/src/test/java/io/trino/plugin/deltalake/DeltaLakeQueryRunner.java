@@ -170,10 +170,6 @@ public final class DeltaLakeQueryRunner
                     deltaProperties.put("hive.metastore", "file");
                 }
 
-                if (deltaProperties.keySet().stream().noneMatch(key ->
-                        key.matches("fs\\.(azure|gcs|s3|local|hadoop)\\.enabled"))) {
-                    deltaProperties.put("fs.hadoop.enabled", "true");
-                }
                 queryRunner.createCatalog(DELTA_CATALOG, CONNECTOR_NAME, deltaProperties);
 
                 if (createTpchSchemas) {
