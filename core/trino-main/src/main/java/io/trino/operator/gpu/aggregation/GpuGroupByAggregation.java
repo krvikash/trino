@@ -15,6 +15,7 @@ package io.trino.operator.gpu.aggregation;
 
 import ai.rapids.cudf.CloseableArray;
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.DType;
 import ai.rapids.cudf.GroupByAggregationOnColumn;
 import ai.rapids.cudf.GroupByOptions;
 import ai.rapids.cudf.Table;
@@ -56,6 +57,25 @@ final class GpuGroupByAggregation
         super(context, source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
         this.groupByChannels = requireNonNull(groupByChannels, "groupByChannels is null");
         this.mergeGroupByChannels = IntStream.range(0, groupByChannels.length).toArray();
+    }
+
+    @Override
+    protected long compactPeakMultiplier(@Borrow Table sample, boolean multiInput)
+    {
+        // cuDF's groupBy peak depends on key type:
+        //   - Fixed-width primitive keys (BIGINT, etc.): hash workspace is large relative to data,
+        //     pushing peak to ~2.5x before; reserve 3x.
+        //   - Variable-width / nested keys (VARCHAR, LIST, ...): hash table is small (pointers
+        //     only), so the peak is closer to 2x; reserve 2x to keep the over-reservation check
+        //     happy without under-reserving.
+        int[] keyChannels = inputRaw ? groupByChannels : mergeGroupByChannels;
+        for (int channel : keyChannels) {
+            DType type = sample.getColumn(channel).getType();
+            if (!type.isNestedType() && type.getTypeId() != DType.DTypeEnum.STRING) {
+                return 3;
+            }
+        }
+        return 2;
     }
 
     @Override

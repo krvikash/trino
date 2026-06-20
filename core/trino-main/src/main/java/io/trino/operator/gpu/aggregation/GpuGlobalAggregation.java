@@ -51,6 +51,14 @@ final class GpuGlobalAggregation
     }
 
     @Override
+    protected long compactPeakMultiplier(@Borrow Table sample, boolean multiInput)
+    {
+        // preAggregate emits one scalar per aggregate (negligible). Concat dominates: 2x for
+        // multi-table, ~1x for a single-table no-op.
+        return multiInput ? 2 : 1;
+    }
+
+    @Override
     protected @Move Table preAggregate(@Borrow Table table)
     {
         @Own ColumnVector[] outputColumns = new ColumnVector[aggregates.size()];

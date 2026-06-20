@@ -20,7 +20,9 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.TablesList;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -115,6 +117,7 @@ public abstract class GpuAggregation
 
     private final @Own TablesList inputTables = TablesList.create();
     private final ClosingRef<Table> compactedTable = ClosingRef.empty();
+    private final ClosingRef<AllocatedMemory> allocated;
     private long totalInputBytes;
     private final int[] maxNestedInputRowCountPerColumn;
     private long totalBufferedRowCount;
@@ -135,6 +138,7 @@ public abstract class GpuAggregation
         this.inputRaw = inputRaw;
         this.compactionThresholdBytes = compactionThresholdBytes;
         this.maxNestedInputRowCountPerColumn = new int[inputColumnCount];
+        this.allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
 
     @Override
@@ -148,7 +152,7 @@ public abstract class GpuAggregation
             GpuPage page = result;
             result = null;
             finished = true;
-            return new Data(AllocatedMemory.untracked(), page);
+            return new Data(allocated.take(), page);
         }
 
         @Own Result sourceResult = source.execute();
@@ -157,7 +161,7 @@ public abstract class GpuAggregation
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (memory; page) {
-                    bufferPage(page);
+                    bufferPage(memory, page);
                 }
                 yield new Yielded();
             }
@@ -168,12 +172,13 @@ public abstract class GpuAggregation
                     yield new Finished();
                 }
                 result = aggregationResult.get();
+                allocated.borrow().update(result.retainedMemory());
                 yield new Yielded();  // Will return result on next execute()
             }
         };
     }
 
-    private void bufferPage(@Borrow GpuPage page)
+    private void bufferPage(@Borrow AllocatedMemory pageAllocation, @Borrow GpuPage page)
     {
         totalBufferedRowCount += page.positionCount();
 
@@ -193,6 +198,7 @@ public abstract class GpuAggregation
                 compact();
             }
 
+            allocated.borrow().transferFrom(pageAllocation);
             inputTables.add(inputTable.take());
             totalInputBytes += tableBytes;
             addRowCounts(tableRows);
@@ -204,6 +210,13 @@ public abstract class GpuAggregation
         if (inputTables.isEmpty()) {
             return;
         }
+
+        // Peak working set is a multiple of `before` whose factor depends on subclass (global vs grouped) and the
+        // shape of the input (see compactPeakMultiplier).
+        MemoryAmount before = allocated.borrow().amount();
+        boolean multiInput = inputTables.borrow().size() > 1;
+        long multiplier = compactPeakMultiplier(inputTables.borrow().getFirst() /* any */, multiInput);
+        allocated.borrow().update(MemoryAmount.gpuDevice(multiplier * before.gpuDeviceBytes()));
 
         try (ClosingRef<Table> preAggregated = ClosingRef.empty();
                 TablesList toMerge = TablesList.create()) {
@@ -226,6 +239,8 @@ public abstract class GpuAggregation
                 compactedTable.set(preAggregated.take());
             }
         }
+
+        allocated.borrow().update(MemoryAmount.gpuDevice(compactedTable.borrow().getDeviceMemorySize()));
     }
 
     private Optional<GpuPage> finishAggregation()
@@ -245,6 +260,13 @@ public abstract class GpuAggregation
     protected abstract @Move Table preAggregate(@Borrow Table table);
 
     /**
+     * Multiplier covering the peak working set of {@link #compact} relative to {@code before}.
+     * Depends on whether concat is a no-op (single-table) and on the cost of {@link #preAggregate}
+     * (negligible for global aggregation, key-type dependent for group-by).
+     */
+    protected abstract long compactPeakMultiplier(@Borrow Table sample, boolean multiInput);
+
+    /**
      * Merge previously pre-aggregated intermediate tables into one.
      */
     protected abstract @Move Table mergePreAggregated(@Borrow Table table);
@@ -260,12 +282,15 @@ public abstract class GpuAggregation
     @Override
     public void close()
     {
-        source.close();
-        inputTables.close();
-        compactedTable.close();
-        if (result != null) {
-            result.close();
-            result = null;
+        try (var closer = UncheckedCloser.create()) {
+            closer.register(source);
+            closer.register(allocated); // release after data resources below are closed
+            closer.register(inputTables);
+            closer.register(compactedTable);
+            if (result != null) {
+                closer.register(result);
+                result = null;
+            }
         }
     }
 
