@@ -27,6 +27,7 @@ import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.TablesList;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -36,6 +37,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.util.Objects.requireNonNull;
 
@@ -103,6 +105,8 @@ public final class GpuJoinBuild
     // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
 
+    private final AllocatedMemory allocated;
+
     private boolean published;
     private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
 
@@ -115,13 +119,13 @@ public final class GpuJoinBuild
             Optional<AstExpression> filter,
             Optional<GpuDynamicFilterCollector> dynamicFilter)
     {
-        requireNonNull(context, "context is null");
         this.source = requireNonNull(source, "source is null");
         this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
         this.buildKeyChannels = buildKeyChannels;
         this.buildOutputChannels = buildOutputChannels;
         this.filter = requireNonNull(filter, "filter is null");
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+        this.allocated = context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
     }
 
     @Override
@@ -140,7 +144,7 @@ public final class GpuJoinBuild
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (memory; page) {
-                    bufferPage(page);
+                    bufferPage(memory, page);
                 }
                 yield new Yielded();
             }
@@ -151,11 +155,12 @@ public final class GpuJoinBuild
         };
     }
 
-    private void bufferPage(@Borrow GpuPage page)
+    private void bufferPage(@Borrow AllocatedMemory pageAllocation, @Borrow GpuPage page)
     {
         if (page.positionCount() == 0) {
             return;
         }
+        allocated.transferFrom(pageAllocation);
         bufferedTables.add(toTable(page));
     }
 
@@ -170,6 +175,7 @@ public final class GpuJoinBuild
             bridge = new EmptyBuildSide();
         }
         else {
+            allocated.update(allocated.amount().add(bufferedTables.concatenateMemoryRequirements()));
             buildSourceTable.set(bufferedTables.concatenateAndClear());
             dynamicFilter.ifPresent(filter -> filter.collect(buildSourceTable.borrow()));
 
@@ -186,6 +192,7 @@ public final class GpuJoinBuild
             }
 
             if (filter.isEmpty()) {
+                allocated.update(MemoryAmount.gpuDevice(buildSourceTable.borrow().getDeviceMemorySize() + getHashJoinAdditionalGpuDeviceMemoryUsage(buildKeyTable.borrow())));
                 buildSourceTable.close();
                 hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
                 buildKeyTable.close();
@@ -194,6 +201,7 @@ public final class GpuJoinBuild
                         buildOutputTable);
             }
             else {
+                allocated.update(MemoryAmount.gpuDevice(buildSourceTable.borrow().getDeviceMemorySize()));
                 compiledFilter.set(filter.get().compile());
                 bridge = new FilteredHashJoinBridge(
                         buildSourceTable.borrow(),
@@ -241,6 +249,7 @@ public final class GpuJoinBuild
     private void releaseSharedResources()
     {
         try (var closer = UncheckedCloser.create()) {
+            closer.register(allocated); // release last
             closer.register(buildSourceTable);
             closer.register(buildKeyTable);
             closer.register(hashJoin);
