@@ -15,10 +15,8 @@ package io.trino.plugin.objectstore;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.util.AutoCloseableCloser;
-import io.trino.testing.containers.Minio;
+import io.trino.testing.containers.Floci;
 import org.testcontainers.containers.Network;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.signer.AwsS3V4Signer;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -30,25 +28,26 @@ import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
+import static io.trino.testing.containers.Floci.FLOCI_REGION;
+import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 import static java.util.Objects.requireNonNull;
-import static software.amazon.awssdk.regions.Region.US_EAST_1;
 
 public class MinioStorage
         implements AutoCloseable
 {
-    public static final String ACCESS_KEY = "accesskey";
-    public static final String SECRET_KEY = "secretkey";
-    public static final String REGION = "us-east-1";
+    public static final String ACCESS_KEY = FLOCI_ACCESS_KEY;
+    public static final String SECRET_KEY = FLOCI_SECRET_KEY;
+    public static final String REGION = FLOCI_REGION;
 
     private final AutoCloseableCloser closer = AutoCloseableCloser.create();
     private final String bucketName;
-    private final Minio minio;
+    private final Floci floci;
     private S3Client s3;
 
     public MinioStorage(String bucketName)
@@ -59,25 +58,18 @@ public class MinioStorage
     public MinioStorage(String bucketName, Network network)
     {
         this.bucketName = requireNonNull(bucketName, "bucketName is null");
-        this.minio = closer.register(Minio.builder()
+        // The "floci" alias matches the fs.s3a.endpoint in hive_floci_datalake/hive-core-site.xml
+        // mounted into the Hadoop container by HiveMinioStorage
+        this.floci = closer.register(new Floci()
                 .withNetwork(network)
-                .withEnvVars(ImmutableMap.<String, String>builder()
-                        .put("MINIO_ACCESS_KEY", ACCESS_KEY)
-                        .put("MINIO_SECRET_KEY", SECRET_KEY)
-                        .buildOrThrow())
-                .build());
+                .withNetworkAliases("floci"));
     }
 
     public void start()
     {
-        minio.start();
+        floci.start();
 
-        s3 = S3Client.builder()
-                .forcePathStyle(true)
-                .endpointOverride(URI.create(getEndpoint()))
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
-                .region(US_EAST_1)
-                .build();
+        s3 = floci.createS3Client();
         closer.register(s3);
 
         s3.createBucket(CreateBucketRequest.builder()
@@ -136,10 +128,9 @@ public class MinioStorage
                 RequestBody.fromBytes(content.getBytes(StandardCharsets.UTF_8).clone()));
     }
 
-    @SuppressWarnings("HttpUrlsUsage")
     public String getEndpoint()
     {
-        return "http://" + minio.getMinioApiEndpoint();
+        return floci.endpoint().toString();
     }
 
     public String getS3Url()

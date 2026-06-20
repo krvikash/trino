@@ -39,7 +39,7 @@ public class HiveMinioStorage
 
     private HiveMinioStorage(String bucketName, String hiveHadoopImage)
     {
-        this(bucketName, ImmutableMap.of("/etc/hadoop/conf/core-site.xml", getPathFromClassPathResource("hive_minio_datalake/hive-core-site.xml")), hiveHadoopImage);
+        this(bucketName, ImmutableMap.of("/etc/hadoop/conf/core-site.xml", getPathFromClassPathResource("hive_floci_datalake/hive-core-site.xml")), hiveHadoopImage);
     }
 
     public HiveMinioStorage(String bucketName, Map<String, String> hiveHadoopFilesToMount, String hiveHadoopImage)
