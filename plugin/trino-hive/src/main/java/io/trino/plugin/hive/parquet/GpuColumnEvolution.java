@@ -43,13 +43,16 @@ public final class GpuColumnEvolution
             return cudfColumn.incRefCount();
         }
         if (actualDType.isTimestampType() && expectedDType.isTimestampType()) {
+            // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
             return cudfColumn.castTo(expectedDType);
         }
         if (actualDType.isDecimalType() && expectedDType.isDecimalType()) {
+            // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
             return cudfColumn.castTo(expectedDType);
         }
         if (isIntegerType(actualDType) && (isIntegerType(expectedDType) || expectedDType.isDecimalType())
                 && expectedDType.getSizeInBytes() >= actualDType.getSizeInBytes()) {
+            // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
             return cudfColumn.castTo(expectedDType);
         }
         if (trinoType instanceof VarbinaryType && actualDType.equals(DType.STRING) && expectedDType.equals(DType.LIST)) {
