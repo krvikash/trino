@@ -43,6 +43,7 @@ public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
     {
         Hive3FlociDataLake hiveFlociDataLake = closeAfterClass(new Hive3FlociDataLake(bucketName));
         hiveFlociDataLake.start();
+        floci = hiveFlociDataLake.floci();
 
         String catalog = DeltaLakeQueryRunner.DELTA_CATALOG;
         String schema = "test_schema"; // must match TestDeltaLakeConnectorTest.SCHEMA
