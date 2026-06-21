@@ -55,6 +55,9 @@ public final class GpuColumnEvolution
             // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
             return cudfColumn.castTo(expectedDType);
         }
+        if (actualDType.equals(DType.FLOAT32) && expectedDType.equals(DType.FLOAT64)) {
+            return cudfColumn.castTo(expectedDType);
+        }
         if (trinoType instanceof VarbinaryType && actualDType.equals(DType.STRING) && expectedDType.equals(DType.LIST)) {
             // cuDF reads Parquet BINARY as STRING; reinterpret the byte payload as LIST<UINT8>.
             // The STRING data buffer becomes the child UINT8 column; offsets and validity carry

@@ -37,8 +37,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
+import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.Float.floatToIntBits;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseHiveGpuQueriesTest
@@ -109,6 +111,51 @@ public abstract class BaseHiveGpuQueriesTest
             assertThat(query("SELECT d_int32, d_int64 FROM " + longTableName))
                     .executesWithGpu(TableScanNode.class);
             assertUpdate("DROP TABLE " + longTableName);
+        }
+        finally {
+            fileSystem.deleteDirectory(directory);
+        }
+    }
+
+    @Test
+    public void testFloatToDoubleEvolution()
+            throws IOException
+    {
+        TrinoFileSystem fileSystem = getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("test"));
+        Location directory = newExternalTableLocation();
+        fileSystem.createDirectory(directory);
+        try {
+            Location dataFile = directory.appendPath("data.parquet");
+
+            ImmutableList<Type> types = ImmutableList.of(REAL);
+            ImmutableList<String> columnNames = ImmutableList.of("val");
+            try (OutputStream out = fileSystem.newOutputFile(dataFile).create();
+                    ParquetWriter writer = ParquetTestUtils.createParquetWriter(
+                            out,
+                            ParquetWriterOptions.builder().build(),
+                            types,
+                            columnNames,
+                            CompressionCodec.SNAPPY)) {
+                PageBuilder pageBuilder = new PageBuilder(types);
+                BlockBuilder builder = pageBuilder.getBlockBuilder(0);
+                REAL.writeLong(builder, floatToIntBits(1.5f));
+                REAL.writeLong(builder, floatToIntBits(-3.14f));
+                REAL.writeLong(builder, floatToIntBits(0.0f));
+                builder.appendNull();
+                pageBuilder.declarePositions(4);
+                writer.write(pageBuilder.build());
+            }
+
+            String tableName = "test_gpu_float_to_double_" + randomNameSuffix();
+            assertUpdate(
+                    """
+                    CREATE TABLE %s (val double)
+                    WITH (external_location = '%s', format = 'PARQUET')
+                    """.formatted(tableName, directory));
+            assertThat(query("SELECT val FROM " + tableName))
+                    .executesWithGpu(TableScanNode.class);
+            assertUpdate("DROP TABLE " + tableName);
         }
         finally {
             fileSystem.deleteDirectory(directory);
