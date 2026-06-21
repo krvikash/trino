@@ -20,7 +20,6 @@ import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -57,9 +56,11 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
@@ -94,6 +95,10 @@ class TestGpuExpressionCompiler
     @MethodSource("operandTypes")
     void testBetweenAcceptsType(Type type, boolean expectGpuCompile)
     {
+        if (!type.isOrderable()) {
+            // BETWEEN requires an orderable operand; IrExpressions.between cannot resolve $operator$less_than_or_equal
+            abort("BETWEEN requires an orderable type: " + type);
+        }
         Reference value = new Reference(type, "a");
         Reference min = new Reference(type, "b");
         Reference max = new Reference(type, "c");
@@ -101,7 +106,7 @@ class TestGpuExpressionCompiler
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1,
                 new Symbol(type, "c"), 2);
-        assertThat(compileExpression(new Between(value, min, max), layout).isPresent())
+        assertThat(compileExpression(between(value, min, max), layout).isPresent())
                 .as("Between on %s", type)
                 .isEqualTo(expectGpuCompile);
     }

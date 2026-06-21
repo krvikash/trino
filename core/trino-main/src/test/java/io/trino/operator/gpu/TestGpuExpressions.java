@@ -40,7 +40,6 @@ import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
@@ -113,6 +112,7 @@ import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
+import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
@@ -948,7 +948,7 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // a BETWEEN 10 AND 50
-        Expression expression = new Between(
+        Expression expression = between(
                 field(channelA, BIGINT),
                 new Constant(BIGINT, 10L),
                 new Constant(BIGINT, 50L));

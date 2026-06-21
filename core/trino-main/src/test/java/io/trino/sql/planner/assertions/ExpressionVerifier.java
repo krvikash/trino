@@ -28,6 +28,7 @@ import io.trino.sql.ir.IrExpressions.Comparison;
 import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Lambda;
+import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Match;
 import io.trino.sql.ir.MatchClause;
@@ -355,6 +356,38 @@ public final class ExpressionVerifier
                 else {
                     lambdaParameters.remove(name);
                 }
+            }
+        }
+    }
+
+    @Override
+    protected Boolean visitLet(Let actual, Expression expected)
+    {
+        if (!(expected instanceof Let let)) {
+            return false;
+        }
+
+        // The bound symbol name is free (planner-allocated); require a matching type and matching
+        // bound value, then bind expected -> actual so the body compares up to alpha-renaming,
+        // mirroring lambda parameters.
+        if (!actual.name().type().equals(let.name().type())) {
+            return false;
+        }
+        if (!process(actual.value(), let.value())) {
+            return false;
+        }
+
+        String name = let.name().name();
+        String prior = lambdaParameters.put(name, actual.name().name());
+        try {
+            return process(actual.body(), let.body());
+        }
+        finally {
+            if (prior != null) {
+                lambdaParameters.put(name, prior);
+            }
+            else {
+                lambdaParameters.remove(name);
             }
         }
     }

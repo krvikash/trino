@@ -21,7 +21,6 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.Type;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Constant;
@@ -59,6 +58,7 @@ import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.NOT_EQUAL;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
+import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.any;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
@@ -712,7 +712,7 @@ public abstract class AbstractPredicatePushdownTest
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("l_partkey", "p_partkey")
-                                .filter(new Between(
+                                .filter(between(
                                         new Call(CONCAT, ImmutableList.of(new Cast(new Reference(createVarcharType(55), "name"), VARCHAR), new Constant(VARCHAR, utf8Slice("X")))),
                                         new Constant(VARCHAR, utf8Slice("f")),
                                         new Cast(new Reference(createVarcharType(55), "comment"), VARCHAR)))
@@ -755,11 +755,9 @@ public abstract class AbstractPredicatePushdownTest
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("l_partkey", "p_partkey")
-                                .filter(comparison(
-                                        LESS_THAN_OR_EQUAL,
-                                        new Cast(
-                                                new Reference(createVarcharType(44), "comment"),
-                                                createVarcharType(55)),
+                                .filter(between(
+                                        new Cast(new Reference(createVarcharType(44), "comment"), createVarcharType(55)),
+                                        new Constant(createVarcharType(55), utf8Slice("f")),
                                         new Reference(createVarcharType(55), "name")))
                                 .left(filter(
                                         comparison(
@@ -781,10 +779,10 @@ public abstract class AbstractPredicatePushdownTest
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("l_partkey", "p_partkey")
-                                .filter(comparison(
-                                        GREATER_THAN_OR_EQUAL,
+                                .filter(between(
                                         new Cast(new Reference(createVarcharType(44), "comment"), createVarcharType(55)),
-                                        new Reference(createVarcharType(55), "name")))
+                                        new Reference(createVarcharType(55), "name"),
+                                        new Constant(createVarcharType(55), utf8Slice("f"))))
                                 .left(filter(
                                         comparison(
                                                 LESS_THAN_OR_EQUAL,
@@ -804,7 +802,7 @@ public abstract class AbstractPredicatePushdownTest
                 output(
                         join(INNER, builder -> builder
                                 .equiCriteria("l_partkey", "p_partkey")
-                                .filter(new Between(
+                                .filter(between(
                                         new Reference(createVarcharType(55), "name"),
                                         new Cast(new Reference(createVarcharType(1), "linestatus"), createVarcharType(55)),
                                         new Cast(new Reference(createVarcharType(44), "comment"), createVarcharType(55))))
@@ -913,16 +911,19 @@ public abstract class AbstractPredicatePushdownTest
                                         ImmutableList.of(
                                                 new Logical(AND, ImmutableList.of(
                                                         new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
-                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                        comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0)),
+                                                        comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 5000.0)))),
                                                 new Logical(AND, ImmutableList.of(
                                                         new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
-                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                        comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0)),
+                                                        comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 3000.0)))),
                                                 new Logical(AND, ImmutableList.of(
                                                         new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
-                                                        new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))))
+                                                        comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0)),
+                                                        comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 6000.0)))))))
                                 .left(
                                         filter(
-                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 6000.0)),
+                                                between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 6000.0)),
                                                 tableScan(
                                                         "customer",
                                                         ImmutableMap.of("C_MKTSEGMENT", "mktsegment", "C_ACCTBAL", "acctbal", "C_NATIONKEY", "nationkey"))))
@@ -967,13 +968,16 @@ public abstract class AbstractPredicatePushdownTest
                                                 ImmutableList.of(
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 5000.0)))),
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 3000.0)))),
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 6000.0)))))),
                                         join(LEFT, builder -> builder
                                                 .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
                                                 .left(
@@ -1010,13 +1014,16 @@ public abstract class AbstractPredicatePushdownTest
                                                 ImmutableList.of(
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 5000.0)))),
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 3000.0)))),
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 6000.0)))))),
                                         join(RIGHT, builder -> builder
                                                 .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
                                                 .left(anyIfDynamicFilteringEnabled(
@@ -1053,13 +1060,16 @@ public abstract class AbstractPredicatePushdownTest
                                                 ImmutableList.of(
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "UNITED STATES"), createVarcharConstant(25, "CANADA"), createVarcharConstant(25, "BRAZIL"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0), new Constant(DOUBLE, 5000.0)))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 1000.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 5000.0)))),
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "CHINA"), createVarcharConstant(25, "INDIA"), createVarcharConstant(25, "GERMANY"), createVarcharConstant(25, "FRANCE"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0), new Constant(DOUBLE, 3000.0)))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 500.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 3000.0)))),
                                                         new Logical(AND, ImmutableList.of(
                                                                 new In(new Reference(nameColumnType, "N_NAME"), ImmutableList.of(createVarcharConstant(25, "EGYPT"), createVarcharConstant(25, "ALGERIA"), createVarcharConstant(25, "BRAZIL"))),
-                                                                new Between(new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0), new Constant(DOUBLE, 6000.0)))))),
+                                                                comparison(GREATER_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 2000.0)),
+                                                                comparison(LESS_THAN_OR_EQUAL, new Reference(DOUBLE, "C_ACCTBAL"), new Constant(DOUBLE, 6000.0)))))),
                                         join(FULL, builder -> builder
                                                 .equiCriteria("C_NATIONKEY", "N_NATIONKEY")
                                                 .left(

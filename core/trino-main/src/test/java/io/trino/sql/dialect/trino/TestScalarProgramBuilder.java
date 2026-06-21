@@ -67,6 +67,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
+import static io.trino.sql.ir.TestingIr.between;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -118,7 +119,7 @@ final class TestScalarProgramBuilder
     @Test
     public void testBetween()
     {
-        io.trino.sql.ir.Between betweenExpression = new io.trino.sql.ir.Between(
+        Expression betweenExpression = between(
                 new io.trino.sql.ir.Constant(BIGINT, 0L),
                 new io.trino.sql.ir.Constant(BIGINT, 1L),
                 new io.trino.sql.ir.Constant(BIGINT, 2L));

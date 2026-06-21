@@ -25,7 +25,6 @@ import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
-import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
@@ -57,6 +56,7 @@ import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN_OR_EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN_OR_EQUAL;
+import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy.NONE;
@@ -419,7 +419,7 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 WHERE a.a_1 BETWEEN b.b_1 AND b.b_2
                 """,
                 anyTree(filter(
-                        new Between(new Reference(INTEGER, "A_1"), new Reference(INTEGER, "B_1"), new Reference(INTEGER, "B_2")),
+                        between(new Reference(INTEGER, "A_1"), new Reference(INTEGER, "B_1"), new Reference(INTEGER, "B_2")),
                         join(INNER, builder -> builder
                                 .addDynamicFilter("DF_GTE", "B_1")
                                 .addDynamicFilter("DF_LTE", "B_2")

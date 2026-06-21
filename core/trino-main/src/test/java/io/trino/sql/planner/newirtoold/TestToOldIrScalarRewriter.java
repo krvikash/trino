@@ -72,6 +72,7 @@ import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUT
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
+import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -146,7 +147,7 @@ class TestToOldIrScalarRewriter
     @Test
     public void testBetween()
     {
-        Expression between = new io.trino.sql.ir.Between(new Reference(BIGINT, "b"), new Constant(BIGINT, 0L), new Reference(BIGINT, "a"));
+        Expression between = between(new Reference(BIGINT, "b"), new Constant(BIGINT, 0L), new Reference(BIGINT, "a"));
 
         FieldReference firstFieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%1", BIGINT, 0L);
