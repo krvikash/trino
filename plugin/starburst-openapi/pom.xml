@@ -286,7 +286,6 @@
                                     <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiTransactionHandle.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/KeycloakServer.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/OpenApiQueryRunner.java</include>
-                                    <include>src/test/java/com/starburstdata/plugin/openapi/PetStoreServer.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConfig.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiPlugin.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConnectorFactory.java</include>
@@ -309,7 +308,6 @@
                                     <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiTransactionHandle.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/KeycloakServer.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/OpenApiQueryRunner.java</exclude>
-                                    <exclude>src/test/java/com/starburstdata/plugin/openapi/PetStoreServer.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConfig.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiPlugin.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConnectorFactory.java</exclude>
