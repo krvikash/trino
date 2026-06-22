@@ -422,7 +422,7 @@ public class TrinoGlueCatalog
         Map<SchemaTableName, Table> unprocessed = new HashMap<>();
 
         listNamespaces(session, namespace).stream()
-                .flatMap(glueNamespace -> glueClient.streamTables(glueNamespace)
+                .flatMap(glueNamespace -> getGlueTablesWithExceptionHandling(glueNamespace)
                         .map(table -> entry(new SchemaTableName(glueNamespace, table.name()), table)))
                 .forEach(entry -> {
                     SchemaTableName name = entry.getKey();
@@ -515,7 +515,7 @@ public class TrinoGlueCatalog
         Map<SchemaTableName, Table> unprocessed = new HashMap<>();
 
         listNamespaces(session, namespace).stream()
-                .flatMap(glueNamespace -> glueClient.streamTables(glueNamespace)
+                .flatMap(glueNamespace -> getGlueTablesWithExceptionHandling(glueNamespace)
                         .map(table -> entry(new SchemaTableName(glueNamespace, table.name()), table)))
                 .forEach(entry -> {
                     SchemaTableName name = entry.getKey();
