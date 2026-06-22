@@ -46,6 +46,12 @@ brew install findutils
 export PATH="/usr/local/opt/findutils/libexec/gnubin:$PATH"
 ```
 
+2. Install xq
+
+```shell
+brew install xq
+```
+
 ### Update your local repository
 
 ```shell
