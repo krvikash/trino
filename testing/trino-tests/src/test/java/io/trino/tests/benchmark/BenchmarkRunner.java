@@ -144,6 +144,13 @@ public final class BenchmarkRunner
             "ulock_wait",
             "futex_wait",
             "do_futex",
+            // glibc/Linux park primitives (the macOS-named entries above miss these).
+            "__futex_abstimed_wait",
+            "pthread_cond_wait",
+            "pthread_cond_timedwait",
+            "sem_wait",
+            "pthread_join",
+            "pthread_clockjoin",
             "__schedule",
             "ObjectMonitor::wait",
             "ObjectMonitor::enter",
@@ -151,11 +158,21 @@ public final class BenchmarkRunner
             "epoll_wait",
             "kevent",
             "Selector\\.select",
+            // native NIO accept/poll idle loops (jetty / RPC server threads).
+            "__libc_accept",
+            "Java_sun_nio_ch_Net_accept",
+            "Java_sun_nio_ch_Net_poll",
             "ThreadPoolExecutor\\.getTask",
-            "ReservedThreadExecutor",
             "ForkJoinPool\\.awaitWork",
-            "ForkJoinPool\\.runWorker",
-            "AbstractQueuedSynchronizer.*await"));
+            "AbstractQueuedSynchronizer.*await",
+            // threads frozen at a safepoint poll (not executing); matched above the generic syscall leaf.
+            "SafepointSynchronize::block",
+            "LinuxWaitBarrier::wait",
+            // scheduler wake-up signaling (waking a sleeping worker, not query work).
+            "Unsafe_Unpark",
+            "Unsafe\\.unpark",
+            "LockSupport\\.unpark",
+            "ForkJoinPool\\.signalWork"));
 
     // -Xmx and -Xms are pinned to the same value so the heap doesn't grow during a query.
 
