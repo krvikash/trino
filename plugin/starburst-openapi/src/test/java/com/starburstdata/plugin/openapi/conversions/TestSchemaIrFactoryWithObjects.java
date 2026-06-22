@@ -10,7 +10,7 @@
 package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
-import com.starburstdata.plugin.openapi.OpenApiSpec;
+import com.starburstdata.plugin.openapi.OpenApiDescription;
 import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
@@ -35,7 +35,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /**
- * Tests {@link SchemaIrFactory} with schemas from the objects.json specification.
+ * Tests {@link SchemaIrFactory} with schemas from the objects.json description.
  *
  * @see test_schema_ir_factory
  */
@@ -49,7 +49,7 @@ public class TestSchemaIrFactoryWithObjects
     @BeforeAll
     public static void init()
     {
-        OpenAPI openAPI = OpenApiSpec.parse("test_schema_ir_factory/objects.json");
+        OpenAPI openAPI = OpenApiDescription.parse("test_schema_ir_factory/objects.json");
         schemas = openAPI.getComponents().getSchemas();
     }
 

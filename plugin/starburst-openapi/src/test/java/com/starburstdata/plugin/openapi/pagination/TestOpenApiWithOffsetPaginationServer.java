@@ -63,7 +63,7 @@ public class TestOpenApiWithOffsetPaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/offset_pagination.3.0.4.json")
+                        .put("openapi.description-location", "java_server/offset_pagination.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "OFFSET")
                         .put("openapi.pagination.offset.offset-parameter-name", "offset")
@@ -127,7 +127,7 @@ public class TestOpenApiWithOffsetPaginationServer
     @Test
     public void testOperationWithoutPaginationParameters()
     {
-        // The /items/all endpoint has no offset/limit parameters in the spec — the OFFSET strategy's
+        // The /items/all endpoint has no offset/limit parameters in the description — the OFFSET strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
                 .matches(

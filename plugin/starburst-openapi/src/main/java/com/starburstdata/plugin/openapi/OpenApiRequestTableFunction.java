@@ -40,7 +40,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.net.UrlEscapers.urlFormParameterEscaper;
 import static com.google.common.net.UrlEscapers.urlPathSegmentEscaper;
-import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
+import static com.starburstdata.plugin.openapi.OpenApiDescription.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.FUNCTION_IMPLEMENTATION_ERROR;
 import static io.trino.spi.StandardErrorCode.MISSING_ARGUMENT;
 import static io.trino.spi.function.table.Descriptor.descriptor;

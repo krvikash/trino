@@ -10,7 +10,7 @@
 package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
-import com.starburstdata.plugin.openapi.OpenApiSpec;
+import com.starburstdata.plugin.openapi.OpenApiDescription;
 import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
 import com.starburstdata.plugin.openapi.conversions.ir.NumberIr;
@@ -37,7 +37,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 
 /**
- * Tests {@link SchemaIrFactory} with schemas from the numbers.json specification.
+ * Tests {@link SchemaIrFactory} with schemas from the numbers.json description.
  *
  * @see test_schema_ir_factory
  */
@@ -52,7 +52,7 @@ public class TestSchemaIrFactoryWithNumbers
     @BeforeAll
     public static void init()
     {
-        OpenAPI openAPI = OpenApiSpec.parse("test_schema_ir_factory/numbers.json");
+        OpenAPI openAPI = OpenApiDescription.parse("test_schema_ir_factory/numbers.json");
         schemas = openAPI.getComponents().getSchemas();
     }
 

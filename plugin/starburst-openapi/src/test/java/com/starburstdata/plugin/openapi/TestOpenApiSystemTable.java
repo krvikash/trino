@@ -27,10 +27,10 @@ public class TestOpenApiSystemTable
     {
         TypesServer server = closeAfterClass(new TypesServer());
         server.start();
-        String specificationLocation = Resources.getResource("petstore.yaml").getFile();
+        String descriptionLocation = Resources.getResource("petstore.yaml").getFile();
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", specificationLocation)
+                        .put("openapi.description-location", descriptionLocation)
                         .put("openapi.base-uri", server.getBaseUri().toString())
                         .buildOrThrow())
                 .build();

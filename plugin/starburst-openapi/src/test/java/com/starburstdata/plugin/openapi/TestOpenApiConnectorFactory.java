@@ -39,7 +39,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
+import static com.starburstdata.plugin.openapi.OpenApiDescription.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,9 +58,9 @@ final class TestOpenApiConnectorFactory
             "openmeteo.yml",
             "datadog.yaml",
     })
-    public void testLoadsSpecification(String specification)
+    public void testLoadsDescription(String description)
     {
-        assertThatNoException().isThrownBy(() -> createConnector(specification).shutdown());
+        assertThatNoException().isThrownBy(() -> createConnector(description).shutdown());
     }
 
     @ParameterizedTest
@@ -70,10 +70,10 @@ final class TestOpenApiConnectorFactory
             "jira.json",
             "cloudflare.json",
     })
-    public void testFailsSpecification(String specification)
+    public void testFailsDescription(String description)
     {
         // Fail from unsupported parameters.
-        assertThat(getConfigurationThrowable(specification))
+        assertThat(getConfigurationThrowable(description))
                 .cause()
                 .isInstanceOf(OpenApiValidationExceptions.class);
     }
@@ -118,7 +118,7 @@ final class TestOpenApiConnectorFactory
         List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguouspaths.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
                 .actual();
 
         assertThat(exceptions).hasSize(2);
@@ -140,7 +140,7 @@ final class TestOpenApiConnectorFactory
         List<Exception> exceptions = assertThat(getConfigurationThrowable("responses.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
                 .actual();
 
         assertThat(exceptions)
@@ -157,7 +157,7 @@ final class TestOpenApiConnectorFactory
         List<Exception> exceptions = assertThat(getConfigurationThrowable("paths.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
                 .actual();
 
         assertThat(exceptions)
@@ -176,7 +176,7 @@ final class TestOpenApiConnectorFactory
         List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguousobject.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
                 .actual();
 
         assertThat(exceptions)
@@ -190,7 +190,7 @@ final class TestOpenApiConnectorFactory
         List<Exception> exceptions = assertThat(getConfigurationThrowable("parameters.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
                 .actual();
 
         assertThat(exceptions)
@@ -205,10 +205,10 @@ final class TestOpenApiConnectorFactory
 
     private Connector createConnector(String location)
     {
-        URL specResource = requireNonNull(getClass().getClassLoader().getResource(location));
+        URL descriptionResource = requireNonNull(getClass().getClassLoader().getResource(location));
         Map<String, String> config = ImmutableMap.<String, String>builder()
                 .put("bootstrap.quiet", "true")
-                .put("openapi.spec-location", specResource.getFile())
+                .put("openapi.description-location", descriptionResource.getFile())
                 .put("openapi.base-uri", "https://starburst.io")
                 .buildOrThrow();
         return new OpenApiConnectorFactory().create("openapi", config, new TestingConnectorContext());
@@ -233,7 +233,7 @@ final class TestOpenApiConnectorFactory
     {
         String petstore = requireNonNull(getClass().getClassLoader().getResource("petstore.yaml")).getFile();
         Set<String> messages = assertThat(getAppConfigException(ImmutableMap.<String, String>builder()
-                .put("openapi.spec-location", petstore)
+                .put("openapi.description-location", petstore)
                 .put("openapi.base-uri", "https://starburst.io")
                 .put("openapi.security-scheme.secret", "MY_SECRET")
                 .put("openapi.security-scheme.in", "HEADER")

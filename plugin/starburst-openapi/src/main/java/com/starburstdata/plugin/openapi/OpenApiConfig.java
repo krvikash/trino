@@ -16,6 +16,7 @@ package com.starburstdata.plugin.openapi;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
+import io.airlift.configuration.LegacyConfig;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -23,20 +24,21 @@ import java.net.URI;
 @DefunctConfig("openapi.max-requests-per-second")
 public class OpenApiConfig
 {
-    private String specLocation;
+    private String descriptionLocation;
     private URI baseUri;
 
     @NotNull
-    public String getSpecLocation()
+    public String getDescriptionLocation()
     {
-        return specLocation;
+        return descriptionLocation;
     }
 
-    @Config("openapi.spec-location")
-    @ConfigDescription("Path to the OpenAPI spec file")
-    public OpenApiConfig setSpecLocation(String value)
+    @LegacyConfig("openapi.spec-location") // From original openapi plugin, distributed in some demo packages.
+    @Config("openapi.description-location")
+    @ConfigDescription("Path to the OpenAPI description file")
+    public OpenApiConfig setDescriptionLocation(String value)
     {
-        this.specLocation = value;
+        this.descriptionLocation = value;
         return this;
     }
 

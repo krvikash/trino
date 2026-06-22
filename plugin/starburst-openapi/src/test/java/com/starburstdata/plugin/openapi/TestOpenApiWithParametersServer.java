@@ -32,13 +32,13 @@ public class TestOpenApiWithParametersServer
     {
         ParametersServer parametersServer = closeAfterClass(new ParametersServer());
         parametersServer.start();
-        String specificationLocation = requireNonNull(
+        String descriptionLocation = requireNonNull(
                 OpenApiQueryRunner.class.getClassLoader().getResource("java_server/parameters.3.0.4.json"),
-                "Expected java_server specification was present")
+                "Expected java_server description was present")
                 .getFile();
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", specificationLocation)
+                        .put("openapi.description-location", descriptionLocation)
                         .put("openapi.base-uri", parametersServer.getBaseUri().toString())
                         .buildOrThrow())
                 .build();

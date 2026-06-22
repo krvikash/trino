@@ -17,7 +17,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Represents an error encountered while validating an OpenAPI specification.
+ * Represents an error encountered while validating an OpenAPI description.
  * Carries a list of path segments that locate the error within the document
  * (e.g. {@code paths./pets.get.responses.200.content.application/json.schema.properties}).
  */

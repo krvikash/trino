@@ -281,7 +281,7 @@
                                     <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiMetadata.java</include>
                                     <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiModule.java</include>
                                     <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiPlugin.java</include>
-                                    <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiSpec.java</include>
+                                    <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiDescription.java</include>
                                     <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiSplitManager.java</include>
                                     <include>src/main/java/com/starburstdata/plugin/openapi/OpenApiTransactionHandle.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/KeycloakServer.java</include>
@@ -303,7 +303,7 @@
                                     <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiMetadata.java</exclude>
                                     <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiModule.java</exclude>
                                     <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiPlugin.java</exclude>
-                                    <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiSpec.java</exclude>
+                                    <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiDescription.java</exclude>
                                     <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiSplitManager.java</exclude>
                                     <exclude>src/main/java/com/starburstdata/plugin/openapi/OpenApiTransactionHandle.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/KeycloakServer.java</exclude>

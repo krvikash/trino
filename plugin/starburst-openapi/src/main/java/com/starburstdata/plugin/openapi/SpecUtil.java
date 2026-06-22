@@ -25,8 +25,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static com.starburstdata.plugin.openapi.OpenApiSpec.HTTP_OK;
-import static com.starburstdata.plugin.openapi.OpenApiSpec.MIME_JSON;
+import static com.starburstdata.plugin.openapi.OpenApiDescription.HTTP_OK;
+import static com.starburstdata.plugin.openapi.OpenApiDescription.MIME_JSON;
 import static com.starburstdata.plugin.openapi.conversions.ReferenceUtil.extractRefKey;
 import static java.util.Objects.requireNonNull;
 

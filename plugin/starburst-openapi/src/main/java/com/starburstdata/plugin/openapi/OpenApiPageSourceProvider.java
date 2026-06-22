@@ -34,17 +34,17 @@ import static java.util.Objects.requireNonNull;
 public class OpenApiPageSourceProvider
         implements ConnectorPageSourceProvider
 {
-    private final OpenApiSpec openApiSpec;
+    private final OpenApiDescription openApiDescription;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
     @Inject
     public OpenApiPageSourceProvider(
-            OpenApiSpec openApiSpec,
+            OpenApiDescription openApiDescription,
             ObjectMapper objectMapper,
             @ForOpenApi HttpClient httpClient)
     {
-        this.openApiSpec = requireNonNull(openApiSpec, "openApiSpec is null");
+        this.openApiDescription = requireNonNull(openApiDescription, "openApiDescription is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
     }
@@ -60,15 +60,15 @@ public class OpenApiPageSourceProvider
             DynamicFilter dynamicFilter)
     {
         OpenApiRequestTableHandle handle = (OpenApiRequestTableHandle) table;
-        OpenApiPaginationStrategy<?> paginationStrategy = openApiSpec.getPaginationStrategy(handle);
+        OpenApiPaginationStrategy<?> paginationStrategy = openApiDescription.getPaginationStrategy(handle);
         return new OpenApiPageSource<>(
                 httpClient,
                 paginationStrategy,
                 handle,
-                openApiSpec.getDecoder(handle.path()),
+                openApiDescription.getDecoder(handle.path()),
                 columns,
                 objectMapper,
-                openApiSpec.getAuthenticator(handle.path()));
+                openApiDescription.getAuthenticator(handle.path()));
     }
 
     private static Request toInitialRequest(OpenApiRequestTableHandle handle)

@@ -62,7 +62,7 @@ public class TestOpenApiWithPagePaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/page_number_pagination.3.0.4.json")
+                        .put("openapi.description-location", "java_server/page_number_pagination.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "PAGE_NUMBER")
                         .put("openapi.pagination.page-number.page-parameter-name", "page")
@@ -148,7 +148,7 @@ public class TestOpenApiWithPagePaginationServer
     @Test
     public void testOperationWithoutPaginationParameters()
     {
-        // The /items/all endpoint has no page parameter in the spec — the PAGE_NUMBER strategy's
+        // The /items/all endpoint has no page parameter in the description — the PAGE_NUMBER strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
                 .matches(

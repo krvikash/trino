@@ -65,7 +65,7 @@ public class TestOpenApiWithLinkHeaderPaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/link_header_pagination.3.0.4.json")
+                        .put("openapi.description-location", "java_server/link_header_pagination.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "LINK_HEADER")
                         .buildOrThrow())

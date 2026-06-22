@@ -62,7 +62,7 @@ public class TestOpenApiWithOffsetAndDataFieldPaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/offset_pagination_data_field.3.0.4.json")
+                        .put("openapi.description-location", "java_server/offset_pagination_data_field.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "OFFSET")
                         .put("openapi.pagination.offset.offset-parameter-name", "offset")
@@ -114,7 +114,7 @@ public class TestOpenApiWithOffsetAndDataFieldPaginationServer
     @Test
     public void testOperationWithoutPaginationParameters()
     {
-        // The /items/all endpoint has no starting_after/per_page parameters in the spec — the strategy's
+        // The /items/all endpoint has no starting_after/per_page parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
                 .matches(

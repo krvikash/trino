@@ -36,12 +36,12 @@ public class OpenApiMetadata
 {
     public static final String SCHEMA_NAME = "default";
 
-    private final OpenApiSpec spec;
+    private final OpenApiDescription description;
 
     @Inject
-    public OpenApiMetadata(OpenApiSpec spec)
+    public OpenApiMetadata(OpenApiDescription description)
     {
-        this.spec = requireNonNull(spec, "spec is null");
+        this.description = requireNonNull(description, "description is null");
     }
 
     @Override
@@ -58,7 +58,7 @@ public class OpenApiMetadata
         OpenApiRequestTableHandle handle = (OpenApiRequestTableHandle) connectorTableHandle;
         return new ConnectorTableMetadata(
                 new SchemaTableName("_generated", "_table"),
-                spec.getDecoder(handle.path())
+                description.getDecoder(handle.path())
                         .getColumnHandles()
                         .stream()
                         .map(OpenApiColumnHandle::toColumnMetadata)
@@ -83,7 +83,7 @@ public class OpenApiMetadata
         if (handle instanceof OpenApiTableFunctionHandle(OpenApiRequestTableHandle requestHandle)) {
             return Optional.of(new TableFunctionApplicationResult<>(
                     requestHandle,
-                    ImmutableList.copyOf(spec.getDecoder(requestHandle.path()).getColumnHandles())));
+                    ImmutableList.copyOf(description.getDecoder(requestHandle.path()).getColumnHandles())));
         }
         return Optional.empty();
     }

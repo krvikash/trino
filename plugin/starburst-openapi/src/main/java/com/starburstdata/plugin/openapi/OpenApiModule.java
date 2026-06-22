@@ -38,7 +38,7 @@ public class OpenApiModule
         binder.bind(OpenApiPageSourceProvider.class).in(SINGLETON);
         configBinder(binder).bindConfig(OpenApiConfig.class);
 
-        binder.bind(OpenApiSpec.class).in(SINGLETON);
+        binder.bind(OpenApiDescription.class).in(SINGLETON);
         binder.bind(OpenApiTableFunctionsTable.class).in(SINGLETON);
         httpClientBinder(binder).bindHttpClient("openapi", ForOpenApi.class);
 

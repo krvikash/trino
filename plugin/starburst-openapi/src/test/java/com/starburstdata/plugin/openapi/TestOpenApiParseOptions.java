@@ -45,7 +45,7 @@ public class TestOpenApiParseOptions
             """
             { "my_super_secret": "access_key" }""";
     private static LifeCycleManager lifeCycleManager;
-    private static String exfiltrationSpecificationLocation;
+    private static String exfiltrationDescriptionLocation;
 
     @BeforeAll
     static void setUp()
@@ -65,25 +65,25 @@ public class TestOpenApiParseOptions
         server.start();
         URI baseUri = server.getBaseUrl();
         lifeCycleManager = injector.getInstance(LifeCycleManager.class);
-        String exfiltrationSpecification = Resources
+        String exfiltrationDescription = Resources
                 .toString(Resources.getResource("exfiltration.json"), UTF_8)
                 .replace("http://replaceme.com", baseUri.toString());
-        java.nio.file.Path specificationDirectory = Files.createTempDirectory("files");
-        File newSpecificationFile = File.createTempFile(
+        java.nio.file.Path descriptionDirectory = Files.createTempDirectory("files");
+        File descriptionFile = File.createTempFile(
                 "exfiltration",
                 ".json",
-                specificationDirectory.toFile());
-        Files.writeString(newSpecificationFile.toPath(), exfiltrationSpecification);
-        exfiltrationSpecificationLocation = newSpecificationFile.getPath();
+                descriptionDirectory.toFile());
+        Files.writeString(descriptionFile.toPath(), exfiltrationDescription);
+        exfiltrationDescriptionLocation = descriptionFile.getPath();
         Files.writeString(
-                specificationDirectory.resolve("secrets.json").toAbsolutePath(),
+                descriptionDirectory.resolve("secrets.json").toAbsolutePath(),
                 SECRET_JSON);
     }
 
     @Test
     public void testOpenApiLocalOrRemoteAccess()
     {
-        OpenAPI openAPI = OpenApiSpec.parse(exfiltrationSpecificationLocation);
+        OpenAPI openAPI = OpenApiDescription.parse(exfiltrationDescriptionLocation);
         Map<String, Schema> schemas = assertThat(openAPI.getComponents())
                 .isNotNull()
                 .extracting(Components::getSchemas)

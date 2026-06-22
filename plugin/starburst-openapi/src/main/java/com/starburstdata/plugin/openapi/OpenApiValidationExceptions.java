@@ -17,29 +17,29 @@ import java.util.stream.Collectors;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 
 /**
- * An exception class to collect errors from an OpenApiSpec.
+ * An exception class to collect errors from an OpenApiDescription.
  */
 public class OpenApiValidationExceptions
         extends TrinoException
 {
-    private final List<Exception> specificationExceptions;
+    private final List<Exception> descriptionExceptions;
 
-    public OpenApiValidationExceptions(List<Exception> specificationExceptions)
+    public OpenApiValidationExceptions(List<Exception> descriptionExceptions)
     {
-        super(CONFIGURATION_INVALID, getMessage(specificationExceptions), specificationExceptions.getFirst());
-        this.specificationExceptions = specificationExceptions;
-        specificationExceptions.stream().skip(1).forEach(this::addSuppressed);
+        super(CONFIGURATION_INVALID, getMessage(descriptionExceptions), descriptionExceptions.getFirst());
+        this.descriptionExceptions = descriptionExceptions;
+        descriptionExceptions.stream().skip(1).forEach(this::addSuppressed);
     }
 
-    private static String getMessage(List<Exception> specificationExceptions)
+    private static String getMessage(List<Exception> descriptionExceptions)
     {
-        return specificationExceptions.stream()
+        return descriptionExceptions.stream()
                 .map(Exception::getMessage)
                 .collect(Collectors.joining("\n * ", "There were a number of exceptions: \n * ", ""));
     }
 
-    public List<Exception> getSpecificationExceptions()
+    public List<Exception> getDescriptionExceptions()
     {
-        return specificationExceptions;
+        return descriptionExceptions;
     }
 }

@@ -65,9 +65,9 @@ import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
-public class OpenApiSpec
+public class OpenApiDescription
 {
-    private static final Logger log = Logger.get(OpenApiSpec.class);
+    private static final Logger log = Logger.get(OpenApiDescription.class);
 
     private static final ReadOnceStrategy READ_ONCE_STRATEGY = new ReadOnceStrategy();
 
@@ -79,13 +79,13 @@ public class OpenApiSpec
     private final Map<String, PathMetadata> pathMetadata;
 
     @Inject
-    public OpenApiSpec(
+    public OpenApiDescription(
             OpenApiConfig config,
             OpenApiAuthenticator authenticator,
             OpenApiDecoderFactory openApiDecoderFactory,
             OpenApiPaginationStrategy<?> paginationStrategy)
     {
-        OpenAPI openApi = parse(config.getSpecLocation());
+        OpenAPI openApi = parse(config.getDescriptionLocation());
         requireNonNull(openApi, "openApi is null");
 
         Optional<Components> componentsOptional = Optional.ofNullable(openApi.getComponents());
@@ -119,17 +119,17 @@ public class OpenApiSpec
                 .collect(toImmutableSet());
     }
 
-    public static OpenAPI parse(String specLocation)
+    public static OpenAPI parse(String descriptionLocation)
     {
-        SwaggerParseResult result = new OpenAPIV3Parser().readLocation(specLocation, null, getParseOptions());
+        SwaggerParseResult result = new OpenAPIV3Parser().readLocation(descriptionLocation, null, getParseOptions());
         if (result.isOpenapi31()) {
             // Contains changes to schema object behavior.
             // https://www.openapis.org/blog/2021/02/16/migrating-from-openapi-3-0-to-3-1-0
-            // So to simplify we initially disable parsing 3.1.X specifications.
-            throw new IllegalArgumentException("Connector supports OpenAPI specifications versions <= 3.0.X");
+            // So to simplify we initially disable parsing 3.1.X descriptions.
+            throw new IllegalArgumentException("Connector supports OpenAPI descriptions versions <= 3.0.X");
         }
         if (result.getMessages() != null && !result.getMessages().isEmpty()) {
-            throw new IllegalArgumentException("Failed to parse the OpenAPI spec: " + join(", ", result.getMessages()));
+            throw new IllegalArgumentException("Failed to parse the OpenAPI description: " + join(", ", result.getMessages()));
         }
         return result.getOpenAPI();
     }
@@ -152,7 +152,7 @@ public class OpenApiSpec
             String identifier = getIdentifier(path);
 
             if (identifier.isEmpty()) {
-                log.warn("openApi specification uses empty path, ignoring");
+                log.warn("openApi description uses empty path, ignoring");
                 return; // Table functions require non-empty names.
             }
             String previousPath = identifierToPath.put(identifier, path);

@@ -43,12 +43,12 @@ public class OpenApiTableFunctionsTable
         implements SystemTable
 {
     private final ConnectorTableMetadata metadata;
-    private final OpenApiSpec spec;
+    private final OpenApiDescription description;
 
     @Inject
-    public OpenApiTableFunctionsTable(OpenApiSpec spec)
+    public OpenApiTableFunctionsTable(OpenApiDescription description)
     {
-        this.spec = requireNonNull(spec, "spec is null");
+        this.description = requireNonNull(description, "description is null");
         this.metadata = new ConnectorTableMetadata(
                 new SchemaTableName("system", "table_functions"),
                 ImmutableList.of(
@@ -79,13 +79,13 @@ public class OpenApiTableFunctionsTable
     @Override
     public ConnectorPageSource pageSource(ConnectorTransactionHandle transactionHandle, ConnectorSession session, TupleDomain<Integer> constraint)
     {
-        List<OpenApiSpec.TableFunctionDetail> details = spec.getTableFunctionDetails();
+        List<OpenApiDescription.TableFunctionDetail> details = description.getTableFunctionDetails();
         int positionCount = details.size();
 
         Map<String, BlockBuilder> blockBuilders = metadata.getColumns().stream()
                 .collect(toImmutableMap(ColumnMetadata::getName, column -> column.getType().createBlockBuilder(null, positionCount)));
 
-        for (OpenApiSpec.TableFunctionDetail detail : details) {
+        for (OpenApiDescription.TableFunctionDetail detail : details) {
             VARCHAR.writeString(blockBuilders.get("function_name"), detail.functionName());
             VARCHAR.writeString(blockBuilders.get("api_path"), detail.apiPath());
 

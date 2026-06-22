@@ -28,17 +28,17 @@ final class TestOpenApiConfig
     void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(OpenApiConfig.class)
-                .setSpecLocation(null)
+                .setDescriptionLocation(null)
                 .setBaseUri(null));
     }
 
     @Test
-    void testSpecLocationValidation()
+    void testDescriptionLocationValidation()
     {
         assertFailsValidation(
                 new OpenApiConfig()
                         .setBaseUri(URI.create("http://localhost:12012")),
-                "specLocation",
+                "descriptionLocation",
                 "must not be null",
                 NotNull.class);
     }
@@ -48,7 +48,7 @@ final class TestOpenApiConfig
     {
         assertFailsValidation(
                 new OpenApiConfig()
-                        .setSpecLocation("/file/on/server.json"),
+                        .setDescriptionLocation("/file/on/server.json"),
                 "baseUri",
                 "must not be null",
                 NotNull.class);

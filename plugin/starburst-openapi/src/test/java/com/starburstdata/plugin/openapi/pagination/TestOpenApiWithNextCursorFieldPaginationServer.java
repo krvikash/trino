@@ -63,7 +63,7 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/next_field_cursor_pagination.3.0.4.json")
+                        .put("openapi.description-location", "java_server/next_field_cursor_pagination.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "NEXT_CURSOR_FIELD")
                         .put("openapi.pagination.next-field-cursor.cursor-field-json-pointer", "/metadata/next_cursor")
@@ -130,7 +130,7 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     @Test
     public void testOperationWithoutPaginationParameters()
     {
-        // The /items/all endpoint has no cursor/limit parameters in the spec — the strategy's
+        // The /items/all endpoint has no cursor/limit parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
                 .matches(

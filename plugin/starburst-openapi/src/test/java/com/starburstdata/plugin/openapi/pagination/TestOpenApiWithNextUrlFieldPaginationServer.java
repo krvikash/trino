@@ -64,7 +64,7 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/next_url_field_pagination.3.0.4.json")
+                        .put("openapi.description-location", "java_server/next_url_field_pagination.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "NEXT_URL_FIELD")
                         .put("openapi.pagination.next-url-cursor.next-url-field-json-pointer", "/metadata/next_url")

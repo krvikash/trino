@@ -83,7 +83,7 @@ public class TestOpenApiWithOAuth2Server
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/oauth2.3.0.4.json")
+                        .put("openapi.description-location", "java_server/oauth2.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.security-scheme.type", "OAUTH2")
                         .put("openapi.security-scheme.client-id", "sample-client-id")

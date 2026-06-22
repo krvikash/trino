@@ -62,7 +62,7 @@ public class TestOpenApiWithLastElementCursorFieldPaginationServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/last_element_cursor_field_pagination.3.0.4.json")
+                        .put("openapi.description-location", "java_server/last_element_cursor_field_pagination.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.pagination", "LAST_ELEMENT_CURSOR_FIELD")
                         .put("openapi.pagination.last-element-cursor-field.cursor-field-json-pointer", "/id")
@@ -117,7 +117,7 @@ public class TestOpenApiWithLastElementCursorFieldPaginationServer
     @Test
     public void testOperationWithoutPaginationParameters()
     {
-        // The /items/all endpoint has no starting_after/limit parameters in the spec — the strategy's
+        // The /items/all endpoint has no starting_after/limit parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
                 .matches(

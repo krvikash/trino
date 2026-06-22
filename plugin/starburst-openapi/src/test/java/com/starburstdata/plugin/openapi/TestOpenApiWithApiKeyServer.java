@@ -55,7 +55,7 @@ public class TestOpenApiWithApiKeyServer
 
         return OpenApiQueryRunner.builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("openapi.spec-location", "java_server/apikey.3.0.4.json")
+                        .put("openapi.description-location", "java_server/apikey.3.0.4.json")
                         .put("openapi.base-uri", server.getBaseUrl().toString())
                         .put("openapi.security-scheme.type", "APIKEY")
                         .put("openapi.security-scheme.secret", Server.API_KEY)

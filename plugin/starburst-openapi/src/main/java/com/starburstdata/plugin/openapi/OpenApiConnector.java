@@ -35,7 +35,7 @@ public class OpenApiConnector
 {
     private final LifeCycleManager lifeCycleManager;
     private final OpenApiMetadata metadata;
-    private final OpenApiSpec spec;
+    private final OpenApiDescription description;
     private final OpenApiSplitManager splitManager;
     private final OpenApiPageSourceProvider pageSourceProvider;
     private final OpenApiTableFunctionsTable tableFunctionsTable;
@@ -44,14 +44,14 @@ public class OpenApiConnector
     public OpenApiConnector(
             LifeCycleManager lifeCycleManager,
             OpenApiMetadata metadata,
-            OpenApiSpec spec,
+            OpenApiDescription description,
             OpenApiSplitManager splitManager,
             OpenApiPageSourceProvider pageSourceProvider,
             OpenApiTableFunctionsTable tableFunctionsTable)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
-        this.spec = requireNonNull(spec, "spec is null");
+        this.description = requireNonNull(description, "description is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.tableFunctionsTable = requireNonNull(tableFunctionsTable, "tableFunctionsTable is null");
@@ -90,7 +90,7 @@ public class OpenApiConnector
     @Override
     public Set<ConnectorTableFunction> getTableFunctions()
     {
-        return spec.getTableFunctions();
+        return description.getTableFunctions();
     }
 
     @Override

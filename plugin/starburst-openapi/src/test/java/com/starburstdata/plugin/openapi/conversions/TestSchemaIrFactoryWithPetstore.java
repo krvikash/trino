@@ -10,7 +10,7 @@
 package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
-import com.starburstdata.plugin.openapi.OpenApiSpec;
+import com.starburstdata.plugin.openapi.OpenApiDescription;
 import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
 import com.starburstdata.plugin.openapi.conversions.ir.NumberIr;
@@ -26,13 +26,13 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
-import static com.starburstdata.plugin.openapi.OpenApiSpec.MIME_JSON;
+import static com.starburstdata.plugin.openapi.OpenApiDescription.MIME_JSON;
 import static com.starburstdata.plugin.openapi.SpecUtil.castSchemaMap;
 import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests {@link SchemaIrFactory} with schemas from the petstore specification.
+ * Tests {@link SchemaIrFactory} with schemas from the petstore description.
  *
  * @see test_schema_ir_factory
  */
@@ -44,7 +44,7 @@ public class TestSchemaIrFactoryWithPetstore
     @BeforeAll
     public static void init()
     {
-        openApi = OpenApiSpec.parse("petstore.yaml");
+        openApi = OpenApiDescription.parse("petstore.yaml");
         schemaIrFactory = new SchemaIrFactory(ERROR, castSchemaMap(openApi.getComponents().getSchemas()));
     }
 
