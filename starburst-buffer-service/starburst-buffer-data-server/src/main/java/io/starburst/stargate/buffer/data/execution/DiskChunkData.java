@@ -29,6 +29,7 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Executor;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
@@ -294,6 +296,10 @@ public final class DiskChunkData
         if (readChannel == null) {
             try {
                 readChannel = FileChannel.open(file, StandardOpenOption.READ);
+            }
+            catch (NoSuchFileException e) {
+                stats.recordDiskChunkReadNotFound();
+                throw new DataServerException(CHUNK_NOT_FOUND, "disk chunk file not found for chunk %s: %s".formatted(chunkId, file), e);
             }
             catch (IOException e) {
                 throw new UncheckedIOException("failed to open disk chunk for reading " + file, e);

@@ -32,6 +32,7 @@ import java.util.concurrent.Executor;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -270,6 +271,32 @@ public class TestDiskChunkData
         }
         finally {
             lease.release();
+            chunk.release();
+        }
+    }
+
+    @Test
+    public void testGetThrowsDiskErrorWhenFileDeletedAfterWrite()
+            throws Exception
+    {
+        DataServerStats stats = new DataServerStats();
+        LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
+        DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, stats);
+
+        try {
+            getFutureValue(chunk.write(1, 0, PAGE));
+            getFutureValue(chunk.close());
+
+            Files.delete(slot.file());
+
+            assertThatThrownBy(chunk::get)
+                    .isInstanceOf(DataServerException.class)
+                    .extracting(e -> ((DataServerException) e).getErrorCode())
+                    .isEqualTo(CHUNK_NOT_FOUND);
+            assertThat(stats.getDiskChunkReadNotFound().getTotalCount()).isEqualTo(1);
+        }
+        finally {
             chunk.release();
         }
     }

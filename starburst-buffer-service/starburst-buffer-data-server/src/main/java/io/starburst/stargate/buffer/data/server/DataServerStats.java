@@ -58,6 +58,7 @@ public class DataServerStats
     private final CounterStat diskReadBytes = new CounterStat();
     private final CounterStat diskSpooledBytes = new CounterStat();
     private final CounterStat memorySpooledBytes = new CounterStat();
+    private final CounterStat diskChunkReadNotFound = new CounterStat();
 
     public void updateTotalMemoryInBytes(long totalMemoryInBytes)
     {
@@ -279,6 +280,18 @@ public class DataServerStats
     public void recordMemorySpooledBytes(long bytes)
     {
         memorySpooledBytes.update(bytes);
+    }
+
+    public void recordDiskChunkReadNotFound()
+    {
+        diskChunkReadNotFound.update(1);
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDiskChunkReadNotFound()
+    {
+        return diskChunkReadNotFound;
     }
 
     @Managed
