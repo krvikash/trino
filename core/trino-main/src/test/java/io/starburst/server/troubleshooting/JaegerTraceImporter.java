@@ -9,10 +9,10 @@
  */
 package io.starburst.server.troubleshooting;
 
-import io.opentelemetry.exporter.internal.grpc.GrpcExporter;
-import io.opentelemetry.exporter.internal.grpc.GrpcExporterBuilder;
 import io.opentelemetry.exporter.internal.marshal.Marshaler;
 import io.opentelemetry.exporter.internal.marshal.Serializer;
+import io.opentelemetry.exporter.otlp.internal.GrpcExporter;
+import io.opentelemetry.exporter.otlp.internal.GrpcExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 
 import java.io.IOException;
