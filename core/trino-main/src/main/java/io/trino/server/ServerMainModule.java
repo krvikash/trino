@@ -103,8 +103,10 @@ import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.RetryPolicy;
 import io.trino.operator.gpu.AsyncIoExecutor;
+import io.trino.operator.gpu.ForGpuDeviceStats;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
+import io.trino.operator.gpu.GpuDeviceStats;
 import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.operator.gpu.RmmLogPath;
 import io.trino.operator.index.IndexJoinLookupStats;
@@ -324,6 +326,9 @@ public class ServerMainModule
             binder.bind(GpuNodeSetup.class).to(GpuConfigurer.class);
             binder.bind(GpuConfigurer.class).asEagerSingleton();
             newOptionalBinder(binder, Key.get(Path.class, RmmLogPath.class));
+            binder.bind(ScheduledExecutorService.class).annotatedWith(ForGpuDeviceStats.class).toInstance(newScheduledThreadPool(1, daemonThreadsNamed("gpu-device-stats-poller")));
+            binder.bind(GpuDeviceStats.class).asEagerSingleton();
+            newExporter(binder).export(GpuDeviceStats.class).withGeneratedName();
         }
         else {
             checkState(!gpuExecutionRequested, "GPU execution is not supported on the coordinator");

@@ -18,6 +18,8 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -25,6 +27,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -73,6 +76,8 @@ public class GpuConfig
     private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
 
     private Optional<Integer> maxConcurrentReads = Optional.empty();
+
+    private Duration deviceStatsSamplingInterval = new Duration(5, TimeUnit.SECONDS);
 
     @NotNull
     public AllocationMode getAllocationMode()
@@ -211,6 +216,23 @@ public class GpuConfig
     public GpuConfig setMaxConcurrentReads(Integer maxConcurrentReads)
     {
         this.maxConcurrentReads = Optional.ofNullable(maxConcurrentReads);
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("100ms")
+    public Duration getDeviceStatsSamplingInterval()
+    {
+        return deviceStatsSamplingInterval;
+    }
+
+    @Config("gpu.device-stats.sampling-interval")
+    @ConfigDescription("How often the background poller samples RMM-allocated and device-used " +
+            "memory bytes for the JMX DistributionStat histograms.")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setDeviceStatsSamplingInterval(Duration deviceStatsSamplingInterval)
+    {
+        this.deviceStatsSamplingInterval = deviceStatsSamplingInterval;
         return this;
     }
 }

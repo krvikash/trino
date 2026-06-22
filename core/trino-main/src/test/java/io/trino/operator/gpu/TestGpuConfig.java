@@ -17,12 +17,14 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.trino.operator.gpu.GpuConfig.AllocationMode;
 import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
@@ -45,7 +47,8 @@ public class TestGpuConfig
                 .setMaxQueryGpuMemoryPerNode(null)
                 .setMaxQueryOffHeapMemoryPerNode(null)
                 .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE))
-                .setMaxConcurrentReads(null));
+                .setMaxConcurrentReads(null)
+                .setDeviceStatsSamplingInterval(new Duration(5, TimeUnit.SECONDS)));
     }
 
     @Test
@@ -61,6 +64,7 @@ public class TestGpuConfig
                 .put("query.max-off-heap-memory-per-node", "4GB")
                 .put("gpu.aggregation.compaction-threshold", "2GB")
                 .put("gpu.max-concurrent-reads", "32")
+                .put("gpu.device-stats.sampling-interval", "500ms")
                 .buildOrThrow();
 
         GpuConfig expected = new GpuConfig()
@@ -72,7 +76,8 @@ public class TestGpuConfig
                 .setMaxQueryGpuMemoryPerNode(DataSize.of(8, GIGABYTE))
                 .setMaxQueryOffHeapMemoryPerNode(DataSize.of(4, GIGABYTE))
                 .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE))
-                .setMaxConcurrentReads(32);
+                .setMaxConcurrentReads(32)
+                .setDeviceStatsSamplingInterval(new Duration(500, TimeUnit.MILLISECONDS));
 
         assertFullMapping(properties, expected);
     }
