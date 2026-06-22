@@ -31,7 +31,6 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,14 +76,9 @@ public class HiveGpuParquetPageSource
         }
 
         if (fabricatedParquet == null) {
-            try {
-                fabricatedParquet = fabricator.fabricate();
-                fabricator.close(); // release
-                return new Yielded();
-            }
-            catch (IOException e) {
-                throw new TrinoException(HIVE_UNSUPPORTED_FORMAT, "Failed to fabricate Parquet file", e);
-            }
+            fabricatedParquet = fabricator.fabricate();
+            fabricator.close(); // release
+            return new Yielded();
         }
 
         try {

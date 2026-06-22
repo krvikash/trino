@@ -171,7 +171,6 @@ public class ParquetFileFabricator
     }
 
     public @Move FabricatedParquet fabricate()
-            throws IOException
     {
         try {
             List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
