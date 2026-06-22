@@ -99,8 +99,8 @@ public class TestReloadingModelClientProvider
                         }
                     },
                     {
-                        "id": "haiku35",
-                        "modelName": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+                        "id": "haiku45",
+                        "modelName": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
                         "temperature": 0.1,
@@ -142,8 +142,8 @@ public class TestReloadingModelClientProvider
     {
         assertThat(simplePrompt("meta_llama")).isEqualTo("paris");
         assertThat(simplePrompt("gpt4o_mini")).isEqualTo("paris");
-        assertThatThrownBy(() -> simplePrompt("haiku35"))
-                .hasMessage("Language model client not found for id: haiku35");
+        assertThatThrownBy(() -> simplePrompt("haiku45"))
+                .hasMessage("Language model client not found for id: haiku45");
 
         String result = (String) computeActual(
                 TEST_AI_SESSION,
@@ -155,7 +155,7 @@ public class TestReloadingModelClientProvider
         assertThatThrownBy(() -> simpleEmbedding("openai_embed_3_large"))
                 .hasMessage("Embedding model client not found for id: openai_embed_3_large");
         Files.writeString(modelSpecsFile.toPath(), MODEL_SPECS_V2);
-        assertEventually(() -> assertThat(simplePrompt("haiku35")).isEqualTo("paris"));
+        assertEventually(() -> assertThat(simplePrompt("haiku45")).isEqualTo("paris"));
         assertEventually(() -> assertThat(simplePrompt("meta_llama")).isEqualTo("paname"));
         assertEventually(() -> assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
                 .hasMessage("Language model client not found for id: gpt4o_mini"));

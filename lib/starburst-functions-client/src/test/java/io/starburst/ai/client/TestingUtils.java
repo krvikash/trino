@@ -82,8 +82,8 @@ public final class TestingUtils
                         }
                     },
                     {
-                        "id": "haiku35",
-                        "modelName": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+                        "id": "haiku45",
+                        "modelName": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
                         "temperature": 0.0,

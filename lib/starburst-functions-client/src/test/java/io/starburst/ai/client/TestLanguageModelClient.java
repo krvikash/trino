@@ -152,7 +152,7 @@ public class TestLanguageModelClient
                 """
                 Extract the a list of values for each of the JSON encoded labels from the text below. For each label, extract all the values into a list
                 Labels: %s
-                Output the extracted values as a JSON object. Output only the JSON. Do not output a code block for the JSON.
+                Output the extracted values as a JSON object. Output only the raw JSON WITHOUT ANY markdown formatting, code blocks, or backticks.
                 =====
                 %s
                 """;
@@ -374,7 +374,7 @@ public class TestLanguageModelClient
     public static Object[][] modelIds()
     {
         return new Object[][] {
-                {"haiku35"},
+                {"haiku45"},
                 {"gpt4o_mini"},
                 {"meta_llama"},
                 // gpt4o_mini_auth_header tests header secret resolution end-to-end. It relies on the OpenAI client overwriting the

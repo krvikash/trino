@@ -523,7 +523,7 @@ public class TestAiFunctions
     public static Object[][] modelIds()
     {
         return new Object[][] {
-                {"haiku35"},
+                {"haiku45"},
                 {"gpt4o_mini"},
                 {"meta_llama"},
         };
