@@ -25,8 +25,8 @@ public final class TestIcebergGpuTpchQueries
     }
 
     @Override
-    String gpuPlanResource(int queryNumber)
+    String gpuPlanResource(String query)
     {
-        return "sql/trino/tpch/iceberg/gpu/local/q%02d.plan.txt".formatted(queryNumber);
+        return "sql/trino/tpch/iceberg/gpu/local/%s.plan.txt".formatted(query);
     }
 }

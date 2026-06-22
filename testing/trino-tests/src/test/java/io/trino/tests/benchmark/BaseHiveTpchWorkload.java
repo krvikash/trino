@@ -34,11 +34,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static io.trino.tests.GpuQueriesTests.getTpchQueries;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -72,17 +72,17 @@ public abstract class BaseHiveTpchWorkload
     }
 
     @Override
-    public List<Integer> defaultQueries()
+    public List<String> defaultQueries()
     {
-        return IntStream.rangeClosed(1, 22).boxed().toList();
+        return getTpchQueries().toList();
     }
 
     @Override
-    public String readQuery(int queryNumber)
+    public String readQuery(String query)
     {
         try {
             return Resources.toString(
-                            getResource("sql/trino/tpch/q%02d.sql".formatted(queryNumber)), UTF_8)
+                            getResource("sql/trino/tpch/%s.sql".formatted(query)), UTF_8)
                     .replace("${database}", "hive")
                     .replace("${schema}", "tpch")
                     .replace("${prefix}", "")
@@ -221,9 +221,9 @@ public abstract class BaseHiveTpchWorkload
     }
 
     @Override
-    public String expectedResultResource(int queryNumber)
+    public String expectedResultResource(String query)
     {
-        return "sql/trino/tpch/sf%d/results/q%02d.ndjson".formatted(scaleFactor, queryNumber);
+        return "sql/trino/tpch/sf%d/results/%s.ndjson".formatted(scaleFactor, query);
     }
 
     private void createExternalTable(DistributedQueryRunner runner, String dataLocation, String table)

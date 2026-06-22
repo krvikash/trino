@@ -22,11 +22,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.google.common.io.Resources.getResource;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
+import static io.trino.tests.GpuQueriesTests.getTpcdsQueries;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
 
@@ -69,37 +70,37 @@ public abstract class BaseIcebergGpuTpcdsQueriesTest
 
     protected abstract void configureRunner(IcebergQueryRunner.Builder builder);
 
-    @ParameterizedTest(name = "q{0}")
+    @ParameterizedTest(name = "{0}", quoteTextArguments = false)
     @MethodSource("queries")
-    public final void testQuery(int queryNumber)
+    public final void testQuery(String query)
             throws Exception
     {
         assertGpuQueryResultsAndOperators(
                 getQueryRunner(),
-                readQuery(queryNumber),
-                readExpectedGpuPlanCoverage(queryNumber));
+                readQuery(query),
+                readExpectedGpuPlanCoverage(query));
     }
 
     @Override
-    final IntStream queries()
+    final Stream<String> queries()
     {
-        return IntStream.rangeClosed(1, 99);
+        return getTpcdsQueries();
     }
 
     @Override
-    final String readQuery(int queryNumber)
+    final String readQuery(String query)
             throws IOException
     {
-        return Resources.toString(getResource("sql/trino/tpcds/q%02d.sql".formatted(queryNumber)), UTF_8)
+        return Resources.toString(getResource("sql/trino/tpcds/%s.sql".formatted(query)), UTF_8)
                 .replace("${database}", "iceberg")
                 .replace("${schema}", "tpcds")
                 .trim()
                 .replaceFirst(";$", "");
     }
 
-    private String readExpectedGpuPlanCoverage(int queryNumber)
+    private String readExpectedGpuPlanCoverage(String query)
             throws IOException
     {
-        return Resources.toString(getResource(gpuPlanResource(queryNumber)), UTF_8);
+        return Resources.toString(getResource(gpuPlanResource(query)), UTF_8);
     }
 }

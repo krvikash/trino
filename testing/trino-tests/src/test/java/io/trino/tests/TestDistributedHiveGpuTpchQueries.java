@@ -25,8 +25,8 @@ public final class TestDistributedHiveGpuTpchQueries
     }
 
     @Override
-    String gpuPlanResource(int queryNumber)
+    String gpuPlanResource(String query)
     {
-        return "sql/trino/tpch/hive/gpu/distributed/q%02d.plan.txt".formatted(queryNumber);
+        return "sql/trino/tpch/hive/gpu/distributed/%s.plan.txt".formatted(query);
     }
 }

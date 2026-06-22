@@ -13,6 +13,7 @@
  */
 package io.trino.tests;
 
+import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -35,18 +36,42 @@ import java.nio.file.Path;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.sql.query.QueryAssertions.QueryAssert.collectGpuPlanNodes;
+import static java.lang.String.format;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.writeString;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class GpuQueriesTests
+public final class GpuQueriesTests
 {
     private GpuQueriesTests() {}
+
+    // Queries whose template defines two query parts, generated as separate "a" and "b" files.
+    private static final Set<Integer> TPCDS_QUERIES_WITH_TWO_PARTS = ImmutableSet.of(14, 23, 24, 39);
+
+    public static Stream<String> getTpcdsQueries()
+    {
+        return IntStream.rangeClosed(1, 99)
+                .boxed()
+                .flatMap(queryNumber -> {
+                    if (TPCDS_QUERIES_WITH_TWO_PARTS.contains(queryNumber)) {
+                        return Stream.of(format("q%02da", queryNumber), format("q%02db", queryNumber));
+                    }
+                    return Stream.of(format("q%02d", queryNumber));
+                });
+    }
+
+    public static Stream<String> getTpchQueries()
+    {
+        return IntStream.rangeClosed(1, 22)
+                .boxed()
+                .map(queryNumber -> format("q%02d", queryNumber));
+    }
 
     static void assertGpuQueryResultsAndOperators(QueryRunner runner, @Language("SQL") String sql, String expectedGpuPlanCoverage)
     {
@@ -177,10 +202,10 @@ final class GpuQueriesTests
             try {
                 init.invoke(test);
                 QueryRunner runner = test.accessQueryRunner();
-                for (int queryNumber : test.queries().toArray()) {
-                    Path filePath = getModuleSourcePath().resolve("src/test/resources/" + test.gpuPlanResource(queryNumber));
-                    log.info("Writing GPU plan for query %s to %s", queryNumber, filePath);
-                    updateGpuOperators(runner, test.readQuery(queryNumber), filePath);
+                for (String query : test.queries().toArray(String[]::new)) {
+                    Path filePath = getModuleSourcePath().resolve("src/test/resources/" + test.gpuPlanResource(query));
+                    log.info("Writing GPU plan for query %s to %s", query, filePath);
+                    updateGpuOperators(runner, test.readQuery(query), filePath);
                 }
             }
             finally {
@@ -198,11 +223,11 @@ final class GpuQueriesTests
             return getQueryRunner();
         }
 
-        abstract IntStream queries();
+        abstract Stream<String> queries();
 
-        abstract String readQuery(int queryNumber)
+        abstract String readQuery(String query)
                 throws IOException;
 
-        abstract String gpuPlanResource(int queryNumber);
+        abstract String gpuPlanResource(String query);
     }
 }

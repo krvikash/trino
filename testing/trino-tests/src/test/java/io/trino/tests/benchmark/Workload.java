@@ -34,12 +34,12 @@ public interface Workload
     /**
      * Queries to run when no {@code --query} flag is passed.
      */
-    List<Integer> defaultQueries();
+    List<String> defaultQueries();
 
     /**
      * Load the SQL text for a query (typically from a classpath resource).
      */
-    String readQuery(int queryNumber);
+    String readQuery(String query);
 
     /**
      * Default value for the {@code --data} flag when not passed on the command line.
@@ -88,7 +88,7 @@ public interface Workload
      * classpath (works in both source-tree and jar layouts); {@code record} writes back under
      * {@code testing/trino-benchmark-queries/src/main/resources/} (requires a source tree).
      */
-    String expectedResultResource(int queryNumber);
+    String expectedResultResource(String query);
 
     /**
      * One-shot data generator invoked by the {@code generate} subcommand.

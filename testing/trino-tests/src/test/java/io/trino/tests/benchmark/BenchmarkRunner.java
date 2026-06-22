@@ -325,10 +325,10 @@ public final class BenchmarkRunner
         int runs = 10;
 
         @Option(names = {"-q", "--query"}, description = "A specific query number to run (can be repeated)")
-        List<Integer> queries = new ArrayList<>();
+        List<String> queries = new ArrayList<>();
 
         @Option(names = {"-s", "--skip-query"}, description = "A query number to skip; recorded as all-zero timings in the CSV (can be repeated)")
-        List<Integer> skipQueries = new ArrayList<>();
+        List<String> skipQueries = new ArrayList<>();
 
         @Option(names = "--concurrency", description = "Maximum number of queries to execute simultaneously. All --runs queries are submitted at once; each measures its own elapsed time independently. Default: ${DEFAULT-VALUE}. Incompatible with --gpu-memory-trace.")
         int concurrency = 1;
@@ -430,44 +430,44 @@ public final class BenchmarkRunner
                 }
                 verifyTableStatistics(runner, workload);
 
-                Set<Integer> skipped = ImmutableSet.copyOf(skipQueries);
-                List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
+                Set<String> skipped = ImmutableSet.copyOf(skipQueries);
+                List<String> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
 
-                List<Integer> suiteQueries = workload.defaultQueries();
+                List<String> suiteQueries = workload.defaultQueries();
                 for (int round = 1; round <= suiteWarmup; round++) {
                     log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
-                    for (int queryNumber : suiteQueries) {
-                        if (skipped.contains(queryNumber)) {
-                            log.debug("Suite prewarm %s: skipped (--skip-query)", displayName(queryNumber));
+                    for (String query : suiteQueries) {
+                        if (skipped.contains(query)) {
+                            log.debug("Suite prewarm %s: skipped (--skip-query)", query);
                             continue;
                         }
-                        log.debug("Starting warmup run of %s", displayName(queryNumber));
+                        log.debug("Starting warmup run of %s", query);
                         try {
-                            runner.execute(workload.readQuery(queryNumber));
+                            runner.execute(workload.readQuery(query));
                         }
                         catch (RuntimeException e) {
-                            e.addSuppressed(new Exception("Query: " + displayName(queryNumber)));
+                            e.addSuppressed(new Exception("Query: " + query));
                             if (!isOutOfMemory(e)) {
                                 throw e;
                             }
-                            log.warn("Suite prewarm %s: out of memory — continuing", displayName(queryNumber));
+                            log.warn("Suite prewarm %s: out of memory — continuing", query);
                         }
                     }
                 }
 
                 session.writeRunMetadata(queriesRun, warmup, runs);
 
-                Map<Integer, List<Measurement>> measurementsByQuery = new LinkedHashMap<>();
+                Map<String, List<Measurement>> measurementsByQuery = new LinkedHashMap<>();
                 long totalElapsedMillis = 0;
                 long totalExecutionMillis = 0;
-                for (int queryNumber : queriesRun) {
-                    if (skipped.contains(queryNumber)) {
-                        log.info("%s: skipped (--skip-query)", displayName(queryNumber));
-                        measurementsByQuery.put(queryNumber, List.of());
+                for (String query : queriesRun) {
+                    if (skipped.contains(query)) {
+                        log.info("%s: skipped (--skip-query)", query);
+                        measurementsByQuery.put(query, List.of());
                         continue;
                     }
-                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, session, explainOutputDir, executor, concurrency);
-                    measurementsByQuery.put(queryNumber, measurements);
+                    List<Measurement> measurements = benchmarkQuery(runner, query, session, explainOutputDir, executor, concurrency);
+                    measurementsByQuery.put(query, measurements);
                     if (!measurements.isEmpty()) {
                         totalElapsedMillis += averageMillis(measurements, Measurement::elapsedMillis);
                         totalExecutionMillis += averageMillis(measurements, Measurement::executionMillis);
@@ -491,26 +491,25 @@ public final class BenchmarkRunner
          */
         private List<Measurement> benchmarkQuery(
                 DistributedQueryRunner runner,
-                int queryNumber,
+                String query,
                 ProfileSession session,
                 Path explainOutputDir,
                 ListeningExecutorService executor,
                 int concurrency)
                 throws IOException
         {
-            String sql = workload.readQuery(queryNumber);
-            String displayName = displayName(queryNumber);
-            List<String> expectedLines = readExpectedLines(workload, queryNumber);
-            Path explainFile = explainOutputDir.resolve(displayName + ".explain-analyze.txt");
+            String sql = workload.readQuery(query);
+            List<String> expectedLines = readExpectedLines(workload, query);
+            Path explainFile = explainOutputDir.resolve(query + ".explain-analyze.txt");
 
             List<Measurement> measurements = new ArrayList<>();
             List<IterationResult> measuredIterations = new ArrayList<>();
             List<Long> peakGpuBytesPerIter = new ArrayList<>();
             try (BufferedWriter explainWriter = Files.newBufferedWriter(explainFile, UTF_8)) {
                 for (int i = 0; i < warmup; i++) {
-                    log.debug("Starting warmup run of %s", displayName);
-                    IterationResult warmupIteration = measureAndValidate(runner, sql, displayName, expectedLines);
-                    log.debug("Warmup run of %s took %s ms", displayName, warmupIteration.measurement().elapsedMillis());
+                    log.debug("Starting warmup run of %s", query);
+                    IterationResult warmupIteration = measureAndValidate(runner, sql, query, expectedLines);
+                    log.debug("Warmup run of %s took %s ms", query, warmupIteration.measurement().elapsedMillis());
                 }
                 session.start();
                 boolean trackGpuMemory = mode == ExecutionMode.GPU && concurrency == 1;
@@ -524,7 +523,7 @@ public final class BenchmarkRunner
                         if (trackGpuMemory) {
                             Rmm.resetScopedMaximumBytesAllocated();
                         }
-                        IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
+                        IterationResult iteration = measureAndValidate(runner, sql, query, expectedLines);
                         if (trackGpuMemory) {
                             peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
                         }
@@ -547,7 +546,7 @@ public final class BenchmarkRunner
                     peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
                 }
                 for (IterationResult iteration : iterationResults) {
-                    log.debug("Measured run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
+                    log.debug("Measured run of %s took %s ms", query, iteration.measurement().elapsedMillis());
                     measurements.add(iteration.measurement());
                     measuredIterations.add(iteration);
                 }
@@ -556,27 +555,27 @@ public final class BenchmarkRunner
                 session.stop();
                 for (int i = 0; i < measuredIterations.size(); i++) {
                     IterationResult iteration = measuredIterations.get(i);
-                    explainWriter.write("=== %s run %d/%d ===%n".formatted(displayName, i + 1, measuredIterations.size()));
+                    explainWriter.write("=== %s run %d/%d ===%n".formatted(query, i + 1, measuredIterations.size()));
                     explainWriter.write(renderExplainAnalyze(runner.getCoordinator(), iteration.queryInfo()));
                     explainWriter.newLine();
                 }
             }
             catch (RuntimeException e) {
-                e.addSuppressed(new Exception("Query: " + displayName(queryNumber)));
+                e.addSuppressed(new Exception("Query: " + query));
                 try {
                     session.stop();
                 }
                 catch (Exception stopError) {
-                    log.warn(stopError, "Profiler stop failed after %s error", displayName);
+                    log.warn(stopError, "Profiler stop failed after %s error", query);
                 }
                 if (isOutOfMemory(e)) {
-                    log.warn("%s: FAILED (out of memory) — skipping query", displayName);
+                    log.warn("%s: FAILED (out of memory) — skipping query", query);
                     return List.of();
                 }
                 throw e;
             }
             finally {
-                session.dumpAndPostProcess(displayName);
+                session.dumpAndPostProcess(query);
             }
 
             long averageElapsed = averageMillis(measurements, Measurement::elapsedMillis);
@@ -584,7 +583,7 @@ public final class BenchmarkRunner
             String peakSuffix = peakGpuBytesPerIter.isEmpty()
                     ? ""
                     : format(" [peak GPU memory: %s]", succinctBytes((long) peakGpuBytesPerIter.stream().mapToLong(Long::longValue).average().orElse(0)));
-            log.info("Average for %s: %s ms (execution %s ms)%s", displayName, averageElapsed, averageExecution, peakSuffix);
+            log.info("Average for %s: %s ms (execution %s ms)%s", query, averageElapsed, averageExecution, peakSuffix);
             return List.copyOf(measurements);
         }
     }
@@ -620,7 +619,7 @@ public final class BenchmarkRunner
         ProfileSession NOOP = new ProfileSession()
         {
             @Override
-            public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs) {}
+            public void writeRunMetadata(List<String> queriesRun, int warmup, int runs) {}
 
             @Override
             public void start() {}
@@ -632,7 +631,7 @@ public final class BenchmarkRunner
             public void dumpAndPostProcess(String displayName) {}
 
             @Override
-            public void mergeCollapsedFiles(List<Integer> queriesRun) {}
+            public void mergeCollapsedFiles(List<String> queriesRun) {}
         };
 
         static ProfileSession of(ProfileEvent profileEvent, Workload workload, Path profileOutputDir)
@@ -650,7 +649,7 @@ public final class BenchmarkRunner
             return getOnlyElement(active);
         }
 
-        void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
+        void writeRunMetadata(List<String> queriesRun, int warmup, int runs)
                 throws IOException;
 
         void start()
@@ -662,7 +661,7 @@ public final class BenchmarkRunner
         void dumpAndPostProcess(String displayName)
                 throws IOException;
 
-        void mergeCollapsedFiles(List<Integer> queriesRun)
+        void mergeCollapsedFiles(List<String> queriesRun)
                 throws IOException;
     }
 
@@ -677,7 +676,7 @@ public final class BenchmarkRunner
         }
 
         @Override
-        public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
+        public void writeRunMetadata(List<String> queriesRun, int warmup, int runs)
                 throws IOException
         {
             for (ProfileSession session : sessions) {
@@ -713,7 +712,7 @@ public final class BenchmarkRunner
         }
 
         @Override
-        public void mergeCollapsedFiles(List<Integer> queriesRun)
+        public void mergeCollapsedFiles(List<String> queriesRun)
                 throws IOException
         {
             for (ProfileSession session : sessions) {
@@ -744,7 +743,7 @@ public final class BenchmarkRunner
         }
 
         @Override
-        public void writeRunMetadata(List<Integer> queriesRun, int warmup, int runs)
+        public void writeRunMetadata(List<String> queriesRun, int warmup, int runs)
                 throws IOException
         {
             BenchmarkRunner.writeRunMetadata(profileOutputDir, workload, queriesRun, warmup, runs, profileEvent);
@@ -784,7 +783,7 @@ public final class BenchmarkRunner
         }
 
         @Override
-        public void mergeCollapsedFiles(List<Integer> queriesRun)
+        public void mergeCollapsedFiles(List<String> queriesRun)
                 throws IOException
         {
             BenchmarkRunner.mergeCollapsedFiles(profileOutputDir, queriesRun);
@@ -882,7 +881,7 @@ public final class BenchmarkRunner
         private final Workload workload;
 
         @Option(names = {"-q", "--query"}, description = "A specific query number (can be repeated)")
-        List<Integer> queries = new ArrayList<>();
+        List<String> queries = new ArrayList<>();
 
         @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
         String dataLocation;
@@ -910,14 +909,14 @@ public final class BenchmarkRunner
                     workload.verifyDataset(runner);
                 }
                 verifyTableStatistics(runner, workload);
-                List<Integer> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
-                for (int queryNumber : queriesRun) {
-                    Path target = recordTargetFor(workload.expectedResultResource(queryNumber));
-                    String sql = workload.readQuery(queryNumber);
+                List<String> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
+                for (String query : queriesRun) {
+                    Path target = recordTargetFor(workload.expectedResultResource(query));
+                    String sql = workload.readQuery(query);
                     MaterializedResult result = runner.execute(sql);
                     Files.createDirectories(target.getParent());
                     writeNdjson(target, result);
-                    log.info("Recorded %s -> %s (%d rows)", displayName(queryNumber), target, result.getRowCount());
+                    log.info("Recorded %s -> %s (%d rows)", query, target, result.getRowCount());
                 }
             }
             return 0;
@@ -1044,14 +1043,14 @@ public final class BenchmarkRunner
     /**
      * Concatenate per-query collapsed files into one cross-query file.
      */
-    private static void mergeCollapsedFiles(Path profileOutputDir, List<Integer> queriesRun)
+    private static void mergeCollapsedFiles(Path profileOutputDir, List<String> queriesRun)
             throws IOException
     {
         Path merged = profileOutputDir.resolve("merged.collapsed");
         int mergedCount = 0;
         try (OutputStream out = Files.newOutputStream(merged)) {
-            for (int queryNumber : queriesRun) {
-                Path perQueryFile = profileOutputDir.resolve("%s.filtered.collapsed".formatted(displayName(queryNumber)));
+            for (String query : queriesRun) {
+                Path perQueryFile = profileOutputDir.resolve("%s.filtered.collapsed".formatted(query));
                 if (!Files.exists(perQueryFile)) {
                     continue;
                 }
@@ -1070,7 +1069,7 @@ public final class BenchmarkRunner
      */
     private static void writeTimingsCsv(
             Path benchmarkDataDir,
-            Map<Integer, List<Measurement>> measurementsByQuery)
+            Map<String, List<Measurement>> measurementsByQuery)
             throws IOException
     {
         if (measurementsByQuery.isEmpty()) {
@@ -1086,8 +1085,8 @@ public final class BenchmarkRunner
             }
             writer.write(",average_elapsed_ms,average_execution_ms,n_measurements");
             writer.newLine();
-            for (Map.Entry<Integer, List<Measurement>> entry : measurementsByQuery.entrySet()) {
-                writer.write(displayName(entry.getKey()));
+            for (Map.Entry<String, List<Measurement>> entry : measurementsByQuery.entrySet()) {
+                writer.write(entry.getKey());
                 List<Measurement> measurements = entry.getValue();
                 for (int i = 0; i < maxMeasurements; i++) {
                     if (i < measurements.size()) {
@@ -1114,7 +1113,7 @@ public final class BenchmarkRunner
     private static void writeRunMetadata(
             Path profileOutputDir,
             Workload workload,
-            List<Integer> queriesRun,
+            List<String> queriesRun,
             int warmup,
             int runs,
             ProfileEvent profileEvent)
@@ -1200,10 +1199,10 @@ public final class BenchmarkRunner
         return (long) measurements.stream().mapToLong(field).average().orElseThrow();
     }
 
-    private static List<String> readExpectedLines(Workload workload, int queryNumber)
+    private static List<String> readExpectedLines(Workload workload, String query)
             throws IOException
     {
-        String resource = workload.expectedResultResource(queryNumber);
+        String resource = workload.expectedResultResource(query);
         URL url = BenchmarkRunner.class.getClassLoader().getResource(resource);
         if (url == null) {
             throw new IllegalStateException(
@@ -1510,10 +1509,5 @@ public final class BenchmarkRunner
         Path home = Path.of(System.getProperty("user.home"));
         log.warn("No .git ancestor of %s; falling back to user.home (%s) as project root", current, home);
         return home;
-    }
-
-    private static String displayName(int queryNumber)
-    {
-        return "q%02d".formatted(queryNumber);
     }
 }

@@ -42,6 +42,7 @@ import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
 import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -76,17 +77,17 @@ public final class BenchmarkIcebergClickBench
         }
 
         @Override
-        public List<Integer> defaultQueries()
+        public List<String> defaultQueries()
         {
-            return IntStream.rangeClosed(0, 42).boxed().toList();
+            return IntStream.rangeClosed(0, 42).boxed().map(queryNumber -> format("q%02d", queryNumber)).toList();
         }
 
         @Override
-        public String readQuery(int queryNumber)
+        public String readQuery(String query)
         {
             try {
                 return Resources.toString(
-                                getResource("sql/trino/clickbench/queries/q%02d.sql".formatted(queryNumber)), UTF_8)
+                                getResource("sql/trino/clickbench/queries/%s.sql".formatted(query)), UTF_8)
                         .replace("${database}", "iceberg")
                         .replace("${schema}", "clickbench")
                         .trim()
@@ -209,9 +210,9 @@ public final class BenchmarkIcebergClickBench
         }
 
         @Override
-        public String expectedResultResource(int queryNumber)
+        public String expectedResultResource(String query)
         {
-            return "sql/trino/clickbench/results/q%02d.ndjson".formatted(queryNumber);
+            return "sql/trino/clickbench/results/%s.ndjson".formatted(query);
         }
 
         @Override

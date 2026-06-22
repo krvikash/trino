@@ -32,13 +32,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.tests.GpuQueriesTests.getTpcdsQueries;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -72,17 +72,17 @@ public abstract class BaseIcebergTpcdsWorkload
     }
 
     @Override
-    public List<Integer> defaultQueries()
+    public List<String> defaultQueries()
     {
-        return IntStream.rangeClosed(1, 99).boxed().toList();
+        return getTpcdsQueries().toList();
     }
 
     @Override
-    public String readQuery(int queryNumber)
+    public String readQuery(String query)
     {
         try {
             return Resources.toString(
-                            getResource("sql/trino/tpcds/q%02d.sql".formatted(queryNumber)), UTF_8)
+                            getResource("sql/trino/tpcds/%s.sql".formatted(query)), UTF_8)
                     .replace("${database}", "iceberg")
                     .replace("${schema}", "tpcds")
                     .trim()
@@ -174,11 +174,11 @@ public abstract class BaseIcebergTpcdsWorkload
     }
 
     @Override
-    public String expectedResultResource(int queryNumber)
+    public String expectedResultResource(String query)
     {
         // For Iceberg, `CHAR(N)` columns are stored as `VARCHAR` (Iceberg has no CHAR type).
         // Trailing spaces are stripped during data generation via `TRIM(CAST(col AS VARCHAR(N)))`.
         // This changes the expected string values, so `results_varchar` must be used instead of `results`.
-        return "sql/trino/tpcds/sf%d/results_varchar/q%02d.ndjson".formatted(scaleFactor, queryNumber);
+        return "sql/trino/tpcds/sf%d/results_varchar/%s.ndjson".formatted(scaleFactor, query);
     }
 }

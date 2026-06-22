@@ -1,0 +1,49 @@
+- OutputNode
+  - ProjectNode
+    - ExchangeNode LOCAL
+      - SortNode
+        - ProjectNode
+          - JoinNode (GPU)
+            - ProjectNode
+              - FilterNode
+                - ProjectNode
+                  - AggregationNode
+                    - ExchangeNode LOCAL
+                      - JoinNode
+                        - JoinNode
+                          - JoinNode
+                            - AggregationNode
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode inventory (GPU)
+                            - ExchangeNode LOCAL (GPU)
+                              - ProjectNode (GPU)
+                                - FilterNode
+                                  - TableScanNode date_dim (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - FilterNode (GPU)
+                              - TableScanNode item (GPU)
+                        - ExchangeNode LOCAL (GPU)
+                          - FilterNode (GPU)
+                            - TableScanNode warehouse (GPU)
+            - ExchangeNode LOCAL
+              - ProjectNode
+                - FilterNode
+                  - ProjectNode
+                    - AggregationNode
+                      - ExchangeNode LOCAL
+                        - JoinNode
+                          - JoinNode
+                            - JoinNode
+                              - AggregationNode
+                                - ProjectNode (GPU)
+                                  - FilterNode
+                                    - TableScanNode inventory (GPU)
+                              - ExchangeNode LOCAL (GPU)
+                                - ProjectNode (GPU)
+                                  - FilterNode
+                                    - TableScanNode date_dim (GPU)
+                            - ExchangeNode LOCAL (GPU)
+                              - TableScanNode item (GPU)
+                          - ExchangeNode LOCAL (GPU)
+                            - TableScanNode warehouse (GPU)

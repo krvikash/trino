@@ -32,13 +32,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static io.trino.tests.GpuQueriesTests.getTpchQueries;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -70,17 +70,17 @@ public abstract class BaseIcebergTpchWorkload
     }
 
     @Override
-    public List<Integer> defaultQueries()
+    public List<String> defaultQueries()
     {
-        return IntStream.rangeClosed(1, 22).boxed().toList();
+        return getTpchQueries().toList();
     }
 
     @Override
-    public String readQuery(int queryNumber)
+    public String readQuery(String query)
     {
         try {
             return Resources.toString(
-                            getResource("sql/trino/tpch/q%02d.sql".formatted(queryNumber)), UTF_8)
+                            getResource("sql/trino/tpch/%s.sql".formatted(query)), UTF_8)
                     .replace("${database}", "iceberg")
                     .replace("${schema}", "tpch")
                     .replace("${prefix}", "")
@@ -173,8 +173,8 @@ public abstract class BaseIcebergTpchWorkload
     }
 
     @Override
-    public String expectedResultResource(int queryNumber)
+    public String expectedResultResource(String query)
     {
-        return "sql/trino/tpch/sf%d/results/q%02d.ndjson".formatted(scaleFactor, queryNumber);
+        return "sql/trino/tpch/sf%d/results/%s.ndjson".formatted(scaleFactor, query);
     }
 }
