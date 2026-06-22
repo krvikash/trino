@@ -151,7 +151,7 @@ public class NewIrFragmenter
         this.languageFunctions = ImmutableMap.copyOf(languageFunctions);
         this.planFragmentIdAllocator = new PlanFragmentIdAllocator(0);
         this.planNodeIdAllocator = new PlanNodeIdAllocator();
-        this.symbolAllocator = new SymbolAllocator();
+        this.symbolAllocator = new SymbolAllocator(ImmutableList.of());
     }
 
     public SubPlan fragmentProgram(Program program, FragmentProperties rootProperties)

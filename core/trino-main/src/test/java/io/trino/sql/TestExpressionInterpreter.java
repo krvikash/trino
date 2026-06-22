@@ -50,7 +50,6 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
-import io.trino.sql.planner.SymbolAllocator;
 import io.trino.sql.planner.assertions.SymbolAliases;
 import io.trino.transaction.TestingTransactionManager;
 import org.junit.jupiter.api.Test;
@@ -83,6 +82,7 @@ import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.ir.TestingIr.nullIf;
 import static io.trino.sql.planner.TestingPlannerContext.plannerContextBuilder;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.UnknownType.UNKNOWN;
 import static java.lang.invoke.MethodHandles.lookup;
@@ -287,20 +287,20 @@ public class TestExpressionInterpreter
     public void testNullIf()
     {
         assertOptimizedEquals(
-                nullIf(new SymbolAllocator(), new Constant(VARCHAR, Slices.utf8Slice("a")), new Constant(VARCHAR, Slices.utf8Slice("a"))),
+                nullIf(emptySymbolAllocator(), new Constant(VARCHAR, Slices.utf8Slice("a")), new Constant(VARCHAR, Slices.utf8Slice("a"))),
                 new Constant(VARCHAR, null));
         assertOptimizedEquals(
-                nullIf(new SymbolAllocator(), new Constant(VARCHAR, Slices.utf8Slice("a")), new Constant(VARCHAR, Slices.utf8Slice("b"))),
+                nullIf(emptySymbolAllocator(), new Constant(VARCHAR, Slices.utf8Slice("a")), new Constant(VARCHAR, Slices.utf8Slice("b"))),
                 new Constant(VARCHAR, Slices.utf8Slice("a")));
         assertOptimizedEquals(
-                nullIf(new SymbolAllocator(), new Constant(VARCHAR, null), new Constant(VARCHAR, Slices.utf8Slice("b"))),
+                nullIf(emptySymbolAllocator(), new Constant(VARCHAR, null), new Constant(VARCHAR, Slices.utf8Slice("b"))),
                 new Constant(VARCHAR, null));
         assertOptimizedEquals(
-                nullIf(new SymbolAllocator(), new Constant(VARCHAR, Slices.utf8Slice("a")), new Constant(VARCHAR, null)),
+                nullIf(emptySymbolAllocator(), new Constant(VARCHAR, Slices.utf8Slice("a")), new Constant(VARCHAR, null)),
                 new Constant(VARCHAR, Slices.utf8Slice("a")));
         assertOptimizedEquals(
-                nullIf(new SymbolAllocator(), new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L)),
-                nullIf(new SymbolAllocator(), new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L)));
+                nullIf(emptySymbolAllocator(), new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L)),
+                nullIf(emptySymbolAllocator(), new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L)));
     }
 
     @Test
@@ -993,7 +993,7 @@ public class TestExpressionInterpreter
 
     static Object optimize(Expression parsedExpression)
     {
-        return PLANNER_CONTEXT.getExpressionOptimizer().process(parsedExpression, TEST_SESSION, new SymbolAllocator(), INPUTS)
+        return PLANNER_CONTEXT.getExpressionOptimizer().process(parsedExpression, TEST_SESSION, emptySymbolAllocator(), INPUTS)
                 .orElse(parsedExpression);
     }
 

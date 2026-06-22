@@ -92,6 +92,7 @@ import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.ir.Logical.Operator.OR;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.sql.planner.plan.FrameBoundType.FOLLOWING;
 import static io.trino.sql.planner.plan.FrameBoundType.PRECEDING;
 import static io.trino.sql.planner.plan.JoinNode.DistributionType.PARTITIONED;
@@ -681,7 +682,7 @@ class TestToOldIrRelationalRewriter
 
     private void assertRoundtrip(PlanNode originalPlanNode)
     {
-        assertRoundtrip(originalPlanNode, new SymbolAllocator());
+        assertRoundtrip(originalPlanNode, emptySymbolAllocator());
     }
 
     private void assertRoundtrip(PlanNode originalPlanNode, SymbolAllocator symbolAllocator)

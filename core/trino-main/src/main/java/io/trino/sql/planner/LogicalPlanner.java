@@ -203,7 +203,7 @@ public class LogicalPlanner
     private final Session session;
     private final List<PlanOptimizer> planOptimizers;
     private final List<PlanOptimizer> alternativeOptimizers;
-    private final SymbolAllocator symbolAllocator = new SymbolAllocator();
+    private final SymbolAllocator symbolAllocator = new SymbolAllocator(ImmutableList.of());
     private final Metadata metadata;
     private final PlannerContext plannerContext;
     private final StatisticsAggregationPlanner statisticsAggregationPlanner;

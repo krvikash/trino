@@ -622,7 +622,7 @@ public class CteReuse
             Metadata metadata,
             ProgramBuilder.ValueNameAllocator nameAllocator)
     {
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = new SymbolAllocator(ImmutableList.of());
         List<ColumnHandle> columnHandles = COLUMN_HANDLES.getAttribute(tableScan.attributes());
         Type relationRowType = relationRowType(trinoType(tableScan.result().type()));
         ImmutableMap.Builder<ColumnHandle, Symbol> columnMapBuilder = ImmutableMap.builder();

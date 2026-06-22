@@ -55,7 +55,6 @@ import io.trino.spi.type.TypeManager;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.RuleStatsRecorder;
-import io.trino.sql.planner.SymbolAllocator;
 import io.trino.sql.planner.iterative.IterativeOptimizer;
 import io.trino.sql.planner.iterative.Rule;
 import io.trino.sql.planner.iterative.rule.RemoveRedundantIdentityProjections;
@@ -101,6 +100,7 @@ import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED;
 import static io.trino.sql.planner.PlanOptimizers.columnPruningRules;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.transaction.TransactionManager.DEFAULT_ISOLATION;
 import static java.lang.String.format;
@@ -219,7 +219,7 @@ public class BenchmarkMvSubstitutionOptimizer
             context = new PlanOptimizer.Context(
                     transactionSession,
                     false,
-                    new SymbolAllocator(),
+                    emptySymbolAllocator(),
                     new PlanNodeIdAllocator(),
                     WarningCollector.NOOP,
                     createPlanOptimizersStatsCollector(),

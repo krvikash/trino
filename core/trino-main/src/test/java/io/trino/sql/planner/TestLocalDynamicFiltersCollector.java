@@ -42,6 +42,7 @@ import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestLocalDynamicFiltersCollector
@@ -53,7 +54,7 @@ public class TestLocalDynamicFiltersCollector
         DynamicFilterId filterId = new DynamicFilterId("filter");
         collector.register(ImmutableSet.of(filterId));
 
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol = symbolAllocator.newSymbol("symbol", BIGINT);
         ColumnHandle column = new TestingColumnHandle("column");
         DynamicFilter filter = createDynamicFilter(
@@ -90,7 +91,7 @@ public class TestLocalDynamicFiltersCollector
         DynamicFilterId filterId = new DynamicFilterId("filter");
         collector.register(ImmutableSet.of(filterId));
 
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol = symbolAllocator.newSymbol("symbol", INTEGER);
         ColumnHandle column = new TestingColumnHandle("column");
         DynamicFilter filter = createDynamicFilter(
@@ -126,7 +127,7 @@ public class TestLocalDynamicFiltersCollector
         DynamicFilterId filterId = new DynamicFilterId("filter");
         collector.register(ImmutableSet.of(filterId));
 
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol = symbolAllocator.newSymbol("symbol", BIGINT);
         ColumnHandle column = new TestingColumnHandle("column");
         DynamicFilter filter = createDynamicFilter(
@@ -162,7 +163,7 @@ public class TestLocalDynamicFiltersCollector
         collector.register(ImmutableSet.of(filterId));
 
         // Same build-side column being matched to multiple probe-side columns.
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol1 = symbolAllocator.newSymbol("symbol1", BIGINT);
         Symbol symbol2 = symbolAllocator.newSymbol("symbol2", BIGINT);
         ColumnHandle column1 = new TestingColumnHandle("column1");
@@ -203,7 +204,7 @@ public class TestLocalDynamicFiltersCollector
         DynamicFilterId filterId1 = new DynamicFilterId("filter1");
         DynamicFilterId filterId2 = new DynamicFilterId("filter2");
         collector.register(ImmutableSet.of(filterId1, filterId2));
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
 
         Symbol symbol = symbolAllocator.newSymbol("symbol", BIGINT);
         ColumnHandle column = new TestingColumnHandle("column");
@@ -242,7 +243,7 @@ public class TestLocalDynamicFiltersCollector
         DynamicFilterId filterId1 = new DynamicFilterId("filter1");
         DynamicFilterId filterId2 = new DynamicFilterId("filter2");
         collector.register(ImmutableSet.of(filterId1, filterId2));
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
 
         Symbol symbol1 = symbolAllocator.newSymbol("symbol1", BIGINT);
         Symbol symbol2 = symbolAllocator.newSymbol("symbol2", BIGINT);
@@ -287,7 +288,7 @@ public class TestLocalDynamicFiltersCollector
         collector.register(ImmutableSet.of(filter2));
 
         // Multiple build-side columns matching the same probe-side column.
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol symbol = symbolAllocator.newSymbol("symbol", BIGINT);
         ColumnHandle column = new TestingColumnHandle("column");
         DynamicFilter filter = createDynamicFilter(
@@ -345,7 +346,7 @@ public class TestLocalDynamicFiltersCollector
         collector.register(ImmutableSet.of(usedFilterId));
 
         // One of the dynamic filters is not used for the the table scan.
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol usedSymbol = symbolAllocator.newSymbol("used", BIGINT);
         ColumnHandle usedColumn = new TestingColumnHandle("used");
         DynamicFilter filter = createDynamicFilter(
@@ -385,7 +386,7 @@ public class TestLocalDynamicFiltersCollector
         DynamicFilterId unregisteredFilterId = new DynamicFilterId("unregistered");
         collector.register(ImmutableSet.of(registeredFilterId));
 
-        SymbolAllocator symbolAllocator = new SymbolAllocator();
+        SymbolAllocator symbolAllocator = emptySymbolAllocator();
         Symbol registeredSymbol = symbolAllocator.newSymbol("registered", BIGINT);
         Symbol unregisteredSymbol = symbolAllocator.newSymbol("unregistered", BIGINT);
         ColumnHandle registeredColumn = new TestingColumnHandle("registered");

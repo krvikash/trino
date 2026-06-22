@@ -49,7 +49,6 @@ import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.newir.Block;
 import io.trino.sql.planner.Symbol;
-import io.trino.sql.planner.SymbolAllocator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -72,6 +71,7 @@ import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUT
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static io.trino.sql.ir.Logical.Operator.OR;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -1067,7 +1067,7 @@ class TestToOldIrScalarRewriter
         Block block = blockBuilder.build();
         assertThat(block).isEqualTo(rewritten);
 
-        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator());
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(emptySymbolAllocator());
         Expression roundtripExpression = scalarRewriter.toOldIr(block, ImmutableList.of(INPUT_SYMBOLS, anotherSymbolList));
         assertThat(roundtripExpression).isEqualTo(coalesce);
     }
@@ -1079,7 +1079,7 @@ class TestToOldIrScalarRewriter
                 "^emptyFieldSelector",
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
-        Expression expression = new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(emptyFieldSelector, ImmutableList.of(INPUT_SYMBOLS));
+        Expression expression = new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(emptyFieldSelector, ImmutableList.of(INPUT_SYMBOLS));
 
         assertThat(expression).isEqualTo(new Constant(EMPTY_ROW, null));
     }
@@ -1103,7 +1103,7 @@ class TestToOldIrScalarRewriter
                         rowOperation,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(fieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(emptySymbolAllocator()).getSelectedSymbols(fieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(new Symbol(BOOLEAN, "c"), new Symbol(BIGINT, "a")));
 
         // empty field selector
@@ -1112,7 +1112,7 @@ class TestToOldIrScalarRewriter
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(emptyFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(emptySymbolAllocator()).getSelectedSymbols(emptyFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of());
 
         // block is not a field selector
@@ -1124,7 +1124,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         returnOperation2));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getSelectedSymbols(notAFieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).getSelectedSymbols(notAFieldSelector, INPUT_SYMBOLS))
                 .hasMessage("Expected field selector block");
     }
 
@@ -1146,7 +1146,7 @@ class TestToOldIrScalarRewriter
                         rowOperation1,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(oneFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(emptySymbolAllocator()).getOptionalSelectedSymbol(oneFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(Optional.of(new Symbol(BOOLEAN, "c")));
 
         // empty field selector
@@ -1155,7 +1155,7 @@ class TestToOldIrScalarRewriter
                 RowType.anonymous(INPUT_SYMBOLS.stream().map(Symbol::type).collect(toImmutableList())),
                 new ProgramBuilder.ValueNameAllocator());
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(emptyFieldSelector, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(emptySymbolAllocator()).getOptionalSelectedSymbol(emptyFieldSelector, INPUT_SYMBOLS))
                 .isEqualTo(Optional.empty());
 
         // multiple symbols selected
@@ -1173,7 +1173,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation2,
                         rowOperation2,
                         returnOperation2));
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(fieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).getOptionalSelectedSymbol(fieldSelector, INPUT_SYMBOLS))
                 .hasMessage("expected one element but was: <c::[boolean], a::[bigint]>");
 
         // block is not a field selector
@@ -1185,7 +1185,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         returnOperation3));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getOptionalSelectedSymbol(notAFieldSelector, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).getOptionalSelectedSymbol(notAFieldSelector, INPUT_SYMBOLS))
                 .hasMessage("Expected field selector block");
     }
 
@@ -1218,7 +1218,7 @@ class TestToOldIrScalarRewriter
                         rowOperation,
                         returnOperation1));
 
-        assertThat(new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(block, INPUT_SYMBOLS))
+        assertThat(new ToOldIrScalarRewriter(emptySymbolAllocator()).getExpressions(block, INPUT_SYMBOLS))
                 .isEqualTo(ImmutableList.of(
                         new Constant(BIGINT, 0L),
                         new Call(LESS_THAN_BIGINT, ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BIGINT, "b"))),
@@ -1234,7 +1234,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation4,
                         returnOperation2));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).getExpressions(notARowOfExpressions, INPUT_SYMBOLS))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).getExpressions(notARowOfExpressions, INPUT_SYMBOLS))
                 .hasMessage("Expected block returning a row");
     }
 
@@ -1252,7 +1252,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation,
                         returnOperation));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(invalidReferenceBlock1, ImmutableList.of(INPUT_SYMBOLS)))
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(invalidReferenceBlock1, ImmutableList.of(INPUT_SYMBOLS)))
                 .hasMessage("Could not resolve reference %unmapped[0] as block parameter field");
     }
 
@@ -1274,7 +1274,7 @@ class TestToOldIrScalarRewriter
         // the symbols lists must match block parameters in size and types
 
         // too few symbol lists
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting 2 lists for 2 block parameters, got 1
@@ -1282,7 +1282,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // too many symbol lists
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting 2 lists for 2 block parameters, got 3
@@ -1292,7 +1292,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // symbol list size mismatch
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
@@ -1301,7 +1301,7 @@ class TestToOldIrScalarRewriter
                 .hasMessage("Type mismatch");
 
         // type mismatch
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(
                 block,
                 ImmutableList.of(
                         // expecting BIGINT, BOOLEAN
@@ -1318,7 +1318,7 @@ class TestToOldIrScalarRewriter
                         constantOperation,
                         returnOperation));
 
-        assertThatThrownBy(() -> new ToOldIrScalarRewriter(new SymbolAllocator()).toOldIr(
+        assertThatThrownBy(() -> new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(
                 bigintBlock,
                 ImmutableList.of(ImmutableList.of(new Symbol(BIGINT, "a")))))
                 .hasMessage("Type mismatch");
@@ -1333,7 +1333,7 @@ class TestToOldIrScalarRewriter
         Block block = blockBuilder.build();
         assertThat(block).isEqualTo(rewritten);
 
-        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(new SymbolAllocator());
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(emptySymbolAllocator());
         Expression roundtripExpression = scalarRewriter.toOldIr(block, ImmutableList.of(INPUT_SYMBOLS));
         assertThat(roundtripExpression).isEqualTo(expression);
     }

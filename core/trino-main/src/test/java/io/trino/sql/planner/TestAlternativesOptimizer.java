@@ -69,6 +69,7 @@ import static io.trino.sql.ir.Booleans.FALSE;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.TestingIr.comparison;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.chooseAlternativeNode;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.expression;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.strictProject;
@@ -299,7 +300,7 @@ public class TestAlternativesOptimizer
                 new PlanOptimizer.Context(
                         session,
                         false,
-                        new SymbolAllocator(),
+                        emptySymbolAllocator(),
                         new PlanNodeIdAllocator(),
                         WarningCollector.NOOP,
                         createPlanOptimizersStatsCollector(),
