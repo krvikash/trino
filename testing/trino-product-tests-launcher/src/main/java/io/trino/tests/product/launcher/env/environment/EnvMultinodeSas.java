@@ -1,0 +1,61 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.tests.product.launcher.env.environment;
+
+import com.google.inject.Inject;
+import io.trino.tests.product.launcher.docker.DockerFiles;
+import io.trino.tests.product.launcher.docker.DockerFiles.ResourceProvider;
+import io.trino.tests.product.launcher.env.Environment.Builder;
+import io.trino.tests.product.launcher.env.EnvironmentProvider;
+import io.trino.tests.product.launcher.env.common.StandardMultinode;
+import io.trino.tests.product.launcher.env.common.TestsEnvironment;
+
+import static io.trino.tests.product.launcher.env.EnvironmentContainers.isTrinoContainer;
+import static java.util.Objects.requireNonNull;
+import static org.testcontainers.utility.MountableFile.forHostPath;
+
+@TestsEnvironment
+public class EnvMultinodeSas
+        extends EnvironmentProvider
+{
+    private static final String CONTAINER_SAS_DATA_DIR = "/var/sas-data";
+
+    private final ResourceProvider configDir;
+
+    @Inject
+    public EnvMultinodeSas(StandardMultinode standardMultinode, DockerFiles dockerFiles)
+    {
+        super(standardMultinode);
+        this.configDir = requireNonNull(dockerFiles, "dockerFiles is null")
+                .getDockerFilesHostDirectory("conf/environment/multinode-sas");
+    }
+
+    @Override
+    public void extendEnvironment(Builder builder)
+    {
+        // Copy catalog properties to coordinator and all workers
+        builder.addConnector("sas", forHostPath(configDir.getPath("sas.properties")));
+
+        // Copy .sas7bdat data files to every Trino node.
+        // The coordinator needs them for metadata (listing schemas/tables/columns)
+        // and workers need them for reading split data.
+        builder.configureContainers(container -> {
+            if (isTrinoContainer(container.getLogicalName())) {
+                container.withCopyFileToContainer(
+                        forHostPath(configDir.getPath("data")),
+                        CONTAINER_SAS_DATA_DIR);
+            }
+        });
+    }
+}

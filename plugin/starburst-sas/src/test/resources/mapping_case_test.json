@@ -1,0 +1,18 @@
+{
+  "schemas": [
+    {
+      "schema": "EXPLICIT_SCHEMA",
+      "tables": [
+        {"table": "EXPLICIT_TABLE", "file": "/schema1/colon.sas7bdat"}
+      ]
+    },
+    {
+      "schema": "PATH_SCHEMA",
+      "path": "/schema1"
+    },
+    {
+      "schema": "UPPER_PATH_SCHEMA",
+      "path": "/SCHEMA3"
+    }
+  ]
+}

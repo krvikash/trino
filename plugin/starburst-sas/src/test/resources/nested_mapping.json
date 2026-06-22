@@ -1,0 +1,9 @@
+{
+  "schemas": [{
+    "schema": "analytics",
+    "tables": [{
+      "table": "quarterly_sales",
+      "file": "/data/year2024/reports/sales_report.sas7bdat"
+    }]
+  }]
+}

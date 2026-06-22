@@ -1,0 +1,15 @@
+{
+  "schemas": [{
+    "schema": "mapping_table",
+    "tables": [{
+      "table": "colon",
+      "file": "/schema1/colon.sas7bdat"
+    }
+    ]
+  },
+    {
+      "schema": "mapping_schema",
+      "path": "/schema1"
+    }
+  ]
+}
