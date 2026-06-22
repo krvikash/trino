@@ -111,7 +111,6 @@
     buildAll: true # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
 - modules:
     - plugin/trino-ignite
-    - plugin/trino-lakehouse
     - plugin/trino-postgresql
     - plugin/trino-redis
     - plugin/trino-resource-group-managers
