@@ -94,6 +94,11 @@ public class ChunkDataFactory
                 log.debug("Chunk %s for exchange %s partition %s falling back to memory (disk allocation failed)", chunkId, exchangeId, partitionId);
             }
         }
+        return createMemoryChunkData(chunkSizeInBytes);
+    }
+
+    public ChunkData createMemoryChunkData(int chunkSizeInBytes)
+    {
         return new MemoryChunkData(memoryAllocator, executor, chunkSizeInBytes, chunkSliceSizeInBytes, calculateDataPagesChecksum);
     }
 }

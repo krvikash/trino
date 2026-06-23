@@ -69,6 +69,15 @@ public class Chunk
         return chunkId;
     }
 
+    public synchronized boolean hasRecoverableIoFailure()
+    {
+        return switch (chunkData) {
+            case null -> false;
+            case DiskChunkData diskChunkData -> diskChunkData.hasRecoverableIoFailure();
+            case MemoryChunkData ignored -> false;
+        };
+    }
+
     public synchronized Optional<ChunkPlacement> chunkPlacement()
     {
         if (chunkData == null) {

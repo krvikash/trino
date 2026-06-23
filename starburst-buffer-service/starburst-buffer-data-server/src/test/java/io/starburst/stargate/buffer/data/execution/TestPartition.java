@@ -35,12 +35,12 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestPartition
 {
@@ -105,17 +105,24 @@ public class TestPartition
     }
 
     @Test
-    public void testWriteFailurePropagatesToAddDataPagesFuture()
+    public void testDiskIoFailureFallsBackToMemoryWhenNoAckedData()
     {
         LocalDiskTier diskTier = createDiskTier();
         IOException injected = new IOException("disk full");
+        AtomicInteger diskChunksCreated = new AtomicInteger();
 
-        Partition partition = buildPartition(failingDiskFactory(diskTier, injected));
+        Partition partition = buildPartition(failingDiskFactory(diskTier, injected, diskChunksCreated));
+        // Initial open chunk is a disk chunk (created eagerly in constructor)
+        assertThat(diskChunksCreated.get()).isEqualTo(1);
+
         AddDataPagesResult result = partition.addDataPages(1, 0, 0L, List.of(Slices.utf8Slice("page")));
 
-        assertThatThrownBy(() -> getFutureValue(result.addDataPagesFuture()))
-                .hasRootCauseInstanceOf(IOException.class)
-                .hasRootCauseMessage("disk full");
+        // No exception: the write completed on the memory fallback chunk
+        getFutureValue(result.addDataPagesFuture());
+        // Counter unchanged — no second disk chunk was created during fallback
+        assertThat(diskChunksCreated.get()).isEqualTo(1);
+        // Open chunk is now memory — the disk chunk was replaced, not just retried
+        assertThat(partition.getOpenChunkPlacement()).contains(ChunkData.ChunkPlacement.MEMORY);
     }
 
     private LocalDiskTier createDiskTier()
@@ -138,7 +145,7 @@ public class TestPartition
         return buildPartition(chunkDataFactory);
     }
 
-    private ChunkDataFactory failingDiskFactory(LocalDiskTier diskTier, IOException cause)
+    private ChunkDataFactory failingDiskFactory(LocalDiskTier diskTier, IOException cause, AtomicInteger diskChunksCreated)
     {
         return new ChunkDataFactory(
                 Optional.of(diskTier),
@@ -156,6 +163,7 @@ public class TestPartition
                 DiskChunkSlot slot = diskTier
                         .tryReserveChunkSlot(exchangeId, partitionId, chunkId, sizeBytes)
                         .orElseThrow();
+                diskChunksCreated.incrementAndGet();
                 return new DiskChunkData(
                         executor,
                         slot.file(),

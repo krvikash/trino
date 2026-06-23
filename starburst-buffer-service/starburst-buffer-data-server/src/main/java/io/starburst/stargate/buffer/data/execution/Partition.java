@@ -362,6 +362,39 @@ public class Partition
         }
     }
 
+    @GuardedBy("this")
+    private boolean tryReplaceFailedDiskChunkWithMemory(int requiredStorageSize, Throwable cause)
+    {
+        Chunk poisonedChunk = openChunk;
+        if (poisonedChunk == null || !poisonedChunk.hasRecoverableIoFailure()) {
+            return false;
+        }
+        long chunkId = poisonedChunk.getChunkId();
+        log.warn(cause,
+                "Unexpected disk I/O failure on exchange %s partition %d chunk %d; re-driving batch on a memory chunk",
+                exchangeId,
+                partitionId,
+                chunkId);
+        // Reuse the failed chunk's id: it was never closed or announced to Trino, so the replacement
+        // is the same logical chunk re-materialized in memory, not a new one (avoids an id-sequence hole).
+        // Release drops the poisoned chunk's disk file + lease.
+        poisonedChunk.release();
+        openChunk = createNewOpenMemoryChunk(chunkId, Math.max(chunkTargetSizeInBytes, requiredStorageSize));
+        return true;
+    }
+
+    @GuardedBy("this")
+    private Chunk createNewOpenMemoryChunk(long chunkId, int chunkSizeInBytes)
+    {
+        checkState(!released, "new chunk creation after release of all chunks");
+        return new Chunk(
+                bufferNodeId,
+                exchangeId,
+                partitionId,
+                chunkId,
+                chunkDataFactory.createMemoryChunkData(chunkSizeInBytes));
+    }
+
     private record TaskAttemptId(
             int taskId,
             int attemptId)
@@ -437,6 +470,12 @@ public class Partition
                 }
             }
 
+            writeToOpenChunk(page, requiredStorageSize);
+        }
+
+        @GuardedBy("Partition.this")
+        private void writeToOpenChunk(Slice page, int requiredStorageSize)
+        {
             currentChunkWriteFuture = openChunk.write(taskId, attemptId, page);
             Futures.addCallback(
                     currentChunkWriteFuture,
@@ -479,6 +518,22 @@ public class Partition
                         @Override
                         public void onFailure(Throwable throwable)
                         {
+                            try {
+                                synchronized (Partition.this) {
+                                    // A disk I/O failure on a chunk with no acknowledged data loses nothing but the
+                                    // in-hand page, so re-drive it on a fresh memory chunk transparently instead of
+                                    // failing the exchange. Any other failure propagates.
+                                    if (tryReplaceFailedDiskChunkWithMemory(requiredStorageSize, throwable)) {
+                                        writeToOpenChunk(page, requiredStorageSize);
+                                        return;
+                                    }
+                                }
+                            }
+                            catch (Throwable t) {
+                                // Memory fallback itself failed (e.g. allocation rejected)
+                                // Fail the batch with the original cause rather than leaving the future uncompleted.
+                                throwable.addSuppressed(t);
+                            }
                             setException(throwable);
                         }
                     },

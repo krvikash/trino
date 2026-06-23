@@ -70,6 +70,7 @@ public final class DiskChunkData
     @GuardedBy("this")
     private final XxHash64 hash = new XxHash64();
     private volatile Throwable poisonCause;
+    private volatile boolean hasAckedData;
 
     @GuardedBy("this")
     private int writtenBytes;
@@ -216,6 +217,7 @@ public final class DiskChunkData
             long elapsedNanos = System.nanoTime() - start;
 
             stats.recordDiskWriteLatency(elapsedNanos, totalBytes);
+            hasAckedData = true;
             result.set(null);
         }
         catch (Throwable t) {
@@ -227,6 +229,22 @@ public final class DiskChunkData
             }
             result.setException(t);
         }
+    }
+
+    public boolean hasRecoverableIoFailure()
+    {
+        Throwable cause = poisonCause;
+        return cause != null && !hasAckedData && isIoFailure(cause);
+    }
+
+    private static boolean isIoFailure(Throwable t)
+    {
+        for (Throwable current = t; current != null; current = current.getCause()) {
+            if (current instanceof IOException || current instanceof UncheckedIOException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void writePositionalLoop(FileChannel channel, long position, ByteBuffer buffer)

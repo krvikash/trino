@@ -24,7 +24,9 @@ import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Executor;
@@ -273,6 +275,73 @@ public class TestDiskChunkData
             lease.release();
             chunk.release();
         }
+    }
+
+    @Test
+    public void testHasRecoverableIoFailureReturnsFalseInitially()
+    {
+        LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
+        DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
+
+        assertThat(chunk.hasRecoverableIoFailure()).isFalse();
+        chunk.release();
+    }
+
+    @Test
+    public void testHasRecoverableIoFailureReturnsTrueOnIoFailureBeforeAck()
+    {
+        LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
+        DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
+        DiskChunkData chunk = new DiskChunkData(
+                executor,
+                slot.file(),
+                CHUNK_ID,
+                CHUNK_SIZE_BYTES,
+                false,
+                slot.lease(),
+                slot.diskRelease(),
+                () -> { throw new UncheckedIOException(new IOException("disk full")); },
+                new DataServerStats());
+
+        assertThatThrownBy(() -> getFutureValue(chunk.write(1, 0, PAGE)))
+                .isInstanceOf(UncheckedIOException.class);
+        assertThat(chunk.hasRecoverableIoFailure()).isTrue();
+        chunk.release();
+    }
+
+    @Test
+    public void testHasRecoverableIoFailureReturnsFalseAfterSuccessfulWrite()
+    {
+        LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
+        DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
+        DiskChunkData chunk = new DiskChunkData(executor, CHUNK_ID, CHUNK_SIZE_BYTES, false, slot, new DataServerStats());
+
+        getFutureValue(chunk.write(1, 0, PAGE));
+        assertThat(chunk.hasRecoverableIoFailure()).isFalse();
+        chunk.release();
+    }
+
+    @Test
+    public void testHasRecoverableIoFailureReturnsFalseOnNonIoFailure()
+    {
+        LocalDiskTier tier = createDiskTier(DataSize.of(8, MEGABYTE));
+        DiskChunkSlot slot = reserveSlot(tier, CHUNK_ID);
+        DiskChunkData chunk = new DiskChunkData(
+                executor,
+                slot.file(),
+                CHUNK_ID,
+                CHUNK_SIZE_BYTES,
+                false,
+                slot.lease(),
+                slot.diskRelease(),
+                () -> { throw new RuntimeException("non-io failure"); },
+                new DataServerStats());
+
+        assertThatThrownBy(() -> getFutureValue(chunk.write(1, 0, PAGE)))
+                .isInstanceOf(RuntimeException.class);
+        assertThat(chunk.hasRecoverableIoFailure()).isFalse();
+        chunk.release();
     }
 
     @Test
