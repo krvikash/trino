@@ -167,7 +167,7 @@ public class OperationGenerator
                 }
             }
             else {
-                builder.add(new Comment("Skipping invalid table: " + table.tableName()));
+                builder.add(new Comment("Skipping invalid table: %s. Errors: %s".formatted(table.tableName(), String.join("; ", table.errors()))));
             }
         });
     }
