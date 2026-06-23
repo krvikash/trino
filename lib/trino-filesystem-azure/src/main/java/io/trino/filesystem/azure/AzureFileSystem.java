@@ -26,6 +26,7 @@ import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.models.UserDelegationKey;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
+import com.azure.storage.blob.specialized.BlockBlobClient;
 import com.azure.storage.common.sas.SasProtocol;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileClient;
@@ -656,6 +657,14 @@ public class AzureFileSystem
     private boolean isHierarchicalNamespaceEnabled(AzureLocation location)
             throws IOException
     {
+        boolean isAzurite = "devstoreaccount1".equals(location.account()) && testingEndpointOverride.isPresent();
+        if (isAzurite) {
+            // Azurite does not throw HierarchicalNamespaceNotEnabled on flat-namespace accounts,
+            // so the getAccessControl() probe used for real Azure accounts cannot distinguish HNS
+            // from non-HNS. Use root object existence detection strategy for Azurite.
+            return isHierarchicalNamespaceEnabledOnAzurite(location);
+        }
+
         try {
             // Normalize consecutive slashes: the Azure DataLake getAccessControl API returns HTTP 400
             // for paths containing "//", while other APIs like listPaths silently canonicalize them
@@ -675,6 +684,20 @@ public class AzureFileSystem
                 return true;
             }
             throw new IOException("Checking whether hierarchical namespace is enabled for the location %s failed".formatted(location), e);
+        }
+        catch (RuntimeException e) {
+            throw new IOException("Checking whether hierarchical namespace is enabled for the location %s failed".formatted(location), e);
+        }
+    }
+
+    private boolean isHierarchicalNamespaceEnabledOnAzurite(AzureLocation location)
+            throws IOException
+    {
+        try {
+            BlockBlobClient blockBlobClient = createBlobContainerClient(location, Optional.empty())
+                    .getBlobClient("/")
+                    .getBlockBlobClient();
+            return blockBlobClient.exists();
         }
         catch (RuntimeException e) {
             throw new IOException("Checking whether hierarchical namespace is enabled for the location %s failed".formatted(location), e);
