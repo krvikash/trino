@@ -151,6 +151,7 @@ import static io.trino.SystemSessionProperties.isReuseCommonSubqueriesEnabled;
 import static io.trino.SystemSessionProperties.isUsePreferredWritePartitioning;
 import static io.trino.SystemSessionProperties.isUseSubPlanAlternatives;
 import static io.trino.metadata.MetadataUtil.createQualifiedObjectName;
+import static io.trino.operator.scalar.StringFunctions.SPACE_TRIMMED_LENGTH_FUNCTION_NAME;
 import static io.trino.spi.StandardErrorCode.CATALOG_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.CONSTRAINT_VIOLATION;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
@@ -987,7 +988,7 @@ public class LogicalPlanner
         }
 
         checkState(fromType instanceof VarcharType || fromType instanceof CharType, "inserting non-character value to column of character type");
-        ResolvedFunction spaceTrimmedLength = metadata.resolveBuiltinFunction("$space_trimmed_length", fromTypes(VARCHAR));
+        ResolvedFunction spaceTrimmedLength = metadata.resolveBuiltinFunction(SPACE_TRIMMED_LENGTH_FUNCTION_NAME, fromTypes(VARCHAR));
 
         return ifExpression(
                 // check if the trimmed value fits in the target type
