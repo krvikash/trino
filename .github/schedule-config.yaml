@@ -17,7 +17,6 @@
     - [
         lib/trino-filesystem,
         lib/trino-filesystem-azure,
-        lib/trino-filesystem-alluxio,
         lib/trino-filesystem-cache-alluxio,
         lib/trino-filesystem-gcs,
         lib/trino-filesystem-manager,

@@ -657,7 +657,6 @@ jobs:
             !:trino-faker,
             !:trino-faulttolerant-tests,
             !:trino-filesystem,
-            !:trino-filesystem-alluxio,
             !:trino-filesystem-cache-alluxio,
             !:trino-filesystem-azure,
             !:trino-filesystem-gcs,
