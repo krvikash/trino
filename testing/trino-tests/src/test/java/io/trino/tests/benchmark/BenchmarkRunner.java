@@ -29,6 +29,7 @@ import io.trino.Session;
 import io.trino.client.FailureException;
 import io.trino.client.FailureInfo;
 import io.trino.execution.QueryInfo;
+import io.trino.execution.TaskManagerConfig;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.NodeVersion;
 import io.trino.sql.planner.planprinter.PlanPrinter;
@@ -1447,6 +1448,13 @@ public final class BenchmarkRunner
     }
 
     /**
+     * GPU mode keeps the pre-existing TestingTrinoServer default of 4 instead of scaling to host
+     * cores: 8 and 16 were tried and caused out-of-memory failures or regressed previously-passing
+     * queries.
+     */
+    private static final int GPU_TASK_CONCURRENCY = 4;
+
+    /**
      * Apply deterministic-write settings (single writer per task, no scaling).
      */
     public static <T extends DistributedQueryRunner.Builder<T>> T applyDataGenerationConfiguration(T builder)
@@ -1502,6 +1510,17 @@ public final class BenchmarkRunner
      */
     public static void applyExecutionMode(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
+        TaskManagerConfig taskManagerDefaults = new TaskManagerConfig();
+        int taskConcurrency = switch (mode) {
+            case CPU -> taskManagerDefaults.getTaskConcurrency();
+            case GPU -> GPU_TASK_CONCURRENCY;
+        };
+        int maxWorkerThreads = switch (mode) {
+            case CPU -> taskManagerDefaults.getMaxWorkerThreads();
+            case GPU -> GPU_TASK_CONCURRENCY;
+        };
+        builder.addExtraProperty("task.concurrency", Integer.toString(taskConcurrency));
+        builder.addExtraProperty("task.max-worker-threads", Integer.toString(maxWorkerThreads));
         builder.addExtraProperty("query.max-memory-per-node", "80%");
         builder.addExtraProperty("query.max-memory", "1TB");
         builder.addExtraProperty("memory.heap-headroom-per-node", "20%");

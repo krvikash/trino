@@ -287,13 +287,13 @@ public class TestingTrinoServer
 
         properties = new HashMap<>(properties);
         int httpPort = parseInt(requireNonNullElse(properties.remove("http-server.http.port"), "0"));
+        properties.putIfAbsent("task.concurrency", "4");
+        properties.putIfAbsent("task.max-worker-threads", "4");
 
         ImmutableMap.Builder<String, String> serverProperties = ImmutableMap.<String, String>builder()
                 .putAll(properties)
                 .put("coordinator", String.valueOf(coordinator))
                 .put("catalog.management", catalogMangerKind.name())
-                .put("task.concurrency", "4")
-                .put("task.max-worker-threads", "4")
                 // Use task.min-writer-count > 1, as this allows to expose writer-concurrency related bugs.
                 .put("task.min-writer-count", "2")
                 .put("exchange.client-threads", "4")
