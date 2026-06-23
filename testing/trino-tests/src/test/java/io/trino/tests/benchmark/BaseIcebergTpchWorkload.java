@@ -99,10 +99,7 @@ public abstract class BaseIcebergTpchWorkload
                 .setMetastoreDirectory(Path.of(dataLocation).toFile())
                 .setWorkerCount(0)
                 .disableSchemaInitializer()
-                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
-                .addExtraProperty("query.max-memory-per-node", "80%")
-                .addExtraProperty("query.max-memory", "1TB")
-                .addExtraProperty("memory.heap-headroom-per-node", "20%");
+                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true");
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }

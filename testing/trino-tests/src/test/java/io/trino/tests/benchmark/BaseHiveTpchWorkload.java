@@ -125,9 +125,6 @@ public abstract class BaseHiveTpchWorkload
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
                 .setWorkerCount(0)
                 .setBaseDataDir(Optional.of(metastoreDir))
-                .addExtraProperty("query.max-memory-per-node", "80%")
-                .addExtraProperty("query.max-memory", "1TB")
-                .addExtraProperty("memory.heap-headroom-per-node", "20%")
                 .setSkipTimezoneSetup(true)
                 .addHiveProperty("hive.parquet.time-zone", "UTC")
                 .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL);

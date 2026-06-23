@@ -1498,10 +1498,13 @@ public final class BenchmarkRunner
     }
 
     /**
-     * Apply connector-agnostic mode-specific extras (GPU acceleration toggles, single-node).
+     * Apply connector-agnostic mode-specific extras (resource sizing, GPU acceleration toggles, single-node).
      */
     public static void applyExecutionMode(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
+        builder.addExtraProperty("query.max-memory-per-node", "80%");
+        builder.addExtraProperty("query.max-memory", "1TB");
+        builder.addExtraProperty("memory.heap-headroom-per-node", "20%");
         switch (mode) {
             case CPU -> builder
                     .addExtraProperty("gpu-execution", "false")

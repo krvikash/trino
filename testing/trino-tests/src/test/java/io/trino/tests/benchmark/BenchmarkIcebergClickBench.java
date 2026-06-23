@@ -135,8 +135,7 @@ public final class BenchmarkIcebergClickBench
                     .setMetastoreDirectory(Path.of(dataLocation).toFile())
                     .setWorkerCount(0)
                     .disableSchemaInitializer()
-                    .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
-                    .addExtraProperty("query.max-memory-per-node", "6GB");
+                    .addIcebergProperty("iceberg.register-table-procedure.enabled", "true");
             BenchmarkRunner.applyExecutionMode(builder, mode);
             if (bind8080) {
                 builder.addCoordinatorProperty("http-server.http.port", "8080");

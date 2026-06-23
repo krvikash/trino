@@ -126,9 +126,6 @@ public abstract class BaseHiveTpcdsWorkload
                 .setBaseDataDir(Optional.of(metastoreDir))
                 .setCreateTpchSchemas(false)
                 .setTpcdsCatalogEnabled(true)
-                .addExtraProperty("query.max-memory-per-node", "80%")
-                .addExtraProperty("query.max-memory", "1TB")
-                .addExtraProperty("memory.heap-headroom-per-node", "20%")
                 .setSkipTimezoneSetup(true)
                 .addHiveProperty("hive.parquet.time-zone", "UTC");
         if (isRemote(dataLocation)) {

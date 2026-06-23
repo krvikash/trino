@@ -298,7 +298,6 @@ public final class BenchmarkHiveClickBench
     {
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
                 .setWorkerCount(0) // single-node
-                .addExtraProperty("query.max-memory-per-node", "6GB")
                 .setSkipTimezoneSetup(true)
                 .addHiveProperty("hive.parquet.time-zone", "UTC");
         if (isRemote(dataLocation)) {
