@@ -114,11 +114,10 @@ public class TestProductTestRetryAnalyzer
         NoOpTestClass testClass = new StubTestClass();
         ITestNGMethod method = stubMethod(methodName, testClass);
 
-        TestResult result = new TestResult();
+        TestResult result = TestResult.newEmptyTestResult();
         result.setStatus(status);
         result.setThrowable(throwable);
         result.setMethod(method);
-        result.setTestClass(testClass);
         return result;
     }
 

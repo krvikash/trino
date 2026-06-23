@@ -31,7 +31,7 @@ public class ProductTestRetryListener
         if (isConventionBasedTest(realClass)) {
             for (ITestNGMethod method : testClass.getTestMethods()) {
                 log.debug("Instrumenting method %s with %s.", method.getMethodName(), ProductTestRetryAnalyzer.class.getSimpleName());
-                method.setRetryAnalyzer(new ProductTestRetryAnalyzer());
+                method.setRetryAnalyzerClass(ProductTestRetryAnalyzer.class);
             }
         }
     }
