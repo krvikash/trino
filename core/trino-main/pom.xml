@@ -247,6 +247,11 @@
 
         <dependency>
             <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp-common</artifactId>
         </dependency>
 
@@ -728,6 +733,7 @@
                         <!-- TODO: https://issues.apache.org/jira/browse/MDEP-791 -->
                         <ignoredNonTestScopedDependency>io.opentelemetry:opentelemetry-sdk-common</ignoredNonTestScopedDependency>
                         <ignoredNonTestScopedDependency>io.opentelemetry:opentelemetry-exporter-common</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>io.opentelemetry:opentelemetry-exporter-otlp</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
                 </configuration>
             </plugin>
