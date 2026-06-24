@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.CallAndConstantRewriter.EQUAL_FUNCTION;
+import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.BaseOperatorRewriter.EQUAL_FUNCTION;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.VariableRewriter.calcPredicateType;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.VariableRewriter.convertSingleValueToDomain;
 import static io.trino.spi.expression.StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME;
