@@ -2940,6 +2940,8 @@
                                 <includes combine.children="append">
                                     <!-- 2.x versions are not affected by CVE-2022-1471 -->
                                     <include>org.yaml:snakeyaml:2.+</include>
+                                    <!-- still used by starburst-objectstore and starburst-warp-speed -->
+                                    <include>com.amazonaws:*:1.12.797</include>
                                 </includes>
                             </bannedDependencies>
                             <RestrictImports>
