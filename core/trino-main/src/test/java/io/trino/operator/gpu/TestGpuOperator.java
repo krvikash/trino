@@ -13,10 +13,13 @@
  */
 package io.trino.operator.gpu;
 
+import io.airlift.units.DataSize;
+import io.trino.SessionTestUtils;
 import io.trino.operator.DriverContext;
 import io.trino.operator.Operator;
 import io.trino.spi.Page;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.testing.TestingTaskContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,12 +33,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
-import static io.trino.testing.TestingTaskContext.createTaskContext;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -54,7 +55,9 @@ class TestGpuOperator
     {
         executor = newCachedThreadPool(daemonThreadsNamed(getClass().getSimpleName() + "-%s"));
         scheduledExecutor = newScheduledThreadPool(2, daemonThreadsNamed(getClass().getSimpleName() + "-scheduledExecutor-%s"));
-        driverContext = createTaskContext(executor, scheduledExecutor, TEST_SESSION)
+        driverContext = TestingTaskContext.builder(executor, scheduledExecutor, SessionTestUtils.TEST_SESSION)
+                .setGpuMemory(DataSize.of(10, DataSize.Unit.MEGABYTE), DataSize.of(10, DataSize.Unit.MEGABYTE))
+                .build()
                 .addPipelineContext(0, true, true, false)
                 .addDriverContext();
     }

@@ -16,12 +16,15 @@ package io.trino.operator.gpu;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.GpuTypeConversion.ToColumn;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -36,6 +39,7 @@ import static java.util.Objects.requireNonNull;
 public class CopyToDevice
         implements GpuOperation
 {
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final List<Type> types;
     private final int columnCount;
@@ -43,7 +47,7 @@ public class CopyToDevice
 
     public CopyToDevice(Context context, GpuOperation source, List<Type> types, Set<Integer> copyColumns)
     {
-        requireNonNull(context, "context is null");
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
         this.columnCount = types.size();
@@ -66,17 +70,18 @@ public class CopyToDevice
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (memory; page) {
-                    yield new Data(AllocatedMemory.untracked(), processPage(page));
+                    yield processPage(memory, page);
                 }
             }
         };
     }
 
-    private @Move GpuPage processPage(@Borrow GpuPage page)
+    private @Move Data processPage(@Borrow AllocatedMemory pageAllocation, @Borrow GpuPage page)
     {
         checkArgument(page.columnCount() == columnCount, "Page has wrong column count");
         @Own Column[] newColumns = new Column[page.columnCount()];
-        try {
+        try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO))) {
+            allocation.borrow().transferFrom(pageAllocation); // page will be closed
             for (int columnIndex = 0; columnIndex < page.columnCount(); columnIndex++) {
                 if (copyColumns.contains(columnIndex)) {
                     newColumns[columnIndex] = switch (page.column(columnIndex)) {
@@ -96,7 +101,9 @@ public class CopyToDevice
                 }
             }
 
-            return new GpuPage(page.positionCount(), newColumns);
+            GpuPage gpuPage = new GpuPage(page.positionCount(), newColumns);
+            allocation.borrow().update(gpuPage.retainedMemory());
+            return new Data(allocation.take(), gpuPage);
         }
         finally {
             for (Column column : newColumns) {

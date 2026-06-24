@@ -35,7 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.trino.memory.MemoryPool.newEmptyMemoryPool;
+import static java.util.Objects.requireNonNull;
 
 public final class TestingTaskContext
 {
@@ -105,6 +105,10 @@ public final class TestingTaskContext
         private TaskStateMachine taskStateMachine;
         private DataSize queryMaxMemory = DataSize.of(256, MEGABYTE);
         private DataSize memoryPoolSize = DataSize.of(1, GIGABYTE);
+        private DataSize gpuDeviceMemoryPoolSize = DataSize.ZERO;
+        private DataSize queryMaxGpuDeviceMemory = DataSize.ZERO;
+        private DataSize offHeapMemoryPoolSize = DataSize.ZERO;
+        private DataSize queryMaxOffHeapMemory = DataSize.ZERO;
         private DataSize maxSpillSize = DataSize.of(1, GIGABYTE);
         private DataSize queryMaxSpillSize = DataSize.of(1, GIGABYTE);
         private Map<PlanNodeId, ConnectorTableCredentials> tableCredentials = ImmutableMap.of();
@@ -131,6 +135,20 @@ public final class TestingTaskContext
         public Builder setMemoryPoolSize(DataSize memoryPoolSize)
         {
             this.memoryPoolSize = memoryPoolSize;
+            return this;
+        }
+
+        public Builder setGpuMemory(DataSize gpuDeviceMemoryPoolSize, DataSize queryMaxGpuDeviceMemory)
+        {
+            this.gpuDeviceMemoryPoolSize = requireNonNull(gpuDeviceMemoryPoolSize, "gpuDeviceMemoryPoolSize is null");
+            this.queryMaxGpuDeviceMemory = requireNonNull(queryMaxGpuDeviceMemory, "queryMaxGpuDeviceMemory is null");
+            return this;
+        }
+
+        public Builder setOffHeapMemory(DataSize offHeapMemoryPoolSize, DataSize queryMaxOffHeapMemory)
+        {
+            this.offHeapMemoryPoolSize = requireNonNull(offHeapMemoryPoolSize, "offHeapMemoryPoolSize is null");
+            this.queryMaxOffHeapMemory = requireNonNull(queryMaxOffHeapMemory, "queryMaxOffHeapMemory is null");
             return this;
         }
 
@@ -165,15 +183,17 @@ public final class TestingTaskContext
             }
 
             MemoryPool memoryPool = new MemoryPool(memoryPoolSize);
+            MemoryPool gpuDeviceMemoryPool = new MemoryPool(gpuDeviceMemoryPoolSize);
+            MemoryPool offHeapMemoryPool = new MemoryPool(offHeapMemoryPoolSize);
             SpillSpaceTracker spillSpaceTracker = new SpillSpaceTracker(maxSpillSize);
             QueryContext queryContext = new QueryContext(
                     queryId,
                     queryMaxMemory,
-                    DataSize.ofBytes(0),
-                    DataSize.ofBytes(0),
+                    queryMaxGpuDeviceMemory,
+                    queryMaxOffHeapMemory,
                     memoryPool,
-                    newEmptyMemoryPool(),
-                    newEmptyMemoryPool(),
+                    gpuDeviceMemoryPool,
+                    offHeapMemoryPool,
                     0L,
                     GC_MONITOR,
                     notificationExecutor,
