@@ -2203,7 +2203,7 @@ public class TestStarburstIcebergV3
             BaseTable icebergTable = loadTable(tableName);
             icebergTable.updateProperties().set(ENCRYPTION_TABLE_KEY, "test_key").commit();
 
-            assertQueryFails("SELECT * FROM " + tableName, "Table encryption is not supported for: .*");
+            assertQueryFails("SELECT * FROM " + tableName, "Iceberg table encryption is not supported");
         }
         finally {
             metastore.dropTable("tpch", tableName, true);
