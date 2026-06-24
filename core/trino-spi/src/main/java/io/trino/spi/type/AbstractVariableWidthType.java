@@ -259,13 +259,13 @@ public abstract class AbstractVariableWidthType
 
     private static class DefaultComparableOperators
     {
-        @ScalarOperator(value = EQUAL, neverFails = true)
+        @ScalarOperator(EQUAL)
         private static boolean equalOperator(Slice left, Slice right)
         {
             return left.equals(right);
         }
 
-        @ScalarOperator(value = EQUAL, neverFails = true)
+        @ScalarOperator(EQUAL)
         private static boolean equalOperator(@BlockPosition VariableWidthBlock leftBlock, @BlockIndex int leftPosition, @BlockPosition VariableWidthBlock rightBlock, @BlockIndex int rightPosition)
         {
             Slice leftRawSlice = leftBlock.getRawSlice();
@@ -279,13 +279,13 @@ public abstract class AbstractVariableWidthType
             return leftRawSlice.equals(leftRawSliceOffset, leftLength, rightRawSlice, rightRawSliceOffset, rightLength);
         }
 
-        @ScalarOperator(value = EQUAL, neverFails = true)
+        @ScalarOperator(EQUAL)
         private static boolean equalOperator(Slice left, @BlockPosition VariableWidthBlock rightBlock, @BlockIndex int rightPosition)
         {
             return equalOperator(rightBlock, rightPosition, left);
         }
 
-        @ScalarOperator(value = EQUAL, neverFails = true)
+        @ScalarOperator(EQUAL)
         private static boolean equalOperator(@BlockPosition VariableWidthBlock leftBlock, @BlockIndex int leftPosition, Slice right)
         {
             Slice leftRawSlice = leftBlock.getRawSlice();
@@ -374,13 +374,13 @@ public abstract class AbstractVariableWidthType
             return rightRawSlice.equals(rightRawSliceOffset, rightLength, leftBytes, leftOffset, leftLength);
         }
 
-        @ScalarOperator(value = XX_HASH_64, neverFails = true)
+        @ScalarOperator(XX_HASH_64)
         private static long xxHash64Operator(Slice value)
         {
             return XxHash64.hash(value);
         }
 
-        @ScalarOperator(value = XX_HASH_64, neverFails = true)
+        @ScalarOperator(XX_HASH_64)
         private static long xxHash64Operator(@BlockPosition VariableWidthBlock block, @BlockIndex int position)
         {
             return XxHash64.hash(block.getRawSlice(), block.getRawSliceOffset(position), block.getSliceLength(position));
@@ -410,13 +410,13 @@ public abstract class AbstractVariableWidthType
 
     private static class DefaultOrderingOperators
     {
-        @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+        @ScalarOperator(COMPARISON_UNORDERED_LAST)
         private static long comparisonOperator(Slice left, Slice right)
         {
             return left.compareTo(right);
         }
 
-        @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+        @ScalarOperator(COMPARISON_UNORDERED_LAST)
         private static long comparisonOperator(@BlockPosition VariableWidthBlock leftBlock, @BlockIndex int leftPosition, @BlockPosition VariableWidthBlock rightBlock, @BlockIndex int rightPosition)
         {
             Slice leftRawSlice = leftBlock.getRawSlice();
@@ -430,7 +430,7 @@ public abstract class AbstractVariableWidthType
             return leftRawSlice.compareTo(leftRawSliceOffset, leftLength, rightRawSlice, rightRawSliceOffset, rightLength);
         }
 
-        @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+        @ScalarOperator(COMPARISON_UNORDERED_LAST)
         private static long comparisonOperator(@BlockPosition VariableWidthBlock leftBlock, @BlockIndex int leftPosition, Slice right)
         {
             Slice leftRawSlice = leftBlock.getRawSlice();
@@ -440,7 +440,7 @@ public abstract class AbstractVariableWidthType
             return leftRawSlice.compareTo(leftRawSliceOffset, leftLength, right, 0, right.length());
         }
 
-        @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+        @ScalarOperator(COMPARISON_UNORDERED_LAST)
         private static long comparisonOperator(Slice left, @BlockPosition VariableWidthBlock rightBlock, @BlockIndex int rightPosition)
         {
             Slice rightRawSlice = rightBlock.getRawSlice();

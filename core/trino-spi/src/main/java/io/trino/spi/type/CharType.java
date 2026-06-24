@@ -238,7 +238,7 @@ public final class CharType
         return true;
     }
 
-    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+    @ScalarOperator(COMPARISON_UNORDERED_LAST)
     private static long comparisonOperator(Slice left, Slice right)
     {
         return compareChars(left, right);

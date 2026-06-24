@@ -163,7 +163,7 @@ public final class UnknownType
         return true;
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static boolean readFlat(
             @FlatFixed byte[] unusedFixedSizeSlice,
             @FlatFixedOffset int unusedFixedSizeOffset,
@@ -173,7 +173,7 @@ public final class UnknownType
         throw new AssertionError("value of unknown type should all be NULL");
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static void writeFlat(
             boolean unusedValue,
             byte[] unusedFixedSizeSlice,
@@ -184,19 +184,19 @@ public final class UnknownType
         throw new AssertionError("value of unknown type should all be NULL");
     }
 
-    @ScalarOperator(value = EQUAL, neverFails = true)
+    @ScalarOperator(EQUAL)
     private static boolean equalOperator(boolean unusedLeft, boolean unusedRight)
     {
         throw new AssertionError("value of unknown type should all be NULL");
     }
 
-    @ScalarOperator(value = XX_HASH_64, neverFails = true)
+    @ScalarOperator(XX_HASH_64)
     private static long xxHash64Operator(boolean unusedValue)
     {
         throw new AssertionError("value of unknown type should all be NULL");
     }
 
-    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+    @ScalarOperator(COMPARISON_UNORDERED_LAST)
     private static long comparisonOperator(boolean unusedLeft, boolean unusedRight)
     {
         throw new AssertionError("value of unknown type should all be NULL");

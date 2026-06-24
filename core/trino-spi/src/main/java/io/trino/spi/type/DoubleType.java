@@ -176,13 +176,13 @@ public final class DoubleType
         return Optional.empty();
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static double read(@BlockPosition LongArrayBlock block, @BlockIndex int position)
     {
         return longBitsToDouble(block.getLong(position));
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static double readFlat(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -192,7 +192,7 @@ public final class DoubleType
         return (double) DOUBLE_HANDLE.get(fixedSizeSlice, fixedSizeOffset);
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static void writeFlat(
             double value,
             @FlatFixed byte[] fixedSizeSlice,
@@ -204,13 +204,13 @@ public final class DoubleType
     }
 
     @SuppressWarnings("FloatingPointEquality")
-    @ScalarOperator(value = EQUAL, neverFails = true)
+    @ScalarOperator(EQUAL)
     private static boolean equalOperator(double left, double right)
     {
         return left == right;
     }
 
-    @ScalarOperator(value = HASH_CODE, neverFails = true)
+    @ScalarOperator(HASH_CODE)
     private static long hashCodeOperator(double value)
     {
         if (value == 0) {
@@ -219,7 +219,7 @@ public final class DoubleType
         return AbstractLongType.hash(doubleToLongBits(value));
     }
 
-    @ScalarOperator(value = XX_HASH_64, neverFails = true)
+    @ScalarOperator(XX_HASH_64)
     private static long xxHash64(double value)
     {
         if (value == 0) {
@@ -229,7 +229,7 @@ public final class DoubleType
     }
 
     @SuppressWarnings("FloatingPointEquality")
-    @ScalarOperator(value = IDENTICAL, neverFails = true)
+    @ScalarOperator(IDENTICAL)
     private static boolean identical(double left, @IsNull boolean leftNull, double right, @IsNull boolean rightNull)
     {
         if (leftNull || rightNull) {
@@ -242,13 +242,13 @@ public final class DoubleType
         return left == right;
     }
 
-    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+    @ScalarOperator(COMPARISON_UNORDERED_LAST)
     private static long comparisonUnorderedLastOperator(double left, double right)
     {
         return compare(left, right);
     }
 
-    @ScalarOperator(value = COMPARISON_UNORDERED_FIRST, neverFails = true)
+    @ScalarOperator(COMPARISON_UNORDERED_FIRST)
     private static long comparisonUnorderedFirstOperator(double left, double right)
     {
         // Double compare puts NaN last, so we must handle NaNs manually
@@ -265,13 +265,13 @@ public final class DoubleType
         return compare(left, right);
     }
 
-    @ScalarOperator(value = LESS_THAN, neverFails = true)
+    @ScalarOperator(LESS_THAN)
     private static boolean lessThanOperator(double left, double right)
     {
         return left < right;
     }
 
-    @ScalarOperator(value = LESS_THAN_OR_EQUAL, neverFails = true)
+    @ScalarOperator(LESS_THAN_OR_EQUAL)
     private static boolean lessThanOrEqualOperator(double left, double right)
     {
         return left <= right;

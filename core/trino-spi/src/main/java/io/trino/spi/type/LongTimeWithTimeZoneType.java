@@ -157,7 +157,7 @@ final class LongTimeWithTimeZoneType
         return block.getFixed12Second(position);
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static LongTimeWithTimeZone readFlat(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -169,7 +169,7 @@ final class LongTimeWithTimeZoneType
                 (int) INT_HANDLE.get(fixedSizeSlice, fixedSizeOffset + Long.BYTES));
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static void readFlatToBlock(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -182,7 +182,7 @@ final class LongTimeWithTimeZoneType
                 (int) INT_HANDLE.get(fixedSizeSlice, fixedSizeOffset + Long.BYTES));
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static void writeFlat(
             LongTimeWithTimeZone value,
             @FlatFixed byte[] fixedSizeSlice,
@@ -194,7 +194,7 @@ final class LongTimeWithTimeZoneType
         INT_HANDLE.set(fixedSizeSlice, fixedSizeOffset + SIZE_OF_LONG, value.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = READ_VALUE, neverFails = true)
+    @ScalarOperator(READ_VALUE)
     private static void writeBlockFlat(
             @BlockPosition Fixed12Block block,
             @BlockIndex int position,
@@ -207,7 +207,7 @@ final class LongTimeWithTimeZoneType
         INT_HANDLE.set(fixedSizeSlice, fixedSizeOffset + SIZE_OF_LONG, getOffsetMinutes(block, position));
     }
 
-    @ScalarOperator(value = EQUAL, neverFails = true)
+    @ScalarOperator(EQUAL)
     private static boolean equalOperator(LongTimeWithTimeZone left, LongTimeWithTimeZone right)
     {
         return equal(
@@ -217,7 +217,7 @@ final class LongTimeWithTimeZoneType
                 right.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = EQUAL, neverFails = true)
+    @ScalarOperator(EQUAL)
     private static boolean equalOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return equal(
@@ -227,7 +227,7 @@ final class LongTimeWithTimeZoneType
                 getOffsetMinutes(rightBlock, rightPosition));
     }
 
-    @ScalarOperator(value = EQUAL, neverFails = true)
+    @ScalarOperator(EQUAL)
     private static boolean equalOperator(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -248,19 +248,19 @@ final class LongTimeWithTimeZoneType
         return normalizePicos(leftPicos, leftOffsetMinutes) == normalizePicos(rightPicos, rightOffsetMinutes);
     }
 
-    @ScalarOperator(value = HASH_CODE, neverFails = true)
+    @ScalarOperator(HASH_CODE)
     private static long hashCodeOperator(LongTimeWithTimeZone value)
     {
         return hashCodeOperator(value.getPicoseconds(), value.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = HASH_CODE, neverFails = true)
+    @ScalarOperator(HASH_CODE)
     private static long hashCodeOperator(@BlockPosition Fixed12Block block, @BlockIndex int position)
     {
         return hashCodeOperator(getPicos(block, position), getOffsetMinutes(block, position));
     }
 
-    @ScalarOperator(value = HASH_CODE, neverFails = true)
+    @ScalarOperator(HASH_CODE)
     private static long hashCodeOperator(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -275,19 +275,19 @@ final class LongTimeWithTimeZoneType
         return AbstractLongType.hash(normalizePicos(picos, offsetMinutes));
     }
 
-    @ScalarOperator(value = XX_HASH_64, neverFails = true)
+    @ScalarOperator(XX_HASH_64)
     private static long xxHash64Operator(LongTimeWithTimeZone value)
     {
         return xxHash64(value.getPicoseconds(), value.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = XX_HASH_64, neverFails = true)
+    @ScalarOperator(XX_HASH_64)
     private static long xxHash64Operator(@BlockPosition Fixed12Block block, @BlockIndex int position)
     {
         return xxHash64(getPicos(block, position), getOffsetMinutes(block, position));
     }
 
-    @ScalarOperator(value = XX_HASH_64, neverFails = true)
+    @ScalarOperator(XX_HASH_64)
     private static long xxHash64Operator(
             @FlatFixed byte[] fixedSizeSlice,
             @FlatFixedOffset int fixedSizeOffset,
@@ -304,7 +304,7 @@ final class LongTimeWithTimeZoneType
         return XxHash64.hash(normalizePicos(picos, offsetMinutes));
     }
 
-    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+    @ScalarOperator(COMPARISON_UNORDERED_LAST)
     private static long comparisonOperator(LongTimeWithTimeZone left, LongTimeWithTimeZone right)
     {
         return comparison(
@@ -314,7 +314,7 @@ final class LongTimeWithTimeZoneType
                 right.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = COMPARISON_UNORDERED_LAST, neverFails = true)
+    @ScalarOperator(COMPARISON_UNORDERED_LAST)
     private static long comparisonOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return comparison(
@@ -329,7 +329,7 @@ final class LongTimeWithTimeZoneType
         return Long.compare(normalizePicos(leftPicos, leftOffsetMinutes), normalizePicos(rightPicos, rightOffsetMinutes));
     }
 
-    @ScalarOperator(value = LESS_THAN, neverFails = true)
+    @ScalarOperator(LESS_THAN)
     private static boolean lessThanOperator(LongTimeWithTimeZone left, LongTimeWithTimeZone right)
     {
         return lessThan(
@@ -339,7 +339,7 @@ final class LongTimeWithTimeZoneType
                 right.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = LESS_THAN, neverFails = true)
+    @ScalarOperator(LESS_THAN)
     private static boolean lessThanOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return lessThan(
@@ -354,7 +354,7 @@ final class LongTimeWithTimeZoneType
         return normalizePicos(leftPicos, leftOffsetMinutes) < normalizePicos(rightPicos, rightOffsetMinutes);
     }
 
-    @ScalarOperator(value = LESS_THAN_OR_EQUAL, neverFails = true)
+    @ScalarOperator(LESS_THAN_OR_EQUAL)
     private static boolean lessThanOrEqualOperator(LongTimeWithTimeZone left, LongTimeWithTimeZone right)
     {
         return lessThanOrEqual(
@@ -364,7 +364,7 @@ final class LongTimeWithTimeZoneType
                 right.getOffsetMinutes());
     }
 
-    @ScalarOperator(value = LESS_THAN_OR_EQUAL, neverFails = true)
+    @ScalarOperator(LESS_THAN_OR_EQUAL)
     private static boolean lessThanOrEqualOperator(@BlockPosition Fixed12Block leftBlock, @BlockIndex int leftPosition, @BlockPosition Fixed12Block rightBlock, @BlockIndex int rightPosition)
     {
         return lessThanOrEqual(
