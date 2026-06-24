@@ -715,7 +715,7 @@ public class SqlTaskManager
             TaskId taskId = sqlTask.getTaskId();
             try {
                 TaskState taskState = sqlTask.getTaskState();
-                if (taskState.isDone()) {
+                if (taskState.isTerminatingOrDone()) {
                     continue;
                 }
                 Instant lastHeartbeat = sqlTask.lastHeartbeat();
