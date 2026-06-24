@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.3
+        uses: actions/checkout@v7.0.0
       - uses: ./.github/actions/setup
         timeout-minutes: 15
       - name: Get milestone from pom.xml
