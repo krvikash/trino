@@ -84,7 +84,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.keycloak.util.JsonSerialization.mapper;
 
-@Disabled // Disabled OS Trino test. The v3 spec is tested with {@link TestStarburstIcebergV3}
 public class TestIcebergV3
         extends AbstractTestQueryFramework
 {
@@ -634,6 +633,7 @@ public class TestIcebergV3
     }
 
     @Test
+    @Disabled // Starburst Iceberg connector supports the procedure with v3
     void testV3RejectsAddFilesProcedure()
     {
         String tableName = "add_files_target_" + randomNameSuffix();
@@ -649,6 +649,7 @@ public class TestIcebergV3
     }
 
     @Test
+    @Disabled // Starburst Iceberg connector supports the procedure with v3
     void testV3RejectsAddFilesFromTableProcedure()
     {
         String tableName = "add_files_from_table_target_" + randomNameSuffix();
