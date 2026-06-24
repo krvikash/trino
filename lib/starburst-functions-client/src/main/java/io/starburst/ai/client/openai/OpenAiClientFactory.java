@@ -28,6 +28,7 @@ import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
 import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
+import io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
@@ -45,7 +46,6 @@ import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATI
 import static io.starburst.ai.client.ModelSecretsResolver.DUMMY_API_KEY;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOAuth2Secrets;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOpenAiSecrets;
-import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
 import static io.starburst.ai.model.StreamingToolCallSupportOption.STREAMING_TOOL_CALL_SUPPORTED;
 import static java.lang.String.format;

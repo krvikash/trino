@@ -9,10 +9,9 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 import io.trino.spi.metrics.Metrics;
-
-import static io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
-import static io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 
 /**
  * Tracks metrics for exchange operations on the coordinator side.

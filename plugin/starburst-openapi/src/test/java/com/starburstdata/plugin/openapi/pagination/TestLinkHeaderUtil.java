@@ -9,12 +9,12 @@
  */
 package com.starburstdata.plugin.openapi.pagination;
 
+import com.starburstdata.plugin.openapi.pagination.LinkHeaderUtil.LinkFieldValue;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.List;
 
-import static com.starburstdata.plugin.openapi.pagination.LinkHeaderUtil.LinkFieldValue;
 import static com.starburstdata.plugin.openapi.pagination.LinkHeaderUtil.parseLinkFieldValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

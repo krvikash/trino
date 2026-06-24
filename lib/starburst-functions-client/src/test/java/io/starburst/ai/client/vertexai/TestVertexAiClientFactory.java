@@ -17,6 +17,7 @@ import com.google.genai.types.HttpOptions;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.AiClientConfig;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,6 @@ import static com.google.common.io.Resources.getResource;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.starburst.ai.client.vertexai.VertexAiClientFactory.buildHttpOptions;
 import static io.starburst.ai.client.vertexai.VertexAiClientFactory.flattenHeaders;
-import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

@@ -32,6 +32,7 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.TopNRankingNode.RankingType;
 import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +43,6 @@ import java.util.Set;
 import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
-import static io.trino.sql.planner.plan.TopNRankingNode.RankingType;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 

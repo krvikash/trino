@@ -10,12 +10,12 @@
 package io.starburst.stargate.buffer.trino.exchange;
 
 import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
+import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 import io.trino.spi.metrics.Metrics;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
-import static io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
 import static java.util.Objects.requireNonNull;
 
 /**

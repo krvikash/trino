@@ -14,16 +14,16 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.starburst.ai.client.openai.oauth.ResolvedOAuth2Config;
 import io.starburst.ai.model.ConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import io.starburst.ai.model.ConnectionInfo.OAuth2Config;
+import io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OAuth2Config.validateTokenUrl;
-import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
-import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 
 public final class ModelSecretsResolver
 {

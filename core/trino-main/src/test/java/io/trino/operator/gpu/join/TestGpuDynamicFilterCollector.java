@@ -25,6 +25,7 @@ import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.TypeUtils;
+import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.DynamicFilterSourceConsumer;
 import io.trino.sql.planner.DynamicFilterTupleDomain;
@@ -49,7 +50,6 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
-import static io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
 

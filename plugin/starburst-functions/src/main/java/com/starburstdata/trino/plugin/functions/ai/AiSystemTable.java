@@ -11,6 +11,9 @@ package com.starburstdata.trino.plugin.functions.ai;
 
 import io.airlift.slice.Slices;
 import io.starburst.ai.model.ConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import io.starburst.ai.model.ModelConnectionSpec;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -29,9 +32,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
-import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
-import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static io.trino.spi.connector.SystemTable.Distribution.SINGLE_COORDINATOR;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;

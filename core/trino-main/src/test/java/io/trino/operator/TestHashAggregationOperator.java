@@ -25,6 +25,7 @@ import io.trino.RowPagesBuilder;
 import io.trino.Session;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.operator.GroupByHashYieldAssertion.GroupByHashYieldResult;
 import io.trino.operator.HashAggregationOperator.HashAggregationOperatorFactory;
 import io.trino.operator.aggregation.TestingAggregationFunction;
 import io.trino.operator.aggregation.builder.HashAggregationBuilder;
@@ -74,7 +75,6 @@ import static io.trino.SystemSessionProperties.AGGREGATION_OPTIMIZED_GROUP_BY_HA
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.block.BlockAssertions.createRepeatedValuesBlock;
 import static io.trino.operator.AggregationMetrics.INPUT_ROWS_WITH_PARTIAL_AGGREGATION_DISABLED_METRIC_NAME;
-import static io.trino.operator.GroupByHashYieldAssertion.GroupByHashYieldResult;
 import static io.trino.operator.GroupByHashYieldAssertion.createPages;
 import static io.trino.operator.GroupByHashYieldAssertion.finishOperatorWithYieldingGroupByHash;
 import static io.trino.operator.OperatorAssertion.assertOperatorEqualsIgnoreOrder;

@@ -16,6 +16,7 @@ import io.starburst.stargate.buffer.mocking.MockBufferService;
 import io.starburst.stargate.buffer.mocking.MockDataNodeStats;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.query.QueryAssertions;
+import io.trino.sql.query.QueryAssertions.QueryAssert;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.assertions.Assert;
@@ -37,7 +38,6 @@ import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_
 import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
-import static io.trino.sql.query.QueryAssertions.QueryAssert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 

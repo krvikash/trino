@@ -17,6 +17,7 @@ import io.trino.plugin.hive.coercions.DateCoercer.DateHybridToProlepticGregorian
 import io.trino.plugin.hive.coercions.IntegerNumberToDoubleCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToVarcharCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampHybridToProlepticGregorianCoercer;
+import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampToVarcharCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.ShortTimestampHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer;
@@ -32,6 +33,7 @@ import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.DateLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.DecimalLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
 import java.time.ZoneId;
 import java.util.Optional;
@@ -41,11 +43,9 @@ import static io.trino.parquet.reader.ColumnReaderFactory.isIntegerAnnotationAnd
 import static io.trino.plugin.hive.coercions.DecimalCoercers.createDecimalToVarcharCoercer;
 import static io.trino.plugin.hive.coercions.DoubleToVarcharCoercers.createDoubleToVarcharCoercer;
 import static io.trino.plugin.hive.coercions.FloatToVarcharCoercers.createFloatToVarcharCoercer;
-import static io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampToVarcharCoercer;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
-import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.DOUBLE;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.FLOAT;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;

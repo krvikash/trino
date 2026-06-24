@@ -16,6 +16,9 @@ package io.trino.cache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import io.trino.Session;
+import io.trino.cache.CanonicalSubplan.Key;
+import io.trino.cache.CanonicalSubplan.TopNKey;
+import io.trino.cache.CanonicalSubplan.TopNRankingKey;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Comparator;
@@ -25,9 +28,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static io.trino.SystemSessionProperties.isCacheAggregationsEnabled;
 import static io.trino.SystemSessionProperties.isCacheProjectionsEnabled;
-import static io.trino.cache.CanonicalSubplan.Key;
-import static io.trino.cache.CanonicalSubplan.TopNKey;
-import static io.trino.cache.CanonicalSubplan.TopNRankingKey;
 
 public class CacheController
 {

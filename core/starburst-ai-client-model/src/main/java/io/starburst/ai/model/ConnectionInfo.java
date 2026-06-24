@@ -11,6 +11,9 @@ package io.starburst.ai.model;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,9 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
-import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
-import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;

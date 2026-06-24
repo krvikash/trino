@@ -39,6 +39,7 @@ import io.trino.sql.planner.iterative.Rule;
 import io.trino.sql.planner.iterative.RuleIndex;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.plan.ChooseAlternativeNode;
+import io.trino.sql.planner.plan.ChooseAlternativeNode.FilteredTableScan;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -61,7 +62,6 @@ import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createP
 import static io.trino.matching.Capture.newCapture;
 import static io.trino.spi.StandardErrorCode.OPTIMIZER_TIMEOUT;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
-import static io.trino.sql.planner.plan.ChooseAlternativeNode.FilteredTableScan;
 import static java.lang.String.format;
 import static java.lang.System.nanoTime;
 import static java.util.Objects.requireNonNull;

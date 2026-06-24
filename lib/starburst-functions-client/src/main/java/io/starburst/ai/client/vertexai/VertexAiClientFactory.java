@@ -27,6 +27,7 @@ import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
 import io.starburst.ai.client.TokenUsageListener;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
@@ -40,7 +41,6 @@ import java.util.concurrent.Executor;
 
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveVertexAiSecrets;
-import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static java.lang.Math.toIntExact;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;

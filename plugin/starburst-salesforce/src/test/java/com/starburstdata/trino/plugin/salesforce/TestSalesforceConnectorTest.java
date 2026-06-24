@@ -26,6 +26,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.JoinCondition;
 import io.trino.sql.parser.ParsingException;
 import io.trino.sql.planner.OptimizerConfig;
+import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.JoinNode;
@@ -80,7 +81,6 @@ import static io.trino.plugin.jdbc.JdbcMetadataSessionProperties.DOMAIN_COMPACTI
 import static io.trino.plugin.jdbc.JdbcMetadataSessionProperties.JOIN_PUSHDOWN_ENABLED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.PARTITIONED;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;

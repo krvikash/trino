@@ -17,12 +17,12 @@ import com.google.common.collect.ImmutableList;
 import io.trino.tempto.AfterMethodWithContext;
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.ProductTest;
+import io.trino.tempto.assertions.QueryAssert.Row;
 import io.trino.testng.services.Flaky;
 import org.testng.annotations.Test;
 
 import java.util.List;
 
-import static io.trino.tempto.assertions.QueryAssert.Row;
 import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;

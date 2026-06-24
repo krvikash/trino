@@ -43,6 +43,7 @@ import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.DynamicFilterTupleDomain;
 import io.trino.sql.planner.LongBloomFilter;
 import io.trino.sql.planner.Symbol;
+import io.trino.util.DynamicFiltersTestUtil.TestingDynamicFilter;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -73,7 +74,6 @@ import static io.trino.sql.planner.DynamicFilterDomain.multipleValues;
 import static io.trino.sql.planner.DynamicFilterDomain.singleValue;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingSession.testSessionBuilder;
-import static io.trino.util.DynamicFiltersTestUtil.TestingDynamicFilter;
 import static io.trino.util.DynamicFiltersTestUtil.createDynamicFilterEvaluator;
 import static java.lang.Float.floatToRawIntBits;
 import static org.assertj.core.api.Assertions.assertThat;

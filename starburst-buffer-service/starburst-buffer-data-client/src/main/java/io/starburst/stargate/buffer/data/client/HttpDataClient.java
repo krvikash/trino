@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.client;
 
+import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.LittleEndianDataInputStream;
@@ -46,7 +47,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
-import static com.google.common.base.MoreObjects.ToStringHelper;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;

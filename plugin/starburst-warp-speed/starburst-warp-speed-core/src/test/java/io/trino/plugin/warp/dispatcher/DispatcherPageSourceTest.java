@@ -36,6 +36,7 @@ import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.read.WarpPageSource;
 import io.trino.plugin.warp.storage.read.WarpStoragePageSource;
+import io.trino.plugin.warp.storage.read.WarpStoragePageSource.RowRanges;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -64,7 +65,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.plugin.warp.storage.read.WarpStoragePageSource.RowRanges;
 import static io.trino.plugin.warp.storage.write.StorageWriterServiceTest.buildLongPage;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;

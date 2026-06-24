@@ -26,6 +26,7 @@ import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.type.Type;
+import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.Isolated;
@@ -42,7 +43,6 @@ import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 

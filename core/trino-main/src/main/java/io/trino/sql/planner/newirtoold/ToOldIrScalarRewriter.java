@@ -38,6 +38,7 @@ import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Logical.Operator;
 import io.trino.sql.ir.Match;
 import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
@@ -353,11 +354,11 @@ public class ToOldIrScalarRewriter
             return new io.trino.sql.ir.Logical(rewriteOperator(LOGICAL_OPERATOR.getAttribute(operation.attributes())), arguments);
         }
 
-        private io.trino.sql.ir.Logical.Operator rewriteOperator(LogicalOperator operator)
+        private Operator rewriteOperator(LogicalOperator operator)
         {
             return switch (operator) {
-                case AND -> io.trino.sql.ir.Logical.Operator.AND;
-                case OR -> io.trino.sql.ir.Logical.Operator.OR;
+                case AND -> Operator.AND;
+                case OR -> Operator.OR;
             };
         }
 
