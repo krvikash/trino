@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.airlift.log.Logger;
 import io.starburst.schema.discovery.ExtensionTableFormatMatcher;
 import io.starburst.schema.discovery.SchemaDiscovery;
 import io.starburst.schema.discovery.TableChanges.TableName;
@@ -98,6 +99,8 @@ import static java.util.stream.Collectors.reducing;
 public class Processor
         extends ForwardingListenableFuture<DiscoveredSchema>
 {
+    private static final Logger log = Logger.get(Processor.class);
+
     private final Map<TableFormat, SchemaDiscovery> schemaDiscoveryInstances;
     private final DiscoveryTrinoFileSystem fileSystem;
     private final Location rootPath;
@@ -251,14 +254,20 @@ public class Processor
     {
         GeneralOptions generalOptions = new GeneralOptions(options);
         return formatGuessSchemas.stream()
-                .map(formatGuessSchema -> {
-                    InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, formatGuessSchema.parent(), identifierConstraint);
-                    Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(formatGuessSchema.parent(), inferredPartitions);
-                    ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, formatGuessSchema.discoveredFormat().format(), formatGuessSchema.discoveredFormat().options(), formatGuessSchema.columns());
-                    ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
-                    return entry(
-                            new TableAndPathKey(new TableName(schemaName.map(this::toNameIdentifier), inferredPartitions.tableName()), inferredPartitions.path()),
-                            guessedSchemaAndPartition);
+                .flatMap(formatGuessSchema -> {
+                    try {
+                        InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, formatGuessSchema.parent(), identifierConstraint);
+                        Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(formatGuessSchema.parent(), inferredPartitions);
+                        ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, formatGuessSchema.discoveredFormat().format(), formatGuessSchema.discoveredFormat().options(), formatGuessSchema.columns());
+                        ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
+                        return Stream.of(entry(
+                                new TableAndPathKey(new TableName(schemaName.map(this::toNameIdentifier), inferredPartitions.tableName()), inferredPartitions.path()),
+                                guessedSchemaAndPartition));
+                    }
+                    catch (RuntimeException e) {
+                        errors.addTableError(formatGuessSchema.parent().toString(), "Skipping directory [%s]: %s", formatGuessSchema.parent(), extractTrinoOrRootCauseMessage(e));
+                        return Stream.empty();
+                    }
                 })
                 .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, toImmutableList()))); // grouped by table name to list of potential tables, which need to be reduced
     }
@@ -305,7 +314,7 @@ public class Processor
                 .map(this::validateIcebergTablesMetadataRead)
                 .collect(toImmutableList());
 
-        DiscoveredSchema discoveredSchema = new DiscoveredSchema(ensureEndsWithSlash(rootPath), tables, errors.build());
+        DiscoveredSchema discoveredSchema = new DiscoveredSchema(ensureEndsWithSlash(rootPath), tables, errors.buildAll());
         result.set(discoveredSchema);
         return null;
     }
@@ -347,7 +356,15 @@ public class Processor
         }
 
         return tables.stream()
-                .map(this::collapseTableToChildOfRoot)
+                .flatMap(t -> {
+                    try {
+                        return Stream.of(collapseTableToChildOfRoot(t));
+                    }
+                    catch (RuntimeException e) {
+                        errors.addTableError(t.path().path(), "Skipping directory [%s]: %s", t.path().path(), extractTrinoOrRootCauseMessage(e));
+                        return Stream.empty();
+                    }
+                })
                 .collect(Collectors.groupingBy(DiscoveredTable::path))
                 .entrySet().stream()
                 .map(this::reduceRecursiveTable)
@@ -451,6 +468,7 @@ public class Processor
 
     private Void setException(Throwable e)
     {
+        log.error(e, "Schema discovery failed for root path [%s]", rootPath);
         result.setException(e);
         return null;
     }
@@ -724,16 +742,21 @@ public class Processor
     private Map<TableAndPathKey, ? extends List<ProcessorGuessedSchemaAndPartition>> buildShallowTableToPartitionsMap(List<ProcessorShallowTableGuess> tableAndPathKeys)
     {
         return tableAndPathKeys.stream()
-                .map(tableGuess -> {
-                    TableFormat tableFormat = tableGuess.tableFormat();
-                    OptionsMap optionsForTableName = this.options.withPrefixedOptions(tableGuess.guessedTableName().toString());
-                    GeneralOptions generalOptions = new GeneralOptions(optionsForTableName);
-                    InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, tableGuess.path(), identifierConstraint);
-                    Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(tableGuess.path(), inferredPartitions);
-                    ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, tableFormat, optionsForTableName.unwrap(), EMPTY_DISCOVERED_COLUMNS);
-                    ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
-
-                    return entry(new TableAndPathKey(new TableName(schemaName.map(this::toNameIdentifier), inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition);
+                .flatMap(tableGuess -> {
+                    try {
+                        TableFormat tableFormat = tableGuess.tableFormat();
+                        OptionsMap optionsForTableName = this.options.withPrefixedOptions(tableGuess.guessedTableName().toString());
+                        GeneralOptions generalOptions = new GeneralOptions(optionsForTableName);
+                        InferPartitions inferredPartitions = new InferPartitions(generalOptions, rootPath, tableGuess.path(), identifierConstraint);
+                        Optional<LowerCaseString> schemaName = generalOptions.lookForBuckets() ? Optional.empty() : inferPossibleSchemaName(tableGuess.path(), inferredPartitions);
+                        ProcessorGuessedSchema guessedSchema = new ProcessorGuessedSchema(schemaName, tableFormat, optionsForTableName.unwrap(), EMPTY_DISCOVERED_COLUMNS);
+                        ProcessorGuessedSchemaAndPartition guessedSchemaAndPartition = new ProcessorGuessedSchemaAndPartition(guessedSchema, inferredPartitions.partitions());
+                        return Stream.of(entry(new TableAndPathKey(new TableName(schemaName.map(this::toNameIdentifier), inferredPartitions.tableName()), inferredPartitions.path()), guessedSchemaAndPartition));
+                    }
+                    catch (RuntimeException e) {
+                        errors.addTableError(tableGuess.path().toString(), "Skipping directory [%s]: %s", tableGuess.path(), extractTrinoOrRootCauseMessage(e));
+                        return Stream.empty();
+                    }
                 })
                 .collect(Collectors.groupingBy(Entry::getKey, Collectors.mapping(Entry::getValue, toImmutableList())));
     }
@@ -761,7 +784,7 @@ public class Processor
                 .sorted(Comparator.comparing(DiscoveredTable::path))
                 .collect(toImmutableList());
 
-        DiscoveredSchema discoveredSchema = new DiscoveredSchema(ensureEndsWithSlash(rootPath), pathSortedTables, errors.build());
+        DiscoveredSchema discoveredSchema = new DiscoveredSchema(ensureEndsWithSlash(rootPath), pathSortedTables, errors.buildAll());
         result.set(discoveredSchema);
         return null;
     }

@@ -219,15 +219,16 @@ public class TestSchemaDiscoveryController
         ListenableFuture<DiscoveredSchema> future = controller.guess(new GuessRequest(uriFromLocation(directory), CsvOptions.standard()));
         DiscoveredSchema discoveredTables = future.get();
 
-        assertThat(discoveredTables.errors()).isEmpty();
+        assertThat(discoveredTables.errors()).anyMatch(e -> e.contains("no valid columns were found"));
         assertThat(discoveredTables.tables()).hasSize(1);
-        assertThat(discoveredTables.tables().getFirst().errors()).hasSize(4);
+        assertThat(discoveredTables.tables().getFirst().errors()).hasSize(5);
         assertThat(discoveredTables.tables().getFirst().errors())
                 .anyMatch(e -> e.contains("ds=2012-12-29/000000_0") && e.contains("Underlying input stream returned zero bytes"));
         assertThat(discoveredTables.tables().getFirst().errors())
                 .anyMatch(e -> e.contains("ds=2012-12-30/000000_0") && e.contains("Underlying input stream returned zero bytes"));
         assertThat(discoveredTables.tables().getFirst().errors())
-                .anyMatch(e -> e.contains("Error while discovering schema in format: [CSV]"));
+                .filteredOn(e -> e.contains("Error while discovering schema in format: [CSV]"))
+                .hasSize(2);
         assertThat(discoveredTables.tables().getFirst().errors())
                 .last().matches(e -> e.contains("no valid columns were found"));
     }

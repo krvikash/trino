@@ -16,6 +16,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.log.Logger;
 import io.starburst.schema.discovery.formats.csv.CsvOptions;
 import io.starburst.schema.discovery.models.DiscoveredSchema;
 import io.starburst.schema.discovery.models.DiscoveredTable;
@@ -49,6 +50,8 @@ import static java.util.Objects.requireNonNull;
 
 public class SchemaExplorer
 {
+    private static final Logger log = Logger.get(SchemaExplorer.class);
+
     private final SchemaDiscoveryController schemaDiscoveryController;
     private final ObjectMapper objectMapper;
     private final CommaDelimitedOptionsParser optionsParser;
@@ -106,7 +109,17 @@ public class SchemaExplorer
                     adjustedSchemaFuture,
                     adjustedDiscovery -> buildGeneratedOperations(uri, options, discoveryConfig.generateOptions(), adjustedDiscovery, discoveryConfig.previousMetadataJson()),
                     directExecutor());
-            return new Discovered(adjustedSchemaFuture.get(), operationsFuture.get());
+            DiscoveredSchema discoveredSchema = adjustedSchemaFuture.get();
+            GeneratedOperations generatedOperations = operationsFuture.get();
+            long validCount = discoveredSchema.tables().stream().filter(DiscoveredTable::valid).count();
+            long invalidCount = discoveredSchema.tables().size() - validCount;
+            log.info("Schema discovery for [%s] completed: %d tables (%d valid, %d invalid), %d errors",
+                    uri,
+                    discoveredSchema.tables().size(),
+                    validCount,
+                    invalidCount,
+                    discoveredSchema.errors().size());
+            return new Discovered(discoveredSchema, generatedOperations);
         }
         catch (URISyntaxException e) {
             throw new TrinoException(INVALID_PROCEDURE_ARGUMENT, "Invalid URI: " + discoveryConfig.uriStr(), e);

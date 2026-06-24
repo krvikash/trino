@@ -89,8 +89,13 @@ public class TestDeltaLakeSchemaDiscovery
         assertThat(processor)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/")
-                        && discovered.errors().isEmpty()
                         && discovered.tables().size() == 3)
+                // Per-table errors are now surfaced in discoveredSchema.errors() via buildAll()
+                .satisfies(discovered -> {
+                    assertThat(discovered.errors()).hasSize(2);
+                    assertThat(discovered.errors()).anySatisfy(error -> assertThat(error).startsWith("Mismatched table formats, found: [DELTA_LAKE] and [JSON]"));
+                    assertThat(discovered.errors()).anySatisfy(error -> assertThat(error).startsWith("Mismatched table formats, found: [DELTA_LAKE] and [PARQUET]"));
+                })
                 .extracting(DiscoveredSchema::tables)
                 .matches(tables -> tables.stream().anyMatch(table -> !table.valid() && table.path().path().endsWith("deltalake/table1/") && table.format() == TableFormat.ERROR) &&
                         tables.stream().anyMatch(table -> table.valid() && table.path().path().endsWith("deltalake/table2/") && table.format() == TableFormat.DELTA_LAKE) &&

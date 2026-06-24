@@ -69,11 +69,15 @@ public class TestIcebergSchemaDiscovery
         assertThat(processor)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .matches(discovered -> discovered.rootPath().path().equals(directory + "/")
-                        && discovered.errors().isEmpty()
                         && discovered.tables().size() == 1)
+                // Per-table errors are now surfaced in discoveredSchema.errors() via buildAll()
+                .satisfies(discovered -> {
+                    assertThat(discovered.errors()).hasSize(1);
+                    assertThat(discovered.errors().getFirst()).contains("Failed to read iceberg table's latest metadata file - [Cannot parse missing string: location]");
+                })
                 .extracting(discovered -> getOnlyElement(discovered.tables()))
                 .matches(table -> !table.valid(), "Table must be invalid")
-                .matches(table -> !table.errors().isEmpty() && table.errors().getFirst().equals("Failed to read iceberg table's latest metadata file - [Cannot parse missing string: location]"), "Table must have invalid metadata error")
+                .matches(table -> !table.errors().isEmpty() && table.errors().getFirst().contains("Failed to read iceberg table's latest metadata file - [Cannot parse missing string: location]"), "Table must have invalid metadata error")
                 .matches(table -> table.format() == TableFormat.ERROR, "Table must have error format");
     }
 

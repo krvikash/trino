@@ -107,7 +107,8 @@ public class TestSchemaFromDirectory
         Processor processor = new Processor(schemaDiscoveryInstances, Util.fileSystem(), directory, OPTIONS, directExecutor());
         processor.startRootProcessing();
         DiscoveredSchema discoveredTableSet = processor.get(5, TimeUnit.SECONDS);
-        assertThat(discoveredTableSet.errors()).hasSize(0);
+        // Per-table errors are now surfaced in discoveredSchema.errors() via buildAll()
+        assertThat(discoveredTableSet.errors()).anyMatch(e -> e.contains("do not match with each other"));
         assertThat(discoveredTableSet.tables().getFirst().errors()).anyMatch(e -> e.contains("do not match with each other"));
         assertThat(discoveredTableSet.tables().getFirst().errors()).anyMatch(e -> e.contains("mismatch"));
         assertThat(discoveredTableSet.tables().getFirst().errors()).anyMatch(e -> e.contains("invalid"));
@@ -400,7 +401,7 @@ public class TestSchemaFromDirectory
         DiscoveredSchema discoveredTableSet = discoveryFuture.get(5, TimeUnit.SECONDS);
 
         assertThat(discoveredTableSet.tables()).hasSize(1);
-        assertThat(discoveredTableSet.errors()).hasSize(0);
+        assertThat(discoveredTableSet.errors()).anyMatch(e -> e.contains("Mismatched table formats"));
 
         DiscoveredTable discoveredTable = discoveredTableSet.tables().getFirst();
         assertThat(discoveredTable.valid()).isFalse();

@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import io.airlift.log.Logger;
 import io.starburst.schema.discovery.models.TablePath;
 
 import java.util.Comparator;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -27,6 +29,8 @@ import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWith
 
 public class Errors
 {
+    private static final Logger log = Logger.get(Errors.class);
+
     private final Set<String> errors = Sets.newConcurrentHashSet();
     private final Map<String, Set<String>> tablePathToTableErrors = new ConcurrentHashMap<>();
     private static final Comparator<Map.Entry<String, Set<String>>> FILES_BEFORE_PARENTS_COMPARATOR = Comparator.<Map.Entry<String, Set<String>>>comparingInt(o -> o.getKey().length()).reversed();
@@ -34,20 +38,40 @@ public class Errors
     @FormatMethod
     public void addTableError(String withinTablePath, @FormatString String error, Object... args)
     {
+        String message = String.format(error, args);
         tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath).toString(), _ -> Sets.newConcurrentHashSet())
-                .add(String.format(error, args));
+                .add(message);
+        log.warn("Schema discovery table error at [%s]: %s", withinTablePath, message);
     }
 
     @FormatMethod
     public void addTableError(TablePath withinTablePath, @FormatString String error, Object... args)
     {
+        String message = String.format(error, args);
         tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath.path()).toString(), _ -> Sets.newConcurrentHashSet())
-                .add(String.format(error, args));
+                .add(message);
+        log.warn("Schema discovery table error at [%s]: %s", withinTablePath.path(), message);
     }
 
     public List<String> build()
     {
         return ImmutableList.copyOf(errors);
+    }
+
+    /**
+     * Returns all collected errors (both schema-level and per-table), suitable for surfacing
+     * in the {@code errors} column of the schema discovery system table.
+     */
+    public List<String> buildAll()
+    {
+        return Stream.concat(
+                        errors.stream(),
+                        tablePathToTableErrors.entrySet().stream()
+                                .sorted(FILES_BEFORE_PARENTS_COMPARATOR)
+                                .flatMap(entry -> entry.getValue().stream()
+                                        .map(message -> prefixWithPath(entry.getKey(), message))))
+                .distinct()
+                .collect(toImmutableList());
     }
 
     public List<String> buildForPathAndChildren(String path)
@@ -56,9 +80,16 @@ public class Errors
         return tablePathToTableErrors.entrySet().stream()
                 .filter(e -> e.getKey().startsWith(slashEndedBasePath))
                 .sorted(FILES_BEFORE_PARENTS_COMPARATOR)
-                .flatMap(e -> e.getValue().stream())
+                .flatMap(entry -> entry.getValue().stream()
+                        .map(message -> prefixWithPath(entry.getKey(), message)))
                 .distinct()
                 .collect(toImmutableList());
+    }
+
+    private static String prefixWithPath(String path, String message)
+    {
+        String pathWithoutTrailingSlash = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        return message.contains(pathWithoutTrailingSlash) ? message : "[%s] %s".formatted(path, message);
     }
 
     public Map<String, List<String>> buildPathErrors()

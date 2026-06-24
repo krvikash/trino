@@ -14,6 +14,7 @@ import com.google.common.collect.Streams;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.log.Logger;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil;
 import io.starburst.schema.discovery.io.DiscoveryTrinoFileSystem;
@@ -50,6 +51,8 @@ import static java.util.Objects.requireNonNull;
 
 public class SampleFilesCrawler
 {
+    private static final Logger log = Logger.get(SampleFilesCrawler.class);
+
     private final FileTracker fileTracker;
     private final DiscoveryTrinoFileSystem fileSystem;
     private final Predicate<Location> filter;
@@ -89,7 +92,13 @@ public class SampleFilesCrawler
     {
         ImmutableList.Builder<ListenableFuture<List<ProcessorPath>>> crawlRecursiveTables = ImmutableList.builder();
 
-        fileSystem.listDirectories(root).forEach(directory ->
+        Set<Location> topLevelDirectories = fileSystem.listDirectories(root);
+        if (topLevelDirectories.isEmpty()) {
+            log.warn("Schema discovery found no top-level subdirectories under [%s] in RECURSIVE_DIRECTORIES mode — " +
+                    "files directly under the root are not sampled in this mode; no tables will be discovered", root);
+        }
+
+        topLevelDirectories.forEach(directory ->
                 crawlRecursiveTables.add(submit(() -> crawlDirectorySync(directory), executor)));
 
         return FluentFuture.from(Futures.allAsList(crawlRecursiveTables.build()))
@@ -125,9 +134,11 @@ public class SampleFilesCrawler
 
     private ListenableFuture<List<ProcessorPath>> filterTablePath(ProcessorPath tablePath)
     {
-        return filter.test(tablePath.path()) ?
-                Futures.immediateFuture(ImmutableList.of(tablePath)) :
-                Futures.immediateFuture(ImmutableList.of());
+        if (filter.test(tablePath.path())) {
+            return Futures.immediateFuture(ImmutableList.of(tablePath));
+        }
+        log.debug("Schema discovery dropping table path [%s]: excluded by discovery filter", tablePath.path());
+        return Futures.immediateFuture(ImmutableList.of());
     }
 
     private ListenableFuture<List<ProcessorPath>> findNonDeltaLakeTablesInDirectory(Location parent, Set<Location> childrenDirectories)
