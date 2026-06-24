@@ -32,6 +32,7 @@ import io.trino.spi.connector.SourcePage;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.CharType;
@@ -51,6 +52,7 @@ import io.trino.type.BlockTypeOperators;
 import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +68,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Streams.stream;
+import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -672,6 +675,38 @@ public final class GpuTestUtils
                     .forEachOrdered(outputPages::add);
         }
         return outputPages.build();
+    }
+
+    public static @Move List<GpuPage> copyToDevice(List<Page> pages, List<Type> types)
+    {
+        Set<Integer> deviceChannels = IntStream.range(0, types.size()).boxed().collect(toImmutableSet());
+        Iterator<Page> input = pages.iterator();
+        @Own List<GpuPage> result = new ArrayList<>();
+        try (BufferPages bufferPages = new BufferPages();
+                CopyToDevice copyToDevice = new CopyToDevice(bufferPages, types, deviceChannels)) {
+            while (true) {
+                switch (copyToDevice.execute()) {
+                    case GpuOperation.Yielded() -> {
+                        if (input.hasNext()) {
+                            bufferPages.addInput(input.next());
+                        }
+                        else {
+                            bufferPages.noMoreInput();
+                        }
+                    }
+
+                    case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                    case GpuOperation.Data(var page) -> result.add(page);
+                    case GpuOperation.Finished() -> {
+                        return result;
+                    }
+                }
+            }
+        }
+        catch (Throwable e) {
+            closeAllSuppress(e, result.toArray(GpuPage[]::new));
+            throw e;
+        }
     }
 
     public static List<Page> executeGpuOperation(

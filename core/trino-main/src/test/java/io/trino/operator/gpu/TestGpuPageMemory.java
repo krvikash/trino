@@ -14,9 +14,6 @@
 package io.trino.operator.gpu;
 
 import ai.rapids.cudf.Rmm;
-import io.trino.operator.gpu.GpuOperation.Data;
-import io.trino.operator.gpu.GpuOperation.Finished;
-import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.gpu.GpuPage;
@@ -26,9 +23,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.List;
-import java.util.Set;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
+import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,25 +51,12 @@ class TestGpuPageMemory
     private static void verifyMemoryAccounting(Type type, NullsProvider nullsProvider)
     {
         Block block = createBlock(type, POSITION_COUNT, nullsProvider);
-        Page inputPage = new Page(block);
         long baseline = Rmm.getTotalBytesAllocated();
-
-        try (BufferPages bufferPages = new BufferPages();
-                CopyToDevice copyToDevice = new CopyToDevice(bufferPages, List.of(type), Set.of(0))) {
-            bufferPages.addInput(inputPage);
-            bufferPages.noMoreInput();
-
-            GpuOperation.Result result = copyToDevice.execute();
-            while (result instanceof Yielded) {
-                result = copyToDevice.execute();
-            }
-            try (GpuPage gpuPage = ((Data) result).page()) {
-                assertThat(gpuPage.retainedDeviceMemoryBytes())
-                        .as("type=%s nullsProvider=%s", type, nullsProvider)
-                        .isEqualTo(Rmm.getTotalBytesAllocated() - baseline);
-            }
-            assertThat(copyToDevice.execute()).isInstanceOf(Finished.class);
-            assertThat(Rmm.getTotalBytesAllocated()).as("liveBytes after free").isEqualTo(baseline);
+        try (GpuPage gpuPage = getOnlyElement(copyToDevice(List.of(new Page(block)), List.of(type)))) {
+            assertThat(gpuPage.retainedDeviceMemoryBytes())
+                    .as("type=%s nullsProvider=%s", type, nullsProvider)
+                    .isEqualTo(Rmm.getTotalBytesAllocated() - baseline);
         }
+        assertThat(Rmm.getTotalBytesAllocated()).as("liveBytes after free").isEqualTo(baseline);
     }
 }
