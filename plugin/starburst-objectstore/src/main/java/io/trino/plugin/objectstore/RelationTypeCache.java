@@ -17,8 +17,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.errorprone.annotations.ThreadSafe;
+import io.airlift.stats.DecayConfig;
 import io.airlift.stats.DecayCounter;
-import io.airlift.stats.ExponentialDecay;
 import io.trino.spi.connector.SchemaTableName;
 import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 
@@ -72,7 +72,7 @@ public final class RelationTypeCache
                 .maximumSize(10_000));
 
         tableTypeCounters = DEFAULT_TABLE_TYPE_ORDER.stream()
-                .collect(toImmutableMap(identity(), _ -> new DecayCounter(ExponentialDecay.seconds(toIntExact(HOURS.toSeconds(1))))));
+                .collect(toImmutableMap(identity(), _ -> new DecayCounter(DecayConfig.seconds(toIntExact(HOURS.toSeconds(1))))));
         tableTypeCounters.get(DEFAULT_TABLE_TYPE).add(1);
     }
 
