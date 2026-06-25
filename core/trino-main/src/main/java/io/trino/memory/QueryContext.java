@@ -17,14 +17,17 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.airlift.log.Logger;
 import io.airlift.stats.GcMonitor;
 import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.execution.TaskId;
 import io.trino.execution.TaskStateMachine;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.memory.context.MemoryTrackingContext;
 import io.trino.operator.TaskContext;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spiller.SpillSpaceTracker;
@@ -46,6 +49,8 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
+import static io.trino.ExceededMemoryLimitException.exceededLocalGpuMemoryLimit;
+import static io.trino.ExceededMemoryLimitException.exceededLocalOffHeapMemoryLimit;
 import static io.trino.ExceededMemoryLimitException.exceededLocalUserMemoryLimit;
 import static io.trino.ExceededSpillLimitException.exceededPerQueryLocalLimit;
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
@@ -59,6 +64,7 @@ import static java.util.stream.Collectors.toList;
 @ThreadSafe
 public class QueryContext
 {
+    private static final Logger log = Logger.get(QueryContext.class);
     private static final long GUARANTEED_MEMORY = DataSize.of(1, MEGABYTE).toBytes();
 
     private final QueryId queryId;
@@ -76,7 +82,12 @@ public class QueryContext
     @GuardedBy("this")
     private long maxUserMemory;
 
+    private final long maxGpuMemory;
+    private final long maxOffHeapMemory;
+
     private final MemoryPool memoryPool;
+    private final MemoryPool gpuDeviceMemoryPool;
+    private final MemoryPool offHeapMemoryPool;
     private final long guaranteedMemory;
 
     @GuardedBy("this")
@@ -131,11 +142,11 @@ public class QueryContext
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.maxUserMemory = maxUserMemory.toBytes();
-        requireNonNull(maxGpuMemory, "maxGpuMemory is null"); // TODO currently unused
-        requireNonNull(maxOffHeapMemory, "maxOffHeapMemory is null"); // TODO currently unused
+        this.maxGpuMemory = requireNonNull(maxGpuMemory, "maxGpuMemory is null").toBytes();
+        this.maxOffHeapMemory = requireNonNull(maxOffHeapMemory, "maxOffHeapMemory is null").toBytes();
         this.memoryPool = requireNonNull(memoryPool, "memoryPool is null");
-        requireNonNull(gpuDeviceMemoryPool, "gpuDeviceMemoryPool is null"); // TODO currently unused
-        requireNonNull(offHeapMemoryPool, "offHeapMemoryPool is null"); // TODO currently unused
+        this.gpuDeviceMemoryPool = requireNonNull(gpuDeviceMemoryPool, "gpuDeviceMemoryPool is null");
+        this.offHeapMemoryPool = requireNonNull(offHeapMemoryPool, "offHeapMemoryPool is null");
         this.gcMonitor = requireNonNull(gcMonitor, "gcMonitor is null");
         this.notificationExecutor = requireNonNull(notificationExecutor, "notificationExecutor is null");
         this.yieldExecutor = requireNonNull(yieldExecutor, "yieldExecutor is null");
@@ -242,6 +253,64 @@ public class QueryContext
         spillSpaceTracker.free(bytes);
     }
 
+    private synchronized ListenableFuture<Void> updateGpuMemory(TaskId taskId, String allocationTag, long delta)
+    {
+        if (delta >= 0) {
+            enforceGpuMemoryLimit(gpuDeviceMemoryPool.getQueryMemoryReservation(queryId), delta, maxGpuMemory);
+            ListenableFuture<Void> future = gpuDeviceMemoryPool.reserve(taskId, allocationTag, delta);
+            if (future.isDone()) {
+                return NOT_BLOCKED;
+            }
+            return future;
+        }
+        gpuDeviceMemoryPool.free(taskId, allocationTag, -delta);
+        return NOT_BLOCKED;
+    }
+
+    private synchronized boolean tryUpdateGpuMemory(TaskId taskId, String allocationTag, long delta)
+    {
+        if (delta <= 0) {
+            ListenableFuture<Void> future = updateGpuMemory(taskId, allocationTag, delta);
+            if (delta < 0) {
+                verify(future.isDone(), "future should be done");
+            }
+            return true;
+        }
+        if (gpuDeviceMemoryPool.getQueryMemoryReservation(queryId) + delta > maxGpuMemory) {
+            return false;
+        }
+        return gpuDeviceMemoryPool.tryReserve(taskId, allocationTag, delta);
+    }
+
+    private synchronized ListenableFuture<Void> updateOffHeapMemory(TaskId taskId, String allocationTag, long delta)
+    {
+        if (delta >= 0) {
+            enforceOffHeapMemoryLimit(offHeapMemoryPool.getQueryMemoryReservation(queryId), delta, maxOffHeapMemory);
+            ListenableFuture<Void> future = offHeapMemoryPool.reserve(taskId, allocationTag, delta);
+            if (future.isDone()) {
+                return NOT_BLOCKED;
+            }
+            return future;
+        }
+        offHeapMemoryPool.free(taskId, allocationTag, -delta);
+        return NOT_BLOCKED;
+    }
+
+    private synchronized boolean tryUpdateOffHeapMemory(TaskId taskId, String allocationTag, long delta)
+    {
+        if (delta <= 0) {
+            ListenableFuture<Void> future = updateOffHeapMemory(taskId, allocationTag, delta);
+            if (delta < 0) {
+                verify(future.isDone(), "future should be done");
+            }
+            return true;
+        }
+        if (offHeapMemoryPool.getQueryMemoryReservation(queryId) + delta > maxOffHeapMemory) {
+            return false;
+        }
+        return offHeapMemoryPool.tryReserve(taskId, allocationTag, delta);
+    }
+
     public MemoryPool getMemoryPool()
     {
         return memoryPool;
@@ -262,17 +331,57 @@ public class QueryContext
     {
         TaskId taskId = taskStateMachine.getTaskId();
 
-        MemoryTrackingContext taskMemoryContext = new MemoryTrackingContext(
-                newRootAggregatedMemoryContext(
-                        new QueryMemoryReservationHandler(
-                                (tag, delta) -> updateUserMemory(taskId, tag, delta),
-                                (tag, delta) -> tryUpdateUserMemory(taskId, tag, delta)),
-                        guaranteedMemory),
-                newRootAggregatedMemoryContext(
-                        new QueryMemoryReservationHandler(
-                                (_, delta) -> updateRevocableMemory(taskId, delta),
-                                (_, _) -> tryReserveMemoryNotSupported()),
-                        0L));
+        // Note that task user memory cannot be closed even when TaskStateMachine reaches a terminal state.
+        // Task output buffers may be still live and waiting for consumer to release them.
+        AggregatedMemoryContext taskUserMemory = newRootAggregatedMemoryContext(
+                new QueryMemoryReservationHandler(
+                        (tag, delta) -> updateUserMemory(taskId, tag, delta),
+                        (tag, delta) -> tryUpdateUserMemory(taskId, tag, delta)),
+                guaranteedMemory);
+        AggregatedMemoryContext taskRevocableMemory = newRootAggregatedMemoryContext(
+                new QueryMemoryReservationHandler(
+                        (_, delta) -> updateRevocableMemory(taskId, delta),
+                        (_, _) -> tryReserveMemoryNotSupported()),
+                0L);
+        AggregatedMemoryContext taskGpuDeviceMemory = newRootAggregatedMemoryContext(
+                new QueryMemoryReservationHandler(
+                        (tag, delta) -> updateGpuMemory(taskId, tag, delta),
+                        (tag, delta) -> tryUpdateGpuMemory(taskId, tag, delta)),
+                0L);
+        AggregatedMemoryContext taskOffHeapMemory = newRootAggregatedMemoryContext(
+                new QueryMemoryReservationHandler(
+                        (tag, delta) -> updateOffHeapMemory(taskId, tag, delta),
+                        (tag, delta) -> tryUpdateOffHeapMemory(taskId, tag, delta)),
+                0L);
+        MemoryTrackingContext taskMemoryContext = new MemoryTrackingContext(taskUserMemory, taskRevocableMemory);
+        GpuTaskMemoryContext gpuTaskMemoryContext = new GpuTaskMemoryContext(taskUserMemory, taskGpuDeviceMemory, taskOffHeapMemory);
+
+        taskStateMachine.addStateChangeListener(state -> {
+            if (state.isDone()) {
+                // taskUserMemory cannot be closed, see comment above
+                long gpuDeviceMemoryBytes = taskGpuDeviceMemory.getBytes();
+                if (gpuDeviceMemoryBytes != 0) {
+                    log.warn(
+                            "Task %s reached state %s but still holds %s GPU memory. Query allocations: %s",
+                            taskId,
+                            state,
+                            succinctBytes(gpuDeviceMemoryBytes),
+                            getAdditionalFailureInfo(gpuDeviceMemoryPool, gpuDeviceMemoryPool.getQueryMemoryReservation(queryId), 0));
+                }
+                taskGpuDeviceMemory.close();
+
+                long offHeapMemoryBytes = taskOffHeapMemory.getBytes();
+                if (offHeapMemoryBytes != 0) {
+                    log.warn(
+                            "Task %s reached state %s but still holds %s off-heap memory. Query allocations: %s",
+                            taskId,
+                            state,
+                            succinctBytes(offHeapMemoryBytes),
+                            getAdditionalFailureInfo(offHeapMemoryPool, offHeapMemoryPool.getQueryMemoryReservation(queryId), 0));
+                }
+                taskOffHeapMemory.close();
+            }
+        });
 
         TaskContext taskContext = createTaskContext(
                 this,
@@ -284,6 +393,7 @@ public class QueryContext
                 timeoutExecutor,
                 session,
                 taskMemoryContext,
+                gpuTaskMemoryContext,
                 notifyStatusChanged,
                 perOperatorCpuTimerEnabled,
                 cpuTimerEnabled);
@@ -346,14 +456,29 @@ public class QueryContext
     private void enforceUserMemoryLimit(long allocated, long delta, long maxMemory)
     {
         if (allocated + delta > maxMemory) {
-            throw exceededLocalUserMemoryLimit(succinctBytes(maxMemory), getAdditionalFailureInfo(allocated, delta));
+            throw exceededLocalUserMemoryLimit(succinctBytes(maxMemory), getAdditionalFailureInfo(memoryPool, allocated, delta));
         }
     }
 
     @GuardedBy("this")
-    private String getAdditionalFailureInfo(long allocated, long delta)
+    private void enforceGpuMemoryLimit(long allocated, long delta, long maxMemory)
     {
-        Map<String, Long> queryAllocations = memoryPool.getTaggedMemoryAllocations().get(queryId);
+        if (allocated + delta > maxMemory) {
+            throw exceededLocalGpuMemoryLimit(succinctBytes(maxMemory), getAdditionalFailureInfo(gpuDeviceMemoryPool, allocated, delta));
+        }
+    }
+
+    @GuardedBy("this")
+    private void enforceOffHeapMemoryLimit(long allocated, long delta, long maxMemory)
+    {
+        if (allocated + delta > maxMemory) {
+            throw exceededLocalOffHeapMemoryLimit(succinctBytes(maxMemory), getAdditionalFailureInfo(offHeapMemoryPool, allocated, delta));
+        }
+    }
+
+    private String getAdditionalFailureInfo(MemoryPool pool, long allocated, long delta)
+    {
+        Map<String, Long> queryAllocations = pool.getTaggedMemoryAllocations().get(queryId);
 
         String additionalInfo = format("Allocated: %s, Delta: %s", succinctBytes(allocated), succinctBytes(delta));
 

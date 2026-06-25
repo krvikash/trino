@@ -155,7 +155,7 @@ public class ReportGpuMemoryLeaks
         public void publish(LogRecord record)
         {
             String message = record.getMessage();
-            if (message != null && message.contains("LEAKED")) {
+            if (message != null && (message.contains("LEAKED") || message.matches("(?s:.*)Task .* reached state .* but still holds .* memory(?s:.*)"))) {
                 String formatted = formatLeakMessage(record);
                 synchronized (this) {
                     leakMessages.add(formatted);

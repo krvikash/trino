@@ -37,6 +37,7 @@ import io.trino.memory.QueryContextVisitor;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryTrackingContext;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.LocalDynamicFiltersCollector;
@@ -110,6 +111,7 @@ public class TaskContext
     private long lastTaskStatCallNanos;
 
     private final MemoryTrackingContext taskMemoryContext;
+    private final GpuTaskMemoryContext gpuTaskMemoryContext;
     private final DynamicFiltersCollector dynamicFiltersCollector;
 
     // The collector is shared for dynamic filters collected from coordinator
@@ -127,6 +129,7 @@ public class TaskContext
             ScheduledExecutorService timeoutExecutor,
             Session session,
             MemoryTrackingContext taskMemoryContext,
+            GpuTaskMemoryContext gpuTaskMemoryContext,
             Runnable notifyStatusChanged,
             boolean perOperatorCpuTimerEnabled,
             boolean cpuTimerEnabled)
@@ -141,6 +144,7 @@ public class TaskContext
                 timeoutExecutor,
                 session,
                 taskMemoryContext,
+                gpuTaskMemoryContext,
                 notifyStatusChanged,
                 perOperatorCpuTimerEnabled,
                 cpuTimerEnabled);
@@ -158,6 +162,7 @@ public class TaskContext
             ScheduledExecutorService timeoutExecutor,
             Session session,
             MemoryTrackingContext taskMemoryContext,
+            GpuTaskMemoryContext gpuTaskMemoryContext,
             Runnable notifyStatusChanged,
             boolean perOperatorCpuTimerEnabled,
             boolean cpuTimerEnabled)
@@ -171,6 +176,7 @@ public class TaskContext
         this.timeoutExecutor = requireNonNull(timeoutExecutor, "timeoutExecutor is null");
         this.session = session;
         this.taskMemoryContext = requireNonNull(taskMemoryContext, "taskMemoryContext is null");
+        this.gpuTaskMemoryContext = requireNonNull(gpuTaskMemoryContext, "gpuTaskMemoryContext is null");
 
         // Initialize the local memory contexts with the LazyOutputBuffer tag as LazyOutputBuffer will do the local memory allocations
         this.taskMemoryContext.initializeLocalMemoryContexts(LazyOutputBuffer.class.getSimpleName());
@@ -653,6 +659,11 @@ public class TaskContext
     public synchronized MemoryTrackingContext getTaskMemoryContext()
     {
         return taskMemoryContext;
+    }
+
+    public GpuTaskMemoryContext getGpuTaskMemoryContext()
+    {
+        return gpuTaskMemoryContext;
     }
 
     @VisibleForTesting
