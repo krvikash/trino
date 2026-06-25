@@ -23,6 +23,10 @@ import io.trino.FullConnectorSession;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
+import io.trino.operator.gpu.GpuOperation.Blocked;
+import io.trino.operator.gpu.GpuOperation.Data;
+import io.trino.operator.gpu.GpuOperation.Finished;
+import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -686,7 +690,7 @@ public final class GpuTestUtils
                 CopyToDevice copyToDevice = new CopyToDevice(bufferPages, types, deviceChannels)) {
             while (true) {
                 switch (copyToDevice.execute()) {
-                    case GpuOperation.Yielded() -> {
+                    case Yielded() -> {
                         if (input.hasNext()) {
                             bufferPages.addInput(input.next());
                         }
@@ -695,9 +699,9 @@ public final class GpuTestUtils
                         }
                     }
 
-                    case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
-                    case GpuOperation.Data(var page) -> result.add(page);
-                    case GpuOperation.Finished() -> {
+                    case Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                    case Data(var page) -> result.add(page);
+                    case Finished() -> {
                         return result;
                     }
                 }
@@ -758,16 +762,16 @@ public final class GpuTestUtils
 
             @Own GpuOperation.Result result = outout.execute();
             switch (result) {
-                case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
-                case GpuOperation.Data(GpuPage gpuPage) -> {
+                case Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                case Data(GpuPage gpuPage) -> {
                     try (gpuPage) {
                         gpuPageToPages.add(gpuPage);
                     }
                 }
-                case GpuOperation.Yielded() -> {
+                case Yielded() -> {
                     // continue
                 }
-                case GpuOperation.Finished() -> {
+                case Finished() -> {
                     checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained at this point");
                     return outputPages.build();
                 }

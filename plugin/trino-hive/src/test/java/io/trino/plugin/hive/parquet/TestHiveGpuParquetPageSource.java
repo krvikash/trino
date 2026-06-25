@@ -35,8 +35,11 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.gpu.Column;
-import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.ConnectorGpuPageSource.Blocked;
+import io.trino.spi.gpu.ConnectorGpuPageSource.Data;
+import io.trino.spi.gpu.ConnectorGpuPageSource.Finished;
 import io.trino.spi.gpu.ConnectorGpuPageSource.Result;
+import io.trino.spi.gpu.ConnectorGpuPageSource.Yielded;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -57,7 +60,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
@@ -393,10 +395,10 @@ public class TestHiveGpuParquetPageSource
                     while (!finished) {
                         @Own Result next = pageSource.readNext();
                         switch (next) {
-                            case ConnectorGpuPageSource.Blocked(CompletableFuture<?> _) -> throw new IllegalStateException("Blocking not supported");
-                            case ConnectorGpuPageSource.Data(GpuPage page) -> pages.add(page);
-                            case ConnectorGpuPageSource.Finished() -> finished = true;
-                            case ConnectorGpuPageSource.Yielded() -> {
+                            case Blocked _ -> throw new IllegalStateException("Blocking not supported");
+                            case Data(GpuPage page) -> pages.add(page);
+                            case Finished() -> finished = true;
+                            case Yielded() -> {
                                 /* continue */
                             }
                         }

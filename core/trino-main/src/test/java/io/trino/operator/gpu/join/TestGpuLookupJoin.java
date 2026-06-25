@@ -16,9 +16,15 @@ package io.trino.operator.gpu.join;
 import io.trino.operator.gpu.BufferPages;
 import io.trino.operator.gpu.CopyToDevice;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.GpuOperation.Blocked;
+import io.trino.operator.gpu.GpuOperation.Data;
+import io.trino.operator.gpu.GpuOperation.Finished;
+import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -62,7 +68,7 @@ final class TestGpuLookupJoin
         GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
-            assertThat(build.run()).isInstanceOf(GpuOperation.Blocked.class);
+            assertThat(build.run()).isInstanceOf(Blocked.class);
 
             List<Page> output = runProbe(
                     manager,
@@ -74,7 +80,7 @@ final class TestGpuLookupJoin
                     List.of(BIGINT),
                     List.of(probePage));
 
-            assertThat(build.run()).isInstanceOf(GpuOperation.Finished.class);
+            assertThat(build.run()).isInstanceOf(Finished.class);
 
             long total = output.stream().mapToInt(Page::getPositionCount).sum();
             assertThat(total).isEqualTo(3);
@@ -93,7 +99,7 @@ final class TestGpuLookupJoin
         GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
-            assertThat(build.run()).isInstanceOf(GpuOperation.Blocked.class);
+            assertThat(build.run()).isInstanceOf(Blocked.class);
 
             List<Page> output = runProbe(
                     manager,
@@ -105,7 +111,7 @@ final class TestGpuLookupJoin
                     List.of(BIGINT),
                     List.of(probePage));
 
-            assertThat(build.run()).isInstanceOf(GpuOperation.Finished.class);
+            assertThat(build.run()).isInstanceOf(Finished.class);
 
             long total = output.stream().mapToInt(Page::getPositionCount).sum();
             assertThat(total).isEqualTo(4);
@@ -129,7 +135,7 @@ final class TestGpuLookupJoin
         GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
-            assertThat(build.run()).isInstanceOf(GpuOperation.Blocked.class);
+            assertThat(build.run()).isInstanceOf(Blocked.class);
 
             List<Page> output = runProbe(
                     manager,
@@ -141,7 +147,7 @@ final class TestGpuLookupJoin
                     List.of(BIGINT, BIGINT),
                     List.of(probePage));
 
-            assertThat(build.run()).isInstanceOf(GpuOperation.Finished.class);
+            assertThat(build.run()).isInstanceOf(Finished.class);
 
             assertThat(output.stream().mapToInt(Page::getPositionCount).sum()).isEqualTo(4);
 
@@ -169,7 +175,7 @@ final class TestGpuLookupJoin
         GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of())) {
-            assertThat(build.run()).isInstanceOf(GpuOperation.Blocked.class);
+            assertThat(build.run()).isInstanceOf(Blocked.class);
 
             List<Page> output = runProbe(
                     manager,
@@ -181,7 +187,7 @@ final class TestGpuLookupJoin
                     List.of(BIGINT),
                     List.of(probePage));
 
-            assertThat(build.run()).isInstanceOf(GpuOperation.Finished.class);
+            assertThat(build.run()).isInstanceOf(Finished.class);
 
             long total = output.stream().mapToInt(Page::getPositionCount).sum();
             assertThat(total).isEqualTo(0);
@@ -190,9 +196,9 @@ final class TestGpuLookupJoin
 
     /**
      * Drives a {@link GpuJoinBuild} pipeline. After buffering all input and publishing the
-     * bridge, the build operation reports {@link GpuOperation.Blocked} until every probe
+     * bridge, the build operation reports {@link Blocked} until every probe
      * operator has closed. Tests must call {@link #run} once before running probes (to publish
-     * the bridge) and again after probes finish (to advance the build to {@link GpuOperation.Finished}).
+     * the bridge) and again after probes finish (to advance the build to {@link Finished}).
      */
     private static final class BuildDriver
             implements AutoCloseable
@@ -214,6 +220,7 @@ final class TestGpuLookupJoin
         /**
          * Drives build until it neither yields nor produces data.
          */
+        @Move
         GpuOperation.Result run()
         {
             while (true) {
@@ -223,17 +230,17 @@ final class TestGpuLookupJoin
                 else if (bufferPages.needsInput()) {
                     bufferPages.addInput(input.next());
                 }
-                GpuOperation.Result result = build.execute();
+                @Own GpuOperation.Result result = build.execute();
                 switch (result) {
-                    case GpuOperation.Blocked _ -> {
-                        return result;
+                    case Blocked blocked -> {
+                        return blocked;
                     }
-                    case GpuOperation.Data _ -> throw new IllegalStateException("Build should never emit data");
-                    case GpuOperation.Yielded _ -> {
+                    case Data _ -> throw new IllegalStateException("Build should never emit data");
+                    case Yielded _ -> {
                         /* continue */
                     }
-                    case GpuOperation.Finished _ -> {
-                        return result;
+                    case Finished finished -> {
+                        return finished;
                     }
                 }
             }
