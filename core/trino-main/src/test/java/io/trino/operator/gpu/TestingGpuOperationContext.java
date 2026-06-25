@@ -13,21 +13,104 @@
  */
 package io.trino.operator.gpu;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.errorprone.annotations.ThreadSafe;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
+import static io.trino.operator.Operator.NOT_BLOCKED;
+import static java.lang.Math.addExact;
+import static java.util.Objects.requireNonNull;
 
 public class TestingGpuOperationContext
         implements GpuOperation.Context
 {
-    private final GpuTaskMemoryContext taskMemoryContext = new GpuTaskMemoryContext(
-            newSimpleAggregatedMemoryContext(),
-            newSimpleAggregatedMemoryContext(),
-            newSimpleAggregatedMemoryContext());
+    private final ReservationHandler heapMemoryHandler = new ReservationHandler();
+    private final ReservationHandler gpuDeviceMemoryHandler = new ReservationHandler();
+    private final ReservationHandler offHeapMemoryHandler = new ReservationHandler();
+
+    private final AggregatedMemoryContext heapMemory = newRootAggregatedMemoryContext(heapMemoryHandler, 0);
+    private final AggregatedMemoryContext gpuDeviceMemory = newRootAggregatedMemoryContext(gpuDeviceMemoryHandler, 0);
+    private final AggregatedMemoryContext offHeapMemory = newRootAggregatedMemoryContext(offHeapMemoryHandler, 0);
+
+    private final GpuTaskMemoryContext taskMemoryContext = new GpuTaskMemoryContext(heapMemory, gpuDeviceMemory, offHeapMemory);
 
     @Override
     public GpuTaskMemoryContext taskMemoryContext()
     {
         return taskMemoryContext;
+    }
+
+    public void setGpuDeviceMemoryReservationListener(ReservationListener listener)
+    {
+        gpuDeviceMemoryHandler.setListener(listener);
+    }
+
+    public void removeGpuDeviceMemoryReservationListener(ReservationListener listener)
+    {
+        gpuDeviceMemoryHandler.removeListener(listener);
+    }
+
+    private static final class ReservationHandler
+            implements MemoryReservationHandler
+    {
+        @GuardedBy("this")
+        private long reservedMemory;
+        @GuardedBy("this")
+        private ReservationListener listener;
+
+        @Override
+        public ListenableFuture<Void> reserveMemory(String allocationTag, long delta)
+        {
+            requireNonNull(allocationTag, "allocationTag is null");
+            // allocations tags are not tracked
+
+            synchronized (this) {
+                reservedMemory = addExact(reservedMemory, delta);
+                if (listener != null) {
+                    // Call listener under a lock, otherwise notifications could be delivered out of order.
+                    // (This likely does not actually matter, as the calling memory context likely synchronizes anyway.)
+                    listener.onReservationChange(reservedMemory, delta);
+                }
+            }
+            return NOT_BLOCKED;
+        }
+
+        @Override
+        public boolean tryReserveMemory(String allocationTag, long delta)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void transferTags(String fromTag, String toTag, long bytes)
+        {
+            requireNonNull(fromTag, "fromTag is null");
+            requireNonNull(toTag, "toTag is null");
+            // allocations tags are not tracked
+        }
+
+        private synchronized void setListener(ReservationListener listener)
+        {
+            checkState(this.listener == null, "listener already set");
+            this.listener = requireNonNull(listener, "listener is null");
+        }
+
+        private synchronized void removeListener(ReservationListener listener)
+        {
+            requireNonNull(listener, "listener is null");
+            checkState(this.listener == listener, "listener not set");
+            this.listener = null;
+        }
+    }
+
+    @ThreadSafe
+    public interface ReservationListener
+    {
+        void onReservationChange(long currentReservation, long delta);
     }
 }

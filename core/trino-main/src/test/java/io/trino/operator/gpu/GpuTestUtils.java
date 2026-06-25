@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Streams;
@@ -69,6 +70,7 @@ import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -142,7 +144,7 @@ public final class GpuTestUtils
     {
         // First call to Rmm.initialize wins.
         new GpuConfigurer(new GpuConfig()
-                .setPoolSize(DataSize.of(1, DataSize.Unit.GIGABYTE))
+                .setPoolSize(DataSize.of(4, DataSize.Unit.GIGABYTE))
                 .setAggregationCompactionThreshold(DataSize.of(512, DataSize.Unit.MEGABYTE)),
                 Optional.empty())
                 .setup();
@@ -157,6 +159,33 @@ public final class GpuTestUtils
         try (DeviceMemory column = new DeviceMemory(ColumnVector.fromInts(values))) {
             return new GpuPage(values.length, new Column[] {column});
         }
+    }
+
+    public static Iterator<Page> createPages(List<Type> types, NullsProvider nullsProvider, int pageCount, int positionsPerPage, boolean jitterPositions)
+    {
+        checkArgument(pageCount >= 0);
+        checkArgument(positionsPerPage >= 0);
+        return new AbstractIterator<>()
+        {
+            final Random random = new Random(42);
+            int nextPageNumber;
+
+            @Override
+            protected Page computeNext()
+            {
+                if (nextPageNumber == pageCount) {
+                    return endOfData();
+                }
+                int rows = pageCount == 1 || !jitterPositions
+                        ? positionsPerPage
+                        : (int) (positionsPerPage * (1 + random.nextDouble(0.05)));
+                nextPageNumber++;
+                Block[] blocks = types.stream()
+                        .map(type -> createBlock(type, rows, nullsProvider))
+                        .toArray(Block[]::new);
+                return new Page(blocks);
+            }
+        };
     }
 
     public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)

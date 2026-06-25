@@ -16,6 +16,7 @@ package io.trino.plugin.base.gpu;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.annotation.NotThreadSafe;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -63,6 +64,15 @@ public final class TablesList
     {
         checkState(!closed, "Already closed");
         return tables.isEmpty();
+    }
+
+    public MemoryAmount concatenateMemoryRequirements()
+    {
+        checkState(!closed, "Already closed");
+        return switch (tables.size()) {
+            case 0, 1 -> MemoryAmount.ZERO;
+            default -> MemoryAmount.gpuDevice(tables.stream().mapToLong(Table::getDeviceMemorySize).sum());
+        };
     }
 
     public @Move Table concatenateAndClear()
