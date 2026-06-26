@@ -14,12 +14,12 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -48,14 +47,14 @@ public final class Project
     private final Result result;
     private final Value input;
     private final Region assignments;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Project(String resultName, Value input, Block assignments, Map<AttributeKey, Object> sourceAttributes)
+    public Project(String resultName, Value input, Block assignments, Attributes sourceAttributes)
     {
-        this(resultName, input, assignments, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, assignments, sourceAttributes, Attributes.empty());
     }
 
-    public Project(String resultName, Value input, Block assignments, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Project(String resultName, Value input, Block assignments, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -81,8 +80,8 @@ public final class Project
         }
         this.result = new Result(resultName, irType(resultType));
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(ProjectOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, assignments.getTerminalOperation().attributes())));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(ProjectOperationMetadata.deriveAttributes(Attributes.empty(), ImmutableList.of(sourceAttributes, assignments.getTerminalOperation().attributes())));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -107,7 +106,7 @@ public final class Project
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -126,13 +125,13 @@ public final class Project
                 result.name(),
                 newArgument,
                 assignments.getOnlyBlock(),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Block assignments()

@@ -14,15 +14,14 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.sql.dialect.ir.IrAttributeUtils.terminalOperation;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -34,14 +33,14 @@ public final class Return
 {
     private final Result result;
     private final Value input;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Return(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes)
+    public Return(String resultName, Value input, Attributes sourceAttributes)
     {
-        this(resultName, input, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, sourceAttributes, Attributes.empty());
     }
 
-    public Return(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Return(String resultName, Value input, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -53,9 +52,9 @@ public final class Return
 
         this.input = input;
 
-        Map<AttributeKey, Object> operationAttributes = terminalOperation();
+        Attributes operationAttributes = terminalOperation();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ReturnOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
 
@@ -83,7 +82,7 @@ public final class Return
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -101,19 +100,19 @@ public final class Return
         return new Return(
                 result.name(),
                 newArgument,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Return(newName, input, ImmutableMap.of());
+        return new Return(newName, input, Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Value argument()

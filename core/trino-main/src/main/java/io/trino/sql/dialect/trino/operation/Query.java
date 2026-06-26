@@ -14,9 +14,9 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -24,7 +24,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -42,14 +41,14 @@ public final class Query
 {
     private final Result result;
     private final Region query;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Query(String resultName, Block query)
     {
-        this(resultName, query, ImmutableMap.of());
+        this(resultName, query, Attributes.empty());
     }
 
-    public Query(String resultName, Block query, Map<AttributeKey, Object> enforcedAttributes)
+    public Query(String resultName, Block query, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -63,9 +62,9 @@ public final class Query
         }
         this.query = singleBlockRegion(query);
 
-        Map<AttributeKey, Object> operationAttributes = terminalOperation();
+        Attributes operationAttributes = terminalOperation();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(QueryOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(query.getTerminalOperation().attributes())));
 
@@ -93,7 +92,7 @@ public final class Query
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -114,9 +113,9 @@ public final class Query
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Block query()

@@ -60,6 +60,7 @@ import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrUtils;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -1414,7 +1415,7 @@ public class CteReuse
                         filter.result().name(),
                         filter.argument(),
                         newPredicate,
-                        ImmutableMap.of());
+                        Attributes.empty());
                 newOperations.put(newFilter.result(), newFilter);
             }
         }
@@ -1587,8 +1588,8 @@ public class CteReuse
                 Optional.ofNullable(SPILLABLE.getAttribute(join.attributes())),
                 result.dynamicFilterIds(),
                 Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())),
-                ImmutableMap.of(),
-                ImmutableMap.of());
+                Attributes.empty(),
+                Attributes.empty());
     }
 
     private static DynamicFilterSource removeDynamicFilterAssignments(DynamicFilterSource dynamicFilterSource, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
@@ -1607,7 +1608,7 @@ public class CteReuse
                 getOnlyElement(dynamicFilterSource.arguments()),
                 result.dynamicFilterTargetSelector(),
                 result.dynamicFilterIds(),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     private static DynamicFilterAssignments removeDynamicFilterAssignments(List<String> dynamicFilterIds, Block dynamicFilterTargetSelector, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
@@ -1666,8 +1667,8 @@ public class CteReuse
                 semiJoin.filteringSourceFieldSelector(),
                 Optional.ofNullable(SemiJoinOperationMetadata.DISTRIBUTION_TYPE.getAttribute(semiJoin.attributes())),
                 Optional.empty(),
-                ImmutableMap.of(),
-                ImmutableMap.of());
+                Attributes.empty(),
+                Attributes.empty());
     }
 
     private record EquivalentDynamicFilters(Set<String> ids, String representative)

@@ -14,13 +14,13 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata.DistributionType;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,7 +28,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -53,7 +52,7 @@ public final class SemiJoin
     private final Value filteringSource;
     private final Region sourceFieldSelector;
     private final Region filteringSourceFieldSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public SemiJoin(
             String resultName,
@@ -63,8 +62,8 @@ public final class SemiJoin
             Block filteringSourceFieldSelector,
             Optional<DistributionType> distributionType,
             Optional<String> dynamicFilterId,
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> filteringSourceAttributes)
+            Attributes sourceAttributes,
+            Attributes filteringSourceAttributes)
     {
         this(resultName,
                 source,
@@ -75,7 +74,7 @@ public final class SemiJoin
                 dynamicFilterId,
                 sourceAttributes,
                 filteringSourceAttributes,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     public SemiJoin(
@@ -86,9 +85,9 @@ public final class SemiJoin
             Block filteringSourceFieldSelector,
             Optional<DistributionType> distributionType,
             Optional<String> dynamicFilterId,
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> filteringSourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes filteringSourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -124,12 +123,12 @@ public final class SemiJoin
                 .build();
         this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         distributionType.ifPresent(value -> DISTRIBUTION_TYPE.putAttribute(operationAttributesBuilder, value));
         dynamicFilterId.ifPresent(value -> DYNAMIC_FILTER_ID.putAttribute(operationAttributesBuilder, value));
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(SemiJoinOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -161,7 +160,7 @@ public final class SemiJoin
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -184,12 +183,12 @@ public final class SemiJoin
                 filteringSourceFieldSelector.getOnlyBlock(),
                 Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(attributes)),
                 Optional.ofNullable(DYNAMIC_FILTER_ID.getAttribute(attributes)),
-                ImmutableMap.of(),
-                ImmutableMap.of());
+                Attributes.empty(),
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(SemiJoinOperationMetadata.OPERATION_ATTRIBUTES);
     }

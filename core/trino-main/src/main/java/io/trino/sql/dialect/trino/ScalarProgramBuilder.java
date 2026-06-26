@@ -44,9 +44,9 @@ import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.MatchClause;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.Symbol;
 import org.assertj.core.util.VisibleForTesting;
 
@@ -138,7 +138,7 @@ public class ScalarProgramBuilder
         List<Operation> arguments = argumentsBuilder.build();
         Operation lambda = node.function().accept(this, context);
 
-        ImmutableList.Builder<Map<AttributeKey, Object>> sourceAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> sourceAttributes = ImmutableList.builder();
         arguments.stream()
                 .map(Operation::attributes)
                 .forEach(sourceAttributes::add);
@@ -192,7 +192,7 @@ public class ScalarProgramBuilder
                 .collect(toImmutableList());
         Operation defaultValue = node.defaultValue().accept(this, context);
 
-        ImmutableList.Builder<Map<AttributeKey, Object>> sourceAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> sourceAttributes = ImmutableList.builder();
         operands.stream()
                 .map(Operation::attributes)
                 .forEach(sourceAttributes::add);
@@ -297,7 +297,7 @@ public class ScalarProgramBuilder
                 .map(element -> element.accept(this, context))
                 .collect(toImmutableList());
 
-        ImmutableList.Builder<Map<AttributeKey, Object>> sourceAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> sourceAttributes = ImmutableList.builder();
         sourceAttributes.add(value.attributes());
         valueList.stream()
                 .map(Operation::attributes)
@@ -411,7 +411,7 @@ public class ScalarProgramBuilder
                 .collect(toImmutableList());
         Operation defaultValue = node.defaultValue().accept(this, context);
 
-        ImmutableList.Builder<Map<AttributeKey, Object>> sourceAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> sourceAttributes = ImmutableList.builder();
         sourceAttributes.add(operand.attributes());
         when.stream()
                 .map(Operation::attributes)

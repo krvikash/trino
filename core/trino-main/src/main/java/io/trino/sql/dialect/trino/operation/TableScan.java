@@ -14,7 +14,6 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.trino.metadata.TableHandle;
@@ -26,12 +25,12 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -55,7 +54,7 @@ public class TableScan
         extends TrinoOperation
 {
     private final Result result;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public TableScan(
             String resultName,
@@ -67,7 +66,7 @@ public class TableScan
             boolean updateTarget,
             Optional<Boolean> useConnectorNodePartitioning)
     {
-        this(resultName, rowType, tableHandle, columnHandles, enforcedConstraint, statistics, updateTarget, useConnectorNodePartitioning, ImmutableMap.of());
+        this(resultName, rowType, tableHandle, columnHandles, enforcedConstraint, statistics, updateTarget, useConnectorNodePartitioning, Attributes.empty());
     }
 
     public TableScan(
@@ -79,7 +78,7 @@ public class TableScan
             Optional<Statistics> statistics, // TODO do not send to workers
             boolean updateTarget,
             Optional<Boolean> useConnectorNodePartitioning,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -110,7 +109,7 @@ public class TableScan
             this.result = new Result(resultName, irType(new MultisetType(anonymousRowType)));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         TABLE_HANDLE.putAttribute(operationAttributesBuilder, tableHandle);
         COLUMN_HANDLES.putAttribute(operationAttributesBuilder, columnHandles);
         CONSTRAINT.putAttribute(operationAttributesBuilder, enforcedConstraint);
@@ -118,9 +117,9 @@ public class TableScan
         UPDATE_TARGET.putAttribute(operationAttributesBuilder, updateTarget);
         useConnectorNodePartitioning.ifPresent(usePartitioning -> USE_CONNECTOR_NODE_PARTITIONING.putAttribute(operationAttributesBuilder, usePartitioning));
         ROW_TYPE.putAttribute(operationAttributesBuilder, anonymousRowType);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(TableScanOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
@@ -163,7 +162,7 @@ public class TableScan
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -175,7 +174,7 @@ public class TableScan
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(TableScanOperationMetadata.OPERATION_ATTRIBUTES);
     }

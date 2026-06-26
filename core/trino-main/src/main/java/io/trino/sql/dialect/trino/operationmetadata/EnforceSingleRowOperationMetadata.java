@@ -13,16 +13,14 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
@@ -34,7 +32,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasSideEffects;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class EnforceSingleRowOperationMetadata
         implements TrinoOperationMetadata
@@ -54,34 +51,33 @@ public class EnforceSingleRowOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(arguments.size() == 1, "EnforceSingleRow operation must have exactly one argument: the input relation");
         checkArgument(regions.isEmpty(), "EnforceSingleRow operation must have no regions");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new EnforceSingleRow(
                 resultName,
                 getOnlyElement(arguments),
-                ImmutableMap.of(),
+                Attributes.empty(),
                 derivedAttributes);
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return EnforceSingleRowOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
         checkArgument(childAttributes.size() == 1, "EnforceSingleRow operation must have exactly one child attributes map: the input");
-        Map<AttributeKey, Object> inputAttributes = getOnlyElement(childAttributes);
+        Attributes inputAttributes = getOnlyElement(childAttributes);
 
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         // IR-level attributes
         if (isKnownDeterministic(inputAttributes)) {

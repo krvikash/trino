@@ -13,23 +13,20 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operation.Union;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class UnionOperationMetadata
         implements TrinoOperationMetadata
@@ -49,14 +46,13 @@ public class UnionOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(!arguments.isEmpty(), "Union operation must have at least one argument: an input relation");
         checkArgument(arguments.size() == regions.size(), "Union operation must have one region per input relation");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new Union(
                 resultName,
@@ -70,12 +66,12 @@ public class UnionOperationMetadata
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return UnionOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
         return defaultDeriveIrLevelAttributes(childAttributes);
     }

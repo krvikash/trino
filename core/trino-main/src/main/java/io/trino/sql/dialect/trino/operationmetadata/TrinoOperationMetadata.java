@@ -14,13 +14,13 @@
 package io.trino.sql.dialect.trino.operationmetadata;
 
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
@@ -50,7 +50,7 @@ public interface TrinoOperationMetadata
     /**
      * Function that derives attributes for the operation based on its current attributes and its children's attributes.
      */
-    BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation();
+    BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation();
 
-    Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes);
+    Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes);
 }

@@ -13,18 +13,16 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 import io.trino.sql.planner.plan.AggregationNode;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -37,7 +35,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class AggregationOperationMetadata
         implements TrinoOperationMetadata
@@ -85,15 +82,14 @@ public class AggregationOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(arguments.size() == 1, "Aggregation operation must have exactly one argument: the input relation");
         checkArgument(regions.size() == 2, "Aggregation operation must have exactly two regions: one for aggregate calls and one for grouping keys selector");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes operationAttributes = partitionedAttributes.matching();
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new Aggregation(
                 resultName,
@@ -106,17 +102,17 @@ public class AggregationOperationMetadata
                 PRE_GROUPED_INDEXES.getAttribute(operationAttributes),
                 AGGREGATION_STEP.getAttribute(operationAttributes),
                 INPUT_REDUCING.getAttribute(operationAttributes),
-                ImmutableMap.of(),
+                Attributes.empty(),
                 derivedAttributes);
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return AggregationOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
         checkArgument(childAttributes.size() == 3, "Aggregation operation must have exactly three child attributes maps: one for the input, and one for each of the two regions");
 

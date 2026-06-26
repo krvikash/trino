@@ -24,6 +24,7 @@ import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -121,8 +122,8 @@ public class JoinMerger
                     Optional.ofNullable(SPILLABLE.getAttribute(join.attributes())),
                     DYNAMIC_FILTER_IDS.getAttribute(join.attributes()),
                     Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())),
-                    ImmutableMap.of(),
-                    ImmutableMap.of());
+                    Attributes.empty(),
+                    Attributes.empty());
             halfRebasedJoins.put(branchIndex, halfRebasedJoin);
 
             boolean foundMatchingSubgroup = false;
@@ -244,8 +245,8 @@ public class JoinMerger
                             Optional.ofNullable(SPILLABLE.getAttribute(halfRebasedJoin.attributes())),
                             DYNAMIC_FILTER_IDS.getAttribute(halfRebasedJoin.attributes()),
                             Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(halfRebasedJoin.attributes())),
-                            ImmutableMap.of(),
-                            ImmutableMap.of());
+                            Attributes.empty(),
+                            Attributes.empty());
 
                     boolean foundMatchingSubgroup = false;
                     for (Map.Entry<Integer, Join> subgroupRepresentative : hangingSubgroupRepresentatives.entrySet()) {

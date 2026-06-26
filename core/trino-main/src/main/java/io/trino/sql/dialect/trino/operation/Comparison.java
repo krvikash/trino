@@ -14,17 +14,16 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -42,14 +41,14 @@ public final class Comparison
     private final Result result;
     private final Value left;
     private final Value right;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Comparison(String resultName, Value left, Value right, ComparisonOperator comparisonOperator, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Comparison(String resultName, Value left, Value right, ComparisonOperator comparisonOperator, List<Attributes> sourceAttributes)
     {
-        this(resultName, left, right, comparisonOperator, sourceAttributes, ImmutableMap.of());
+        this(resultName, left, right, comparisonOperator, sourceAttributes, Attributes.empty());
     }
 
-    public Comparison(String resultName, Value left, Value right, ComparisonOperator comparisonOperator, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Comparison(String resultName, Value left, Value right, ComparisonOperator comparisonOperator, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -73,9 +72,9 @@ public final class Comparison
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
         }
 
-        Map<AttributeKey, Object> operationAttributes = COMPARISON_OPERATOR.asMap(comparisonOperator);
+        Attributes operationAttributes = COMPARISON_OPERATOR.asAttributes(comparisonOperator);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ComparisonOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
@@ -103,7 +102,7 @@ public final class Comparison
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -133,7 +132,7 @@ public final class Comparison
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ComparisonOperationMetadata.OPERATION_ATTRIBUTES);
     }

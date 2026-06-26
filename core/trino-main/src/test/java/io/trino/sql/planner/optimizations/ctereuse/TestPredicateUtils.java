@@ -14,13 +14,13 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import org.junit.jupiter.api.Test;
@@ -162,7 +162,7 @@ public class TestPredicateUtils
                 "%103",
                 ImmutableList.of(constantTrueOperation.result(), OUTER_PARAMETER),
                 AND,
-                ImmutableList.of(constantTrueOperation.attributes(), ImmutableMap.of()));
+                ImmutableList.of(constantTrueOperation.attributes(), Attributes.empty()));
         Return returnOperationWithOuterReference = new Return("%104", conjunctionOperationWithOuterReference.result(), conjunctionOperationWithOuterReference.attributes());
 
         assertThat(conjunction(ImmutableList.of(TRUE, OUTER_REFERENCE_PREDICATE), new ProgramBuilder.ValueNameAllocator(100)))
@@ -216,7 +216,7 @@ public class TestPredicateUtils
                 "%103",
                 ImmutableList.of(constantTrueOperation.result(), OUTER_PARAMETER),
                 OR,
-                ImmutableList.of(constantTrueOperation.attributes(), ImmutableMap.of()));
+                ImmutableList.of(constantTrueOperation.attributes(), Attributes.empty()));
         Return returnOperationWithOuterReference = new Return("%104", disjunctionOperationWithOuterReference.result(), disjunctionOperationWithOuterReference.attributes());
 
         assertThat(disjunction(ImmutableList.of(TRUE, OUTER_REFERENCE_PREDICATE), new ProgramBuilder.ValueNameAllocator(100)))
@@ -692,7 +692,7 @@ public class TestPredicateUtils
                 Optional.of("^correlated_predicate"),
                 ImmutableList.of(PARAMETER),
                 ImmutableList.of(
-                        new Return("%0", OUTER_PARAMETER, ImmutableMap.of())));
+                        new Return("%0", OUTER_PARAMETER, Attributes.empty())));
     }
 
     private static Block getConjunctionPredicate()
@@ -702,7 +702,7 @@ public class TestPredicateUtils
                 "%1",
                 ImmutableList.of(PARAMETER, constantTrueOperation.result(), OUTER_PARAMETER),
                 AND,
-                ImmutableList.of(ImmutableMap.of(), constantTrueOperation.attributes(), ImmutableMap.of()));
+                ImmutableList.of(Attributes.empty(), constantTrueOperation.attributes(), Attributes.empty()));
         Return returnOperation = new Return("%2", constantTrueOperation.result(), constantTrueOperation.attributes());
 
         return new Block(
@@ -718,7 +718,7 @@ public class TestPredicateUtils
                 "%1",
                 ImmutableList.of(PARAMETER, constantTrueOperation.result(), OUTER_PARAMETER),
                 OR,
-                ImmutableList.of(ImmutableMap.of(), constantTrueOperation.attributes(), ImmutableMap.of()));
+                ImmutableList.of(Attributes.empty(), constantTrueOperation.attributes(), Attributes.empty()));
         Return returnOperation = new Return("%2", constantTrueOperation.result(), constantTrueOperation.attributes());
 
         return new Block(

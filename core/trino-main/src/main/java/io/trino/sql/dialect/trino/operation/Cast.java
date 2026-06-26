@@ -14,16 +14,15 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -37,14 +36,14 @@ public final class Cast
 {
     private final Result result;
     private final Value input;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Cast(String resultName, Value input, Type type, Map<AttributeKey, Object> sourceAttributes)
+    public Cast(String resultName, Value input, Type type, Attributes sourceAttributes)
     {
-        this(resultName, input, type, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, type, sourceAttributes, Attributes.empty());
     }
 
-    public Cast(String resultName, Value input, Type type, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Cast(String resultName, Value input, Type type, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -57,9 +56,9 @@ public final class Cast
 
         this.input = input;
 
-        Map<AttributeKey, Object> operationAttributes = TO_TYPE.asMap(type);
+        Attributes operationAttributes = TO_TYPE.asAttributes(type);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(CastOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
 
@@ -87,7 +86,7 @@ public final class Cast
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -106,17 +105,17 @@ public final class Cast
                 result.name(),
                 newArgument,
                 trinoType(result.type()),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Cast(newName, input, trinoType(result.type()), ImmutableMap.of());
+        return new Cast(newName, input, trinoType(result.type()), Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(CastOperationMetadata.OPERATION_ATTRIBUTES);
     }

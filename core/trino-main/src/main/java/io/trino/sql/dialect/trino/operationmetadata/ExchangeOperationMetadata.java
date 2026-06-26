@@ -13,7 +13,6 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
@@ -21,8 +20,8 @@ import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 import io.trino.sql.planner.PartitioningHandle;
@@ -31,7 +30,6 @@ import org.assertj.core.util.VisibleForTesting;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -52,7 +50,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class ExchangeOperationMetadata
         implements TrinoOperationMetadata
@@ -137,14 +134,13 @@ public class ExchangeOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(regions.size() == arguments.size() + 2, "The number of regions Exchange operation must be equal to the number of arguments plus two: one for partitioning bound arguments and one for sorting keys");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes operationAttributes = partitionedAttributes.matching();
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new Exchange(
                 resultName,
@@ -169,14 +165,14 @@ public class ExchangeOperationMetadata
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return ExchangeOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         // For repeatability, we ignore the last two child attributes which correspond to the partitioning bound arguments and sorting keys.
         // They only affect how the data is organized on the physical level (partitioning and ordering).

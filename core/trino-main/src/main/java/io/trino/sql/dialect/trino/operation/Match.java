@@ -14,12 +14,12 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -46,14 +45,14 @@ public final class Match
     private final List<Value> when;
     private final List<Value> then;
     private final Value defaultValue;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Attributes> sourceAttributes)
     {
-        this(resultName, operand, when, then, defaultValue, sourceAttributes, ImmutableMap.of());
+        this(resultName, operand, when, then, defaultValue, sourceAttributes, Attributes.empty());
     }
 
-    public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -107,8 +106,8 @@ public final class Match
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), 1 + when.size() + then.size() + 1));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(MatchOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(MatchOperationMetadata.deriveAttributes(Attributes.empty(), sourceAttributes));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -138,7 +137,7 @@ public final class Match
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -177,9 +176,9 @@ public final class Match
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     @Override

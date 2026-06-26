@@ -13,7 +13,6 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
@@ -24,8 +23,8 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 import org.assertj.core.util.VisibleForTesting;
@@ -46,7 +45,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalObjectAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class TableScanOperationMetadata
         implements TrinoOperationMetadata
@@ -134,15 +132,14 @@ public class TableScanOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(arguments.isEmpty(), "TableScan operation does not have arguments");
         checkArgument(regions.isEmpty(), "TableScan operation does not have regions");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes operationAttributes = partitionedAttributes.matching();
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new TableScan(
                 resultName,
@@ -157,16 +154,16 @@ public class TableScanOperationMetadata
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return TableScanOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
         checkArgument(childAttributes.isEmpty(), "TableScan operation must have exactly zero child attributes maps");
 
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
         // TODO derive repeatability, for now we set unknown
         safe(derivedAttributes);
         hasNoSideEffects(derivedAttributes);

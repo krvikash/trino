@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -26,7 +26,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -42,14 +41,14 @@ public final class Bind
     private final Result result;
     private final List<Value> values;
     private final Value lambda;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Bind(String resultName, List<Value> values, Value lambda, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Bind(String resultName, List<Value> values, Value lambda, List<Attributes> sourceAttributes)
     {
-        this(resultName, values, lambda, sourceAttributes, ImmutableMap.of());
+        this(resultName, values, lambda, sourceAttributes, Attributes.empty());
     }
 
-    public Bind(String resultName, List<Value> values, Value lambda, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Bind(String resultName, List<Value> values, Value lambda, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -80,8 +79,8 @@ public final class Bind
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), values.size() + 1));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(BindOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(BindOperationMetadata.deriveAttributes(Attributes.empty(), sourceAttributes));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -109,7 +108,7 @@ public final class Bind
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -142,9 +141,9 @@ public final class Bind
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     @Override

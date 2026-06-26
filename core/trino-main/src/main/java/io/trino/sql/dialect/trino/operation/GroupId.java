@@ -14,12 +14,12 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
@@ -54,7 +53,7 @@ public class GroupId
     // It will contain the values of the original columns filtered by whether the column is included in the grouping set
     private final Region groupingColumnsSelector;
     private final Region aggregationArgumentsSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public GroupId(
             String resultName,
@@ -62,9 +61,9 @@ public class GroupId
             Block groupingColumnsSelector,
             Block aggregationArgumentsSelector,
             List<List<Integer>> groupingSets, // indexes in fields returned by groupingColumnsSelector
-            Map<AttributeKey, Object> sourceAttributes)
+            Attributes sourceAttributes)
     {
-        this(resultName, input, groupingColumnsSelector, aggregationArgumentsSelector, groupingSets, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, groupingColumnsSelector, aggregationArgumentsSelector, groupingSets, sourceAttributes, Attributes.empty());
     }
 
     public GroupId(
@@ -73,8 +72,8 @@ public class GroupId
             Block groupingColumnsSelector,
             Block aggregationArgumentsSelector,
             List<List<Integer>> groupingSets, // indexes in fields returned by groupingColumnsSelector
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -118,9 +117,9 @@ public class GroupId
 
         this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes.build()))));
 
-        Map<AttributeKey, Object> operationAttributes = GROUPING_SETS.asMap(groupingSets);
+        Attributes operationAttributes = GROUPING_SETS.asAttributes(groupingSets);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(GroupIdOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, groupingColumnsSelector.getTerminalOperation().attributes(), aggregationArgumentsSelector.getTerminalOperation().attributes())));
 
@@ -148,7 +147,7 @@ public class GroupId
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -169,11 +168,11 @@ public class GroupId
                 groupingColumnsSelector.getOnlyBlock(),
                 aggregationArgumentsSelector.getOnlyBlock(),
                 GROUPING_SETS.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(GroupIdOperationMetadata.OPERATION_ATTRIBUTES);
     }

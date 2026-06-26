@@ -18,7 +18,6 @@ import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Operation.OperationId;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
@@ -58,9 +57,9 @@ public abstract class Dialect
 
     public abstract Type parseType(String type);
 
-    public abstract BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id);
+    public abstract BiFunction<Attributes, List<Attributes>, Attributes> getAttributeDerivationForOperation(OperationId id);
 
     public abstract Set<AttributeKey> getInherentOperationAttributeKeys(OperationId id);
 
-    public abstract Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes);
+    public abstract Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Attributes attributes);
 }

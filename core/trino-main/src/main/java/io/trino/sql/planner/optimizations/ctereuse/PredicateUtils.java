@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.Logical;
@@ -22,6 +21,7 @@ import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -211,7 +211,7 @@ public class PredicateUtils
                     .forEach(operation -> operations.put(operation.result(), operation));
             ImmutableList.Builder<Block> terms = ImmutableList.builder();
             for (Value term : logical.arguments()) {
-                Return returnOperation = new Return(nameAllocator.newName(), term, ImmutableMap.of()); // TODO pass source attributes
+                Return returnOperation = new Return(nameAllocator.newName(), term, Attributes.empty()); // TODO pass source attributes
                 operations.put(returnOperation.result(), returnOperation);
                 Block.Builder builder = new Block.Builder(block.name(), block.parameters());
                 layoutOperations(returnOperation.result(), builder, operations);

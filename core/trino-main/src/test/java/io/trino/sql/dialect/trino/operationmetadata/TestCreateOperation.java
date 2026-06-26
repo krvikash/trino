@@ -77,6 +77,7 @@ import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.Operation;
@@ -140,7 +141,7 @@ class TestCreateOperation
 {
     private static final Values VALUES_OPERATION = valuesOperation();
     private static final Type VALUES_OPERATION_ROW_TYPE = irType(relationRowType(trinoType(VALUES_OPERATION.result().type())));
-    private static final Region SOME_REGION = singleBlockRegion(new Block(Optional.empty(), ImmutableList.of(), ImmutableList.of(new Return("%5", new Result("%4", irType(BOOLEAN)), ImmutableMap.of()))));
+    private static final Region SOME_REGION = singleBlockRegion(new Block(Optional.empty(), ImmutableList.of(), ImmutableList.of(new Return("%5", new Result("%4", irType(BOOLEAN)), Attributes.empty()))));
     private static final Parameter INPUT_ROW_PARAMETER = new Parameter(
             "%input_row",
             irType(anonymousRow(BIGINT, BOOLEAN)));
@@ -241,12 +242,17 @@ class TestCreateOperation
                         singleBlockRegion(filterSelectorBlock),
                         singleBlockRegion(maskSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregate_call:result_type"), BIGINT,
-                        new AttributeKey(TRINO, "aggregate_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "aggregate_call:resolved_function"), sumFunction,
-                        new AttributeKey(TRINO, "aggregate_call:distinct"), false,
-                        new AttributeKey(TRINO, "aggregate_call:step"), AggregateCallOperationMetadata.AggregationStep.SINGLE));
+                attributes(
+                        new AttributeKey(TRINO, "aggregate_call:result_type"),
+                        BIGINT,
+                        new AttributeKey(TRINO, "aggregate_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "aggregate_call:resolved_function"),
+                        sumFunction,
+                        new AttributeKey(TRINO, "aggregate_call:distinct"),
+                        false,
+                        new AttributeKey(TRINO, "aggregate_call:step"),
+                        AggregateCallOperationMetadata.AggregationStep.SINGLE));
 
         assertThat(actualAggregateCallOperation).isEqualTo(aggregateCallOperation);
         assertThat(actualAggregateCallOperation.result().type()).isEqualTo(irType(BIGINT));
@@ -261,12 +267,17 @@ class TestCreateOperation
                         singleBlockRegion(filterSelectorBlock),
                         singleBlockRegion(maskSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregate_call:result_type"), BIGINT,
-                        new AttributeKey(TRINO, "aggregate_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "aggregate_call:resolved_function"), sumFunction,
-                        new AttributeKey(TRINO, "aggregate_call:distinct"), false,
-                        new AttributeKey(TRINO, "aggregate_call:step"), AggregateCallOperationMetadata.AggregationStep.SINGLE)))
+                attributes(
+                        new AttributeKey(TRINO, "aggregate_call:result_type"),
+                        BIGINT,
+                        new AttributeKey(TRINO, "aggregate_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "aggregate_call:resolved_function"),
+                        sumFunction,
+                        new AttributeKey(TRINO, "aggregate_call:distinct"),
+                        false,
+                        new AttributeKey(TRINO, "aggregate_call:step"),
+                        AggregateCallOperationMetadata.AggregationStep.SINGLE)))
                 .hasMessage("AggregateCall operation must have exactly one argument: the input group");
 
         // wrong region count
@@ -278,12 +289,17 @@ class TestCreateOperation
                         singleBlockRegion(argumentsBlock),
 
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregate_call:result_type"), BIGINT,
-                        new AttributeKey(TRINO, "aggregate_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "aggregate_call:resolved_function"), sumFunction,
-                        new AttributeKey(TRINO, "aggregate_call:distinct"), false,
-                        new AttributeKey(TRINO, "aggregate_call:step"), AggregateCallOperationMetadata.AggregationStep.SINGLE)))
+                attributes(
+                        new AttributeKey(TRINO, "aggregate_call:result_type"),
+                        BIGINT,
+                        new AttributeKey(TRINO, "aggregate_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "aggregate_call:resolved_function"),
+                        sumFunction,
+                        new AttributeKey(TRINO, "aggregate_call:distinct"),
+                        false,
+                        new AttributeKey(TRINO, "aggregate_call:step"),
+                        AggregateCallOperationMetadata.AggregationStep.SINGLE)))
                 .hasMessage("AggregateCall operation must have exactly four regions");
 
         // missing required attribute
@@ -296,11 +312,15 @@ class TestCreateOperation
                         singleBlockRegion(filterSelectorBlock),
                         singleBlockRegion(maskSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregate_call:result_type"), BIGINT,
-                        new AttributeKey(TRINO, "aggregate_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "aggregate_call:distinct"), false,
-                        new AttributeKey(TRINO, "aggregate_call:step"), AggregateCallOperationMetadata.AggregationStep.SINGLE)))
+                attributes(
+                        new AttributeKey(TRINO, "aggregate_call:result_type"),
+                        BIGINT,
+                        new AttributeKey(TRINO, "aggregate_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "aggregate_call:distinct"),
+                        false,
+                        new AttributeKey(TRINO, "aggregate_call:step"),
+                        AggregateCallOperationMetadata.AggregationStep.SINGLE)))
                 .hasMessage("function is null");
 
         // collecting aggregate functions in a row
@@ -349,15 +369,22 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(aggregateCallsBlock),
                         singleBlockRegion(groupingKeysSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"), 1,
-                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"), ImmutableList.of(),
-                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "aggregation:step"), SINGLE,
-                        new AttributeKey(TRINO, "aggregation:input_reducing"), true,
+                attributes(
+                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
+                        1,
+                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"),
+                        ImmutableList.of(),
+                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "aggregation:step"),
+                        SINGLE,
+                        new AttributeKey(TRINO, "aggregation:input_reducing"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
         assertThat(actualAggregationOperation).isEqualTo(aggregationOperation);
         assertThat(actualAggregationOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BOOLEAN, BIGINT))));
 
@@ -369,15 +396,22 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(aggregateCallsBlock),
                         singleBlockRegion(groupingKeysSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"), 1,
-                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"), ImmutableList.of(),
-                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "aggregation:step"), SINGLE,
-                        new AttributeKey(TRINO, "aggregation:input_reducing"), true,
+                attributes(
+                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
+                        1,
+                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"),
+                        ImmutableList.of(),
+                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "aggregation:step"),
+                        SINGLE,
+                        new AttributeKey(TRINO, "aggregation:input_reducing"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Aggregation operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -389,15 +423,22 @@ class TestCreateOperation
                         singleBlockRegion(aggregateCallsBlock),
                         singleBlockRegion(groupingKeysSelectorBlock),
                         singleBlockRegion(groupingKeysSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"), 1,
-                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"), ImmutableList.of(),
-                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "aggregation:step"), SINGLE,
-                        new AttributeKey(TRINO, "aggregation:input_reducing"), true,
+                attributes(
+                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
+                        1,
+                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"),
+                        ImmutableList.of(),
+                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "aggregation:step"),
+                        SINGLE,
+                        new AttributeKey(TRINO, "aggregation:input_reducing"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Aggregation operation must have exactly two regions: one for aggregate calls and one for grouping keys selector");
 
         // missing required attribute
@@ -408,14 +449,20 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(aggregateCallsBlock),
                         singleBlockRegion(groupingKeysSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"), 1,
-                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"), ImmutableList.of(),
-                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "aggregation:input_reducing"), true,
+                attributes(
+                        new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
+                        1,
+                        new AttributeKey(TRINO, "aggregation:global_grouping_sets"),
+                        ImmutableList.of(),
+                        new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "aggregation:input_reducing"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("step is null");
     }
 
@@ -436,11 +483,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "array:element_type"), BOOLEAN,
+                attributes(
+                        new AttributeKey(TRINO, "array:element_type"),
+                        BOOLEAN,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualArrayOperation).isEqualTo(arrayOperation);
         assertThat(actualArrayOperation.result().type()).isEqualTo(irType(new ArrayType(BOOLEAN)));
@@ -451,11 +501,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "array:element_type"), BOOLEAN,
+                attributes(
+                        new AttributeKey(TRINO, "array:element_type"),
+                        BOOLEAN,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Array operation does not have regions");
 
         // missing required attribute
@@ -464,10 +517,12 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("elementType is null");
     }
 
@@ -484,11 +539,14 @@ class TestCreateOperation
                 "%assign_unique_id",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        NON_DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualAssignUniqueIdOperation).isEqualTo(assignUniqueIdOperation);
         assertThat(actualAssignUniqueIdOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT))));
@@ -499,7 +557,7 @@ class TestCreateOperation
                 "%assign_unique_id",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("AssignUniqueId operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -508,7 +566,7 @@ class TestCreateOperation
                 "%assign_unique_id",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("AssignUniqueId operation does not have regions");
     }
 
@@ -530,11 +588,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperationValue.result(), constantOperationMin.result(), constantOperationMax.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualBetweenOperation).isEqualTo(betweenOperation);
         assertThat(actualBetweenOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -545,11 +606,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperationValue.result(), constantOperationMin.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Between operation must have exactly three arguments");
 
         // wrong region count
@@ -558,11 +622,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperationValue.result(), constantOperationMin.result(), constantOperationMax.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Between operation does not have regions");
     }
 
@@ -589,11 +656,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(lambdaBody)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualBindOperation).isEqualTo(lambdaOperation);
         assertThat(actualBindOperation.result().type()).isEqualTo(irType(new FunctionType(ImmutableList.of(BIGINT), BIGINT)));
@@ -609,11 +679,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(fieldReferenceOperation1.result(), lambdaOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .isEqualTo(bindOperation);
 
         // wrong argument count
@@ -622,11 +695,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Bind operation must have at least one argument");
 
         // wrong region count
@@ -635,11 +711,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(fieldReferenceOperation1.result(), lambdaOperation.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Bind operation does not have regions");
     }
 
@@ -655,11 +734,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "call:resolved_function"), randomFunction,
-                        new AttributeKey(IR, "repeatability"), NON_DETERMINISTIC,
+                attributes(
+                        new AttributeKey(TRINO, "call:resolved_function"),
+                        randomFunction,
+                        new AttributeKey(IR, "repeatability"),
+                        NON_DETERMINISTIC,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualCallOperation).isEqualTo(callOperationWithoutArguments);
         assertThat(actualCallOperation.result().type()).isEqualTo(irType(DOUBLE));
@@ -679,11 +761,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "call:resolved_function"), addOperator,
+                attributes(
+                        new AttributeKey(TRINO, "call:resolved_function"),
+                        addOperator,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualCallOperationWithArguments).isEqualTo(callOperationWithArguments);
         assertThat(actualCallOperationWithArguments.result().type()).isEqualTo(irType(BIGINT));
@@ -694,11 +779,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "call:resolved_function"), randomFunction,
-                        new AttributeKey(IR, "repeatability"), NON_DETERMINISTIC,
+                attributes(
+                        new AttributeKey(TRINO, "call:resolved_function"),
+                        randomFunction,
+                        new AttributeKey(IR, "repeatability"),
+                        NON_DETERMINISTIC,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Call operation does not have regions");
 
         // missing required attribute
@@ -707,10 +795,12 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(IR, "repeatability"), NON_DETERMINISTIC,
+                attributes(
+                        new AttributeKey(IR, "repeatability"),
+                        NON_DETERMINISTIC,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("function is null");
     }
 
@@ -739,11 +829,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result(), constantOperationThen1.result(), constantOperationThen2.result(), constantOperationDefault.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualCaseOperation).isEqualTo(caseOperation);
         assertThat(actualCaseOperation.result().type()).isEqualTo(irType(BIGINT));
@@ -754,11 +847,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Case operation must have at least three arguments");
 
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
@@ -766,11 +862,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result(), constantOperationThen1.result(), constantOperationThen2.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Case operation must have odd number of arguments");
 
         // wrong region count
@@ -779,11 +878,14 @@ class TestCreateOperation
                 "%5",
                 ImmutableList.of(constantOperationWhen1.result(), constantOperationWhen2.result(), constantOperationThen1.result(), constantOperationThen2.result(), constantOperationDefault.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Case operation does not have regions");
     }
 
@@ -802,11 +904,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(constantOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "cast:to_type"), BIGINT,
+                attributes(
+                        new AttributeKey(TRINO, "cast:to_type"),
+                        BIGINT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualCastOperation).isEqualTo(castOperation);
         assertThat(actualCastOperation.result().type()).isEqualTo(irType(BIGINT));
@@ -817,11 +922,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(constantOperation.result(), constantOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "cast:to_type"), BIGINT,
+                attributes(
+                        new AttributeKey(TRINO, "cast:to_type"),
+                        BIGINT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Cast operation must have exactly one argument: the input value");
 
         // wrong region count
@@ -830,11 +938,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(constantOperation.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "cast:to_type"), BIGINT,
+                attributes(
+                        new AttributeKey(TRINO, "cast:to_type"),
+                        BIGINT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Cast operation does not have regions");
 
         // missing required attribute
@@ -843,10 +954,12 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(constantOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("type is null");
     }
 
@@ -866,11 +979,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualCoalesceOperation).isEqualTo(coalesceOperation);
         assertThat(actualCoalesceOperation.result().type()).isEqualTo(irType(BIGINT));
@@ -881,11 +997,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Coalesce operation does not have regions");
     }
 
@@ -906,12 +1025,16 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "comparison:operator"), GREATER_THAN,
+                attributes(
+                        new AttributeKey(TRINO, "comparison:operator"),
+                        GREATER_THAN,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualComparisonOperation).isEqualTo(comparisonOperation);
         assertThat(actualComparisonOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -922,12 +1045,16 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationLeft.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "comparison:operator"), GREATER_THAN,
+                attributes(
+                        new AttributeKey(TRINO, "comparison:operator"),
+                        GREATER_THAN,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Comparison operation must have exactly two arguments");
 
         // wrong region count
@@ -936,12 +1063,16 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "comparison:operator"), GREATER_THAN,
+                attributes(
+                        new AttributeKey(TRINO, "comparison:operator"),
+                        GREATER_THAN,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Comparison operation does not have regions");
 
         // missing required attribute
@@ -950,11 +1081,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationLeft.result(), constantOperationRight.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("comparisonOperator is null");
     }
 
@@ -968,12 +1102,16 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "constant:value"), ConstantValue.of(BOOLEAN, true),
+                attributes(
+                        new AttributeKey(TRINO, "constant:value"),
+                        ConstantValue.of(BOOLEAN, true),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualConstantOperation).isEqualTo(constantOperation);
         assertThat(actualConstantOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -984,12 +1122,16 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(new Result("%1", irType(BOOLEAN))),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "constant:value"), ConstantValue.of(BOOLEAN, true),
+                attributes(
+                        new AttributeKey(TRINO, "constant:value"),
+                        ConstantValue.of(BOOLEAN, true),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Constant operation does not have arguments");
 
         // wrong region count
@@ -998,12 +1140,16 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "constant:value"), ConstantValue.of(BOOLEAN, true),
+                attributes(
+                        new AttributeKey(TRINO, "constant:value"),
+                        ConstantValue.of(BOOLEAN, true),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Constant operation does not have regions");
 
         // missing required attribute
@@ -1012,11 +1158,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*\"constantValue\" is null");
     }
 
@@ -1030,12 +1179,16 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "constant:value"), ConstantValue.asNull(BOOLEAN),
+                attributes(
+                        new AttributeKey(TRINO, "constant:value"),
+                        ConstantValue.asNull(BOOLEAN),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualConstantOperation).isEqualTo(constantOperation);
         assertThat(actualConstantOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -1120,12 +1273,16 @@ class TestCreateOperation
                         singleBlockRegion(correlationBlock),
                         singleBlockRegion(subqueryBlock),
                         singleBlockRegion(filterBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "correlated_join:type"), CorrelatedJoinOperationMetadata.JoinType.LEFT,
+                attributes(
+                        new AttributeKey(TRINO, "correlated_join:type"),
+                        CorrelatedJoinOperationMetadata.JoinType.LEFT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualCorrelatedJoinOperation).isEqualTo(correlatedJoinOperation);
         assertThat(actualCorrelatedJoinOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN))));
@@ -1139,12 +1296,16 @@ class TestCreateOperation
                         singleBlockRegion(correlationBlock),
                         singleBlockRegion(subqueryBlock),
                         singleBlockRegion(filterBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "correlated_join:type"), CorrelatedJoinOperationMetadata.JoinType.LEFT,
+                attributes(
+                        new AttributeKey(TRINO, "correlated_join:type"),
+                        CorrelatedJoinOperationMetadata.JoinType.LEFT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("CorrelatedJoin operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -1155,12 +1316,16 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(correlationBlock),
                         singleBlockRegion(filterBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "correlated_join:type"), CorrelatedJoinOperationMetadata.JoinType.LEFT,
+                attributes(
+                        new AttributeKey(TRINO, "correlated_join:type"),
+                        CorrelatedJoinOperationMetadata.JoinType.LEFT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("CorrelatedJoin operation must have exactly three regions");
 
         // missing required attribute
@@ -1172,11 +1337,14 @@ class TestCreateOperation
                         singleBlockRegion(correlationBlock),
                         singleBlockRegion(subqueryBlock),
                         singleBlockRegion(filterBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("joinType is null");
     }
 
@@ -1215,12 +1383,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "dynamic_filter_source:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                attributes(
+                        new AttributeKey(TRINO, "dynamic_filter_source:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualDynamicFilterSourceOperation).isEqualTo(dynamicFilterSourceOperation);
         assertThat(actualDynamicFilterSourceOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -1231,12 +1403,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "dynamic_filter_source:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                attributes(
+                        new AttributeKey(TRINO, "dynamic_filter_source:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("DynamicFilterSource operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -1245,12 +1421,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "dynamic_filter_source:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                attributes(
+                        new AttributeKey(TRINO, "dynamic_filter_source:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("DynamicFilterSource operation must have exactly one region: the dynamic filter target selector");
 
         // missing required attribute
@@ -1259,11 +1439,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("dynamicFilterIds is null");
     }
 
@@ -1280,11 +1463,13 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         // note: EnforceSingleRow can fail with SUBQUERY_MULTIPLE_ROWS, so it is not safe.
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualEnforceSingleRowOperation).isEqualTo(enforceSingleRowOperation);
         assertThat(actualEnforceSingleRowOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -1295,7 +1480,7 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("EnforceSingleRow operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -1304,7 +1489,7 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("EnforceSingleRow operation must have no regions");
     }
 
@@ -1335,11 +1520,15 @@ class TestCreateOperation
                 "%except",
                 ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "except:distinct"), true,
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                attributes(
+                        new AttributeKey(TRINO, "except:distinct"),
+                        true,
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualExceptOperation).isEqualTo(exceptOperation);
         assertThat(actualExceptOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT))));
@@ -1350,7 +1539,7 @@ class TestCreateOperation
                 "%except",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("Except operation must have at least one argument: an input relation");
 
         // wrong region count
@@ -1359,7 +1548,7 @@ class TestCreateOperation
                 "%except",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("Except operation must have one region per input relation");
 
         // missing required attribute
@@ -1368,11 +1557,14 @@ class TestCreateOperation
                 "%except",
                 ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*the return value of .* is null");
     }
 
@@ -1488,20 +1680,29 @@ class TestCreateOperation
                         singleBlockRegion(secondInputSelectorBlock),
                         singleBlockRegion(partitioningBoundArgumentsBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "exchange:type"), GATHER,
-                        new AttributeKey(TRINO, "exchange:scope"), REMOTE,
-                        new AttributeKey(TRINO, "exchange:partitioning_handle"), new PartitioningHandle(
+                attributes(
+                        new AttributeKey(TRINO, "exchange:type"),
+                        GATHER,
+                        new AttributeKey(TRINO, "exchange:scope"),
+                        REMOTE,
+                        new AttributeKey(TRINO, "exchange:partitioning_handle"),
+                        new PartitioningHandle(
                                 Optional.of(CatalogHandle.fromId("bla:normal:1")),
                                 Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                                 testingPartitioningHandle),
-                        new AttributeKey(TRINO, "exchange:constant_values"), new ExchangeOperationMetadata.ConstantValues(new ConstantValue[] {null}),
-                        new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"), false,
-                        new AttributeKey(TRINO, "exchange:bucket_to_partition"), ImmutableList.of(5, 6, 7),
+                        new AttributeKey(TRINO, "exchange:constant_values"),
+                        new ExchangeOperationMetadata.ConstantValues(new ConstantValue[] {null}),
+                        new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
+                        false,
+                        new AttributeKey(TRINO, "exchange:bucket_to_partition"),
+                        ImmutableList.of(5, 6, 7),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualExchangeOperation).isEqualTo(exchangeOperation);
         assertThat(actualExchangeOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -1515,20 +1716,29 @@ class TestCreateOperation
                         singleBlockRegion(firstInputSelectorBlock),
                         singleBlockRegion(secondInputSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "exchange:type"), GATHER,
-                        new AttributeKey(TRINO, "exchange:scope"), REMOTE,
-                        new AttributeKey(TRINO, "exchange:partitioning_handle"), new PartitioningHandle(
+                attributes(
+                        new AttributeKey(TRINO, "exchange:type"),
+                        GATHER,
+                        new AttributeKey(TRINO, "exchange:scope"),
+                        REMOTE,
+                        new AttributeKey(TRINO, "exchange:partitioning_handle"),
+                        new PartitioningHandle(
                                 Optional.of(CatalogHandle.fromId("bla:normal:1")),
                                 Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                                 testingPartitioningHandle),
-                        new AttributeKey(TRINO, "exchange:constant_values"), new ExchangeOperationMetadata.ConstantValues(new ConstantValue[] {null}),
-                        new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"), false,
-                        new AttributeKey(TRINO, "exchange:bucket_to_partition"), ImmutableList.of(5, 6, 7),
+                        new AttributeKey(TRINO, "exchange:constant_values"),
+                        new ExchangeOperationMetadata.ConstantValues(new ConstantValue[] {null}),
+                        new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
+                        false,
+                        new AttributeKey(TRINO, "exchange:bucket_to_partition"),
+                        ImmutableList.of(5, 6, 7),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("The number of regions Exchange operation must be equal to the number of arguments plus two: one for partitioning bound arguments and one for sorting keys");
 
         // missing required attribute
@@ -1541,19 +1751,27 @@ class TestCreateOperation
                         singleBlockRegion(secondInputSelectorBlock),
                         singleBlockRegion(partitioningBoundArgumentsBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "exchange:scope"), REMOTE,
-                        new AttributeKey(TRINO, "exchange:partitioning_handle"), new PartitioningHandle(
+                attributes(
+                        new AttributeKey(TRINO, "exchange:scope"),
+                        REMOTE,
+                        new AttributeKey(TRINO, "exchange:partitioning_handle"),
+                        new PartitioningHandle(
                                 Optional.of(CatalogHandle.fromId("bla:normal:1")),
                                 Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                                 testingPartitioningHandle),
-                        new AttributeKey(TRINO, "exchange:constant_values"), new ExchangeOperationMetadata.ConstantValues(new ConstantValue[] {null}),
-                        new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"), false,
-                        new AttributeKey(TRINO, "exchange:bucket_to_partition"), ImmutableList.of(5, 6, 7),
+                        new AttributeKey(TRINO, "exchange:constant_values"),
+                        new ExchangeOperationMetadata.ConstantValues(new ConstantValue[] {null}),
+                        new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
+                        false,
+                        new AttributeKey(TRINO, "exchange:bucket_to_partition"),
+                        ImmutableList.of(5, 6, 7),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("type is null");
     }
 
@@ -1586,12 +1804,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(fieldSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "explain_analyze:verbose"), true,
+                attributes(
+                        new AttributeKey(TRINO, "explain_analyze:verbose"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualExplainAnalyzeOperation).isEqualTo(explainAnalyzeOperation);
         assertThat(actualExplainAnalyzeOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(VARCHAR))));
@@ -1602,12 +1824,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(fieldSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "explain_analyze:verbose"), true,
+                attributes(
+                        new AttributeKey(TRINO, "explain_analyze:verbose"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("ExplainAnalyze operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -1616,12 +1842,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "explain_analyze:verbose"), true,
+                attributes(
+                        new AttributeKey(TRINO, "explain_analyze:verbose"),
+                        true,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("ExplainAnalyze operation must have exactly one region: the field selector");
 
         // missing required attribute
@@ -1630,11 +1860,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(fieldSelectorBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*the return value of .* is null");
     }
 
@@ -1658,12 +1891,16 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(rowOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "field_reference:index"), 0,
+                attributes(
+                        new AttributeKey(TRINO, "field_reference:index"),
+                        0,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualFieldReferenceOperation).isEqualTo(fieldReferenceOperation);
         assertThat(actualFieldReferenceOperation.result().type()).isEqualTo(irType(BIGINT));
@@ -1674,12 +1911,16 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "field_reference:index"), 0,
+                attributes(
+                        new AttributeKey(TRINO, "field_reference:index"),
+                        0,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("FieldReference operation must have exactly one argument: the base row value");
 
         // wrong region count
@@ -1688,12 +1929,16 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(rowOperation.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "field_reference:index"), 0,
+                attributes(
+                        new AttributeKey(TRINO, "field_reference:index"),
+                        0,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("FieldReference operation does not have regions");
 
         // missing required attribute
@@ -1702,11 +1947,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(rowOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("fieldIndex is null");
     }
 
@@ -1745,11 +1993,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(predicateBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualFilterOperation).isEqualTo(filterOperation);
         assertThat(actualFilterOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -1760,11 +2011,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(predicateBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Filter operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -1773,11 +2027,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Filter operation must have exactly one region: the predicate");
     }
 
@@ -1836,12 +2093,16 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(groupingColumnsSelectorBlock),
                         singleBlockRegion(aggregationArgumentsSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "group_id:grouping_sets"), ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
+                attributes(
+                        new AttributeKey(TRINO, "group_id:grouping_sets"),
+                        ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualGroupIdOperation).isEqualTo(groupIdOperation);
         assertThat(actualGroupIdOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BOOLEAN, BIGINT, BOOLEAN, BIGINT, BIGINT))));
@@ -1854,12 +2115,16 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(groupingColumnsSelectorBlock),
                         singleBlockRegion(aggregationArgumentsSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "group_id:grouping_sets"), ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
+                attributes(
+                        new AttributeKey(TRINO, "group_id:grouping_sets"),
+                        ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("GroupId operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -1869,12 +2134,16 @@ class TestCreateOperation
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(
                         singleBlockRegion(aggregationArgumentsSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "group_id:grouping_sets"), ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
+                attributes(
+                        new AttributeKey(TRINO, "group_id:grouping_sets"),
+                        ImmutableList.of(ImmutableList.of(2, 0), ImmutableList.of(1, 0)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("GroupId operation must have exactly two regions: one for grouping columns selector and one for aggregation arguments selector");
 
         // missing required attribute
@@ -1885,11 +2154,14 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(groupingColumnsSelectorBlock),
                         singleBlockRegion(aggregationArgumentsSelectorBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("groupingSets is null");
     }
 
@@ -1911,11 +2183,14 @@ class TestCreateOperation
                 "%4",
                 ImmutableList.of(constantOperationValue.result(), constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualInOperation).isEqualTo(inOperation);
         assertThat(actualInOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -1926,11 +2201,14 @@ class TestCreateOperation
                 "%4",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("In operation arguments cannot be empty");
 
         // wrong region count
@@ -1939,11 +2217,14 @@ class TestCreateOperation
                 "%4",
                 ImmutableList.of(constantOperationValue.result(), constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("In operation does not have regions");
     }
 
@@ -1974,11 +2255,15 @@ class TestCreateOperation
                 "%intersect",
                 ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "intersect:distinct"), false,
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                attributes(
+                        new AttributeKey(TRINO, "intersect:distinct"),
+                        false,
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualIntersectOperation).isEqualTo(intersectOperation);
         assertThat(actualIntersectOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT))));
@@ -1989,7 +2274,7 @@ class TestCreateOperation
                 "%intersect",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("Intersect operation must have at least one argument: an input relation");
 
         // wrong region count
@@ -1998,7 +2283,7 @@ class TestCreateOperation
                 "%intersect",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("Intersect operation must have one region per input relation");
 
         // missing required attribute
@@ -2007,11 +2292,14 @@ class TestCreateOperation
                 "%intersect",
                 ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*the return value of .* is null");
     }
 
@@ -2026,11 +2314,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(constantOperation.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualIsNullOperation).isEqualTo(isNullOperation);
         assertThat(actualIsNullOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -2041,11 +2332,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("IsNull operation must have exactly one argument: the input value");
 
         // wrong region count
@@ -2054,11 +2348,14 @@ class TestCreateOperation
                 "%1",
                 ImmutableList.of(constantOperation.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("IsNull operation does not have regions");
     }
 
@@ -2216,17 +2513,26 @@ class TestCreateOperation
                         singleBlockRegion(leftOutputSelectorBlock),
                         singleBlockRegion(rightOutputSelectorBlock),
                         singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "join:type"), JoinOperationMetadata.JoinType.LEFT,
-                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"), false,
-                        new AttributeKey(TRINO, "join:distribution_type"), REPLICATED,
-                        new AttributeKey(TRINO, "join:spillable"), true,
-                        new AttributeKey(TRINO, "join:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
-                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"), statsAndCost,
+                attributes(
+                        new AttributeKey(TRINO, "join:type"),
+                        JoinOperationMetadata.JoinType.LEFT,
+                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
+                        false,
+                        new AttributeKey(TRINO, "join:distribution_type"),
+                        REPLICATED,
+                        new AttributeKey(TRINO, "join:spillable"),
+                        true,
+                        new AttributeKey(TRINO, "join:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"),
+                        statsAndCost,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualJoinOperation).isEqualTo(joinOperation);
         assertThat(actualJoinOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT))));
@@ -2243,17 +2549,26 @@ class TestCreateOperation
                         singleBlockRegion(leftOutputSelectorBlock),
                         singleBlockRegion(rightOutputSelectorBlock),
                         singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "join:type"), JoinOperationMetadata.JoinType.LEFT,
-                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"), false,
-                        new AttributeKey(TRINO, "join:distribution_type"), JoinOperationMetadata.DistributionType.REPLICATED,
-                        new AttributeKey(TRINO, "join:spillable"), true,
-                        new AttributeKey(TRINO, "join:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
-                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"), statsAndCost,
+                attributes(
+                        new AttributeKey(TRINO, "join:type"),
+                        JoinOperationMetadata.JoinType.LEFT,
+                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
+                        false,
+                        new AttributeKey(TRINO, "join:distribution_type"),
+                        JoinOperationMetadata.DistributionType.REPLICATED,
+                        new AttributeKey(TRINO, "join:spillable"),
+                        true,
+                        new AttributeKey(TRINO, "join:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"),
+                        statsAndCost,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Join operation must have exactly two arguments");
 
         // wrong region count
@@ -2264,17 +2579,26 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(rightOutputSelectorBlock),
                         singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "join:type"), JoinOperationMetadata.JoinType.LEFT,
-                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"), false,
-                        new AttributeKey(TRINO, "join:distribution_type"), JoinOperationMetadata.DistributionType.REPLICATED,
-                        new AttributeKey(TRINO, "join:spillable"), true,
-                        new AttributeKey(TRINO, "join:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
-                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"), statsAndCost,
+                attributes(
+                        new AttributeKey(TRINO, "join:type"),
+                        JoinOperationMetadata.JoinType.LEFT,
+                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
+                        false,
+                        new AttributeKey(TRINO, "join:distribution_type"),
+                        JoinOperationMetadata.DistributionType.REPLICATED,
+                        new AttributeKey(TRINO, "join:spillable"),
+                        true,
+                        new AttributeKey(TRINO, "join:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"),
+                        statsAndCost,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Join operation must have exactly six regions");
 
         // missing required attribute
@@ -2289,16 +2613,24 @@ class TestCreateOperation
                         singleBlockRegion(leftOutputSelectorBlock),
                         singleBlockRegion(rightOutputSelectorBlock),
                         singleBlockRegion(dynamicFilterTargetSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"), false,
-                        new AttributeKey(TRINO, "join:distribution_type"), JoinOperationMetadata.DistributionType.REPLICATED,
-                        new AttributeKey(TRINO, "join:spillable"), true,
-                        new AttributeKey(TRINO, "join:dynamic_filter_ids"), ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
-                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"), statsAndCost,
+                attributes(
+                        new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
+                        false,
+                        new AttributeKey(TRINO, "join:distribution_type"),
+                        JoinOperationMetadata.DistributionType.REPLICATED,
+                        new AttributeKey(TRINO, "join:spillable"),
+                        true,
+                        new AttributeKey(TRINO, "join:dynamic_filter_ids"),
+                        ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"),
+                        new AttributeKey(TRINO, "join:statistics_and_cost_summary"),
+                        statsAndCost,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("joinType is null");
     }
 
@@ -2321,11 +2653,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(lambdaBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualLambdaOperation).isEqualTo(lambdaOperation);
         assertThat(actualLambdaOperation.result().type()).isEqualTo(irType(new FunctionType(ImmutableList.of(), BIGINT)));
@@ -2336,11 +2671,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(new Result("%1", irType(BOOLEAN))),
                 ImmutableList.of(singleBlockRegion(lambdaBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Lambda operation does not have arguments");
 
         // wrong region count
@@ -2349,11 +2687,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Lambda operation must have exactly one region: the lambda body");
     }
 
@@ -2388,11 +2729,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(lambdaBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualLambdaOperation).isEqualTo(lambdaOperation);
         assertThat(actualLambdaOperation.result().type()).isEqualTo(irType(new FunctionType(ImmutableList.of(BIGINT), BOOLEAN)));
@@ -2428,14 +2772,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "limit:count"), 5L,
-                        new AttributeKey(TRINO, "limit:partial"), true,
-                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"), ImmutableList.of(),
+                attributes(
+                        new AttributeKey(TRINO, "limit:count"),
+                        5L,
+                        new AttributeKey(TRINO, "limit:partial"),
+                        true,
+                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
+                        ImmutableList.of(),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualLimitOperation).isEqualTo(limitOperation);
         assertThat(actualLimitOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -2446,14 +2796,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "limit:count"), 5L,
-                        new AttributeKey(TRINO, "limit:partial"), true,
-                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"), ImmutableList.of(),
+                attributes(
+                        new AttributeKey(TRINO, "limit:count"),
+                        5L,
+                        new AttributeKey(TRINO, "limit:partial"),
+                        true,
+                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
+                        ImmutableList.of(),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Limit operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -2462,14 +2818,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "limit:count"), 5L,
-                        new AttributeKey(TRINO, "limit:partial"), true,
-                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"), ImmutableList.of(),
+                attributes(
+                        new AttributeKey(TRINO, "limit:count"),
+                        5L,
+                        new AttributeKey(TRINO, "limit:partial"),
+                        true,
+                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
+                        ImmutableList.of(),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Limit operation must have exactly one region: the ordering selector");
 
         // missing required attribute
@@ -2478,13 +2840,18 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "limit:partial"), true,
-                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"), ImmutableList.of(),
+                attributes(
+                        new AttributeKey(TRINO, "limit:partial"),
+                        true,
+                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
+                        ImmutableList.of(),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*the return value of .* is null");
     }
 
@@ -2520,15 +2887,22 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "limit:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "limit:count"), 5L,
-                        new AttributeKey(TRINO, "limit:partial"), false,
-                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"), ImmutableList.of(0),
+                attributes(
+                        new AttributeKey(TRINO, "limit:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "limit:count"),
+                        5L,
+                        new AttributeKey(TRINO, "limit:partial"),
+                        false,
+                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
+                        ImmutableList.of(0),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualLimitOperation).isEqualTo(limitOperation);
         assertThat(actualLimitOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -2539,14 +2913,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "limit:count"), 5L,
-                        new AttributeKey(TRINO, "limit:partial"), false,
-                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"), ImmutableList.of(0),
+                attributes(
+                        new AttributeKey(TRINO, "limit:count"),
+                        5L,
+                        new AttributeKey(TRINO, "limit:partial"),
+                        false,
+                        new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
+                        ImmutableList.of(0),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("ordering fields and sort orders for limit do not match in size");
     }
 
@@ -2567,12 +2947,16 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "logical:operator"), AND,
+                attributes(
+                        new AttributeKey(TRINO, "logical:operator"),
+                        AND,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualLogicalOperation).isEqualTo(logicalOperation);
         assertThat(actualLogicalOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -2583,12 +2967,16 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "logical:operator"), AND,
+                attributes(
+                        new AttributeKey(TRINO, "logical:operator"),
+                        AND,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Logical operation must have at least two arguments");
 
         // wrong region count
@@ -2597,12 +2985,16 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "logical:operator"), AND,
+                attributes(
+                        new AttributeKey(TRINO, "logical:operator"),
+                        AND,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Logical operation does not have regions");
 
         // missing required attribute
@@ -2611,11 +3003,14 @@ class TestCreateOperation
                 "%3",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("logicalOperator is null");
     }
 
@@ -2635,11 +3030,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationFirst.result(), constantOperationSecond.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualNullIfOperation).isEqualTo(nullIfOperation);
         assertThat(actualNullIfOperation.result().type()).isEqualTo(irType(BIGINT));
@@ -2650,11 +3048,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationFirst.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("NullIf operation must have exactly two arguments");
 
         // wrong region count
@@ -2663,11 +3064,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperationFirst.result(), constantOperationSecond.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("NullIf operation does not have regions");
     }
 
@@ -2705,12 +3109,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(fieldSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "output:column_names"), ImmutableList.of("col_b", "col_a"),
+                attributes(
+                        new AttributeKey(TRINO, "output:column_names"),
+                        ImmutableList.of("col_b", "col_a"),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true));
 
         assertThat(actualOutputOperation).isEqualTo(outputOperation);
         assertThat(actualOutputOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -2721,12 +3129,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(fieldSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "output:column_names"), ImmutableList.of("col_b", "col_a"),
+                attributes(
+                        new AttributeKey(TRINO, "output:column_names"),
+                        ImmutableList.of("col_b", "col_a"),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true)))
                 .hasMessage("Output operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -2735,12 +3147,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "output:column_names"), ImmutableList.of("col_b", "col_a"),
+                attributes(
+                        new AttributeKey(TRINO, "output:column_names"),
+                        ImmutableList.of("col_b", "col_a"),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true)))
                 .hasMessage("Output operation must have exactly one region: the field selector");
 
         // missing required attribute
@@ -2749,11 +3165,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(fieldSelectorBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true)))
                 .hasMessage("outputNames is null");
     }
 
@@ -2799,11 +3218,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(assignmentsBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualProjectOperation).isEqualTo(projectOperation);
         assertThat(actualProjectOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BOOLEAN, BOOLEAN))));
@@ -2814,11 +3236,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(assignmentsBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Project operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -2827,11 +3252,14 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Project operation must have exactly one region: the assignments");
     }
 
@@ -2878,11 +3306,14 @@ class TestCreateOperation
                 "%query",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(queryBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true));
 
         assertThat(actualQueryOperation).isEqualTo(queryOperation);
         assertThat(actualQueryOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -2893,11 +3324,14 @@ class TestCreateOperation
                 "%query",
                 ImmutableList.of(new Result("%1", irType(BOOLEAN))),
                 ImmutableList.of(singleBlockRegion(queryBlock)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true)))
                 .hasMessage("Query operation does not have arguments");
 
         // wrong region count
@@ -2906,11 +3340,14 @@ class TestCreateOperation
                 "%query",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), true)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        true)))
                 .hasMessage("Query operation must have exactly one region: the query");
     }
 
@@ -2927,11 +3364,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualReturnOperation).isEqualTo(returnOperation);
         assertThat(actualReturnOperation.result().type()).isEqualTo(irType(anonymousRow(BIGINT, BOOLEAN)));
@@ -2942,11 +3382,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Return operation must have exactly one argument");
 
         // wrong region count
@@ -2955,11 +3398,14 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Return operation does not have regions");
     }
 
@@ -2978,11 +3424,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualRowOperation).isEqualTo(rowOperation);
         assertThat(actualRowOperation.result().type()).isEqualTo(irType(anonymousRow(BIGINT, BOOLEAN)));
@@ -2993,11 +3442,14 @@ class TestCreateOperation
                 "%2",
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Row operation does not have regions");
     }
 
@@ -3065,13 +3517,18 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(sourceFieldSelector),
                         singleBlockRegion(filteringSourceFieldSelector)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "semi_join:distribution_type"), PARTITIONED,
-                        new AttributeKey(TRINO, "semi_join:dynamic_filter_id"), "semi_join_dynamic_filter",
+                attributes(
+                        new AttributeKey(TRINO, "semi_join:distribution_type"),
+                        PARTITIONED,
+                        new AttributeKey(TRINO, "semi_join:dynamic_filter_id"),
+                        "semi_join_dynamic_filter",
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualSemiJoinOperation).isEqualTo(semiJoinOperation);
         assertThat(actualSemiJoinOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN))));
@@ -3095,7 +3552,7 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(mismatchingSourceFieldSelector),
                         singleBlockRegion(filteringSourceFieldSelector)),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("source and filtering source field selectors for SemiJoin operation must return the same type");
 
         // wrong argument count
@@ -3106,7 +3563,7 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(sourceFieldSelector),
                         singleBlockRegion(filteringSourceFieldSelector)),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("SemiJoin operation must have exactly two arguments");
 
         // wrong region count
@@ -3115,7 +3572,7 @@ class TestCreateOperation
                 "%semi_join",
                 ImmutableList.of(VALUES_OPERATION.result(), filteringSourceOperation.result()),
                 ImmutableList.of(singleBlockRegion(sourceFieldSelector)),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("SemiJoin operation must have exactly two regions");
     }
 
@@ -3149,13 +3606,18 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "sort:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "sort:partial"), false,
+                attributes(
+                        new AttributeKey(TRINO, "sort:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "sort:partial"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualSortOperation).isEqualTo(sortOperation);
         assertThat(actualSortOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -3166,13 +3628,18 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "sort:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "sort:partial"), false,
+                attributes(
+                        new AttributeKey(TRINO, "sort:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "sort:partial"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Sort operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -3181,13 +3648,18 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "sort:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "sort:partial"), false,
+                attributes(
+                        new AttributeKey(TRINO, "sort:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "sort:partial"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Sort operation must have exactly one region: the ordering selector");
 
         // missing required attribute
@@ -3196,12 +3668,16 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "sort:partial"), false,
+                attributes(
+                        new AttributeKey(TRINO, "sort:partial"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("sortOrders is null");
     }
 
@@ -3279,11 +3755,14 @@ class TestCreateOperation
                         constantOperationThen2.result(),
                         constantOperationDefault.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualSwitchOperation).isEqualTo(matchOperation);
         assertThat(actualSwitchOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -3296,11 +3775,14 @@ class TestCreateOperation
                         constantOperationOperand.result(),
                         constantOperationDefault.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Switch operation must have at least four arguments");
 
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
@@ -3313,11 +3795,14 @@ class TestCreateOperation
                         constantOperationThen1.result(),
                         constantOperationDefault.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Switch operation must have even number of arguments");
 
         // wrong region count
@@ -3332,11 +3817,14 @@ class TestCreateOperation
                         constantOperationThen2.result(),
                         constantOperationDefault.result()),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Switch operation does not have regions");
     }
 
@@ -3360,17 +3848,26 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "table_scan:table_handle"), new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE),
-                        new AttributeKey(TRINO, "table_scan:column_handles"), ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
-                        new AttributeKey(TRINO, "table_scan:constraint"), TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
-                        new AttributeKey(TRINO, "table_scan:statistics"), mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
-                        new AttributeKey(TRINO, "table_scan:update_target"), false,
-                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"), true,
-                        new AttributeKey(TRINO, "table_scan:row_type"), RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
+                attributes(
+                        new AttributeKey(TRINO, "table_scan:table_handle"),
+                        new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE),
+                        new AttributeKey(TRINO, "table_scan:column_handles"),
+                        ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
+                        new AttributeKey(TRINO, "table_scan:constraint"),
+                        TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
+                        new AttributeKey(TRINO, "table_scan:statistics"),
+                        mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
+                        new AttributeKey(TRINO, "table_scan:update_target"),
+                        false,
+                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
+                        true,
+                        new AttributeKey(TRINO, "table_scan:row_type"),
+                        RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualTableScanOperation).isEqualTo(tableScanOperation);
         assertThat(actualTableScanOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN))));
@@ -3381,17 +3878,26 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(new Result("%1", irType(BOOLEAN))),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "table_scan:table_handle"), new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE),
-                        new AttributeKey(TRINO, "table_scan:column_handles"), ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
-                        new AttributeKey(TRINO, "table_scan:constraint"), TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
-                        new AttributeKey(TRINO, "table_scan:statistics"), mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
-                        new AttributeKey(TRINO, "table_scan:update_target"), false,
-                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"), true,
-                        new AttributeKey(TRINO, "table_scan:row_type"), RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
+                attributes(
+                        new AttributeKey(TRINO, "table_scan:table_handle"),
+                        new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE),
+                        new AttributeKey(TRINO, "table_scan:column_handles"),
+                        ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
+                        new AttributeKey(TRINO, "table_scan:constraint"),
+                        TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
+                        new AttributeKey(TRINO, "table_scan:statistics"),
+                        mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
+                        new AttributeKey(TRINO, "table_scan:update_target"),
+                        false,
+                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
+                        true,
+                        new AttributeKey(TRINO, "table_scan:row_type"),
+                        RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("TableScan operation does not have arguments");
 
         // wrong region count
@@ -3400,17 +3906,26 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(SOME_REGION),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "table_scan:table_handle"), new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE),
-                        new AttributeKey(TRINO, "table_scan:column_handles"), ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
-                        new AttributeKey(TRINO, "table_scan:constraint"), TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
-                        new AttributeKey(TRINO, "table_scan:statistics"), mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
-                        new AttributeKey(TRINO, "table_scan:update_target"), false,
-                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"), true,
-                        new AttributeKey(TRINO, "table_scan:row_type"), RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
+                attributes(
+                        new AttributeKey(TRINO, "table_scan:table_handle"),
+                        new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE),
+                        new AttributeKey(TRINO, "table_scan:column_handles"),
+                        ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
+                        new AttributeKey(TRINO, "table_scan:constraint"),
+                        TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
+                        new AttributeKey(TRINO, "table_scan:statistics"),
+                        mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
+                        new AttributeKey(TRINO, "table_scan:update_target"),
+                        false,
+                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
+                        true,
+                        new AttributeKey(TRINO, "table_scan:row_type"),
+                        RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("TableScan operation does not have regions");
 
         // missing required attribute
@@ -3419,16 +3934,24 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "table_scan:column_handles"), ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
-                        new AttributeKey(TRINO, "table_scan:constraint"), TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
-                        new AttributeKey(TRINO, "table_scan:statistics"), mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
-                        new AttributeKey(TRINO, "table_scan:update_target"), false,
-                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"), true,
-                        new AttributeKey(TRINO, "table_scan:row_type"), RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
+                attributes(
+                        new AttributeKey(TRINO, "table_scan:column_handles"),
+                        ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")),
+                        new AttributeKey(TRINO, "table_scan:constraint"),
+                        TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))),
+                        new AttributeKey(TRINO, "table_scan:statistics"),
+                        mapStatistics(PlanNodeStatsEstimate.unknown(), ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
+                        new AttributeKey(TRINO, "table_scan:update_target"),
+                        false,
+                        new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
+                        true,
+                        new AttributeKey(TRINO, "table_scan:row_type"),
+                        RowType.anonymous(ImmutableList.of(BIGINT, BOOLEAN)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("tableHandle is null");
     }
 
@@ -3463,14 +3986,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "top_n:limit"), 10L,
-                        new AttributeKey(TRINO, "top_n:step"), FINAL,
+                attributes(
+                        new AttributeKey(TRINO, "top_n:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "top_n:limit"),
+                        10L,
+                        new AttributeKey(TRINO, "top_n:step"),
+                        FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualTopNOperation).isEqualTo(topNOperation);
         assertThat(actualTopNOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -3481,14 +4010,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "top_n:limit"), 10L,
-                        new AttributeKey(TRINO, "top_n:step"), FINAL,
+                attributes(
+                        new AttributeKey(TRINO, "top_n:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "top_n:limit"),
+                        10L,
+                        new AttributeKey(TRINO, "top_n:step"),
+                        FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("TopN operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -3497,14 +4032,20 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "top_n:limit"), 10L,
-                        new AttributeKey(TRINO, "top_n:step"), FINAL,
+                attributes(
+                        new AttributeKey(TRINO, "top_n:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "top_n:limit"),
+                        10L,
+                        new AttributeKey(TRINO, "top_n:step"),
+                        FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("TopN operation must have exactly one region: the ordering selector");
 
         // missing required attribute
@@ -3513,13 +4054,18 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n:limit"), 10L,
-                        new AttributeKey(TRINO, "top_n:step"), FINAL,
+                attributes(
+                        new AttributeKey(TRINO, "top_n:limit"),
+                        10L,
+                        new AttributeKey(TRINO, "top_n:step"),
+                        FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("sortOrders is null");
     }
 
@@ -3572,15 +4118,22 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), ROW_NUMBER,
-                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
-                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
-                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                attributes(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"),
+                        ROW_NUMBER,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"),
+                        10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"),
+                        false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualTopNRankingOperation).isEqualTo(topNRankingOperation);
         assertThat(actualTopNRankingOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT))));
@@ -3603,15 +4156,22 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), RANK,
-                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 5,
-                        new AttributeKey(TRINO, "top_n_ranking:partial"), true,
-                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                attributes(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"),
+                        RANK,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"),
+                        5,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"),
+                        true,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualPartialTopNRankingOperation).isEqualTo(partialTopNRankingOperation);
         assertThat(actualPartialTopNRankingOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -3624,14 +4184,21 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), ROW_NUMBER,
-                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
-                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
-                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                attributes(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"),
+                        ROW_NUMBER,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"),
+                        10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"),
+                        false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("TopNRanking operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -3640,14 +4207,21 @@ class TestCreateOperation
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(partitioningSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), ROW_NUMBER,
-                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
-                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
-                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                attributes(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"),
+                        ROW_NUMBER,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"),
+                        10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"),
+                        false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("TopNRanking operation must have exactly two regions");
 
         // missing required attribute
@@ -3658,13 +4232,19 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
-                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
-                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
-                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                attributes(
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"),
+                        10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"),
+                        false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("rankingType is null");
     }
 
@@ -3717,13 +4297,18 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(firstRowBlock),
                         singleBlockRegion(secondRowBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "values:cardinality"), 2L,
-                        new AttributeKey(TRINO, "values:row_type"), trinoType(VALUES_OPERATION_ROW_TYPE),
+                attributes(
+                        new AttributeKey(TRINO, "values:cardinality"),
+                        2L,
+                        new AttributeKey(TRINO, "values:row_type"),
+                        trinoType(VALUES_OPERATION_ROW_TYPE),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualVlauesOperation).isEqualTo(valuesOperation);
         assertThat(actualVlauesOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
@@ -3736,13 +4321,18 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(firstRowBlock),
                         singleBlockRegion(secondRowBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "values:cardinality"), 2L,
-                        new AttributeKey(TRINO, "values:row_type"), trinoType(VALUES_OPERATION.result().type()),
+                attributes(
+                        new AttributeKey(TRINO, "values:cardinality"),
+                        2L,
+                        new AttributeKey(TRINO, "values:row_type"),
+                        trinoType(VALUES_OPERATION.result().type()),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Values operation does not have arguments");
     }
 
@@ -3756,13 +4346,18 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "values:cardinality"), 5L,
-                        new AttributeKey(TRINO, "values:row_type"), EMPTY_ROW,
+                attributes(
+                        new AttributeKey(TRINO, "values:cardinality"),
+                        5L,
+                        new AttributeKey(TRINO, "values:row_type"),
+                        EMPTY_ROW,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualValuesOperation).isEqualTo(valuesOperation);
         assertThat(actualValuesOperation.result().type()).isEqualTo(irType(new MultisetType(EMPTY_ROW)));
@@ -3773,12 +4368,16 @@ class TestCreateOperation
                 "%0",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "values:row_type"), EMPTY_ROW,
+                attributes(
+                        new AttributeKey(TRINO, "values:row_type"),
+                        EMPTY_ROW,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*the return value of .* is null");
     }
 
@@ -3916,17 +4515,26 @@ class TestCreateOperation
                         singleBlockRegion(sortKeyCoercedForFrameStartComparisonSelectorBlock),
                         singleBlockRegion(frameEndFieldSelectorBlock),
                         singleBlockRegion(sortKeyCoercedForFrameEndComparisonSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window_function_call:resolved_function"), lagFunction,
-                        new AttributeKey(TRINO, "window_function_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window_function_call:frame_type"), RANGE,
-                        new AttributeKey(TRINO, "window_function_call:frame_start_type"), PRECEDING,
-                        new AttributeKey(TRINO, "window_function_call:frame_end_type"), FOLLOWING,
-                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"), true,
-                        new AttributeKey(TRINO, "window_function_call:distinct"), false,
+                attributes(
+                        new AttributeKey(TRINO, "window_function_call:resolved_function"),
+                        lagFunction,
+                        new AttributeKey(TRINO, "window_function_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window_function_call:frame_type"),
+                        RANGE,
+                        new AttributeKey(TRINO, "window_function_call:frame_start_type"),
+                        PRECEDING,
+                        new AttributeKey(TRINO, "window_function_call:frame_end_type"),
+                        FOLLOWING,
+                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"),
+                        true,
+                        new AttributeKey(TRINO, "window_function_call:distinct"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualWindowFunctionCallOperation).isEqualTo(windowFunctionCallOperation);
         assertThat(actualWindowFunctionCallOperation.result().type()).isEqualTo(irType(BOOLEAN));
@@ -3943,17 +4551,26 @@ class TestCreateOperation
                         singleBlockRegion(sortKeyCoercedForFrameStartComparisonSelectorBlock),
                         singleBlockRegion(frameEndFieldSelectorBlock),
                         singleBlockRegion(sortKeyCoercedForFrameEndComparisonSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window_function_call:resolved_function"), lagFunction,
-                        new AttributeKey(TRINO, "window_function_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window_function_call:frame_type"), RANGE,
-                        new AttributeKey(TRINO, "window_function_call:frame_start_type"), PRECEDING,
-                        new AttributeKey(TRINO, "window_function_call:frame_end_type"), FOLLOWING,
-                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"), true,
-                        new AttributeKey(TRINO, "window_function_call:distinct"), false,
+                attributes(
+                        new AttributeKey(TRINO, "window_function_call:resolved_function"),
+                        lagFunction,
+                        new AttributeKey(TRINO, "window_function_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window_function_call:frame_type"),
+                        RANGE,
+                        new AttributeKey(TRINO, "window_function_call:frame_start_type"),
+                        PRECEDING,
+                        new AttributeKey(TRINO, "window_function_call:frame_end_type"),
+                        FOLLOWING,
+                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"),
+                        true,
+                        new AttributeKey(TRINO, "window_function_call:distinct"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("WindowFunctionCall operation must have exactly one argument: the window");
 
         // wrong region count
@@ -3964,17 +4581,26 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(argumentsBlock),
                         singleBlockRegion(sortKeyCoercedForFrameEndComparisonSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window_function_call:resolved_function"), lagFunction,
-                        new AttributeKey(TRINO, "window_function_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window_function_call:frame_type"), RANGE,
-                        new AttributeKey(TRINO, "window_function_call:frame_start_type"), PRECEDING,
-                        new AttributeKey(TRINO, "window_function_call:frame_end_type"), FOLLOWING,
-                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"), true,
-                        new AttributeKey(TRINO, "window_function_call:distinct"), false,
+                attributes(
+                        new AttributeKey(TRINO, "window_function_call:resolved_function"),
+                        lagFunction,
+                        new AttributeKey(TRINO, "window_function_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window_function_call:frame_type"),
+                        RANGE,
+                        new AttributeKey(TRINO, "window_function_call:frame_start_type"),
+                        PRECEDING,
+                        new AttributeKey(TRINO, "window_function_call:frame_end_type"),
+                        FOLLOWING,
+                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"),
+                        true,
+                        new AttributeKey(TRINO, "window_function_call:distinct"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("WindowFunctionCall operation must have exactly six regions");
 
         // missing required attribute
@@ -3989,16 +4615,24 @@ class TestCreateOperation
                         singleBlockRegion(sortKeyCoercedForFrameStartComparisonSelectorBlock),
                         singleBlockRegion(frameEndFieldSelectorBlock),
                         singleBlockRegion(sortKeyCoercedForFrameEndComparisonSelectorBlock)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window_function_call:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window_function_call:frame_type"), RANGE,
-                        new AttributeKey(TRINO, "window_function_call:frame_start_type"), PRECEDING,
-                        new AttributeKey(TRINO, "window_function_call:frame_end_type"), FOLLOWING,
-                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"), true,
-                        new AttributeKey(TRINO, "window_function_call:distinct"), false,
+                attributes(
+                        new AttributeKey(TRINO, "window_function_call:sort_orders"),
+                        new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window_function_call:frame_type"),
+                        RANGE,
+                        new AttributeKey(TRINO, "window_function_call:frame_start_type"),
+                        PRECEDING,
+                        new AttributeKey(TRINO, "window_function_call:frame_end_type"),
+                        FOLLOWING,
+                        new AttributeKey(TRINO, "window_function_call:ignore_nulls"),
+                        true,
+                        new AttributeKey(TRINO, "window_function_call:distinct"),
+                        false,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("function is null");
 
         // collecting window functions in a row
@@ -4066,13 +4700,18 @@ class TestCreateOperation
                         singleBlockRegion(windowFunctionCallsBlock),
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlockWindow)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "window:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window:pre_sorted_prefix"), 1,
+                attributes(
+                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "window:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window:pre_sorted_prefix"),
+                        1,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualWindoeOperation).isEqualTo(windowOperation);
         assertThat(actualWindoeOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN))));
@@ -4086,13 +4725,18 @@ class TestCreateOperation
                         singleBlockRegion(windowFunctionCallsBlock),
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlockWindow)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "window:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window:pre_sorted_prefix"), 1,
+                attributes(
+                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "window:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window:pre_sorted_prefix"),
+                        1,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Window operation must have exactly one argument: the input relation");
 
         // wrong region count
@@ -4103,13 +4747,18 @@ class TestCreateOperation
                 ImmutableList.of(
                         singleBlockRegion(windowFunctionCallsBlock),
                         singleBlockRegion(orderingSelectorBlockWindow)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "window:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
-                        new AttributeKey(TRINO, "window:pre_sorted_prefix"), 1,
+                attributes(
+                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "window:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
+                        new AttributeKey(TRINO, "window:pre_sorted_prefix"),
+                        1,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessage("Window operation must have exactly three regions");
 
         // missing required attribute
@@ -4121,12 +4770,16 @@ class TestCreateOperation
                         singleBlockRegion(windowFunctionCallsBlock),
                         singleBlockRegion(partitioningSelectorBlock),
                         singleBlockRegion(orderingSelectorBlockWindow)),
-                ImmutableMap.of(
-                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"), ImmutableList.of(0),
-                        new AttributeKey(TRINO, "window:sort_orders"), new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
+                attributes(
+                        new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
+                        ImmutableList.of(0),
+                        new AttributeKey(TRINO, "window:sort_orders"),
+                        new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)),
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "has_side_effects"), false)))
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
                 .hasMessageMatching(".*the return value of .* is null");
     }
 
@@ -4156,11 +4809,14 @@ class TestCreateOperation
                 "%union",
                 ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
                 ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
-                ImmutableMap.of(
+                attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
-                        new AttributeKey(IR, "safe"), true,
-                        new AttributeKey(IR, "has_side_effects"), false));
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
 
         assertThat(actualUnionOperation).isEqualTo(unionOperation);
         assertThat(actualUnionOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT))));
@@ -4171,7 +4827,7 @@ class TestCreateOperation
                 "%union",
                 ImmutableList.of(),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("Union operation must have at least one argument: an input relation");
 
         // wrong region count
@@ -4180,8 +4836,17 @@ class TestCreateOperation
                 "%union",
                 ImmutableList.of(VALUES_OPERATION.result()),
                 ImmutableList.of(),
-                ImmutableMap.of()))
+                attributes()))
                 .hasMessage("Union operation must have one region per input relation");
+    }
+
+    private static Attributes attributes(Object... keyValues)
+    {
+        Attributes.Builder attributes = Attributes.builder();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            attributes.putUnchecked((AttributeKey) keyValues[i], keyValues[i + 1]);
+        }
+        return attributes.buildOrThrow();
     }
 
     private static Values valuesOperation()

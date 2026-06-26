@@ -14,17 +14,16 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -40,14 +39,14 @@ public final class FieldReference
 {
     private final Result result;
     private final Value base;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public FieldReference(String resultName, Value base, Integer fieldIndex, Map<AttributeKey, Object> sourceAttributes)
+    public FieldReference(String resultName, Value base, Integer fieldIndex, Attributes sourceAttributes)
     {
-        this(resultName, base, fieldIndex, sourceAttributes, ImmutableMap.of());
+        this(resultName, base, fieldIndex, sourceAttributes, Attributes.empty());
     }
 
-    public FieldReference(String resultName, Value base, Integer fieldIndex, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public FieldReference(String resultName, Value base, Integer fieldIndex, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -68,9 +67,9 @@ public final class FieldReference
 
         this.base = base;
 
-        Map<AttributeKey, Object> operationAttributes = FIELD_INDEX.asMap(fieldIndex);
+        Attributes operationAttributes = FIELD_INDEX.asAttributes(fieldIndex);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(FieldReferenceOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
 
@@ -98,7 +97,7 @@ public final class FieldReference
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -117,17 +116,17 @@ public final class FieldReference
                 result.name(),
                 newArgument,
                 FIELD_INDEX.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new FieldReference(newName, base, FIELD_INDEX.getAttribute(attributes), ImmutableMap.of());
+        return new FieldReference(newName, base, FIELD_INDEX.getAttribute(attributes), Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(FieldReferenceOperationMetadata.OPERATION_ATTRIBUTES);
     }

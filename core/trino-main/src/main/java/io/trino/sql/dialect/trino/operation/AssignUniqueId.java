@@ -14,19 +14,18 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.AssignUniqueIdOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -43,14 +42,14 @@ public final class AssignUniqueId
 {
     private final Result result;
     private final Value source;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public AssignUniqueId(String resultName, Value source, Map<AttributeKey, Object> sourceAttributes)
+    public AssignUniqueId(String resultName, Value source, Attributes sourceAttributes)
     {
-        this(resultName, source, sourceAttributes, ImmutableMap.of());
+        this(resultName, source, sourceAttributes, Attributes.empty());
     }
 
-    public AssignUniqueId(String resultName, Value source, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public AssignUniqueId(String resultName, Value source, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -69,8 +68,8 @@ public final class AssignUniqueId
                 .build();
         this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(AssignUniqueIdOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes)));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(AssignUniqueIdOperationMetadata.deriveAttributes(Attributes.empty(), ImmutableList.of(sourceAttributes)));
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
     }
@@ -94,7 +93,7 @@ public final class AssignUniqueId
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -112,13 +111,13 @@ public final class AssignUniqueId
         return new AssignUniqueId(
                 result.name(),
                 newArgument,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Value source()

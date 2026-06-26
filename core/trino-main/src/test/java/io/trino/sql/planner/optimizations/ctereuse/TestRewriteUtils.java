@@ -23,6 +23,7 @@ import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -346,7 +347,7 @@ class TestRewriteUtils
         Block blockWithInvalidParameterReference = new Block(
                 Optional.of("^block_with_invalid_parameter_reference"),
                 ImmutableList.of(PARAMETER),
-                ImmutableList.of(new Return("%1", PARAMETER, ImmutableMap.of())));
+                ImmutableList.of(new Return("%1", PARAMETER, Attributes.empty())));
 
         assertThatThrownBy(() -> rebaseBlock(blockWithInvalidParameterReference, anonymousRow(BIGINT), new FieldMapping(ImmutableMap.of(0, 0)), new ProgramBuilder.ValueNameAllocator(100)))
                 .hasMessage("illegal reference to relational parameter. Only field access operations are allowed");
@@ -393,7 +394,7 @@ class TestRewriteUtils
         Block blockWithInvalidParameterReference = new Block(
                 Optional.of("^block_with_invalid_parameter_reference"),
                 ImmutableList.of(PARAMETER),
-                ImmutableList.of(new Return("%1", PARAMETER, ImmutableMap.of())));
+                ImmutableList.of(new Return("%1", PARAMETER, Attributes.empty())));
 
         assertThatThrownBy(() -> extractReferencedFields(blockWithInvalidParameterReference, PARAMETER))
                 .hasMessage("illegal reference to relational parameter. Only field access operations are allowed");
@@ -497,14 +498,14 @@ class TestRewriteUtils
         Block block = new Block(
                 Optional.of("^block"),
                 ImmutableList.of(nonRelationalParameter),
-                ImmutableList.of(new Return("%0", nonRelationalParameter, ImmutableMap.of())));
+                ImmutableList.of(new Return("%0", nonRelationalParameter, Attributes.empty())));
 
         Block.Parameter newParameter = new Block.Parameter("%100", irType(BIGINT));
         assertThat(remapParameters(block, ImmutableList.of(newParameter)))
                 .isEqualTo(new Block(
                         Optional.of("^block"),
                         ImmutableList.of(newParameter),
-                        ImmutableList.of(new Return("%0", newParameter, ImmutableMap.of()))));
+                        ImmutableList.of(new Return("%0", newParameter, Attributes.empty()))));
     }
 
     @Test
@@ -601,21 +602,21 @@ class TestRewriteUtils
         Row rowOperation = new Row(
                 "%row",
                 ImmutableList.of(oldResult, oldParameter),
-                ImmutableList.of(ImmutableMap.of(), ImmutableMap.of()));
+                ImmutableList.of(Attributes.empty(), Attributes.empty()));
 
         // remap both arguments
         assertThat(remapValues(rowOperation, ImmutableMap.of(oldResult, newResult, oldParameter, newParameter)))
                 .isEqualTo(new Row(
                         "%row",
                         ImmutableList.of(newResult, newParameter),
-                        ImmutableList.of(ImmutableMap.of(), ImmutableMap.of())));
+                        ImmutableList.of(Attributes.empty(), Attributes.empty())));
 
         // remap one argument
         assertThat(remapValues(rowOperation, ImmutableMap.of(oldParameter, newParameter)))
                 .isEqualTo(new Row(
                         "%row",
                         ImmutableList.of(oldResult, newParameter),
-                        ImmutableList.of(ImmutableMap.of(), ImmutableMap.of())));
+                        ImmutableList.of(Attributes.empty(), Attributes.empty())));
 
         // remap nothing
         assertThat(remapValues(rowOperation, ImmutableMap.of(anotherOldValue, anotherNewValue)))

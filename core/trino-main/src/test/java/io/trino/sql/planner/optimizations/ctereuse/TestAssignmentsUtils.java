@@ -24,6 +24,7 @@ import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.Operation;
@@ -859,7 +860,7 @@ class TestAssignmentsUtils
         // first item: %firstParameter > 5
         Parameter firstParameter = new Block.Parameter("%firstParameter", irType(BIGINT));
         Constant firstConstant = new Constant("%0", BIGINT, 5L);
-        Comparison firstComparison = new Comparison("%1", firstParameter, firstConstant.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), firstConstant.attributes()));
+        Comparison firstComparison = new Comparison("%1", firstParameter, firstConstant.result(), GREATER_THAN, ImmutableList.of(Attributes.empty(), firstConstant.attributes()));
         Return firstReturnOperation = new Return("%2", firstComparison.result(), firstComparison.attributes());
         Block firstItem = new Block(
                 Optional.of("^firstBlock"),
@@ -869,7 +870,7 @@ class TestAssignmentsUtils
         // second item: 10 < %secondParameter
         Parameter secondParameter = new Block.Parameter("%secondParameter", irType(BIGINT));
         Constant secondConstant = new Constant("%0", BIGINT, 10L);
-        Comparison secondComparison = new Comparison("%1", secondConstant.result(), secondParameter, LESS_THAN, ImmutableList.of(secondConstant.attributes(), ImmutableMap.of()));
+        Comparison secondComparison = new Comparison("%1", secondConstant.result(), secondParameter, LESS_THAN, ImmutableList.of(secondConstant.attributes(), Attributes.empty()));
         Return secondReturnOperation = new Return("%2", secondComparison.result(), secondComparison.attributes());
         Block secondItem = new Block(
                 Optional.of("^secondBlock"),
@@ -879,10 +880,10 @@ class TestAssignmentsUtils
         // create the composed block
         // all values are remapped to avoid collisions
         Constant remappedFirstConstant = new Constant("%100", BIGINT, 5L);
-        Comparison remappedFirstComparison = new Comparison("%101", firstParameter, remappedFirstConstant.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant.attributes()));
+        Comparison remappedFirstComparison = new Comparison("%101", firstParameter, remappedFirstConstant.result(), GREATER_THAN, ImmutableList.of(Attributes.empty(), remappedFirstConstant.attributes()));
         Constant remappedSecondConstant = new Constant("%103", BIGINT, 10L);
         // %secondParameter is remapped to %firstParameter
-        Comparison remappedSecondComparison = new Comparison("%104", remappedSecondConstant.result(), firstParameter, LESS_THAN, ImmutableList.of(remappedSecondConstant.attributes(), ImmutableMap.of()));
+        Comparison remappedSecondComparison = new Comparison("%104", remappedSecondConstant.result(), firstParameter, LESS_THAN, ImmutableList.of(remappedSecondConstant.attributes(), Attributes.empty()));
         // collect items in a row
         Row rowConstructor = new Row(
                 "%106",
@@ -898,11 +899,11 @@ class TestAssignmentsUtils
 
         // compose the same item three times
         Constant remappedFirstConstant1 = new Constant("%100", BIGINT, 5L);
-        Comparison remappedFirstComparison1 = new Comparison("%101", firstParameter, remappedFirstConstant1.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant1.attributes()));
+        Comparison remappedFirstComparison1 = new Comparison("%101", firstParameter, remappedFirstConstant1.result(), GREATER_THAN, ImmutableList.of(Attributes.empty(), remappedFirstConstant1.attributes()));
         Constant remappedFirstConstant2 = new Constant("%103", BIGINT, 5L);
-        Comparison remappedFirstComparison2 = new Comparison("%104", firstParameter, remappedFirstConstant2.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant2.attributes()));
+        Comparison remappedFirstComparison2 = new Comparison("%104", firstParameter, remappedFirstConstant2.result(), GREATER_THAN, ImmutableList.of(Attributes.empty(), remappedFirstConstant2.attributes()));
         Constant remappedFirstConstant3 = new Constant("%106", BIGINT, 5L);
-        Comparison remappedFirstComparison3 = new Comparison("%107", firstParameter, remappedFirstConstant3.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant3.attributes()));
+        Comparison remappedFirstComparison3 = new Comparison("%107", firstParameter, remappedFirstConstant3.result(), GREATER_THAN, ImmutableList.of(Attributes.empty(), remappedFirstConstant3.attributes()));
         Row row = new Row(
                 "%109",
                 ImmutableList.of(
@@ -1223,7 +1224,7 @@ class TestAssignmentsUtils
     private static Block getMalformedFieldSelector()
     {
         // just the Return operation
-        Return returnOperation = new Return("%1", new Operation.Result("%0", irType(anonymousRow(BIGINT))), ImmutableMap.of());
+        Return returnOperation = new Return("%1", new Operation.Result("%0", irType(anonymousRow(BIGINT))), Attributes.empty());
 
         return new Block(
                 Optional.of("^malformedFieldSelector"),

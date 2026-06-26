@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import io.trino.metadata.Metadata;
 import io.trino.spi.type.Type;
@@ -22,6 +21,7 @@ import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -181,7 +181,7 @@ public class ProjectMerger
             Set<Integer> residualPredicateFields = extractReferencedFields(residualPredicate, getOnlyElement(residualPredicate.parameters()));
             Set<Integer> additionalFieldsToProject = Sets.difference(residualPredicateFields, predicateIdentities.keySet());
             for (int field : additionalFieldsToProject) {
-                FieldReference fieldReference = new FieldReference(nameAllocator.newName(), getOnlyElement(rebased.parameters()), field, ImmutableMap.of());
+                FieldReference fieldReference = new FieldReference(nameAllocator.newName(), getOnlyElement(rebased.parameters()), field, Attributes.empty());
                 Return returnOperation = new Return(nameAllocator.newName(), fieldReference.result(), fieldReference.attributes());
                 unifiedAssignments.add(new Block.Builder(rebased.name(), rebased.parameters())
                         .addOperation(fieldReference)

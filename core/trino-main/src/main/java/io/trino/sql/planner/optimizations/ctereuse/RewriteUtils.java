@@ -20,6 +20,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -112,7 +113,7 @@ public class RewriteUtils
     {
         if (operation instanceof FieldReference fieldReference && fieldReference.base().equals(oldValue)) {
             return Optional.ofNullable(fieldMapping.get(FIELD_INDEX.getAttribute(fieldReference.attributes())))
-                    .map(newFieldIndex -> new FieldReference(fieldReference.result().name(), newValue, newFieldIndex, ImmutableMap.of())); // TODO missing source attributes
+                    .map(newFieldIndex -> new FieldReference(fieldReference.result().name(), newValue, newFieldIndex, Attributes.empty())); // TODO missing source attributes
         }
 
         checkState(

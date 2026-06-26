@@ -14,13 +14,11 @@
 package io.trino.sql.dialect.ir;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation.AttributeKey;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
@@ -41,25 +39,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TestIrAttributeDerivationUtils
 {
-    private static final Map<AttributeKey, Object> UNKNOWN_ATTRIBUTES = ImmutableMap.of();
+    private static final Attributes UNKNOWN_ATTRIBUTES = Attributes.empty();
 
-    private static final Map<AttributeKey, Object> DETERMINISTIC_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC);
-    private static final Map<AttributeKey, Object> NON_IDEMPOTENT_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, REPEATABILITY), NON_IDEMPOTENT);
-    private static final Map<AttributeKey, Object> NON_DETERMINISTIC_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC);
+    private static final Attributes DETERMINISTIC_ATTRIBUTES = attributes(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC);
+    private static final Attributes NON_IDEMPOTENT_ATTRIBUTES = attributes(new AttributeKey(IR, REPEATABILITY), NON_IDEMPOTENT);
+    private static final Attributes NON_DETERMINISTIC_ATTRIBUTES = attributes(new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC);
 
-    private static final Map<AttributeKey, Object> SAFE_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, SAFE), true);
+    private static final Attributes SAFE_ATTRIBUTES = attributes(new AttributeKey(IR, SAFE), true);
 
-    private static final Map<AttributeKey, Object> HAS_SIDE_EFFECTS_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, HAS_SIDE_EFFECTS), true);
-    private static final Map<AttributeKey, Object> HAS_NO_SIDE_EFFECTS_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, HAS_SIDE_EFFECTS), false);
+    private static final Attributes HAS_SIDE_EFFECTS_ATTRIBUTES = attributes(new AttributeKey(IR, HAS_SIDE_EFFECTS), true);
+    private static final Attributes HAS_NO_SIDE_EFFECTS_ATTRIBUTES = attributes(new AttributeKey(IR, HAS_SIDE_EFFECTS), false);
 
-    private static final Map<AttributeKey, Object> KNOWN_ATTRIBUTES = ImmutableMap.of(
-            new AttributeKey(IR, REPEATABILITY), DETERMINISTIC,
-            new AttributeKey(IR, SAFE), true,
-            new AttributeKey(IR, HAS_SIDE_EFFECTS), false);
+    private static final Attributes KNOWN_ATTRIBUTES = Attributes.builder()
+            .putUnchecked(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC)
+            .putUnchecked(new AttributeKey(IR, SAFE), true)
+            .putUnchecked(new AttributeKey(IR, HAS_SIDE_EFFECTS), false)
+            .buildOrThrow();
 
     private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
     private static final ResolvedFunction RANDOM = FUNCTIONS.resolveFunction("random", fromTypes());
     private static final ResolvedFunction LOWER = FUNCTIONS.resolveFunction("lower", fromTypes(VARCHAR));
+
+    private static Attributes attributes(Object... keyValues)
+    {
+        Attributes.Builder attributes = Attributes.builder();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            attributes.putUnchecked((AttributeKey) keyValues[i], keyValues[i + 1]);
+        }
+        return attributes.buildOrThrow();
+    }
 
     @Test
     public void testDefaultDeriveIrLevelAttributes()
@@ -114,14 +122,18 @@ class TestIrAttributeDerivationUtils
                 .isEqualTo(NON_DETERMINISTIC_ATTRIBUTES);
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(HAS_NO_SIDE_EFFECTS_ATTRIBUTES)))
-                .isEqualTo(ImmutableMap.of(
-                        new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC,
-                        new AttributeKey(IR, HAS_SIDE_EFFECTS), false));
+                .isEqualTo(attributes(
+                        new AttributeKey(IR, REPEATABILITY),
+                        NON_DETERMINISTIC,
+                        new AttributeKey(IR, HAS_SIDE_EFFECTS),
+                        false));
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(HAS_SIDE_EFFECTS_ATTRIBUTES)))
-                .isEqualTo(ImmutableMap.of(
-                        new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC,
-                        new AttributeKey(IR, HAS_SIDE_EFFECTS), true));
+                .isEqualTo(attributes(
+                        new AttributeKey(IR, REPEATABILITY),
+                        NON_DETERMINISTIC,
+                        new AttributeKey(IR, HAS_SIDE_EFFECTS),
+                        true));
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(DETERMINISTIC_ATTRIBUTES)))
                 .isEqualTo(DETERMINISTIC_ATTRIBUTES);

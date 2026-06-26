@@ -14,13 +14,13 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,7 +28,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -64,7 +63,7 @@ public class WindowFunctionCall
     private final Region sortKeyCoercedForFrameStartComparisonSelector;
     private final Region frameEndFieldSelector;
     private final Region sortKeyCoercedForFrameEndComparisonSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public WindowFunctionCall(
             String resultName,
@@ -98,7 +97,7 @@ public class WindowFunctionCall
                 frameEndType,
                 ignoreNulls,
                 distinct,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     public WindowFunctionCall(
@@ -117,7 +116,7 @@ public class WindowFunctionCall
             WindowFrameBoundType frameEndType,
             boolean ignoreNulls,
             boolean distinct,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes enforcedAttributes)
 // we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
@@ -176,7 +175,7 @@ public class WindowFunctionCall
             }
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         RESOLVED_FUNCTION.putAttribute(operationAttributesBuilder, function);
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
         FRAME_TYPE.putAttribute(operationAttributesBuilder, frameType);
@@ -184,9 +183,9 @@ public class WindowFunctionCall
         FRAME_END_TYPE.putAttribute(operationAttributesBuilder, frameEndType);
         IGNORE_NULLS.putAttribute(operationAttributesBuilder, ignoreNulls);
         DISTINCT.putAttribute(operationAttributesBuilder, distinct);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(WindowFunctionCallOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -223,7 +222,7 @@ public class WindowFunctionCall
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -300,7 +299,7 @@ public class WindowFunctionCall
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(WindowFunctionCallOperationMetadata.OPERATION_ATTRIBUTES);
     }

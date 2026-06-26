@@ -13,10 +13,8 @@
  */
 package io.trino.sql.dialect.ir;
 
-import com.google.common.collect.ImmutableMap;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation.AttributeKey;
-
-import java.util.Map;
 
 import static io.trino.sql.dialect.ir.IrDialect.HAS_SIDE_EFFECTS;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
@@ -32,85 +30,87 @@ public class IrAttributeUtils
 {
     private IrAttributeUtils() {}
 
-    public static boolean isKnownDeterministic(Map<AttributeKey, Object> attributes)
+    public static boolean isKnownDeterministic(Attributes attributes)
     {
         Object repeatability = attributes.get(new AttributeKey(IR, REPEATABILITY));
         return repeatability == DETERMINISTIC;
     }
 
-    public static boolean isKnownNonIdempotent(Map<AttributeKey, Object> attributes)
+    public static boolean isKnownNonIdempotent(Attributes attributes)
     {
         Object repeatability = attributes.get(new AttributeKey(IR, REPEATABILITY));
         return repeatability == NON_IDEMPOTENT;
     }
 
-    public static boolean isKnownNonDeterministic(Map<AttributeKey, Object> attributes)
+    public static boolean isKnownNonDeterministic(Attributes attributes)
     {
         Object repeatability = attributes.get(new AttributeKey(IR, REPEATABILITY));
         return repeatability == NON_DETERMINISTIC;
     }
 
-    public static boolean isUnknownRepeatability(Map<AttributeKey, Object> attributes)
+    public static boolean isUnknownRepeatability(Attributes attributes)
     {
         Object repeatability = attributes.get(new AttributeKey(IR, REPEATABILITY));
         return repeatability == null;
     }
 
-    public static boolean isKnownSafe(Map<AttributeKey, Object> attributes)
+    public static boolean isKnownSafe(Attributes attributes)
     {
         Object safe = attributes.get(new AttributeKey(IR, SAFE));
         return safe == TRUE;
     }
 
-    public static boolean isKnownHasSideEffects(Map<AttributeKey, Object> attributes)
+    public static boolean isKnownHasSideEffects(Attributes attributes)
     {
         Object hasSideEffects = attributes.get(new AttributeKey(IR, HAS_SIDE_EFFECTS));
         return hasSideEffects == TRUE;
     }
 
-    public static boolean isKnownHasNoSideEffects(Map<AttributeKey, Object> attributes)
+    public static boolean isKnownHasNoSideEffects(Attributes attributes)
     {
         Object hasSideEffects = attributes.get(new AttributeKey(IR, HAS_SIDE_EFFECTS));
         return hasSideEffects == FALSE;
     }
 
-    public static void terminalOperation(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void terminalOperation(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, IrDialect.TERMINAL), true);
+        builder.putUnchecked(new AttributeKey(IR, IrDialect.TERMINAL), true);
     }
 
-    public static Map<AttributeKey, Object> terminalOperation()
+    public static Attributes terminalOperation()
     {
-        return ImmutableMap.of(new AttributeKey(IR, IrDialect.TERMINAL), true);
+        return Attributes.builder()
+                .putUnchecked(new AttributeKey(IR, IrDialect.TERMINAL), true)
+                .buildOrThrow();
     }
 
-    public static void deterministic(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void deterministic(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC);
+        builder.putUnchecked(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC);
     }
 
-    public static void nonIdempotent(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void nonIdempotent(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, REPEATABILITY), NON_IDEMPOTENT);
+        builder.putUnchecked(new AttributeKey(IR, REPEATABILITY), NON_IDEMPOTENT);
     }
 
-    public static void nonDeterministic(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void nonDeterministic(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC);
+        builder.putUnchecked(new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC);
     }
 
-    public static void safe(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void safe(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, SAFE), true);
+        builder.putUnchecked(new AttributeKey(IR, SAFE), true);
     }
 
-    public static void hasSideEffects(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void hasSideEffects(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, HAS_SIDE_EFFECTS), true);
+        builder.putUnchecked(new AttributeKey(IR, HAS_SIDE_EFFECTS), true);
     }
 
-    public static void hasNoSideEffects(ImmutableMap.Builder<AttributeKey, Object> builder)
+    public static void hasNoSideEffects(Attributes.Builder builder)
     {
-        builder.put(new AttributeKey(IR, HAS_SIDE_EFFECTS), false);
+        builder.putUnchecked(new AttributeKey(IR, HAS_SIDE_EFFECTS), false);
     }
 }

@@ -14,10 +14,10 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -25,7 +25,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.RowType.anonymousRow;
@@ -47,14 +46,14 @@ public class ExplainAnalyze
     private final Result result;
     private final Value input;
     private final Region fieldSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public ExplainAnalyze(String resultName, Value input, Block fieldSelector, boolean verbose, Map<AttributeKey, Object> sourceAttributes)
+    public ExplainAnalyze(String resultName, Value input, Block fieldSelector, boolean verbose, Attributes sourceAttributes)
     {
-        this(resultName, input, fieldSelector, verbose, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, fieldSelector, verbose, sourceAttributes, Attributes.empty());
     }
 
-    public ExplainAnalyze(String resultName, Value input, Block fieldSelector, boolean verbose, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public ExplainAnalyze(String resultName, Value input, Block fieldSelector, boolean verbose, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -73,9 +72,9 @@ public class ExplainAnalyze
         validateRowSelector(fieldSelector, relationRowType(trinoType(input.type())), "invalid field selection for ExplainAnalyze operation");
         this.fieldSelector = singleBlockRegion(fieldSelector);
 
-        Map<AttributeKey, Object> operationAttributes = VERBOSE.asMap(verbose);
+        Attributes operationAttributes = VERBOSE.asAttributes(verbose);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ExplainAnalyzeOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, fieldSelector.getTerminalOperation().attributes())));
 
@@ -103,7 +102,7 @@ public class ExplainAnalyze
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -123,11 +122,11 @@ public class ExplainAnalyze
                 newArgument,
                 fieldSelector.getOnlyBlock(),
                 VERBOSE.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ExplainAnalyzeOperationMetadata.OPERATION_ATTRIBUTES);
     }

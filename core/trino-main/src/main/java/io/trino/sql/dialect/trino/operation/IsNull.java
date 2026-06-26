@@ -14,15 +14,14 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.sql.dialect.trino.operationmetadata.IsNullOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -35,14 +34,14 @@ public final class IsNull
 {
     private final Result result;
     private final Value input;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public IsNull(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes)
+    public IsNull(String resultName, Value input, Attributes sourceAttributes)
     {
-        this(resultName, input, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, sourceAttributes, Attributes.empty());
     }
 
-    public IsNull(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public IsNull(String resultName, Value input, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -54,8 +53,8 @@ public final class IsNull
 
         this.input = input;
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(IsNullOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes)));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(IsNullOperationMetadata.deriveAttributes(Attributes.empty(), ImmutableList.of(sourceAttributes)));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -80,7 +79,7 @@ public final class IsNull
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -98,19 +97,19 @@ public final class IsNull
         return new IsNull(
                 result.name(),
                 newArgument,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new IsNull(newName, input, ImmutableMap.of());
+        return new IsNull(newName, input, Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Value argument()

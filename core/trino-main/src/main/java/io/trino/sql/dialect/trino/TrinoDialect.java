@@ -72,6 +72,7 @@ import io.trino.sql.dialect.trino.operationmetadata.UnionOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -259,7 +260,7 @@ public final class TrinoDialect
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id)
+    public BiFunction<Attributes, List<Attributes>, Attributes> getAttributeDerivationForOperation(OperationId id)
     {
         // there are no overloads, so we can identify operation by name only
         TrinoOperationMetadata operationMetadata = operations.get(id.name());
@@ -276,7 +277,7 @@ public final class TrinoDialect
     }
 
     @Override
-    public Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         // there are no overloads, so we can identify operation by name only
         TrinoOperationMetadata operationMetadata = operations.get(name);

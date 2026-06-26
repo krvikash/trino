@@ -15,12 +15,11 @@ package io.trino.sql.dialect.trino.operation;
 
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
@@ -33,7 +32,7 @@ public class SetOperations
 {
     private SetOperations() {}
 
-    public static void validateSetOperation(List<Value> inputs, List<Block> inputFieldSelectors, List<Map<AttributeKey, Object>> sourceAttributes, String operationName)
+    public static void validateSetOperation(List<Value> inputs, List<Block> inputFieldSelectors, List<Attributes> sourceAttributes, String operationName)
     {
         if (inputs.isEmpty()) {
             throw new TrinoException(IR_ERROR, format("inputs to the %s operation must not be empty", operationName));

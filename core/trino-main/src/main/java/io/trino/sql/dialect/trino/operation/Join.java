@@ -14,7 +14,6 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
@@ -23,6 +22,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -30,7 +30,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -64,7 +63,7 @@ public final class Join
     private final Region leftOutputSelector;
     private final Region rightOutputSelector;
     private final Region dynamicFilterTargetSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Join(
             String resultName,
@@ -82,8 +81,8 @@ public final class Join
             Optional<Boolean> spillable,
             List<String> dynamicFilterIds,
             Optional<PlanNodeStatsAndCostSummary> reorderJoinStatsAndCost,
-            Map<AttributeKey, Object> leftAttributes,
-            Map<AttributeKey, Object> rightAttributes)
+            Attributes leftAttributes,
+            Attributes rightAttributes)
     {
         this(resultName,
                 left,
@@ -102,7 +101,7 @@ public final class Join
                 reorderJoinStatsAndCost,
                 leftAttributes,
                 rightAttributes,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     public Join(
@@ -121,9 +120,9 @@ public final class Join
             Optional<Boolean> spillable,
             List<String> dynamicFilterIds,
             Optional<PlanNodeStatsAndCostSummary> reorderJoinStatsAndCost,
-            Map<AttributeKey, Object> leftAttributes,
-            Map<AttributeKey, Object> rightAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes leftAttributes,
+            Attributes rightAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -189,16 +188,16 @@ public final class Join
             throw new TrinoException(IR_ERROR, "dynamic filter target selector for Join operation does not match dynamic filter IDs");
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         JOIN_TYPE.putAttribute(operationAttributesBuilder, joinType);
         MAY_SKIP_OUTPUT_DUPLICATES.putAttribute(operationAttributesBuilder, maySkipOutputDuplicates);
         distributionType.ifPresent(value -> DISTRIBUTION_TYPE.putAttribute(operationAttributesBuilder, value));
         spillable.ifPresent(value -> SPILLABLE.putAttribute(operationAttributesBuilder, value));
         DYNAMIC_FILTER_IDS.putAttribute(operationAttributesBuilder, dynamicFilterIds);
         reorderJoinStatsAndCost.ifPresent(estimate -> STATISTICS_AND_COST_SUMMARY.putAttribute(operationAttributesBuilder, estimate));
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(JoinOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -236,7 +235,7 @@ public final class Join
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -267,12 +266,12 @@ public final class Join
                 Optional.ofNullable(SPILLABLE.getAttribute(attributes)),
                 DYNAMIC_FILTER_IDS.getAttribute(attributes),
                 Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(attributes)),
-                ImmutableMap.of(),
-                ImmutableMap.of());
+                Attributes.empty(),
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(JoinOperationMetadata.OPERATION_ATTRIBUTES);
     }

@@ -14,9 +14,9 @@
 package io.trino.sql.dialect.ir;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.Location;
 import io.trino.spi.TrinoException;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
@@ -61,10 +60,10 @@ public class IrDialect
     // whether the operation has side effects
     public static final String HAS_SIDE_EFFECTS = "has_side_effects";
 
-    public static final Map<AttributeKey, Object> DEFAULT_BLOCK_PARAMETER_ATTRIBUTES = ImmutableMap.<AttributeKey, Object>builder()
-            .put(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC)
-            .put(new AttributeKey(IR, SAFE), TRUE)
-            .put(new AttributeKey(IR, HAS_SIDE_EFFECTS), FALSE)
+    public static final Attributes DEFAULT_BLOCK_PARAMETER_ATTRIBUTES = Attributes.builder()
+            .putUnchecked(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC)
+            .putUnchecked(new AttributeKey(IR, SAFE), TRUE)
+            .putUnchecked(new AttributeKey(IR, HAS_SIDE_EFFECTS), FALSE)
             .buildOrThrow();
 
     private IrDialect()
@@ -172,7 +171,7 @@ public class IrDialect
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id)
+    public BiFunction<Attributes, List<Attributes>, Attributes> getAttributeDerivationForOperation(OperationId id)
     {
         throw new UnsupportedOperationException("the ir dialect does not support any operations");
     }
@@ -184,7 +183,7 @@ public class IrDialect
     }
 
     @Override
-    public Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         throw new UnsupportedOperationException("the ir dialect does not support any operations");
     }

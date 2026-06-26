@@ -14,12 +14,12 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -47,16 +46,16 @@ public final class Values
 {
     private final Result result;
     private final List<Region> rows;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     // TODO Values can be constant or correlated. If it is constant, it should be folded to Constant operation
 
     public Values(String resultName, RowType rowType, List<Block> rows)
     {
-        this(resultName, rowType, rows, ImmutableMap.of());
+        this(resultName, rowType, rows, Attributes.empty());
     }
 
-    public Values(String resultName, RowType rowType, List<Block> rows, Map<AttributeKey, Object> enforcedAttributes)
+    public Values(String resultName, RowType rowType, List<Block> rows, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -90,12 +89,12 @@ public final class Values
                 .collect(toImmutableList());
         // TODO all Blocks representing rows could be combined into one Block returning a multiset<Row>
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         CARDINALITY.putAttribute(operationAttributesBuilder, (long) rows.size());
         ROW_TYPE.putAttribute(operationAttributesBuilder, outputType);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ValuesOperationMetadata.deriveAttributes(operationAttributes, rows.stream().map(Block::getTerminalOperation).map(Operation::attributes).collect(toImmutableList())));
 
@@ -104,7 +103,7 @@ public final class Values
         this.attributes = attributes.buildKeepingLast();
     }
 
-    private Values(String resultName, int rows, Map<AttributeKey, Object> enforcedAttributes)
+    private Values(String resultName, int rows, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -118,12 +117,12 @@ public final class Values
 
         this.rows = ImmutableList.of();
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         CARDINALITY.putAttribute(operationAttributesBuilder, (long) rows);
         ROW_TYPE.putAttribute(operationAttributesBuilder, EMPTY_ROW);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ValuesOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
@@ -134,10 +133,10 @@ public final class Values
 
     public static Values valuesWithoutFields(String resultName, int rows)
     {
-        return new Values(resultName, rows, ImmutableMap.of());
+        return new Values(resultName, rows, Attributes.empty());
     }
 
-    public static Values valuesWithoutFields(String resultName, int rows, Map<AttributeKey, Object> enforcedAttributes)
+    public static Values valuesWithoutFields(String resultName, int rows, Attributes enforcedAttributes)
     {
         return new Values(resultName, rows, enforcedAttributes);
     }
@@ -161,7 +160,7 @@ public final class Values
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -173,7 +172,7 @@ public final class Values
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ValuesOperationMetadata.OPERATION_ATTRIBUTES);
     }

@@ -13,14 +13,12 @@
  */
 package io.trino.sql.dialect.ir;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
@@ -38,9 +36,9 @@ public class IrAttributeDerivationUtils
 {
     private IrAttributeDerivationUtils() {}
 
-    public static Map<AttributeKey, Object> defaultDeriveIrLevelAttributes(List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes defaultDeriveIrLevelAttributes(List<Attributes> childAttributes)
     {
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownDeterministic)) {
             deterministic(derivedAttributes);
@@ -60,9 +58,9 @@ public class IrAttributeDerivationUtils
         return derivedAttributes.buildOrThrow();
     }
 
-    public static Map<AttributeKey, Object> defaultDeriveFunctionCallIrLevelAttributes(ResolvedFunction resolvedFunction, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes defaultDeriveFunctionCallIrLevelAttributes(ResolvedFunction resolvedFunction, List<Attributes> childAttributes)
     {
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         if (!resolvedFunction.deterministic()) {
             nonDeterministic(derivedAttributes);
@@ -86,9 +84,9 @@ public class IrAttributeDerivationUtils
         return derivedAttributes.buildOrThrow();
     }
 
-    public static Map<AttributeKey, Object> defaultComposeIrLevelAttributes(List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes defaultComposeIrLevelAttributes(List<Attributes> childAttributes)
     {
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isUnknownRepeatability)) {
             if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownNonDeterministic)) {
@@ -119,19 +117,19 @@ public class IrAttributeDerivationUtils
         return derivedAttributes.buildOrThrow();
     }
 
-    public static Map<AttributeKey, Object> passIrLevelAttributes(Map<AttributeKey, Object> childAttributes)
+    public static Attributes passIrLevelAttributes(Attributes childAttributes)
     {
         Set<AttributeKey> irLevelAttributeKeys = ImmutableSet.of(
                 new AttributeKey(IR, REPEATABILITY),
                 new AttributeKey(IR, SAFE),
                 new AttributeKey(IR, HAS_SIDE_EFFECTS));
 
-        return Maps.filterKeys(childAttributes, irLevelAttributeKeys::contains);
+        return childAttributes.filterKeys(irLevelAttributeKeys::contains);
     }
 
-    public static Map<AttributeKey, Object> defaultDeriveIrLevelAttributesWithPassthroughSource(Map<AttributeKey, Object> passthroughSourceAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes defaultDeriveIrLevelAttributesWithPassthroughSource(Attributes passthroughSourceAttributes, List<Attributes> childAttributes)
     {
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         // propagate repeatability from the passthrough source
         derivedAttributes.putAll(getRepeatabilityAttribute(passthroughSourceAttributes));
@@ -150,10 +148,10 @@ public class IrAttributeDerivationUtils
         return derivedAttributes.buildOrThrow();
     }
 
-    public static Map<AttributeKey, Object> getRepeatabilityAttribute(Map<AttributeKey, Object> childAttributes)
+    public static Attributes getRepeatabilityAttribute(Attributes childAttributes)
     {
         AttributeKey repeatabilityKey = new AttributeKey(IR, REPEATABILITY);
 
-        return Maps.filterKeys(childAttributes, repeatabilityKey::equals);
+        return childAttributes.filterKeys(repeatabilityKey::equals);
     }
 }

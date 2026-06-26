@@ -26,6 +26,7 @@ import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -586,7 +587,7 @@ public class AssignmentsUtils
                 .forEach(operation -> operations.put(operation.result(), operation));
         ImmutableList.Builder<Block> projectedItems = ImmutableList.builder();
         for (Value argument : rowConstructor.arguments()) {
-            Return returnOperation = new Return(nameAllocator.newName(), argument, ImmutableMap.of()); // TODO pass source attributes
+            Return returnOperation = new Return(nameAllocator.newName(), argument, Attributes.empty()); // TODO pass source attributes
             operations.put(returnOperation.result(), returnOperation);
             Block.Builder builder = new Block.Builder(block.name(), block.parameters());
             layoutOperations(returnOperation.result(), builder, operations);

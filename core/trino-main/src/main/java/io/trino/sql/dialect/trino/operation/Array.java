@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -26,7 +26,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -42,14 +41,14 @@ public final class Array
 {
     private final Result result;
     private final List<Value> elements;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Array(String resultName, Type elementType, List<Value> elements, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Array(String resultName, Type elementType, List<Value> elements, List<Attributes> sourceAttributes)
     {
-        this(resultName, elementType, elements, sourceAttributes, ImmutableMap.of());
+        this(resultName, elementType, elements, sourceAttributes, Attributes.empty());
     }
 
-    public Array(String resultName, Type elementType, List<Value> elements, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Array(String resultName, Type elementType, List<Value> elements, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -72,9 +71,9 @@ public final class Array
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), elements.size()));
         }
 
-        Map<AttributeKey, Object> operationAttributes = ELEMENT_TYPE.asMap(elementType);
+        Attributes operationAttributes = ELEMENT_TYPE.asAttributes(elementType);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ArrayOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
@@ -102,7 +101,7 @@ public final class Array
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -133,7 +132,7 @@ public final class Array
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ArrayOperationMetadata.OPERATION_ATTRIBUTES);
     }

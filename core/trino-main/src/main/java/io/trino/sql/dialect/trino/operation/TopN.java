@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -26,7 +26,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateNonEmptyRowSelector;
@@ -47,14 +46,14 @@ public class TopN
     private final Result result;
     private final Value input;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public TopN(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, long limit, TopNStep step, Map<AttributeKey, Object> sourceAttributes)
+    public TopN(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, long limit, TopNStep step, Attributes sourceAttributes)
     {
-        this(resultName, input, orderingSelector, sortOrders, limit, step, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, orderingSelector, sortOrders, limit, step, sourceAttributes, Attributes.empty());
     }
 
-    public TopN(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, long limit, TopNStep step, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public TopN(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, long limit, TopNStep step, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -78,13 +77,13 @@ public class TopN
         }
         this.orderingSelector = singleBlockRegion(orderingSelector);
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         SORT_ORDERS.putAttribute(operationAttributesBuilder, sortOrders);
         LIMIT.putAttribute(operationAttributesBuilder, limit);
         TOP_N_STEP.putAttribute(operationAttributesBuilder, step);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(TopNOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
 
@@ -112,7 +111,7 @@ public class TopN
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -134,11 +133,11 @@ public class TopN
                 SORT_ORDERS.getAttribute(attributes),
                 LIMIT.getAttribute(attributes),
                 TOP_N_STEP.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(TopNOperationMetadata.OPERATION_ATTRIBUTES);
     }

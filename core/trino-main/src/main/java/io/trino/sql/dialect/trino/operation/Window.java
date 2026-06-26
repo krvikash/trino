@@ -14,7 +14,6 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
@@ -22,6 +21,7 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -29,7 +29,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -58,7 +57,7 @@ public class Window
     private final Region windowFunctionCalls;
     private final Region partitioningSelector;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Window(
             String resultName,
@@ -69,9 +68,9 @@ public class Window
             List<Integer> prePartitionedIndexes, // indexes in partitioningSelector
             Optional<SortOrderList> sortOrders,
             int preSortedPrefix,
-            Map<AttributeKey, Object> sourceAttributes)
+            Attributes sourceAttributes)
     {
-        this(resultName, input, windowFunctionCalls, partitioningSelector, orderingSelector, prePartitionedIndexes, sortOrders, preSortedPrefix, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, windowFunctionCalls, partitioningSelector, orderingSelector, prePartitionedIndexes, sortOrders, preSortedPrefix, sourceAttributes, Attributes.empty());
     }
 
     public Window(
@@ -83,8 +82,8 @@ public class Window
             List<Integer> prePartitionedIndexes, // indexes in partitioningSelector
             Optional<SortOrderList> sortOrders,
             int preSortedPrefix,
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -146,13 +145,13 @@ public class Window
             this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         PRE_PARTITIONED_INDEXES.putAttribute(operationAttributesBuilder, prePartitionedIndexes);
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
         PRE_SORTED_PREFIX.putAttribute(operationAttributesBuilder, preSortedPrefix);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(WindowOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -186,7 +185,7 @@ public class Window
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -210,11 +209,11 @@ public class Window
                 PRE_PARTITIONED_INDEXES.getAttribute(attributes),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 PRE_SORTED_PREFIX.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(WindowOperationMetadata.OPERATION_ATTRIBUTES);
     }

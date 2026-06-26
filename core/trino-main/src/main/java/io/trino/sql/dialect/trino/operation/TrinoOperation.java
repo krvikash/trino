@@ -13,15 +13,13 @@
  */
 package io.trino.sql.dialect.trino.operation;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -79,23 +77,23 @@ public abstract class TrinoOperation
      * Returns the attributes that are necessary for the operation because they determine its semantics.
      * Does not return the derived attributes.
      */
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         throw new UnsupportedOperationException("operationAttributes() not implemented for " + name());
     }
 
-    Map<AttributeKey, Object> filterAttributes(Set<TrinoAttributeSignature<?>> retained)
+    Attributes filterAttributes(Set<TrinoAttributeSignature<?>> retained)
     {
         Set<AttributeKey> retainedKeys = retained.stream()
                 .map(TrinoAttributeSignature::name)
                 .map(name -> new AttributeKey(TRINO, name))
                 .collect(toImmutableSet());
-        return Maps.filterKeys(attributes(), retainedKeys::contains);
+        return attributes().filterKeys(retainedKeys::contains);
     }
 
-    public static List<Map<AttributeKey, Object>> emptySourceAttributes(int sourceCount)
+    public static List<Attributes> emptySourceAttributes(int sourceCount)
     {
-        return nCopies(sourceCount, ImmutableMap.of());
+        return nCopies(sourceCount, Attributes.empty());
     }
 
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)

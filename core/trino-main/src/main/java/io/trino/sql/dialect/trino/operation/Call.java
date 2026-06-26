@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -26,7 +26,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -42,14 +41,14 @@ public final class Call
 {
     private final Result result;
     private final List<Value> arguments;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Call(String resultName, List<Value> arguments, ResolvedFunction function, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Call(String resultName, List<Value> arguments, ResolvedFunction function, List<Attributes> sourceAttributes)
     {
-        this(resultName, arguments, function, sourceAttributes, ImmutableMap.of());
+        this(resultName, arguments, function, sourceAttributes, Attributes.empty());
     }
 
-    public Call(String resultName, List<Value> arguments, ResolvedFunction function, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Call(String resultName, List<Value> arguments, ResolvedFunction function, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -77,9 +76,9 @@ public final class Call
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), arguments.size()));
         }
 
-        Map<AttributeKey, Object> operationAttributes = RESOLVED_FUNCTION.asMap(function);
+        Attributes operationAttributes = RESOLVED_FUNCTION.asAttributes(function);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(CallOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
@@ -107,7 +106,7 @@ public final class Call
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -138,7 +137,7 @@ public final class Call
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(CallOperationMetadata.OPERATION_ATTRIBUTES);
     }

@@ -14,10 +14,10 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -25,7 +25,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateNonEmptyRowSelector;
@@ -45,14 +44,14 @@ public class Sort
     private final Result result;
     private final Value input;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Sort(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, boolean partial, Map<AttributeKey, Object> sourceAttributes)
+    public Sort(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, boolean partial, Attributes sourceAttributes)
     {
-        this(resultName, input, orderingSelector, sortOrders, partial, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, orderingSelector, sortOrders, partial, sourceAttributes, Attributes.empty());
     }
 
-    public Sort(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, boolean partial, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Sort(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, boolean partial, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -75,12 +74,12 @@ public class Sort
         }
         this.orderingSelector = singleBlockRegion(orderingSelector);
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         SORT_ORDERS.putAttribute(operationAttributesBuilder, sortOrders);
         PARTIAL.putAttribute(operationAttributesBuilder, partial);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(SortOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
 
@@ -108,7 +107,7 @@ public class Sort
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -129,11 +128,11 @@ public class Sort
                 orderingSelector.getOnlyBlock(),
                 SORT_ORDERS.getAttribute(attributes),
                 PARTIAL.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(SortOperationMetadata.OPERATION_ATTRIBUTES);
     }

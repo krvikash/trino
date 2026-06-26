@@ -14,10 +14,10 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -25,7 +25,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -47,14 +46,14 @@ public final class Output
     private final Result result;
     private final Value input;
     private final Region fieldSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Output(String resultName, Value input, Block fieldSelector, List<String> outputNames, Map<AttributeKey, Object> sourceAttributes)
+    public Output(String resultName, Value input, Block fieldSelector, List<String> outputNames, Attributes sourceAttributes)
     {
-        this(resultName, input, fieldSelector, outputNames, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, fieldSelector, outputNames, sourceAttributes, Attributes.empty());
     }
 
-    public Output(String resultName, Value input, Block fieldSelector, List<String> outputNames, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Output(String resultName, Value input, Block fieldSelector, List<String> outputNames, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -82,12 +81,12 @@ public final class Output
 
         this.fieldSelector = singleBlockRegion(fieldSelector);
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         COLUMN_NAMES.putAttribute(operationAttributesBuilder, outputNames);
         terminalOperation(operationAttributesBuilder);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(OutputOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, fieldSelector.getTerminalOperation().attributes())));
 
@@ -115,7 +114,7 @@ public final class Output
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -135,11 +134,11 @@ public final class Output
                 newArgument,
                 fieldSelector.getOnlyBlock(),
                 COLUMN_NAMES.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(OutputOperationMetadata.OPERATION_ATTRIBUTES);
     }

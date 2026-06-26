@@ -13,19 +13,17 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.dialect.trino.operation.Array;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -39,7 +37,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class ArrayOperationMetadata
         implements TrinoOperationMetadata
@@ -72,14 +69,13 @@ public class ArrayOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(regions.isEmpty(), "Array operation does not have regions");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes operationAttributes = partitionedAttributes.matching();
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new Array(
                 resultName,
@@ -90,14 +86,14 @@ public class ArrayOperationMetadata
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return ArrayOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isUnknownRepeatability)) {
             if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownNonDeterministic)) {

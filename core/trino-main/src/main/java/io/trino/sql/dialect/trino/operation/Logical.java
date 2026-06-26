@@ -14,10 +14,10 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -25,7 +25,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -42,14 +41,14 @@ public final class Logical
 {
     private final Result result;
     private final List<Value> terms;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Logical(String resultName, List<Value> terms, LogicalOperator logicalOperator, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Logical(String resultName, List<Value> terms, LogicalOperator logicalOperator, List<Attributes> sourceAttributes)
     {
-        this(resultName, terms, logicalOperator, sourceAttributes, ImmutableMap.of());
+        this(resultName, terms, logicalOperator, sourceAttributes, Attributes.empty());
     }
 
-    public Logical(String resultName, List<Value> terms, LogicalOperator logicalOperator, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Logical(String resultName, List<Value> terms, LogicalOperator logicalOperator, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -75,9 +74,9 @@ public final class Logical
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), terms.size()));
         }
 
-        Map<AttributeKey, Object> operationAttributes = LOGICAL_OPERATOR.asMap(logicalOperator);
+        Attributes operationAttributes = LOGICAL_OPERATOR.asAttributes(logicalOperator);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(LogicalOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
@@ -105,7 +104,7 @@ public final class Logical
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -136,7 +135,7 @@ public final class Logical
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(LogicalOperationMetadata.OPERATION_ATTRIBUTES);
     }

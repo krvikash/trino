@@ -14,9 +14,9 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.FilterOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -24,7 +24,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validatePredicate;
@@ -42,14 +41,14 @@ public final class Filter
     private final Result result;
     private final Value input;
     private final Region predicate;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Filter(String resultName, Value input, Block predicate, Map<AttributeKey, Object> sourceAttributes)
+    public Filter(String resultName, Value input, Block predicate, Attributes sourceAttributes)
     {
-        this(resultName, input, predicate, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, predicate, sourceAttributes, Attributes.empty());
     }
 
-    public Filter(String resultName, Value input, Block predicate, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Filter(String resultName, Value input, Block predicate, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -70,8 +69,8 @@ public final class Filter
         validatePredicate(predicate, relationRowType(trinoType(input.type())), "invalid predicate for Filter operation");
         this.predicate = singleBlockRegion(predicate);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(FilterOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, predicate.getTerminalOperation().attributes())));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(FilterOperationMetadata.deriveAttributes(Attributes.empty(), ImmutableList.of(sourceAttributes, predicate.getTerminalOperation().attributes())));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -96,7 +95,7 @@ public final class Filter
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -115,13 +114,13 @@ public final class Filter
                 result.name(),
                 newArgument,
                 predicate.getOnlyBlock(),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Value argument()

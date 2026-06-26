@@ -143,10 +143,10 @@ public abstract non-sealed class Operation
     public abstract List<Region> regions();
 
     /**
-     * Return a map of operation's attributes.
+     * Return operation's attributes.
      * Each entry represents a constant property of the operation.
      */
-    public abstract Map<AttributeKey, Object> attributes();
+    public abstract Attributes attributes();
 
     /**
      * Return the id of this operation, consisting of its name, argument types and region types. Regions are seen as lambdas.

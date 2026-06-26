@@ -14,13 +14,13 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata.JoinType;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,7 +28,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -54,12 +53,12 @@ public final class CorrelatedJoin
     private final Region correlation;
     private final Region subquery;
     private final Region filter;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
     // TODO the PlanNode has origin subquery for debug. skipping it for now
 
-    public CorrelatedJoin(String resultName, Value input, Block correlation, Block subquery, Block filter, JoinType joinType, Map<AttributeKey, Object> sourceAttributes)
+    public CorrelatedJoin(String resultName, Value input, Block correlation, Block subquery, Block filter, JoinType joinType, Attributes sourceAttributes)
     {
-        this(resultName, input, correlation, subquery, filter, joinType, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, correlation, subquery, filter, joinType, sourceAttributes, Attributes.empty());
     }
 
     public CorrelatedJoin(
@@ -69,8 +68,8 @@ public final class CorrelatedJoin
             Block subquery,
             Block filter,
             JoinType joinType,
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -109,9 +108,9 @@ public final class CorrelatedJoin
         validatePredicate(filter, relationRowType(trinoType(input.type())), relationRowType(trinoType(subquery.getReturnedType())), "invalid filter for CorrelatedJoin operation");
         this.filter = singleBlockRegion(filter);
 
-        Map<AttributeKey, Object> operationAttributes = JOIN_TYPE.asMap(joinType);
+        Attributes operationAttributes = JOIN_TYPE.asAttributes(joinType);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(CorrelatedJoinOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -145,7 +144,7 @@ public final class CorrelatedJoin
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -167,11 +166,11 @@ public final class CorrelatedJoin
                 subquery.getOnlyBlock(),
                 filter.getOnlyBlock(),
                 JOIN_TYPE.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(CorrelatedJoinOperationMetadata.OPERATION_ATTRIBUTES);
     }

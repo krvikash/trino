@@ -13,19 +13,17 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -43,7 +41,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
-import static java.util.stream.Collectors.partitioningBy;
 
 public class LimitOperationMetadata
         implements TrinoOperationMetadata
@@ -79,15 +76,14 @@ public class LimitOperationMetadata
     }
 
     @Override
-    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
         checkArgument(arguments.size() == 1, "Limit operation must have exactly one argument: the input relation");
         checkArgument(regions.size() == 1, "Limit operation must have exactly one region: the ordering selector");
 
-        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
-        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
-        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+        Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
+        Attributes operationAttributes = partitionedAttributes.matching();
+        Attributes derivedAttributes = partitionedAttributes.nonMatching();
 
         return new Limit(
                 resultName,
@@ -97,21 +93,21 @@ public class LimitOperationMetadata
                 COUNT.getAttribute(operationAttributes),
                 PARTIAL.getAttribute(operationAttributes),
                 PRE_SORTED_INDEXES.getAttribute(operationAttributes),
-                ImmutableMap.of(),
+                Attributes.empty(),
                 derivedAttributes);
     }
 
     @Override
-    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    public BiFunction<Attributes, List<Attributes>, Attributes> attributeDerivation()
     {
         return LimitOperationMetadata::deriveAttributes;
     }
 
-    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
         checkArgument(childAttributes.size() == 2, "Limit operation must have exactly two child attributes maps: one for the input, and one for the ordering selector");
 
-        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        Attributes.Builder derivedAttributes = Attributes.builder();
 
         boolean isWithTies = SORT_ORDERS.getAttribute(currentAttributes) != null;
         if (isWithTies) {
@@ -120,7 +116,7 @@ public class LimitOperationMetadata
             }
         }
         else {
-            Map<AttributeKey, Object> inputAttributes = childAttributes.getFirst();
+            Attributes inputAttributes = childAttributes.getFirst();
             // Limit operation without ties is non-idempotent in that it might return arbitrary subset of rows from its input
             if (isKnownDeterministic(inputAttributes)) {
                 nonIdempotent(derivedAttributes);

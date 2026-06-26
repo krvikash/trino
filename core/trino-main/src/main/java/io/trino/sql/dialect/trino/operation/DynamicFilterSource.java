@@ -14,9 +14,9 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -24,7 +24,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -44,14 +43,14 @@ public class DynamicFilterSource
     private final Result result;
     private final Value input;
     private final Region dynamicFilterTargetSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public DynamicFilterSource(String resultName, Value input, Block dynamicFilterTargetSelector, List<String> dynamicFilterIds, Map<AttributeKey, Object> sourceAttributes)
+    public DynamicFilterSource(String resultName, Value input, Block dynamicFilterTargetSelector, List<String> dynamicFilterIds, Attributes sourceAttributes)
     {
-        this(resultName, input, dynamicFilterTargetSelector, dynamicFilterIds, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, dynamicFilterTargetSelector, dynamicFilterIds, sourceAttributes, Attributes.empty());
     }
 
-    public DynamicFilterSource(String resultName, Value input, Block dynamicFilterTargetSelector, List<String> dynamicFilterIds, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public DynamicFilterSource(String resultName, Value input, Block dynamicFilterTargetSelector, List<String> dynamicFilterIds, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -76,9 +75,9 @@ public class DynamicFilterSource
             throw new TrinoException(IR_ERROR, "dynamic filter target selector for DynamicFilterSource operation does not match dynamic filter IDs");
         }
 
-        Map<AttributeKey, Object> operationAttributes = DYNAMIC_FILTER_IDS.asMap(dynamicFilterIds);
+        Attributes operationAttributes = DYNAMIC_FILTER_IDS.asAttributes(dynamicFilterIds);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(DynamicFilterSourceOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, dynamicFilterTargetSelector.getTerminalOperation().attributes())));
 
@@ -106,7 +105,7 @@ public class DynamicFilterSource
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -126,11 +125,11 @@ public class DynamicFilterSource
                 newArgument,
                 dynamicFilterTargetSelector.getOnlyBlock(),
                 DYNAMIC_FILTER_IDS.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(DynamicFilterSourceOperationMetadata.OPERATION_ATTRIBUTES);
     }

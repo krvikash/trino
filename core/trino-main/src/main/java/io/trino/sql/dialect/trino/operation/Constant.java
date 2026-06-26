@@ -14,17 +14,16 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -36,14 +35,14 @@ public final class Constant
         extends TrinoOperation
 {
     private final Result result;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Constant(String resultName, Type type, Object value)
     {
-        this(resultName, type, value, ImmutableMap.of());
+        this(resultName, type, value, Attributes.empty());
     }
 
-    public Constant(String resultName, Type type, Object value, Map<AttributeKey, Object> enforcedAttributes)
+    public Constant(String resultName, Type type, Object value, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -51,9 +50,9 @@ public final class Constant
 
         this.result = new Result(resultName, irType(type));
 
-        Map<AttributeKey, Object> operationAttributes = CONSTANT_VALUE.asMap(new ConstantValue(type, value));
+        Attributes operationAttributes = CONSTANT_VALUE.asAttributes(new ConstantValue(type, value));
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ConstantOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
@@ -81,7 +80,7 @@ public final class Constant
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -100,7 +99,7 @@ public final class Constant
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ConstantOperationMetadata.OPERATION_ATTRIBUTES);
     }

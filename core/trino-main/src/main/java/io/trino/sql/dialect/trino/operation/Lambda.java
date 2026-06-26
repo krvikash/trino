@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -26,7 +26,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -45,14 +44,14 @@ public final class Lambda
 {
     private final Result result;
     private final Region lambda;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Lambda(String resultName, Block lambda)
     {
-        this(resultName, lambda, ImmutableMap.of());
+        this(resultName, lambda, Attributes.empty());
     }
 
-    public Lambda(String resultName, Block lambda, Map<AttributeKey, Object> enforcedAttributes)
+    public Lambda(String resultName, Block lambda, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -72,8 +71,8 @@ public final class Lambda
 
         this.result = new Result(resultName, irType(resultType));
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(LambdaOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(lambda.getTerminalOperation().attributes())));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(LambdaOperationMetadata.deriveAttributes(Attributes.empty(), ImmutableList.of(lambda.getTerminalOperation().attributes())));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -98,7 +97,7 @@ public final class Lambda
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -125,9 +124,9 @@ public final class Lambda
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public Block lambdaBody()

@@ -14,10 +14,10 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -25,7 +25,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -48,7 +47,7 @@ public class Limit
     private final Result result;
     private final Value input;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Limit(
             String resultName,
@@ -58,9 +57,9 @@ public class Limit
             long count,
             boolean partial,
             List<Integer> preSortedIndexes, // indexes in orderingSelector
-            Map<AttributeKey, Object> sourceAttributes)
+            Attributes sourceAttributes)
     {
-        this(resultName, input, orderingSelector, sortOrders, count, partial, preSortedIndexes, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, orderingSelector, sortOrders, count, partial, preSortedIndexes, sourceAttributes, Attributes.empty());
     }
 
     public Limit(
@@ -71,8 +70,8 @@ public class Limit
             long count,
             boolean partial,
             List<Integer> preSortedIndexes, // indexes in orderingSelector
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -109,14 +108,14 @@ public class Limit
             throw new TrinoException(IR_ERROR, "invalid count for limit operation");
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
         COUNT.putAttribute(operationAttributesBuilder, count);
         PARTIAL.putAttribute(operationAttributesBuilder, partial);
         PRE_SORTED_INDEXES.putAttribute(operationAttributesBuilder, preSortedIndexes);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(LimitOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
 
@@ -144,7 +143,7 @@ public class Limit
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -167,11 +166,11 @@ public class Limit
                 COUNT.getAttribute(attributes),
                 PARTIAL.getAttribute(attributes),
                 PRE_SORTED_INDEXES.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(LimitOperationMetadata.OPERATION_ATTRIBUTES);
     }

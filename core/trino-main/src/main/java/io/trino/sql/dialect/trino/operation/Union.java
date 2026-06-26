@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.UnionOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -44,14 +43,14 @@ public final class Union
     private final Result result;
     private final List<Value> inputs;
     private final List<Region> inputFieldSelectors;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Union(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Union(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, List<Attributes> sourceAttributes)
     {
-        this(resultName, inputs, inputFieldSelectors, sourceAttributes, ImmutableMap.of());
+        this(resultName, inputs, inputFieldSelectors, sourceAttributes, Attributes.empty());
     }
 
-    public Union(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Union(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -71,15 +70,15 @@ public final class Union
         Type outputRowType = outputFieldTypes.isEmpty() ? EMPTY_ROW : RowType.anonymous(outputFieldTypes);
         this.result = new Result(resultName, irType(new MultisetType(outputRowType)));
 
-        ImmutableList.Builder<Map<AttributeKey, Object>> childAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> childAttributes = ImmutableList.builder();
         childAttributes.addAll(sourceAttributes);
         inputFieldSelectors.stream()
                 .map(Block::getTerminalOperation)
                 .map(Operation::attributes)
                 .forEach(childAttributes::add);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(UnionOperationMetadata.deriveAttributes(ImmutableMap.of(), childAttributes.build()));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(UnionOperationMetadata.deriveAttributes(Attributes.empty(), childAttributes.build()));
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
     }
@@ -103,7 +102,7 @@ public final class Union
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -130,9 +129,9 @@ public final class Union
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     public List<Block> inputFieldSelectors()

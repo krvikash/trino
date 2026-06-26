@@ -17,7 +17,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Primitives;
 import com.google.errorprone.annotations.DoNotCall;
 import io.airlift.json.JsonCodec;
@@ -36,11 +35,11 @@ import io.trino.spi.type.TimeWithTimeZoneType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 
 import java.lang.invoke.MethodHandle;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -221,25 +220,21 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
         }
 
         @SuppressWarnings("unchecked")
-        public T getAttribute(Map<Operation.AttributeKey, Object> map)
+        public T getAttribute(Attributes attributes)
         {
-            return (T) map.get(new Operation.AttributeKey(TRINO, name));
+            return (T) attributes.get(new Operation.AttributeKey(TRINO, name));
         }
 
-        public void putAttribute(ImmutableMap.Builder<Operation.AttributeKey, Object> builder, T attribute)
+        public void putAttribute(Attributes.Builder builder, T attribute)
         {
-            builder.put(new Operation.AttributeKey(TRINO, name), attribute);
+            builder.putUnchecked(new Operation.AttributeKey(TRINO, name), attribute);
         }
 
-        @SuppressWarnings("unchecked")
-        public T putAttribute(Map<Operation.AttributeKey, Object> map, T attribute)
+        public Attributes asAttributes(T attribute)
         {
-            return (T) map.put(new Operation.AttributeKey(TRINO, name), attribute);
-        }
-
-        public Map<Operation.AttributeKey, Object> asMap(T attribute)
-        {
-            return ImmutableMap.of(new Operation.AttributeKey(TRINO, name), attribute);
+            return Attributes.builder()
+                    .putUnchecked(new Operation.AttributeKey(TRINO, name), attribute)
+                    .buildOrThrow();
         }
     }
 

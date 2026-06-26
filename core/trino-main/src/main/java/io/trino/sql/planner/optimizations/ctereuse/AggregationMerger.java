@@ -32,6 +32,7 @@ import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Type;
@@ -169,7 +170,7 @@ public class AggregationMerger
                             PRE_GROUPED_INDEXES.getAttribute(aggregation.attributes()),
                             AGGREGATION_STEP.getAttribute(aggregation.attributes()),
                             INPUT_REDUCING.getAttribute(aggregation.attributes()),
-                            ImmutableMap.of());
+                            Attributes.empty());
                     subgroupIdToDetails.put(i, new SubgroupDetails(rebasedRepresentative, nonGroupingPredicateToApply, hasMasks));
                 }
             }
@@ -495,7 +496,7 @@ public class AggregationMerger
                 PRE_GROUPED_INDEXES.getAttribute(firstAggregation.attributes()),
                 AGGREGATION_STEP.getAttribute(firstAggregation.attributes()),
                 INPUT_REDUCING.getAttribute(firstAggregation.attributes()),
-                ImmutableMap.of());
+                Attributes.empty());
         newOperations.put(mergedAggregation.result(), mergedAggregation);
 
         io.trino.spi.type.Type mergedAggregationRowType = relationRowType(trinoType(mergedAggregation.result().type()));

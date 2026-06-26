@@ -14,11 +14,11 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ExceptOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,7 +27,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -45,14 +44,14 @@ public final class Except
     private final Result result;
     private final List<Value> inputs;
     private final List<Region> inputFieldSelectors;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Except(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, boolean distinct, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Except(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, boolean distinct, List<Attributes> sourceAttributes)
     {
-        this(resultName, inputs, inputFieldSelectors, distinct, sourceAttributes, ImmutableMap.of());
+        this(resultName, inputs, inputFieldSelectors, distinct, sourceAttributes, Attributes.empty());
     }
 
-    public Except(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, boolean distinct, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Except(String resultName, List<Value> inputs, List<Block> inputFieldSelectors, boolean distinct, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -72,18 +71,18 @@ public final class Except
         Type outputRowType = outputFieldTypes.isEmpty() ? EMPTY_ROW : RowType.anonymous(outputFieldTypes);
         this.result = new Result(resultName, irType(new MultisetType(outputRowType)));
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         DISTINCT.putAttribute(operationAttributesBuilder, distinct);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableList.Builder<Map<AttributeKey, Object>> childAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> childAttributes = ImmutableList.builder();
         childAttributes.addAll(sourceAttributes);
         inputFieldSelectors.stream()
                 .map(Block::getTerminalOperation)
                 .map(Operation::attributes)
                 .forEach(childAttributes::add);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(ExceptOperationMetadata.deriveAttributes(operationAttributes, childAttributes.build()));
         attributes.putAll(enforcedAttributes);
@@ -109,7 +108,7 @@ public final class Except
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -137,7 +136,7 @@ public final class Except
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ExceptOperationMetadata.OPERATION_ATTRIBUTES);
     }

@@ -14,16 +14,15 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.EnforceSingleRowOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -37,14 +36,14 @@ public final class EnforceSingleRow
 {
     private final Result result;
     private final Value input;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public EnforceSingleRow(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes)
+    public EnforceSingleRow(String resultName, Value input, Attributes sourceAttributes)
     {
-        this(resultName, input, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, sourceAttributes, Attributes.empty());
     }
 
-    public EnforceSingleRow(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public EnforceSingleRow(String resultName, Value input, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -60,8 +59,8 @@ public final class EnforceSingleRow
 
         this.input = input;
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(EnforceSingleRowOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes)));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(EnforceSingleRowOperationMetadata.deriveAttributes(Attributes.empty(), ImmutableList.of(sourceAttributes)));
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
     }
@@ -85,7 +84,7 @@ public final class EnforceSingleRow
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -103,13 +102,13 @@ public final class EnforceSingleRow
         return new EnforceSingleRow(
                 result.name(),
                 newArgument,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     @Override

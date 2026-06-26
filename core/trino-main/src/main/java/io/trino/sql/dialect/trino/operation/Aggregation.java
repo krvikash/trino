@@ -14,13 +14,13 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,7 +28,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -57,7 +56,7 @@ public class Aggregation
     private final Value input;
     private final Region aggregateCalls;
     private final Region groupingKeysSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Aggregation(
             String resultName,
@@ -70,9 +69,9 @@ public class Aggregation
             List<Integer> preGroupedIndexes, // indexes in groupingKeysSelector
             AggregationStep step,
             boolean isInputReducing, // note: potentially does not roundtrip to AggregationNode -- it has Optional<Boolean>, but the getter coalesces to false
-            Map<AttributeKey, Object> sourceAttributes)
+            Attributes sourceAttributes)
     {
-        this(resultName, input, aggregateCalls, groupingKeysSelector, groupingSetCount, globalGroupingSets, groupIdIndex, preGroupedIndexes, step, isInputReducing, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, aggregateCalls, groupingKeysSelector, groupingSetCount, globalGroupingSets, groupIdIndex, preGroupedIndexes, step, isInputReducing, sourceAttributes, Attributes.empty());
     }
 
     public Aggregation(
@@ -86,8 +85,8 @@ public class Aggregation
             List<Integer> preGroupedIndexes, // indexes in groupingKeysSelector
             AggregationStep step,
             boolean isInputReducing, // note: potentially does not roundtrip to AggregationNode -- it has Optional<Boolean>, but the getter coalesces to false
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -138,16 +137,16 @@ public class Aggregation
                     }
                 });
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         GROUPING_SETS_COUNT.putAttribute(operationAttributesBuilder, groupingSetCount);
         GLOBAL_GROUPING_SETS.putAttribute(operationAttributesBuilder, globalGroupingSets);
         groupIdIndex.ifPresent(index -> GROUP_ID_INDEX.putAttribute(operationAttributesBuilder, index));
         PRE_GROUPED_INDEXES.putAttribute(operationAttributesBuilder, preGroupedIndexes);
         AGGREGATION_STEP.putAttribute(operationAttributesBuilder, step);
         INPUT_REDUCING.putAttribute(operationAttributesBuilder, isInputReducing);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(AggregationOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, aggregateCalls.getTerminalOperation().attributes(), groupingKeysSelector.getTerminalOperation().attributes())));
 
@@ -175,7 +174,7 @@ public class Aggregation
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -201,11 +200,11 @@ public class Aggregation
                 PRE_GROUPED_INDEXES.getAttribute(attributes),
                 AGGREGATION_STEP.getAttribute(attributes),
                 INPUT_REDUCING.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(AggregationOperationMetadata.OPERATION_ATTRIBUTES);
     }

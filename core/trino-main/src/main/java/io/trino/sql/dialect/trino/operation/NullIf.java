@@ -14,16 +14,15 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
@@ -37,14 +36,14 @@ public final class NullIf
     private final Result result;
     private final Value first;
     private final Value second;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public NullIf(String resultName, Value first, Value second, List<Map<AttributeKey, Object>> sourceAttributes)
+    public NullIf(String resultName, Value first, Value second, List<Attributes> sourceAttributes)
     {
-        this(resultName, first, second, sourceAttributes, ImmutableMap.of());
+        this(resultName, first, second, sourceAttributes, Attributes.empty());
     }
 
-    public NullIf(String resultName, Value first, Value second, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public NullIf(String resultName, Value first, Value second, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -64,8 +63,8 @@ public final class NullIf
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(NullIfOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(NullIfOperationMetadata.deriveAttributes(Attributes.empty(), sourceAttributes));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -90,7 +89,7 @@ public final class NullIf
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -119,9 +118,9 @@ public final class NullIf
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     @Override

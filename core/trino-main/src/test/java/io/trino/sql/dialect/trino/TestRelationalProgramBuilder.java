@@ -63,16 +63,24 @@ import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ConstantValues;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.ir.Reference;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Type;
 import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.Partitioning;
@@ -117,6 +125,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.function.Consumer;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
@@ -135,7 +144,6 @@ import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUT
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.deriveOutputMapping;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.mapStatistics;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
-import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
@@ -143,6 +151,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationM
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
+import static io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata.VERBOSE;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
 import static io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata.DistributionType.PARTITIONED;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep.FINAL;
@@ -168,6 +177,13 @@ final class TestRelationalProgramBuilder
     private static final Values SECOND_VALUES_OPERATION = secondValuesOperation();
     private static final Type SECOND_VALUES_OPERATION_ROW_TYPE = irType(relationRowType(trinoType(SECOND_VALUES_OPERATION.result().type())));
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    private static Attributes attributes(Consumer<Attributes.Builder> attributesConsumer)
+    {
+        Attributes.Builder builder = Attributes.builder();
+        attributesConsumer.accept(builder);
+        return builder.buildOrThrow();
+    }
 
     @Test
     public void testAggregation()
@@ -314,42 +330,22 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "sum_agg"), 1));
 
         assertThat(aggregateCallOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "aggregate_call:sort_orders"),
-                                new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)))
-                        .put(
-                                new AttributeKey(TRINO, "aggregate_call:resolved_function"),
-                                sumFunction)
-                        .put(
-                                new AttributeKey(TRINO, "aggregate_call:distinct"),
-                                false)
-                        .put(
-                                new AttributeKey(TRINO, "aggregate_call:step"),
-                                AggregateCallOperationMetadata.AggregationStep.SINGLE)
-                        .put(
-                                new AttributeKey(TRINO, "aggregate_call:result_type"),
-                                BIGINT)
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    AggregateCallOperationMetadata.SORT_ORDERS.putAttribute(builder, new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)));
+                    AggregateCallOperationMetadata.RESOLVED_FUNCTION.putAttribute(builder, sumFunction);
+                    AggregateCallOperationMetadata.DISTINCT.putAttribute(builder, false);
+                    AggregateCallOperationMetadata.AGGREGATION_STEP.putAttribute(builder, AggregateCallOperationMetadata.AggregationStep.SINGLE);
+                    AggregateCallOperationMetadata.RESULT_TYPE.putAttribute(builder, BIGINT);
+                }));
 
         assertThat(aggregationOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
-                                1)
-                        .put(
-                                new AttributeKey(TRINO, "aggregation:global_grouping_sets"),
-                                ImmutableList.of())
-                        .put(
-                                new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
-                                ImmutableList.of(0))
-                        .put(
-                                new AttributeKey(TRINO, "aggregation:step"),
-                                SINGLE)
-                        .put(
-                                new AttributeKey(TRINO, "aggregation:input_reducing"),
-                                true)
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    AggregationOperationMetadata.GROUPING_SETS_COUNT.putAttribute(builder, 1);
+                    AggregationOperationMetadata.GLOBAL_GROUPING_SETS.putAttribute(builder, ImmutableList.of());
+                    AggregationOperationMetadata.PRE_GROUPED_INDEXES.putAttribute(builder, ImmutableList.of(0));
+                    AggregationOperationMetadata.AGGREGATION_STEP.putAttribute(builder, SINGLE);
+                    AggregationOperationMetadata.INPUT_REDUCING.putAttribute(builder, true);
+                }));
     }
 
     @Test
@@ -676,6 +672,7 @@ final class TestRelationalProgramBuilder
         Constant constantOperationOrderBy = new Constant("%26", EMPTY_ROW, null);
         Return returnOperationOrderBy = new Return("%27", constantOperationOrderBy.result(), constantOperationOrderBy.attributes());
 
+        ConstantValues constantValues = new ConstantValues(new ConstantValue[] {null});
         Exchange exchangeOperation = new Exchange(
                 "%10",
                 ImmutableList.of(VALUES_OPERATION.result(), rightSourceOperation.result()),
@@ -715,7 +712,7 @@ final class TestRelationalProgramBuilder
                         Optional.of(CatalogHandle.fromId("bla:normal:1")),
                         Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                         testingPartitioningHandle),
-                new ConstantValues(new ConstantValue[] {null}),
+                constantValues,
                 false,
                 Optional.of(ImmutableList.of(5, 6, 7)),
                 OptionalInt.empty(),
@@ -732,29 +729,17 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "g"), 1));
 
         assertThat(exchangeOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "exchange:type"),
-                                GATHER)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:scope"),
-                                REMOTE)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:partitioning_handle"),
-                                new PartitioningHandle(
-                                        Optional.of(CatalogHandle.fromId("bla:normal:1")),
-                                        Optional.of(TestingConnectorTransactionHandle.INSTANCE),
-                                        testingPartitioningHandle))
-                        .put(
-                                new AttributeKey(TRINO, "exchange:constant_values"),
-                                new ConstantValues(new ConstantValue[] {null}))
-                        .put(
-                                new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
-                                false)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:bucket_to_partition"),
-                                ImmutableList.of(5, 6, 7))
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    ExchangeOperationMetadata.EXCHANGE_TYPE.putAttribute(builder, GATHER);
+                    ExchangeOperationMetadata.EXCHANGE_SCOPE.putAttribute(builder, REMOTE);
+                    ExchangeOperationMetadata.PARTITIONING_HANDLE.putAttribute(builder, new PartitioningHandle(
+                            Optional.of(CatalogHandle.fromId("bla:normal:1")),
+                            Optional.of(TestingConnectorTransactionHandle.INSTANCE),
+                            testingPartitioningHandle));
+                    ExchangeOperationMetadata.CONSTANT_VALUES.putAttribute(builder, constantValues);
+                    ExchangeOperationMetadata.REPLICATE_NULLS_AND_ANY.putAttribute(builder, false);
+                    ExchangeOperationMetadata.BUCKET_TO_PARTITION.putAttribute(builder, ImmutableList.of(5, 6, 7));
+                }));
     }
 
     @Test
@@ -807,6 +792,7 @@ final class TestRelationalProgramBuilder
         Row rowOperationOrderBy = new Row("%21", ImmutableList.of(fieldReferenceOperationOrderBy.result()), ImmutableList.of(fieldReferenceOperationOrderBy.attributes()));
         Return returnOperationOrderBy = new Return("%22", rowOperationOrderBy.result(), rowOperationOrderBy.attributes());
 
+        ConstantValues constantValues = new ConstantValues(new ConstantValue[] {null});
         Exchange exchangeOperation = new Exchange(
                 "%9",
                 ImmutableList.of(VALUES_OPERATION.result()),
@@ -836,7 +822,7 @@ final class TestRelationalProgramBuilder
                 GATHER,
                 REMOTE,
                 SINGLE_DISTRIBUTION,
-                new ConstantValues(new ConstantValue[] {null}),
+                constantValues,
                 false,
                 Optional.of(ImmutableList.of(5, 6, 7)),
                 OptionalInt.of(10),
@@ -853,32 +839,16 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "g"), 1));
 
         assertThat(exchangeOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "exchange:type"),
-                                GATHER)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:scope"),
-                                REMOTE)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:partitioning_handle"),
-                                SINGLE_DISTRIBUTION)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:constant_values"),
-                                new ConstantValues(new ConstantValue[] {null}))
-                        .put(
-                                new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
-                                false)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:bucket_to_partition"),
-                                ImmutableList.of(5, 6, 7))
-                        .put(
-                                new AttributeKey(TRINO, "exchange:partition_count"),
-                                10)
-                        .put(
-                                new AttributeKey(TRINO, "exchange:sort_orders"),
-                                new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)))
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    ExchangeOperationMetadata.EXCHANGE_TYPE.putAttribute(builder, GATHER);
+                    ExchangeOperationMetadata.EXCHANGE_SCOPE.putAttribute(builder, REMOTE);
+                    ExchangeOperationMetadata.PARTITIONING_HANDLE.putAttribute(builder, SINGLE_DISTRIBUTION);
+                    ExchangeOperationMetadata.CONSTANT_VALUES.putAttribute(builder, constantValues);
+                    ExchangeOperationMetadata.REPLICATE_NULLS_AND_ANY.putAttribute(builder, false);
+                    ExchangeOperationMetadata.BUCKET_TO_PARTITION.putAttribute(builder, ImmutableList.of(5, 6, 7));
+                    ExchangeOperationMetadata.PARTITION_COUNT.putAttribute(builder, 10);
+                    ExchangeOperationMetadata.SORT_ORDERS.putAttribute(builder, new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)));
+                }));
     }
 
     @Test
@@ -917,7 +887,7 @@ final class TestRelationalProgramBuilder
                 ImmutableMap.of(new Symbol(VARCHAR, "Query Plan"), 0));
 
         assertThat(explainAnalyzeOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.of(new AttributeKey(TRINO, "explain_analyze:verbose"), true));
+                .isEqualTo(VERBOSE.asAttributes(true));
     }
 
     @Test
@@ -1274,26 +1244,14 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "c"), 2));
 
         assertThat(joinOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "join:type"),
-                                JoinOperationMetadata.JoinType.LEFT)
-                        .put(
-                                new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
-                                false)
-                        .put(
-                                new AttributeKey(TRINO, "join:distribution_type"),
-                                REPLICATED)
-                        .put(
-                                new AttributeKey(TRINO, "join:spillable"),
-                                true)
-                        .put(
-                                new AttributeKey(TRINO, "join:dynamic_filter_ids"),
-                                ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"))
-                        .put(
-                                new AttributeKey(TRINO, "join:statistics_and_cost_summary"),
-                                statsAndCost)
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    JoinOperationMetadata.JOIN_TYPE.putAttribute(builder, JoinOperationMetadata.JoinType.LEFT);
+                    JoinOperationMetadata.MAY_SKIP_OUTPUT_DUPLICATES.putAttribute(builder, false);
+                    JoinOperationMetadata.DISTRIBUTION_TYPE.putAttribute(builder, REPLICATED);
+                    JoinOperationMetadata.SPILLABLE.putAttribute(builder, true);
+                    JoinOperationMetadata.DYNAMIC_FILTER_IDS.putAttribute(builder, ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"));
+                    JoinOperationMetadata.STATISTICS_AND_COST_SUMMARY.putAttribute(builder, statsAndCost);
+                }));
     }
 
     @Test
@@ -1331,17 +1289,11 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 1));
 
         assertThat(limitOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "limit:count"),
-                                5L)
-                        .put(
-                                new AttributeKey(TRINO, "limit:partial"),
-                                true)
-                        .put(
-                                new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
-                                ImmutableList.of())
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    LimitOperationMetadata.COUNT.putAttribute(builder, 5L);
+                    LimitOperationMetadata.PARTIAL.putAttribute(builder, true);
+                    LimitOperationMetadata.PRE_SORTED_INDEXES.putAttribute(builder, ImmutableList.of());
+                }));
     }
 
     @Test
@@ -1387,20 +1339,12 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 1));
 
         assertThat(limitOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "limit:sort_orders"),
-                                new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)))
-                        .put(
-                                new AttributeKey(TRINO, "limit:count"),
-                                5L)
-                        .put(
-                                new AttributeKey(TRINO, "limit:partial"),
-                                false)
-                        .put(
-                                new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
-                                ImmutableList.of(0))
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    LimitOperationMetadata.SORT_ORDERS.putAttribute(builder, new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)));
+                    LimitOperationMetadata.COUNT.putAttribute(builder, 5L);
+                    LimitOperationMetadata.PARTIAL.putAttribute(builder, false);
+                    LimitOperationMetadata.PRE_SORTED_INDEXES.putAttribute(builder, ImmutableList.of(0));
+                }));
     }
 
     @Test
@@ -1616,9 +1560,10 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "match"), 2));
 
         assertThat(semiJoinOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.of(
-                        new AttributeKey(TRINO, "semi_join:distribution_type"), PARTITIONED,
-                        new AttributeKey(TRINO, "semi_join:dynamic_filter_id"), "semi_join_dynamic_filter"));
+                .isEqualTo(attributes(builder -> {
+                    SemiJoinOperationMetadata.DISTRIBUTION_TYPE.putAttribute(builder, PARTITIONED);
+                    SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.putAttribute(builder, "semi_join_dynamic_filter");
+                }));
     }
 
     @Test
@@ -1696,29 +1641,15 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 1));
 
         assertThat(tableScanOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:table_handle"),
-                                new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE))
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:column_handles"),
-                                ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")))
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:constraint"),
-                                TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))))
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:statistics"),
-                                new Statistics(NaN, ImmutableMap.of()))
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:update_target"),
-                                false)
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
-                                true)
-                        .put(
-                                new AttributeKey(TRINO, "table_scan:row_type"),
-                                anonymousRow(BIGINT, BOOLEAN))
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    TableScanOperationMetadata.TABLE_HANDLE.putAttribute(builder, new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE));
+                    TableScanOperationMetadata.COLUMN_HANDLES.putAttribute(builder, ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")));
+                    TableScanOperationMetadata.CONSTRAINT.putAttribute(builder, TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))));
+                    TableScanOperationMetadata.STATISTICS.putAttribute(builder, new Statistics(NaN, ImmutableMap.of()));
+                    TableScanOperationMetadata.UPDATE_TARGET.putAttribute(builder, false);
+                    TableScanOperationMetadata.USE_CONNECTOR_NODE_PARTITIONING.putAttribute(builder, true);
+                    TableScanOperationMetadata.ROW_TYPE.putAttribute(builder, anonymousRow(BIGINT, BOOLEAN));
+                }));
     }
 
     @Test
@@ -1931,9 +1862,10 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 1));
 
         assertThat(VALUES_OPERATION.operationAttributes())
-                .isEqualTo(ImmutableMap.of(
-                        new AttributeKey(TRINO, "values:cardinality"), 2L,
-                        new AttributeKey(TRINO, "values:row_type"), anonymousRow(BIGINT, BOOLEAN)));
+                .isEqualTo(attributes(builder -> {
+                    ValuesOperationMetadata.CARDINALITY.putAttribute(builder, 2L);
+                    ValuesOperationMetadata.ROW_TYPE.putAttribute(builder, anonymousRow(BIGINT, BOOLEAN));
+                }));
     }
 
     @Test
@@ -1960,9 +1892,10 @@ final class TestRelationalProgramBuilder
         assertThat(operationAndMapping.mapping()).isEqualTo(ImmutableMap.of());
 
         assertThat(valuesOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.of(
-                        new AttributeKey(TRINO, "values:cardinality"), 5L,
-                        new AttributeKey(TRINO, "values:row_type"), EMPTY_ROW));
+                .isEqualTo(attributes(builder -> {
+                    ValuesOperationMetadata.CARDINALITY.putAttribute(builder, 5L);
+                    ValuesOperationMetadata.ROW_TYPE.putAttribute(builder, EMPTY_ROW);
+                }));
     }
 
     @Test
@@ -2172,42 +2105,22 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "lag_function"), 2));
 
         assertThat(windowFunctionCallOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:resolved_function"),
-                                lagFunction)
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:sort_orders"),
-                                new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)))
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:frame_type"),
-                                RANGE)
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:frame_start_type"),
-                                PRECEDING)
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:frame_end_type"),
-                                FOLLOWING)
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:ignore_nulls"),
-                                true)
-                        .put(
-                                new AttributeKey(TRINO, "window_function_call:distinct"),
-                                false)
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    WindowFunctionCallOperationMetadata.RESOLVED_FUNCTION.putAttribute(builder, lagFunction);
+                    WindowFunctionCallOperationMetadata.SORT_ORDERS.putAttribute(builder, new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)));
+                    WindowFunctionCallOperationMetadata.FRAME_TYPE.putAttribute(builder, RANGE);
+                    WindowFunctionCallOperationMetadata.FRAME_START_TYPE.putAttribute(builder, PRECEDING);
+                    WindowFunctionCallOperationMetadata.FRAME_END_TYPE.putAttribute(builder, FOLLOWING);
+                    WindowFunctionCallOperationMetadata.IGNORE_NULLS.putAttribute(builder, true);
+                    WindowFunctionCallOperationMetadata.DISTINCT.putAttribute(builder, false);
+                }));
 
         assertThat(windowOperation.operationAttributes())
-                .isEqualTo(ImmutableMap.builder()
-                        .put(
-                                new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
-                                ImmutableList.of(0))
-                        .put(
-                                new AttributeKey(TRINO, "window:sort_orders"),
-                                new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)))
-                        .put(
-                                new AttributeKey(TRINO, "window:pre_sorted_prefix"),
-                                1)
-                        .buildOrThrow());
+                .isEqualTo(attributes(builder -> {
+                    WindowOperationMetadata.PRE_PARTITIONED_INDEXES.putAttribute(builder, ImmutableList.of(0));
+                    WindowOperationMetadata.SORT_ORDERS.putAttribute(builder, new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)));
+                    WindowOperationMetadata.PRE_SORTED_PREFIX.putAttribute(builder, 1);
+                }));
     }
 
     @Test

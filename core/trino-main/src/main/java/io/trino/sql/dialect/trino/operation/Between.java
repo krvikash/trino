@@ -14,16 +14,15 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -41,14 +40,14 @@ public final class Between
     private final Value input;
     private final Value min;
     private final Value max;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
-    public Between(String resultName, Value input, Value min, Value max, List<Map<AttributeKey, Object>> sourceAttributes)
+    public Between(String resultName, Value input, Value min, Value max, List<Attributes> sourceAttributes)
     {
-        this(resultName, input, min, max, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, min, max, sourceAttributes, Attributes.empty());
     }
 
-    public Between(String resultName, Value input, Value min, Value max, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    public Between(String resultName, Value input, Value min, Value max, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -75,8 +74,8 @@ public final class Between
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 3", sourceAttributes.size()));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        attributes.putAll(BetweenOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        Attributes.Builder attributes = Attributes.builder();
+        attributes.putAll(BetweenOperationMetadata.deriveAttributes(Attributes.empty(), sourceAttributes));
         // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
         attributes.putAll(enforcedAttributes);
         this.attributes = attributes.buildKeepingLast();
@@ -101,7 +100,7 @@ public final class Between
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -131,9 +130,9 @@ public final class Between
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
-        return ImmutableMap.of();
+        return Attributes.empty();
     }
 
     @Override

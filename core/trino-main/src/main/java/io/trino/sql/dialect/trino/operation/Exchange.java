@@ -14,7 +14,6 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
@@ -24,6 +23,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.Co
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -34,7 +34,6 @@ import io.trino.sql.planner.SystemPartitioningHandle;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -75,7 +74,7 @@ public class Exchange
     private final List<Region> inputFieldSelectors;
     private final Region partitioningBoundArguments;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public Exchange(
             String resultName,
@@ -92,7 +91,7 @@ public class Exchange
             OptionalInt partitionCount,
             OptionalInt bucketCount,
             Optional<SortOrderList> sortOrders,
-            List<Map<AttributeKey, Object>> sourceAttributes)
+            List<Attributes> sourceAttributes)
     {
         this(resultName,
                 inputs,
@@ -109,7 +108,7 @@ public class Exchange
                 bucketCount,
                 sortOrders,
                 sourceAttributes,
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     public Exchange(
@@ -127,8 +126,8 @@ public class Exchange
             OptionalInt partitionCount,
             OptionalInt bucketCount,
             Optional<SortOrderList> sortOrders,
-            List<Map<AttributeKey, Object>> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            List<Attributes> sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -220,7 +219,7 @@ public class Exchange
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), inputs.size()));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         EXCHANGE_TYPE.putAttribute(operationAttributesBuilder, type);
         EXCHANGE_SCOPE.putAttribute(operationAttributesBuilder, scope);
         PARTITIONING_HANDLE.putAttribute(operationAttributesBuilder, partitioningHandle);
@@ -230,11 +229,11 @@ public class Exchange
         partitionCount.ifPresent(count -> PARTITION_COUNT.putAttribute(operationAttributesBuilder, count));
         bucketCount.ifPresent(count -> BUCKET_COUNT.putAttribute(operationAttributesBuilder, count));
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
-        ImmutableList.Builder<Map<AttributeKey, Object>> childAttributes = ImmutableList.builder();
+        ImmutableList.Builder<Attributes> childAttributes = ImmutableList.builder();
         childAttributes.addAll(sourceAttributes);
         inputFieldSelectors.stream()
                 .map(Block::getTerminalOperation)
@@ -272,7 +271,7 @@ public class Exchange
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -310,7 +309,7 @@ public class Exchange
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(ExchangeOperationMetadata.OPERATION_ATTRIBUTES);
     }

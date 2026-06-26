@@ -14,7 +14,6 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
@@ -22,6 +21,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -29,7 +29,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -55,7 +54,7 @@ public final class TopNRanking
     private final Value input;
     private final Region partitioningSelector;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public TopNRanking(
             String resultName,
@@ -66,9 +65,9 @@ public final class TopNRanking
             int maxRankingPerPartition,
             boolean partial,
             SortOrderList sortOrders,
-            Map<AttributeKey, Object> sourceAttributes)
+            Attributes sourceAttributes)
     {
-        this(resultName, input, partitioningSelector, orderingSelector, rankingType, maxRankingPerPartition, partial, sortOrders, sourceAttributes, ImmutableMap.of());
+        this(resultName, input, partitioningSelector, orderingSelector, rankingType, maxRankingPerPartition, partial, sortOrders, sourceAttributes, Attributes.empty());
     }
 
     public TopNRanking(
@@ -80,8 +79,8 @@ public final class TopNRanking
             int maxRankingPerPartition,
             boolean partial,
             SortOrderList sortOrders,
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes sourceAttributes,
+            Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -122,14 +121,14 @@ public final class TopNRanking
             this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         RANKING_TYPE.putAttribute(operationAttributesBuilder, rankingType);
         MAX_RANKING_PER_PARTITION.putAttribute(operationAttributesBuilder, maxRankingPerPartition);
         PARTIAL.putAttribute(operationAttributesBuilder, partial);
         SORT_ORDERS.putAttribute(operationAttributesBuilder, sortOrders);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(TopNRankingOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -160,7 +159,7 @@ public final class TopNRanking
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -184,11 +183,11 @@ public final class TopNRanking
                 MAX_RANKING_PER_PARTITION.getAttribute(attributes),
                 PARTIAL.getAttribute(attributes),
                 SORT_ORDERS.getAttribute(attributes),
-                ImmutableMap.of());
+                Attributes.empty());
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(TopNRankingOperationMetadata.OPERATION_ATTRIBUTES);
     }

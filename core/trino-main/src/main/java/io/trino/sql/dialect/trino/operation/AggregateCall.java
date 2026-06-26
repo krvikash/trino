@@ -14,7 +14,6 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.FunctionType;
@@ -22,6 +21,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -29,7 +29,6 @@ import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -64,7 +63,7 @@ public class AggregateCall
     private final Region filterSelector;
     private final Region maskSelector;
     private final Region orderingSelector;
-    private final Map<AttributeKey, Object> attributes;
+    private final Attributes attributes;
 
     public AggregateCall(
             String resultName,
@@ -84,7 +83,7 @@ public class AggregateCall
             boolean distinct,
             AggregationStep step) // step is needed to verify argument count and validate output type
     {
-        this(resultName, group, outputType, arguments, filterSelector, maskSelector, orderingSelector, sortOrders, function, distinct, step, ImmutableMap.of());
+        this(resultName, group, outputType, arguments, filterSelector, maskSelector, orderingSelector, sortOrders, function, distinct, step, Attributes.empty());
     }
 
     public AggregateCall(
@@ -104,7 +103,7 @@ public class AggregateCall
             ResolvedFunction function,
             boolean distinct,
             AggregationStep step, // needed to verify argument count and validate output type
-            Map<AttributeKey, Object> enforcedAttributes)
+            Attributes enforcedAttributes)
 // we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
@@ -190,15 +189,15 @@ public class AggregateCall
             throw new TrinoException(IR_ERROR, "ordering fields and sort orders for AggregateCall do not match in size");
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
         RESOLVED_FUNCTION.putAttribute(operationAttributesBuilder, function);
         DISTINCT.putAttribute(operationAttributesBuilder, distinct);
         AGGREGATION_STEP.putAttribute(operationAttributesBuilder, step);
         RESULT_TYPE.putAttribute(operationAttributesBuilder, outputType);
-        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
         attributes.putAll(AggregateCallOperationMetadata.deriveAttributes(
                 operationAttributes,
@@ -233,7 +232,7 @@ public class AggregateCall
     }
 
     @Override
-    public Map<AttributeKey, Object> attributes()
+    public Attributes attributes()
     {
         return attributes;
     }
@@ -298,7 +297,7 @@ public class AggregateCall
     }
 
     @Override
-    public Map<AttributeKey, Object> operationAttributes()
+    public Attributes operationAttributes()
     {
         return filterAttributes(AggregateCallOperationMetadata.OPERATION_ATTRIBUTES);
     }
