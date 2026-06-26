@@ -21,6 +21,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -33,22 +34,40 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Isolated
 class TestGpuMemoryUtils
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     void testGetHashJoinAdditionalGpuDeviceMemoryUsage()
     {
-        maybeSetGpuMemoryPoolForTests();
-
         for (Type type : TESTED_GPU_TYPES) {
             for (NullsProvider nullsProvider : NullsProvider.values()) {
                 for (Integer positionCount : List.of(1, 10, 25, 1024, 10_000, 1_234_567)) {
                     testGetHashJoinAdditionalGpuDeviceMemoryUsage(type, nullsProvider, positionCount);
                 }
             }
+        }
+    }
+
+    @Test
+    void testGetHashJoinAdditionalGpuDeviceMemoryUsageAtFourMbRoundingBoundary()
+    {
+        // Regression: cuco's storage allocates in two separately 2 MB-rounded chunks, so its
+        // effective rounding granularity is 4 MB. These row counts produce cucoBytes that
+        // crosses a 4 MB boundary but not a 2 MB boundary, where 2 MB-rounded estimates
+        // underestimated actual usage by ~1.3 MB.
+        for (int positionCount : List.of(5_000_000, 5_100_000)) {
+            testGetHashJoinAdditionalGpuDeviceMemoryUsage(BIGINT, NO_NULLS, positionCount);
         }
     }
 

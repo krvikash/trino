@@ -48,11 +48,17 @@ public final class GpuMemoryUtils
                 preprocessedBytes += 128;
             }
         }
-        // RMM ASYNC pool rounds large allocations to 2MB granularity; add 1% safety margin for internal overhead
+        // For large allocations, cuco's storage appears in the RMM ASYNC pool as two separately
+        // 2MB-rounded chunks, so the effective rounding is 4MB. Add a 1% safety margin for internal overhead.
         long twoMb = 2L * 1024 * 1024;
-        if (cucoBytes >= twoMb) {
-            long rounded = ((cucoBytes + twoMb - 1) / twoMb) * twoMb;
+        long fourMb = 4L * 1024 * 1024;
+        if (cucoBytes >= fourMb) {
+            long rounded = ((cucoBytes + fourMb - 1) / fourMb) * fourMb;
             return rounded + rounded / 100 + preprocessedBytes;
+        }
+        // Medium allocations (2MB..4MB) are not rounded by the pool, but have slightly larger internal overhead
+        if (cucoBytes >= twoMb) {
+            return cucoBytes + 1024 + preprocessedBytes;
         }
         // For small allocations (<2MB), add empirically observed fixed cuco internal overhead
         return cucoBytes + 304 + preprocessedBytes;
