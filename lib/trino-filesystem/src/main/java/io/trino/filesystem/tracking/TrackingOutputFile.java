@@ -18,8 +18,10 @@ import io.trino.filesystem.TrinoOutputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.Cleaner;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,6 +49,13 @@ public class TrackingOutputFile
             throws IOException
     {
         delegate.createOrOverwrite(data);
+    }
+
+    @Override
+    public void createOrOverwrite(Supplier<InputStream> data, long contentLength)
+            throws IOException
+    {
+        delegate.createOrOverwrite(data, contentLength);
     }
 
     @Override
