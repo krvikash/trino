@@ -32,7 +32,7 @@ import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.sql.planner.OptimizerConfig;
 
-import static io.trino.metadata.MetadataListing.listCatalogNames;
+import static io.trino.metadata.MetadataListing.listAllCatalogNames;
 import static io.trino.metadata.MetadataUtil.TableMetadataBuilder.tableMetadataBuilder;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
@@ -69,7 +69,7 @@ public class CatalogJdbcTable
     {
         Session session = ((FullConnectorSession) connectorSession).getSession();
         Builder table = InMemoryRecordSet.builder(METADATA);
-        for (String name : listCatalogNames(session, metadata, accessControl, Domain.all(VARCHAR))) {
+        for (String name : listAllCatalogNames(session, metadata, accessControl, Domain.all(VARCHAR))) {
             table.addRow(name);
         }
         return table.build().cursor();

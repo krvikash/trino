@@ -2747,6 +2747,9 @@ public final class MetadataManager
     {
         ImmutableList.Builder<FunctionMetadata> functions = ImmutableList.builder();
         for (CatalogInfo catalog : listCatalogs(session)) {
+            if (!catalog.isOperational()) {
+                continue;
+            }
             functions.addAll(tableFunctionRegistry.listTableFunctions(catalog.catalogHandle()));
         }
         return functions.build();
