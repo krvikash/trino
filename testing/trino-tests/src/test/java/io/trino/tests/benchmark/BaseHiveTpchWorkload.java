@@ -17,7 +17,9 @@ import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
+import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.tpch.DecimalTypeMapping;
+import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.tpch.TpchTable;
@@ -26,7 +28,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,6 +38,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
+import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -122,25 +127,37 @@ public abstract class BaseHiveTpchWorkload
         // Wipe the directory if the underlying parquet files change.
         Path metastoreDir = Path.of(System.getProperty("user.home"), "starburst-benchmark-data", ".metastore", name());
         Files.createDirectories(metastoreDir);
-        HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
-                .setWorkerCount(0)
-                .setBaseDataDir(Optional.of(metastoreDir))
-                .setSkipTimezoneSetup(true)
-                .addHiveProperty("hive.parquet.time-zone", "UTC")
-                .setTpchDecimalTypeMapping(DecimalTypeMapping.DECIMAL);
-        if (isRemote(dataLocation)) {
-            builder.addHiveProperty("fs.s3.enabled", "true");
-        }
+        DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
+
+        builder.setWorkerCount(0);
+        builder.setBaseDataDir(Optional.of(metastoreDir));
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
-        rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         BenchmarkRunner.applyExecutionMode(builder, mode);
-        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-            builder.addHiveProperty("hive.max-initial-split-size", "512MB")
-                    .addHiveProperty("hive.max-split-size", "512MB");
-        }
+        rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
+
         DistributedQueryRunner runner = builder.build();
+
+        runner.installPlugin(new TpchPlugin());
+        runner.createCatalog("tpch", "tpch", Map.of("tpch.double-type-mapping", DecimalTypeMapping.DECIMAL.name()));
+
+        Map<String, String> hiveProperties = new HashMap<>();
+        hiveProperties.put("hive.parquet.time-zone", "UTC");
+        if (isRemote(dataLocation)) {
+            hiveProperties.put("fs.s3.enabled", "true");
+        }
+        else {
+            hiveProperties.put("fs.hadoop.enabled", "true");
+        }
+        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+            hiveProperties.put("hive.max-initial-split-size", "512MB");
+            hiveProperties.put("hive.max-split-size", "512MB");
+        }
+
+        Path dataDir = runner.getCoordinator().getBaseDataDir().resolve("hive_data");
+        runner.installPlugin(new TestingHivePlugin(dataDir));
+        runner.createCatalog("hive", "hive", hiveProperties);
 
         runner.execute("CREATE SCHEMA IF NOT EXISTS hive.tpch");
         for (String table : TABLES) {

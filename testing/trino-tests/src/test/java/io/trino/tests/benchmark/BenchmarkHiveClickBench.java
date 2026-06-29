@@ -18,6 +18,7 @@ import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
+import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 
@@ -25,11 +26,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
+import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.lang.String.format;
@@ -232,23 +236,33 @@ public final class BenchmarkHiveClickBench
         public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath)
                 throws Exception
         {
-            HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
-                    .setWorkerCount(0) // single-node
-                    .setSkipTimezoneSetup(true)
-                    .addHiveProperty("hive.parquet.time-zone", "UTC");
-            if (isRemote(dataLocation)) {
-                builder.addHiveProperty("fs.s3.enabled", "true");
-            }
-            BenchmarkRunner.applyExecutionMode(builder, mode);
-            if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-                builder.addHiveProperty("hive.max-initial-split-size", "512MB")
-                        .addHiveProperty("hive.max-split-size", "512MB");
-            }
-            rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
+            DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
+
+            builder.setWorkerCount(0); // single-node
             if (bind8080) {
                 builder.addCoordinatorProperty("http-server.http.port", "8080");
             }
+            BenchmarkRunner.applyExecutionMode(builder, mode);
+            rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
+
             DistributedQueryRunner queryRunner = builder.build();
+
+            Map<String, String> hiveProperties = new HashMap<>();
+            hiveProperties.put("hive.parquet.time-zone", "UTC");
+            if (isRemote(dataLocation)) {
+                hiveProperties.put("fs.s3.enabled", "true");
+            }
+            else {
+                hiveProperties.put("fs.hadoop.enabled", "true");
+            }
+            if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+                hiveProperties.put("hive.max-initial-split-size", "512MB");
+                hiveProperties.put("hive.max-split-size", "512MB");
+            }
+
+            Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
+            queryRunner.installPlugin(new TestingHivePlugin(dataDir));
+            queryRunner.createCatalog("hive", "hive", hiveProperties);
 
             queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
             String hitsLocation = isRemote(dataLocation)
