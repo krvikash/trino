@@ -537,6 +537,13 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-materialization-metastore-server</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-exchange-filesystem</artifactId>
             <scope>test</scope>
         </dependency>

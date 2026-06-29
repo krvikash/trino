@@ -19,6 +19,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.FeaturesConfig;
 import io.trino.FeaturesConfig.DataIntegrityVerification;
+import io.trino.FeaturesConfig.MaterializationMetastoreType;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -80,7 +81,8 @@ public class TestFeaturesConfig
                 .setParallelizeLookupOuterOperator(true)
                 .setMaterializedViewSubstitutionSupportEnabled(false)
                 .setMaterializedViewSubstitutionEnabled(false)
-                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES)));
+                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES))
+                .setMaterializationMetastoreType(MaterializationMetastoreType.IN_MEMORY));
     }
 
     @Test
@@ -126,6 +128,7 @@ public class TestFeaturesConfig
                 .put("materialized-view-substitution.support.enabled", "true")
                 .put("materialized-view-substitution.enabled", "true")
                 .put("materialized-view-substitution.metastore-refresh-interval", "30s")
+                .put("materialization.metastore.type", "REST")
                 .buildOrThrow();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -167,7 +170,8 @@ public class TestFeaturesConfig
                 .setParallelizeLookupOuterOperator(false)
                 .setMaterializedViewSubstitutionSupportEnabled(true)
                 .setMaterializedViewSubstitutionEnabled(true)
-                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS));
+                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS))
+                .setMaterializationMetastoreType(MaterializationMetastoreType.REST);
         assertFullMapping(properties, expected);
     }
 }

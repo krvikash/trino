@@ -16,6 +16,9 @@ import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
 import io.starburst.materialization.metastore.MaterializationMetastore;
 import io.starburst.materialization.metastore.RawMaterializationMetastore;
+import io.starburst.materialization.metastore.client.ForMaterializationMetastoreClient;
+import io.starburst.materialization.metastore.client.HttpMaterializationMetastore;
+import io.starburst.materialization.metastore.client.MaterializationMetastoreClientConfig;
 import io.trino.FeaturesConfig;
 import io.trino.server.ServerConfig;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
@@ -24,6 +27,8 @@ import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingSubstitutionMetadata;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -40,8 +45,8 @@ public class MvSubstitutionModule
         jsonCodecBinder(binder).bindJsonCodec(ConnectorColumnId.class);
         newOptionalBinder(binder, MaterializationIndex.class);
 
-        boolean featureEnabled = buildConfigObject(FeaturesConfig.class).isMaterializedViewSubstitutionSupportEnabled();
-        if (!featureEnabled) {
+        FeaturesConfig featuresConfig = buildConfigObject(FeaturesConfig.class);
+        if (!featuresConfig.isMaterializedViewSubstitutionSupportEnabled()) {
             binder.bind(MaterializationService.class).to(NoopMaterializationService.class).in(Scopes.SINGLETON);
             return;
         }
@@ -53,8 +58,16 @@ public class MvSubstitutionModule
             return;
         }
 
-        binder.bind(InMemoryRawMaterializationMetastore.class).in(Scopes.SINGLETON);
-        binder.bind(RawMaterializationMetastore.class).to(InMemoryRawMaterializationMetastore.class);
+        switch (featuresConfig.getMaterializationMetastoreType()) {
+            case IN_MEMORY -> {
+                binder.bind(RawMaterializationMetastore.class).to(InMemoryRawMaterializationMetastore.class).in(Scopes.SINGLETON);
+            }
+            case REST -> {
+                configBinder(binder).bindConfig(MaterializationMetastoreClientConfig.class);
+                httpClientBinder(binder).bindHttpClient("materialization-metastore", ForMaterializationMetastoreClient.class);
+                binder.bind(RawMaterializationMetastore.class).to(HttpMaterializationMetastore.class).in(Scopes.SINGLETON);
+            }
+        }
         binder.bind(VersionAwareMaterializationMetastore.class).in(Scopes.SINGLETON);
         binder.bind(MaterializationIndex.class).in(Scopes.SINGLETON);
         binder.bind(MaterializationMetastore.class).to(MaterializationIndex.class);

@@ -638,6 +638,25 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-materialization-metastore-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>starburst-materialization-metastore-server</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>starburst-materialization-metastore-server</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-blackhole</artifactId>
             <scope>test</scope>
         </dependency>

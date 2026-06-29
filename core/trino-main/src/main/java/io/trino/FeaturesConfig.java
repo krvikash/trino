@@ -93,6 +93,12 @@ public class FeaturesConfig
         NONE, ABORT, RETRY,
     }
 
+    public enum MaterializationMetastoreType
+    {
+        IN_MEMORY,
+        REST,
+    }
+
     @VisibleForTesting
     public static final String SPILLER_SPILL_PATH = "spiller-spill-path";
 
@@ -148,6 +154,7 @@ public class FeaturesConfig
     private boolean materializedViewSubstitutionSupportEnabled;
     private boolean materializedViewSubstitutionEnabled;
     private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
+    private MaterializationMetastoreType materializationMetastoreType = MaterializationMetastoreType.IN_MEMORY;
 
     public boolean isRedistributeWrites()
     {
@@ -683,6 +690,19 @@ public class FeaturesConfig
     public FeaturesConfig setMaterializedViewSubstitutionMetastoreRefreshInterval(Duration value)
     {
         this.materializedViewSubstitutionMetastoreRefreshInterval = value;
+        return this;
+    }
+
+    public MaterializationMetastoreType getMaterializationMetastoreType()
+    {
+        return materializationMetastoreType;
+    }
+
+    @Config("materialization.metastore.type")
+    @ConfigDescription("Backing store for the materialization metastore: IN_MEMORY or REST")
+    public FeaturesConfig setMaterializationMetastoreType(MaterializationMetastoreType materializationMetastoreType)
+    {
+        this.materializationMetastoreType = materializationMetastoreType;
         return this;
     }
 }

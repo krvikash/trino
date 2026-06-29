@@ -13,6 +13,8 @@
  */
 package io.starburst.materialization.metastore;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.trino.spi.connector.CatalogSchemaTableName;
 
 import static java.util.Objects.requireNonNull;
@@ -21,6 +23,8 @@ import static java.util.Objects.requireNonNull;
  * Identifies the source of materialization — currently only materialized views.
  * The main purpose is to help manage the materialization lifecycle.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
+@JsonSubTypes(@JsonSubTypes.Type(value = MaterializationSource.MaterializedViewSource.class, name = "materializedView"))
 public sealed interface MaterializationSource
         permits MaterializationSource.MaterializedViewSource
 {

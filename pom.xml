@@ -49,6 +49,7 @@
         <module>lib/starburst-functions-client</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-materialization-metastore-api</module>
+        <module>lib/starburst-materialization-metastore-server</module>
         <module>lib/starburst-schema-discovery</module>
         <module>lib/starburst-table-maintenance</module>
         <module>lib/starburst-testing-auto-configuration</module>
@@ -1177,6 +1178,19 @@
                 <groupId>io.trino</groupId>
                 <artifactId>starburst-materialization-metastore-api</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-materialization-metastore-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-materialization-metastore-server</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
             </dependency>
 
             <dependency>
