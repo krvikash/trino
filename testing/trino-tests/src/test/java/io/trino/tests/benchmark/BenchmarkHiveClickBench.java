@@ -232,7 +232,35 @@ public final class BenchmarkHiveClickBench
         public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath)
                 throws Exception
         {
-            return setup(mode, bind8080, dataLocation, rmmLogPath);
+            HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
+                    .setWorkerCount(0) // single-node
+                    .setSkipTimezoneSetup(true)
+                    .addHiveProperty("hive.parquet.time-zone", "UTC");
+            if (isRemote(dataLocation)) {
+                builder.addHiveProperty("fs.s3.enabled", "true");
+            }
+            BenchmarkRunner.applyExecutionMode(builder, mode);
+            if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+                builder.addHiveProperty("hive.max-initial-split-size", "512MB")
+                        .addHiveProperty("hive.max-split-size", "512MB");
+            }
+            rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
+            if (bind8080) {
+                builder.addCoordinatorProperty("http-server.http.port", "8080");
+            }
+            DistributedQueryRunner queryRunner = builder.build();
+
+            queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
+            String hitsLocation = isRemote(dataLocation)
+                    ? dataLocation + "/hits"
+                    : Path.of(dataLocation, "hits").toUri().toString();
+            log.info("Creating hive.clickbench.hits at %s", hitsLocation);
+            queryRunner.execute(format(
+                    "CREATE TABLE hive.clickbench.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",
+                    HITS_COLUMNS,
+                    hitsLocation));
+
+            return queryRunner;
         }
 
         @Override
@@ -291,39 +319,5 @@ public final class BenchmarkHiveClickBench
             }
             BenchmarkRunner.cleanCrcFiles(target);
         }
-    }
-
-    static DistributedQueryRunner setup(BenchmarkRunner.ExecutionMode mode, boolean bind8080, String dataLocation, Optional<Path> rmmLogPath)
-            throws Exception
-    {
-        HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
-                .setWorkerCount(0) // single-node
-                .setSkipTimezoneSetup(true)
-                .addHiveProperty("hive.parquet.time-zone", "UTC");
-        if (isRemote(dataLocation)) {
-            builder.addHiveProperty("fs.s3.enabled", "true");
-        }
-        BenchmarkRunner.applyExecutionMode(builder, mode);
-        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-            builder.addHiveProperty("hive.max-initial-split-size", "512MB")
-                    .addHiveProperty("hive.max-split-size", "512MB");
-        }
-        rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
-        if (bind8080) {
-            builder.addCoordinatorProperty("http-server.http.port", "8080");
-        }
-        DistributedQueryRunner queryRunner = builder.build();
-
-        queryRunner.execute("CREATE SCHEMA IF NOT EXISTS hive.clickbench");
-        String hitsLocation = isRemote(dataLocation)
-                ? dataLocation + "/hits"
-                : Path.of(dataLocation, "hits").toUri().toString();
-        log.info("Creating hive.clickbench.hits at %s", hitsLocation);
-        queryRunner.execute(format(
-                "CREATE TABLE hive.clickbench.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",
-                HITS_COLUMNS,
-                hitsLocation));
-
-        return queryRunner;
     }
 }
