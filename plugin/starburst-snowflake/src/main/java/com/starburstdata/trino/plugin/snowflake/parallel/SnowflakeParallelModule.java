@@ -61,21 +61,31 @@ public class SnowflakeParallelModule
     public static class DefaultStreamProvider
             implements Provider<StarburstResultStreamProvider>
     {
+        private final SnowflakeConfig snowflakeConfig;
+
+        @Inject
+        public DefaultStreamProvider(SnowflakeConfig snowflakeConfig)
+        {
+            this.snowflakeConfig = requireNonNull(snowflakeConfig, "snowflakeConfig is null");
+        }
+
         @Override
         public StarburstResultStreamProvider get()
         {
-            return new StarburstResultStreamProvider(HttpUtil.getHttpClient(new HttpClientSettingsKey(OCSPMode.FAIL_OPEN)));
+            return new StarburstResultStreamProvider(HttpUtil.getHttpClient(new HttpClientSettingsKey(OCSPMode.FAIL_OPEN)), snowflakeConfig);
         }
     }
 
     public static class ProxiedStreamProvider
             implements Provider<StarburstResultStreamProvider>
     {
+        private final SnowflakeConfig snowflakeConfig;
         private final SnowflakeProxyConfig snowflakeProxyConfig;
 
         @Inject
-        ProxiedStreamProvider(SnowflakeProxyConfig snowflakeProxyConfig)
+        ProxiedStreamProvider(SnowflakeConfig snowflakeConfig, SnowflakeProxyConfig snowflakeProxyConfig)
         {
+            this.snowflakeConfig = requireNonNull(snowflakeConfig, "snowflakeConfig is null");
             this.snowflakeProxyConfig = requireNonNull(snowflakeProxyConfig, "snowflakeProxyConfig is null");
         }
 
@@ -94,7 +104,7 @@ public class SnowflakeParallelModule
                     null,
                     false);
 
-            return new StarburstResultStreamProvider(HttpUtil.getHttpClient(clientSettingsKey));
+            return new StarburstResultStreamProvider(HttpUtil.getHttpClient(clientSettingsKey), snowflakeConfig);
         }
     }
 }

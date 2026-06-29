@@ -29,6 +29,7 @@ public class SnowflakeConfig
     private boolean proxyEnabled;
     // ENG-15247 if no issues upon release, remove this hidden option.
     private boolean collationCorrectionEnabled = true;
+    private int maxChunkRetries;
 
     public Optional<String> getWarehouse()
     {
@@ -119,6 +120,19 @@ public class SnowflakeConfig
     public SnowflakeConfig setProxyEnabled(boolean proxyEnabled)
     {
         this.proxyEnabled = proxyEnabled;
+        return this;
+    }
+
+    public int getMaxChunkRetries()
+    {
+        return maxChunkRetries;
+    }
+
+    @Config("snowflake.max-chunk-retries")
+    @ConfigDescription("Maximum number of retries for transient errors fetching Arrow result chunks; retries are disabled by default")
+    public SnowflakeConfig setMaxChunkRetries(int maxChunkRetries)
+    {
+        this.maxChunkRetries = maxChunkRetries;
         return this;
     }
 

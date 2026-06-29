@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.google.inject.Inject;
+import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import io.trino.spi.TrinoException;
 import net.snowflake.client.core.ExecTimeTelemetryData;
 import net.snowflake.client.jdbc.RestRequest;
@@ -45,11 +46,13 @@ public class StarburstResultStreamProvider
     private static final int AUTH_TIMEOUT_IN_SECONDS = 0;
     private static final int SOCKET_TIMEOUT_IN_MILLI = 0;
     private final CloseableHttpClient httpClient;
+    private final int maxChunkRetries;
 
     @Inject
-    public StarburstResultStreamProvider(CloseableHttpClient httpClient)
+    public StarburstResultStreamProvider(CloseableHttpClient httpClient, SnowflakeConfig snowflakeConfig)
     {
-        this.httpClient = requireNonNull(httpClient, "httpClient are null");
+        this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.maxChunkRetries = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getMaxChunkRetries();
     }
 
     public byte[] getInputStream(Chunk chunk)
@@ -96,8 +99,7 @@ public class StarburstResultStreamProvider
         }
 
         // RestRequest.execute method in snowflake since 3.25.1 has a bug with shift of input parameters,
-        // where noRetry is used as unpack response, so we need to use executeWithRetries directly
-        // with noRetry set to true and unpackResponse set to false
+        // where noRetry is used as unpack response, so we need to use executeWithRetries directly.
         HttpResponse response =
                 RestRequest.executeWithRetries(
                                 httpClient,
@@ -105,14 +107,14 @@ public class StarburstResultStreamProvider
                                 NETWORK_TIMEOUT_IN_MILLI / 1000, // retry timeout
                                 AUTH_TIMEOUT_IN_SECONDS,
                                 SOCKET_TIMEOUT_IN_MILLI,
-                                0,
+                                maxChunkRetries,
                                 0, // no socket timeout injection
                                 null, // no canceling
                                 false, // no cookie
                                 false, // no retry parameters in url
                                 false, // no request_guid
                                 true, // retry on HTTP403 for AWS S3
-                                true, // no retry on http request
+                                maxChunkRetries <= 0, // no retry on http request - noRetry = false (a.k.a. do retries) when maxChunkRetries > 0
                                 false, // prevent unpacking response here
                                 new ExecTimeTelemetryData(),
                                 null,
