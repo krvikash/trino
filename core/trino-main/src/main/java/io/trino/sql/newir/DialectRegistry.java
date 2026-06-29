@@ -32,20 +32,20 @@ public class DialectRegistry
 {
     public static final DialectRegistry TESTING_DIALECT_REGISTRY = new DialectRegistry(TESTING_TRINO_DIALECT);
 
-    private final Map<String, Dialect> dialectMap;
+    private final Map<String, Dialect> dialects;
 
     @Inject
     public DialectRegistry(TrinoDialect trinoDialect)
     {
         requireNonNull(trinoDialect, "trinoDialect is null");
-        this.dialectMap = ImmutableMap.of(
+        this.dialects = ImmutableMap.of(
                 TRINO, trinoDialect,
                 IR, IR_DIALECT);
     }
 
     public Dialect dialect(String name)
     {
-        Dialect dialect = dialectMap.get(name);
+        Dialect dialect = dialects.get(name);
         if (dialect == null) {
             throw new TrinoException(IR_ERROR, format("dialect %s not registered", name));
         }
