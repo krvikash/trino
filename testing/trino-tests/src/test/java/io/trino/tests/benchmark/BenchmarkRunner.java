@@ -507,14 +507,14 @@ public final class BenchmarkRunner
                 session.start();
                 for (int i = 0; i < runs; i++) {
                     log.debug("Starting measured run of %s", displayName);
-                    if (Rmm.isInitialized()) {
+                    if (mode == ExecutionMode.GPU) {
                         Rmm.resetScopedMaximumBytesAllocated();
                     }
                     IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
                     log.debug("Measured run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
                     measurements.add(iteration.measurement());
                     measuredIterations.add(iteration);
-                    if (Rmm.isInitialized()) {
+                    if (mode == ExecutionMode.GPU) {
                         peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
                     }
                 }
