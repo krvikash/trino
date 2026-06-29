@@ -61,10 +61,10 @@ public class HiveOzoneDataLake
                 .withNetwork(network)
                 .withFilesToMount(hiveHadoopFilesToMount)
                 .build());
-        hiveHadoop.start();
 
         this.apacheOzoneContainer = closer.register(new ApacheOzoneContainer(network));
         apacheOzoneContainer.start();
+        hiveHadoop.start();
     }
 
     @Override
