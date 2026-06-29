@@ -4334,6 +4334,26 @@ class TestCreateOperation
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Values operation does not have arguments");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                ValuesOperationMetadata.NAME,
+                "%0",
+                ImmutableList.of(),
+                ImmutableList.of(singleBlockRegion(firstRowBlock)),
+                attributes(
+                        new AttributeKey(TRINO, "values:cardinality"),
+                        2L,
+                        new AttributeKey(TRINO, "values:row_type"),
+                        trinoType(VALUES_OPERATION_ROW_TYPE),
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
+                .hasMessage("Values operation with output fields takes 2 regions, but 1 were provided");
     }
 
     @Test
@@ -4379,6 +4399,26 @@ class TestCreateOperation
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessageMatching(".*the return value of .* is null");
+
+        // regions not allowed without output fields
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                ValuesOperationMetadata.NAME,
+                "%0",
+                ImmutableList.of(),
+                ImmutableList.of(SOME_REGION),
+                attributes(
+                        new AttributeKey(TRINO, "values:cardinality"),
+                        5L,
+                        new AttributeKey(TRINO, "values:row_type"),
+                        EMPTY_ROW,
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false)))
+                .hasMessage("Values operation without output fields takes no regions");
     }
 
     @Test

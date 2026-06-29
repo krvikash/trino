@@ -82,10 +82,13 @@ public class ValuesOperationMetadata
 
         Values values;
         Type rowType = ROW_TYPE.getAttribute(operationAttributes);
+        int cardinality = toIntExact(CARDINALITY.getAttribute(operationAttributes));
         if (rowType.equals(EMPTY_ROW)) {
-            values = valuesWithoutFields(resultName, toIntExact(CARDINALITY.getAttribute(operationAttributes)), derivedAttributes);
+            checkArgument(regions.isEmpty(), "Values operation without output fields takes no regions");
+            values = valuesWithoutFields(resultName, cardinality, derivedAttributes);
         }
         else {
+            checkArgument(regions.size() == cardinality, "Values operation with output fields takes %s regions, but %s were provided", cardinality, regions.size());
             values = new Values(
                     resultName,
                     (RowType) rowType,
