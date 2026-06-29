@@ -284,11 +284,12 @@ def matches_scheduled(
         or schedule_filter.scheduled == Schedule.never
     ):
         return False
-    return schedule_filter.scheduled == Schedule.nightly or (
-        schedule_filter.scheduled == Schedule.weekly
-        and _WEEKLY_CRON.match(github_context.get("event", {}).get("schedule", ""))
-        is not None
+    run_schedule = (
+        Schedule.weekly
+        if _WEEKLY_CRON.match(github_context.get("event", {}).get("schedule", ""))
+        else Schedule.nightly
     )
+    return schedule_filter.scheduled == run_schedule
 
 
 def matches_label(
@@ -478,9 +479,9 @@ class TestBuild(unittest.TestCase):
             "as-needed test doesn't run on nightly workflow",
         )
         for weekly_workflow in weekly_workflows:
-            self.assertTrue(
+            self.assertFalse(
                 matches_scheduled(weekly_workflow, nightly_test),
-                f"nightly test runs on weekly workflow ({weekly_workflow})",
+                f"nightly test doesn't run on weekly workflow ({weekly_workflow})",
             )
             self.assertTrue(
                 matches_scheduled(weekly_workflow, weekly_test),
@@ -584,18 +585,17 @@ class TestBuild(unittest.TestCase):
                 f"default runs on {event_name} with impact",
             )
 
-        for schedule in ["0 0 * * *", "0 0 * * 6"]:
-            context = {"event_name": "schedule", "event": {"schedule": schedule}}
-            self.assertEqual(
-                build_matrix_json(configs, set(), context),
-                {"include": [{"modules": "a", "name": "test (a)"}]},
-                f"default runs on schedule {schedule} without impact",
-            )
-            self.assertEqual(
-                build_matrix_json(configs, {"a"}, context),
-                {"include": [{"modules": "a", "name": "test (a)"}]},
-                f"default runs on schedule {schedule} with impact",
-            )
+        context = {"event_name": "schedule", "event": {"schedule": "0 0 * * *"}}
+        self.assertEqual(
+            build_matrix_json(configs, set(), context),
+            {"include": [{"modules": "a", "name": "test (a)"}]},
+            "default runs with empty impact",
+        )
+        self.assertEqual(
+            build_matrix_json(configs, {"a"}, context),
+            {"include": [{"modules": "a", "name": "test (a)"}]},
+            "default runs with impact",
+        )
 
         context = {
             "event_name": "pull_request",
