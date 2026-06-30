@@ -93,7 +93,7 @@ public abstract class BaseTestToolUse
         assertThat(response.toolCalls()).hasSize(1);
 
         ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
-        assertThat(toolCall.name()).isEqualTo("calculator");
+        assertThat(toolCall.name()).withFailMessage("Model response: " + response.textResponse()).isEqualTo("calculator");
         assertThat(toolCall.input().has("operation")).isTrue();
         assertThat(toolCall.input().has("left_operand")).isTrue();
         assertThat(toolCall.input().has("right_operand")).isTrue();
@@ -128,7 +128,7 @@ public abstract class BaseTestToolUse
 
         // Should call the weather tool
         ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
-        assertThat(toolCall.name()).isEqualTo("get_weather");
+        assertThat(toolCall.name()).withFailMessage("Model response: " + response.textResponse()).isEqualTo("get_weather");
         assertThat(toolCall.input().has("location")).isTrue();
     }
 
@@ -152,7 +152,7 @@ public abstract class BaseTestToolUse
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
 
-        assertThat(response.toolCalls()).isNotEmpty();
+        assertThat(response.toolCalls()).withFailMessage("Model response: " + response.textResponse()).isNotEmpty();
         ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
         ToolResult<Double> toolResult = tool.execute(toolCall.input());
         assertThat(toolResult.content()).contains(42d * 13d);
@@ -200,7 +200,7 @@ public abstract class BaseTestToolUse
 
         // Should call the clock tool
         ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
-        assertThat(toolCall.name()).isEqualTo("clock");
+        assertThat(toolCall.name()).withFailMessage("Model response: " + response.textResponse()).isEqualTo("clock");
         assertThat(toolCall.input().isNull() || toolCall.input().isEmpty()).isTrue();
     }
 
