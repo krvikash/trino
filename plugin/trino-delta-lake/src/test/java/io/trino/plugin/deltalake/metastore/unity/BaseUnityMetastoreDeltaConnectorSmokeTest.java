@@ -16,6 +16,7 @@ package io.trino.plugin.deltalake.metastore.unity;
 import com.google.common.collect.ImmutableList;
 import dev.failsafe.Failsafe;
 import io.airlift.log.Logger;
+import io.trino.Session;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
@@ -75,40 +76,53 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         return queryRunner;
     }
 
-    private void createTpchTables(QueryRunner queryRunner)
+    protected void createTpchTables(QueryRunner queryRunner)
     {
-        if (queryRunner.execute("SHOW SCHEMAS LIKE '" + SCHEMA_NAME + "'").getMaterializedRows().isEmpty()) {
-            String schemaLocation = format("%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME);
+        createTpchTables(queryRunner, queryRunner.getDefaultSession());
+    }
+
+    protected void createTpchTables(QueryRunner queryRunner, Session session)
+    {
+        String databricksUnityExternalLocation = getDatabricksUnityExternalLocation();
+        String databricksUnityCatalogName = getDatabricksUnityCatalogName();
+        SqlExecutor sqlExecutor = onDatabricks();
+        createTpchTables(queryRunner, session, databricksUnityExternalLocation, sqlExecutor, databricksUnityCatalogName);
+    }
+
+    protected void createTpchTables(QueryRunner queryRunner, Session session, String databricksUnityExternalLocation, SqlExecutor dbxExecutor, String databricksUnityCatalogName)
+    {
+        if (queryRunner.execute(session, "SHOW SCHEMAS LIKE '" + SCHEMA_NAME + "'").getMaterializedRows().isEmpty()) {
+            String schemaLocation = format("%s/%s", databricksUnityExternalLocation, SCHEMA_NAME);
             LOG.info("Creating schema '%s' as it doesn't exist", SCHEMA_NAME);
-            onDatabricks().execute(format("CREATE SCHEMA IF NOT EXISTS %s.%s MANAGED LOCATION '%s'", getDatabricksUnityCatalogName(), SCHEMA_NAME, schemaLocation));
+            dbxExecutor.execute(format("CREATE SCHEMA IF NOT EXISTS %s.%s MANAGED LOCATION '%s'", databricksUnityCatalogName, SCHEMA_NAME, schemaLocation));
         }
         for (TpchTable<?> tpchTable : REQUIRED_TPCH_TABLES) {
             String tableName = tpchTable.getTableName();
-            if (queryRunner.execute("SHOW TABLES LIKE '" + tableName + "'").getMaterializedRows().isEmpty()) {
+            if (queryRunner.execute(session, "SHOW TABLES LIKE '" + tableName + "'").getMaterializedRows().isEmpty()) {
                 LOG.info("Creating table '%s.%s' as it doesn't exist", SCHEMA_NAME, tableName);
-                createTable(tableName, queryRunner);
+                createTable(tableName, queryRunner, session, databricksUnityCatalogName, dbxExecutor);
             }
             else {
-                long actualRows = (Long) queryRunner.execute("SELECT count(*) FROM tpch.tiny." + tableName).getMaterializedRows().getFirst().getField(0);
-                long expectedRows = (Long) queryRunner.execute("SELECT count(*) FROM " + SCHEMA_NAME + "." + tableName)
+                long actualRows = (Long) queryRunner.execute(session, "SELECT count(*) FROM tpch.tiny." + tableName).getMaterializedRows().getFirst().getField(0);
+                long expectedRows = (Long) queryRunner.execute(session, "SELECT count(*) FROM " + SCHEMA_NAME + "." + tableName)
                         .getMaterializedRows().getFirst().getField(0);
                 if (actualRows != expectedRows) {
                     LOG.info("Recreating table '%s.%s' as actual rows [%s] are different than the expected rows [%s]", SCHEMA_NAME, tableName, expectedRows, actualRows);
-                    createTable(tableName, queryRunner);
+                    createTable(tableName, queryRunner, session, databricksUnityCatalogName, dbxExecutor);
                 }
             }
         }
-        String schemaLocation = getTpchSchemaLocation(queryRunner);
-        onDatabricks().execute(
+        String schemaLocation = getTpchSchemaLocation(queryRunner, session);
+        dbxExecutor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS %s.%s.%s
                 USING PARQUET
                 LOCATION '%s'
                 AS SELECT n_nationkey as nationkey, n_name as name, n_regionkey as regionkey, n_comment as comment from SAMPLES.TPCH.nation
-                """.formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, HIVE_TABLE_NAME, "%s/%s".formatted(schemaLocation, HIVE_TABLE_NAME)));
+                """.formatted(databricksUnityCatalogName, SCHEMA_NAME, HIVE_TABLE_NAME, "%s/%s".formatted(schemaLocation, HIVE_TABLE_NAME)));
     }
 
-    private void createTable(String tableName, QueryRunner queryRunner)
+    private static void createTable(String tableName, QueryRunner queryRunner, Session session, String databricksUnityCatalogName, SqlExecutor sqlExecutor)
     {
         String createNationTable =
                 """
@@ -124,24 +138,24 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                         LOCATION '%3$s'
                         AS SELECT r_regionkey as regionkey, r_name as name, r_comment as comment FROM SAMPLES.TPCH.region
                         """;
-        String schemaLocation = getTpchSchemaLocation(queryRunner);
+        String schemaLocation = getTpchSchemaLocation(queryRunner, session);
         if (tableName.equals(NATION.getTableName())) {
-            onDatabricks().execute(createNationTable
-                    .formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
+            sqlExecutor.execute(createNationTable
+                    .formatted(databricksUnityCatalogName, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
         }
         else if (tableName.equals(REGION.getTableName())) {
-            onDatabricks().execute(createRegionTable
-                    .formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
+            sqlExecutor.execute(createRegionTable
+                    .formatted(databricksUnityCatalogName, SCHEMA_NAME, "%s/%s".formatted(schemaLocation, tableName)));
         }
         else {
             throw new IllegalArgumentException("Unsupported table name: " + tableName);
         }
     }
 
-    private static String getTpchSchemaLocation(QueryRunner queryRunner)
+    private static String getTpchSchemaLocation(QueryRunner queryRunner, Session session)
     {
         Pattern locationPattern = Pattern.compile(".*location = '(.*?)'.*", Pattern.DOTALL);
-        Matcher matcher = locationPattern.matcher((String) queryRunner.execute("SHOW CREATE SCHEMA " + SCHEMA_NAME).getOnlyValue());
+        Matcher matcher = locationPattern.matcher((String) queryRunner.execute(session, "SHOW CREATE SCHEMA " + SCHEMA_NAME).getOnlyValue());
         if (matcher.find()) {
             String location = matcher.group(1);
             verify(!matcher.find(), "Unexpected second match");
@@ -257,7 +271,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                     .matches("VALUES (1, TIMESTAMP '2023-10-01 12:34:56.123456'), (2, TIMESTAMP '2025-01-01 12:34:56.123456')");
         }
         finally {
-            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+            onDatabricks().execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
         }
     }
 

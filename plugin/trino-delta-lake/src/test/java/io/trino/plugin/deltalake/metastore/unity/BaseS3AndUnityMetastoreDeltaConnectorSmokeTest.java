@@ -30,7 +30,6 @@ abstract class BaseS3AndUnityMetastoreDeltaConnectorSmokeTest
     private static final String DATABRICKS_TOKEN = requireEnv("DATABRICKS_TOKEN");
     private static final String DATABRICKS_UNITY_CATALOG_NAME = requireEnv("DATABRICKS_UNITY_CATALOG_NAME");
     private static final String DATABRICKS_UNITY_EXTERNAL_LOCATION = requireEnv("DATABRICKS_UNITY_EXTERNAL_LOCATION");
-
     private static final String DATABRICKS_AWS_REGION = requireEnv("DATABRICKS_AWS_REGION");
 
     private static final DatabricksSqlExecutor DATABRICKS = new DatabricksSqlExecutor(DATABRICKS_UNITY_JDBC_URL, DATABRICKS_LOGIN, DATABRICKS_TOKEN);

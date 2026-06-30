@@ -99,6 +99,7 @@ public class DeltaLakeConfig
     private boolean logRetentionDurationEnabled;
     private String timeZone = "UTC";
     private boolean loadMetadataFromChecksumFile = true;
+    private boolean dynamicConfigurationPassthroughEnabled;
 
     public Duration getMetadataCacheTtl()
     {
@@ -635,6 +636,19 @@ public class DeltaLakeConfig
     public DeltaLakeConfig setLoadMetadataFromChecksumFile(boolean loadMetadataFromChecksumFile)
     {
         this.loadMetadataFromChecksumFile = loadMetadataFromChecksumFile;
+        return this;
+    }
+
+    public boolean isDynamicConfigurationPassthroughEnabled()
+    {
+        return dynamicConfigurationPassthroughEnabled;
+    }
+
+    @Config("delta.dynamic-configuration-passthrough.enabled")
+    @ConfigDescription("Enable dynamic configuration passthrough for Unity Catalog metastore")
+    public DeltaLakeConfig setDynamicConfigurationPassthroughEnabled(boolean dynamicConfigurationPassthroughEnabled)
+    {
+        this.dynamicConfigurationPassthroughEnabled = dynamicConfigurationPassthroughEnabled;
         return this;
     }
 }

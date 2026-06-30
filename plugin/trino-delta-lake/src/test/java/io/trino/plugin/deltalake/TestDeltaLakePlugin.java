@@ -202,6 +202,24 @@ public class TestDeltaLakePlugin
     }
 
     @Test
+    public void testUnityDynamicConfigurationPassthrough()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+        factory.create(
+                        "test",
+                        ImmutableMap.<String, String>builder()
+                                .put("hive.metastore", "unity")
+                                .put("delta.dynamic-configuration-passthrough.enabled", "true")
+                                .put("dynamic.hive-metastore-unity-host.credential-name", "dynamic_host")
+                                .put("dynamic.hive-metastore-unity-token.credential-name", "dynamic_token")
+                                .put("dynamic.hive-metastore-unity-catalog-name.credential-name", "dynamic_catalog")
+                                .put("bootstrap.quiet", "true")
+                                .buildOrThrow(),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
     public void testReadOnlyAllAccessControl()
     {
         ConnectorFactory factory = getConnectorFactory();

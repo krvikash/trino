@@ -19,7 +19,7 @@ import io.trino.plugin.deltalake.DeltaLakeTableCredentials;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.deltalake.metastore.DeltaMetastoreTable;
-import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
+import io.trino.plugin.deltalake.metastore.unity.CatalogManagedTableEnabled;
 import io.trino.spi.TrinoException;
 
 import java.util.Optional;
@@ -39,11 +39,11 @@ public class UnityTransactionLogReaderFactory
     public UnityTransactionLogReaderFactory(
             DeltaLakeFileSystemFactory fileSystemFactory,
             DeltaLakeTableOperationsProvider tableOperationsProvider,
-            UnityMetastoreConfig unityMetastoreConfig)
+            @CatalogManagedTableEnabled boolean isCatalogManagedTableEnabled)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
-        this.isCatalogManagedTableEnabled = unityMetastoreConfig.isCatalogManagedTableEnabled();
+        this.isCatalogManagedTableEnabled = isCatalogManagedTableEnabled;
     }
 
     @Override

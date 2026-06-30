@@ -78,7 +78,8 @@ public class TestDeltaLakeConfig
                 .setCheckpointProcessingParallelism(4)
                 .setLogRetentionDurationEnabled(false)
                 .setTimeZone("UTC")
-                .setLoadMetadataFromChecksumFile(true));
+                .setLoadMetadataFromChecksumFile(true)
+                .setDynamicConfigurationPassthroughEnabled(false));
     }
 
     @Test
@@ -124,6 +125,7 @@ public class TestDeltaLakeConfig
                 .put("delta.log-retention-duration.enabled", "true")
                 .put("delta.time-zone", "Asia/Kolkata")
                 .put("delta.load-metadata-from-checksum-file", "false")
+                .put("delta.dynamic-configuration-passthrough.enabled", "true")
                 .buildOrThrow();
 
         DeltaLakeConfig expected = new DeltaLakeConfig()
@@ -165,7 +167,8 @@ public class TestDeltaLakeConfig
                 .setCheckpointProcessingParallelism(8)
                 .setLogRetentionDurationEnabled(true)
                 .setTimeZone("Asia/Kolkata")
-                .setLoadMetadataFromChecksumFile(false);
+                .setLoadMetadataFromChecksumFile(false)
+                .setDynamicConfigurationPassthroughEnabled(true);
 
         assertFullMapping(properties, expected);
     }

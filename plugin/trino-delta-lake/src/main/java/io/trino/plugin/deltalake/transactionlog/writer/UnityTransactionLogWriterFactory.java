@@ -19,9 +19,9 @@ import io.trino.plugin.deltalake.DeltaLakeTableCredentials;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.ForUnityBackfill;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
+import io.trino.plugin.deltalake.metastore.unity.CatalogManagedTableEnabled;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
-import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 
@@ -47,13 +47,13 @@ public class UnityTransactionLogWriterFactory
             DeltaLakeTableOperationsProvider tableOperationsProvider,
             TransactionLogSynchronizerManager synchronizerManager,
             @ForUnityBackfill ExecutorService backfillExecutor,
-            UnityMetastoreConfig unityMetastoreConfig)
+            @CatalogManagedTableEnabled boolean isCatalogManagedTableEnabled)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.synchronizerManager = requireNonNull(synchronizerManager, "synchronizerManager is null");
         this.backfillExecutor = requireNonNull(backfillExecutor, "backfillExecutor is null");
-        this.isCatalogManagedTableEnabled = unityMetastoreConfig.isCatalogManagedTableEnabled();
+        this.isCatalogManagedTableEnabled = isCatalogManagedTableEnabled;
     }
 
     @Override

@@ -116,6 +116,11 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-s3</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-hive</artifactId>
         </dependency>
 
@@ -202,6 +207,16 @@
 
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
+            <artifactId>auth</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>aws-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>glue</artifactId>
             <exclusions>
                 <exclusion>
@@ -209,6 +224,16 @@
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>regions</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
         </dependency>
 
         <dependency>
@@ -595,6 +620,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <ignoredNonTestScopedDependencies>
+                        <ignoredNonTestScopedDependency>software.amazon.awssdk:aws-core</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>software.amazon.awssdk:regions</ignoredNonTestScopedDependency>
+                        <ignoredNonTestScopedDependency>software.amazon.awssdk:sts</ignoredNonTestScopedDependency>
+                    </ignoredNonTestScopedDependencies>
+                </configuration>
                 <executions>
                     <execution>
                         <id>copy</id>
@@ -679,6 +711,10 @@
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
                                 <exclude>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestS3AndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestS3AndUnityMetastoreWithDynamicPropertiesDeltaConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestS3AndUnityMetastoreWithDynamicPropertiesAndStaticCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestS3AndUnityMetastoreWithDynamicPropertiesAndPerRequestCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestS3AndUnityMetastoreWithDynamicPropertiesStsDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestGcsAndUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
@@ -716,6 +752,10 @@
                                 <include>**/TestDeltaLakeGcsConnectorSmokeTest.java</include>
                                 <include>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestS3AndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</include>
+                                <include>**/TestS3AndUnityMetastoreWithDynamicPropertiesDeltaConnectorSmokeTest.java</include>
+                                <exclude>**/TestS3AndUnityMetastoreWithDynamicPropertiesAndStaticCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestS3AndUnityMetastoreWithDynamicPropertiesAndPerRequestCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
+                                <include>**/TestS3AndUnityMetastoreWithDynamicPropertiesStsDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestGcsAndUnityMetastoreDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</include>

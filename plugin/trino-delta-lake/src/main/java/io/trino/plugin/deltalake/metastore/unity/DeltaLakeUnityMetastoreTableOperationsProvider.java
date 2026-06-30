@@ -14,9 +14,10 @@
 package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.inject.Inject;
+import io.trino.metastore.HiveMetastoreFactory;
+import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperations;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
-import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastore;
 import io.trino.spi.connector.ConnectorSession;
 
@@ -27,17 +28,17 @@ import static java.util.Objects.requireNonNull;
 public class DeltaLakeUnityMetastoreTableOperationsProvider
         implements DeltaLakeTableOperationsProvider
 {
-    private final UnityHiveMetastoreFactory unityHiveMetastoreFactory;
+    private final HiveMetastoreFactory hiveMetastoreFactory;
 
     @Inject
-    public DeltaLakeUnityMetastoreTableOperationsProvider(UnityHiveMetastoreFactory unityHiveMetastoreFactory)
+    public DeltaLakeUnityMetastoreTableOperationsProvider(@RawHiveMetastoreFactory HiveMetastoreFactory hiveMetastoreFactory)
     {
-        this.unityHiveMetastoreFactory = requireNonNull(unityHiveMetastoreFactory, "unityHiveMetastoreFactory is null");
+        this.hiveMetastoreFactory = requireNonNull(hiveMetastoreFactory, "hiveMetastoreFactory is null");
     }
 
     @Override
     public DeltaLakeTableOperations createTableOperations(ConnectorSession session)
     {
-        return new DeltaLakeUnityTableOperations((UnityMetastore) unityHiveMetastoreFactory.createMetastore(Optional.of(session.getIdentity())));
+        return new DeltaLakeUnityTableOperations((UnityMetastore) hiveMetastoreFactory.createMetastore(Optional.of(session.getIdentity())));
     }
 }
