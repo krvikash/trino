@@ -26,7 +26,6 @@ import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
 import io.trino.plugin.iceberg.encryption.EncryptionManagerFactory;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
@@ -61,12 +60,10 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -1599,27 +1596,6 @@ public class TestIcebergV3
         finally {
             assertUpdate("DROP TABLE IF EXISTS " + tableName);
         }
-    }
-
-    private static Path latestMetadataJson(Path tableLocation)
-            throws IOException
-    {
-        Path metadataDir = tableLocation.resolve("metadata");
-        try (var stream = Files.list(metadataDir)) {
-            return stream
-                    .filter(path -> path.getFileName().endsWith(".metadata.json"))
-                    .max(Comparator.naturalOrder())
-                    .orElseThrow(() -> new IllegalStateException("No metadata.json found in " + metadataDir));
-        }
-    }
-
-    private long getFileSize(String dataFilePath)
-            throws IOException
-    {
-        return getFileSystemFactory(getQueryRunner())
-                .create(ConnectorIdentity.ofUser("test"))
-                .newInputFile(Location.of(dataFilePath))
-                .length();
     }
 
     private ParquetMetadata getOnlyParquetDataFileMetadata(String tableName)
