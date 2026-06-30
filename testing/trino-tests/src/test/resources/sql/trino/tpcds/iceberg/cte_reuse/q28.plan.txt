@@ -564,13 +564,13 @@ IR version = 1
                     {constant:value = "[type=integer, value=5]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14622 = between(%14619, %14620, %14621) : ("integer", "integer", "integer") -> "boolean" ()
                 %14623 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14624 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=8.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14625 = comparison(%14623, %14624) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14626 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14627 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=18.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14628 = comparison(%14626, %14627) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -578,13 +578,13 @@ IR version = 1
                 %14629 = logical(%14625, %14628) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14630 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14631 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=459.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14632 = comparison(%14630, %14631) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14633 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14634 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=1459.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14635 = comparison(%14633, %14634) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -592,13 +592,13 @@ IR version = 1
                 %14636 = logical(%14632, %14635) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14637 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14638 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=57.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14639 = comparison(%14637, %14638) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14640 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14641 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=77.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14642 = comparison(%14640, %14641) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -608,7 +608,7 @@ IR version = 1
                 %14644 = logical(%14629, %14636, %14643) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %14645 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14646 = cast(%14645) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14647 = constant() : () -> "decimal(12,2)" ()
@@ -617,7 +617,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=18.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14649 = between(%14646, %14647, %14648) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14650 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14651 = cast(%14650) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14652 = constant() : () -> "decimal(12,2)" ()
@@ -626,7 +626,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=1459.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14654 = between(%14651, %14652, %14653) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14655 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14656 = cast(%14655) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14657 = constant() : () -> "decimal(12,2)" ()
@@ -646,13 +646,13 @@ IR version = 1
                     {constant:value = "[type=integer, value=10]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14666 = between(%14663, %14664, %14665) : ("integer", "integer", "integer") -> "boolean" ()
                 %14667 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14668 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=90.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14669 = comparison(%14667, %14668) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14670 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14671 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=100.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14672 = comparison(%14670, %14671) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -660,13 +660,13 @@ IR version = 1
                 %14673 = logical(%14669, %14672) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14674 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14675 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=2323.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14676 = comparison(%14674, %14675) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14677 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14678 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=3323.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14679 = comparison(%14677, %14678) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -674,13 +674,13 @@ IR version = 1
                 %14680 = logical(%14676, %14679) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14681 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14682 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=31.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14683 = comparison(%14681, %14682) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14684 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14685 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=51.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14686 = comparison(%14684, %14685) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -690,7 +690,7 @@ IR version = 1
                 %14688 = logical(%14673, %14680, %14687) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %14689 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14690 = cast(%14689) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14691 = constant() : () -> "decimal(12,2)" ()
@@ -699,7 +699,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=100.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14693 = between(%14690, %14691, %14692) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14694 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14695 = cast(%14694) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14696 = constant() : () -> "decimal(12,2)" ()
@@ -708,7 +708,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=3323.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14698 = between(%14695, %14696, %14697) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14699 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14700 = cast(%14699) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14701 = constant() : () -> "decimal(12,2)" ()
@@ -728,13 +728,13 @@ IR version = 1
                     {constant:value = "[type=integer, value=15]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14710 = between(%14707, %14708, %14709) : ("integer", "integer", "integer") -> "boolean" ()
                 %14711 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14712 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=142.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14713 = comparison(%14711, %14712) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14714 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14715 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=152.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14716 = comparison(%14714, %14715) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -742,13 +742,13 @@ IR version = 1
                 %14717 = logical(%14713, %14716) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14718 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14719 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=12214.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14720 = comparison(%14718, %14719) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14721 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14722 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=13214.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14723 = comparison(%14721, %14722) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -756,13 +756,13 @@ IR version = 1
                 %14724 = logical(%14720, %14723) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14725 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14726 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=79.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14727 = comparison(%14725, %14726) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14728 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14729 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=99.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14730 = comparison(%14728, %14729) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -772,7 +772,7 @@ IR version = 1
                 %14732 = logical(%14717, %14724, %14731) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %14733 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14734 = cast(%14733) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14735 = constant() : () -> "decimal(12,2)" ()
@@ -781,7 +781,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=152.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14737 = between(%14734, %14735, %14736) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14738 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14739 = cast(%14738) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14740 = constant() : () -> "decimal(12,2)" ()
@@ -790,7 +790,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=13214.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14742 = between(%14739, %14740, %14741) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14743 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14744 = cast(%14743) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14745 = constant() : () -> "decimal(12,2)" ()
@@ -810,13 +810,13 @@ IR version = 1
                     {constant:value = "[type=integer, value=20]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14754 = between(%14751, %14752, %14753) : ("integer", "integer", "integer") -> "boolean" ()
                 %14755 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14756 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=135.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14757 = comparison(%14755, %14756) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14758 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14759 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=145.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14760 = comparison(%14758, %14759) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -824,13 +824,13 @@ IR version = 1
                 %14761 = logical(%14757, %14760) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14762 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14763 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=6071.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14764 = comparison(%14762, %14763) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14765 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14766 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=7071.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14767 = comparison(%14765, %14766) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -838,13 +838,13 @@ IR version = 1
                 %14768 = logical(%14764, %14767) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14769 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14770 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=38.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14771 = comparison(%14769, %14770) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14772 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14773 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=58.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14774 = comparison(%14772, %14773) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -854,7 +854,7 @@ IR version = 1
                 %14776 = logical(%14761, %14768, %14775) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %14777 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14778 = cast(%14777) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14779 = constant() : () -> "decimal(12,2)" ()
@@ -863,7 +863,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=145.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14781 = between(%14778, %14779, %14780) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14782 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14783 = cast(%14782) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14784 = constant() : () -> "decimal(12,2)" ()
@@ -872,7 +872,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=7071.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14786 = between(%14783, %14784, %14785) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14787 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14788 = cast(%14787) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14789 = constant() : () -> "decimal(12,2)" ()
@@ -892,13 +892,13 @@ IR version = 1
                     {constant:value = "[type=integer, value=25]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14798 = between(%14795, %14796, %14797) : ("integer", "integer", "integer") -> "boolean" ()
                 %14799 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14800 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=122.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14801 = comparison(%14799, %14800) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14802 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14803 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=132.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14804 = comparison(%14802, %14803) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -906,13 +906,13 @@ IR version = 1
                 %14805 = logical(%14801, %14804) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14806 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14807 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=836.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14808 = comparison(%14806, %14807) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14809 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14810 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=1836.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14811 = comparison(%14809, %14810) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -920,13 +920,13 @@ IR version = 1
                 %14812 = logical(%14808, %14811) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14813 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14814 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=17.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14815 = comparison(%14813, %14814) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14816 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14817 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=37.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14818 = comparison(%14816, %14817) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -936,7 +936,7 @@ IR version = 1
                 %14820 = logical(%14805, %14812, %14819) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %14821 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14822 = cast(%14821) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14823 = constant() : () -> "decimal(12,2)" ()
@@ -945,7 +945,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=132.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14825 = between(%14822, %14823, %14824) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14826 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14827 = cast(%14826) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14828 = constant() : () -> "decimal(12,2)" ()
@@ -954,7 +954,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=1836.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14830 = between(%14827, %14828, %14829) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14831 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14832 = cast(%14831) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14833 = constant() : () -> "decimal(12,2)" ()
@@ -974,13 +974,13 @@ IR version = 1
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14842 = between(%14839, %14840, %14841) : ("integer", "integer", "integer") -> "boolean" ()
                 %14843 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14844 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=154.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14845 = comparison(%14843, %14844) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14846 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14847 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=164.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14848 = comparison(%14846, %14847) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -988,13 +988,13 @@ IR version = 1
                 %14849 = logical(%14845, %14848) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14850 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14851 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=7326.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14852 = comparison(%14850, %14851) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14853 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14854 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=8326.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14855 = comparison(%14853, %14854) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -1002,13 +1002,13 @@ IR version = 1
                 %14856 = logical(%14852, %14855) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %14857 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14858 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=7.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14859 = comparison(%14857, %14858) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
                     {comparison:operator = "GREATER_THAN_OR_EQUAL"}
                 %14860 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14861 = constant() : () -> "decimal(7,2)" ()
                     {constant:value = "[type=decimal(7,2), value=27.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14862 = comparison(%14860, %14861) : ("decimal(7,2)", "decimal(7,2)") -> "boolean" ()
@@ -1018,7 +1018,7 @@ IR version = 1
                 %14864 = logical(%14849, %14856, %14863) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
                 %14865 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "3"}
+                    {field_reference:index = "4"}
                 %14866 = cast(%14865) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14867 = constant() : () -> "decimal(12,2)" ()
@@ -1027,7 +1027,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=164.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14869 = between(%14866, %14867, %14868) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14870 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "4"}
+                    {field_reference:index = "5"}
                 %14871 = cast(%14870) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14872 = constant() : () -> "decimal(12,2)" ()
@@ -1036,7 +1036,7 @@ IR version = 1
                     {constant:value = "[type=decimal(12,2), value=8326.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %14874 = between(%14871, %14872, %14873) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "boolean" ()
                 %14875 = field_reference(%14583) : ("row(decimal(7,2),decimal(7,2),integer,decimal(7,2),decimal(7,2),decimal(7,2),bigint)") -> "decimal(7,2)" ()
-                    {field_reference:index = "5"}
+                    {field_reference:index = "3"}
                 %14876 = cast(%14875) : ("decimal(7,2)") -> "decimal(12,2)" ()
                     {cast:to_type = "decimal(12,2)"}
                 %14877 = constant() : () -> "decimal(12,2)" ()

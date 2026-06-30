@@ -166,6 +166,23 @@ public class TestGroupIdWithCteReuse
     }
 
     @Test
+    public void testAggregationArgumentAndResidualColumnOrderMerges()
+    {
+        String query =
+                """
+                SELECT name, sum(regionkey) FROM nation WHERE nationkey < 12 GROUP BY GROUPING SETS ((name, comment), (name))
+                UNION ALL
+                SELECT name, sum(regionkey) FROM nation WHERE nationkey >= 12 GROUP BY GROUPING SETS ((name, comment), (name))
+                """;
+
+        assertThat(newProgramAssert(getProgramForDisabledCteReuse(query)))
+                .expectedGroupIdOperationCount(2);
+        assertThat(newProgramAssert(getProgramForEnabledCteReuse(query)))
+                .expectedGroupIdOperationCount(1);
+        assertSameResultsWithAndWithoutCteReuse(query);
+    }
+
+    @Test
     public void testEmptySourceMerges()
     {
         // both branches filter out every row; identical grouping sets still merge and the result is empty

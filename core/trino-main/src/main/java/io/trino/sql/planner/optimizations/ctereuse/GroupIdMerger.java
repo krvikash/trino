@@ -33,7 +33,7 @@ import io.trino.sql.planner.optimizations.ctereuse.SingleGroupMerger.SingleGroup
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -170,13 +170,16 @@ public class GroupIdMerger
         // collect input fields the unified aggregation arguments selector must emit:
         // 1) every branch's existing aggregation arguments
         // 2) every branch's residual-predicate references
-        Set<Integer> includedAggregationArgumentFields = new LinkedHashSet<>(); // We need to have a deterministic ordering
+        Set<Integer> includedAggregationArgumentFields = new HashSet<>();
         for (int i = 0; i < branches.size(); i++) {
             includedAggregationArgumentFields.addAll(getSelectedFields(rebasedAggregationArgumentsSelectors.get(i)));
             Block predicate = branches.get(i).traversalContext().predicateToApply();
             includedAggregationArgumentFields.addAll(extractReferencedFields(predicate, getOnlyElement(predicate.parameters())));
         }
-        List<Integer> aggregationArgumentFields = ImmutableList.copyOf(includedAggregationArgumentFields);
+        // Sort ascending so positions match getPruningAssignments output, which emits retained fields in ascending input-field-index order
+        List<Integer> aggregationArgumentFields = includedAggregationArgumentFields.stream()
+                .sorted()
+                .collect(toImmutableList());
 
         Set<Integer> allUnifiedFields = IntStream.range(0, unifiedRowFieldCount).boxed().collect(toImmutableSet());
         Set<Integer> aggregationArgumentsFieldsToPrune = ImmutableSet.copyOf(
