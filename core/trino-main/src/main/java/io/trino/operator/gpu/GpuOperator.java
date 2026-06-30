@@ -205,7 +205,7 @@ public abstract class GpuOperator
         {
             checkState(!closed, "Already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
-            GpuOperation.Context context = new OperationContext(operatorContext.getDriverContext().getPipelineContext().getTaskContext().getGpuTaskMemoryContext());
+            GpuOperation.Context context = new OperationContext(operatorContext.getDriverContext().getPipelineContext().getTaskContext().getGpuTaskMemoryContext(), operatorContext);
             GpuOperatorSource operatorSource = sourceFactory.apply(context);
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
@@ -293,7 +293,7 @@ public abstract class GpuOperator
         {
             checkState(!closed, "Already closed");
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
-            GpuOperation.Context context = new OperationContext(operatorContext.getDriverContext().getPipelineContext().getTaskContext().getGpuTaskMemoryContext());
+            GpuOperation.Context context = new OperationContext(operatorContext.getDriverContext().getPipelineContext().getTaskContext().getGpuTaskMemoryContext(), operatorContext);
             GpuOperatorSource operatorSource = sourceFactory.apply(context);
             GpuSourceOperation source = operatorSource.sourceOperation();
             GpuOperation head = operatorSource.sourceOutput();
@@ -609,12 +609,13 @@ public abstract class GpuOperator
         }
     }
 
-    private record OperationContext(GpuTaskMemoryContext taskMemoryContext)
+    private record OperationContext(GpuTaskMemoryContext taskMemoryContext, OperatorContext operatorContext)
             implements GpuOperation.Context
     {
         OperationContext
         {
             requireNonNull(taskMemoryContext, "taskMemoryContext is null");
+            requireNonNull(operatorContext, "operatorContext is null");
         }
     }
 }

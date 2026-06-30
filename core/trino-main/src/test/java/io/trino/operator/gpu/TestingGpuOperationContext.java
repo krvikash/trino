@@ -18,17 +18,25 @@ import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
+import io.trino.operator.OperatorContext;
+import io.trino.operator.TestingOperatorContext;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
 import static io.trino.operator.Operator.NOT_BLOCKED;
 import static java.lang.Math.addExact;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 public class TestingGpuOperationContext
         implements GpuOperation.Context
 {
+    private static final ScheduledExecutorService SCHEDULED_EXECUTOR = newSingleThreadScheduledExecutor(daemonThreadsNamed("testing-gpu-operation-context-%s"));
+
     private final ReservationHandler heapMemoryHandler = new ReservationHandler();
     private final ReservationHandler gpuDeviceMemoryHandler = new ReservationHandler();
     private final ReservationHandler offHeapMemoryHandler = new ReservationHandler();
@@ -38,11 +46,18 @@ public class TestingGpuOperationContext
     private final AggregatedMemoryContext offHeapMemory = newRootAggregatedMemoryContext(offHeapMemoryHandler, 0);
 
     private final GpuTaskMemoryContext taskMemoryContext = new GpuTaskMemoryContext(heapMemory, gpuDeviceMemory, offHeapMemory);
+    private final OperatorContext operatorContext = TestingOperatorContext.create(SCHEDULED_EXECUTOR);
 
     @Override
     public GpuTaskMemoryContext taskMemoryContext()
     {
         return taskMemoryContext;
+    }
+
+    @Override
+    public OperatorContext operatorContext()
+    {
+        return operatorContext;
     }
 
     public void setGpuDeviceMemoryReservationListener(ReservationListener listener)

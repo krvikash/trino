@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.annotation.NotThreadSafe;
 import io.trino.operator.Operator;
+import io.trino.operator.OperatorContext;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.spi.gpu.GpuPage;
@@ -116,5 +117,7 @@ public interface GpuOperation
     interface Context
     {
         GpuTaskMemoryContext taskMemoryContext();
+
+        OperatorContext operatorContext();
     }
 }

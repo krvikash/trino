@@ -21,6 +21,7 @@ import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
+import io.trino.operator.gpu.AttributingIoExecutor;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.memory.DefaultConnectorGpuMemoryContext;
 import io.trino.operator.gpu.scan.ConnectorGpuPageSourceAdapter;
@@ -107,6 +108,8 @@ public class PageSourceManager
             }
             DynamicFilter finalDynamicFilter = dynamicFilter;
             ConnectorSession connectorSession = session.toConnectorSession(table.catalogHandle());
+            // Attribute reads offloaded to the shared executor to the operator issuing them.
+            IoExecutor attributingIoExecutor = new AttributingIoExecutor(ioExecutor, gpuOperationContext.operatorContext());
             return pageSourceProvider.createGpuPageSource(
                             table.transaction(),
                             connectorSession,
@@ -116,7 +119,7 @@ public class PageSourceManager
                             columns,
                             finalDynamicFilter,
                             new DefaultConnectorGpuMemoryContext(gpuOperationContext.taskMemoryContext(), "ConnectorGpuPageSource"),
-                            ioExecutor)
+                            attributingIoExecutor)
                     .orElseGet(() -> {
                         log.debug("GPU page source was requested but not provided, falling back to CPU scan with adaptation for %s", table.connectorHandle());
                         return new ConnectorGpuPageSourceAdapter(

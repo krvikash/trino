@@ -85,6 +85,7 @@ public class OperatorContext
     private final OperationTiming getOutputTiming = new OperationTiming(cpuTimeSeriesRecorder);
     private final CounterStat outputDataSize = new CounterStat();
     private final CounterStat outputPositions = new CounterStat();
+    private final AtomicLong offThreadCpuNanos = new AtomicLong();
 
     private final AtomicLong dynamicFilterSplitsProcessed = new AtomicLong();
     private final AtomicReference<Metrics> metrics = new AtomicReference<>(Metrics.EMPTY);  // this is not incremental, but gets overwritten by the latest value.
@@ -183,6 +184,17 @@ public class OperatorContext
         physicalInputDataSize.update(sizeInBytes);
         physicalInputPositions.update(positions);
         physicalInputReadTimeNanos.getAndAdd(readNanos);
+    }
+
+    /**
+     * Record CPU the operator consumed on threads other than the driver thread, for example
+     * filesystem reads offloaded to a shared executor. Counted toward the operator's CPU but not
+     * its scheduled wall time, since the work runs concurrently with the driver thread.
+     */
+    public void recordOffThreadCpu(long cpuNanos)
+    {
+        checkArgument(cpuNanos >= 0, "cpuNanos is negative (%s)", cpuNanos);
+        offThreadCpuNanos.getAndAdd(cpuNanos);
     }
 
     /**
@@ -554,7 +566,7 @@ public class OperatorContext
 
                 getOutputTiming.getCalls(),
                 new Duration(getOutputTiming.getWallNanos(), NANOSECONDS).convertToMostSuccinctTimeUnit(),
-                new Duration(getOutputTiming.getCpuNanos(), NANOSECONDS).convertToMostSuccinctTimeUnit(),
+                new Duration(getOutputTiming.getCpuNanos() + offThreadCpuNanos.get(), NANOSECONDS).convertToMostSuccinctTimeUnit(),
                 DataSize.ofBytes(outputDataSize.getTotalCount()),
                 outputPositions.getTotalCount(),
 
@@ -591,7 +603,7 @@ public class OperatorContext
 
     public long getCpuNanos()
     {
-        return addInputTiming.getCpuNanos() + getOutputTiming.getCpuNanos() + finishTiming.getCpuNanos();
+        return addInputTiming.getCpuNanos() + getOutputTiming.getCpuNanos() + finishTiming.getCpuNanos() + offThreadCpuNanos.get();
     }
 
     private Metrics getOperatorMetrics(

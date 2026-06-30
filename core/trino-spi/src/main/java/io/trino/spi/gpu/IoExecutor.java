@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
  * thread producing pages, for example to fetch several column chunks of a split in parallel.
  * <p>
  * A submitted task may queue before it runs. Intended for blocking reads; CPU-bound or
- * long-running work does not belong here, and work run here is not attributed to the query.
+ * long-running work does not belong here, since the pool is shared and bounded.
  */
 public interface IoExecutor
 {
