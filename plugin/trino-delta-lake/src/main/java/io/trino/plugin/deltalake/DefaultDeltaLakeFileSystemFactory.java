@@ -59,7 +59,7 @@ public class DefaultDeltaLakeFileSystemFactory
     @Override
     public TrinoFileSystem create(ConnectorSession session, String tableLocation)
     {
-        Optional<DeltaLakeTableCredentials> tableCredentials = tableCredentialsProvider.getTableCredentials(VendedCredentialsHandle.empty(tableLocation));
+        Optional<DeltaLakeTableCredentials> tableCredentials = tableCredentialsProvider.getTableCredentials(session.getIdentity(), VendedCredentialsHandle.empty(tableLocation));
         return create(session, tableCredentials);
     }
 }

@@ -14,6 +14,7 @@
 package io.trino.plugin.deltalake;
 
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
+import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.Optional;
 
@@ -21,7 +22,7 @@ public class NoOpTableCredentialsProvider
         implements DeltaLakeTableCredentialsProvider
 {
     @Override
-    public Optional<DeltaLakeTableCredentials> getTableCredentials(VendedCredentialsHandle credentialsHandle)
+    public Optional<DeltaLakeTableCredentials> getTableCredentials(ConnectorIdentity identity, VendedCredentialsHandle credentialsHandle)
     {
         return Optional.empty();
     }

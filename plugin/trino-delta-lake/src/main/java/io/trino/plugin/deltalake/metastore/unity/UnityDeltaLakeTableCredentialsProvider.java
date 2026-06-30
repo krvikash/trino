@@ -24,6 +24,7 @@ import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastore;
 import io.trino.spi.TrinoException;
+import io.trino.spi.security.ConnectorIdentity;
 import io.unitycatalog.client.model.AwsCredentials;
 import io.unitycatalog.client.model.AzureUserDelegationSAS;
 import io.unitycatalog.client.model.GcpOauthToken;
@@ -53,7 +54,7 @@ public class UnityDeltaLakeTableCredentialsProvider
     }
 
     @Override
-    public Optional<DeltaLakeTableCredentials> getTableCredentials(VendedCredentialsHandle handle)
+    public Optional<DeltaLakeTableCredentials> getTableCredentials(ConnectorIdentity identity, VendedCredentialsHandle handle)
     {
         Optional<String> tableId = handle.tableId();
         TemporaryCredentials temporaryCredentials;

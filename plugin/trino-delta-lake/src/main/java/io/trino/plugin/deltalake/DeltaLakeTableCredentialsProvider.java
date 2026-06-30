@@ -14,10 +14,11 @@
 package io.trino.plugin.deltalake;
 
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
+import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.Optional;
 
 public interface DeltaLakeTableCredentialsProvider
 {
-    Optional<DeltaLakeTableCredentials> getTableCredentials(VendedCredentialsHandle credentialsHandle);
+    Optional<DeltaLakeTableCredentials> getTableCredentials(ConnectorIdentity identity, VendedCredentialsHandle credentialsHandle);
 }

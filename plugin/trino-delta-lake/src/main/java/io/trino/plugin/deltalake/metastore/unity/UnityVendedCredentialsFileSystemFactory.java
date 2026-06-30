@@ -82,7 +82,7 @@ public class UnityVendedCredentialsFileSystemFactory
         if (cached != null && !cached.fileSystemCredentials().isValid()) {
             credentialsCache.invalidate(cacheKey);
         }
-        return uncheckedCacheGet(credentialsCache, cacheKey, () -> tableCredentialsProvider.getTableCredentials(cacheKey.vendedCredentialsHandle()).orElseThrow());
+        return uncheckedCacheGet(credentialsCache, cacheKey, () -> tableCredentialsProvider.getTableCredentials(session.getIdentity(), cacheKey.vendedCredentialsHandle()).orElseThrow());
     }
 
     private static ConnectorIdentity createIdentityWithCredentials(ConnectorIdentity identity, FileSystemCredentials fileSystemCredentials)

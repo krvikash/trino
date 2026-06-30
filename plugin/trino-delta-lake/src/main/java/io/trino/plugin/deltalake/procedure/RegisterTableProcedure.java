@@ -173,7 +173,7 @@ public class RegisterTableProcedure
             TableSnapshot tableSnapshot;
             MetadataEntry metadataEntry;
             try {
-                Optional<DeltaLakeTableCredentials> tableCredentials = metadata.getTableCredentials(VendedCredentialsHandle.empty(tableLocation));
+                Optional<DeltaLakeTableCredentials> tableCredentials = metadata.getTableCredentials(session, VendedCredentialsHandle.empty(tableLocation));
                 tableSnapshot = transactionLogAccess.loadSnapshot(
                         session,
                         new FileSystemTransactionLogReader(tableLocation, tableCredentials, fileSystemFactory),

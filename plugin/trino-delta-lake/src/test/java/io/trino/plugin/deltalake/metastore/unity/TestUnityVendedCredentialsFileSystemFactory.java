@@ -188,7 +188,7 @@ public class TestUnityVendedCredentialsFileSystemFactory
             implements DeltaLakeTableCredentialsProvider
     {
         @Override
-        public Optional<DeltaLakeTableCredentials> getTableCredentials(VendedCredentialsHandle credentialsHandle)
+        public Optional<DeltaLakeTableCredentials> getTableCredentials(ConnectorIdentity identity, VendedCredentialsHandle credentialsHandle)
         {
             callCount.incrementAndGet();
             return supplier.get();
