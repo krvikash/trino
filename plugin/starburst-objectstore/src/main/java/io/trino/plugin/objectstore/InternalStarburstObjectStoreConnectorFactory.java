@@ -158,10 +158,13 @@ public final class InternalStarburstObjectStoreConnectorFactory
             ConnectorContext context,
             Consumer<Set<String>> usedPropertiesConsumer)
     {
+        Map<String, String> hudiConfig = new HashMap<>(config);
+        // Vended credentials are only applicable to the Delta sub-connector; remove to avoid UnityMetastoreModule rejecting the Hudi sub-connector
+        hudiConfig.remove("hive.metastore.unity.vended-credentials-enabled");
         Connector hudiConnector = HudiConnectorFactory.createConnector(
                 catalogName,
                 ImmutableMap.of(),
-                config,
+                hudiConfig,
                 usedPropertiesConsumer,
                 hiveMetastore,
                 context,
@@ -224,6 +227,8 @@ public final class InternalStarburstObjectStoreConnectorFactory
             Consumer<Set<String>> usedPropertiesConsumer)
     {
         Map<String, String> hiveConfig = new HashMap<>(config);
+        // Vended credentials are only applicable to the Delta sub-connector; remove to avoid UnityMetastoreModule rejecting the Hive sub-connector
+        hiveConfig.remove("hive.metastore.unity.vended-credentials-enabled");
         boolean isHiveMetastoreUsed = hiveConfig.containsKey("hive.metastore") && hiveConfig.get("hive.metastore").equals("thrift");
         Connector hiveConnector = HiveConnectorFactory.createConnector(
                 catalogName,
