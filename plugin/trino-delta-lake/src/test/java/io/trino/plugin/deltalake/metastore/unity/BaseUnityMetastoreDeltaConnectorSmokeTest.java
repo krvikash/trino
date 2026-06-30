@@ -112,8 +112,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     {
         String stackTrace = getStackTraceAsString(throwable);
         return stackTrace.contains(DATABRICKS_CLUSTER_PENDING_MATCH) || stackTrace.contains(DATABRICKS_CLUSTER_TERMINATED_MATCH)
-                // safe to retry 502 only during session open — no statement was executed
-                || (stackTrace.contains("HTTP request failed by code: 502") && stackTrace.contains("TOpenSessionReq"));
+                // 502 is safe to retry at any point in createTpchTables: all DDL uses IF NOT EXISTS or CREATE OR REPLACE
+                || stackTrace.contains("HTTP request failed by code: 502");
     }
 
     private void createTpchTables(QueryRunner queryRunner)
