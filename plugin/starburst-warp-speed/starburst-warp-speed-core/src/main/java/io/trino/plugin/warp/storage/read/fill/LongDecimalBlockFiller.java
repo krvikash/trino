@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.type.DecimalType;
@@ -46,15 +47,15 @@ public class LongDecimalBlockFiller
     protected Block createSingleWithNullBlock(ReadJuffersWarmUpElement juffersWE, RecTypeCode recTypeCode, int recLength, int rowsToFill)
     {
         long[] mappingValues = new long[4]; // including null
-        boolean[] nulls = new boolean[2];
+        long[] valueIsValid = Bitmap.allocateWords(2, true);
         long[] value = new long[2];
         LongBuffer buff = (LongBuffer) juffersWE.getRecordBuffer();
 
         buff.get(value);
         mappingValues[0] = value[0];
         mappingValues[1] = value[1];
-        nulls[1] = true;
-        Block dictionaryBlock = new Int128ArrayBlock(2, Optional.of(nulls), mappingValues);
+        Bitmap.clear(valueIsValid, 0, 1);
+        Block dictionaryBlock = new Int128ArrayBlock(2, Optional.of(valueIsValid), mappingValues);
 
         return wrapSingleWithNulls(juffersWE, rowsToFill, dictionaryBlock, 1);
     }
@@ -69,23 +70,23 @@ public class LongDecimalBlockFiller
     {
         LongBuffer buff = (LongBuffer) juffersWE.getRecordBuffer();
         long[] values = new long[rowsToFill * 2];
-        Optional<boolean[]> valueIsNullOptional;
+        Optional<long[]> valueIsValidOptional;
 
         if (collectNulls) {
             ByteBuffer nullBuff = juffersWE.getNullBuffer();
-            boolean[] valueIsNull = new boolean[rowsToFill];
+            long[] valueIsValid = Bitmap.allocateWords(rowsToFill, true);
             for (int i = 0; i < rowsToFill; i++) {
                 if (isNull(nullBuff, i)) {
-                    valueIsNull[i] = true;
+                    Bitmap.clear(valueIsValid, 0, i);
                 }
             }
-            valueIsNullOptional = Optional.of(valueIsNull);
+            valueIsValidOptional = Optional.of(valueIsValid);
         }
         else {
-            valueIsNullOptional = Optional.empty();
+            valueIsValidOptional = Optional.empty();
         }
         buff.get(values);
-        return new Int128ArrayBlock(rowsToFill, valueIsNullOptional, values);
+        return new Int128ArrayBlock(rowsToFill, valueIsValidOptional, values);
     }
 
     @Override
@@ -111,9 +112,9 @@ public class LongDecimalBlockFiller
         long[] mappingValues = new long[4]; // including null
         mappingValues[0] = ((Int128ArrayBlock) mapBlock).getInt128High(mapKey);
         mappingValues[1] = ((Int128ArrayBlock) mapBlock).getInt128Low(mapKey);
-        boolean[] nulls = new boolean[2];
-        nulls[1] = true;
+        long[] valueIsValid = Bitmap.allocateWords(2, true);
+        Bitmap.clear(valueIsValid, 0, 1);
 
-        return new Int128ArrayBlock(2, Optional.of(nulls), mappingValues);
+        return new Int128ArrayBlock(2, Optional.of(valueIsValid), mappingValues);
     }
 }

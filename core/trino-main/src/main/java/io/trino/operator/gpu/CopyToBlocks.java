@@ -598,7 +598,7 @@ public class CopyToBlocks
                 trinoHighLowPairs[2 * i] = cudfLowHighPairs[2 * i + 1];
                 trinoHighLowPairs[2 * i + 1] = cudfLowHighPairs[2 * i];
             }
-            return new Int128ArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), trinoHighLowPairs);
+            return new Int128ArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), trinoHighLowPairs);
         }
     }
 

@@ -105,7 +105,7 @@ public class DomainToMapBlockConvertor
                 longValues[arrIx] = int128Block.getInt128High(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
                 longValues[arrIx + 1] = int128Block.getInt128Low(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new Int128ArrayBlock(numValues, Optional.ofNullable(nulls), longValues));
+            ret = Optional.of(new Int128ArrayBlock(numValues, nullsToValidity(nulls), longValues));
         }
         else {
             throw new UnsupportedOperationException();
