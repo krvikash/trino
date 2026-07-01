@@ -240,7 +240,8 @@ public final class ShortArrayBlock
         return values;
     }
 
-    boolean[] getRawValueIsNull()
+    @Nullable
+    public boolean[] getRawValueIsNull()
     {
         return valueIsNull;
     }

@@ -295,7 +295,8 @@ public final class VariableWidthBlock
         return offsets;
     }
 
-    boolean[] getRawValueIsNull()
+    @Nullable
+    public boolean[] getRawValueIsNull()
     {
         return valueIsNull;
     }

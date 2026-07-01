@@ -231,19 +231,18 @@ public final class LongArrayBlock
         return BlockUtil.getNulls(valueIsNull, arrayOffset, positionCount);
     }
 
-    // todo avoid maiking this public
     public int getRawValuesOffset()
     {
         return arrayOffset;
     }
 
-    // todo avoid maiking this public
     public long[] getRawValues()
     {
         return values;
     }
 
-    boolean[] getRawValueIsNull()
+    @Nullable
+    public boolean[] getRawValueIsNull()
     {
         return valueIsNull;
     }
