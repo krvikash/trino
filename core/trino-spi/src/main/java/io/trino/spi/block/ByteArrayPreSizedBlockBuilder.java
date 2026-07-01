@@ -13,14 +13,16 @@
  */
 package io.trino.spi.block;
 
+import static io.trino.spi.block.Bitmap.allocateWords;
+import static io.trino.spi.block.Bitmap.clear;
 import static io.trino.spi.block.Preconditions.checkArgument;
 
 public class ByteArrayPreSizedBlockBuilder
         implements PreSizedBlockBuilder
 {
-    private static final Block NULL_VALUE_BLOCK = new ByteArrayBlock(0, 1, new boolean[] {true}, new byte[1]);
+    private static final Block NULL_VALUE_BLOCK = new ByteArrayBlock(0, 1, new long[] {0}, new byte[1]);
 
-    private final boolean[] isNull;
+    private final long[] valueIsValid;
     private final byte[] values;
 
     private int positionCount;
@@ -30,14 +32,14 @@ public class ByteArrayPreSizedBlockBuilder
     public ByteArrayPreSizedBlockBuilder(int expectedEntries)
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
-        this.isNull = new boolean[expectedEntries];
+        this.valueIsValid = allocateWords(expectedEntries, true);
         this.values = new byte[expectedEntries];
     }
 
     @Override
     public void appendNull()
     {
-        isNull[positionCount++] = true;
+        clear(valueIsValid, 0, positionCount++);
         hasNullValue = true;
     }
 
@@ -52,7 +54,7 @@ public class ByteArrayPreSizedBlockBuilder
     {
         ByteArrayBlock byteArrayBlock = (ByteArrayBlock) block;
         if (byteArrayBlock.isNull(position)) {
-            isNull[positionCount] = true;
+            clear(valueIsValid, 0, positionCount);
             hasNullValue = true;
         }
         else {
@@ -68,7 +70,7 @@ public class ByteArrayPreSizedBlockBuilder
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }
-        return new ByteArrayBlock(0, positionCount, hasNullValue ? isNull : null, values);
+        return new ByteArrayBlock(0, positionCount, hasNullValue ? valueIsValid : null, values);
     }
 
     @Override

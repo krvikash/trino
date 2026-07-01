@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.type.TinyintType;
@@ -41,11 +42,11 @@ public class TinyIntBlockFiller
     protected Block createSingleWithNullBlock(ReadJuffersWarmUpElement juffersWE, RecTypeCode recTypeCode, int recLength, int rowsToFill)
     {
         byte[] mappingValues = new byte[2]; // including null
-        boolean[] nulls = new boolean[2];
+        long[] valueIsValid = Bitmap.allocateWords(2, true);
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
         mappingValues[0] = buff.get();
-        nulls[1] = true;
-        Block dictionaryBlock = new ByteArrayBlock(2, Optional.of(nulls), mappingValues);
+        Bitmap.clear(valueIsValid, 0, 1);
+        Block dictionaryBlock = new ByteArrayBlock(2, Optional.of(valueIsValid), mappingValues);
 
         return wrapSingleWithNulls(juffersWE, rowsToFill, dictionaryBlock, 1);
     }
@@ -60,21 +61,21 @@ public class TinyIntBlockFiller
     {
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
         byte[] values = new byte[rowsToFill];
-        Optional<boolean[]> valueIsNullOptional;
+        Optional<long[]> valueIsValidOptional;
         if (collectNulls) {
             ByteBuffer nullBuff = juffersWE.getNullBuffer();
-            boolean[] valueIsNull = new boolean[rowsToFill];
+            long[] valueIsValid = Bitmap.allocateWords(rowsToFill, true);
             for (int i = 0; i < rowsToFill; i++) {
                 if (isNull(nullBuff, i)) {
-                    valueIsNull[i] = true;
+                    Bitmap.clear(valueIsValid, 0, i);
                 }
             }
-            valueIsNullOptional = Optional.of(valueIsNull);
+            valueIsValidOptional = Optional.of(valueIsValid);
         }
         else {
-            valueIsNullOptional = Optional.empty();
+            valueIsValidOptional = Optional.empty();
         }
         buff.get(values);
-        return new ByteArrayBlock(rowsToFill, valueIsNullOptional, values);
+        return new ByteArrayBlock(rowsToFill, valueIsValidOptional, values);
     }
 }

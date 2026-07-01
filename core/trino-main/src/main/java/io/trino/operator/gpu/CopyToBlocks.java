@@ -406,7 +406,7 @@ public class CopyToBlocks
         {
             byte[] values = new byte[count];
             hostColumnVector.getData().getBytes(values, 0, position, count);
-            return new ByteArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new ByteArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 

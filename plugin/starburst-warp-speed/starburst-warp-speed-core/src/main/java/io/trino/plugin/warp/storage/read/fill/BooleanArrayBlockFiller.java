@@ -17,6 +17,7 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.common.StorageConstants;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
 
@@ -45,18 +46,18 @@ public class BooleanArrayBlockFiller
         if (mayHaveNull == MAY_HAVE_NULL) {
             int numElements = length / (Byte.BYTES + NULL_VALUE_MARKER_SIZE);
             byte[] values = new byte[numElements];
-            boolean[] valuesIsNull = new boolean[numElements];
+            long[] valueIsValid = Bitmap.allocateWords(numElements, true);
 
             for (int currInt = 0; currInt < numElements; currInt++) {
                 byte isNull = slice.getByte(offset + (currInt * (Byte.BYTES + NULL_VALUE_MARKER_SIZE)));
                 if (isNull == StorageConstants.NULL_MARKER_VALUE) {
-                    valuesIsNull[currInt] = true;
+                    Bitmap.clear(valueIsValid, 0, currInt);
                 }
                 else {
                     values[currInt] = slice.getByte(offset + (currInt * (Byte.BYTES + NULL_VALUE_MARKER_SIZE)) + NULL_VALUE_MARKER_SIZE);
                 }
             }
-            return new ByteArrayBlock(numElements, Optional.of(valuesIsNull), values);
+            return new ByteArrayBlock(numElements, Optional.of(valueIsValid), values);
         }
         else {
             byte[] values = new byte[length];
@@ -78,16 +79,16 @@ public class BooleanArrayBlockFiller
         if (mayHaveNull == StorageConstants.MAY_HAVE_NULL) {
             int numElements = length / (Byte.BYTES + NULL_VALUE_MARKER_SIZE);
             byte[] values = new byte[numElements];
-            boolean[] valuesIsNull = new boolean[numElements];
+            long[] valueIsValid = Bitmap.allocateWords(numElements, true);
             for (int currInt = 0; currInt < numElements; currInt++) {
                 byte isNull = byteBufferInputStream.readByte();
                 if (isNull == StorageConstants.NULL_MARKER_VALUE) {
-                    valuesIsNull[currInt] = true;
+                    Bitmap.clear(valueIsValid, 0, currInt);
                 }
 
                 values[currInt] = byteBufferInputStream.readByte();
             }
-            return new ByteArrayBlock(numElements, Optional.of(valuesIsNull), values);
+            return new ByteArrayBlock(numElements, Optional.of(valueIsValid), values);
         }
         else {
             byte[] values = byteBufferInputStream.readBytes(offset, length);

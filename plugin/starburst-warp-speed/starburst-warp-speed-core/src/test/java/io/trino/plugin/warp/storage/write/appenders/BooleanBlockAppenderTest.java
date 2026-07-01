@@ -53,7 +53,7 @@ class BooleanBlockAppenderTest
     static Stream<Arguments> params()
     {
         Type blockType = BooleanType.BOOLEAN;
-        ByteArrayBlock valuesWithNull = new ByteArrayBlock(3, Optional.of(new boolean[] {false, true, false}), new byte[] {1, 0, 0});
+        ByteArrayBlock valuesWithNull = new ByteArrayBlock(3, Optional.of(new long[] {0b101}), new byte[] {1, 0, 0});
         return Stream.of(
                 arguments(new ByteArrayBlock(3, Optional.empty(), new byte[] {1, 0, 1}),
                         blockType,
@@ -68,7 +68,7 @@ class BooleanBlockAppenderTest
                 arguments(RunLengthEncodedBlock.create(new ByteArrayBlock(1, Optional.empty(), new byte[] {1}), 5),
                         blockType,
                         new WarmupElementStats(false, 0, null, null, false)),
-                arguments(RunLengthEncodedBlock.create(new ByteArrayBlock(1, Optional.of(new boolean[] {true}), new byte[] {0}), 5),
+                arguments(RunLengthEncodedBlock.create(new ByteArrayBlock(1, Optional.of(new long[] {0b0}), new byte[] {0}), 5),
                         blockType,
                         new WarmupElementStats(false, 5, null, null, false)));
     }
