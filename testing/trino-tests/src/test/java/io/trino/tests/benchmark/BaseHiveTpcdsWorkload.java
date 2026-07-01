@@ -118,7 +118,7 @@ public abstract class BaseHiveTpcdsWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath)
+    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
             throws Exception
     {
         // Persist the in-process FileHiveMetastore (and therefore ANALYZE-collected stats)
@@ -150,6 +150,7 @@ public abstract class BaseHiveTpcdsWorkload
         hiveProperties.put("hive.parquet.time-zone", "UTC");
         if (isRemote(dataLocation)) {
             hiveProperties.put("fs.s3.enabled", "true");
+            BenchmarkRunner.applyFilesystemCache(hiveProperties, fsCacheDirectory);
         }
         else {
             hiveProperties.put("hive.metastore.catalog.dir", "local://" + metastoreDir.resolve("hive").toAbsolutePath());

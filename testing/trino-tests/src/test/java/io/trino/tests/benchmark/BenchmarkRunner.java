@@ -187,6 +187,8 @@ public final class BenchmarkRunner
 
     private static final int PROFILE_STACK_DEPTH = 512;
 
+    private static final String FS_CACHE_MAX_SIZE = "200GB";
+
     private static final ObjectMapper NDJSON_MAPPER = new ObjectMapper();
 
     private BenchmarkRunner() {}
@@ -333,6 +335,9 @@ public final class BenchmarkRunner
         @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
         String dataLocation;
 
+        @Option(names = "--fs-cache", description = "Directory backing an OS-local filesystem cache for remote reads. When set, the workload enables fs.cache.* against this directory; reads are uncached when unset.")
+        String fsCacheDirectory;
+
         @Option(names = "--debug", description = "Enable debug logging")
         boolean debug;
 
@@ -414,7 +419,7 @@ public final class BenchmarkRunner
 
             log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
-            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false, rmmLogFile)) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false, rmmLogFile, Optional.ofNullable(fsCacheDirectory).map(Path::of))) {
                 ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir, rmmLogFile);
 
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
@@ -903,7 +908,7 @@ public final class BenchmarkRunner
             enableDebugLogging();
             String data = canonicalize(workload.defaultDataLocation());
             workload.validateDataLocation(data);
-            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, Optional.empty())) {
+            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, Optional.empty(), Optional.empty())) {
                 log.info("======== SERVER STARTED (%s) ========", mode);
                 log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
                 verifyTableStatistics(queryRunner, workload);
@@ -985,7 +990,7 @@ public final class BenchmarkRunner
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
-            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, Optional.empty())) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, Optional.empty(), Optional.empty())) {
                 if (dataLocation != null) {
                     workload.verifyDataset(runner);
                 }
@@ -1550,6 +1555,16 @@ public final class BenchmarkRunner
                     .addExtraProperty("task.gpu-execution.enabled", "true")
                     .addExtraProperty("experimental.force-single-node-query", "true");
         }
+    }
+
+    // Configures an OS-local filesystem cache for a catalog's remote reads. No-op when the directory is absent.
+    public static void applyFilesystemCache(Map<String, String> catalogProperties, Optional<Path> fsCacheDirectory)
+    {
+        fsCacheDirectory.ifPresent(directory -> {
+            catalogProperties.put("fs.cache.enabled", "true");
+            catalogProperties.put("fs.cache.directories", directory.toString());
+            catalogProperties.put("fs.cache.max-sizes", FS_CACHE_MAX_SIZE);
+        });
     }
 
     static void enableDebugLogging()

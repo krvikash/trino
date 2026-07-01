@@ -128,7 +128,7 @@ public final class BenchmarkIcebergClickBench
         }
 
         @Override
-        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath)
+        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
                 throws Exception
         {
             IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
