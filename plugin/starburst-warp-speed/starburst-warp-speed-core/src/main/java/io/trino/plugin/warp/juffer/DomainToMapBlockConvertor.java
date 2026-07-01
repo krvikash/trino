@@ -55,21 +55,21 @@ public class DomainToMapBlockConvertor
         SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
         int numValues = sortedRangeSet.getRangeCount();
         Type type = domain.getType();
-        boolean[] nulls = null;
+        long[] isValueValid = null;
         Optional<Block> ret;
         int buffIx;
         int arrIx;
 
         if (domain.isNullAllowed()) {
             numValues++;
-            nulls = new boolean[numValues];
-            nulls[numValues - 1] = true;
+            isValueValid = Bitmap.allocateWords(numValues, true);
+            Bitmap.clear(isValueValid, 0, numValues - 1);
         }
 
         if (TypeUtils.isStrType(type)) {
             List<Slice> slices = SliceUtils.getOrderedStringPredicateValues(sortedRangeSet, sortedRangeSet.getRangeCount(), storageEngineConstants);
             Pair<Slice, int[]> slicePair = combineSlices(slices, numValues, domain.isNullAllowed());
-            ret = Optional.of(new VariableWidthBlock(numValues, slicePair.getLeft(), slicePair.getRight(), Optional.ofNullable(nulls)));
+            ret = Optional.of(new VariableWidthBlock(numValues, slicePair.getLeft(), slicePair.getRight(), Optional.ofNullable(isValueValid)));
         }
         else if (TypeUtils.isSmallIntType(type)) {
             short[] shortValues = new short[numValues];
@@ -78,7 +78,7 @@ public class DomainToMapBlockConvertor
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
                 shortValues[arrIx] = block.getShort(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new ShortArrayBlock(numValues, nullsToValidity(nulls), shortValues));
+            ret = Optional.of(new ShortArrayBlock(numValues, Optional.ofNullable(isValueValid), shortValues));
         }
         else if (TypeUtils.isIntegerType(type) || TypeUtils.isRealType(type)) {
             int[] intValues = new int[numValues];
@@ -87,7 +87,7 @@ public class DomainToMapBlockConvertor
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
                 intValues[arrIx] = block.getInt(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new IntArrayBlock(numValues, nullsToValidity(nulls), intValues));
+            ret = Optional.of(new IntArrayBlock(numValues, Optional.ofNullable(isValueValid), intValues));
         }
         else if (TypeUtils.isLongType(type) || TypeUtils.isDoubleType(type) || TypeUtils.isBigIntegerType(type) || TypeUtils.isShortDecimalType(type)) {
             long[] longValues = new long[numValues];
@@ -96,7 +96,7 @@ public class DomainToMapBlockConvertor
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
                 longValues[arrIx] = block.getLong(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new LongArrayBlock(numValues, nullsToValidity(nulls), longValues));
+            ret = Optional.of(new LongArrayBlock(numValues, Optional.ofNullable(isValueValid), longValues));
         }
         else if (TypeUtils.isLongDecimalType(type)) {
             long[] longValues = new long[numValues * 2];
@@ -105,28 +105,13 @@ public class DomainToMapBlockConvertor
                 longValues[arrIx] = int128Block.getInt128High(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
                 longValues[arrIx + 1] = int128Block.getInt128Low(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new Int128ArrayBlock(numValues, nullsToValidity(nulls), longValues));
+            ret = Optional.of(new Int128ArrayBlock(numValues, Optional.ofNullable(isValueValid), longValues));
         }
         else {
             throw new UnsupportedOperationException();
         }
 
         return ret;
-    }
-
-    private static Optional<long[]> nullsToValidity(boolean[] nulls)
-    {
-        if (nulls == null) {
-            return Optional.empty();
-        }
-
-        long[] valueIsValid = Bitmap.allocateWords(nulls.length, true);
-        for (int position = 0; position < nulls.length; position++) {
-            if (nulls[position]) {
-                Bitmap.clear(valueIsValid, 0, position);
-            }
-        }
-        return Optional.of(valueIsValid);
     }
 
     private Pair<Slice, int[]> combineSlices(List<Slice> slices, int numValues, boolean collectNulls)

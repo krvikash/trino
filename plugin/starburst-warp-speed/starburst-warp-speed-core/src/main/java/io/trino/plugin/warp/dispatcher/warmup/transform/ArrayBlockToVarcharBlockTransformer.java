@@ -20,6 +20,7 @@ import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.common.StorageConstants;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.ArrayType;
@@ -76,13 +77,13 @@ public class ArrayBlockToVarcharBlockTransformer
         int totalLength = 0;
         int numEntries = blockPos.getNumEntries();
         int[] outputOffsets = new int[numEntries + 1];
-        boolean[] valueIsNull = null;
+        long[] valueIsValid = null;
 
         if (blockPos.mayHaveNull()) {
-            valueIsNull = new boolean[numEntries];
+            valueIsValid = Bitmap.allocateWords(numEntries, true);
             while (blockPos.inRange()) {
                 if (blockPos.isNull()) {
-                    valueIsNull[currPos] = true;
+                    Bitmap.clear(valueIsValid, 0, currPos);
                 }
                 else {
                     Block dataBlock = (Block) blockPos.getObject();
@@ -107,9 +108,9 @@ public class ArrayBlockToVarcharBlockTransformer
         byte[] values = new byte[totalLength];
         Slice outputSlice = Slices.wrappedBuffer(values);
 
-        if (valueIsNull != null) {
+        if (valueIsValid != null) {
             for (currPos = 0; currPos < numEntries; currPos++) {
-                if (!valueIsNull[currPos]) {
+                if (Bitmap.isSet(valueIsValid, 0, currPos)) {
                     outputSlice.setBytes(outputOffsets[currPos], dataSlices[currPos]);
                 }
             }
@@ -119,7 +120,7 @@ public class ArrayBlockToVarcharBlockTransformer
                 outputSlice.setBytes(outputOffsets[currPos], dataSlices[currPos]);
             }
         }
-        return new VariableWidthBlock(blockPos.getNumEntries(), outputSlice, outputOffsets, valueIsNull != null ? Optional.of(valueIsNull) : Optional.empty());
+        return new VariableWidthBlock(blockPos.getNumEntries(), outputSlice, outputOffsets, valueIsValid != null ? Optional.of(valueIsValid) : Optional.empty());
     }
 
     private Slice getVarcharArraySlice(Block dataBlock)

@@ -18,6 +18,7 @@ import io.airlift.slice.Slices;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.common.StorageConstants;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.VarcharType;
@@ -41,7 +42,7 @@ public class VarcharArrayBlockFiller
         nativeSlicePosition += Integer.BYTES;
 
         int[] outputOffsets = new int[numberOfElements + 1]; // +1 contains the total size
-        boolean[] valueIsNull = new boolean[numberOfElements];
+        long[] valueIsValid = Bitmap.allocateWords(numberOfElements, true);
         int[] nativePositions = new int[numberOfElements];
         int[] valueLengths = new int[numberOfElements];
 
@@ -52,10 +53,9 @@ public class VarcharArrayBlockFiller
             nativePositions[i] = nativeSlicePosition;
             if (nullByteSignal == StorageConstants.NULL_MARKER_VALUE) {
                 valueLengths[i] = 0;
-                valueIsNull[i] = true;
+                Bitmap.clear(valueIsValid, 0, i);
             }
             else {
-                valueIsNull[i] = false;
                 valueLengths[i] = slice.getInt(nativeSlicePosition);
                 nativePositions[i] += Integer.BYTES;
                 nativeSlicePosition += Integer.BYTES + valueLengths[i]; // update the nativeSlicePosition to look in the slice
@@ -68,12 +68,12 @@ public class VarcharArrayBlockFiller
         Slice outputSlice = Slices.wrappedBuffer(values);
 
         for (int i = 0; i < numberOfElements; i++) {
-            if (!valueIsNull[i]) {
+            if (Bitmap.isSet(valueIsValid, 0, i)) {
                 byte[] bytes = slice.getBytes(nativePositions[i], valueLengths[i]);
                 outputSlice.setBytes(outputOffsets[i], bytes);
             }
         }
-        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsNull));
+        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsValid));
     }
 
     @Override
@@ -85,7 +85,7 @@ public class VarcharArrayBlockFiller
         int numberOfElements = byteBufferInputStream.readInt();
 
         int[] outputOffsets = new int[numberOfElements + 1]; // +1 contains the total size
-        boolean[] valueIsNull = new boolean[numberOfElements];
+        long[] valueIsValid = Bitmap.allocateWords(numberOfElements, true);
         int[] nativePositions = new int[numberOfElements];
         int[] valueLengths = new int[numberOfElements];
 
@@ -94,11 +94,10 @@ public class VarcharArrayBlockFiller
             byte nullByteSignal = byteBufferInputStream.readByte();
             if (nullByteSignal == StorageConstants.NULL_MARKER_VALUE) {
                 valueLengths[i] = 0;
-                valueIsNull[i] = true;
+                Bitmap.clear(valueIsValid, 0, i);
                 nativePositions[i] = byteBufferInputStream.position();
             }
             else {
-                valueIsNull[i] = false;
                 valueLengths[i] = byteBufferInputStream.readInt();
                 nativePositions[i] = byteBufferInputStream.position();
                 long _ = byteBufferInputStream.skip(valueLengths[i]); // we mark the position of the value to be copied to slice below in the second loop, now we skip it to read the next one
@@ -111,13 +110,13 @@ public class VarcharArrayBlockFiller
         Slice outputSlice = Slices.wrappedBuffer(values);
 
         for (int i = 0; i < numberOfElements; i++) {
-            if (!valueIsNull[i]) {
+            if (Bitmap.isSet(valueIsValid, 0, i)) {
                 byte[] bytes = byteBufferInputStream.readBytes(nativePositions[i], valueLengths[i]);
                 outputSlice.setBytes(outputOffsets[i], bytes);
             }
         }
 
         byteBufferInputStream.position(originalPosition);
-        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsNull));
+        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsValid));
     }
 }

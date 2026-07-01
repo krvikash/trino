@@ -19,6 +19,7 @@ import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.common.StorageConstants;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.util.SliceUtils;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.CharType;
@@ -44,7 +45,7 @@ public class CharArrayBlockFiller
         nativeSlicePosition += Integer.BYTES;
 
         int[] outputOffsets = new int[numberOfElements + 1]; // +1 contains the total size
-        boolean[] valueIsNull = new boolean[numberOfElements];
+        long[] valueIsValid = Bitmap.allocateWords(numberOfElements, true);
         int[] nativePositions = new int[numberOfElements];
         int[] valueLengths = new int[numberOfElements];
 
@@ -55,10 +56,9 @@ public class CharArrayBlockFiller
             nativePositions[i] = nativeSlicePosition;
             if (nullByteSignal == StorageConstants.NULL_MARKER_VALUE) {
                 valueLengths[i] = 0;
-                valueIsNull[i] = true;
+                Bitmap.clear(valueIsValid, 0, i);
             }
             else {
-                valueIsNull[i] = false;
                 int currentValueSize = slice.getInt(nativeSlicePosition);
                 nativePositions[i] += Integer.BYTES;
                 nativeSlicePosition += Integer.BYTES + currentValueSize; // update the nativeSlicePosition to look in the slice
@@ -78,12 +78,12 @@ public class CharArrayBlockFiller
         Slice outputSlice = Slices.wrappedBuffer(values);
 
         for (int i = 0; i < numberOfElements; i++) {
-            if (!valueIsNull[i]) {
+            if (Bitmap.isSet(valueIsValid, 0, i)) {
                 byte[] bytes = sliceConverter.apply(slice.slice(nativePositions[i], valueLengths[i])).getBytes();
                 outputSlice.setBytes(outputOffsets[i], bytes);
             }
         }
-        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsNull));
+        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsValid));
     }
 
     @Override
@@ -94,7 +94,7 @@ public class CharArrayBlockFiller
         int numberOfElements = byteBufferInputStream.readInt();
 
         int[] outputOffsets = new int[numberOfElements + 1]; // +1 contains the total size
-        boolean[] valueIsNull = new boolean[numberOfElements];
+        long[] valueIsValid = Bitmap.allocateWords(numberOfElements, true);
         int[] nativePositions = new int[numberOfElements];
         int[] valueLengths = new int[numberOfElements];
 
@@ -103,11 +103,10 @@ public class CharArrayBlockFiller
             byte nullByteSignal = byteBufferInputStream.readByte();
             if (nullByteSignal == StorageConstants.NULL_MARKER_VALUE) {
                 valueLengths[i] = 0;
-                valueIsNull[i] = true;
+                Bitmap.clear(valueIsValid, 0, i);
                 nativePositions[i] = byteBufferInputStream.position();
             }
             else {
-                valueIsNull[i] = false;
                 int currentValueSize = byteBufferInputStream.readInt();
                 nativePositions[i] = byteBufferInputStream.position();
                 long _ = byteBufferInputStream.skip(currentValueSize);
@@ -127,12 +126,12 @@ public class CharArrayBlockFiller
         Slice outputSlice = Slices.wrappedBuffer(values);
 
         for (int i = 0; i < numberOfElements; i++) {
-            if (!valueIsNull[i]) {
+            if (Bitmap.isSet(valueIsValid, 0, i)) {
                 byte[] bytes = sliceConverter.apply(Slices.wrappedBuffer(byteBufferInputStream.readBytes(nativePositions[i], valueLengths[i]))).getBytes();
                 outputSlice.setBytes(outputOffsets[i], bytes);
             }
         }
 
-        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsNull));
+        return new VariableWidthBlock(numberOfElements, outputSlice, outputOffsets, Optional.of(valueIsValid));
     }
 }

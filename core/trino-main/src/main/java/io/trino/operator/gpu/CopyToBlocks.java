@@ -360,31 +360,6 @@ public class CopyToBlocks
         return Optional.of(validityWords);
     }
 
-    /**
-     * Unpack an Arrow-style least-significant-bit-first validity bitmask (bit 0 of each byte
-     * corresponds to the first row within that byte) covering positions
-     * {@code [position, position + count)} into a per-row {@code boolean[]}
-     * where {@code true} means null, matching Trino block nulls convention.
-     */
-    private static Optional<boolean[]> validityToNulls(@Nullable @Borrow HostMemoryBuffer validityBuf, int position, int count)
-    {
-        if (validityBuf == null) {
-            return Optional.empty();
-        }
-        int startByte = position >> 3;
-        int endByte = (position + count - 1) >> 3;
-        int byteCount = endByte - startByte + 1;
-        byte[] validityBytes = new byte[byteCount];
-        validityBuf.getBytes(validityBytes, 0, startByte, byteCount);
-
-        boolean[] valueIsNull = new boolean[count];
-        for (int i = 0; i < count; i++) {
-            int bitIndex = position + i;
-            valueIsNull[i] = (validityBytes[(bitIndex >> 3) - startByte] & (1 << (bitIndex & 7))) == 0;
-        }
-        return Optional.of(valueIsNull);
-    }
-
     private static class ByteColumnCopier
             implements ColumnCopier
     {
@@ -650,7 +625,7 @@ public class CopyToBlocks
                     count,
                     wrappedBuffer(bytes),
                     offsets,
-                    validityToNulls(hostColumnVector.getValidity(), position, count));
+                    arrowValidityToWords(hostColumnVector.getValidity(), position, count));
         }
     }
 
@@ -710,7 +685,7 @@ public class CopyToBlocks
                     count,
                     wrappedBuffer(bytes),
                     offsets,
-                    validityToNulls(hostColumnVector.getValidity(), position, count));
+                    arrowValidityToWords(hostColumnVector.getValidity(), position, count));
         }
     }
 

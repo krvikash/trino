@@ -19,6 +19,8 @@ import io.airlift.slice.Slices;
 import java.util.Arrays;
 
 import static io.airlift.slice.Slices.EMPTY_SLICE;
+import static io.trino.spi.block.Bitmap.allocateWords;
+import static io.trino.spi.block.Bitmap.clear;
 import static io.trino.spi.block.BlockUtil.calculateNewArraySize;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 import static io.trino.spi.block.Preconditions.checkArgument;
@@ -27,9 +29,9 @@ import static java.lang.Math.min;
 public class VariableWidthPreSizedBlockBuilder
         implements PreSizedBlockBuilder
 {
-    private static final Block NULL_VALUE_BLOCK = new VariableWidthBlock(0, 1, EMPTY_SLICE, new int[] {0, 0}, new boolean[] {true});
+    private static final Block NULL_VALUE_BLOCK = new VariableWidthBlock(0, 1, EMPTY_SLICE, new int[] {0, 0}, new long[] {0});
 
-    private final boolean[] isNull;
+    private final long[] valueIsValid;
     private final int[] offsets;
 
     private byte[] bytes;
@@ -46,7 +48,7 @@ public class VariableWidthPreSizedBlockBuilder
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
         checkArgument(expectedBytes >= 0, "expectedBytes %s must be positive", expectedBytes);
-        this.isNull = new boolean[expectedEntries];
+        this.valueIsValid = allocateWords(expectedEntries, true);
         this.offsets = new int[expectedEntries + 1];
         this.bytes = new byte[expectedBytes];
     }
@@ -54,7 +56,7 @@ public class VariableWidthPreSizedBlockBuilder
     @Override
     public void appendNull()
     {
-        isNull[positionCount] = true;
+        clear(valueIsValid, 0, positionCount);
         offsets[positionCount + 1] = offsets[positionCount];
         positionCount++;
         hasNullValue = true;
@@ -78,7 +80,7 @@ public class VariableWidthPreSizedBlockBuilder
         VariableWidthBlock variableWidthBlock = (VariableWidthBlock) block;
         int bytesWritten = 0;
         if (variableWidthBlock.isNull(position)) {
-            isNull[positionCount] = true;
+            clear(valueIsValid, 0, positionCount);
             hasNullValue = true;
         }
         else {
@@ -107,7 +109,7 @@ public class VariableWidthPreSizedBlockBuilder
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }
-        return new VariableWidthBlock(0, positionCount, Slices.wrappedBuffer(bytes, 0, offsets[positionCount]), offsets, hasNullValue ? isNull : null);
+        return new VariableWidthBlock(0, positionCount, Slices.wrappedBuffer(bytes, 0, offsets[positionCount]), offsets, hasNullValue ? valueIsValid : null);
     }
 
     @Override

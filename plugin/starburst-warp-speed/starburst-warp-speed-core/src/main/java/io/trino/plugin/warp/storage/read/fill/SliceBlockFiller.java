@@ -21,6 +21,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.VariableWidthBlock;
@@ -121,14 +122,14 @@ public abstract class SliceBlockFiller
         byte[] values = allocateValuesByteArray(rowsToFill, recLength);
         Slice outputSlice = Slices.wrappedBuffer(values);
 
-        Optional<boolean[]> valueIsNullOptional;
+        Optional<long[]> valueIsValidOptional;
 
         if (collectNulls) {
             int nullValueSize = TypeUtils.isVarlenStr(recTypeCode) ? queryStringNullValueSize : 1;
-            boolean[] valueIsNull = new boolean[rowsToFill];
+            long[] valueIsValid = Bitmap.allocateWords(rowsToFill, true);
             for (int currRow = 0; currRow < rowsToFill; currRow++) {
                 if (isNull(nullBuff, nullValueSize, currRow)) {
-                    valueIsNull[currRow] = true;
+                    Bitmap.clear(valueIsValid, 0, currRow);
                     jufferOffset++;
                     offsets[currRow + 1] = offsets[currRow];
                 }
@@ -145,7 +146,7 @@ public abstract class SliceBlockFiller
                     offsets[currRow + 1] = offsets[currRow] + size;
                 }
             }
-            valueIsNullOptional = Optional.of(valueIsNull);
+            valueIsValidOptional = Optional.of(valueIsValid);
         }
         else {
             copyFromJufferMultipleRecords(
@@ -155,9 +156,9 @@ public abstract class SliceBlockFiller
                     rowsToFill,
                     outputSlice,
                     offsets);
-            valueIsNullOptional = Optional.empty();
+            valueIsValidOptional = Optional.empty();
         }
-        return new VariableWidthBlock(rowsToFill, outputSlice, offsets, valueIsNullOptional);
+        return new VariableWidthBlock(rowsToFill, outputSlice, offsets, valueIsValidOptional);
     }
 
     protected abstract int copyFromJufferOneRecord(
@@ -182,14 +183,14 @@ public abstract class SliceBlockFiller
     private Block createSingleMappingBlock(Slice singleValue)
     {
         Slice[] mappingValues = new Slice[2]; // including null
-        boolean[] nulls = new boolean[2];
+        long[] valueIsValid = Bitmap.allocateWords(2, true);
         int[] offsets = new int[3]; // +1 contains the total size
 
         mappingValues[0] = singleValue;
-        nulls[1] = true;
+        Bitmap.clear(valueIsValid, 0, 1);
         offsets[1] = mappingValues[0].length();
         offsets[2] = mappingValues[0].length(); // last offset should contain the total length
-        return new VariableWidthBlock(2, mappingValues[0], offsets, Optional.of(nulls));
+        return new VariableWidthBlock(2, mappingValues[0], offsets, Optional.of(valueIsValid));
     }
 
     private byte[] allocateValuesByteArray(int rowsToFill, int recTypeLength)

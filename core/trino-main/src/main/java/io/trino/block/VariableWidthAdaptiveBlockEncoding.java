@@ -17,6 +17,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -25,9 +26,9 @@ import io.trino.spi.block.VariableWidthBlock;
 import java.util.Arrays;
 
 import static io.trino.spi.block.BlockShim.getRawArrayBase;
-import static io.trino.spi.block.BlockShim.getRawValueIsNull;
-import static io.trino.spi.block.EncoderUtil.decodeNullBitsScalar;
-import static io.trino.spi.block.EncoderUtil.encodeNullsAsBitsScalar;
+import static io.trino.spi.block.BlockShim.getRawValueIsValid;
+import static io.trino.spi.block.EncoderUtil.decodeValidityAsLongs;
+import static io.trino.spi.block.EncoderUtil.encodeValidityAsLongs;
 import static java.lang.String.format;
 
 public class VariableWidthAdaptiveBlockEncoding
@@ -67,7 +68,7 @@ public class VariableWidthAdaptiveBlockEncoding
 
         sliceOutput.appendInt(nonNullsCount);
         AdaptiveIntEncoding.encode(sliceOutput, lengths, 0, nonNullsCount);
-        encodeNullsAsBitsScalar(sliceOutput, getRawValueIsNull(variableWidthBlock), getRawArrayBase(variableWidthBlock), positionCount);
+        encodeValidityAsLongs(sliceOutput, getRawValueIsValid(variableWidthBlock), getRawArrayBase(variableWidthBlock), positionCount);
 
         sliceOutput
                 .appendInt(totalLength)
@@ -90,9 +91,9 @@ public class VariableWidthAdaptiveBlockEncoding
 
         AdaptiveIntEncoding.decode(sliceInput, offsets, lengthIndex, nonNullsCount);
 
-        boolean[] valueIsNull = decodeNullBitsScalar(sliceInput, positionCount).orElse(null);
+        long[] valueIsValid = decodeValidityAsLongs(sliceInput, positionCount);
         // Transform lengths back to offsets
-        if (valueIsNull == null) {
+        if (valueIsValid == null) {
             if (positionCount != nonNullsCount || lengthIndex != 1) {
                 throw new IllegalArgumentException(format("nonNullsCount must equal positionCount, found: %s <> %s", nonNullsCount, positionCount));
             }
@@ -102,17 +103,17 @@ public class VariableWidthAdaptiveBlockEncoding
             }
         }
         else {
-            computeOffsetsFromLengths(offsets, valueIsNull, lengthIndex);
+            computeOffsetsFromLengths(offsets, valueIsValid, lengthIndex);
         }
 
         int blockSize = sliceInput.readInt();
         Slice slice = Slices.allocate(blockSize);
         sliceInput.readBytes(slice);
 
-        return new VariableWidthBlock(0, positionCount, slice, offsets, valueIsNull);
+        return new VariableWidthBlock(0, positionCount, slice, offsets, valueIsValid);
     }
 
-    private static void computeOffsetsFromLengths(int[] offsets, boolean[] valueIsNull, int lengthIndex)
+    private static void computeOffsetsFromLengths(int[] offsets, long[] valueIsNull, int lengthIndex)
     {
         if (lengthIndex < 0 || lengthIndex > offsets.length) {
             throw new IllegalArgumentException(format("Invalid lengthIndex %s for offsets %s", lengthIndex, offsets.length));
@@ -124,7 +125,7 @@ public class VariableWidthAdaptiveBlockEncoding
                 Arrays.fill(offsets, i, offsets.length, currentOffset);
                 break;
             }
-            boolean isNull = valueIsNull[i - 1];
+            boolean isNull = !Bitmap.isSet(valueIsNull, 0, i - 1);
             // must be accessed unconditionally, otherwise CMOV optimization isn't applied due to
             // ArrayIndexOutOfBoundsException checks
             int length = offsets[lengthIndex];
