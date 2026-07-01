@@ -456,7 +456,8 @@ public class TestDeltaLakeWriteDatabricksCompatibility
             onTrino().executeQuery("INSERT INTO " + tableName + " VALUES (1, JSON '{\"key\": \"value\"}'), (2, JSON '[1, 2, 3]'), (3, null)");
             assertThat(onTrino().executeQuery("SELECT * FROM " + tableName))
                     .containsOnly(expectedRows);
-            assertThat(onDelta().executeQuery("SELECT * FROM default." + tableName))
+            // Databricks JDBC 3.4.1+ reports variant columns as Types.OTHER; cast to STRING to get a comparable type
+            assertThat(onDelta().executeQuery("SELECT a, CAST(v AS STRING) FROM default." + tableName))
                     .containsOnly(expectedRows);
         }
         finally {
