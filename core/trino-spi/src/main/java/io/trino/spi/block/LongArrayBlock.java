@@ -231,6 +231,13 @@ public final class LongArrayBlock
         return BlockUtil.getNulls(valueIsNull, arrayOffset, positionCount);
     }
 
+    @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.ofNullable(Bitmap.compactBitmapFromNulls(valueIsNull, arrayOffset, positionCount));
+    }
+
+    // todo avoid maiking this public
     public int getRawValuesOffset()
     {
         return arrayOffset;

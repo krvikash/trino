@@ -549,6 +549,12 @@ public final class MapBlock
         return BlockUtil.getNulls(mapIsNull, startOffset, positionCount);
     }
 
+    @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.ofNullable(Bitmap.compactBitmapFromNulls(mapIsNull, startOffset, positionCount));
+    }
+
     // only visible for testing
     public boolean isHashTablesPresent()
     {

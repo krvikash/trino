@@ -498,4 +498,10 @@ public final class RowBlock
     {
         return BlockUtil.getNulls(rowIsNull, startOffset, positionCount);
     }
+
+    @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.ofNullable(Bitmap.compactBitmapFromNulls(rowIsNull, startOffset, positionCount));
+    }
 }

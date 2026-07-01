@@ -210,4 +210,10 @@ public final class BooleanArrayBlock
     {
         return Optional.empty();
     }
+
+    @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.empty();
+    }
 }

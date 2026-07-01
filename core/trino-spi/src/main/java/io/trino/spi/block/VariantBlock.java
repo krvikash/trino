@@ -469,4 +469,10 @@ public final class VariantBlock
     {
         return BlockUtil.getNulls(isNull, startOffset, positionCount);
     }
+
+    @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.ofNullable(Bitmap.compactBitmapFromNulls(isNull, startOffset, positionCount));
+    }
 }

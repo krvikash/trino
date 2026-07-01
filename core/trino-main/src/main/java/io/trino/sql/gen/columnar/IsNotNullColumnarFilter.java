@@ -14,7 +14,7 @@
 package io.trino.sql.gen.columnar;
 
 import io.trino.operator.project.InputChannels;
-import io.trino.spi.block.BooleanArrayBlock;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
@@ -24,6 +24,8 @@ import io.trino.sql.ir.Reference;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.gen.columnar.ColumnarFilterUtils.filterSetBitsRange;
+import static io.trino.sql.gen.columnar.ColumnarFilterUtils.isValid;
 import static java.lang.System.arraycopy;
 import static java.util.Objects.requireNonNull;
 
@@ -58,16 +60,13 @@ public final class IsNotNullColumnarFilter
         ValueBlock block = (ValueBlock) page.getBlock(0);
         int nonNullPositionsCount = 0;
         int position;
-
-        Optional<BooleanArrayBlock> isNullsBlock = block.getNulls();
-        if (isNullsBlock.isPresent()) {
-            boolean[] isNull = isNullsBlock.get().getRawValues();
-            int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-            for (position = offset; position < offset + size; position++) {
-                outputPositions[nonNullPositionsCount] = position;
-                nonNullPositionsCount += isNull[isNullOffset + position] ? 0 : 1;
+        if (block.mayHaveNull()) {
+            Optional<Bitmap> validityBitmap = block.getValidityBitmap();
+            if (validityBitmap.isPresent()) {
+                long[] rawValidity = validityBitmap.get().getRawWords();
+                int rawBitOffset = validityBitmap.get().getRawBitOffset();
+                return filterSetBitsRange(rawValidity, rawBitOffset, offset, size, outputPositions);
             }
-            return nonNullPositionsCount;
         }
 
         for (position = offset; position < offset + size; position++) {
@@ -80,17 +79,19 @@ public final class IsNotNullColumnarFilter
     public int filterPositionsList(ConnectorSession session, int[] outputPositions, int[] activePositions, int offset, int size, SourcePage page)
     {
         ValueBlock block = (ValueBlock) page.getBlock(0);
-        Optional<BooleanArrayBlock> isNullsBlock = block.getNulls();
-        if (isNullsBlock.isPresent()) {
-            int nonNullPositionsCount = 0;
-            boolean[] isNull = isNullsBlock.get().getRawValues();
-            int isNullOffset = isNullsBlock.get().getRawValuesOffset();
-            for (int index = offset; index < offset + size; index++) {
-                int position = activePositions[index];
-                outputPositions[nonNullPositionsCount] = position;
-                nonNullPositionsCount += isNull[isNullOffset + position] ? 0 : 1;
+        if (block.mayHaveNull()) {
+            Optional<Bitmap> validityBitmap = block.getValidityBitmap();
+            if (validityBitmap.isPresent()) {
+                int nonNullPositionsCount = 0;
+                long[] rawValidity = validityBitmap.get().getRawWords();
+                int rawBitOffset = validityBitmap.get().getRawBitOffset();
+                for (int index = offset; index < offset + size; index++) {
+                    int position = activePositions[index];
+                    outputPositions[nonNullPositionsCount] = position;
+                    nonNullPositionsCount += isValid(rawValidity, rawBitOffset, position) ? 1 : 0;
+                }
+                return nonNullPositionsCount;
             }
-            return nonNullPositionsCount;
         }
 
         arraycopy(activePositions, offset, outputPositions, 0, size);

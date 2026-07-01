@@ -256,6 +256,12 @@ public final class Fixed12Block
         return BlockUtil.getNulls(valueIsNull, positionOffset, positionCount);
     }
 
+    @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.ofNullable(Bitmap.compactBitmapFromNulls(valueIsNull, positionOffset, positionCount));
+    }
+
     /**
      * At position * 3 in the values, write a little endian long followed by a little endian int.
      */

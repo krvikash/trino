@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
@@ -83,14 +84,109 @@ public abstract class AbstractTestBlock
                     assertThat(isNull.get().getBoolean(i)).isEqualTo(valueBlock.isNull(i));
                     assertThat(valueBlock.isNullUnchecked(i)).isEqualTo(valueBlock.isNull(i));
                 }
+                assertValidityBitmap(valueBlock);
+                assertValidityBitmapRegions(valueBlock);
             }
-            else {
-                assertThat(isNull).isEmpty();
+        }
+    }
+
+    private static void assertValidityBitmapRegions(ValueBlock valueBlock)
+    {
+        int positionCount = valueBlock.getPositionCount();
+        assertValidityBitmap(valueBlock.getRegion(0, positionCount));
+        assertValidityBitmap(valueBlock.copyRegion(0, positionCount));
+        if (positionCount == 0) {
+            return;
+        }
+
+        assertValidityBitmap(valueBlock.getRegion(0, 1));
+        assertValidityBitmap(valueBlock.copyRegion(0, 1));
+        assertValidityBitmap(valueBlock.getRegion(positionCount - 1, 1));
+        assertValidityBitmap(valueBlock.copyRegion(positionCount - 1, 1));
+        if (positionCount > 1) {
+            assertValidityBitmap(valueBlock.getRegion(1, positionCount - 1));
+            assertValidityBitmap(valueBlock.copyRegion(1, positionCount - 1));
+        }
+        if (positionCount > 2) {
+            assertValidityBitmap(valueBlock.getRegion(1, positionCount - 2));
+            assertValidityBitmap(valueBlock.copyRegion(1, positionCount - 2));
+        }
+        assertSlicedValidityBitmapPreservesRawOffset(valueBlock);
+    }
+
+    private static void assertValidityBitmap(ValueBlock valueBlock)
+    {
+        Optional<Bitmap> validity = valueBlock.getValidityBitmap();
+        validity.ifPresent(bitmap -> assertThat(bitmap.getBitCount()).isEqualTo(valueBlock.getPositionCount()));
+
+        boolean hasNull = false;
+        if (valueBlock.mayHaveNull()) {
+            for (int position = 0; position < valueBlock.getPositionCount(); position++) {
+                hasNull |= valueBlock.isNull(position);
+            }
+        }
+
+        if (hasNull) {
+            assertThat(validity).isPresent();
+            for (int position = 0; position < valueBlock.getPositionCount(); position++) {
+                assertThat(validity.get().isSet(position)).isEqualTo(!valueBlock.isNull(position));
+            }
+        }
+        else {
+            validity.ifPresent(bitmap -> {
+                for (int position = 0; position < valueBlock.getPositionCount(); position++) {
+                    assertThat(bitmap.isSet(position)).isTrue();
+                }
                 for (int i = 0; i < valueBlock.getPositionCount(); i++) {
                     assertThat(valueBlock.isNullUnchecked(i)).isFalse();
                 }
+            });
+        }
+    }
+
+    private static void assertSlicedValidityBitmapPreservesRawOffset(ValueBlock valueBlock)
+    {
+        Optional<Bitmap> validity = valueBlock.getValidityBitmap();
+        int positionCount = valueBlock.getPositionCount();
+        if (validity.isEmpty() || positionCount < 2) {
+            return;
+        }
+
+        for (int offset = 1; offset < positionCount; offset++) {
+            for (int length = 1; length <= positionCount - offset; length++) {
+                if (!hasNull(valueBlock, offset, length)) {
+                    continue;
+                }
+
+                ValueBlock region = valueBlock.getRegion(offset, length);
+                Bitmap regionValidity = region.getValidityBitmap().orElseThrow();
+                assertThat(regionValidity.getRawWords()).isSameAs(validity.get().getRawWords());
+                assertThat(regionValidity.getRawBitOffset()).isEqualTo(validity.get().getRawBitOffset() + offset);
+                assertThat(regionValidity.getBitCount()).isEqualTo(length);
+                assertValidityBitmap(region);
+
+                ValueBlock copiedRegion = region.copyRegion(0, length);
+                Bitmap copiedValidity = copiedRegion.getValidityBitmap().orElseThrow();
+                assertThat(copiedValidity.getRawWords()).isNotSameAs(validity.get().getRawWords());
+                assertThat(copiedValidity.getRawBitOffset()).isZero();
+                assertThat(copiedValidity.getBitCount()).isEqualTo(length);
+                assertValidityBitmap(copiedRegion);
+                return;
             }
         }
+    }
+
+    private static boolean hasNull(ValueBlock valueBlock, int offset, int length)
+    {
+        if (!valueBlock.mayHaveNull()) {
+            return false;
+        }
+        for (int position = offset; position < offset + length; position++) {
+            if (valueBlock.isNull(position)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void assertRetainedSize(Block block)

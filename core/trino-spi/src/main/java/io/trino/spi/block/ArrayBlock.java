@@ -394,6 +394,12 @@ public final class ArrayBlock
     }
 
     @Override
+    public Optional<Bitmap> getValidityBitmap()
+    {
+        return Optional.ofNullable(Bitmap.compactBitmapFromNulls(valueIsNull, arrayOffset, positionCount));
+    }
+
+    @Override
     public Optional<BooleanArrayBlock> getNulls()
     {
         return BlockUtil.getNulls(valueIsNull, arrayOffset, positionCount);
