@@ -25,6 +25,7 @@ import io.trino.spi.metrics.Metrics;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Math.min;
@@ -79,6 +80,28 @@ public class AlluxioInput
         doExternalRead(position + bytesRead, buffer, offset + bytesRead, length - bytesRead);
     }
 
+    @Override
+    public void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        ensureOpen();
+        if (position < 0) {
+            throw new IOException("Negative seek offset");
+        }
+        int length = destination.remaining();
+        if (length == 0) {
+            return;
+        }
+        if (length > fileLength - position) {
+            throw new EOFException("Read past end of file %s: position %s, length %s, file length %s".formatted(inputFile.location(), position, length, fileLength));
+        }
+
+        int bytesRead = helper.doCacheRead(position, destination);
+        if (bytesRead < length) {
+            doExternalRead(position + bytesRead, destination, length - bytesRead);
+        }
+    }
+
     private int doExternalRead(long position, byte[] buffer, int offset, int length)
             throws IOException
     {
@@ -87,13 +110,32 @@ public class AlluxioInput
         }
 
         AlluxioInputHelper.PageAlignedRead aligned = helper.alignRead(position, length);
+        byte[] readBuffer = readExternalAligned(aligned);
+        System.arraycopy(readBuffer, aligned.pageOffset(), buffer, offset, length);
+        return length;
+    }
+
+    private void doExternalRead(long position, ByteBuffer destination, int length)
+            throws IOException
+    {
+        if (length == 0) {
+            return;
+        }
+
+        AlluxioInputHelper.PageAlignedRead aligned = helper.alignRead(position, length);
+        byte[] readBuffer = readExternalAligned(aligned);
+        destination.put(readBuffer, aligned.pageOffset(), length);
+    }
+
+    private byte[] readExternalAligned(AlluxioInputHelper.PageAlignedRead aligned)
+            throws IOException
+    {
         byte[] readBuffer = new byte[aligned.length()];
         getInput().readFully(aligned.pageStart(), readBuffer, 0, readBuffer.length);
         helper.putCache(aligned.pageStart(), aligned.pageEnd(), readBuffer, aligned.length());
-        System.arraycopy(readBuffer, aligned.pageOffset(), buffer, offset, length);
         statistics.recordExternalRead(readBuffer.length);
         externalReadBytes.addAndGet(readBuffer.length);
-        return length;
+        return readBuffer;
     }
 
     private TrinoInput getInput()

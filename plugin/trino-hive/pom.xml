@@ -728,6 +728,7 @@
                                 <!-- gpu profile -->
                                 <exclude>**/TestHiveGpuParquetPageSource.java</exclude>
                                 <exclude>**/TestHiveGpuConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestHiveGpuCacheConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestHiveGpuDistributedAggregations.java</exclude>
                                 <exclude>**/TestHiveGpuJoinQueries.java</exclude>
                                 <exclude>**/TestHiveGpuQueries.java</exclude>
@@ -767,6 +768,7 @@
                             <includes>
                                 <include>**/TestHiveGpuParquetPageSource.java</include>
                                 <include>**/TestHiveGpuConnectorSmokeTest.java</include>
+                                <include>**/TestHiveGpuCacheConnectorSmokeTest.java</include>
                                 <include>**/TestHiveGpuDistributedAggregations.java</include>
                                 <include>**/TestHiveGpuJoinQueries.java</include>
                                 <include>**/TestHiveGpuQueries.java</include>

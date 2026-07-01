@@ -19,6 +19,8 @@ import alluxio.client.file.cache.CacheManager;
 import alluxio.client.file.cache.PageId;
 import alluxio.conf.AlluxioConfiguration;
 import alluxio.conf.PropertyKey;
+import alluxio.file.ByteBufferTargetBuffer;
+import alluxio.file.ReadTargetBuffer;
 import com.google.common.primitives.Ints;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
@@ -95,6 +97,49 @@ public class AlluxioInputHelper
         return withTracing(span, () -> {
             int bytesRead = doBufferRead(position, bytes, offset, length);
             return addExact(bytesRead, doInternalCacheRead(position + bytesRead, bytes, offset + bytesRead, length - bytesRead));
+        });
+    }
+
+    /**
+     * Reads the contiguous cache-hit prefix directly into {@code destination}, page by page. For a native (direct)
+     * buffer the local page store fills it through a file channel with no intermediate heap copy.
+     */
+    public int doCacheRead(long position, ByteBuffer destination)
+    {
+        int length = destination.remaining();
+        Span span = tracer.spanBuilder("Alluxio.readCached")
+                .setAttribute(CACHE_KEY, cacheKey)
+                .setAttribute(CACHE_FILE_LOCATION, location.toString())
+                .setAttribute(CACHE_FILE_READ_SIZE, (long) length)
+                .setAttribute(CACHE_FILE_READ_POSITION, position)
+                .startSpan();
+
+        return withTracing(span, () -> {
+            ReadTargetBuffer target = new ByteBufferTargetBuffer(destination);
+            CacheContext cacheContext = status.getCacheContext();
+            long currentPosition = position;
+            int remainingLength = length;
+            while (remainingLength > 0) {
+                long currentPage = currentPosition / pageSize;
+                int currentPageOffset = (int) (currentPosition % pageSize);
+                int bytesLeftInPage = (int) min(pageSize - currentPageOffset, fileLength - currentPosition);
+                int bytesToReadInPage = min(bytesLeftInPage, remainingLength);
+                if (bytesToReadInPage == 0) {
+                    break;
+                }
+                PageId pageId = new PageId(cacheContext.getCacheIdentifier(), currentPage);
+                int bytesReadFromCache = cacheManager.get(pageId, currentPageOffset, bytesToReadInPage, target, cacheContext);
+                // Concurrent CacheManager#put may leave a page partially written (returns <= 0); stop so the caller reads the remainder from source.
+                if (bytesReadFromCache <= 0) {
+                    break;
+                }
+                currentPosition += bytesReadFromCache;
+                remainingLength -= bytesReadFromCache;
+            }
+            int bytesRead = length - remainingLength;
+            statistics.recordCacheRead(bytesRead);
+            cacheReadBytes.addAndGet(bytesRead);
+            return bytesRead;
         });
     }
 
