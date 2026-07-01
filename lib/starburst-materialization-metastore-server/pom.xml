@@ -13,10 +13,6 @@
     <name>${project.artifactId}</name>
     <description>Starburst - Materialization Metastore Server</description>
 
-    <properties>
-        <dep.flyway.version>12.5.0</dep.flyway.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.google.guava</groupId>
