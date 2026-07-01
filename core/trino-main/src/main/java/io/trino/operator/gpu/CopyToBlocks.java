@@ -432,7 +432,7 @@ public class CopyToBlocks
             short[] values = new short[count];
             ByteBuffer byteBuffer = hostColumnVector.getData().asByteBuffer((long) position * Short.BYTES, count * Short.BYTES);
             byteBuffer.asShortBuffer().get(values);
-            return new ShortArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new ShortArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
