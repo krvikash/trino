@@ -11,22 +11,26 @@ package io.starburst.server.substitution;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.starburst.materialization.ir.Operation;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
 import io.starburst.materialization.ir.TableScan;
 import io.starburst.materialization.metastore.MaterializationDefinition;
+import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.TableHandle;
+import io.trino.security.AccessControl;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.AccessDeniedException;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.plan.PlanNode;
@@ -40,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.trino.SystemSessionProperties.isMaterializedViewSubstitutionEnabled;
 import static java.util.Objects.requireNonNull;
@@ -50,12 +55,14 @@ public class MvSubstitutionOptimizer
     private final MaterializationIndex materializationIndex;
     private final Metadata metadata;
     private final SubstitutionMetadata substitutionMetadata;
+    private final AccessControl accessControl;
 
-    public MvSubstitutionOptimizer(MaterializationIndex materializationIndex, Metadata metadata, SubstitutionMetadata substitutionMetadata)
+    public MvSubstitutionOptimizer(MaterializationIndex materializationIndex, Metadata metadata, SubstitutionMetadata substitutionMetadata, AccessControl accessControl)
     {
         this.materializationIndex = requireNonNull(materializationIndex, "materializationIndex is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
+        this.accessControl = requireNonNull(accessControl, "accessControl is null");
     }
 
     @Override
@@ -168,14 +175,24 @@ public class MvSubstitutionOptimizer
             candidateColumnNames.put(candidateOutput.outputs().get(i), candidateOutput.columnNames().get(i));
         }
 
+        ImmutableSet.Builder<String> readMvColumns = ImmutableSet.builder();
         for (io.trino.sql.planner.Symbol symbol : queryTableScan.getOutputSymbols()) {
             Symbol computationSymbol = querySymbolToMvSymbolMapping.get(symbol);
-            ColumnHandle storageColumnHandle = storageColumnHandles.get(candidateColumnNames.get(computationSymbol));
+            String mvColumnName = candidateColumnNames.get(computationSymbol);
+            ColumnHandle storageColumnHandle = storageColumnHandles.get(mvColumnName);
             if (storageColumnHandle == null) {
                 return Optional.empty();
             }
             outputs.add(symbol);
             assignments.put(symbol, storageColumnHandle);
+            readMvColumns.add(mvColumnName);
+        }
+
+        // Substitution must not let the user read the materialized view's data without SELECT access to the MV.
+        // When access is denied, skip this candidate so the query falls back to other matching MVs,
+        // or to the base table (which the user can read).
+        if (!canSelectFromMaterializedView(session, candidate, readMvColumns.build())) {
+            return Optional.empty();
         }
 
         return Optional.of(new TableScanNode(
@@ -187,6 +204,22 @@ public class MvSubstitutionOptimizer
                 Optional.empty(),
                 false,
                 Optional.empty()));
+    }
+
+    private boolean canSelectFromMaterializedView(Session session, MaterializationDefinition candidate, Set<String> readMvColumns)
+    {
+        CatalogSchemaTableName mvName = ((MaterializedViewSource) candidate.source()).materializedViewName();
+        QualifiedObjectName materializedView = new QualifiedObjectName(
+                mvName.getCatalogName(),
+                mvName.getSchemaTableName().getSchemaName(),
+                mvName.getSchemaTableName().getTableName());
+        try {
+            accessControl.checkCanSelectFromColumns(session.toSecurityContext(), materializedView, Optional.empty(), readMvColumns);
+            return true;
+        }
+        catch (AccessDeniedException _) {
+            return false;
+        }
     }
 
     private Optional<MatchingResult> tryMatch(Session session, PlanNode planNode, Operation operation)

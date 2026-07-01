@@ -1056,6 +1056,7 @@ public class PlanTester
                 taskCountEstimator,
                 Optional.of(materializationIndex),
                 substitutionMetadata,
+                accessControl,
                 nodePartitioningManager,
                 new RuleStatsRecorder());
     }

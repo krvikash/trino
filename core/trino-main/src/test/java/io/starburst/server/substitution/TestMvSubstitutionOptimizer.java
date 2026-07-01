@@ -368,7 +368,7 @@ public class TestMvSubstitutionOptimizer
                 substitutionMetadata,
                 planTester.getCatalogManager()));
         index.createOrReplace(materialization);
-        return new MvSubstitutionOptimizer(index, planTester.getPlannerContext().getMetadata(), substitutionMetadata);
+        return new MvSubstitutionOptimizer(index, planTester.getPlannerContext().getMetadata(), substitutionMetadata, planTester.getAccessControl());
     }
 
     private Session session(boolean substitutionEnabled)

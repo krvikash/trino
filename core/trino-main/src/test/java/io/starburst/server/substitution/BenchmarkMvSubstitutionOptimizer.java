@@ -34,6 +34,7 @@ import io.trino.execution.QueryIdGenerator;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.Metadata;
 import io.trino.plugin.base.ForwardingConnector;
+import io.trino.security.AllowAllAccessControl;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
@@ -315,7 +316,7 @@ public class BenchmarkMvSubstitutionOptimizer
                     createSubstitutionMetadata((ConnectorServicesProvider) planTester.getCatalogManager()));
             MaterializationIndex index = buildIndex(substitutionMetadata);
             populateIndex(index);
-            optimizer = new MvSubstitutionOptimizer(index, metadata, substitutionMetadata);
+            optimizer = new MvSubstitutionOptimizer(index, metadata, substitutionMetadata, new AllowAllAccessControl());
 
             transactionManager = planTester.getTransactionManager();
         }

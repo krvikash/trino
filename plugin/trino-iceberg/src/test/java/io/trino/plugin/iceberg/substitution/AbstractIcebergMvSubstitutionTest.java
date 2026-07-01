@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.OptionalLong;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.SELECT_COLUMN;
+import static io.trino.testing.TestingAccessControlManager.privilege;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -1067,6 +1069,55 @@ public abstract class AbstractIcebergMvSubstitutionTest
 
             // User has SELECT on both base table and MV storage table — substitution works
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM orders", "orders");
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    @Test
+    public void testSubstitutionFallsBackWhenMvAccessDenied()
+    {
+        // The user can read the base table but is denied access to the MV marked for substitution.
+        // Substitution must not silently redirect the scan to the MV's storage table; it should fall
+        // back to scanning the base table, which stays correct because base-table access is allowed.
+        CatalogSchemaTableName mvName = mvName("mv_acl_mv_denied_");
+        try {
+            createSubstitutionMv(mvName, "SELECT * FROM orders");
+
+            getQueryRunner().getAccessControl().deny(privilege(mvName.getSchemaTableName().getTableName(), SELECT_COLUMN));
+            try {
+                assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM orders", "orders");
+            }
+            finally {
+                getQueryRunner().getAccessControl().reset();
+            }
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    @Test
+    public void testSubstitutionRespectsColumnLevelMvAccess()
+    {
+        // The user has SELECT on some MV columns but not others (here totalprice is denied).
+        // Substitution applies only to queries that read the allowed columns; a query that reads
+        // the denied column falls back to the base table (which the user can read in full).
+        CatalogSchemaTableName mvName = mvName("mv_acl_col_");
+        try {
+            createSubstitutionMv(mvName, "SELECT * FROM orders");
+
+            getQueryRunner().getAccessControl().deny(privilege(mvName.getSchemaTableName().getTableName() + ".totalprice", SELECT_COLUMN));
+            try {
+                // Reads only allowed columns — substituted
+                assertSubstituted(sessionWithSubstitution(), "SELECT orderkey, custkey FROM orders", "orders");
+                // Reads the denied column — falls back to the base table
+                assertNotSubstituted(sessionWithSubstitution(), "SELECT totalprice FROM orders", "orders");
+            }
+            finally {
+                getQueryRunner().getAccessControl().reset();
+            }
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
