@@ -335,6 +335,16 @@
                         </licenseSets>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.basepom.maven</groupId>
+                    <artifactId>duplicate-finder-maven-plugin</artifactId>
+                    <configuration>
+                        <ignoredClassPatterns>
+                            <!-- com.google.protobuf:protobuf-java and org.apache.ozone:ozone-filesystem-hadoop3-client both ship PluginProtos -->
+                            <ignoredClassPattern>com\.google\.protobuf\.compiler\.PluginProtos.*</ignoredClassPattern>
+                        </ignoredClassPatterns>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>

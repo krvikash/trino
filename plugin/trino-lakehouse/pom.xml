@@ -295,9 +295,13 @@
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
                         <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
+                        <!-- Duplicate in test classpath: io.trino:trino-iceberg:tests and trino-hive:tests -->
+                        <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                     <ignoredClassPatterns>
                         <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
+                        <!-- com.google.protobuf:protobuf-java and org.apache.ozone:ozone-filesystem-hadoop3-client both ship PluginProtos -->
+                        <ignoredClassPattern>com\.google\.protobuf\.compiler\.PluginProtos.*</ignoredClassPattern>
                     </ignoredClassPatterns>
                 </configuration>
             </plugin>

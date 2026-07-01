@@ -703,6 +703,10 @@
                         <!-- com.databricks:databricks-jdbc:3.1.1, com.google.cloud.bigdataoss:gcs-connector:3.0.4:jar:shaded, org.apache.httpcomponents:httpclient:4.5.13 -->
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                     </ignoredResourcePatterns>
+                    <ignoredClassPatterns combine.children="append">
+                        <!-- com.google.protobuf:protobuf-java and org.apache.ozone:ozone-filesystem-hadoop3-client both ship PluginProtos -->
+                        <ignoredClassPattern>com\.google\.protobuf\.compiler\.PluginProtos.*</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>
