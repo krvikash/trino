@@ -29,6 +29,7 @@ import io.trino.operator.project.PageProcessor;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
@@ -1293,9 +1294,9 @@ public class TestGpuExpressions
         int positionsCount = 64;
         Random random = new Random(42);
         BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
-        boolean[] nulls = nullsProvider.getNulls(positionsCount).orElse(new boolean[positionsCount]);
+        long[] isValid = nullsProvider.getValidityWords(positionsCount).orElse(Bitmap.allocateWords(positionsCount, true));
         for (int i = 0; i < positionsCount; i++) {
-            if (nulls[i]) {
+            if (!Bitmap.isSet(isValid, 0, i)) {
                 bBuilder.appendNull();
             }
             else {
@@ -1560,10 +1561,10 @@ public class TestGpuExpressions
     {
         // Constrain to roughly years [-10000, +10000] so cuDF's INT16 year extraction does not overflow.
         Random random = new Random(42);
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+        Optional<Bitmap> isValid = nullsProvider.getValidityWords(positionsCount).map(valid -> new Bitmap(valid, 0, positionsCount));
         BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
         for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
+            if (isValid.isPresent() && !isValid.get().isSet(i)) {
                 builder.appendNull();
             }
             else if (type == DATE) {
@@ -1933,10 +1934,10 @@ public class TestGpuExpressions
         Iterator<String> strings = generateInputStrings().iterator();
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {

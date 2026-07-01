@@ -65,8 +65,10 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
+import static io.airlift.slice.SizeOf.sizeOfLongArray;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.block.Bitmap.wordsForBits;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
@@ -321,6 +323,46 @@ public class CopyToBlocks
     /**
      * Unpack an Arrow-style least-significant-bit-first validity bitmask (bit 0 of each byte
      * corresponds to the first row within that byte) covering positions
+     * {@code [position, position + count)} into a {@link io.trino.spi.block.Bitmap} validity
+     * bitmap, where a set bit means the position is non-null.
+     */
+    private static Optional<long[]> arrowValidityToWords(@Nullable @Borrow HostMemoryBuffer validityBuf, int position, int count)
+    {
+        if (validityBuf == null) {
+            return Optional.empty();
+        }
+        int startByte = position >> 3;
+        int bitOffset = position & 7;
+        int byteCount = (bitOffset + count + 7) >> 3;
+        byte[] validityBytes = new byte[byteCount];
+        validityBuf.getBytes(validityBytes, 0, startByte, byteCount);
+
+        long[] validityWords = new long[wordsForBits(count)];
+        for (int wordIndex = 0; wordIndex < validityWords.length; wordIndex++) {
+            int srcByteBase = wordIndex << 3; // 8 source bytes per dest word
+            long lo = 0;
+            for (int b = 0; b < 8 && srcByteBase + b < byteCount; b++) {
+                lo |= ((long) (validityBytes[srcByteBase + b] & 0xFF)) << (b << 3);
+            }
+            if (bitOffset == 0) {
+                validityWords[wordIndex] = lo;
+            }
+            else {
+                // Need 9th byte to fill 64 bits after shift
+                long hi = 0L;
+                if (srcByteBase + 8 < byteCount) {
+                    hi = validityBytes[srcByteBase + 8] & 0xFF;
+                }
+                validityWords[wordIndex] = (lo >>> bitOffset) | (hi << (64 - bitOffset));
+            }
+        }
+
+        return Optional.of(validityWords);
+    }
+
+    /**
+     * Unpack an Arrow-style least-significant-bit-first validity bitmask (bit 0 of each byte
+     * corresponds to the first row within that byte) covering positions
      * {@code [position, position + count)} into a per-row {@code boolean[]}
      * where {@code true} means null, matching Trino block nulls convention.
      */
@@ -440,7 +482,7 @@ public class CopyToBlocks
         {
             long[] values = new long[count];
             hostColumnVector.getData().getLongs(values, 0, (long) position * Long.BYTES, count);
-            return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new LongArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
@@ -470,7 +512,7 @@ public class CopyToBlocks
             for (int i = 0; i < count; i++) {
                 values[i] = Math.multiplyExact(values[i], multiplier);
             }
-            return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new LongArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
@@ -520,7 +562,7 @@ public class CopyToBlocks
         {
             long[] values = new long[count];
             hostColumnVector.getData().getLongs(values, 0, (long) position * Double.BYTES, count);
-            return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new LongArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
@@ -707,7 +749,7 @@ public class CopyToBlocks
 
     private static long nullsHeapBytes(@Borrow HostColumnVector hostColumnVector, int positionCount)
     {
-        return hostColumnVector.getValidity() != null ? positionCount : 0;
+        return hostColumnVector.getValidity() != null ? sizeOfLongArray(wordsForBits(positionCount)) : 0;
     }
 
     private interface ColumnCopier

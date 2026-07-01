@@ -23,6 +23,7 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.SqlBatchFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.Page;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
@@ -53,7 +54,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.lang.invoke.MethodHandle;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +65,10 @@ import java.util.stream.Stream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.block.BlockAssertions.assertBlockEquals;
 import static io.trino.operator.project.BatchProjectionUtils.compilePageFilterWithBatchFunction;
+import static io.trino.spi.block.Bitmap.allocateWords;
+import static io.trino.spi.block.Bitmap.clear;
+import static io.trino.spi.block.Bitmap.set;
+import static io.trino.spi.block.Bitmap.wordsForBits;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -312,58 +316,54 @@ final class TestBatchProjection
 
     enum NullsProvider
     {
-        NO_NULLS {
-            @Override
-            Optional<boolean[]> getNulls(int positionCount)
-            {
+        NO_NULLS,
+        NO_NULLS_WITH_MAY_HAVE_NULL,
+        ALL_NULLS,
+        RANDOM_NULLS,
+        GROUPED_NULLS;
+
+        Optional<long[]> getValidityWords(int positionCount)
+        {
+            if (this == NO_NULLS) {
                 return Optional.empty();
             }
-        },
-        NO_NULLS_WITH_MAY_HAVE_NULL {
-            @Override
-            Optional<boolean[]> getNulls(int positionCount)
-            {
-                return Optional.of(new boolean[positionCount]);
-            }
-        },
-        ALL_NULLS {
-            @Override
-            Optional<boolean[]> getNulls(int positionCount)
-            {
-                boolean[] nulls = new boolean[positionCount];
-                Arrays.fill(nulls, true);
-                return Optional.of(nulls);
-            }
-        },
-        RANDOM_NULLS {
-            @Override
-            Optional<boolean[]> getNulls(int positionCount)
-            {
-                boolean[] nulls = new boolean[positionCount];
-                for (int i = 0; i < positionCount; i++) {
-                    nulls[i] = RANDOM.nextBoolean();
-                }
-                return Optional.of(nulls);
-            }
-        },
-        GROUPED_NULLS {
-            @Override
-            Optional<boolean[]> getNulls(int positionCount)
-            {
-                boolean[] nulls = new boolean[positionCount];
-                int maxGroupSize = 23;
-                int position = 0;
-                while (position < positionCount) {
-                    int remaining = positionCount - position;
-                    int groupSize = Math.min(RANDOM.nextInt(maxGroupSize) + 1, remaining);
-                    Arrays.fill(nulls, position, position + groupSize, RANDOM.nextBoolean());
-                    position += groupSize;
-                }
-                return Optional.of(nulls);
-            }
-        };
 
-        abstract Optional<boolean[]> getNulls(int positionCount);
+            long[] validity = new long[wordsForBits(positionCount)];
+            if (this == NO_NULLS_WITH_MAY_HAVE_NULL) {
+                for (int position = 0; position < positionCount; position++) {
+                    set(validity, 0, position);
+                }
+                return Optional.of(validity);
+            }
+
+            if (this == ALL_NULLS) {
+                return Optional.of(validity);
+            }
+
+            if (this == RANDOM_NULLS) {
+                for (int position = 0; position < positionCount; position++) {
+                    if (!RANDOM.nextBoolean()) {
+                        set(validity, 0, position);
+                    }
+                }
+                return Optional.of(validity);
+            }
+
+            int maxGroupSize = 23;
+            int position = 0;
+            while (position < positionCount) {
+                int remaining = positionCount - position;
+                int groupSize = Math.min(RANDOM.nextInt(maxGroupSize) + 1, remaining);
+                boolean isNull = RANDOM.nextBoolean();
+                if (!isNull) {
+                    for (int index = position; index < position + groupSize; index++) {
+                        set(validity, 0, index);
+                    }
+                }
+                position += groupSize;
+            }
+            return Optional.of(validity);
+        }
     }
 
     private static Object[][] inputProviders()
@@ -403,20 +403,20 @@ final class TestBatchProjection
             for (int i = 0; i < nonNullDictionarySize; i++) {
                 dictionaryValues[i] = CONSTANT - 10 + i;
             }
-            Optional<boolean[]> dictionaryIsNull = getDictionaryIsNull(nullsProvider, dictionarySize);
+            Optional<long[]> dictionaryIsNull = getDictionaryIsValid(nullsProvider, dictionarySize);
             Block dictionary = new LongArrayBlock(dictionarySize, dictionaryIsNull, dictionaryValues);
             return createDictionaryBlock(positionsCount, nullsProvider, dictionary);
         }
 
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+        Optional<long[]> valueIsValid = nullsProvider.getValidityWords(positionsCount);
+        assertThat(valueIsValid.isEmpty() || valueIsValid.get().length == wordsForBits(positionsCount)).isTrue();
         long[] values = new long[positionsCount];
         for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isEmpty() || !isNull.get()[i]) {
+            if (valueIsValid.isEmpty() || Bitmap.isSet(valueIsValid.get(), 0, i)) {
                 values[i] = toIntExact(RANDOM.nextLong(CONSTANT - 10, CONSTANT + 10));
             }
         }
-        return new LongArrayBlock(positionsCount, isNull, values);
+        return new LongArrayBlock(positionsCount, valueIsValid, values);
     }
 
     private static Block createDoublesBlock(int positionsCount, NullsProvider nullsProvider, boolean dictionaryEncoded)
@@ -429,20 +429,20 @@ final class TestBatchProjection
             for (int i = 0; i < nonNullDictionarySize; i++) {
                 dictionaryValues[i] = doubleToLongBits(CONSTANT - 100 + i);
             }
-            Optional<boolean[]> dictionaryIsNull = getDictionaryIsNull(nullsProvider, dictionarySize);
+            Optional<long[]> dictionaryIsNull = getDictionaryIsValid(nullsProvider, dictionarySize);
             Block dictionary = new LongArrayBlock(dictionarySize, dictionaryIsNull, dictionaryValues);
             return createDictionaryBlock(positionsCount, nullsProvider, dictionary);
         }
 
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+        Optional<long[]> valueIsValid = nullsProvider.getValidityWords(positionsCount);
+        assertThat(valueIsValid.isEmpty() || valueIsValid.get().length == wordsForBits(positionsCount)).isTrue();
         long[] values = new long[positionsCount];
         for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isEmpty() || !isNull.get()[i]) {
+            if (valueIsValid.isEmpty() || Bitmap.isSet(valueIsValid.get(), 0, i)) {
                 values[i] = doubleToLongBits(RANDOM.nextDouble(CONSTANT - 100, CONSTANT + 100));
             }
         }
-        return new LongArrayBlock(positionsCount, isNull, values);
+        return new LongArrayBlock(positionsCount, valueIsValid, values);
     }
 
     private static Block createStringsBlock(int positionsCount, NullsProvider nullsProvider, boolean dictionaryEncoded)
@@ -461,11 +461,11 @@ final class TestBatchProjection
             return createDictionaryBlock(positionsCount, nullsProvider, builder.build());
         }
 
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+        Optional<long[]> valueIsValid = nullsProvider.getValidityWords(positionsCount);
+        assertThat(valueIsValid.isEmpty() || valueIsValid.get().length == wordsForBits(positionsCount)).isTrue();
         VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
         for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
+            if (valueIsValid.isPresent() && !Bitmap.isSet(valueIsValid.get(), 0, i)) {
                 builder.appendNull();
             }
             else {
@@ -475,28 +475,28 @@ final class TestBatchProjection
         return builder.build();
     }
 
-    private static Optional<boolean[]> getDictionaryIsNull(NullsProvider nullsProvider, int dictionarySize)
+    private static Optional<long[]> getDictionaryIsValid(NullsProvider nullsProvider, int dictionarySize)
     {
-        Optional<boolean[]> dictionaryIsNull = Optional.empty();
+        Optional<long[]> dictionaryIsValid = Optional.empty();
         if (nullsProvider != NullsProvider.NO_NULLS) {
-            dictionaryIsNull = Optional.of(new boolean[dictionarySize]);
+            dictionaryIsValid = Optional.of(allocateWords(dictionarySize, true));
             if (nullsProvider != NullsProvider.NO_NULLS_WITH_MAY_HAVE_NULL) {
-                dictionaryIsNull.get()[dictionarySize - 1] = true;
+                clear(dictionaryIsValid.get(), 0, dictionarySize - 1);
             }
         }
-        return dictionaryIsNull;
+        return dictionaryIsValid;
     }
 
     private static Block createDictionaryBlock(int positionsCount, NullsProvider nullsProvider, Block dictionary)
     {
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+        Optional<long[]> valueIsValid = nullsProvider.getValidityWords(positionsCount);
+        assertThat(valueIsValid.isEmpty() || valueIsValid.get().length == wordsForBits(positionsCount)).isTrue();
         boolean containsNulls = nullsProvider != NullsProvider.NO_NULLS && nullsProvider != NullsProvider.NO_NULLS_WITH_MAY_HAVE_NULL;
         int dictionarySize = dictionary.getPositionCount();
         int nonNullDictionarySize = dictionarySize - (containsNulls ? 1 : 0);
         int[] ids = new int[positionsCount];
         for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
+            if (valueIsValid.isPresent() && !Bitmap.isSet(valueIsValid.get(), 0, i)) {
                 ids[i] = dictionarySize - 1;
             }
             else {
@@ -585,18 +585,18 @@ final class TestBatchProjection
     {
         int length = firstPositions.length;
         long[] result = new long[length];
-        boolean[] isNull = new boolean[length];
+        long[] validity = Bitmap.allocateWords(length, true);
         for (int i = 0; i < length; i++) {
             int firstPosition = firstPositions[i];
             int secondPosition = secondPositions[i];
             if (first.isNull(firstPosition) || second.isNull(secondPosition)) {
-                isNull[i] = true;
+                Bitmap.clear(validity, 0, i);
             }
             else {
                 result[i] = BIGINT.getLong(first, firstPosition) + BIGINT.getLong(second, secondPosition);
             }
         }
-        return new LongArrayBlock(length, Optional.of(isNull), result);
+        return new LongArrayBlock(length, Optional.of(validity), result);
     }
 
     static Block batchLessThan(ConnectorSession session, ValueBlock first, int[] firstPositions, ValueBlock second, int[] secondPositions)

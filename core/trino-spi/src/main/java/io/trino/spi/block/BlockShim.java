@@ -22,9 +22,9 @@ public class BlockShim
         return arrayBlock.getRawValueIsNull();
     }
 
-    public static boolean[] getRawValueIsNull(LongArrayBlock arrayBlock)
+    public static long[] getRawValueIsValid(LongArrayBlock arrayBlock)
     {
-        return arrayBlock.getRawValueIsNull();
+        return arrayBlock.getRawValueIsValid();
     }
 
     public static boolean[] getRawValueIsNull(VariableWidthBlock arrayBlock)

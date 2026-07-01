@@ -33,6 +33,7 @@ import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
@@ -257,11 +258,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = BOOLEAN.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -278,11 +278,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = TINYINT.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -299,11 +298,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = SMALLINT.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -320,11 +318,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = INTEGER.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -341,11 +338,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = DATE.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -367,11 +363,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = BIGINT.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -388,11 +383,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = REAL.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -409,11 +403,10 @@ public final class GpuTestUtils
         Random random = new Random(42);
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = DOUBLE.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -436,11 +429,10 @@ public final class GpuTestUtils
         long finalScale = scale;
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -464,11 +456,10 @@ public final class GpuTestUtils
         int finalPicosScale = picosScale;
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -494,11 +485,10 @@ public final class GpuTestUtils
         BigInteger bound = BigInteger.TEN.pow(type.getPrecision());
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -528,11 +518,10 @@ public final class GpuTestUtils
         long finalBound = bound;
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -549,11 +538,10 @@ public final class GpuTestUtils
         Iterator<String> strings = generateInputStrings().iterator();
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {
@@ -577,11 +565,10 @@ public final class GpuTestUtils
         Iterator<byte[]> bytes = generateInputBytes().iterator();
         return positionsCounts.stream()
                 .map(positionsCount -> {
-                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
                     VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
                     for (int i = 0; i < positionsCount; i++) {
-                        if (isNull.isPresent() && isNull.get()[i]) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
                         else {

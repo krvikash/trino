@@ -118,11 +118,11 @@ class CrcLongBlockAppenderTest
                         BigintType.BIGINT,
                         new WarmupElementStats(0, 1L, 3L)),
                 arguments(
-                        new LongArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new long[] {1, -50, 30, 33333}),
+                        new LongArrayBlock(4, Optional.of(new long[] {0b0111}), new long[] {1, -50, 30, 33333}),
                         BigintType.BIGINT,
                         new WarmupElementStats(1, -50L, 30L)),
                 arguments(
-                        DictionaryBlock.create(6, new LongArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new long[] {1, -50, 30, 33333}), new int[] {3, 0, 1, 2, 1, 3}),
+                        DictionaryBlock.create(6, new LongArrayBlock(4, Optional.of(new long[] {0b0111}), new long[] {1, -50, 30, 33333}), new int[] {3, 0, 1, 2, 1, 3}),
                         BigintType.BIGINT,
                         new WarmupElementStats(2, -50L, 30L)),
                 arguments(

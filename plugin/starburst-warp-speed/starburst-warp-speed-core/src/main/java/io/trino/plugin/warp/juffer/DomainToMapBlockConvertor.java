@@ -21,6 +21,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.IntArrayBlock;
@@ -95,7 +96,7 @@ public class DomainToMapBlockConvertor
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
                 longValues[arrIx] = block.getLong(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new LongArrayBlock(numValues, Optional.ofNullable(nulls), longValues));
+            ret = Optional.of(new LongArrayBlock(numValues, nullsToValidity(nulls), longValues));
         }
         else if (TypeUtils.isLongDecimalType(type)) {
             long[] longValues = new long[numValues * 2];
@@ -111,6 +112,21 @@ public class DomainToMapBlockConvertor
         }
 
         return ret;
+    }
+
+    private static Optional<long[]> nullsToValidity(boolean[] nulls)
+    {
+        if (nulls == null) {
+            return Optional.empty();
+        }
+
+        long[] valueIsValid = Bitmap.allocateWords(nulls.length, true);
+        for (int position = 0; position < nulls.length; position++) {
+            if (nulls[position]) {
+                Bitmap.clear(valueIsValid, 0, position);
+            }
+        }
+        return Optional.of(valueIsValid);
     }
 
     private Pair<Slice, int[]> combineSlices(List<Slice> slices, int numValues, boolean collectNulls)

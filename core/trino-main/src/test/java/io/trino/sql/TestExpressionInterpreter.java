@@ -21,6 +21,7 @@ import io.trino.metadata.InternalFunctionBundle;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.SqlBatchFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.ValueBlock;
@@ -1014,18 +1015,18 @@ public class TestExpressionInterpreter
     {
         int length = firstPositions.length;
         long[] result = new long[length];
-        boolean[] isNull = new boolean[length];
+        long[] validity = Bitmap.allocateWords(length, true);
         for (int i = 0; i < length; i++) {
             int firstPosition = firstPositions[i];
             int secondPosition = secondPositions[i];
             if (first.isNull(firstPosition) || second.isNull(secondPosition)) {
-                isNull[i] = true;
+                Bitmap.clear(validity, 0, i);
             }
             else {
                 result[i] = BIGINT.getLong(first, firstPosition) + BIGINT.getLong(second, secondPosition);
             }
         }
-        return new LongArrayBlock(length, Optional.of(isNull), result);
+        return new LongArrayBlock(length, Optional.of(validity), result);
     }
 
     private static FunctionMetadata.Builder batchFunction(String name)

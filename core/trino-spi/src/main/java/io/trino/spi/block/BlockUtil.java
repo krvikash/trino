@@ -358,4 +358,12 @@ final class BlockUtil
         }
         return Optional.of(new BooleanArrayBlock(positionCount, Optional.empty(), Bitmap.compactBitmapFromNulls(valueIsNull, arrayOffset, positionCount).getRawWords()));
     }
+
+    static Optional<BooleanArrayBlock> getNulls(@Nullable long[] valueIsNull, int arrayOffset, int positionCount)
+    {
+        if (valueIsNull == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new BooleanArrayBlock(arrayOffset, positionCount, null, valueIsNull));
+    }
 }

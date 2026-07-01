@@ -116,13 +116,14 @@ public class TestRowBlock
     @Test
     public void testCreateProjectionFromVisibleFields()
     {
+        long[] valueIsValid = {0b1101};
         boolean[] rowIsNull = {false, true, false, false};
         RowBlock block = fromNotNullSuppressedFieldBlocks(
                 4,
                 Optional.of(rowIsNull),
                 new Block[] {
-                        new LongArrayBlock(4, Optional.of(rowIsNull), new long[] {1, 0, 3, 4}),
-                        new LongArrayBlock(4, Optional.of(rowIsNull), new long[] {10, 0, 30, 40}),
+                        new LongArrayBlock(4, Optional.of(valueIsValid), new long[] {1, 0, 3, 4}),
+                        new LongArrayBlock(4, Optional.of(valueIsValid), new long[] {10, 0, 30, 40}),
                 });
 
         Block[] zeroAlignedProjectedFields = {

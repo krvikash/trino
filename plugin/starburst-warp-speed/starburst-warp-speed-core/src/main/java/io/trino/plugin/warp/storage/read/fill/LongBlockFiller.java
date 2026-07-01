@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.type.BigintType;
@@ -57,22 +58,22 @@ public class LongBlockFiller
     {
         LongBuffer buff = (LongBuffer) juffersWE.getRecordBuffer();
         long[] values = new long[rowsToFill];
-        Optional<boolean[]> valueIsNullOptional;
+        Optional<long[]> valueIsValidOptional;
         if (collectNulls) {
             ByteBuffer nullBuff = juffersWE.getNullBuffer();
-            boolean[] valueIsNull = new boolean[rowsToFill];
+            long[] valueIsValid = Bitmap.allocateWords(rowsToFill, true);
             for (int i = 0; i < rowsToFill; i++) {
                 if (isNull(nullBuff, i)) {
-                    valueIsNull[i] = true;
+                    Bitmap.clear(valueIsValid, 0, i);
                 }
             }
-            valueIsNullOptional = Optional.of(valueIsNull);
+            valueIsValidOptional = Optional.of(valueIsValid);
         }
         else {
-            valueIsNullOptional = Optional.empty();
+            valueIsValidOptional = Optional.empty();
         }
         buff.get(values);
-        return new LongArrayBlock(rowsToFill, valueIsNullOptional, values);
+        return new LongArrayBlock(rowsToFill, valueIsValidOptional, values);
     }
 
     @Override
@@ -101,9 +102,9 @@ public class LongBlockFiller
     private Block createSingleMappingBlock(long singleValue)
     {
         long[] mappingValues = new long[2]; // including null
-        boolean[] nulls = new boolean[2];
+        long[] valueIsValid = Bitmap.allocateWords(2, true);
         mappingValues[0] = singleValue;
-        nulls[1] = true;
-        return new LongArrayBlock(2, Optional.of(nulls), mappingValues);
+        Bitmap.clear(valueIsValid, 0, 1);
+        return new LongArrayBlock(2, Optional.of(valueIsValid), mappingValues);
     }
 }
