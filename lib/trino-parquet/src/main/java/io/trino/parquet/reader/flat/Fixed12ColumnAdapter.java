@@ -39,17 +39,9 @@ public class Fixed12ColumnAdapter
     }
 
     @Override
-    public Block createNullableBlock(boolean[] nulls, int[] values)
+    public Block createNullableBlock(long[] valueIsValid, int[] values)
     {
-        return new Fixed12Block(values.length / 3, Optional.of(nulls), values);
-    }
-
-    @Override
-    public void copyValue(int[] source, int sourceIndex, int[] destination, int destinationIndex)
-    {
-        destination[destinationIndex * 3] = source[sourceIndex * 3];
-        destination[(destinationIndex * 3) + 1] = source[(sourceIndex * 3) + 1];
-        destination[(destinationIndex * 3) + 2] = source[(sourceIndex * 3) + 2];
+        return new Fixed12Block(values.length / 3, Optional.of(valueIsValid), values);
     }
 
     @Override
@@ -80,5 +72,13 @@ public class Fixed12ColumnAdapter
     public int[] merge(List<int[]> buffers)
     {
         return IntColumnAdapter.concatIntArrays(buffers);
+    }
+
+    @Override
+    public void copyValue(int[] source, int sourceIndex, int[] destination, int destinationIndex)
+    {
+        destination[destinationIndex * 3] = source[sourceIndex * 3];
+        destination[(destinationIndex * 3) + 1] = source[(sourceIndex * 3) + 1];
+        destination[(destinationIndex * 3) + 2] = source[(sourceIndex * 3) + 2];
     }
 }

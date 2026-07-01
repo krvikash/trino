@@ -743,7 +743,7 @@ public class CopyToBlocks
                 int picosOfMicro = floorMod(timestampNanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
                 Fixed12Block.encodeFixed12(epochMicros, picosOfMicro, values, i);
             }
-            return new Fixed12Block(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new Fixed12Block(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
