@@ -15,6 +15,7 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.type.IntegerType;
@@ -22,6 +23,8 @@ import io.trino.spi.type.IntegerType;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Optional;
+
+import static io.trino.spi.block.Bitmap.allocateWords;
 
 public class IntBlockFiller
         extends BlockFiller<Long>
@@ -55,22 +58,22 @@ public class IntBlockFiller
     {
         IntBuffer buff = (IntBuffer) juffersWE.getRecordBuffer();
         int[] values = new int[rowsToFill];
-        Optional<boolean[]> nullsOptional;
+        Optional<long[]> valueIsValidOptional;
         if (collectNulls) {
             ByteBuffer nullBuff = juffersWE.getNullBuffer();
-            boolean[] nulls = new boolean[rowsToFill];
+            long[] valueIsValid = allocateWords(rowsToFill, true);
             for (int i = 0; i < rowsToFill; i++) {
                 if (isNull(nullBuff, i)) {
-                    nulls[i] = true;
+                    Bitmap.clear(valueIsValid, 0, i);
                 }
             }
-            nullsOptional = Optional.of(nulls);
+            valueIsValidOptional = Optional.of(valueIsValid);
         }
         else {
-            nullsOptional = Optional.empty();
+            valueIsValidOptional = Optional.empty();
         }
         buff.get(values);
-        return new IntArrayBlock(rowsToFill, nullsOptional, values);
+        return new IntArrayBlock(rowsToFill, valueIsValidOptional, values);
     }
 
     @Override
@@ -99,9 +102,9 @@ public class IntBlockFiller
     private Block createSingleMappingBlock(int singleValue)
     {
         int[] mappingValues = new int[2]; // including null
-        boolean[] nulls = new boolean[2];
+        long[] valueIsValid = allocateWords(2, true);
         mappingValues[0] = singleValue;
-        nulls[1] = true;
-        return new IntArrayBlock(2, Optional.of(nulls), mappingValues);
+        Bitmap.clear(valueIsValid, 0, 1);
+        return new IntArrayBlock(2, Optional.of(valueIsValid), mappingValues);
     }
 }

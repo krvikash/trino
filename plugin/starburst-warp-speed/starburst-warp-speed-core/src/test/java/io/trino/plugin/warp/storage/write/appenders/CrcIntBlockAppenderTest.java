@@ -73,11 +73,11 @@ class CrcIntBlockAppenderTest
                         IntegerType.INTEGER,
                         new WarmupElementStats(0, 1, 3)),
                 arguments(
-                        new IntArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new int[] {1, -50, 30, 33333}),
+                        new IntArrayBlock(4, Optional.of(new long[] {0b0111}), new int[] {1, -50, 30, 33333}),
                         IntegerType.INTEGER,
                         new WarmupElementStats(1, -50, 30)),
                 arguments(
-                        DictionaryBlock.create(6, new IntArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new int[] {1, -50, 30, 33333}), new int[] {3, 0, 1, 2, 1, 3}),
+                        DictionaryBlock.create(6, new IntArrayBlock(4, Optional.of(new long[] {0b0111}), new int[] {1, -50, 30, 33333}), new int[] {3, 0, 1, 2, 1, 3}),
                         IntegerType.INTEGER,
                         new WarmupElementStats(2, -50, 30)),
                 arguments(

@@ -87,7 +87,7 @@ public class DomainToMapBlockConvertor
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
                 intValues[arrIx] = block.getInt(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
-            ret = Optional.of(new IntArrayBlock(numValues, Optional.ofNullable(nulls), intValues));
+            ret = Optional.of(new IntArrayBlock(numValues, nullsToValidity(nulls), intValues));
         }
         else if (TypeUtils.isLongType(type) || TypeUtils.isDoubleType(type) || TypeUtils.isBigIntegerType(type) || TypeUtils.isShortDecimalType(type)) {
             long[] longValues = new long[numValues];

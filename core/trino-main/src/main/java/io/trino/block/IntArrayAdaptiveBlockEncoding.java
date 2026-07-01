@@ -15,6 +15,7 @@ package io.trino.block;
 
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -22,10 +23,9 @@ import io.trino.spi.block.IntArrayBlock;
 
 import java.util.Optional;
 
-import static io.trino.spi.block.BlockShim.getRawValueIsNull;
-import static io.trino.spi.block.EncoderUtil.decodeNullBitsScalar;
-import static io.trino.spi.block.EncoderUtil.encodeNullsAsBitsScalar;
-import static io.trino.spi.block.EncoderUtil.retrieveNullBits;
+import static io.trino.spi.block.BlockShim.getRawValueIsValid;
+import static io.trino.spi.block.EncoderUtil.decodeValidityAsLongs;
+import static io.trino.spi.block.EncoderUtil.encodeValidityAsLongs;
 import static java.lang.System.arraycopy;
 
 /**
@@ -62,51 +62,52 @@ public class IntArrayAdaptiveBlockEncoding
     {
         int positionCount = input.readInt();
 
-        byte[] valueIsNullPacked = retrieveNullBits(input, positionCount);
+        long[] validityAsLongs = decodeValidityAsLongs(input, positionCount);
         int[] values = new int[positionCount];
 
-        if (valueIsNullPacked == null) {
+        if (validityAsLongs == null) {
             AdaptiveIntEncoding.decode(input, values, positionCount);
             return new IntArrayBlock(positionCount, Optional.empty(), values);
         }
-        boolean[] valueIsNull = decodeNullBitsScalar(valueIsNullPacked, positionCount);
 
         int nonNullPositionCount = input.readInt();
 
         AdaptiveIntEncoding.decode(input, values, nonNullPositionCount);
-        restoreNullPositions(positionCount, nonNullPositionCount, values, valueIsNull, valueIsNullPacked);
+        restoreNullPositions(positionCount, nonNullPositionCount, values, validityAsLongs);
 
-        return new IntArrayBlock(positionCount, Optional.of(valueIsNull), values);
+        return new IntArrayBlock(positionCount, Optional.of(validityAsLongs), values);
     }
 
-    private static void restoreNullPositions(int positionCount, int nonNullPositionCount, int[] values, boolean[] valueIsNull, byte[] valueIsNullPacked)
+    private static void restoreNullPositions(int positionCount, int nonNullPositionCount, int[] values, long[] validityWords)
     {
         int position = nonNullPositionCount - 1;
+        int tailStart = positionCount & ~63;
 
-        // Handle Last (positionCount % 8) values
-        for (int i = positionCount - 1; i >= (positionCount & ~0b111) && position >= 0; i--) {
+        // Handle last (positionCount % 64) positions
+        for (int i = positionCount - 1; i >= tailStart && position >= 0; i--) {
             values[i] = values[position];
-            if (!valueIsNull[i]) {
+            if (Bitmap.isSet(validityWords, 0, i)) { // non-null
                 position--;
             }
         }
 
-        // Handle the remaining positions.
-        for (int i = (positionCount & ~0b111) - 8; i >= 0 && position >= 0; i -= 8) {
-            byte packed = valueIsNullPacked[i >>> 3];
-            if (packed == 0) { // Only values
-                arraycopy(values, position - 7, values, i, 8);
-                position -= 8;
+        // Handle 64 positions at a time
+        for (int wordIndex = (tailStart >>> 6) - 1; wordIndex >= 0 && position >= 0; wordIndex--) {
+            long validity = validityWords[wordIndex]; // set = non-null
+            int base = wordIndex << 6;
+            if (validity == -1L) { // all non-null
+                arraycopy(values, position - 63, values, base, 64);
+                position -= 64;
             }
-            else if (packed != -1) { // At least one non-null
-                for (int j = i + 7; j >= i && position >= 0; j--) {
+            else if (validity != 0L) { // mixed
+                for (int j = base + 63; j >= base && position >= 0; j--) {
                     values[j] = values[position];
-                    if (!valueIsNull[j]) {
+                    if (Bitmap.isSet(validityWords, 0, j)) {
                         position--;
                     }
                 }
             }
-            // Do nothing if there are only nulls
+            // all null: do nothing
         }
     }
 
@@ -117,7 +118,7 @@ public class IntArrayAdaptiveBlockEncoding
         int positionCount = intArrayBlock.getPositionCount();
         output.appendInt(positionCount);
 
-        encodeNullsAsBitsScalar(output, getRawValueIsNull(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
+        encodeValidityAsLongs(output, getRawValueIsValid(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
 
         if (!intArrayBlock.mayHaveNull()) {
             AdaptiveIntEncoding.encode(output, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), positionCount);

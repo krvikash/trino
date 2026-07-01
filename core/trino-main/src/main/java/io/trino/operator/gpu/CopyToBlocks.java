@@ -457,7 +457,7 @@ public class CopyToBlocks
         {
             int[] values = new int[count];
             hostColumnVector.getData().getInts(values, 0, (long) position * Integer.BYTES, count);
-            return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new IntArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
@@ -537,7 +537,7 @@ public class CopyToBlocks
         {
             int[] values = new int[count];
             hostColumnVector.getData().getInts(values, 0, (long) position * Float.BYTES, count);
-            return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+            return new IntArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 
