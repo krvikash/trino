@@ -43,14 +43,6 @@ final class BlockUtil
         }
     }
 
-    static void checkArrayRange(boolean[] array, int offset, int length)
-    {
-        requireNonNull(array, "array is null");
-        if (offset < 0 || length < 0 || offset + length > array.length) {
-            throw new IndexOutOfBoundsException(format("Invalid offset %s and length %s in array with %s elements", offset, length, array.length));
-        }
-    }
-
     static void checkValidRegion(int positionCount, int positionOffset, int length)
     {
         if (positionOffset < 0 || length < 0 || positionOffset + length > positionCount) {
@@ -104,31 +96,6 @@ final class BlockUtil
     }
 
     /**
-     * Returns an array containing elements in the specified range of the specified <code>isNull</code> array.
-     * If the input array is null, null is returned. If the range matches the entire array, the input array
-     * will be returned. Otherwise, a copy will be returned.
-     */
-    static boolean[] compactIsNull(@Nullable boolean[] isNull, int index, int length)
-    {
-        if (isNull == null) {
-            return null;
-        }
-        checkArrayRange(isNull, index, length);
-        if (index == 0 && length == isNull.length) {
-            return isNull;
-        }
-        for (int i = 0; i < length; i++) {
-            if (isNull[i + index]) {
-                boolean[] result = new boolean[length];
-                System.arraycopy(isNull, i + index, result, i, length - i);
-                return result;
-            }
-        }
-        // No nulls encountered, return null as the result
-        return null;
-    }
-
-    /**
      * Recalculate the <code>offsets</code> array for the specified range.
      * The returned <code>offsets</code> array contains <code>length + 1</code> integers
      * with the first value set to 0.
@@ -165,14 +132,6 @@ final class BlockUtil
      * If the range matches the entire array, the input array will be returned.
      * Otherwise, a copy will be returned.
      */
-    static boolean[] compactArray(boolean[] array, int index, int length)
-    {
-        if (index == 0 && length == array.length) {
-            return array;
-        }
-        return Arrays.copyOfRange(array, index, index + length);
-    }
-
     static byte[] compactArray(byte[] array, int index, int length)
     {
         if (index == 0 && length == array.length) {
@@ -221,19 +180,6 @@ final class BlockUtil
             }
         }
         return true;
-    }
-
-    static boolean[] copyIsNullAndAppendNull(@Nullable boolean[] isNull, int offsetBase, int positionCount)
-    {
-        int desiredLength = offsetBase + positionCount + 1;
-        boolean[] newIsNull = new boolean[desiredLength];
-        if (isNull != null) {
-            checkArrayRange(isNull, offsetBase, positionCount);
-            System.arraycopy(isNull, 0, newIsNull, 0, desiredLength - 1);
-        }
-        // mark the last element to append null
-        newIsNull[desiredLength - 1] = true;
-        return newIsNull;
     }
 
     static int[] copyOffsetsAndAppendNull(int[] offsets, int offsetBase, int positionCount)
