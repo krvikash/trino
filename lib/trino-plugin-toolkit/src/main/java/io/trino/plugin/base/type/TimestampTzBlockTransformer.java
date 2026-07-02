@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static io.trino.spi.block.Bitmap.allocateWords;
+import static io.trino.spi.block.Bitmap.clear;
 import static io.trino.spi.block.ColumnarArray.toColumnarArray;
 import static io.trino.spi.block.ColumnarMap.toColumnarMap;
 import static io.trino.spi.block.RowBlock.getRowFieldsFromBlock;
@@ -101,7 +103,7 @@ public class TimestampTzBlockTransformer
                 for (int position = 0; position < positionCount; position++) {
                     offsets[position + 1] = columnarArray.getOffset(position + 1);
                 }
-                return ArrayBlock.fromElementBlock(columnarArray.getPositionCount(), getNulls(block), offsets, updatedElementsBlock);
+                return ArrayBlock.fromElementBlock(columnarArray.getPositionCount(), getValidity(block), offsets, updatedElementsBlock);
             }
             case MapType mapType -> {
                 ColumnarMap columnarMap = toColumnarMap(block);
@@ -175,6 +177,21 @@ public class TimestampTzBlockTransformer
             valueIsNull[i] = block.isNull(i);
         }
         return Optional.of(valueIsNull);
+    }
+
+    private static Optional<long[]> getValidity(Block block)
+    {
+        if (!block.mayHaveNull()) {
+            return Optional.empty();
+        }
+
+        long[] isValid = allocateWords(block.getPositionCount(), true);
+        for (int i = 0; i < block.getPositionCount(); i++) {
+            if (block.isNull(i)) {
+                clear(isValid, 0, i);
+            }
+        }
+        return Optional.of(isValid);
     }
 
     public static boolean timestampTzBlockTransformationRequired(Type sourceType)

@@ -55,6 +55,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntPredicate;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -331,13 +332,11 @@ public final class DeltaLakeWriter
         {
             ColumnarArray arrayBlock = toColumnarArray(block);
             Block elementsBlock = elementCoercer.apply(arrayBlock.getElementsBlock());
-            boolean[] valueIsNull = new boolean[arrayBlock.getPositionCount()];
             int[] offsets = new int[arrayBlock.getPositionCount() + 1];
             for (int i = 0; i < arrayBlock.getPositionCount(); i++) {
-                valueIsNull[i] = arrayBlock.isNull(i);
                 offsets[i + 1] = offsets[i] + arrayBlock.getLength(i);
             }
-            return ArrayBlock.fromElementBlock(arrayBlock.getPositionCount(), Optional.of(valueIsNull), offsets, elementsBlock);
+            return ArrayBlock.fromElementBlock(arrayBlock.getPositionCount(), getValidityBitmap(arrayBlock.getPositionCount(), arrayBlock::isNull), offsets, elementsBlock);
         }
     }
 
@@ -466,5 +465,23 @@ public final class DeltaLakeWriter
             }
             return new LongArrayBlock(positionCount, foundNull ? Optional.of(valueIsValid) : Optional.empty(), values);
         }
+    }
+
+    private static Optional<long[]> getValidityBitmap(int positionCount, IntPredicate isNull)
+    {
+        long[] valueIsValid = new long[Bitmap.wordsForBits(positionCount)];
+        boolean foundNull = false;
+        for (int position = 0; position < positionCount; position++) {
+            if (isNull.test(position)) {
+                foundNull = true;
+            }
+            else {
+                Bitmap.set(valueIsValid, 0, position);
+            }
+        }
+        if (!foundNull) {
+            return Optional.empty();
+        }
+        return Optional.of(valueIsValid);
     }
 }
