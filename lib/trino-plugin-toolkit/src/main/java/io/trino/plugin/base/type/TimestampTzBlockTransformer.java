@@ -115,7 +115,7 @@ public class TimestampTzBlockTransformer
                 for (int position = 0; position < positionCount; position++) {
                     offsets[position + 1] = columnarMap.getOffset(position + 1);
                 }
-                return MapBlock.fromKeyValueBlock(getNulls(block), offsets, updatedKeysBlock, updatedValuesBlock, mapType);
+                return MapBlock.fromKeyValueBlock(getValidity(block), offsets, updatedKeysBlock, updatedValuesBlock, mapType);
             }
             default -> {
                 return block;
