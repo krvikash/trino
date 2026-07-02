@@ -19,8 +19,12 @@ import io.airlift.slice.Slices;
 import io.airlift.stats.CounterStat;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
+import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
+import io.starburst.ai.client.openai.oauth.ResolvedOAuth2Config;
+import io.starburst.ai.model.ConnectionInfo;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
+import io.starburst.ai.model.ModelConnectionSpec;
 import io.starburst.ai.model.ModelConnectionSpecs;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -34,8 +38,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveConnectionInfo;
+import static io.starburst.ai.client.ModelSecretsResolver.resolveOAuth2Secrets;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
@@ -51,6 +58,7 @@ public class ReloadingModelClientProvider
     private final ModelConnectionSpecsLoader modelSpecsLoader;
     private final AwsBedrockClientFactory awsBedrockClientFactory;
     private final OpenAiClientFactory openAiClientFactory;
+    private final OAuth2TokenCache oauth2TokenCache;
     private final TokenUsageListener tokenUsageListener;
 
     private final ScheduledExecutorService reloadingExecutor;
@@ -85,6 +93,7 @@ public class ReloadingModelClientProvider
             ModelConnectionSpecsLoader modelSpecsLoader,
             AwsBedrockClientFactory awsBedrockClientFactory,
             OpenAiClientFactory openAiClientFactory,
+            OAuth2TokenCache oauth2TokenCache,
             AiClientConfig config,
             SecretsResolver secretsResolver,
             @ForAiClient ScheduledExecutorService reloadingExecutor,
@@ -94,6 +103,7 @@ public class ReloadingModelClientProvider
         this.modelSpecsLoader = requireNonNull(modelSpecsLoader, "modelSpecsLoader is null");
         this.awsBedrockClientFactory = requireNonNull(awsBedrockClientFactory, "awsBedrockClientFactory is null");
         this.openAiClientFactory = requireNonNull(openAiClientFactory, "openAiClientFactory is null");
+        this.oauth2TokenCache = requireNonNull(oauth2TokenCache, "oauth2TokenCache is null");
         this.tokenUsageListener = requireNonNull(tokenUsageListener, "tokenUsageListener is null");
         this.clientTtlMillis = config.getClientCacheTtl().toMillis();
         this.clientCacheRefreshIntervalMillis = config.getClientCacheRefreshInterval().toMillis();
@@ -101,6 +111,9 @@ public class ReloadingModelClientProvider
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.reloadingExecutor = requireNonNull(reloadingExecutor, "reloadingExecutor is null");
         load();
+        if (!clientCacheRefreshEnabled && anyOAuth2Spec()) {
+            throw new IllegalStateException("ai.client.cache.refresh.enabled must be true when any model uses oauthConfig");
+        }
     }
 
     @PostConstruct
@@ -210,6 +223,7 @@ public class ReloadingModelClientProvider
             newModelConnectionSpecDao.languageModelConnectionSpecs().forEach(this::processLanguageModelClient);
             newModelConnectionSpecDao.embeddingModelConnectionSpecs().forEach(this::processEmbeddingModelClient);
             state.set(new State(newModelConnectionSpecDao, languageModelClientBuilder.buildOrThrow(), embeddingModelClientBuilder.buildOrThrow(), clientCreatedMillisBuilder.buildOrThrow()));
+            oauth2TokenCache.retainKeys(collectCurrentOAuth2Configs());
         }
 
         private boolean noChangesForLanguageModelSpecs()
@@ -224,7 +238,8 @@ public class ReloadingModelClientProvider
                         return currentSpecs().getLanguageModelConnectionSpecById(newModelConnectionSpec.id())
                                 .map(spec -> spec.equals(newModelConnectionSpec) &&
                                         resolveConnectionInfo(spec.connectionInfo(), secretsResolver).equals(resolveConnectionInfo(newModelConnectionSpec.connectionInfo(), secretsResolver)) &&
-                                        !isExpired(id))
+                                        !isExpired(id) &&
+                                        !oauth2TokenExpired(newModelConnectionSpec.id(), newModelConnectionSpec.connectionInfo()))
                                 .orElse(false);
                     });
         }
@@ -241,7 +256,8 @@ public class ReloadingModelClientProvider
                         return currentSpecs().getEmbeddingModelConnectionSpecById(newModelConnectionSpec.id())
                                 .map(spec -> spec.equals(newModelConnectionSpec) &&
                                         resolveConnectionInfo(spec.connectionInfo(), secretsResolver).equals(resolveConnectionInfo(newModelConnectionSpec.connectionInfo(), secretsResolver)) &&
-                                        !isExpired(id))
+                                        !isExpired(id) &&
+                                        !oauth2TokenExpired(newModelConnectionSpec.id(), newModelConnectionSpec.connectionInfo()))
                                 .orElse(false);
                     });
         }
@@ -250,7 +266,8 @@ public class ReloadingModelClientProvider
         {
             Slice id = Slices.utf8Slice(newModelConnectionSpec.id());
             if (currentSpecs().getLanguageModelConnectionSpecById(newModelConnectionSpec.id()).map(spec -> !spec.equals(newModelConnectionSpec)).orElse(false) ||
-                    isExpired(id)) {
+                    isExpired(id) ||
+                    oauth2TokenExpired(newModelConnectionSpec.id(), newModelConnectionSpec.connectionInfo())) {
                 try {
                     languageModelClientBuilder.put(id, createLanguageModelClient(newModelConnectionSpec));
                     clientCreatedMillisBuilder.put(id, nowMillis);
@@ -271,7 +288,8 @@ public class ReloadingModelClientProvider
         {
             Slice id = Slices.utf8Slice(newModelConnectionSpec.id());
             if (currentSpecs().getEmbeddingModelConnectionSpecById(newModelConnectionSpec.id()).map(spec -> !spec.equals(newModelConnectionSpec)).orElse(false) ||
-                    isExpired(id)) {
+                    isExpired(id) ||
+                    oauth2TokenExpired(newModelConnectionSpec.id(), newModelConnectionSpec.connectionInfo())) {
                 try {
                     embeddingModelClientBuilder.put(id, createEmbeddingModelClient(newModelConnectionSpec));
                     clientCreatedMillisBuilder.put(id, nowMillis);
@@ -286,6 +304,24 @@ public class ReloadingModelClientProvider
                 embeddingModelClientBuilder.put(id, currentState.embeddingClientCache().get(id));
                 clientCreatedMillisBuilder.put(id, currentState.clientCreatedMillis().get(id));
             }
+        }
+
+        private boolean oauth2TokenExpired(String modelId, ConnectionInfo info)
+        {
+            if (info instanceof OpenAiConnectionInfo openAi && openAi.oauthConfig().isPresent()) {
+                return oauth2TokenCache.isExpired(modelId, resolveOAuth2Secrets(openAi.oauthConfig().get(), secretsResolver));
+            }
+            return false;
+        }
+
+        private Map<String, ResolvedOAuth2Config> collectCurrentOAuth2Configs()
+        {
+            return Stream.concat(
+                            newModelConnectionSpecDao.languageModelConnectionSpecs().stream(),
+                            newModelConnectionSpecDao.embeddingModelConnectionSpecs().stream())
+                    .filter(spec -> spec.connectionInfo() instanceof OpenAiConnectionInfo openAi && openAi.oauthConfig().isPresent())
+                    .collect(toImmutableMap(ModelConnectionSpec::id,
+                            spec -> resolveOAuth2Secrets(((OpenAiConnectionInfo) spec.connectionInfo()).oauthConfig().get(), secretsResolver)));
         }
 
         private ModelConnectionSpecs currentSpecs()
@@ -314,5 +350,14 @@ public class ReloadingModelClientProvider
                 case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> awsBedrockClientFactory.createEmbeddingClient(modelConnectionSpec, awsBedrockConnectionInfo);
             };
         }
+    }
+
+    private boolean anyOAuth2Spec()
+    {
+        ModelConnectionSpecs specs = state.get().modelConnectionSpecs();
+        return Stream.concat(
+                        specs.languageModelConnectionSpecs().stream().map(LanguageModelConnectionSpec::connectionInfo),
+                        specs.embeddingModelConnectionSpecs().stream().map(EmbeddingModelConnectionSpec::connectionInfo))
+                .anyMatch(info -> info instanceof OpenAiConnectionInfo openAi && openAi.oauthConfig().isPresent());
     }
 }

@@ -12,7 +12,10 @@ package io.starburst.ai.client;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.starburst.ai.client.openai.oauth.ResolvedOAuth2Config;
 import io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.OAuth2Config;
+import io.starburst.ai.model.ConnectionInfo.OAuth2GrantType;
 import io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import org.junit.jupiter.api.Test;
 
@@ -65,7 +68,8 @@ public class TestModelSecretsResolver
                 ImmutableMap.of(
                         "Authorization", ImmutableList.of("${TESTING:AUTHORIZATION_TOKEN}", "${TESTING:BASIC}"),
                         "Custom-Header", ImmutableList.of("CustomValue"),
-                        "Mixed-Sensitivity", ImmutableList.of("NotSensitive", "${TESTING:SENSITIVE_VALUE}")));
+                        "Mixed-Sensitivity", ImmutableList.of("NotSensitive", "${TESTING:SENSITIVE_VALUE}")),
+                Optional.empty());
 
         SecretsResolver secretsResolver = new SecretsResolver(
                 ImmutableMap.of("testing", new TestingSecretsProvider(ImmutableMap.of(
@@ -79,5 +83,30 @@ public class TestModelSecretsResolver
                 "Authorization", ImmutableList.of("bearer token123", "Basic cGFzc3dvcmQ="),
                 "Custom-Header", ImmutableList.of("CustomValue"),
                 "Mixed-Sensitivity", ImmutableList.of("NotSensitive", "secret")));
+    }
+
+    @Test
+    void testOAuth2SecretResolution()
+    {
+        OAuth2Config config = new OAuth2Config(
+                OAuth2GrantType.CLIENT_CREDENTIALS,
+                "https://idp.example/token",
+                "static-client-id",
+                "${TESTING:OAUTH_CLIENT_SECRET}",
+                Optional.of("${TESTING:OAUTH_SCOPE}"),
+                Optional.of("audience-1"));
+
+        SecretsResolver secretsResolver = new SecretsResolver(
+                ImmutableMap.of("testing", new TestingSecretsProvider(ImmutableMap.of(
+                        "OAUTH_CLIENT_SECRET", "the-real-secret",
+                        "OAUTH_SCOPE", "resolved-scope"))));
+
+        ResolvedOAuth2Config resolved = ModelSecretsResolver.resolveOAuth2Secrets(config, secretsResolver);
+        assertThat(resolved.tokenUrl()).isEqualTo("https://idp.example/token");
+        assertThat(resolved.clientId()).isEqualTo("static-client-id");
+        assertThat(resolved.clientSecret()).isEqualTo("the-real-secret");
+        assertThat(resolved.scope()).contains("resolved-scope");
+        assertThat(resolved.audience()).contains("audience-1");
+        assertThat(resolved.grantType()).isEqualTo(OAuth2GrantType.CLIENT_CREDENTIALS);
     }
 }

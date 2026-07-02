@@ -12,12 +12,16 @@ package io.starburst.ai.client;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
+import io.airlift.http.client.HttpClient;
+import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.json.ObjectMapperProvider;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsEmbeddingCodec;
 import io.starburst.ai.client.bedrock.CohereEmbedMultilingualV3Codec;
 import io.starburst.ai.client.bedrock.TitanTextV2Codec;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
+import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
+import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
 
 import java.io.File;
 import java.io.IOException;
@@ -278,17 +282,27 @@ public final class TestingUtils
         SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider()));
         AiClientConfig aiClientConfig = new AiClientConfig();
         AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
-        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get());
+        OAuth2TokenCache oauth2TokenCache = createTestOAuth2TokenCache(aiClientConfig);
+        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache);
         return new ReloadingModelClientProvider(
                 promptDao,
                 modelSpecsLoader,
                 bedrockClientFactory,
                 openAiClientFactory,
+                oauth2TokenCache,
                 new AiClientConfig()
                         .setClientCacheRefreshEnabled(clientCacheRefreshEnabled),
                 secretsResolver,
                 reloadingExecutor,
                 tokenUsageListener);
+    }
+
+    public static OAuth2TokenCache createTestOAuth2TokenCache(AiClientConfig config)
+    {
+        HttpClient httpClient = new TestingHttpClient(_ -> {
+            throw new UnsupportedOperationException("OAuth2 HTTP client not configured for this test");
+        });
+        return new OAuth2TokenCache(new OAuth2TokenFetcher(httpClient), config);
     }
 
     public static File createModelConnectionSpecsFile(String content)

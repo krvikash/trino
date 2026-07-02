@@ -14,6 +14,7 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDuration;
 import io.airlift.units.MinDuration;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -31,6 +32,9 @@ public class AiClientConfig
     private int bedrockMaxRetries = 10;
     private int openAiMaxRetries = 2; // Default retries for OpenAI SDK
     private Duration openAiTimeout = new Duration(3, TimeUnit.MINUTES);
+    private Duration oauth2RefreshSkew = new Duration(60, TimeUnit.SECONDS);
+    private Duration oauthTokenCacheDuration = new Duration(30, TimeUnit.MINUTES);
+    private int oauth2MaxCachedTokens = 1000;
 
     @NotNull
     public StorageType getStorageType()
@@ -168,6 +172,58 @@ public class AiClientConfig
     {
         this.openAiTimeout = openAiTimeout;
         return this;
+    }
+
+    @NotNull
+    @MinDuration("5s")
+    @MaxDuration("10m")
+    public Duration getOauth2RefreshSkew()
+    {
+        return oauth2RefreshSkew;
+    }
+
+    @Config("ai.client.oauth.refresh-skew")
+    @ConfigDescription("How early to refresh an OAuth2 access token before its expires_in elapses")
+    public AiClientConfig setOauth2RefreshSkew(Duration oauth2RefreshSkew)
+    {
+        this.oauth2RefreshSkew = oauth2RefreshSkew;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("5s")
+    @MaxDuration("10h")
+    public Duration getOauthTokenCacheDuration()
+    {
+        return oauthTokenCacheDuration;
+    }
+
+    @Config("ai.client.oauth.token-cache-duration")
+    @ConfigDescription("How long to keep OAuth tokens cached in memory. If a token expires during the time it's cached, it will be evicted; when an entry is evicted, a new token will be retrieved.")
+    public AiClientConfig setOauthTokenCacheDuration(Duration oauthTokenCacheDuration)
+    {
+        this.oauthTokenCacheDuration = oauthTokenCacheDuration;
+        return this;
+    }
+
+    @Min(1)
+    public int getOauth2MaxCachedTokens()
+    {
+        return oauth2MaxCachedTokens;
+    }
+
+    @Config("ai.client.oauth.max-cached-tokens")
+    @ConfigDescription("Maximum number of OAuth2 access tokens to cache in memory")
+    public AiClientConfig setOauth2MaxCachedTokens(int oauth2MaxCachedTokens)
+    {
+        this.oauth2MaxCachedTokens = oauth2MaxCachedTokens;
+        return this;
+    }
+
+    @AssertTrue(message = "ai.client.cache.refresh.interval must be less than ai.client.oauth.refresh-skew")
+    public boolean isOauth2RefreshSkewValid()
+    {
+        return clientCacheRefreshInterval.compareTo(oauth2RefreshSkew) < 0;
     }
 
     public enum StorageType

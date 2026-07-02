@@ -12,18 +12,21 @@ package io.starburst.ai.client;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.starburst.ai.client.openai.oauth.ResolvedOAuth2Config;
 import io.starburst.ai.model.ConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.OAuth2Config;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.OAuth2Config.validateTokenUrl;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 
 public final class ModelSecretsResolver
 {
-    private static final String DUMMY_API_KEY = "dummy";
+    public static final String DUMMY_API_KEY = "dummy";
 
     private ModelSecretsResolver() {}
 
@@ -57,16 +60,41 @@ public final class ModelSecretsResolver
 
     public static OpenAiConnectionInfo resolveOpenAiSecrets(OpenAiConnectionInfo connectionInfo, SecretsResolver secretsResolver)
     {
+        if (connectionInfo.oauthConfig().isPresent()) {
+            return new OpenAiConnectionInfo(
+                    connectionInfo.endpoint(),
+                    Optional.empty(),
+                    resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver),
+                    connectionInfo.oauthConfig());
+        }
         return connectionInfo.apiKey().map(key ->
                         new OpenAiConnectionInfo(
                                 connectionInfo.endpoint(),
                                 Optional.of(secretsResolver.getResolvedConfiguration(ImmutableMap.of("apiKey", key)).get("apiKey")),
-                                resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver)))
+                                resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver),
+                                Optional.empty()))
                 // Pass DUMMY_API_KEY as OpenAI sdk mandatorily requires an API key https://github.com/openai/openai-java/blob/71cf8abd87f4e7ea4ab658d813499f3e30aee632/openai-java-core/src/main/kotlin/com/openai/core/ClientOptions.kt#L297
                 .orElseGet(() -> new OpenAiConnectionInfo(
                         connectionInfo.endpoint(),
                         Optional.of(DUMMY_API_KEY),
-                        resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver)));
+                        resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver),
+                        Optional.empty()));
+    }
+
+    public static ResolvedOAuth2Config resolveOAuth2Secrets(OAuth2Config config, SecretsResolver secretsResolver)
+    {
+        String tokenUrl = resolveOne(secretsResolver, "tokenUrl", config.tokenUrl());
+        validateTokenUrl(tokenUrl);
+        String clientId = resolveOne(secretsResolver, "clientId", config.clientId());
+        String clientSecret = resolveOne(secretsResolver, "clientSecret", config.clientSecret());
+        Optional<String> scope = config.scope().map(value -> resolveOne(secretsResolver, "scope", value));
+        Optional<String> audience = config.audience().map(value -> resolveOne(secretsResolver, "audience", value));
+        return new ResolvedOAuth2Config(config.grantType(), tokenUrl, clientId, clientSecret, scope, audience);
+    }
+
+    private static String resolveOne(SecretsResolver secretsResolver, String key, String value)
+    {
+        return secretsResolver.getResolvedConfiguration(ImmutableMap.of(key, value)).getOrDefault(key, value);
     }
 
     private static Map<String, List<String>> resolveSecretHeaderValues(Map<String, List<String>> headers, SecretsResolver secretsResolver)

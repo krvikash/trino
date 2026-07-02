@@ -18,6 +18,9 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
+import io.starburst.ai.client.openai.oauth.ForAiOAuth2;
+import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
+import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import java.util.concurrent.Executor;
@@ -29,6 +32,7 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -51,6 +55,9 @@ public class AiClientModule
         binder.install(new AwsBedrockEmbeddingCodecsModule());
         binder.bind(AwsBedrockClientFactory.class).in(Scopes.SINGLETON);
         binder.bind(OpenAiClientFactory.class).in(Scopes.SINGLETON);
+        httpClientBinder(binder).bindHttpClient("oauth2", ForAiOAuth2.class);
+        binder.bind(OAuth2TokenFetcher.class).in(Scopes.SINGLETON);
+        binder.bind(OAuth2TokenCache.class).in(Scopes.SINGLETON);
         binder.bind(PromptDao.class).to(StaticPromptDao.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, TokenUsageListener.class).setDefault().toInstance(TokenUsageListener.NOOP);
         binder.bind(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);

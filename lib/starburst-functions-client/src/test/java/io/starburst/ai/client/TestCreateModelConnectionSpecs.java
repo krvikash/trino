@@ -51,4 +51,39 @@ public class TestCreateModelConnectionSpecs
                         .map(Throwable::getMessage))
                         .noneMatch(message -> message.contains("MYSECRET")));
     }
+
+    @Test
+    public void testShouldMaskOAuth2ClientSecretWhenParsingFails()
+    {
+        String json =
+                """
+                {
+                   "models": [
+                       {
+                           "id": "gpt1",
+                           "modelName": "gpt-4o-mini",
+                           "kind": "GENERATE",
+                           "connectionInfo": {
+                               "provider": "OPENAI",
+                               "endpoint": "https://on-prem-llm.example/v1",
+                               "oauth2": {
+                                   "tokenUrl": "https://idp.example/token",
+                                   "clientId": "cli",
+                                   "clientSecret": MYCLIENTSECRET
+                               }
+                           }
+                       }
+                   ]
+                }""";
+
+        File file = createModelConnectionSpecsFile(json);
+
+        FileBackedModelConnectionSpecsLoader reader = new FileBackedModelConnectionSpecsLoader(
+                new AiFileStorageConfig().setModelConnectionSpecsFile(file.getPath()));
+        assertThatThrownBy(reader::load)
+                .satisfies(exception -> assertThat(getCausalChain(exception)
+                        .stream()
+                        .map(Throwable::getMessage))
+                        .noneMatch(message -> message != null && message.contains("MYCLIENTSECRET")));
+    }
 }

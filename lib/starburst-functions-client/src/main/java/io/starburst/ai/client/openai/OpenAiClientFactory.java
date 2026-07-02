@@ -27,22 +27,28 @@ import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
 import io.starburst.ai.client.TokenUsageListener;
+import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
+import static io.starburst.ai.client.ModelSecretsResolver.DUMMY_API_KEY;
+import static io.starburst.ai.client.ModelSecretsResolver.resolveOAuth2Secrets;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOpenAiSecrets;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
 import static io.starburst.ai.model.StreamingToolCallSupportOption.STREAMING_TOOL_CALL_SUPPORTED;
+import static java.lang.String.format;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 
@@ -62,9 +68,15 @@ public class OpenAiClientFactory
     private final int maxRetries;
     private final Duration timeout;
     private final ObjectMapper objectMapper;
+    private final OAuth2TokenCache oauth2TokenCache;
 
     @Inject
-    public OpenAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, ObjectMapper objectMapper)
+    public OpenAiClientFactory(
+            SecretsResolver secretsResolver,
+            AiClientConfig config,
+            @ForAiClient Executor executor,
+            ObjectMapper objectMapper,
+            OAuth2TokenCache oauth2TokenCache)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
@@ -72,6 +84,7 @@ public class OpenAiClientFactory
         maxRetries = config.getOpenAiMaxRetries();
         timeout = config.getOpenAiTimeout();
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
+        this.oauth2TokenCache = requireNonNull(oauth2TokenCache, "oauth2TokenCache is null");
     }
 
     @Override
@@ -81,14 +94,14 @@ public class OpenAiClientFactory
         requireNonNull(connectionInfo, "connectionInfo is null");
         Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo = tryExtractAzureOpenAiConnectionInfo(connectionInfo.endpoint());
         OpenAiConnectionInfo updatedConnectionInfo = azureOpenAiConnectionInfo
-                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders()))
+                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders(), connectionInfo.oauthConfig()))
                 .orElse(connectionInfo);
         // Ideally model name should be correctly parsed and populated from UI
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
         boolean isStreamingToolCallSupported = spec.traits().getOrDefault(STREAMING_TOOL_CALL_SUPPORT, STREAMING_TOOL_CALL_SUPPORTED.name())
                 .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
 
-        OpenAIClient openAiClient = createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo);
+        OpenAIClient openAiClient = createOpenAiClient(spec.id(), updatedConnectionInfo, azureOpenAiConnectionInfo);
         if (spec.useResponsesApi()) {
             return new OpenAiResponsesLanguageModelClient(
                     modelName,
@@ -128,13 +141,13 @@ public class OpenAiClientFactory
         requireNonNull(connectionInfo, "connectionInfo is null");
         Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo = tryExtractAzureOpenAiConnectionInfo(connectionInfo.endpoint());
         OpenAiConnectionInfo updatedConnectionInfo = azureOpenAiConnectionInfo
-                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders()))
+                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders(), connectionInfo.oauthConfig()))
                 .orElse(connectionInfo);
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
-        return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));
+        return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(spec.id(), updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
-    private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
+    private OpenAIClient createOpenAiClient(String modelId, OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
         builder.maxRetries(maxRetries);
@@ -147,6 +160,23 @@ public class OpenAiClientFactory
                 builder.azureServiceVersion(AzureOpenAIServiceVersion.fromString(info.apiVersion()));
             }
         });
+        if (connectionInfo.oauthConfig().isPresent()) {
+            if (azureOpenAiConnectionInfo.isPresent()) {
+                throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 is not supported for Azure OpenAI endpoints; use apiKey");
+            }
+            String bearer = oauth2TokenCache.accessToken(modelId, resolveOAuth2Secrets(connectionInfo.oauthConfig().get(), secretsResolver));
+            // OpenAI SDK requires a non-blank apiKey (see DUMMY_API_KEY reference in ModelSecretsResolver);
+            // the real credential is delivered via the Authorization header below.
+            builder.apiKey(DUMMY_API_KEY);
+            Map<String, List<String>> resolvedHeaders = connectionInfo.additionalHeaders().isEmpty()
+                    ? Map.of()
+                    : resolveOpenAiSecrets(connectionInfo, secretsResolver).additionalHeaders();
+            Map<String, List<String>> merged = new LinkedHashMap<>(resolvedHeaders);
+            merged.put("Authorization", List.of(format("Bearer %s", bearer)));
+            builder.putAllHeaders(merged);
+            connectionInfo.endpoint().ifPresent(builder::baseUrl);
+            return builder.build();
+        }
         if (connectionInfo.apiKey().isPresent() || !connectionInfo.additionalHeaders().isEmpty()) {
             connectionInfo = resolveOpenAiSecrets(connectionInfo, secretsResolver);
         }

@@ -12,6 +12,7 @@ package io.starburst.ai.client;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.AiClientConfig.StorageType;
+import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 
 public class TestAiClientConfig
 {
@@ -36,7 +38,10 @@ public class TestAiClientConfig
                 .setBedrockSocketTimeout(new Duration(3, TimeUnit.MINUTES))
                 .setBedrockMaxRetries(10)
                 .setOpenAiTimeout(new Duration(3, TimeUnit.MINUTES))
-                .setOpenAiMaxRetries(2));
+                .setOpenAiMaxRetries(2)
+                .setOauth2RefreshSkew(new Duration(60, TimeUnit.SECONDS))
+                .setOauthTokenCacheDuration(new Duration(30, TimeUnit.MINUTES))
+                .setOauth2MaxCachedTokens(1000));
     }
 
     @Test
@@ -53,6 +58,9 @@ public class TestAiClientConfig
                 .put("ai.client.bedrock-max-retries", "15")
                 .put("ai.client.openai-timeout", "4m")
                 .put("ai.client.openai-max-retries", "5")
+                .put("ai.client.oauth.refresh-skew", "2m")
+                .put("ai.client.oauth.token-cache-duration", "12m")
+                .put("ai.client.oauth.max-cached-tokens", "500")
                 .buildOrThrow();
         AiClientConfig expected = new AiClientConfig()
                 .setStorageType(StorageType.FILE)
@@ -64,8 +72,35 @@ public class TestAiClientConfig
                 .setBedrockSocketTimeout(new Duration(10, TimeUnit.SECONDS))
                 .setBedrockMaxRetries(15)
                 .setOpenAiMaxRetries(5)
-                .setOpenAiTimeout(new Duration(4, TimeUnit.MINUTES));
+                .setOpenAiTimeout(new Duration(4, TimeUnit.MINUTES))
+                .setOauth2RefreshSkew(new Duration(2, TimeUnit.MINUTES))
+                .setOauthTokenCacheDuration(new Duration(12, TimeUnit.MINUTES))
+                .setOauth2MaxCachedTokens(500);
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testClientRefreshLessThanOauthTokenCacheDuration()
+    {
+        assertFailsValidation(new AiClientConfig()
+                        .setStorageType(StorageType.FILE)
+                        .setClientCacheRefreshInterval(new Duration(5, TimeUnit.SECONDS))
+                        .setClientCacheTtl(new Duration(30, TimeUnit.MINUTES))
+                        .setClientCacheRefreshEnabled(true)
+                        .setOauth2RefreshSkew(new Duration(2, TimeUnit.SECONDS)),
+                "oauth2RefreshSkewValid",
+                "ai.client.cache.refresh.interval must be less than ai.client.oauth.refresh-skew",
+                AssertTrue.class);
+
+        assertFailsValidation(new AiClientConfig()
+                        .setStorageType(StorageType.FILE)
+                        .setClientCacheRefreshInterval(new Duration(2, TimeUnit.SECONDS))
+                        .setClientCacheTtl(new Duration(30, TimeUnit.MINUTES))
+                        .setClientCacheRefreshEnabled(true)
+                        .setOauth2RefreshSkew(new Duration(2, TimeUnit.SECONDS)),
+                "oauth2RefreshSkewValid",
+                "ai.client.cache.refresh.interval must be less than ai.client.oauth.refresh-skew",
+                AssertTrue.class);
     }
 }
