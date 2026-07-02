@@ -22,7 +22,6 @@ import java.util.Optional;
 import static java.lang.Math.ceil;
 import static java.lang.Math.clamp;
 import static java.lang.String.format;
-import static java.util.Objects.checkFromToIndex;
 import static java.util.Objects.requireNonNull;
 
 final class BlockUtil
@@ -264,18 +263,6 @@ final class BlockUtil
         return buffer;
     }
 
-    public static boolean[] ensureCapacity(@Nullable boolean[] buffer, int capacity)
-    {
-        if (buffer == null) {
-            buffer = new boolean[capacity];
-        }
-        else if (buffer.length < capacity) {
-            buffer = Arrays.copyOf(buffer, capacity);
-        }
-
-        return buffer;
-    }
-
     /**
      * Returns a new short array of size capacity if the input buffer is null or
      * smaller than the capacity. Returns the original array otherwise.
@@ -328,37 +315,9 @@ final class BlockUtil
     }
 
     /**
-     * Consolidated implementation of {@link Block#hasNull()}, returning <code>true</code> if a null value exists
-     * and <code>false</code> otherwise
-     */
-    static boolean hasNullValue(@Nullable boolean[] valueIsNull, int arrayOffset, int positionCount)
-    {
-        if (valueIsNull == null) {
-            return false;
-        }
-
-        int toIndex = arrayOffset + positionCount;
-        checkFromToIndex(arrayOffset, toIndex, valueIsNull.length);
-        for (int i = arrayOffset; i < toIndex; i++) {
-            if (valueIsNull[i]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Ideally, the underlying nulls array in Block implementations should be a byte array instead of a boolean array.
      * This method is used to perform that conversion until the Block implementations are changed.
      */
-    static Optional<BooleanArrayBlock> getNulls(@Nullable boolean[] valueIsNull, int arrayOffset, int positionCount)
-    {
-        if (valueIsNull == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new BooleanArrayBlock(positionCount, Optional.empty(), Bitmap.compactBitmapFromNulls(valueIsNull, arrayOffset, positionCount).getRawWords()));
-    }
-
     static Optional<BooleanArrayBlock> getNulls(@Nullable long[] valueIsNull, int arrayOffset, int positionCount)
     {
         if (valueIsNull == null) {

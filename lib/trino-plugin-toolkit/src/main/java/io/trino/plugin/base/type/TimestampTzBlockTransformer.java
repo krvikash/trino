@@ -92,7 +92,7 @@ public class TimestampTzBlockTransformer
                 for (int i = 0; i < fields.size(); i++) {
                     transformedFieldBlocks[i] = getModifiedTimestampTzBlock(fieldBlocks.get(i), fields.get(i).getType());
                 }
-                return RowBlock.fromNotNullSuppressedFieldBlocks(block.getPositionCount(), getNulls(block), transformedFieldBlocks);
+                return RowBlock.fromNotNullSuppressedFieldBlocks(block.getPositionCount(), getValidity(block), transformedFieldBlocks);
             }
             case ArrayType arrayType -> {
                 ColumnarArray columnarArray = toColumnarArray(block);
@@ -164,19 +164,6 @@ public class TimestampTzBlockTransformer
                     timestampWithTimeZone.getPicosOfMilli());
         }
         return builder.build();
-    }
-
-    private static Optional<boolean[]> getNulls(Block block)
-    {
-        if (!block.mayHaveNull()) {
-            return Optional.empty();
-        }
-
-        boolean[] valueIsNull = new boolean[block.getPositionCount()];
-        for (int i = 0; i < block.getPositionCount(); i++) {
-            valueIsNull[i] = block.isNull(i);
-        }
-        return Optional.of(valueIsNull);
     }
 
     private static Optional<long[]> getValidity(Block block)
