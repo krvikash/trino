@@ -68,6 +68,7 @@ import java.sql.Types;
 import java.time.LocalTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Verify.verify;
@@ -314,6 +315,15 @@ public class StarburstSynapseClient
                     .collect(joining(", "));
             return format("SELECT TOP (%d) %s ORDER BY %s", limit, query.substring(start.length()), orderBy);
         });
+    }
+
+    @Override
+    protected Optional<BiFunction<String, Long, String>> limitFunction()
+    {
+        // Synapse dedicated SQL pool doesn't support OFFSET...FETCH (used by the parent SqlServerClient).
+        // SELECT TOP wrapping is safe here because Synapse doesn't support temporal tables, so there are no
+        // HIDDEN period columns that SELECT * would silently drop.
+        return Optional.of((sql, limit) -> format("SELECT TOP (%s) * FROM (%s) o", limit, sql));
     }
 
     @Override
