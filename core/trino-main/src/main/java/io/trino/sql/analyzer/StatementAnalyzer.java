@@ -420,6 +420,8 @@ import static io.trino.sql.analyzer.ExpressionTreeUtils.extractLocation;
 import static io.trino.sql.analyzer.ExpressionTreeUtils.extractWindowExpressions;
 import static io.trino.sql.analyzer.ExpressionTreeUtils.extractWindowFunctions;
 import static io.trino.sql.analyzer.ExpressionTreeUtils.extractWindowMeasures;
+import static io.trino.sql.analyzer.MaterializedViewEvaluator.isDeterministicForMaterializedView;
+import static io.trino.sql.analyzer.MaterializedViewEvaluator.validateIncrementalColumnSupportedConstructs;
 import static io.trino.sql.analyzer.Scope.BasisType.TABLE;
 import static io.trino.sql.analyzer.ScopeReferenceExtractor.getReferencesToScope;
 import static io.trino.sql.analyzer.ScopeReferenceExtractor.hasReferencesToScope;
@@ -1524,10 +1526,7 @@ class StatementAnalyzer
             boolean hasIncrementalColumn = node.getProperties().stream()
                     .anyMatch(property -> property.getName().getValue().equalsIgnoreCase("incremental_column"));
             if (hasIncrementalColumn) {
-                boolean hasNonDeterministicFunctions = analysis.getResolvedFunctions().stream()
-                        .anyMatch(function -> !function.deterministic())
-                        || containsCurrentTimeFunctions(node.getQuery());
-                if (hasNonDeterministicFunctions) {
+                if (!isDeterministicForMaterializedView(analysis, node.getQuery())) {
                     throw semanticException(NOT_SUPPORTED, node, "CREATE MATERIALIZED VIEW with incremental_column is not supported when non-deterministic functions used in MV definition");
                 }
                 boolean hasAggregateFunction = analysis.getResolvedFunctions().stream()
@@ -1535,6 +1534,9 @@ class StatementAnalyzer
                 if (hasAggregateFunction || containsGroupBy(node.getQuery())) {
                     throw semanticException(NOT_SUPPORTED, node, "CREATE MATERIALIZED VIEW with incremental_column is not supported when the MV definition contains aggregations or GROUP BY");
                 }
+                validateIncrementalColumnSupportedConstructs(
+                        node.getQuery(),
+                        (problematicNode, construct) -> semanticException(NOT_SUPPORTED, problematicNode, "Materialized view with incremental_column is not supported when its definition contains %s", construct));
             }
 
             CatalogHandle catalogHandle = getRequiredCatalogHandle(metadata, session, node, viewName.catalogName());
@@ -5452,6 +5454,13 @@ class StatementAnalyzer
             if (incrementalRefresh.isEmpty()) {
                 return query;
             }
+            // Re-validate on REFRESH, not just CREATE: guards against an MV whose source definition
+            // became unsupported after creation (e.g. a referenced view changed) and against future
+            // relaxations that let incremental_column be added to an existing MV. Validate the source
+            // query here, before it is wrapped with the incremental predicate below.
+            validateIncrementalColumnSupportedConstructs(
+                    query,
+                    (problematicNode, construct) -> semanticException(NOT_SUPPORTED, problematicNode, "Materialized view with incremental_column is not supported when its definition contains %s", construct));
             analysis.setMaterializedViewIncrementalRefresh(incrementalRefresh.get());
             String quotedColumn = "\"" + incrementalRefresh.get().incrementalColumn().replace("\"", "\"\"") + "\"";
             // Reference the materialized view by its public name. The visitTable

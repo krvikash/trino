@@ -421,6 +421,71 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
     }
 
     @Test
+    public void testIncrementalColumnRejectedOnNonMonotonicConstructs()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".nonmonotonic_src_" + randomNameSuffix();
+        String mvName = ICEBERG_TEST_SCHEMA + ".nonmonotonic_mv_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, region VARCHAR, ts BIGINT)");
+        String messagePrefix = "Materialized view with incremental_column is not supported when its definition contains ";
+
+        // DISTINCT
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT DISTINCT id, region, ts FROM " + source,
+                ".*" + messagePrefix + "DISTINCT.*");
+
+        // DISTINCT nested in a FROM-subquery
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts FROM (SELECT DISTINCT id, region, ts FROM " + source + ")",
+                ".*" + messagePrefix + "DISTINCT.*");
+
+        // LIMIT
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts FROM " + source + " LIMIT 10",
+                ".*" + messagePrefix + "LIMIT or FETCH.*");
+
+        // OFFSET
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts FROM " + source + " OFFSET 5 ROWS",
+                ".*" + messagePrefix + "OFFSET.*");
+
+        // UNION (distinct)
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts FROM " + source + " WHERE id < 10 " +
+                        "UNION " +
+                        "SELECT id, region, ts FROM " + source + " WHERE id >= 10",
+                ".*" + messagePrefix + "INTERSECT, EXCEPT or UNION DISTINCT.*");
+
+        // INTERSECT
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts FROM " + source + " " +
+                        "INTERSECT " +
+                        "SELECT id, region, ts FROM " + source,
+                ".*" + messagePrefix + "INTERSECT, EXCEPT or UNION DISTINCT.*");
+
+        // EXCEPT
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts FROM " + source + " " +
+                        "EXCEPT " +
+                        "SELECT id, region, ts FROM " + source,
+                ".*" + messagePrefix + "INTERSECT, EXCEPT or UNION DISTINCT.*");
+
+        // Window function
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName + " WITH (incremental_column = 'ts') AS " +
+                        "SELECT id, region, ts, row_number() OVER (ORDER BY ts) AS rn FROM " + source,
+                ".*" + messagePrefix + "window functions.*");
+
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
     public void testIncrementalColumnRefreshDoesNotCausePerpetuallyStaleMV()
     {
         String source = ICEBERG_TEST_SCHEMA + ".staleness_src_" + randomNameSuffix();
