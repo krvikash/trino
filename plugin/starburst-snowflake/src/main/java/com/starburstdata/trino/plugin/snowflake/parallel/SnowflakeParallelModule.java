@@ -10,9 +10,10 @@
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.google.inject.Binder;
-import com.google.inject.Inject;
 import com.google.inject.Key;
-import com.google.inject.Provider;
+import com.google.inject.Module;
+import com.google.inject.Provides;
+import com.google.inject.Singleton;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
@@ -22,6 +23,7 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import net.snowflake.client.core.HttpClientSettingsKey;
 import net.snowflake.client.core.HttpUtil;
 import net.snowflake.client.core.OCSPMode;
+import org.apache.http.impl.client.CloseableHttpClient;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -29,7 +31,6 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
 import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
-import static java.util.Objects.requireNonNull;
 
 public class SnowflakeParallelModule
         extends AbstractConfigurationAwareModule
@@ -44,55 +45,43 @@ public class SnowflakeParallelModule
         binder.bind(SnowflakeParallelConnector.class).in(SINGLETON);
         binder.bind(JdbcSplitManager.class).in(SINGLETON);
 
-        newOptionalBinder(binder, StarburstResultStreamProvider.class)
-                .setDefault()
-                .toProvider(DefaultStreamProvider.class)
-                .in(SINGLETON);
-
+        binder.bind(StarburstResultStreamProvider.class).in(SINGLETON);
         if (buildConfigObject(SnowflakeConfig.class).isProxyEnabled()) {
+            binder.install(new ProxiedHttpModule());
+        }
+        else {
+            binder.install(new DefaultHttpModule());
+        }
+    }
+
+    public static class DefaultHttpModule
+            implements Module
+    {
+        @Override
+        public void configure(Binder binder) {}
+
+        @Provides
+        @Singleton
+        public static CloseableHttpClient getHttpClient()
+        {
+            return HttpUtil.getHttpClient(new HttpClientSettingsKey(OCSPMode.FAIL_OPEN));
+        }
+    }
+
+    public static class ProxiedHttpModule
+            implements Module
+    {
+        @Override
+        public void configure(Binder binder)
+        {
             configBinder(binder).bindConfig(SnowflakeProxyConfig.class);
-            newOptionalBinder(binder, StarburstResultStreamProvider.class)
-                    .setBinding()
-                    .toProvider(ProxiedStreamProvider.class)
-                    .in(SINGLETON);
-        }
-    }
-
-    public static class DefaultStreamProvider
-            implements Provider<StarburstResultStreamProvider>
-    {
-        private final SnowflakeConfig snowflakeConfig;
-
-        @Inject
-        public DefaultStreamProvider(SnowflakeConfig snowflakeConfig)
-        {
-            this.snowflakeConfig = requireNonNull(snowflakeConfig, "snowflakeConfig is null");
         }
 
-        @Override
-        public StarburstResultStreamProvider get()
+        @Provides
+        @Singleton
+        public static CloseableHttpClient getHttpClient(SnowflakeProxyConfig snowflakeProxyConfig)
         {
-            return new StarburstResultStreamProvider(HttpUtil.getHttpClient(new HttpClientSettingsKey(OCSPMode.FAIL_OPEN)), snowflakeConfig);
-        }
-    }
-
-    public static class ProxiedStreamProvider
-            implements Provider<StarburstResultStreamProvider>
-    {
-        private final SnowflakeConfig snowflakeConfig;
-        private final SnowflakeProxyConfig snowflakeProxyConfig;
-
-        @Inject
-        ProxiedStreamProvider(SnowflakeConfig snowflakeConfig, SnowflakeProxyConfig snowflakeProxyConfig)
-        {
-            this.snowflakeConfig = requireNonNull(snowflakeConfig, "snowflakeConfig is null");
-            this.snowflakeProxyConfig = requireNonNull(snowflakeProxyConfig, "snowflakeProxyConfig is null");
-        }
-
-        @Override
-        public StarburstResultStreamProvider get()
-        {
-            HttpClientSettingsKey clientSettingsKey = new HttpClientSettingsKey(
+            return HttpUtil.getHttpClient(new HttpClientSettingsKey(
                     OCSPMode.FAIL_OPEN,
                     snowflakeProxyConfig.getProxyHost(),
                     snowflakeProxyConfig.getProxyPort(),
@@ -102,9 +91,7 @@ public class SnowflakeParallelModule
                     snowflakeProxyConfig.getPassword().orElse(null),
                     snowflakeProxyConfig.getProxyProtocol().name().toLowerCase(ENGLISH),
                     null,
-                    false);
-
-            return new StarburstResultStreamProvider(HttpUtil.getHttpClient(clientSettingsKey), snowflakeConfig);
+                    false));
         }
     }
 }
