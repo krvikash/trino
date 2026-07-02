@@ -49,7 +49,6 @@ import static io.trino.simd.SimdCapability.EXPAND_BYTE;
 import static io.trino.simd.SimdCapability.EXPAND_INT;
 import static io.trino.simd.SimdCapability.EXPAND_LONG;
 import static io.trino.simd.SimdCapability.EXPAND_SHORT;
-import static io.trino.simd.SimdCapability.NULL_BIT_PACKING;
 import static java.util.Objects.requireNonNull;
 
 public final class BlockEncodingManager
@@ -65,14 +64,14 @@ public final class BlockEncodingManager
     {
         // add the built-in BlockEncodings
         SimdSupport simdSupport = blockEncodingSimdSupport.getSimdSupport();
-        addBlockEncoding(new ByteArrayBlockEncoding(simdSupport.supports(NULL_BIT_PACKING), simdSupport.supports(COMPRESS_BYTE), simdSupport.supports(EXPAND_BYTE)));
-        addBlockEncoding(new ShortArrayBlockEncoding(simdSupport.supports(NULL_BIT_PACKING), simdSupport.supports(COMPRESS_SHORT), simdSupport.supports(EXPAND_SHORT)));
-        addBlockEncoding(new Fixed12BlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
-        addBlockEncoding(new Int128ArrayBlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
-        addBlockEncoding(new VariantBlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
-        addBlockEncoding(new ArrayBlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
-        addBlockEncoding(new MapBlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
-        addBlockEncoding(new RowBlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
+        addBlockEncoding(new ByteArrayBlockEncoding(simdSupport.supports(COMPRESS_BYTE), simdSupport.supports(EXPAND_BYTE)));
+        addBlockEncoding(new ShortArrayBlockEncoding(simdSupport.supports(COMPRESS_SHORT), simdSupport.supports(EXPAND_SHORT)));
+        addBlockEncoding(new Fixed12BlockEncoding());
+        addBlockEncoding(new Int128ArrayBlockEncoding());
+        addBlockEncoding(new VariantBlockEncoding());
+        addBlockEncoding(new ArrayBlockEncoding());
+        addBlockEncoding(new MapBlockEncoding());
+        addBlockEncoding(new RowBlockEncoding());
         addBlockEncoding(new RunLengthBlockEncoding());
 
         if (config.isExchangeAdaptiveBlockEncodingEnabled()) {
@@ -82,10 +81,10 @@ public final class BlockEncodingManager
             addBlockEncoding(new VariableWidthAdaptiveBlockEncoding());
         }
         else {
-            addBlockEncoding(new IntArrayBlockEncoding(simdSupport.supports(NULL_BIT_PACKING), simdSupport.supports(COMPRESS_INT), simdSupport.supports(EXPAND_INT)));
-            addBlockEncoding(new LongArrayBlockEncoding(simdSupport.supports(NULL_BIT_PACKING), simdSupport.supports(COMPRESS_LONG), simdSupport.supports(EXPAND_LONG)));
+            addBlockEncoding(new IntArrayBlockEncoding(simdSupport.supports(COMPRESS_INT), simdSupport.supports(EXPAND_INT)));
+            addBlockEncoding(new LongArrayBlockEncoding(simdSupport.supports(COMPRESS_LONG), simdSupport.supports(EXPAND_LONG)));
             addBlockEncoding(new DictionaryBlockEncoding());
-            addBlockEncoding(new VariableWidthBlockEncoding(simdSupport.supports(NULL_BIT_PACKING)));
+            addBlockEncoding(new VariableWidthBlockEncoding());
         }
     }
 
