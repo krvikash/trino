@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.plugin.base.session.PropertyMetadataUtil.dataSizeProperty;
 import static io.trino.spi.session.PropertyMetadata.booleanProperty;
-import static java.util.Objects.requireNonNull;
 
 public class SnowflakeParallelSessionProperties
         implements SessionPropertiesProvider
@@ -34,37 +33,38 @@ public class SnowflakeParallelSessionProperties
     private static final String TARGET_SPLIT_SIZE = "target_split_size";
     private static final DataSize DEFAULT_TARGET_SPLIT_SIZE = DataSize.of(32, MEGABYTE);
 
-    private final MappingConfig mappingConfig;
+    private final List<PropertyMetadata<?>> sessionProperties;
 
     @Inject
     public SnowflakeParallelSessionProperties(MappingConfig mappingConfig)
     {
-        this.mappingConfig = requireNonNull(mappingConfig, "mappingConfig is null");
-    }
-
-    @Override
-    public List<PropertyMetadata<?>> getSessionProperties()
-    {
-        return ImmutableList.of(
-                dataSizeProperty(
+        sessionProperties = ImmutableList.<PropertyMetadata<?>>builder()
+                .add(dataSizeProperty(
                         CLIENT_RESULT_CHUNK_SIZE,
                         "Max result chunk size (MB)",
                         // 160 is Snowflake default: https://docs.snowflake.com/en/sql-reference/parameters#client-result-chunk-size
                         DataSize.of(160, DataSize.Unit.MEGABYTE),
-                        true),
-                booleanProperty(
+                        true))
+                .add(booleanProperty(
                         QUOTED_IDENTIFIERS_IGNORE_CASE,
                         "Propagate QUOTED_IDENTIFIERS_IGNORE_CASE to Snowflake, changes how it resolves quoted identifiers",
                         false,
                         value -> checkArgument(
                                 !(value && mappingConfig.isCaseInsensitiveNameMatching()),
                                 "Enabling quoted_identifiers_ignore_case not supported for Snowflake when case-insensitive-name-matching is enabled"),
-                        true),
-                dataSizeProperty(
+                        true))
+                .add(dataSizeProperty(
                         TARGET_SPLIT_SIZE,
                         "Target size of a single split",
                         DEFAULT_TARGET_SPLIT_SIZE,
-                        true));
+                        true))
+                .build();
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getSessionProperties()
+    {
+        return sessionProperties;
     }
 
     public static Optional<DataSize> getResultChunkSize(ConnectorSession session)
