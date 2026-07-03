@@ -15,6 +15,7 @@ package io.trino.plugin.hive.metastore.thrift;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
@@ -60,7 +61,8 @@ public class TestThriftMetastoreConfig
                 .setAssumeCanonicalPartitionKeys(false)
                 .setWriteStatisticsThreads(20)
                 .setCatalogName(null)
-                .setMetastoreSupportsTableMeta(true));
+                .setMetastoreSupportsTableMeta(true)
+                .setMaxMessageSize(DataSize.of(100, DataSize.Unit.MEGABYTE)));
     }
 
     @Test
@@ -72,6 +74,7 @@ public class TestThriftMetastoreConfig
 
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("hive.metastore.thrift.client.connect-timeout", "22s")
+                .put("hive.metastore.thrift.client.max-message-size", "512MB")
                 .put("hive.metastore.thrift.client.read-timeout", "44s")
                 .put("hive.metastore.thrift.client.socks-proxy", "localhost:1234")
                 .put("hive.metastore.thrift.client.max-retries", "15")
@@ -98,6 +101,7 @@ public class TestThriftMetastoreConfig
 
         ThriftMetastoreConfig expected = new ThriftMetastoreConfig()
                 .setConnectTimeout(new Duration(22, SECONDS))
+                .setMaxMessageSize(DataSize.of(512, DataSize.Unit.MEGABYTE))
                 .setReadTimeout(new Duration(44, SECONDS))
                 .setSocksProxy(HostAndPort.fromParts("localhost", 1234))
                 .setMaxRetries(15)

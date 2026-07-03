@@ -20,6 +20,7 @@ import io.trino.plugin.hive.metastore.thrift.DefaultThriftMetastoreClientFactory
 import io.trino.plugin.hive.metastore.thrift.NoHiveMetastoreAuthentication;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreClient;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreClientFactory;
+import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreConfig;
 import org.apache.thrift.TException;
 
 import java.net.URI;
@@ -37,7 +38,8 @@ public final class TestHiveMetastoreClientFactory
             new NoHiveMetastoreAuthentication(),
             "localhost",
             Optional.empty(),
-            true);
+            true,
+            new ThriftMetastoreConfig().getMaxMessageSize());
 
     @Inject
     @Named("databases.hive.metastore.host")

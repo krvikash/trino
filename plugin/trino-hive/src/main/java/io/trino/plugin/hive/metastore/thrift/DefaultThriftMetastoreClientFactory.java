@@ -15,6 +15,7 @@ package io.trino.plugin.hive.metastore.thrift;
 
 import com.google.common.net.HostAndPort;
 import com.google.inject.Inject;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.plugin.hive.metastore.thrift.ThriftHiveMetastoreClient.TransportSupplier;
 import io.trino.spi.Node;
@@ -51,6 +52,7 @@ public class DefaultThriftMetastoreClientFactory
     private final String hostname;
     private final Optional<String> catalogName;
     private final boolean metastoreSupportsTableMeta;
+    private final int maxMessageSizeBytes;
 
     private final MetastoreSupportsDateStatistics metastoreSupportsDateStatistics = new MetastoreSupportsDateStatistics();
     private final AtomicInteger chosenGetTableAlternative = new AtomicInteger(Integer.MAX_VALUE);
@@ -71,7 +73,8 @@ public class DefaultThriftMetastoreClientFactory
             HiveMetastoreAuthentication metastoreAuthentication,
             String hostname,
             Optional<String> catalogName,
-            boolean metastoreSupportsTableMeta)
+            boolean metastoreSupportsTableMeta,
+            DataSize maxMessageSize)
     {
         this.sshTunnelProperties = SshTunnelProperties.generateFrom(requireNonNull(sshTunnelConfig, "sshTunnelConfig is null"));
         this.sslContext = requireNonNull(sslContext, "sslContext is null");
@@ -82,6 +85,8 @@ public class DefaultThriftMetastoreClientFactory
         this.hostname = requireNonNull(hostname, "hostname is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.metastoreSupportsTableMeta = metastoreSupportsTableMeta;
+        // @MaxDataSize("2047MB") on getMaxMessageSize() guarantees the value fits in an int
+        this.maxMessageSizeBytes = toIntExact(requireNonNull(maxMessageSize, "maxMessageSize is null").toBytes());
     }
 
     public DefaultThriftMetastoreClientFactory(
@@ -92,7 +97,8 @@ public class DefaultThriftMetastoreClientFactory
             HiveMetastoreAuthentication metastoreAuthentication,
             String hostname,
             Optional<String> catalogName,
-            boolean metastoreSupportsTableMeta)
+            boolean metastoreSupportsTableMeta,
+            DataSize maxMessageSize)
     {
         this.sshTunnelProperties = Optional.empty();
         this.sslContext = requireNonNull(sslContext, "sslContext is null");
@@ -103,6 +109,8 @@ public class DefaultThriftMetastoreClientFactory
         this.hostname = requireNonNull(hostname, "hostname is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.metastoreSupportsTableMeta = metastoreSupportsTableMeta;
+        // @MaxDataSize("2047MB") on getMaxMessageSize() guarantees the value fits in an int
+        this.maxMessageSizeBytes = toIntExact(requireNonNull(maxMessageSize, "maxMessageSize is null").toBytes());
     }
 
     @Inject
@@ -123,17 +131,18 @@ public class DefaultThriftMetastoreClientFactory
                 metastoreAuthentication,
                 currentNode.getHost(),
                 config.getCatalogName(),
-                config.isMetastoreSupportsTableMeta());
+                config.isMetastoreSupportsTableMeta(),
+                config.getMaxMessageSize());
     }
 
     @Override
     public ThriftMetastoreClient create(URI uri, Optional<String> delegationToken)
             throws TTransportException
     {
-        return create(() -> getTransportSupplier(uri, delegationToken), hostname);
+        return create(() -> createTransport(uri, delegationToken), hostname);
     }
 
-    private TTransport getTransportSupplier(URI uri, Optional<String> delegationToken)
+    private TTransport createTransport(URI uri, Optional<String> delegationToken)
             throws TTransportException
     {
         checkArgument(uri.getScheme().toLowerCase(ENGLISH).equals("thrift"), "Invalid metastore uri scheme %s", uri.getScheme());
@@ -164,7 +173,7 @@ public class DefaultThriftMetastoreClientFactory
     private TTransport createTransport(HostAndPort address, Optional<String> delegationToken)
             throws TTransportException
     {
-        return Transport.create(address, sslContext, socksProxy, connectTimeoutMillis, readTimeoutMillis, metastoreAuthentication, delegationToken);
+        return Transport.create(address, sslContext, socksProxy, connectTimeoutMillis, readTimeoutMillis, metastoreAuthentication, delegationToken, maxMessageSizeBytes);
     }
 
     private static Optional<SSLContext> buildSslContext(

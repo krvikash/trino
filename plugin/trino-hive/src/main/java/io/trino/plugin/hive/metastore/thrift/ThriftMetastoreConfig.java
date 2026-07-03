@@ -21,7 +21,10 @@ import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.configuration.validation.FileExists;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.airlift.units.MaxDataSize;
+import io.airlift.units.MinDataSize;
 import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
@@ -36,6 +39,8 @@ public class ThriftMetastoreConfig
 {
     private Duration connectTimeout = new Duration(10, TimeUnit.SECONDS);
     private Duration readTimeout = new Duration(10, TimeUnit.SECONDS);
+    // Matches the Thrift library default (TConfiguration.DEFAULT_MAX_MESSAGE_SIZE)
+    private DataSize maxMessageSize = DataSize.of(100, DataSize.Unit.MEGABYTE);
     private HostAndPort socksProxy;
     private int maxRetries = RetryDriver.DEFAULT_MAX_ATTEMPTS - 1;
     private double backoffScaleFactor = RetryDriver.DEFAULT_SCALE_FACTOR;
@@ -86,6 +91,22 @@ public class ThriftMetastoreConfig
     public ThriftMetastoreConfig setReadTimeout(Duration readTimeout)
     {
         this.readTimeout = readTimeout;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("1MB")
+    @MaxDataSize("2047MB")
+    public DataSize getMaxMessageSize()
+    {
+        return maxMessageSize;
+    }
+
+    @Config("hive.metastore.thrift.client.max-message-size")
+    @ConfigDescription("Maximum size of a single Thrift message received from the metastore")
+    public ThriftMetastoreConfig setMaxMessageSize(DataSize maxMessageSize)
+    {
+        this.maxMessageSize = maxMessageSize;
         return this;
     }
 

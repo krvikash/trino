@@ -39,12 +39,13 @@ public final class Transport
             int connectTimeoutMillis,
             int readTimeoutMillis,
             HiveMetastoreAuthentication authentication,
-            Optional<String> delegationToken)
+            Optional<String> delegationToken,
+            int maxMessageSizeBytes)
             throws TTransportException
     {
         requireNonNull(address, "address is null");
         try {
-            TTransport rawTransport = createRaw(address, sslContext, socksProxy, connectTimeoutMillis, readTimeoutMillis);
+            TTransport rawTransport = createRaw(address, sslContext, socksProxy, connectTimeoutMillis, readTimeoutMillis, maxMessageSizeBytes);
             TTransport authenticatedTransport = authentication.authenticate(rawTransport, address.getHost(), delegationToken);
             if (!authenticatedTransport.isOpen()) {
                 authenticatedTransport.open();
@@ -63,7 +64,8 @@ public final class Transport
             Optional<SSLContext> sslContext,
             Optional<HostAndPort> socksProxy,
             int connectTimeoutMillis,
-            int readTimeoutMillis)
+            int readTimeoutMillis,
+            int maxMessageSizeBytes)
             throws TTransportException
     {
         Proxy proxy = socksProxy
@@ -78,10 +80,14 @@ public final class Transport
             if (sslContext.isPresent()) {
                 // SSL will connect to the SOCKS address when present
                 HostAndPort sslConnectAddress = socksProxy.orElse(address);
-
                 socket = sslContext.get().getSocketFactory().createSocket(socket, sslConnectAddress.getHost(), sslConnectAddress.getPort(), true);
             }
-            return new TSocket(socket);
+
+            TSocket tSocket = new TSocket(socket);
+            tSocket.setMaxMessageSize(maxMessageSizeBytes);
+            // Reset the per-message byte counter so the new limit takes effect immediately
+            tSocket.updateKnownMessageSize(0);
+            return tSocket;
         }
         catch (Throwable t) {
             // something went wrong, close the socket and rethrow
