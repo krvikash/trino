@@ -2073,26 +2073,29 @@ public class TestDeltaLakeConnectorTest
     {
         try (TestTable table = newTrinoTable("test_set_property", "(x int)")) {
             assertThat(getTableProperties(table.getName()))
-                    .containsExactly(
-                            entry("delta.enableDeletionVectors", "false"),
-                            entry("delta.minReaderVersion", "1"),
-                            entry("delta.minWriterVersion", "2"));
+                    .containsExactlyInAnyOrderEntriesOf(ImmutableMap.<String, String>builder()
+                            .put("delta.enableDeletionVectors", "false")
+                            .put("delta.minReaderVersion", "1")
+                            .put("delta.minWriterVersion", "2")
+                            .buildOrThrow());
 
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES checkpoint_interval = 10");
             assertThat(getTableProperties(table.getName()))
-                    .containsExactly(
-                            entry("delta.checkpointInterval", "10"),
-                            entry("delta.enableDeletionVectors", "false"),
-                            entry("delta.minReaderVersion", "1"),
-                            entry("delta.minWriterVersion", "2"));
+                    .containsExactlyInAnyOrderEntriesOf(ImmutableMap.<String, String>builder()
+                            .put("delta.checkpointInterval", "10")
+                            .put("delta.enableDeletionVectors", "false")
+                            .put("delta.minReaderVersion", "1")
+                            .put("delta.minWriterVersion", "2")
+                            .buildOrThrow());
 
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES checkpoint_interval = 100");
             assertThat(getTableProperties(table.getName()))
-                    .containsExactly(
-                            entry("delta.checkpointInterval", "100"),
-                            entry("delta.enableDeletionVectors", "false"),
-                            entry("delta.minReaderVersion", "1"),
-                            entry("delta.minWriterVersion", "2"));
+                    .containsExactlyInAnyOrderEntriesOf(ImmutableMap.<String, String>builder()
+                            .put("delta.checkpointInterval", "100")
+                            .put("delta.enableDeletionVectors", "false")
+                            .put("delta.minReaderVersion", "1")
+                            .put("delta.minWriterVersion", "2")
+                            .buildOrThrow());
 
             assertQueryFails(
                     "ALTER TABLE " + table.getName() + " SET PROPERTIES checkpoint_interval = 0",
