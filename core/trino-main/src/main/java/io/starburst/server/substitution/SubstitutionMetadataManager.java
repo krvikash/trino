@@ -51,10 +51,11 @@ public class SubstitutionMetadataManager
     public Optional<StorageTableId> getStorageTableId(Session session, TableHandle tableHandle)
     {
         CatalogHandle catalogHandle = tableHandle.catalogHandle();
-        return getRequiredCatalogMetadata(catalogHandle).getStorageTableId(
-                        session.toConnectorSession(catalogHandle),
-                        tableHandle.connectorHandle())
-                .map(connectorStorageTableId -> new StorageTableId(catalogHandle.getCatalogName(), connectorStorageTableId));
+        return substitutionMetadataProvider.getService(catalogHandle)
+                .flatMap(substitutionMetadata -> substitutionMetadata.getStorageTableId(
+                                session.toConnectorSession(catalogHandle),
+                                tableHandle.connectorHandle())
+                        .map(connectorStorageTableId -> new StorageTableId(catalogHandle.getCatalogName(), connectorStorageTableId)));
     }
 
     @Override
