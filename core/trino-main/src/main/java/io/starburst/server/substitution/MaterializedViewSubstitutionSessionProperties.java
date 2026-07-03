@@ -12,18 +12,22 @@ package io.starburst.server.substitution;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.spi.session.PropertyMetadata;
 
 import java.util.List;
+import java.util.Optional;
 
+import static io.trino.plugin.base.session.PropertyMetadataUtil.durationProperty;
 import static io.trino.spi.session.PropertyMetadata.booleanProperty;
 
 public final class MaterializedViewSubstitutionSessionProperties
         implements SystemSessionPropertiesProvider
 {
     public static final String MATERIALIZED_VIEW_SUBSTITUTION_ENABLED = "materialized_view_substitution_enabled";
+    public static final String MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS = "materialized_view_substitution_max_staleness";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -41,6 +45,11 @@ public final class MaterializedViewSubstitutionSessionProperties
                         MATERIALIZED_VIEW_SUBSTITUTION_ENABLED,
                         "Enable automatic materialized view substitution in query plans",
                         config.isMaterializedViewSubstitutionEnabled(),
+                        false),
+                durationProperty(
+                        MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS,
+                        "Maximum staleness of a materialized view eligible for substitution; unset means only each materialized view's own grace period applies",
+                        config.getMaterializedViewSubstitutionMaxStaleness().orElse(null),
                         false));
     }
 
@@ -53,5 +62,10 @@ public final class MaterializedViewSubstitutionSessionProperties
     public static boolean isMaterializedViewSubstitutionEnabled(Session session)
     {
         return session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, Boolean.class);
+    }
+
+    public static Optional<Duration> getMaterializedViewSubstitutionMaxStaleness(Session session)
+    {
+        return Optional.ofNullable(session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS, Duration.class));
     }
 }

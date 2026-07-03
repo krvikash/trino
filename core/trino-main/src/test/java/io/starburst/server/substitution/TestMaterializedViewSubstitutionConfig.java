@@ -14,6 +14,7 @@ import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
@@ -32,7 +33,8 @@ public class TestMaterializedViewSubstitutionConfig
                 .setMaterializedViewSubstitutionSupportEnabled(false)
                 .setMaterializedViewSubstitutionEnabled(false)
                 .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES))
-                .setMaterializationMetastoreType(IN_MEMORY));
+                .setMaterializationMetastoreType(IN_MEMORY)
+                .setMaterializedViewSubstitutionMaxStaleness(null));
     }
 
     @Test
@@ -43,13 +45,15 @@ public class TestMaterializedViewSubstitutionConfig
                 .put("materialized-view-substitution.enabled", "true")
                 .put("materialized-view-substitution.metastore-refresh-interval", "30s")
                 .put("materialization.metastore.type", "REST")
+                .put("materialized-view-substitution.max-staleness", "5m")
                 .buildOrThrow();
 
         MaterializedViewSubstitutionConfig expected = new MaterializedViewSubstitutionConfig()
                 .setMaterializedViewSubstitutionSupportEnabled(true)
                 .setMaterializedViewSubstitutionEnabled(true)
                 .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS))
-                .setMaterializationMetastoreType(REST);
+                .setMaterializationMetastoreType(REST)
+                .setMaterializedViewSubstitutionMaxStaleness(new Duration(5, TimeUnit.MINUTES));
 
         assertFullMapping(properties, expected);
     }

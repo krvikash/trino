@@ -46,6 +46,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionMaxStaleness;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
 import static java.util.Objects.requireNonNull;
 
@@ -233,11 +234,13 @@ public class MvSubstitutionOptimizer
 
     private static boolean isFreshEnough(Session session, MaterializationDefinition candidate)
     {
-        if (candidate.gracePeriod().isEmpty()) {
-            return true;
-        }
         Duration sinceRefresh = Duration.between(candidate.lastKnownFreshTime(), session.getStart());
-        return sinceRefresh.compareTo(candidate.gracePeriod().get()) <= 0;
+        boolean withinGracePeriod = candidate.gracePeriod().isEmpty()
+                || sinceRefresh.compareTo(candidate.gracePeriod().get()) <= 0;
+        boolean withinMaxStaleness = getMaterializedViewSubstitutionMaxStaleness(session)
+                .map(maxStaleness -> sinceRefresh.compareTo(maxStaleness.toJavaTime()) <= 0)
+                .orElse(true);
+        return withinGracePeriod && withinMaxStaleness;
     }
 
     private boolean substitutionSupported(TableScanNode tableScan)

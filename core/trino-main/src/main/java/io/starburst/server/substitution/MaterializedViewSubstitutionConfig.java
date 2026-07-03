@@ -13,6 +13,9 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
+import jakarta.validation.constraints.NotNull;
+
+import java.util.Optional;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -22,6 +25,7 @@ public class MaterializedViewSubstitutionConfig
     private boolean materializedViewSubstitutionEnabled;
     private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
     private MaterializationMetastoreType materializationMetastoreType = MaterializationMetastoreType.IN_MEMORY;
+    private Optional<Duration> materializedViewSubstitutionMaxStaleness = Optional.empty();
 
     public enum MaterializationMetastoreType
     {
@@ -79,6 +83,20 @@ public class MaterializedViewSubstitutionConfig
     public MaterializedViewSubstitutionConfig setMaterializationMetastoreType(MaterializationMetastoreType materializationMetastoreType)
     {
         this.materializationMetastoreType = materializationMetastoreType;
+        return this;
+    }
+
+    @NotNull
+    public Optional<Duration> getMaterializedViewSubstitutionMaxStaleness()
+    {
+        return materializedViewSubstitutionMaxStaleness;
+    }
+
+    @Config("materialized-view-substitution.max-staleness")
+    @ConfigDescription("Maximum staleness of a materialized view eligible for substitution; unset means only each materialized view's own grace period applies")
+    public MaterializedViewSubstitutionConfig setMaterializedViewSubstitutionMaxStaleness(Duration value)
+    {
+        this.materializedViewSubstitutionMaxStaleness = Optional.ofNullable(value);
         return this;
     }
 }

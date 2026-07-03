@@ -83,6 +83,7 @@ import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS;
 import static io.trino.connector.CatalogServiceProviderModule.createSubstitutionMetadata;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -172,6 +173,30 @@ public class TestMvSubstitutionOptimizer
         // grace period of 1 hour, refreshed just now => fresh
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().gracePeriod(Duration.ofHours(1)).build());
         assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+    }
+
+    @Test
+    public void testNoSubstitutionWhenExceedingMaxStaleness()
+    {
+        // within the MV's 1-day grace period, but refreshed 30 minutes ago while the session max staleness is 5 minutes => rejected
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().gracePeriod(Duration.ofDays(1)).lastKnownFreshTime(Instant.now().minus(Duration.ofMinutes(30))).build());
+        assertPlan(sessionWithMaxStaleness("5m"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+    }
+
+    @Test
+    public void testMaxStalenessBoundsUnlimitedGracePeriod()
+    {
+        // unlimited grace period, refreshed a day ago, but the session max staleness is 1 hour => rejected
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().lastKnownFreshTime(Instant.now().minus(Duration.ofDays(1))).build());
+        assertPlan(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+    }
+
+    @Test
+    public void testSubstitutesWithinMaxStaleness()
+    {
+        // unlimited grace period, refreshed just now, session max staleness of 1 hour => fresh
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        assertPlan(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
     }
 
     @Test
@@ -376,6 +401,14 @@ public class TestMvSubstitutionOptimizer
     {
         return Session.builder(getPlanTester().getDefaultSession())
                 .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, Boolean.toString(substitutionEnabled))
+                .build();
+    }
+
+    private Session sessionWithMaxStaleness(String maxStaleness)
+    {
+        return Session.builder(getPlanTester().getDefaultSession())
+                .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, Boolean.toString(true))
+                .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS, maxStaleness)
                 .build();
     }
 
