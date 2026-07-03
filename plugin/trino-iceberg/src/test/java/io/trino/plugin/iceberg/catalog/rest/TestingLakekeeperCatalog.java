@@ -22,7 +22,7 @@ import io.trino.testing.containers.Minio;
 import org.intellij.lang.annotations.Language;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.io.Closeable;
 import java.net.URI;
@@ -41,7 +41,7 @@ import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.testcontainers.containers.PostgreSQLContainer.POSTGRESQL_PORT;
+import static org.testcontainers.postgresql.PostgreSQLContainer.POSTGRESQL_PORT;
 
 public final class TestingLakekeeperCatalog
         implements Closeable
@@ -59,7 +59,7 @@ public final class TestingLakekeeperCatalog
 
     private final GenericContainer<?> lakekeeperCatalog;
     private final GenericContainer<?> migrator;
-    private final PostgreSQLContainer<?> postgresqlContainer;
+    private final PostgreSQLContainer postgresqlContainer;
     private final Minio minio;
     private final Network network;
     private final String prefix;
@@ -187,14 +187,14 @@ public final class TestingLakekeeperCatalog
         return minio;
     }
 
-    private static PostgreSQLContainer<?> startPostgreSql(Network network)
+    private static PostgreSQLContainer startPostgreSql(Network network)
     {
-        PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:16");
+        PostgreSQLContainer postgreSQLContainer = new PostgreSQLContainer("postgres:16");
         postgreSQLContainer.withNetwork(network).start();
         return postgreSQLContainer;
     }
 
-    private static String postgreSqlJdbcUrl(PostgreSQLContainer<?> postgreSql)
+    private static String postgreSqlJdbcUrl(PostgreSQLContainer postgreSql)
     {
         return format(
                 "postgresql://%s:%s@%s:%d/%s",
