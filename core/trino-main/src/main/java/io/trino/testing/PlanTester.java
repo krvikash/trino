@@ -30,6 +30,8 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
 import io.starburst.server.substitution.MaterializationIndex;
+import io.starburst.server.substitution.MaterializedViewSubstitutionConfig;
+import io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties;
 import io.starburst.server.substitution.SubstitutionMetadata;
 import io.starburst.server.substitution.SubstitutionMetadataManager;
 import io.starburst.server.substitution.VersionAwareMaterializationMetastore;
@@ -529,7 +531,7 @@ public class PlanTester
         this.columnPropertyManager = createColumnPropertyManager(catalogManager);
         this.tablePropertyManager = createTablePropertyManager(catalogManager);
         this.viewPropertyManager = createViewPropertyManager(catalogManager);
-        this.materializedViewPropertyManager = createMaterializedViewPropertyManager(new FeaturesConfig().setMaterializedViewSubstitutionSupportEnabled(true), catalogManager);
+        this.materializedViewPropertyManager = createMaterializedViewPropertyManager(new MaterializedViewSubstitutionConfig().setMaterializedViewSubstitutionSupportEnabled(true), catalogManager);
         this.analyzePropertyManager = createAnalyzePropertyManager(catalogManager);
         TableProceduresPropertyManager tableProceduresPropertyManager = createTableProceduresPropertyManager(catalogManager);
         this.formatOptions = TESTING_FORMAT_OPTIONS;
@@ -546,7 +548,7 @@ public class PlanTester
                 new JsonCodecFactory(mapper).jsonCodec(io.starburst.materialization.ir.Output.class),
                 new SubstitutionMetadataManager(CatalogServiceProvider.fail()),
                 NO_CATALOGS),
-                new FeaturesConfig());
+                new MaterializedViewSubstitutionConfig());
         this.substitutionMetadata = new SubstitutionMetadataManager(createSubstitutionMetadata(catalogManager));
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);
         ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(plannerContext, 0);
@@ -682,6 +684,7 @@ public class PlanTester
                         new DynamicFilterConfig(),
                         cacheConfig,
                         new NodeSchedulerConfig()))
+                .add(new MaterializedViewSubstitutionSessionProperties(new MaterializedViewSubstitutionConfig().setMaterializedViewSubstitutionSupportEnabled(true)))
                 .build();
 
         return CatalogServiceProviderModule.createSessionPropertyManager(systemSessionProperties, connectorServicesProvider);

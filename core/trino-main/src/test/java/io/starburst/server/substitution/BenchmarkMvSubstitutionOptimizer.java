@@ -23,7 +23,6 @@ import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastor
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
-import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.connector.MockConnectorColumnHandle;
@@ -95,7 +94,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.SystemSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
 import static io.trino.connector.CatalogServiceProviderModule.createSubstitutionMetadata;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.jmh.Benchmarks.benchmark;
@@ -344,7 +343,7 @@ public class BenchmarkMvSubstitutionOptimizer
                             irJsonCodec,
                             substitutionMetadata,
                             planTester.getCatalogManager()),
-                    new FeaturesConfig());
+                    new MaterializedViewSubstitutionConfig());
         }
 
         /**

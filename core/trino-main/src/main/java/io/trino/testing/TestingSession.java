@@ -13,8 +13,12 @@
  */
 package io.trino.testing;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties;
 import io.trino.Session;
 import io.trino.Session.SessionBuilder;
+import io.trino.SystemSessionProperties;
 import io.trino.client.ClientCapabilities;
 import io.trino.execution.QueryIdGenerator;
 import io.trino.metadata.SessionPropertyManager;
@@ -55,7 +59,9 @@ public final class TestingSession
 
     public static SessionBuilder testSessionBuilder()
     {
-        return testSessionBuilder(new SessionPropertyManager());
+        return testSessionBuilder(new SessionPropertyManager(
+                ImmutableSet.of(new SystemSessionProperties(), new MaterializedViewSubstitutionSessionProperties()),
+                _ -> ImmutableMap.of()));
     }
 
     public static SessionBuilder testSessionBuilder(SessionPropertyManager sessionPropertyManager)

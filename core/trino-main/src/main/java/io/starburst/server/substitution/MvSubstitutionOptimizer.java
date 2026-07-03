@@ -46,7 +46,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static io.trino.SystemSessionProperties.isMaterializedViewSubstitutionEnabled;
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
 import static java.util.Objects.requireNonNull;
 
 public class MvSubstitutionOptimizer

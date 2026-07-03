@@ -19,13 +19,14 @@ import io.starburst.materialization.metastore.RawMaterializationMetastore;
 import io.starburst.materialization.metastore.client.ForMaterializationMetastoreClient;
 import io.starburst.materialization.metastore.client.HttpMaterializationMetastore;
 import io.starburst.materialization.metastore.client.MaterializationMetastoreClientConfig;
-import io.trino.FeaturesConfig;
+import io.trino.SystemSessionPropertiesProvider;
 import io.trino.server.ServerConfig;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.connector.substitution.ConnectorTableId;
 import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingSubstitutionMetadata;
 
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
@@ -45,8 +46,11 @@ public class MvSubstitutionModule
         jsonCodecBinder(binder).bindJsonCodec(ConnectorColumnId.class);
         newOptionalBinder(binder, MaterializationIndex.class);
 
-        FeaturesConfig featuresConfig = buildConfigObject(FeaturesConfig.class);
-        if (!featuresConfig.isMaterializedViewSubstitutionSupportEnabled()) {
+        MaterializedViewSubstitutionConfig config = buildConfigObject(MaterializedViewSubstitutionConfig.class);
+        newSetBinder(binder, SystemSessionPropertiesProvider.class).addBinding().to(MaterializedViewSubstitutionSessionProperties.class);
+
+        boolean featureEnabled = config.isMaterializedViewSubstitutionSupportEnabled();
+        if (!featureEnabled) {
             binder.bind(MaterializationService.class).to(NoopMaterializationService.class).in(Scopes.SINGLETON);
             return;
         }
@@ -58,7 +62,7 @@ public class MvSubstitutionModule
             return;
         }
 
-        switch (featuresConfig.getMaterializationMetastoreType()) {
+        switch (config.getMaterializationMetastoreType()) {
             case IN_MEMORY -> {
                 binder.bind(RawMaterializationMetastore.class).to(InMemoryRawMaterializationMetastore.class).in(Scopes.SINGLETON);
             }

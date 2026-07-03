@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import io.trino.FeaturesConfig;
+import io.starburst.server.substitution.MaterializedViewSubstitutionConfig;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.metadata.AnalyzePropertyManager;
 import io.trino.metadata.BranchPropertyManager;
@@ -170,10 +170,10 @@ public class CatalogServiceProviderModule
 
     @Provides
     @Singleton
-    public static MaterializedViewPropertyManager createMaterializedViewPropertyManager(FeaturesConfig featuresConfig, ConnectorServicesProvider connectorServicesProvider)
+    public static MaterializedViewPropertyManager createMaterializedViewPropertyManager(MaterializedViewSubstitutionConfig materializedViewSubstitutionConfig, ConnectorServicesProvider connectorServicesProvider)
     {
         return new MaterializedViewPropertyManager(
-                featuresConfig.isMaterializedViewSubstitutionSupportEnabled(),
+                materializedViewSubstitutionConfig.isMaterializedViewSubstitutionSupportEnabled(),
                 new ConnectorCatalogServiceProvider<>("materialized view properties", connectorServicesProvider, ConnectorServices::getMaterializedViewProperties));
     }
 

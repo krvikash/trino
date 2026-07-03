@@ -16,10 +16,8 @@ package io.trino.sql.analyzer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
-import io.airlift.units.Duration;
 import io.trino.FeaturesConfig;
 import io.trino.FeaturesConfig.DataIntegrityVerification;
-import io.trino.FeaturesConfig.MaterializationMetastoreType;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -34,8 +32,6 @@ import static io.trino.execution.buffer.CompressionCodec.LZ4;
 import static io.trino.execution.buffer.CompressionCodec.ZSTD;
 import static io.trino.sql.analyzer.RegexLibrary.JONI;
 import static io.trino.sql.analyzer.RegexLibrary.RE2J;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestFeaturesConfig
 {
@@ -78,11 +74,7 @@ public class TestFeaturesConfig
                 .setAdaptiveFilterReorderingEnabled(true)
                 .setLegacyArithmeticDecimalOperators(false)
                 .setExternalExchangeEncryptionEnabled(true)
-                .setParallelizeLookupOuterOperator(true)
-                .setMaterializedViewSubstitutionSupportEnabled(false)
-                .setMaterializedViewSubstitutionEnabled(false)
-                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES))
-                .setMaterializationMetastoreType(MaterializationMetastoreType.IN_MEMORY));
+                .setParallelizeLookupOuterOperator(true));
     }
 
     @Test
@@ -125,10 +117,6 @@ public class TestFeaturesConfig
                 .put("external-exchange-encryption-enabled", "false")
                 .put("optimizer.super-set-predicate.pushdown.enabled", "false")
                 .put("parallelize-lookup-outer-operator", "false")
-                .put("materialized-view-substitution.support.enabled", "true")
-                .put("materialized-view-substitution.enabled", "true")
-                .put("materialized-view-substitution.metastore-refresh-interval", "30s")
-                .put("materialization.metastore.type", "REST")
                 .buildOrThrow();
 
         FeaturesConfig expected = new FeaturesConfig()
@@ -167,11 +155,7 @@ public class TestFeaturesConfig
                 .setAdaptiveFilterReorderingEnabled(false)
                 .setLegacyArithmeticDecimalOperators(true)
                 .setExternalExchangeEncryptionEnabled(false)
-                .setParallelizeLookupOuterOperator(false)
-                .setMaterializedViewSubstitutionSupportEnabled(true)
-                .setMaterializedViewSubstitutionEnabled(true)
-                .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS))
-                .setMaterializationMetastoreType(MaterializationMetastoreType.REST);
+                .setParallelizeLookupOuterOperator(false);
         assertFullMapping(properties, expected);
     }
 }

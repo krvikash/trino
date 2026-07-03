@@ -17,7 +17,6 @@ import io.starburst.materialization.metastore.MaterializationSource.Materialized
 import io.starburst.materialization.metastore.StorageTableId;
 import io.starburst.server.substitution.TestUtils.SupportedTableId;
 import io.starburst.server.substitution.TestUtils.TestColumnId;
-import io.trino.FeaturesConfig;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.substitution.ConnectorStorageTableId;
 import org.junit.jupiter.api.Test;
@@ -49,7 +48,7 @@ class TestMaterializationIndex
     @Test
     void testWriteThroughIsVisibleImmediately()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition mv = materialization("mv", "source");
         index.createOrReplace(mv);
@@ -61,7 +60,7 @@ class TestMaterializationIndex
     void testRefreshPicksUpExternallyCreatedMaterialization()
     {
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore();
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         // Another cluster writes directly to the shared metastore, bypassing this node's write-through index.
         MaterializationDefinition mv = materialization("mv", "source");
@@ -78,7 +77,7 @@ class TestMaterializationIndex
     void testRefreshDropsExternallyRemovedMaterialization()
     {
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore();
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition mv = materialization("mv", "source");
         index.createOrReplace(mv);
@@ -96,7 +95,7 @@ class TestMaterializationIndex
     void testRefreshReplacesExternallyUpdatedMaterialization()
     {
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore();
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition original = materialization("mv", "source");
         index.createOrReplace(original);
@@ -119,7 +118,7 @@ class TestMaterializationIndex
     void testRefreshReflectsExternalRename()
     {
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore();
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition mv = materialization("mv_old", "source");
         index.createOrReplace(mv);
@@ -141,7 +140,7 @@ class TestMaterializationIndex
     void testMaterializationsAreGroupedByComputationHash()
     {
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore();
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition overSource1 = materialization("mv1", "source");
         MaterializationDefinition alsoOverSource1 = materialization("mv2", "source");
@@ -159,7 +158,7 @@ class TestMaterializationIndex
     @Test
     void testWriteThroughReplacesSameMaterialization()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition original = materialization("mv", "source");
         index.createOrReplace(original);
@@ -179,7 +178,7 @@ class TestMaterializationIndex
     @Test
     void testWriteThroughGroupsMaterializationsWithSameHash()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition first = materialization("mv1", "source");
         MaterializationDefinition second = materialization("mv2", "source");
@@ -192,7 +191,7 @@ class TestMaterializationIndex
     @Test
     void testWriteThroughMovesMaterializationWhenComputationChanges()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition before = materialization("mv", "source");
         MaterializationDefinition after = materialization("mv", "other_source");
@@ -207,7 +206,7 @@ class TestMaterializationIndex
     @Test
     void testWriteThroughRemove()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition mv = materialization("mv", "source");
         index.createOrReplace(mv);
@@ -219,7 +218,7 @@ class TestMaterializationIndex
     @Test
     void testRemoveKeepsOtherMaterializationsInSameBucket()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition first = materialization("mv1", "source");
         MaterializationDefinition second = materialization("mv2", "source");
@@ -234,7 +233,7 @@ class TestMaterializationIndex
     @Test
     void testRemoveUnknownMaterializationIsNoOp()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         index.remove(mvName("absent"));
 
@@ -244,7 +243,7 @@ class TestMaterializationIndex
     @Test
     void testWriteThroughRename()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition mv = materialization("mv_old", "source");
         index.createOrReplace(mv);
@@ -262,7 +261,7 @@ class TestMaterializationIndex
     @Test
     void testRenameKeepsOtherMaterializationsInSameBucket()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition first = materialization("mv1", "source");
         MaterializationDefinition second = materialization("mv2", "source");
@@ -282,7 +281,7 @@ class TestMaterializationIndex
     @Test
     void testRenameUnknownMaterializationIsNoOp()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         index.renameIfExists(
                 mvName("absent"),
@@ -297,7 +296,7 @@ class TestMaterializationIndex
     {
         AtomicReference<Runnable> duringList = new AtomicReference<>(() -> {});
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore(() -> duringList.get().run());
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition external = materialization("external", "source");
         underlying.createOrReplace(external);
@@ -320,7 +319,7 @@ class TestMaterializationIndex
     void testRefreshStatsTrackListedAndRefreshedCounts()
     {
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore();
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         MaterializationDefinition mv1 = materialization("mv1", "source");
         MaterializationDefinition mv2 = materialization("mv2", "other_source");
@@ -356,7 +355,7 @@ class TestMaterializationIndex
     {
         AtomicReference<Runnable> duringList = new AtomicReference<>(() -> {});
         VersionAwareMaterializationMetastore underlying = versionAwareMetastore(() -> duringList.get().run());
-        MaterializationIndex index = new MaterializationIndex(underlying, new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
 
         duringList.set(() -> {
             throw new RuntimeException("metastore unavailable");
@@ -388,7 +387,7 @@ class TestMaterializationIndex
     @Test
     void testStartIsIdempotentAndStops()
     {
-        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new FeaturesConfig());
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
 
         index.start();
         index.start(); // already started — second call is a no-op

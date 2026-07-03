@@ -21,9 +21,7 @@ import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
-import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
-import io.airlift.units.MinDuration;
 import io.trino.execution.buffer.CompressionCodec;
 import io.trino.plugin.base.configuration.ThreadCountParser;
 import io.trino.sql.analyzer.RegexLibrary;
@@ -42,7 +40,6 @@ import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.execution.buffer.CompressionCodec.LZ4;
 import static io.trino.execution.buffer.CompressionCodec.NONE;
 import static io.trino.sql.analyzer.RegexLibrary.JONI;
-import static java.util.concurrent.TimeUnit.MINUTES;
 
 @DefunctConfig({
         "analyzer.experimental-syntax-enabled",
@@ -91,12 +88,6 @@ public class FeaturesConfig
     public enum DataIntegrityVerification
     {
         NONE, ABORT, RETRY,
-    }
-
-    public enum MaterializationMetastoreType
-    {
-        IN_MEMORY,
-        REST,
     }
 
     @VisibleForTesting
@@ -151,10 +142,6 @@ public class FeaturesConfig
     private boolean legacyArithmeticDecimalOperators;
 
     private boolean parallelizeLookupOuterOperator = true;
-    private boolean materializedViewSubstitutionSupportEnabled;
-    private boolean materializedViewSubstitutionEnabled;
-    private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
-    private MaterializationMetastoreType materializationMetastoreType = MaterializationMetastoreType.IN_MEMORY;
 
     public boolean isRedistributeWrites()
     {
@@ -650,59 +637,6 @@ public class FeaturesConfig
     public FeaturesConfig setParallelizeLookupOuterOperator(boolean value)
     {
         this.parallelizeLookupOuterOperator = value;
-        return this;
-    }
-
-    public boolean isMaterializedViewSubstitutionSupportEnabled()
-    {
-        return materializedViewSubstitutionSupportEnabled;
-    }
-
-    @Config("materialized-view-substitution.support.enabled")
-    @ConfigDescription("Enable materialized view substitution feature. When false, no substitution wiring is installed and queries are never rewritten to read from MV storage tables.")
-    public FeaturesConfig setMaterializedViewSubstitutionSupportEnabled(boolean value)
-    {
-        this.materializedViewSubstitutionSupportEnabled = value;
-        return this;
-    }
-
-    public boolean isMaterializedViewSubstitutionEnabled()
-    {
-        return materializedViewSubstitutionEnabled;
-    }
-
-    @Config("materialized-view-substitution.enabled")
-    @ConfigDescription("Enables materialized view substitution for the query by default")
-    public FeaturesConfig setMaterializedViewSubstitutionEnabled(boolean value)
-    {
-        this.materializedViewSubstitutionEnabled = value;
-        return this;
-    }
-
-    @MinDuration("1s")
-    public Duration getMaterializedViewSubstitutionMetastoreRefreshInterval()
-    {
-        return materializedViewSubstitutionMetastoreRefreshInterval;
-    }
-
-    @Config("materialized-view-substitution.metastore-refresh-interval")
-    @ConfigDescription("How often the in-memory materialization index is rebuilt from the underlying materialization metastore, picking up changes made by other clusters")
-    public FeaturesConfig setMaterializedViewSubstitutionMetastoreRefreshInterval(Duration value)
-    {
-        this.materializedViewSubstitutionMetastoreRefreshInterval = value;
-        return this;
-    }
-
-    public MaterializationMetastoreType getMaterializationMetastoreType()
-    {
-        return materializationMetastoreType;
-    }
-
-    @Config("materialization.metastore.type")
-    @ConfigDescription("Backing store for the materialization metastore: IN_MEMORY or REST")
-    public FeaturesConfig setMaterializationMetastoreType(MaterializationMetastoreType materializationMetastoreType)
-    {
-        this.materializationMetastoreType = materializationMetastoreType;
         return this;
     }
 }

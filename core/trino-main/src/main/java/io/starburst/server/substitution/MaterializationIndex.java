@@ -24,7 +24,6 @@ import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationMetastore;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
-import io.trino.FeaturesConfig;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -71,10 +70,10 @@ public class MaterializationIndex
     private final RefreshStats refreshStats = new RefreshStats();
 
     @Inject
-    public MaterializationIndex(VersionAwareMaterializationMetastore materializationMetastore, FeaturesConfig featuresConfig)
+    public MaterializationIndex(VersionAwareMaterializationMetastore materializationMetastore, MaterializedViewSubstitutionConfig config)
     {
         this.materializationMetastore = requireNonNull(materializationMetastore, "materializationMetastore is null");
-        this.refreshInterval = featuresConfig.getMaterializedViewSubstitutionMetastoreRefreshInterval();
+        this.refreshInterval = config.getMaterializedViewSubstitutionMetastoreRefreshInterval();
     }
 
     @PostConstruct
