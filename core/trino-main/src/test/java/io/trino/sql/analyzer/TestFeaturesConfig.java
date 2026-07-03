@@ -75,7 +75,7 @@ public class TestFeaturesConfig
                 .setLegacyArithmeticDecimalOperators(false)
                 .setExternalExchangeEncryptionEnabled(true)
                 .setParallelizeLookupOuterOperator(true)
-                .setMaterializedViewSubstitutionSupportEnabled(true)
+                .setMaterializedViewSubstitutionSupportEnabled(false)
                 .setMaterializedViewSubstitutionEnabled(false));
     }
 
@@ -119,7 +119,7 @@ public class TestFeaturesConfig
                 .put("external-exchange-encryption-enabled", "false")
                 .put("optimizer.super-set-predicate.pushdown.enabled", "false")
                 .put("parallelize-lookup-outer-operator", "false")
-                .put("materialized-view-substitution.support.enabled", "false")
+                .put("materialized-view-substitution.support.enabled", "true")
                 .put("materialized-view-substitution.enabled", "true")
                 .buildOrThrow();
 
@@ -160,7 +160,7 @@ public class TestFeaturesConfig
                 .setLegacyArithmeticDecimalOperators(true)
                 .setExternalExchangeEncryptionEnabled(false)
                 .setParallelizeLookupOuterOperator(false)
-                .setMaterializedViewSubstitutionSupportEnabled(false)
+                .setMaterializedViewSubstitutionSupportEnabled(true)
                 .setMaterializedViewSubstitutionEnabled(true);
         assertFullMapping(properties, expected);
     }

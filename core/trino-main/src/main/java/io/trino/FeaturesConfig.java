@@ -142,7 +142,7 @@ public class FeaturesConfig
     private boolean legacyArithmeticDecimalOperators;
 
     private boolean parallelizeLookupOuterOperator = true;
-    private boolean materializedViewSubstitutionSupportEnabled = true;
+    private boolean materializedViewSubstitutionSupportEnabled;
     private boolean materializedViewSubstitutionEnabled;
 
     public boolean isRedistributeWrites()

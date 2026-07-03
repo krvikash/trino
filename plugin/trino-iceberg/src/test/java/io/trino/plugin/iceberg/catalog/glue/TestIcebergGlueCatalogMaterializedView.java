@@ -61,6 +61,7 @@ public class TestIcebergGlueCatalogMaterializedView
                                 .withClonedTpchTables(ImmutableList.of())
                                 .withSchemaName(schemaName)
                                 .build())
+                .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .build();
         try {
             queryRunner.createCatalog("iceberg_legacy_mv", "iceberg", Map.of(

@@ -49,7 +49,9 @@ public class TestIcebergMaterializedView
                 .setCatalog(ICEBERG_CATALOG)
                 .setSchema("tpch")
                 .build();
-        QueryRunner queryRunner = DistributedQueryRunner.builder(icebergSession).build();
+        QueryRunner queryRunner = DistributedQueryRunner.builder(icebergSession)
+                .addExtraProperty("materialized-view-substitution.support.enabled", "true")
+                .build();
         try {
             Path baseDataDir = queryRunner.getCoordinator().getBaseDataDir();
             queryRunner.installPlugin(new TestingIcebergPlugin(baseDataDir));
