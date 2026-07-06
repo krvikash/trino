@@ -34,7 +34,10 @@ public class IcebergHiveMetastoreCatalogModule
     {
         configBinder(binder).bindConfig(IcebergHiveCatalogConfig.class);
         binder.bind(IcebergTableOperationsProvider.class).to(HiveMetastoreTableOperationsProvider.class).in(Scopes.SINGLETON);
-        binder.bind(TrinoCatalogFactory.class).to(TrinoHiveCatalogFactory.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, TrinoCatalogFactory.class)
+                .setDefault()
+                .to(TrinoHiveCatalogFactory.class)
+                .in(Scopes.SINGLETON);
 
         install(new IcebergHiveMetastoreModule());
         install(new ThriftMetastoreModule());
