@@ -26,7 +26,6 @@ import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.models.UserDelegationKey;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
-import com.azure.storage.blob.specialized.BlockBlobClient;
 import com.azure.storage.common.sas.SasProtocol;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileClient;
@@ -96,6 +95,7 @@ public class AzureFileSystem
     private final long maxSingleUploadSizeBytes;
     private final boolean multipartWriteEnabled;
     private final Optional<String> testingEndpointOverride;
+    private final Optional<AzureHierarchicalNamespaceChecker> hierarchicalNamespaceCheckerOverride;
 
     public AzureFileSystem(
             HttpClient httpClient,
@@ -109,7 +109,8 @@ public class AzureFileSystem
             int maxWriteConcurrency,
             DataSize maxSingleUploadSize,
             boolean multipartWriteEnabled,
-            Optional<String> testingEndpointOverride)
+            Optional<String> testingEndpointOverride,
+            Optional<AzureHierarchicalNamespaceChecker> hierarchicalNamespaceCheckerOverride)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.concurrencyPolicy = requireNonNull(concurrencyPolicy, "concurrencyPolicy is null");
@@ -124,6 +125,7 @@ public class AzureFileSystem
         this.maxSingleUploadSizeBytes = maxSingleUploadSize.toBytes();
         this.multipartWriteEnabled = multipartWriteEnabled;
         this.testingEndpointOverride = requireNonNull(testingEndpointOverride, "testingEndpointOverride is null");
+        this.hierarchicalNamespaceCheckerOverride = requireNonNull(hierarchicalNamespaceCheckerOverride, "hierarchicalNamespaceCheckerOverride is null");
     }
 
     @Override
@@ -657,12 +659,9 @@ public class AzureFileSystem
     private boolean isHierarchicalNamespaceEnabled(AzureLocation location)
             throws IOException
     {
-        boolean isAzurite = "devstoreaccount1".equals(location.account()) && testingEndpointOverride.isPresent();
-        if (isAzurite) {
-            // Azurite does not throw HierarchicalNamespaceNotEnabled on flat-namespace accounts,
-            // so the getAccessControl() probe used for real Azure accounts cannot distinguish HNS
-            // from non-HNS. Use root object existence detection strategy for Azurite.
-            return isHierarchicalNamespaceEnabledOnAzurite(location);
+        if (hierarchicalNamespaceCheckerOverride.isPresent()) {
+            return hierarchicalNamespaceCheckerOverride.get()
+                    .isHierarchicalNamespaceEnabled(location, createBlobContainerClient(location, Optional.empty()));
         }
 
         try {
@@ -684,20 +683,6 @@ public class AzureFileSystem
                 return true;
             }
             throw new IOException("Checking whether hierarchical namespace is enabled for the location %s failed".formatted(location), e);
-        }
-        catch (RuntimeException e) {
-            throw new IOException("Checking whether hierarchical namespace is enabled for the location %s failed".formatted(location), e);
-        }
-    }
-
-    private boolean isHierarchicalNamespaceEnabledOnAzurite(AzureLocation location)
-            throws IOException
-    {
-        try {
-            BlockBlobClient blockBlobClient = createBlobContainerClient(location, Optional.empty())
-                    .getBlobClient("/")
-                    .getBlockBlobClient();
-            return blockBlobClient.exists();
         }
         catch (RuntimeException e) {
             throw new IOException("Checking whether hierarchical namespace is enabled for the location %s failed".formatted(location), e);

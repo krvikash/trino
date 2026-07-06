@@ -34,6 +34,7 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.azure.AzureAuthAccessKey;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
+import io.trino.filesystem.azure.AzuriteHierarchicalNamespaceChecker;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
@@ -43,6 +44,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
@@ -211,7 +213,11 @@ public final class SpoolTestHelper
         AzureFileSystemConfig config = new AzureFileSystemConfig()
                 .setAuthType(AzureFileSystemConfig.AuthType.ACCESS_KEY)
                 .setTestingEndpointOverride(azurite.getBlobEndpoint());
-        return new AzureFileSystemFactory(OpenTelemetry.noop(), new AzureAuthAccessKey(AzuriteBlobStorage.ACCOUNT_KEY), config)
+        return new AzureFileSystemFactory(
+                OpenTelemetry.noop(),
+                new AzureAuthAccessKey(AzuriteBlobStorage.ACCOUNT_KEY),
+                config,
+                Optional.of(new AzuriteHierarchicalNamespaceChecker()))
                 .create(ConnectorIdentity.ofUser("buffer"));
     }
 
