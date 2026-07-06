@@ -31,13 +31,13 @@ public class TestLocalDiskTierConfig
                 .setDirectory(null)
                 .setCapacity(null)
                 .setAllowDirectoryCreation(false)
-                .setMemoryHighWatermark(0.7)
+                .setMemoryHighWatermark(0.8)
                 .setMemoryLowWatermark(0.5)
                 .setSpoolingHighWatermark(0.8)
-                .setSpoolingLowWatermark(0.5)
-                .setIoThreads(32)
-                .setMaxOpenDiskChunks(256)
-                .setExchangeMemoryFraction(0.0));
+                .setSpoolingLowWatermark(0.6)
+                .setIoThreads(128)
+                .setMaxOpenDiskChunks(4096)
+                .setExchangeMemoryFraction(0.3));
     }
 
     @Test
