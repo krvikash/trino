@@ -180,6 +180,21 @@ git rebase --interactive --empty=drop "${FROM}" --onto master
 # Run the rebase, resolving the code conflicts as necessary and using git rebase --continue to continue
 ```
 
+#### Identify commits already backported to Cork
+
+Configure in `~/.gitconfig`the custom alias `lg` to show the log graphically.
+
+```shell
+[alias]
+	lg = log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr) %C(bold blue)<%an>%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative --no-merges
+```
+
+While interactively rebasing, in case of stumbling into conflicts, verify that the commits are already backported to Cork. If yes, skip them.
+
+```shell
+git lg |grep "$(git rebase --show-current-patch |head -5 |tail -1 |sed 's/^[[:space:]]*//')"
+```
+
 ### Update project version
 
 As the maven-release-plugin commits were skipped during previous step, we need to change the version ourselves
