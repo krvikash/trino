@@ -292,13 +292,16 @@ public class SplitSourceFactory
             List<PlanFragmentId> pipelineSources = node.getSourceFragmentIds().stream().filter(not(outputExchanges::containsKey)).collect(toImmutableList());
 
             // todo support unsupported configurations:
-            // * more than one remote stage using exchange
             // * mixed exchange and non-exchange remote stages
-            if (pipelineSources.isEmpty() && exchangeSources.size() == 1) {
-                PlanFragmentId sourceFragmentId = getOnlyElement(exchangeSources);
-                Exchange sourceOutputExchange = outputExchanges.get(sourceFragmentId);
-                ExchangeSourceHandleSource sourceHandles = sourceOutputExchange.getSourceHandles();
+            if (pipelineSources.isEmpty() && !exchangeSources.isEmpty()) {
+                // A single gathering RemoteSource may read from several spooling exchanges when all of its source
+                // fragments were reused (their output consumed by more than one parent RemoteSource).
+                List<ExchangeSourceHandleSource> sourceHandles = exchangeSources.stream()
+                        .map(outputExchanges::get)
+                        .map(Exchange::getSourceHandles)
+                        .collect(toImmutableList());
                 ExchangeSplitSource exchangeSplitSource = new ExchangeSplitSource(sourceHandles, DataSize.of(64, MEGABYTE).toBytes()); // todo config?
+                splitSources.add(exchangeSplitSource);
                 return ImmutableMap.of(node.getId(), exchangeSplitSource);
             }
             if (exchangeSources.isEmpty()) {

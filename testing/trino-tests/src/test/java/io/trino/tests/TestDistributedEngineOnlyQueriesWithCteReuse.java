@@ -264,4 +264,38 @@ public class TestDistributedEngineOnlyQueriesWithCteReuse
 
         // The last test case is removed: in this case, the plan is fragmented from the new IR. The estimates are not available.
     }
+
+    @Test
+    public void testCteReuseOverUnionAggregation()
+    {
+        // Reproduces ENG-19211: a CTE whose body aggregates over a UNION ALL of several scans
+        // produces a RemoteSource referencing multiple exchange source fragments. Previously failed
+        // scheduling when the CTE was reused.
+        @Language("SQL") String query =
+                """
+                WITH anchor AS (
+                    SELECT MAX(d) AS as_of
+                    FROM (
+                        SELECT o.orderdate AS d FROM orders o JOIN nation n ON o.custkey = n.nationkey
+                        UNION ALL
+                        SELECT l.shipdate AS d FROM lineitem l JOIN nation n ON l.suppkey = n.nationkey
+                        UNION ALL
+                        SELECT o.orderdate AS d FROM orders o JOIN region r ON o.custkey = r.regionkey
+                    )
+                )
+                SELECT 'a' AS tag, as_of FROM anchor
+                UNION ALL
+                SELECT 'b' AS tag, as_of FROM anchor
+                """;
+        String plan = getExplainPlan(query, DISTRIBUTED);
+        // Both uses of anchor read from the same three spooled union-branch fragments.
+        // Verify the specific multi-exchange RemoteSource appears twice — once per CTE reference.
+        String multiExchangeRemoteSource = "RemoteSource[sourceFragmentIds = [1, 4, 7]]";
+        int firstOccurrence = plan.indexOf(multiExchangeRemoteSource);
+        assertThat(firstOccurrence).as("multi-exchange RemoteSource not found in plan").isNotNegative();
+        assertThat(plan.indexOf(multiExchangeRemoteSource, firstOccurrence + 1))
+                .as("multi-exchange RemoteSource appears only once — expected twice, one per anchor CTE use")
+                .isNotNegative();
+        assertQuerySucceeds(query);
+    }
 }

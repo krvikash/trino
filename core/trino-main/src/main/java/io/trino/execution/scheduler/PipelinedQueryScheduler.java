@@ -1280,10 +1280,9 @@ public class PipelinedQueryScheduler
                 List<PlanFragmentId> pipelineSources = node.getSourceFragmentIds().stream().filter(not(outputExchanges::containsKey)).toList();
 
                 // todo support unsupported configurations:
-                // * more than one remote stage using exchange
                 // * mixed exchange and non-exchange remote stages
-                if ((!pipelineSources.isEmpty() && !exchangeSources.isEmpty() || exchangeSources.size() > 1)) {
-                    throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Not supported configuration of %s pipelined and %s exchange sources", pipelineSources.size(), exchangeSources.size()));
+                if (!pipelineSources.isEmpty() && !exchangeSources.isEmpty()) {
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Mixed pipelined and exchange sources are not supported: %s pipelined, %s exchange", pipelineSources.size(), exchangeSources.size()));
                 }
                 if (!exchangeSources.isEmpty()) {
                     spoolingExchangeSources.add(node.getId());

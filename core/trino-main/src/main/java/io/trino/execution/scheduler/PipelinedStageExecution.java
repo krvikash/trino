@@ -698,9 +698,15 @@ public class PipelinedStageExecution
         checkArgument(!remoteSources.isEmpty(), "Unknown remote source %s. Known sources are %s", fragmentId, exchangeSources.keySet());
 
         if (spoolingOutputExchanges.containsKey(fragmentId)) {
-            updateSourceOutputSelectorSplit(fragmentId);
+            completeSourceFragments.add(fragmentId);
             for (RemoteSourceNode remoteSource : remoteSources) {
-                checkExchangeSourceComplete(remoteSource.getId());
+                // A remote source may gather from several spooled fragments (e.g. when an aggregation over a
+                // reused UNION ALL is reused). The combined output selector can only be finalized once all of
+                // the remote source's spooled fragments have completed scheduling.
+                if (completeSourceFragments.containsAll(remoteSource.getSourceFragmentIds())) {
+                    updateSourceOutputSelectorSplit(remoteSource);
+                    checkExchangeSourceComplete(remoteSource.getId());
+                }
             }
         }
         else {
@@ -714,32 +720,36 @@ public class PipelinedStageExecution
     }
 
     @GuardedBy("this")
-    private void updateSourceOutputSelectorSplit(PlanFragmentId fragmentId)
+    private void updateSourceOutputSelectorSplit(RemoteSourceNode remoteSource)
     {
-        Collection<RemoteSourceNode> remoteSources = exchangeSources.get(fragmentId);
-        Split sourceOutputSelectorSplit = buildFinaleSourceOutputSelectorSplit(fragmentId);
+        PlanNodeId remoteSourceNodeId = remoteSource.getId();
+        Split sourceOutputSelectorSplit = buildFinaleSourceOutputSelectorSplit(remoteSource);
 
-        for (RemoteSourceNode remoteSource : remoteSources) {
-            PlanNodeId remoteSourceNodeId = remoteSource.getId();
-            Split previous = spoolingExchangeSourcesOutputSelectorSplits.putIfAbsent(remoteSourceNodeId, sourceOutputSelectorSplit);
-            if (previous == null) {
-                // do not redeliver output selector split
-                for (RemoteTask task : getAllTasks()) {
-                    task.addSplits(ImmutableMultimap.of(remoteSourceNodeId, sourceOutputSelectorSplit));
-                }
+        Split previous = spoolingExchangeSourcesOutputSelectorSplits.putIfAbsent(remoteSourceNodeId, sourceOutputSelectorSplit);
+        if (previous == null) {
+            // do not redeliver output selector split
+            for (RemoteTask task : getAllTasks()) {
+                task.addSplits(ImmutableMultimap.of(remoteSourceNodeId, sourceOutputSelectorSplit));
             }
         }
     }
 
     @GuardedBy("this")
-    private Split buildFinaleSourceOutputSelectorSplit(PlanFragmentId sourceFragmentId)
+    private Split buildFinaleSourceOutputSelectorSplit(RemoteSourceNode remoteSource)
     {
-        ExchangeId exchangeId = spoolingOutputExchanges.get(sourceFragmentId).getId();
-        ExchangeSourceOutputSelector.Builder sourceOutputSelector = ExchangeSourceOutputSelector.builder(ImmutableSet.of(exchangeId));
+        // The selector covers every spooled fragment the remote source reads from, so the reader knows the
+        // valid task attempts for each of the exchanges it gathers handles from.
+        Set<ExchangeId> exchangeIds = remoteSource.getSourceFragmentIds().stream()
+                .map(sourceFragmentId -> spoolingOutputExchanges.get(sourceFragmentId).getId())
+                .collect(toImmutableSet());
+        ExchangeSourceOutputSelector.Builder sourceOutputSelector = ExchangeSourceOutputSelector.builder(exchangeIds);
 
-        sourceOutputSelector.setPartitionCount(exchangeId, spoolingExchangeSourceTasks.get(sourceFragmentId).size());
-        for (RemoteTask sourceTask : spoolingExchangeSourceTasks.get(sourceFragmentId)) {
-            sourceOutputSelector.include(exchangeId, sourceTask.getTaskId().partitionId(), sourceTask.getTaskId().attemptId());
+        for (PlanFragmentId sourceFragmentId : remoteSource.getSourceFragmentIds()) {
+            ExchangeId exchangeId = spoolingOutputExchanges.get(sourceFragmentId).getId();
+            sourceOutputSelector.setPartitionCount(exchangeId, spoolingExchangeSourceTasks.get(sourceFragmentId).size());
+            for (RemoteTask sourceTask : spoolingExchangeSourceTasks.get(sourceFragmentId)) {
+                sourceOutputSelector.include(exchangeId, sourceTask.getTaskId().partitionId(), sourceTask.getTaskId().attemptId());
+            }
         }
         sourceOutputSelector.setFinal();
 
