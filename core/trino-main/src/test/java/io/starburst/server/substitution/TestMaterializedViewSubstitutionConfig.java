@@ -34,7 +34,8 @@ public class TestMaterializedViewSubstitutionConfig
                 .setMaterializedViewSubstitutionEnabled(false)
                 .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES))
                 .setMaterializationMetastoreType(IN_MEMORY)
-                .setMaterializedViewSubstitutionMaxStaleness(null));
+                .setMaterializedViewSubstitutionMaxStaleness(null)
+                .setMaterializedViewSubstitutionCandidatesRegexFilter(null));
     }
 
     @Test
@@ -46,6 +47,7 @@ public class TestMaterializedViewSubstitutionConfig
                 .put("materialized-view-substitution.metastore-refresh-interval", "30s")
                 .put("materialization.metastore.type", "REST")
                 .put("materialized-view-substitution.max-staleness", "5m")
+                .put("materialized-view-substitution.candidates-regex-filter", "test_catalog\\..*")
                 .buildOrThrow();
 
         MaterializedViewSubstitutionConfig expected = new MaterializedViewSubstitutionConfig()
@@ -53,7 +55,8 @@ public class TestMaterializedViewSubstitutionConfig
                 .setMaterializedViewSubstitutionEnabled(true)
                 .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS))
                 .setMaterializationMetastoreType(REST)
-                .setMaterializedViewSubstitutionMaxStaleness(new Duration(5, TimeUnit.MINUTES));
+                .setMaterializedViewSubstitutionMaxStaleness(new Duration(5, TimeUnit.MINUTES))
+                .setMaterializedViewSubstitutionCandidatesRegexFilter("test_catalog\\..*");
 
         assertFullMapping(properties, expected);
     }

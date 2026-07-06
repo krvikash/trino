@@ -16,6 +16,7 @@ import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -26,6 +27,7 @@ public class MaterializedViewSubstitutionConfig
     private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
     private MaterializationMetastoreType materializationMetastoreType = MaterializationMetastoreType.IN_MEMORY;
     private Optional<Duration> materializedViewSubstitutionMaxStaleness = Optional.empty();
+    private Optional<String> materializedViewSubstitutionCandidatesRegexFilter = Optional.empty();
 
     public enum MaterializationMetastoreType
     {
@@ -97,6 +99,24 @@ public class MaterializedViewSubstitutionConfig
     public MaterializedViewSubstitutionConfig setMaterializedViewSubstitutionMaxStaleness(Duration value)
     {
         this.materializedViewSubstitutionMaxStaleness = Optional.ofNullable(value);
+        return this;
+    }
+
+    @NotNull
+    public Optional<String> getMaterializedViewSubstitutionCandidatesRegexFilter()
+    {
+        return materializedViewSubstitutionCandidatesRegexFilter;
+    }
+
+    @Config("materialized-view-substitution.candidates-regex-filter")
+    @ConfigDescription("Regular expression matched against the fully qualified materialized view name (catalog.schema.table); unset means all materialized views are eligible for substitution")
+    public MaterializedViewSubstitutionConfig setMaterializedViewSubstitutionCandidatesRegexFilter(String value)
+    {
+        // Compile eagerly so an invalid pattern fails at startup rather than at query time
+        this.materializedViewSubstitutionCandidatesRegexFilter = Optional.ofNullable(value).map(pattern -> {
+            Pattern.compile(pattern);
+            return pattern;
+        });
         return this;
     }
 }

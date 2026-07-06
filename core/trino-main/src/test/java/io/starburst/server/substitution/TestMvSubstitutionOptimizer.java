@@ -82,6 +82,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS;
 import static io.trino.connector.CatalogServiceProviderModule.createSubstitutionMetadata;
@@ -197,6 +198,46 @@ public class TestMvSubstitutionOptimizer
         // unlimited grace period, refreshed just now, session max staleness of 1 hour => fresh
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
         assertPlan(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+    }
+
+    @Test
+    public void testSubstitutesWhenNameMatchesPattern()
+    {
+        // the MV is mock.default.test_mv and the pattern matches its fully qualified name
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        assertPlan(sessionWithCandidatesRegexFilter("mock\\.default\\..*"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+    }
+
+    @Test
+    public void testNoSubstitutionWhenNameDoesNotMatchPattern()
+    {
+        // the pattern targets a different catalog, so mock.default.test_mv is not eligible
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        assertPlan(sessionWithCandidatesRegexFilter("other_catalog\\..*"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+    }
+
+    @Test
+    public void testNoSubstitutionWhenPatternMatchesOnlyPartOfName()
+    {
+        // full-match semantics: a pattern matching just the catalog does not match the whole name
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        assertPlan(sessionWithCandidatesRegexFilter("mock"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+    }
+
+    @Test
+    public void testSubstitutesWhenPatternMatchesAllNames()
+    {
+        // a catch-all pattern makes every materialized view eligible
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        assertPlan(sessionWithCandidatesRegexFilter(".*"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+    }
+
+    @Test
+    public void testNoSubstitutionWhenPatternMatchesNoNames()
+    {
+        // a pattern that can never match excludes every materialized view
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        assertPlan(sessionWithCandidatesRegexFilter("(?!)"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
     }
 
     @Test
@@ -409,6 +450,14 @@ public class TestMvSubstitutionOptimizer
         return Session.builder(getPlanTester().getDefaultSession())
                 .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, Boolean.toString(true))
                 .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS, maxStaleness)
+                .build();
+    }
+
+    private Session sessionWithCandidatesRegexFilter(String candidatesRegexFilter)
+    {
+        return Session.builder(getPlanTester().getDefaultSession())
+                .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, Boolean.toString(true))
+                .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER, candidatesRegexFilter)
                 .build();
     }
 

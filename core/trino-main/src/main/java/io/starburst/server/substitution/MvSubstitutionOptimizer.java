@@ -9,6 +9,8 @@
  */
 package io.starburst.server.substitution;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -21,6 +23,7 @@ import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
 import io.trino.Session;
+import io.trino.cache.NonEvictableLoadingCache;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.TableHandle;
@@ -45,18 +48,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionCandidatesRegexFilter;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionMaxStaleness;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
+import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.util.Objects.requireNonNull;
 
 public class MvSubstitutionOptimizer
         implements PlanOptimizer
 {
+    // Distinct candidates-regex-filter values are bounded by cluster config and per-session overrides, so a small cache suffices
+    private static final long MAX_CACHED_PATTERNS = 100;
+
     private final MaterializationIndex materializationIndex;
     private final Metadata metadata;
     private final SubstitutionMetadata substitutionMetadata;
     private final AccessControl accessControl;
+    private final NonEvictableLoadingCache<String, Pattern> compiledCandidatesRegexFilters;
 
     public MvSubstitutionOptimizer(MaterializationIndex materializationIndex, Metadata metadata, SubstitutionMetadata substitutionMetadata, AccessControl accessControl)
     {
@@ -64,6 +74,9 @@ public class MvSubstitutionOptimizer
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
+        this.compiledCandidatesRegexFilters = buildNonEvictableCache(
+                CacheBuilder.newBuilder().maximumSize(MAX_CACHED_PATTERNS),
+                CacheLoader.from(Pattern::compile));
     }
 
     @Override
@@ -132,6 +145,10 @@ public class MvSubstitutionOptimizer
         }
 
         if (!isFreshEnough(session, candidate)) {
+            return Optional.empty();
+        }
+
+        if (!matchesCandidatesRegexFilter(session, candidate)) {
             return Optional.empty();
         }
 
@@ -241,6 +258,17 @@ public class MvSubstitutionOptimizer
                 .map(maxStaleness -> sinceRefresh.compareTo(maxStaleness.toJavaTime()) <= 0)
                 .orElse(true);
         return withinGracePeriod && withinMaxStaleness;
+    }
+
+    private boolean matchesCandidatesRegexFilter(Session session, MaterializationDefinition candidate)
+    {
+        Optional<String> candidatesRegexFilter = getMaterializedViewSubstitutionCandidatesRegexFilter(session);
+        if (candidatesRegexFilter.isEmpty()) {
+            return true;
+        }
+        Pattern pattern = compiledCandidatesRegexFilters.getUnchecked(candidatesRegexFilter.get());
+        CatalogSchemaTableName materializedViewName = ((MaterializedViewSource) candidate.source()).materializedViewName();
+        return pattern.matcher(materializedViewName.toString()).matches();
     }
 
     private boolean substitutionSupported(TableScanNode tableScan)

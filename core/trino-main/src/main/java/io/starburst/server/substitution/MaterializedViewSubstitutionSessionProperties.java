@@ -19,15 +19,18 @@ import io.trino.spi.session.PropertyMetadata;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static io.trino.plugin.base.session.PropertyMetadataUtil.durationProperty;
 import static io.trino.spi.session.PropertyMetadata.booleanProperty;
+import static io.trino.spi.session.PropertyMetadata.stringProperty;
 
 public final class MaterializedViewSubstitutionSessionProperties
         implements SystemSessionPropertiesProvider
 {
     public static final String MATERIALIZED_VIEW_SUBSTITUTION_ENABLED = "materialized_view_substitution_enabled";
     public static final String MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS = "materialized_view_substitution_max_staleness";
+    public static final String MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER = "materialized_view_substitution_candidates_regex_filter";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -50,6 +53,12 @@ public final class MaterializedViewSubstitutionSessionProperties
                         MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS,
                         "Maximum staleness of a materialized view eligible for substitution; unset means only each materialized view's own grace period applies",
                         config.getMaterializedViewSubstitutionMaxStaleness().orElse(null),
+                        false),
+                stringProperty(
+                        MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER,
+                        "Regular expression matched against the fully qualified materialized view name (catalog.schema.table); unset means all materialized views are eligible for substitution",
+                        config.getMaterializedViewSubstitutionCandidatesRegexFilter().orElse(null),
+                        MaterializedViewSubstitutionSessionProperties::validatePattern,
                         false));
     }
 
@@ -67,5 +76,15 @@ public final class MaterializedViewSubstitutionSessionProperties
     public static Optional<Duration> getMaterializedViewSubstitutionMaxStaleness(Session session)
     {
         return Optional.ofNullable(session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS, Duration.class));
+    }
+
+    public static Optional<String> getMaterializedViewSubstitutionCandidatesRegexFilter(Session session)
+    {
+        return Optional.ofNullable(session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER, String.class));
+    }
+
+    private static void validatePattern(String pattern)
+    {
+        Pattern.compile(pattern);
     }
 }
