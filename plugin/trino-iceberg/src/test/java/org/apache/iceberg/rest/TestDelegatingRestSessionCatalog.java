@@ -19,6 +19,7 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
+import io.airlift.http.server.HttpConfig;
 import io.airlift.http.server.HttpServerConfig;
 import io.airlift.http.server.HttpServerInfo;
 import io.airlift.http.server.ServerFeature;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.Optional;
 
 import static io.airlift.http.client.HeaderNames.ACCEPT_ENCODING;
 import static io.airlift.http.client.HeaderNames.ETAG;
@@ -117,13 +119,14 @@ final class TestDelegatingRestSessionCatalog
     {
         NodeInfo nodeInfo = new NodeInfo("test");
         HttpServerConfig config = new HttpServerConfig()
-                .setHttpPort(0)
                 .setMinThreads(4)
                 .setMaxThreads(8)
-                .setHttpAcceptorThreads(4)
-                .setHttpAcceptQueueSize(10)
                 .setHttpEnabled(true);
-        HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
+        HttpConfig httpConfig = new HttpConfig()
+                .setHttpPort(0)
+                .setHttpAcceptorThreads(4)
+                .setAcceptQueueSize(10);
+        HttpServerInfo httpServerInfo = new HttpServerInfo(config, Optional.of(httpConfig), Optional.empty(), nodeInfo);
 
         return new TestingHttpServer("rest-catalog", httpServerInfo, nodeInfo, config, servlet, ServerFeature.builder()
                 // Required due to URIs like: HEAD /v1/namespaces/level_1%1Flevel_2

@@ -16,7 +16,7 @@ import com.google.inject.Module;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.http.server.HttpServerConfig;
+import io.airlift.http.server.HttpConfig;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.http.server.ServerFeature;
 import io.airlift.jaxrs.JaxrsModule;
@@ -96,7 +96,7 @@ public final class DataServer
                 if (featuresConfig.isVirtualThreadsEnabled()) {
                     configBinder(binder)
                             .bindConfigDefaults(
-                                    HttpServerConfig.class,
+                                    HttpConfig.class,
                                     VirtualThreadsDataServer.class,
                                     config -> config.setHttpPort(8085));
 
