@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.COMPOSITE_SPLITS_ENABLED;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PASS_THROUGH_DISPATCHER;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
@@ -453,6 +454,31 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
     {
         assertThatThrownBy(super::testMergeDefaultNullIntoNotNullColumn)
                 .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Test
+    void testCompositeSplits()
+    {
+        String tableName = "test_composite_splits_" + randomNameSuffix();
+        try {
+            assertUpdate("CREATE TABLE " + tableName + " (a INT, b VARCHAR)");
+            for (int i = 0; i < 5; i++) {
+                assertUpdate("INSERT INTO " + tableName + " VALUES (" + i + ", 'value" + i + "')", 1);
+            }
+
+            Session compositeSplitsSession = Session.builder(getSession())
+                    .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), COMPOSITE_SPLITS_ENABLED, "true")
+                    .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "max_split_size", "100MB")
+                    .build();
+
+            assertQuery(
+                    compositeSplitsSession,
+                    "SELECT * FROM " + tableName,
+                    "VALUES (0, 'value0'), (1, 'value1'), (2, 'value2'), (3, 'value3'), (4, 'value4')");
+        }
+        finally {
+            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+        }
     }
 
     @Override

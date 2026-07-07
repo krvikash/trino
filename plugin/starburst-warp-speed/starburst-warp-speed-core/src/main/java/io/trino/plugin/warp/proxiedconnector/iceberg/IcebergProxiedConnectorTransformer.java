@@ -16,6 +16,7 @@ package io.trino.plugin.warp.proxiedconnector.iceberg;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.trino.plugin.iceberg.CompositeIcebergSplit;
 import io.trino.plugin.iceberg.CorruptedIcebergTableHandle;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergSplit;
@@ -153,6 +154,16 @@ public class IcebergProxiedConnectorTransformer
                 tableHandle.isForceReadingAllFiles(),
                 tableHandle.getConstraintColumns(),
                 tableHandle.getForAnalyze());  // must be empty to allow mixed query (see isValidForAcceleration())
+    }
+
+    @Override
+    public List<ConnectorSplit> flattenSplits(ConnectorSplit connectorSplit)
+    {
+        return switch (connectorSplit) {
+            case CompositeIcebergSplit composite -> List.copyOf(composite.splits());
+            case IcebergSplit single -> List.of(single);
+            default -> throw new IllegalArgumentException("Unexpected split type: " + connectorSplit.getClass().getSimpleName());
+        };
     }
 
     @Override

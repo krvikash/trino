@@ -211,17 +211,17 @@ public abstract class BaseIcebergParquetConnectorTest
         return new QueryManagerConfig().getScheduleSplitBatchSize();
     }
 
-    private String getOnlyTableFilePath(String tableName)
+    protected String getOnlyTableFilePath(String tableName)
     {
         return (String) computeScalar("SELECT file_path FROM \"" + tableName + "$files\"");
     }
 
-    private long getMostRecentSnapshotId(String tableName)
+    protected long getMostRecentSnapshotId(String tableName)
     {
         return (long) computeScalar("SELECT snapshot_id FROM \"" + tableName + "$snapshots\" ORDER BY committed_at DESC LIMIT 1");
     }
 
-    private ZonedDateTime getSnapshotTime(String tableName, long snapshotId)
+    protected ZonedDateTime getSnapshotTime(String tableName, long snapshotId)
     {
         return (ZonedDateTime) computeScalar("SELECT committed_at FROM \"" + tableName + "$snapshots\" WHERE snapshot_id = " + snapshotId);
     }

@@ -354,6 +354,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.getQueryPartition
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoveOrphanFilesMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isBucketExecutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isCollectExtendedStatisticsOnWrite;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isCompositeSplitsEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isIncrementalRefreshEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isMergeManifestsOnWrite;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isOptimizePartialTopNEnabled;
@@ -5467,7 +5468,7 @@ public class IcebergMetadata
             List<SortingProperty<ColumnHandle>> sortProperties,
             long count)
     {
-        if (!isOptimizePartialTopNEnabled(session) || sortProperties.isEmpty()) {
+        if (!isOptimizePartialTopNEnabled(session) || sortProperties.isEmpty() || isCompositeSplitsEnabled(session)) {
             return Optional.empty();
         }
 

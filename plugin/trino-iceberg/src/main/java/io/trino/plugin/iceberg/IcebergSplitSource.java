@@ -111,8 +111,10 @@ import static io.trino.plugin.iceberg.ExpressionConverter.isConvertibleToIceberg
 import static io.trino.plugin.iceberg.ExpressionConverter.toIcebergExpression;
 import static io.trino.plugin.iceberg.IcebergExceptions.translateMetadataException;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
+import static io.trino.plugin.iceberg.IcebergPartitionFunction.Transform.BUCKET;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getDynamicFilteringWaitTimeout;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getSplitSize;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isCompositeSplitsEnabled;
 import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
 import static io.trino.plugin.iceberg.IcebergUtil.getFileModifiedTimeDomain;
@@ -182,6 +184,8 @@ public class IcebergSplitSource
     @GuardedBy("this")
     private Iterator<FileScanTaskWithDomain> fileTasksIterator = emptyIterator();
 
+    @GuardedBy("this")
+    private boolean compositeSplitsEnabled;
     private final boolean recordScannedFiles;
     private final Map<Integer, PartitionSpec> specsById;
     private final int currentSpecId;
@@ -226,6 +230,11 @@ public class IcebergSplitSource
         this.fieldIdToType = primitiveFieldTypes(tableScan.schema());
         this.partitionConstraintMatcher = new PartitionConstraintMatcher(constraint, evaluator, session);
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.compositeSplitsEnabled = !recordScannedFiles
+                && isCompositeSplitsEnabled(session)
+                // TODO: Disable composite splits when bucket partitioning is used. This limitation can be lifted: https://starburstdata.atlassian.net/browse/ENG-20177.
+                && !hasBucketPartitioning(tableHandle)
+                && tableHandle.getProjectedColumns().stream().allMatch(IcebergSplitSource::isColumnCompatibleWithCompositeSplits);
         this.recordScannedFiles = recordScannedFiles;
         this.specsById = icebergTable.specs();
         this.currentSpecId = icebergTable.spec().specId();
@@ -309,6 +318,12 @@ public class IcebergSplitSource
                 // Iceberg's default one-split-per-row-group behavior. Merging is a Trino-specific
                 // behavior, so we only enable it when the user explicitly opts in.
                 this.splitSizeOverridden = sessionSplitSize.isPresent();
+                // Composite splits bundle files from the same partition into a single scheduling
+                // unit. Without an explicit split size, each split covers at most one row group —
+                // enlarging splits by merging row groups within a file is cheaper (one file handle,
+                // sequential I/O) than bundling across files, so compositing is only useful once
+                // within-file merging is already active.
+                this.compositeSplitsEnabled = compositeSplitsEnabled && splitSizeOverridden;
                 this.targetSplitSize = sessionSplitSize
                         .map(DataSize::toBytes)
                         .orElseGet(tableScan::targetSplitSize);
@@ -322,8 +337,8 @@ public class IcebergSplitSource
             return ImmutableList.of();
         }
 
-        List<ConnectorSplit> splits = new ArrayList<>(maxSize);
-        while (splits.size() < maxSize && (fileTasksIterator.hasNext() || fileScanIterator.hasNext())) {
+        List<FileScanTaskWithDomain> tasks = new ArrayList<>(maxSize);
+        while (tasks.size() < maxSize && (fileTasksIterator.hasNext() || fileScanIterator.hasNext())) {
             if (!fileTasksIterator.hasNext()) {
                 if (limit.isPresent() && limit.getAsLong() <= outputRowsLowerBound) {
                     finish();
@@ -339,12 +354,19 @@ public class IcebergSplitSource
                 // In theory, .split() could produce empty iterator, so let's evaluate the outer loop condition again.
                 continue;
             }
-            splits.add(toIcebergSplit(fileTasksIterator.next()));
+            tasks.add(fileTasksIterator.next());
         }
         if (!fileScanIterator.hasNext() && !fileTasksIterator.hasNext()) {
             finish();
         }
-        return splits;
+        if (compositeSplitsEnabled) {
+            return mergeIntoCompositeSplits(tasks);
+        }
+        ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
+        for (FileScanTaskWithDomain task : tasks) {
+            splits.add(toIcebergSplit(task));
+        }
+        return splits.build();
     }
 
     @SuppressWarnings("unchecked")
@@ -827,6 +849,67 @@ public class IcebergSplitSource
             }
         }
         return true;
+    }
+
+    @GuardedBy("this")
+    private List<ConnectorSplit> mergeIntoCompositeSplits(List<FileScanTaskWithDomain> tasks)
+    {
+        ImmutableList.Builder<ConnectorSplit> result = ImmutableList.builder();
+        List<IcebergSplit> currentBatch = new ArrayList<>();
+        long currentBatchSize = 0;
+
+        for (FileScanTaskWithDomain task : tasks) {
+            long taskLength = task.fileScanTask().length();
+            if (!currentBatch.isEmpty() && currentBatchSize + taskLength > targetSplitSize) {
+                result.add(toCompositeOrSingleSplit(currentBatch));
+                currentBatch = new ArrayList<>();
+                currentBatchSize = 0;
+            }
+            currentBatch.add(toIcebergSplit(task));
+            currentBatchSize += taskLength;
+        }
+        if (!currentBatch.isEmpty()) {
+            result.add(toCompositeOrSingleSplit(currentBatch));
+        }
+
+        return result.build();
+    }
+
+    private static ConnectorSplit toCompositeOrSingleSplit(List<IcebergSplit> batch)
+    {
+        if (batch.size() == 1) {
+            return batch.getFirst();
+        }
+        return new CompositeIcebergSplit(batch);
+    }
+
+    private static boolean isColumnCompatibleWithCompositeSplits(IcebergColumnHandle column)
+    {
+        // The GPU path merges row groups from multiple files into a single fabricated Parquet file,
+        // losing file boundaries. Metadata columns whose values depend on which file a row came from
+        // ($path, $row_position, $row_id, etc.) would produce incorrect results. The CPU path handles
+        // them correctly (each sub-page-source produces its own per-file values), but we disable
+        // composites for both paths because the execution path is chosen at the worker, after splits
+        // are generated.
+        //
+        // Only data columns are allowed. All metadata columns are conservatively blocked as a
+        // safety net for future additions, even if not all of them are strictly per-file.
+
+        return !isMetadataColumnId(column.getId())
+                && !column.isRowPositionColumn()
+                && !column.isIsDeletedColumn()
+                && !column.isMergeRowIdColumn();
+    }
+
+    private static boolean hasBucketPartitioning(IcebergTableHandle tableHandle)
+    {
+        return tableHandle.getTablePartitioning()
+                .filter(IcebergTablePartitioning::active)
+                .map(IcebergTablePartitioning::partitioningHandle)
+                .map(IcebergPartitioningHandle::partitionFunctions)
+                .stream().flatMap(List::stream)
+                .map(IcebergPartitionFunction::transform)
+                .anyMatch(BUCKET::equals);
     }
 
     @GuardedBy("this")

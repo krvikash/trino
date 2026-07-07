@@ -113,6 +113,7 @@ public final class IcebergSessionProperties
     private static final String QUERY_PARTITION_FILTER_REQUIRED = "query_partition_filter_required";
     private static final String QUERY_PARTITION_FILTER_REQUIRED_SCHEMAS = "query_partition_filter_required_schemas";
     private static final String INCREMENTAL_REFRESH_ENABLED = "incremental_refresh_enabled";
+    public static final String COMPOSITE_SPLITS_ENABLED = "experimental_composite_splits_enabled";
     public static final String BUCKET_EXECUTION_ENABLED = "bucket_execution_enabled";
     private static final String MAX_PARTITIONS_PER_WRITER = "max_partitions_per_writer";
     private static final String DROP_TABLE_MODE = "drop_table_mode";
@@ -425,6 +426,11 @@ public final class IcebergSessionProperties
                         icebergConfig.isIncrementalRefreshEnabled(),
                         false))
                 .add(booleanProperty(
+                        COMPOSITE_SPLITS_ENABLED,
+                        "Merge small splits into composite splits spanning multiple files",
+                        icebergConfig.isCompositeSplitsEnabled(),
+                        true))
+                .add(booleanProperty(
                         BUCKET_EXECUTION_ENABLED,
                         "Enable bucket-aware execution: use physical bucketing information to optimize queries",
                         icebergConfig.isBucketExecutionEnabled(),
@@ -708,6 +714,11 @@ public final class IcebergSessionProperties
     public static boolean isIncrementalRefreshEnabled(ConnectorSession session)
     {
         return session.getProperty(INCREMENTAL_REFRESH_ENABLED, Boolean.class);
+    }
+
+    public static boolean isCompositeSplitsEnabled(ConnectorSession session)
+    {
+        return session.getProperty(COMPOSITE_SPLITS_ENABLED, Boolean.class);
     }
 
     public static boolean isBucketExecutionEnabled(ConnectorSession session)

@@ -133,6 +133,7 @@ public class IcebergConfig
     private String timeZone = "UTC";
     private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
     private DropTableMode dropTableMode = DropTableMode.PURGE;
+    private boolean compositeSplitsEnabled;
     private boolean equalityDeletesBlocksHashEnabled = true;
     private ParquetFooterCacheType parquetFooterCacheType = NONE;
     private DataSize parquetFooterCacheMemoryMaxSize = DataSize.of(10, MEGABYTE);
@@ -779,6 +780,20 @@ public class IcebergConfig
     public IcebergConfig setMetadataParallelism(int metadataParallelism)
     {
         this.metadataParallelism = metadataParallelism;
+        return this;
+    }
+
+    public boolean isCompositeSplitsEnabled()
+    {
+        return compositeSplitsEnabled;
+    }
+
+    @ConfigHidden
+    @Config("iceberg.experimental.composite-splits.enabled")
+    @ConfigDescription("Merge small splits into composite splits spanning multiple files")
+    public IcebergConfig setCompositeSplitsEnabled(boolean compositeSplitsEnabled)
+    {
+        this.compositeSplitsEnabled = compositeSplitsEnabled;
         return this;
     }
 

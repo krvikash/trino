@@ -22,6 +22,7 @@ import io.trino.plugin.hive.HiveSplit;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hudi.HudiSplit;
 import io.trino.plugin.hudi.HudiTableHandle;
+import io.trino.plugin.iceberg.CompositeIcebergSplit;
 import io.trino.plugin.iceberg.IcebergSplit;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
@@ -87,7 +88,7 @@ public class ObjectStoreSplitManager
     {
         return switch (split) {
             case HiveSplit _ -> hiveSplitManager.getCacheSplitId(split);
-            case IcebergSplit _ -> icebergSplitManager.getCacheSplitId(split);
+            case CompositeIcebergSplit _, IcebergSplit _ -> icebergSplitManager.getCacheSplitId(split);
             case DeltaLakeSplit _ -> deltaSplitManager.getCacheSplitId(split);
             case HudiSplit _ -> hudiSplitManager.getCacheSplitId(split);
             default -> throw new VerifyException("Unhandled class: " + split.getClass().getName());

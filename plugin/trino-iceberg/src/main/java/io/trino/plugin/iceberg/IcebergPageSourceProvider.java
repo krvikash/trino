@@ -308,6 +308,11 @@ public class IcebergPageSourceProvider
             ConnectorGpuMemoryContext memoryContext,
             IoExecutor ioExecutor)
     {
+        if (connectorSplit instanceof CompositeIcebergSplit) {
+            // TODO: Add support for composite splits in the GPU path
+            return Optional.empty();
+        }
+
         verify(connectorTableCredentials.isPresent(), "connectorTableCredentials is empty");
         IcebergTableCredentials icebergTableCredentials = connectorTableCredentials.map(IcebergTableCredentials.class::cast).get();
 
@@ -495,12 +500,32 @@ public class IcebergPageSourceProvider
                     filesTableSplit);
         }
 
-        IcebergSplit split = (IcebergSplit) connectorSplit;
         List<IcebergColumnHandle> icebergColumns = columns.stream()
                 .map(IcebergColumnHandle.class::cast)
                 .collect(toImmutableList());
         IcebergTableHandle tableHandle = (IcebergTableHandle) connectorTable;
         Schema schema = SchemaParser.fromJson(tableHandle.getTableSchemaJson());
+
+        if (connectorSplit instanceof CompositeIcebergSplit(List<IcebergSplit> splits)) {
+            return new CompositeIcebergPageSource(
+                    splits,
+                    subSplit -> createPageSource(
+                            session, icebergColumns, schema, tableHandle, icebergTableCredentials, dynamicFilter, subSplit));
+        }
+
+        IcebergSplit split = (IcebergSplit) connectorSplit;
+        return createPageSource(session, icebergColumns, schema, tableHandle, icebergTableCredentials, dynamicFilter, split);
+    }
+
+    private ConnectorPageSource createPageSource(
+            ConnectorSession session,
+            List<IcebergColumnHandle> icebergColumns,
+            Schema schema,
+            IcebergTableHandle tableHandle,
+            IcebergTableCredentials icebergTableCredentials,
+            DynamicFilter dynamicFilter,
+            IcebergSplit split)
+    {
         String partitionSpecJson = tableHandle.getPartitionSpecJsons().get(split.specId());
         PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, partitionSpecJson);
         org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()

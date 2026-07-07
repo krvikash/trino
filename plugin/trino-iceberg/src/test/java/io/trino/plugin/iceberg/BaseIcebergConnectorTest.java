@@ -5353,7 +5353,7 @@ public abstract class BaseIcebergConnectorTest
         testStatsBasedRepartitionData(false);
     }
 
-    private void testStatsBasedRepartitionData(boolean ctas)
+    protected void testStatsBasedRepartitionData(boolean ctas)
     {
         String catalog = getSession().getCatalog().orElseThrow();
         try (TestTable sourceTable = new TestTable(
@@ -5389,7 +5389,7 @@ public abstract class BaseIcebergConnectorTest
         }
     }
 
-    private void testRepartitionData(Session session, String sourceRelation, boolean ctas, String partitioning, int expectedFiles)
+    protected void testRepartitionData(Session session, String sourceRelation, boolean ctas, String partitioning, int expectedFiles)
     {
         String tableName = "repartition" +
                 "_" + sourceRelation.replaceAll("[^a-zA-Z0-9]", "") +
@@ -5556,7 +5556,7 @@ public abstract class BaseIcebergConnectorTest
                 .build();
     }
 
-    private void verifySplitCount(QueryId queryId, long expectedSplitCount)
+    protected void verifySplitCount(QueryId queryId, long expectedSplitCount)
     {
         checkArgument(expectedSplitCount >= 0);
         OperatorStats operatorStats = getOperatorStats(queryId);
@@ -6212,14 +6212,14 @@ public abstract class BaseIcebergConnectorTest
                 .collect(toImmutableSet());
     }
 
-    private List<String> getActiveFiles(String tableName)
+    protected List<String> getActiveFiles(String tableName)
     {
         return computeActual(format("SELECT file_path FROM \"%s$files\"", tableName)).getOnlyColumn()
                 .map(String.class::cast)
                 .collect(toImmutableList());
     }
 
-    private List<IcebergEntry> getIcebergEntries(String tableName)
+    protected List<IcebergEntry> getIcebergEntries(String tableName)
     {
         return computeActual(format("SELECT status, data_file.file_path, sequence_number, file_sequence_number FROM \"%s$entries\"", tableName))
                 .getMaterializedRows()
@@ -6228,7 +6228,7 @@ public abstract class BaseIcebergConnectorTest
                 .collect(toImmutableList());
     }
 
-    private record IcebergEntry(int status, String filePath, Long sequenceNumber, Long fileSequenceNumber) {}
+    protected record IcebergEntry(int status, String filePath, Long sequenceNumber, Long fileSequenceNumber) {}
 
     protected String getTableLocation(String tableName)
     {
@@ -10192,7 +10192,7 @@ public abstract class BaseIcebergConnectorTest
                 .build();
     }
 
-    private Session withSingleWriterPerTask(Session session)
+    protected Session withSingleWriterPerTask(Session session)
     {
         return Session.builder(session)
                 .setSystemProperty("task_min_writer_count", "1")
@@ -10270,7 +10270,7 @@ public abstract class BaseIcebergConnectorTest
                 .collect(toImmutableList());
     }
 
-    private long getCurrentSnapshotId(String tableName)
+    protected long getCurrentSnapshotId(String tableName)
     {
         return (long) computeScalar("SELECT snapshot_id FROM \"" + tableName + "$snapshots\" ORDER BY committed_at DESC FETCH FIRST 1 ROW WITH TIES");
     }
@@ -10361,13 +10361,13 @@ public abstract class BaseIcebergConnectorTest
         };
     }
 
-    private Map<String, String> getTableProperties(String tableName)
+    protected Map<String, String> getTableProperties(String tableName)
     {
         return computeActual("SELECT key, value FROM \"" + tableName + "$properties\"").getMaterializedRows().stream()
                 .collect(toImmutableMap(row -> (String) row.getField(0), row -> (String) row.getField(1)));
     }
 
-    private static List<HiveCompressionCodec> getCompressionCodecs(Optional<HiveCompressionCodec> codecToExclude)
+    protected static List<HiveCompressionCodec> getCompressionCodecs(Optional<HiveCompressionCodec> codecToExclude)
     {
         return Arrays.stream(HiveCompressionCodec.values())
                 .filter(codec -> !(codecToExclude.isPresent() && codec.equals(codecToExclude.get())))

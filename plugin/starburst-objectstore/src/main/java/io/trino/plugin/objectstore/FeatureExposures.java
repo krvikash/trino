@@ -190,6 +190,7 @@ public final class FeatureExposures
                 .put(ICEBERG, "partition_statistics_enabled", EXPOSED)
                 .put(ICEBERG, "partition_statistics_collect_on_write", EXPOSED)
                 .put(ICEBERG, "drop_table_mode", EXPOSED)
+                .put(ICEBERG, "experimental_composite_splits_enabled", INACCESSIBLE)
                 .put(DELTA, "checkpoint_filtering_enabled", EXPOSED)
                 .put(DELTA, "compression_codec", EXPOSED)
                 .put(DELTA, "dynamic_filtering_wait_timeout", EXPOSED)

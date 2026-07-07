@@ -200,6 +200,10 @@ public class IcebergSplitManager
     @Override
     public Optional<CacheSplitId> getCacheSplitId(ConnectorSplit split)
     {
+        if (split instanceof CompositeIcebergSplit) {
+            // Split caching is not supported for composite splits
+            return Optional.empty();
+        }
         IcebergSplit icebergSplit = (IcebergSplit) split;
 
         // ensure cache id generation is revisited whenever handle classes change
