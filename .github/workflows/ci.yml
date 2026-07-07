@@ -1639,7 +1639,6 @@ jobs:
             - suite-compatibility
             - suite-delta-lake-oss
             - suite-iceberg
-            #- suite-snowflake # This is OSS Snowflake connector suite. We run Starburst Snowflake suite instead.
             - suite-hudi
           exclude:
             - suite: suite-azure
@@ -1726,12 +1725,6 @@ jobs:
                     (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
                     (github.event_name == 'workflow_dispatch') ||
                     (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
-            - suite: suite-snowflake
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'snowflake')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.SNOWFLAKE_PASSWORD == '' && env.SNOWFLAKE_PRIVATE_KEY == '' ) }}
             - suite: suite-sap-hana
               ignore exclusion if: >-
                 ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
