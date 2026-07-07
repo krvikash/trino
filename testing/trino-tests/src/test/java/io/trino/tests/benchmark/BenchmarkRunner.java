@@ -19,6 +19,9 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Key;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
@@ -67,6 +70,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.function.ToLongFunction;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -77,12 +81,15 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.stream.Collectors.joining;
 
 /**
@@ -326,6 +333,9 @@ public final class BenchmarkRunner
         @Option(names = {"-s", "--skip-query"}, description = "A query number to skip; recorded as all-zero timings in the CSV (can be repeated)")
         List<Integer> skipQueries = new ArrayList<>();
 
+        @Option(names = "--concurrency", description = "Maximum number of queries to execute simultaneously. All --runs queries are submitted at once; each measures its own elapsed time independently. Default: ${DEFAULT-VALUE}. Incompatible with --gpu-memory-trace.")
+        int concurrency = 1;
+
         @Option(names = {"-p", "--profile"}, description = "async-profiler event: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ProfileEvent profileEvent = ProfileEvent.NONE;
 
@@ -397,6 +407,16 @@ public final class BenchmarkRunner
             if (gpuMemoryTrace && mode != ExecutionMode.GPU) {
                 throw new IllegalArgumentException("--gpu-memory-trace requires --mode=GPU");
             }
+            if (concurrency < 1) {
+                throw new IllegalArgumentException("--concurrency must be at least 1");
+            }
+
+            if (concurrency > 1 && gpuMemoryTrace) {
+                throw new IllegalArgumentException("--concurrency is incompatible with --gpu-memory-trace");
+            }
+            if (concurrency > runs) {
+                throw new IllegalArgumentException(format("--concurrency (%d) must not exceed --runs (%d)", concurrency, runs));
+            }
 
             if (debug) {
                 enableDebugLogging();
@@ -419,11 +439,12 @@ public final class BenchmarkRunner
 
             log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
-            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false, rmmLogFile, Optional.ofNullable(fsCacheDirectory).map(Path::of))) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false, rmmLogFile, Optional.ofNullable(fsCacheDirectory).map(Path::of));
+                    ListeningExecutorService executor = concurrency == 1 ? newDirectExecutorService() : listeningDecorator(newFixedThreadPool(concurrency))) {
                 ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir, rmmLogFile);
 
                 log.info("Running Trino at %s (mode=%s)", runner.getCoordinator().getBaseUrl(), mode);
-                log.info("Running %s benchmark: %s suite warmup, %s warmup, %s measured runs, reporting average", workload.name(), suiteWarmup, warmup, runs);
+                log.info("Running %s benchmark: %s suite warmup, %s warmup, %s measured runs, reporting average%s", workload.name(), suiteWarmup, warmup, runs, concurrency > 1 ? format(" (concurrency=%d)", concurrency) : "");
                 if (dataLocation != null) {
                     workload.verifyDataset(runner);
                 }
@@ -465,7 +486,7 @@ public final class BenchmarkRunner
                         measurementsByQuery.put(queryNumber, List.of());
                         continue;
                     }
-                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, session, explainOutputDir);
+                    List<Measurement> measurements = benchmarkQuery(runner, queryNumber, session, explainOutputDir, executor, concurrency);
                     measurementsByQuery.put(queryNumber, measurements);
                     if (!measurements.isEmpty()) {
                         totalElapsedMillis += averageMillis(measurements, Measurement::elapsedMillis);
@@ -492,7 +513,9 @@ public final class BenchmarkRunner
                 DistributedQueryRunner runner,
                 int queryNumber,
                 ProfileSession session,
-                Path explainOutputDir)
+                Path explainOutputDir,
+                ListeningExecutorService executor,
+                int concurrency)
                 throws IOException
         {
             String sql = workload.readQuery(queryNumber);
@@ -506,29 +529,54 @@ public final class BenchmarkRunner
             try (BufferedWriter explainWriter = Files.newBufferedWriter(explainFile, UTF_8)) {
                 for (int i = 0; i < warmup; i++) {
                     log.debug("Starting warmup run of %s", displayName);
-                    IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
-                    log.debug("Warmup run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
+                    IterationResult warmupIteration = measureAndValidate(runner, sql, displayName, expectedLines);
+                    log.debug("Warmup run of %s took %s ms", displayName, warmupIteration.measurement().elapsedMillis());
                 }
                 session.start();
+                boolean trackGpuMemory = mode == ExecutionMode.GPU && concurrency == 1;
+                boolean trackConcurrentGpuMemory = mode == ExecutionMode.GPU && concurrency > 1;
+                List<ListenableFuture<IterationResult>> futures = new ArrayList<>(runs);
+                if (trackConcurrentGpuMemory) {
+                    Rmm.resetScopedMaximumBytesAllocated();
+                }
                 for (int i = 0; i < runs; i++) {
-                    log.debug("Starting measured run of %s", displayName);
-                    if (mode == ExecutionMode.GPU) {
-                        Rmm.resetScopedMaximumBytesAllocated();
-                    }
-                    IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
+                    futures.add(executor.submit(() -> {
+                        if (trackGpuMemory) {
+                            Rmm.resetScopedMaximumBytesAllocated();
+                        }
+                        IterationResult iteration = measureAndValidate(runner, sql, displayName, expectedLines);
+                        if (trackGpuMemory) {
+                            peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
+                        }
+                        return iteration;
+                    }));
+                }
+                List<IterationResult> iterationResults;
+                try {
+                    iterationResults = Futures.allAsList(futures).get();
+                }
+                catch (ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    throw cause instanceof RuntimeException runtime ? runtime : new RuntimeException(cause);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for concurrent queries", e);
+                }
+                if (trackConcurrentGpuMemory) {
+                    peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
+                }
+                for (IterationResult iteration : iterationResults) {
                     log.debug("Measured run of %s took %s ms", displayName, iteration.measurement().elapsedMillis());
                     measurements.add(iteration.measurement());
                     measuredIterations.add(iteration);
-                    if (mode == ExecutionMode.GPU) {
-                        peakGpuBytesPerIter.add(Rmm.getScopedMaximumBytesAllocated());
-                    }
                 }
                 // Halt sampling before rendering plans so PlanPrinter frames don't pollute the
                 // flamegraph; the buffer is preserved for the dump that runs after the try block.
                 session.stop();
                 for (int i = 0; i < measuredIterations.size(); i++) {
                     IterationResult iteration = measuredIterations.get(i);
-                    explainWriter.write("=== %s run %d/%d ===%n".formatted(displayName, i + 1, runs));
+                    explainWriter.write("=== %s run %d/%d ===%n".formatted(displayName, i + 1, measuredIterations.size()));
                     explainWriter.write(renderExplainAnalyze(runner.getCoordinator(), iteration.queryInfo()));
                     explainWriter.newLine();
                 }
