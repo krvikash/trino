@@ -264,7 +264,6 @@ public class ScanFilterAndProjectOperator
                     .flatMap(page -> {
                         WorkProcessor<Page> workProcessor = pageProcessor.createWorkProcessor(
                                 connectorSession,
-                                yieldSignal,
                                 outputMemoryContext,
                                 pageProcessorMetrics,
                                 page);

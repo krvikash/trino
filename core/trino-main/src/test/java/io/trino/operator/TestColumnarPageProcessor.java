@@ -55,7 +55,6 @@ public class TestColumnarPageProcessor
         Page outputPage = getOnlyElement(
                 processor.process(
                         SESSION,
-                        new DriverYieldSignal(),
                         newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName()),
                         SourcePage.create(page)))
                 .orElseThrow(() -> new AssertionError("page is not present"));
@@ -71,7 +70,6 @@ public class TestColumnarPageProcessor
         Page outputPage = getOnlyElement(
                 processor.process(
                         SESSION,
-                        new DriverYieldSignal(),
                         newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName()),
                         SourcePage.create(page)))
                 .orElseThrow(() -> new AssertionError("page is not present"));

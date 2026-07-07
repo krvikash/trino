@@ -24,7 +24,6 @@ import io.airlift.units.DataSize;
 import io.trino.FullConnectorSession;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
-import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
@@ -708,7 +707,7 @@ public final class GpuTestUtils
         LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
         ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
         for (Page inputPage : inputPages) {
-            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, new DriverYieldSignal(), context, SourcePage.create(inputPage));
+            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, context, SourcePage.create(inputPage));
             stream(processed)
                     .flatMap(Optional::stream)
                     .forEachOrdered(outputPages::add);
