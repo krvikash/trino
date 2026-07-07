@@ -13,15 +13,16 @@
  */
 package io.trino.tests.benchmark;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
-import io.trino.Session;
-import io.trino.plugin.hive.TestingHivePlugin;
+import io.trino.metastore.HiveMetastore;
+import io.trino.metastore.HiveMetastoreFactory;
+import io.trino.plugin.iceberg.IcebergConnector;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.containers.Minio;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -32,11 +33,13 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
-import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
+import static io.trino.testing.containers.Minio.MINIO_REGION;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
+import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
-import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -103,28 +106,37 @@ public final class BenchmarkIcebergClickBench
         {
             String expected =
                     """
-                    1067716395 data/20260605_123413_00004_sag53-417c1372-5792-4909-8e78-a385fb699f4a.parquet
-                    1068607614 data/20260605_123413_00004_sag53-d7e0e11e-c2d0-453b-837e-42f3db06588e.parquet
-                    1068725805 data/20260605_123413_00004_sag53-7c287432-e169-4771-9068-ac6373432276.parquet
-                    1068898126 data/20260605_123413_00004_sag53-a4126fb5-02ab-4e05-8cbf-64f030ee79ca.parquet
-                    1069252707 data/20260605_123413_00004_sag53-e17df480-0024-4641-bb37-5c75237db258.parquet
-                    1069823059 data/20260605_123413_00004_sag53-d290f615-65cc-433b-a27c-613cbd643d01.parquet
-                    1069950674 data/20260605_123413_00004_sag53-7398353c-cab8-4639-be84-8e269cc5efe3.parquet
-                    1070096931 data/20260605_123413_00004_sag53-909575f7-6149-46a9-a5d8-565c7e15341b.parquet
-                    1070102906 data/20260605_123413_00004_sag53-a8e65d52-0a8d-4b75-bd24-323ad0928acf.parquet
-                    1070587202 data/20260605_123413_00004_sag53-b4faa626-d24d-4fb4-8451-de96fc52d63a.parquet
-                    1071031426 data/20260605_123413_00004_sag53-0ecef26b-4bc8-401a-b0f2-35d939f3701f.parquet
-                    1071522786 data/20260605_123413_00004_sag53-c37ee053-6e5a-4370-b39f-93652ce20bbd.parquet
-                    1071894342 data/20260605_123413_00004_sag53-90434143-3544-4247-9983-a95a80fd0eeb.parquet
-                    1072303929 data/20260605_123413_00004_sag53-b55d10fa-6546-4522-8fab-55000b3980ea.parquet
-                    1072865957 data/20260605_123413_00004_sag53-0c32b988-9789-4576-95ab-051b3019c5a5.parquet
-                    1246581 metadata/20260605_123413_00004_sag53-c2860e55-4b6d-404f-abfe-7ccc3fbe12ba.stats
-                    23626 metadata/00001-547595c5-fd5c-4ab1-9daf-9a20cc966aaa.metadata.json
-                    29836 metadata/38afb0f2-9b22-4e9c-bc51-305020379003-m0.avro
-                    341218930 data/20260605_123413_00004_sag53-9d0ba535-b984-403d-8722-60f645529f84.parquet
-                    4313 metadata/snap-2289599665082482433-1-99edc5a6-cda5-461e-b80d-91a24d289a8c.avro
-                    4485 metadata/snap-4400031080874046512-1-38afb0f2-9b22-4e9c-bc51-305020379003.avro
-                    8040 metadata/00000-2501ff6c-1201-469c-9790-aa5fc04dad1e.metadata.json
+                    1248274 metadata/20260423_182617_06324_7ypiy-ffd9fd58-cb9c-4b8d-839d-0bd8b1a5078e.stats
+                    22619 metadata/00000-fea24b7c-7b9a-4e7c-b308-a5c120c77e11.metadata.json
+                    23077 metadata/00002-3dbac3cd-3e83-4f73-90ef-20bd355a521b.metadata.json
+                    336065 metadata/13f26731-3239-4d20-a012-39eeb4059358-m0.avro
+                    350738762 data/20260423_182617_06324_7ypiy-3289be40-248d-48c4-87ab-500739f3492d.parquet
+                    38267 metadata/00001-071268f6-4219-4ee0-a086-e801c4b3d1bb.metadata.json
+                    38431 metadata/13f26731-3239-4d20-a012-39eeb4059358-m1.avro
+                    424474942 data/20260423_182617_06324_7ypiy-f1ebe060-027e-468a-86c9-bdfc775876b9.parquet
+                    429397477 data/20260423_182617_06324_7ypiy-0d4d464e-b900-4772-b861-b4b779bbc17f.parquet
+                    430813350 data/20260423_182617_06324_7ypiy-8c33c6a0-9e4f-48c5-969e-6aa47f5aa599.parquet
+                    432269863 data/20260423_182617_06324_7ypiy-bdb573ff-56a7-44cf-b6e4-8e2c92a6a843.parquet
+                    4502 metadata/snap-8995484110236882038-1-13f26731-3239-4d20-a012-39eeb4059358.avro
+                    453847814 data/20260423_182617_06324_7ypiy-355305e5-086d-4247-bd7e-b6957b05f337.parquet
+                    456419928 data/20260423_182617_06324_7ypiy-22bab991-be6e-4b38-97ea-871cc85c5fcf.parquet
+                    457799329 data/20260423_182617_06324_7ypiy-bc3a5c60-e2e6-4474-8fe7-9db46553a8ed.parquet
+                    460068756 data/20260423_182617_06324_7ypiy-4ddc24fa-c210-45ad-ad99-2a6deb81d6c9.parquet
+                    460725057 data/20260423_182617_06324_7ypiy-c2ebc1c0-0ecd-4b0d-b972-b0c33764a30c.parquet
+                    463751534 data/20260423_182617_06324_7ypiy-314299b9-f6fb-453d-8841-0f1a5fc58611.parquet
+                    465582301 data/20260423_182617_06324_7ypiy-8747cf98-1830-4a94-b35c-98b69ffbcf5d.parquet
+                    466528252 data/20260423_182617_06324_7ypiy-266a7832-8cfc-4883-808b-ad4d6af08af4.parquet
+                    467254669 data/20260423_182617_06324_7ypiy-94b92df2-eacf-48e0-a37e-606d0febcc67.parquet
+                    468673535 data/20260423_182617_06324_7ypiy-267d9bf9-3deb-4b21-b5e9-b6f1a55b5efc.parquet
+                    468989328 data/20260423_182617_06324_7ypiy-152ab8ef-edba-4a85-8899-e05cd40f84be.parquet
+                    472867874 data/20260423_182617_06324_7ypiy-d1ebeb32-3c7d-4cdb-862a-e295fa428141.parquet
+                    475263722 data/20260423_182617_06324_7ypiy-a9915ab1-22ad-4db5-8e3c-1523f34bba5c.parquet
+                    476086337 data/20260423_182617_06324_7ypiy-70ac5d95-f503-440b-a9df-2ba80a20c504.parquet
+                    476297655 data/20260423_182617_06324_7ypiy-7a379464-2d71-44ca-b1c9-5f4cab4f602b.parquet
+                    486642343 data/20260423_182617_06324_7ypiy-07ca558a-c1ba-4b29-9fb0-154ab91b6339.parquet
+                    488874496 data/20260423_182617_06324_7ypiy-5288db11-837e-43d1-931c-5d0539a14404.parquet
+                    489897084 data/20260423_182617_06324_7ypiy-5d5f8d85-7c06-4c84-9d28-d75f3ccfb07c.parquet
+                    492656380 data/20260423_182617_06324_7ypiy-8e7e7dff-ea7e-4b46-b2cd-1d1a4cee88a9.parquet
                     """;
             BenchmarkRunner.verifyDataListing(findTableDirectory(resolveTablesLocation(dataLocation), "hits"), "Run `testing/benchmark-data/hydrate.sh iceberg-clickbench` first.", expected);
         }
@@ -136,12 +148,25 @@ public final class BenchmarkIcebergClickBench
             if (isRemote(dataLocation)) {
                 throw new UnsupportedOperationException("Remote data locations are not supported for Iceberg benchmarks. Use a local path.");
             }
+            Path minioDataDir = Path.of(dataLocation, "minio-data");
+            Files.createDirectories(minioDataDir);
+
+            Minio minio = Minio.builder().build();
+            minio.mountDataDirectory(minioDataDir.toString());
+            minio.start();
 
             IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                     .setMetastoreDirectory(Path.of(dataLocation).toFile())
                     .setWorkerCount(0)
                     .disableSchemaInitializer()
-                    .addIcebergProperty("iceberg.register-table-procedure.enabled", "true");
+                    .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
+                    .addIcebergProperty("fs.s3.enabled", "true")
+                    .addIcebergProperty("s3.aws-access-key", MINIO_ROOT_USER)
+                    .addIcebergProperty("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
+                    .addIcebergProperty("s3.region", MINIO_REGION)
+                    .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
+                    .addIcebergProperty("s3.path-style-access", "true")
+                    .registerResource(minio);
             BenchmarkRunner.applyExecutionMode(builder, mode);
             if (mode == BenchmarkRunner.ExecutionMode.GPU) {
                 builder.addIcebergProperty("iceberg.max-split-size", "512MB");
@@ -153,7 +178,11 @@ public final class BenchmarkIcebergClickBench
             DistributedQueryRunner queryRunner = builder.build();
 
             queryRunner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.clickbench");
-            registerTable(queryRunner, dataLocation);
+
+            HiveMetastore hiveMetastore = ((IcebergConnector) queryRunner.getCoordinator().getConnector("iceberg")).getInjector()
+                    .getInstance(HiveMetastoreFactory.class)
+                    .createMetastore(Optional.empty());
+            registerTables(minio, hiveMetastore, "baas-benchmark-data", dataLocation, "clickbench", List.of("hits"), "clickbench/iceberg");
 
             return queryRunner;
         }
@@ -180,69 +209,8 @@ public final class BenchmarkIcebergClickBench
 
         @Override
         public void generateData(Path target)
-                throws Exception
         {
-            Path hiveSource = hiveDataLocation();
-            if (!Files.isDirectory(hiveSource)) {
-                throw new IllegalStateException("Hive source data not found at " + hiveSource + ". Run `testing/benchmark-data/hydrate.sh hive-clickbench` first.");
-            }
-
-            Path tablesLocation = resolveTablesLocation(target.toAbsolutePath().toString());
-            try (DistributedQueryRunner runner = applyDataGenerationConfiguration(IcebergQueryRunner.builder())
-                    .disableSchemaInitializer()
-                    .setMetastoreDirectory(target.toFile())
-                    .addIcebergProperty("iceberg.compression-codec", "SNAPPY")
-                    .addIcebergProperty("parquet.writer.page-value-count", "100000")
-                    .build()) {
-                runner.installPlugin(new TestingHivePlugin(runner.getCoordinator().getBaseDataDir()));
-                runner.createCatalog("hive", "hive", ImmutableMap.of(
-                        "hive.parquet.time-zone", "UTC",
-                        "hive.metastore.disable-location-checks", "true",
-                        "fs.hadoop.enabled", "true"));
-
-                Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
-
-                String sourcePath = hiveSource.toAbsolutePath().normalize().toUri().toString();
-                runner.execute("CREATE SCHEMA hive.clickbench_src");
-                runner.execute(format(
-                        "CREATE TABLE hive.clickbench_src.hits (%s) WITH (external_location = '%s', format = 'PARQUET')",
-                        BenchmarkHiveClickBench.HITS_COLUMNS,
-                        sourcePath));
-
-                String schemaLocation = target.toAbsolutePath().normalize()
-                        .relativize(tablesLocation.toAbsolutePath().normalize())
-                        .toString();
-                runner.execute(session, "CREATE SCHEMA iceberg.clickbench WITH (location = 'local:///%s')".formatted(schemaLocation));
-                // CREATE TABLE implicitly widens SMALLINT to INTEGER (Iceberg has no SMALLINT),
-                // so we can reuse the Hive column definitions directly.
-                runner.execute(session, format("CREATE TABLE iceberg.clickbench.hits (%s) WITH (format = 'PARQUET')", BenchmarkHiveClickBench.HITS_COLUMNS));
-                log.info("Generating iceberg clickbench.hits");
-                runner.execute(session, "INSERT INTO iceberg.clickbench.hits SELECT * FROM hive.clickbench_src.hits");
-            }
-            BenchmarkRunner.cleanCrcFiles(target);
-        }
-
-        private static Path hiveDataLocation()
-        {
-            return Path.of(new BenchmarkHiveClickBench.ClickBenchWorkload().defaultDataLocation(), "hits");
-        }
-
-        private static void registerTable(DistributedQueryRunner runner, String dataLocation)
-        {
-            long tableCount = (Long) runner.execute(
-                            "SELECT count(*) FROM iceberg.information_schema.tables WHERE table_schema = 'clickbench' AND table_name = 'hits'")
-                    .getOnlyValue();
-            if (tableCount > 0) {
-                log.info("Reusing existing iceberg.clickbench.hits");
-                return;
-            }
-            Path tableDir = findTableDirectory(resolveTablesLocation(dataLocation), "hits");
-            String relativePath = Path.of(dataLocation).toAbsolutePath().normalize()
-                    .relativize(tableDir.toAbsolutePath().normalize())
-                    .toString();
-            String location = "local:///" + relativePath;
-            log.info("Registering iceberg.clickbench.hits at %s", location);
-            runner.execute(format("CALL iceberg.system.register_table('clickbench', 'hits', '%s')", location));
+            throw new UnsupportedOperationException("Iceberg local benchmarks use externally generated datasets.");
         }
     }
 }

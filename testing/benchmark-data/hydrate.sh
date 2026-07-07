@@ -144,9 +144,9 @@ if "${want_hive_clickbench}"; then
 fi
 
 if "${want_iceberg_clickbench}"; then
-    local_dir="${DATA_ROOT}/iceberg-clickbench/tables/hits-597fe8e4c83a44ea8999a5703ebd9c1c"
+    local_dir="${DATA_ROOT}/iceberg-clickbench/tables/hits"
     mkdir -p "${local_dir}/"
-    aws s3 sync --delete "s3://starburst-benchmarks-data/ClickBench/iceberg/hits_snappy_large_files-597fe8e4c83a44ea8999a5703ebd9c1c/" "${local_dir}/"
+    aws s3 sync --delete "s3://baas-benchmark-data/clickbench/iceberg/hits/" "${local_dir}/"
 fi
 
 sync_dataset() {
@@ -175,58 +175,58 @@ fi
 
 if "${want_iceberg_tpch_sf30}"; then
     tables=(
-        customer-deb77f6e7ac64ac49be8806cd9f795b7
-        lineitem-0e2da0fa760040d4b1ff04da71924bba
-        nation-dc9e1d142aa840bdad5e2fc7ccb4a887
-        orders-e0bce2fbd20f49a5be1240076de42f58
-        part-8bff82460e214a10b00b90a29cb105ff
-        partsupp-60e773e49a6d499da12323f8c550264d
-        region-73e9211f9ddf467eb4a074d59ff6ecc8
-        supplier-ae961b8cec9b4dfba2bde399e980121e
+        customer-4d33c779befa4572adf9456509446417
+        lineitem-55afd99516654c80a764dad11c3869d8
+        nation-f18221523a134c779438d63aeeff8c9d
+        orders-8ed77cfa918b4ab89ea7547c81d4c4d4
+        part-3d2ec790b47e45f991b3b2b68f393727
+        partsupp-560dc06ebfcc40798253e594b6387a67
+        region-57ac5ea65e314fe28d410437c08781da
+        supplier-c04975f381e749eb8381a19c96174a26
     )
-    sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf30-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpch-sf30/tables" "${tables[@]}"
+    sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf30-parquet/ "${DATA_ROOT}/iceberg-tpch-sf30/tables" "${tables[@]}"
 fi
 
 if "${want_iceberg_tpch_sf100}"; then
     tpch_tables=(
-        customer-f1db0087172d4e90a7eab0f5cde4774f
-        lineitem-c3e45c03224643b3a63c478aaae57b08
-        nation-f54e78db9ef64cc58bf83431ab13b67e
-        orders-16331d4eeedf4e0c993faceafff8b2e3
-        part-564b7204508e42de87afa69704a0be7a
-        partsupp-befa29c04a7042b89bbf622486705a7c
-        region-c8f62a399e354427a2b5eb5dee904da5
-        supplier-e61f2fa498264d49b3711c95e38aa619
+        customer-8826fb2be8434f459a80851a21ce6a48
+        lineitem-5817376144ae4e569d71eb95f6867db2
+        nation-22ecbf33f3d64878ad7ef9fcb738c5a3
+        orders-657a5880542a4d48a5790660fe85bd46
+        part-fba8936441f343f09c999254ec10a676
+        partsupp-97b9c1cd18f34aa5bc7574e35e6a77e3
+        region-74f93ec72c87444992b69b67aa125bd1
+        supplier-72a65d865ba241cf9541831ff8e18fb5
     )
-    sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf100-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpch-sf100/tables" "${tpch_tables[@]}"
+    sync_dataset s3://starburst-benchmarks-data/iceberg-tpch-sf100-parquet/ "${DATA_ROOT}/iceberg-tpch-sf100/tables" "${tpch_tables[@]}"
 fi
 
 if "${want_iceberg_tpcds_sf100}"; then
     tables=(
-        call_center-d25f1f5f82b54eb4b952a5be304b7f73
-        catalog_page-b6732c62099d4a1c951013c9052045d6
-        catalog_returns-256bf8aeece34579bc0f9d19b2cb4543
-        catalog_sales-4db5f6164de44048a84ba10c7f17589d
-        customer-a274f74636104d6384c3bffa84100cbc
-        customer_address-651e1c68f4884fc09f4088c8e436b22c
-        customer_demographics-eef2e095d6d14945af22cef0988ed5ff
-        date_dim-66a709699883471684cd954c981e4b59
-        household_demographics-1b88bf552134431998e69a8e2112fffb
-        income_band-b2e7b325f5e640aea9dc400e82f95ba1
-        inventory-484b80a5590e449199b01b4ca507ab91
-        item-153ad53ffd8948a4ad24ec5020485e4d
-        promotion-226aa472cc894da787dfb0682638f10b
-        reason-5224765121ef4211952ba66770c4bfe3
-        ship_mode-1e424ce99bc64a09b7abbd90a22a2251
-        store-1cbeb6c68e2b46f1a61f19fe8527b57a
-        store_returns-9f1669793a40476bba696a31a5da1417
-        store_sales-c68a9755e2f7494a841fc01770d4dd67
-        time_dim-fb84514664e8431eb0884da596ed7a08
-        warehouse-bd781304580642779ffa8233b1fe60da
-        web_page-ea1d765ebcfb448fa43ccb7e57e8645c
-        web_returns-a227bf7382cb46f0827f84d7c4f65b29
-        web_sales-28c8ab917b0a49faa78a5bfde99e515b
-        web_site-c3dcd5b06e974e2b9b7a7182afd00678
+        call_center-cace8ff8957e41659bd77f8deae79ed6
+        catalog_page-abf2b37a4b2d457ea75378295c39fa02
+        catalog_returns-b374fe5dc5b4463693183f386c251474
+        catalog_sales-7131536b11774201b7a9b0d87fb7d07b
+        customer-3f927ff1d32d4935aed0180e48f74019
+        customer_address-c3be8509ad5d497aa3d6d18fc72d09cd
+        customer_demographics-b155cd14884349a4a15b299f4e6cad95
+        date_dim-23d031cec1644a1c8123d56c8a4eafbd
+        household_demographics-52b544018f094b5b8b925050feba174e
+        income_band-5b08ee2498c54dd1a19d4a089893d912
+        inventory-04a35aa569bd439cad7cb616a9abde08
+        item-06036328e0fc4ea9af861e8eccb8a4d0
+        promotion-1c49844df9ae466080df3a48d07e30fe
+        reason-9a14387bef2b4d028b1d1dd987a9328e
+        ship_mode-779915a8bd2146d39eb94d67ebcc9af8
+        store-347a9a4c5a194e3d97066fb362f9d087
+        store_returns-ab090d465aaa4eefbe2895aee98c4fcb
+        store_sales-dbf6ed25869c4fb08651af77f50a9a07
+        time_dim-1a224b45329540558d44b3790118b562
+        warehouse-900596e26c504434b5d77a5c599a70a2
+        web_page-03c886c64249498e97a74f62404be20d
+        web_returns-7c46da8beb874de5898a39d9b68bd465
+        web_sales-9485b1bc457a475299e2e43e01c5fa76
+        web_site-3701731cfd7045c2bfad58de0a6f1450
     )
-    sync_dataset s3://starburst-benchmarks-data/iceberg-tpcds-sf100-snappy-PARQUET/ "${DATA_ROOT}/iceberg-tpcds-sf100/tables" "${tables[@]}"
+    sync_dataset s3://starburst-benchmarks-data/iceberg-tpcds-sf100-parquet/ "${DATA_ROOT}/iceberg-tpcds-sf100/tables" "${tables[@]}"
 fi

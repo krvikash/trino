@@ -15,26 +15,30 @@ package io.trino.tests.benchmark;
 
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
-import io.trino.Session;
+import io.trino.metastore.HiveMetastore;
+import io.trino.metastore.HiveMetastoreFactory;
+import io.trino.plugin.iceberg.IcebergConnector;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.containers.Minio;
 import io.trino.tpch.TpchTable;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
-import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
+import static io.trino.testing.containers.Minio.MINIO_REGION;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
-import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
-import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
+import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -100,12 +104,25 @@ public abstract class BaseIcebergTpchWorkload
         if (isRemote(dataLocation)) {
             throw new UnsupportedOperationException("Remote data locations are not supported for Iceberg benchmarks. Use a local path.");
         }
+        Path minioDataDir = Path.of(dataLocation, "minio-data");
+        Files.createDirectories(minioDataDir);
+
+        Minio minio = Minio.builder().build();
+        minio.mountDataDirectory(minioDataDir.toString());
+        minio.start();
 
         IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                 .setMetastoreDirectory(Path.of(dataLocation).toFile())
                 .setWorkerCount(0)
                 .disableSchemaInitializer()
-                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true");
+                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
+                .addIcebergProperty("fs.s3.enabled", "true")
+                .addIcebergProperty("s3.aws-access-key", MINIO_ROOT_USER)
+                .addIcebergProperty("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
+                .addIcebergProperty("s3.region", MINIO_REGION)
+                .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
+                .addIcebergProperty("s3.path-style-access", "true")
+                .registerResource(minio);
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
@@ -115,40 +132,20 @@ public abstract class BaseIcebergTpchWorkload
             builder.addIcebergProperty("iceberg.max-split-size", "512MB");
         }
         DistributedQueryRunner runner = builder.build();
-
         runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpch");
-        for (String table : TABLES) {
-            registerTable(runner, dataLocation, table);
-        }
+
+        HiveMetastore hiveMetastore = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
+                .getInstance(HiveMetastoreFactory.class)
+                .createMetastore(Optional.empty());
+        registerTables(minio, hiveMetastore, "starburst-benchmarks-data", dataLocation, "tpch", TABLES, "iceberg-tpch-sf%d-parquet".formatted(scaleFactor));
+
         return runner;
     }
 
     @Override
     public void generateData(Path target)
-            throws Exception
     {
-        Path tablesLocation = resolveTablesLocation(target.toAbsolutePath().toString());
-        try (DistributedQueryRunner runner = applyDataGenerationConfiguration(IcebergQueryRunner.builder())
-                .disableSchemaInitializer()
-                .setMetastoreDirectory(target.toFile())
-                .addIcebergProperty("iceberg.compression-codec", "SNAPPY")
-                .addIcebergProperty("parquet.writer.page-value-count", "100000")
-                .build()) {
-            // IcebergQueryRunner.Builder creates a default "tpch" catalog with DOUBLE mapping.
-            // Add a second one with DECIMAL so LIKE picks up the correct column types.
-            runner.createCatalog("tpch_decimal", "tpch", Map.of("tpch.double-type-mapping", "DECIMAL"));
-            Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
-            String schemaLocation = target.toAbsolutePath().normalize()
-                    .relativize(tablesLocation.toAbsolutePath().normalize())
-                    .toString();
-            runner.execute(session, "CREATE SCHEMA iceberg.tpch WITH (location = 'local:///%s')".formatted(schemaLocation));
-            for (String table : TABLES) {
-                log.info("Generating iceberg.sf%d.%s", scaleFactor, table);
-                runner.execute(session, "CREATE TABLE iceberg.tpch.%s WITH (format = 'PARQUET') AS SELECT * FROM tpch_decimal.sf%d.%s"
-                        .formatted(table, scaleFactor, table));
-            }
-        }
-        BenchmarkRunner.cleanCrcFiles(target);
+        throw new UnsupportedOperationException("Iceberg local benchmarks use externally generated datasets.");
     }
 
     @Override
@@ -172,23 +169,5 @@ public abstract class BaseIcebergTpchWorkload
     public String expectedResultResource(int queryNumber)
     {
         return "sql/trino/tpch/sf%d/results/q%02d.ndjson".formatted(scaleFactor, queryNumber);
-    }
-
-    private static void registerTable(DistributedQueryRunner runner, String dataLocation, String table)
-    {
-        long tableCount = (Long) runner.execute(
-                        "SELECT count(*) FROM iceberg.information_schema.tables WHERE table_schema = 'tpch' AND table_name = '%s'".formatted(table))
-                .getOnlyValue();
-        if (tableCount > 0) {
-            log.info("Reusing existing iceberg.tpch.%s", table);
-            return;
-        }
-        Path tableDir = findTableDirectory(resolveTablesLocation(dataLocation), table);
-        String relativePath = Path.of(dataLocation).toAbsolutePath().normalize()
-                .relativize(tableDir.toAbsolutePath().normalize())
-                .toString();
-        String location = "local:///" + relativePath;
-        log.info("Registering iceberg.tpch.%s at %s", table, location);
-        runner.execute("CALL iceberg.system.register_table('tpch', '%s', '%s')".formatted(table, location));
     }
 }

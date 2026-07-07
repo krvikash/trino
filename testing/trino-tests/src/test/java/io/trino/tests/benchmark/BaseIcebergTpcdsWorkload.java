@@ -15,32 +15,32 @@ package io.trino.tests.benchmark;
 
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
-import io.trino.Session;
+import io.trino.metastore.HiveMetastore;
+import io.trino.metastore.HiveMetastoreFactory;
+import io.trino.plugin.iceberg.IcebergConnector;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.testing.MaterializedResult;
+import io.trino.testing.containers.Minio;
 import io.trino.tpcds.Table;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
-import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
+import static io.trino.testing.containers.Minio.MINIO_REGION;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
-import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
-import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
-import static java.lang.String.format;
+import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
-import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -50,8 +50,6 @@ public abstract class BaseIcebergTpcdsWorkload
         implements Workload
 {
     private static final Logger log = Logger.get(BaseIcebergTpcdsWorkload.class);
-
-    private static final Pattern CHAR_TYPE_PATTERN = Pattern.compile("^char\\((\\d+)\\)$");
 
     private static final List<String> TABLES = Table.getBaseTables().stream()
             .filter(table -> table != Table.DBGEN_VERSION)
@@ -106,13 +104,26 @@ public abstract class BaseIcebergTpcdsWorkload
         if (isRemote(dataLocation)) {
             throw new UnsupportedOperationException("Remote data locations are not supported for Iceberg benchmarks. Use a local path.");
         }
+        Path minioDataDir = Path.of(dataLocation, "minio-data");
+        Files.createDirectories(minioDataDir);
+
+        Minio minio = Minio.builder().build();
+        minio.mountDataDirectory(minioDataDir.toString());
+        minio.start();
 
         IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                 .setMetastoreDirectory(Path.of(dataLocation).toFile())
                 .setWorkerCount(0)
                 .disableSchemaInitializer()
                 .setTpcdsCatalogEnabled(true)
-                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true");
+                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
+                .addIcebergProperty("fs.s3.enabled", "true")
+                .addIcebergProperty("s3.aws-access-key", MINIO_ROOT_USER)
+                .addIcebergProperty("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
+                .addIcebergProperty("s3.region", MINIO_REGION)
+                .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
+                .addIcebergProperty("s3.path-style-access", "true")
+                .registerResource(minio);
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
@@ -122,65 +133,20 @@ public abstract class BaseIcebergTpcdsWorkload
             builder.addIcebergProperty("iceberg.max-split-size", "512MB");
         }
         DistributedQueryRunner runner = builder.build();
-
         runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpcds");
-        for (String table : TABLES) {
-            registerTable(runner, dataLocation, table);
-        }
+
+        HiveMetastore hiveMetastore = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
+                .getInstance(HiveMetastoreFactory.class)
+                .createMetastore(Optional.empty());
+        registerTables(minio, hiveMetastore, "starburst-benchmarks-data", dataLocation, "tpcds", TABLES, "iceberg-tpcds-sf%d-parquet".formatted(scaleFactor));
+
         return runner;
     }
 
     @Override
     public void generateData(Path target)
-            throws Exception
     {
-        Path tablesLocation = resolveTablesLocation(target.toAbsolutePath().toString());
-        try (DistributedQueryRunner runner = applyDataGenerationConfiguration(IcebergQueryRunner.builder())
-                .disableSchemaInitializer()
-                .setMetastoreDirectory(target.toFile())
-                .setTpcdsCatalogEnabled(true)
-                .addIcebergProperty("iceberg.compression-codec", "SNAPPY")
-                .addIcebergProperty("parquet.writer.page-value-count", "100000")
-                .build()) {
-            Session session = BenchmarkRunner.withSingleWriter(runner.getDefaultSession());
-            String schemaLocation = target.toAbsolutePath().normalize()
-                    .relativize(tablesLocation.toAbsolutePath().normalize())
-                    .toString();
-            runner.execute(session, "CREATE SCHEMA iceberg.tpcds WITH (location = 'local:///%s')".formatted(schemaLocation));
-            for (String table : TABLES) {
-                String selectList = buildSelectList(runner, table);
-                log.info("Generating iceberg.sf%d.%s", scaleFactor, table);
-                runner.execute(session, format(
-                        "CREATE TABLE iceberg.tpcds.%s WITH (format = 'PARQUET') AS SELECT %s FROM tpcds.sf%d.%s",
-                        table,
-                        selectList,
-                        scaleFactor,
-                        table));
-            }
-        }
-        BenchmarkRunner.cleanCrcFiles(target);
-    }
-
-    private String buildSelectList(DistributedQueryRunner runner, String table)
-    {
-        MaterializedResult columns = runner.execute(format(
-                "SELECT column_name, data_type FROM tpcds.information_schema.columns WHERE table_schema = 'sf%d' AND table_name = '%s' ORDER BY ordinal_position",
-                scaleFactor,
-                table));
-        return columns.getMaterializedRows().stream()
-                .map(row -> {
-                    String columnName = (String) row.getField(0);
-                    String dataType = (String) row.getField(1);
-                    Matcher matcher = CHAR_TYPE_PATTERN.matcher(dataType);
-                    if (matcher.matches()) {
-                        // Iceberg has no CHAR type, so CHAR(N) columns become VARCHAR. CAST alone preserves
-                        // trailing-space padding; TRIM strips it so that VARCHAR comparisons in benchmark
-                        // queries (e.g. d_day_name = 'Sunday') match correctly.
-                        return format("TRIM(CAST(\"%s\" AS VARCHAR(%s))) AS \"%s\"", columnName, matcher.group(1), columnName);
-                    }
-                    return format("\"%s\"", columnName);
-                })
-                .collect(joining(", "));
+        throw new UnsupportedOperationException("Iceberg local benchmarks use externally generated datasets.");
     }
 
     @Override
@@ -207,23 +173,5 @@ public abstract class BaseIcebergTpcdsWorkload
         // Trailing spaces are stripped during data generation via `TRIM(CAST(col AS VARCHAR(N)))`.
         // This changes the expected string values, so `results_varchar` must be used instead of `results`.
         return "sql/trino/tpcds/sf%d/results_varchar/q%02d.ndjson".formatted(scaleFactor, queryNumber);
-    }
-
-    private static void registerTable(DistributedQueryRunner runner, String dataLocation, String table)
-    {
-        long tableCount = (Long) runner.execute(
-                        "SELECT count(*) FROM iceberg.information_schema.tables WHERE table_schema = 'tpcds' AND table_name = '%s'".formatted(table))
-                .getOnlyValue();
-        if (tableCount > 0) {
-            log.info("Reusing existing iceberg.tpcds.%s", table);
-            return;
-        }
-        Path tableDir = findTableDirectory(resolveTablesLocation(dataLocation), table);
-        String relativePath = Path.of(dataLocation).toAbsolutePath().normalize()
-                .relativize(tableDir.toAbsolutePath().normalize())
-                .toString();
-        String location = "local:///" + relativePath;
-        log.info("Registering iceberg.tpcds.%s at %s", table, location);
-        runner.execute("CALL iceberg.system.register_table('tpcds', '%s', '%s')".formatted(table, location));
     }
 }

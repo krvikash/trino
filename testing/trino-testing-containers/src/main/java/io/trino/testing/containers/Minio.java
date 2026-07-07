@@ -156,6 +156,11 @@ public class Minio
         }
     }
 
+    public void mountDataDirectory(String hostPath)
+    {
+        mountDirectory(hostPath, "/data");
+    }
+
     public MinioClient createMinioClient()
     {
         return new MinioClient(getMinioAddress(), MINIO_ROOT_USER, MINIO_ROOT_PASSWORD);
