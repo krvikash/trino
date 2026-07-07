@@ -13,10 +13,8 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import dev.failsafe.Failsafe;
-import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.testing.BaseConnectorSmokeTest;
@@ -26,17 +24,15 @@ import io.trino.testing.sql.SqlExecutor;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 
-import java.sql.SQLException;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.google.common.base.Throwables.getStackTraceAsString;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.TPCH_SCHEMA;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.REGION;
@@ -52,24 +48,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     private static final Logger LOG = Logger.get(BaseUnityMetastoreDeltaConnectorSmokeTest.class);
     protected static final String SCHEMA_NAME = TPCH_SCHEMA + "_delta_ci_external";
     private static final String HIVE_TABLE_NAME = "hive_table";
-
-    private static final Pattern DATABRICKS_COMMUNICATION_FAILURE_MATCH = Pattern.compile(
-            "\\Q[Databricks][\\E(DatabricksJDBCDriver|JDBCDriver)\\Q](500593) Communication link failure. Failed to connect to server. Reason: " +
-                    "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*");
-    private static final String DATABRICKS_CLUSTER_PENDING_MATCH = "The current cluster state is Pending";
-    private static final String DATABRICKS_CLUSTER_TERMINATED_MATCH = "The current cluster state is Terminated";
-    private static final RetryPolicy<Object> DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(BaseUnityMetastoreDeltaConnectorSmokeTest::isDatabricksCommunicationFailure)
-            .withBackoff(1, 10, ChronoUnit.SECONDS)
-            .withMaxRetries(30)
-            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (communication failure).", event.getAttemptCount()))
-            .build();
-    private static final RetryPolicy<Object> DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(BaseUnityMetastoreDeltaConnectorSmokeTest::isClusterUnavailable)
-            .withDelay(Duration.of(30, ChronoUnit.SECONDS))
-            .withMaxRetries(80)
-            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (cluster unavailable).", event.getAttemptCount()))
-            .build();
 
     protected abstract Map<String, String> getDeltaLakeProperties();
 
@@ -95,25 +73,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         Failsafe.with(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY)
                 .run(() -> createTpchTables(queryRunner));
         return queryRunner;
-    }
-
-    private static boolean isDatabricksCommunicationFailure(Throwable throwable)
-    {
-        if (isClusterUnavailable(throwable)) {
-            return false;
-        }
-        Throwable rootCause = Throwables.getRootCause(throwable);
-        return rootCause instanceof SQLException &&
-                rootCause.getMessage() != null &&
-                DATABRICKS_COMMUNICATION_FAILURE_MATCH.matcher(rootCause.getMessage()).find();
-    }
-
-    private static boolean isClusterUnavailable(Throwable throwable)
-    {
-        String stackTrace = getStackTraceAsString(throwable);
-        return stackTrace.contains(DATABRICKS_CLUSTER_PENDING_MATCH) || stackTrace.contains(DATABRICKS_CLUSTER_TERMINATED_MATCH)
-                // 502 is safe to retry at any point in createTpchTables: all DDL uses IF NOT EXISTS or CREATE OR REPLACE
-                || stackTrace.contains("HTTP request failed by code: 502");
     }
 
     private void createTpchTables(QueryRunner queryRunner)

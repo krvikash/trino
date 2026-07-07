@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.metastore.unity;
 
 import com.google.common.collect.ImmutableList;
+import dev.failsafe.Failsafe;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
@@ -33,6 +34,8 @@ import java.util.regex.Pattern;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.hive.HiveQueryRunner.HIVE_CATALOG;
 import static io.trino.plugin.hive.HiveQueryRunner.TPCH_SCHEMA;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -89,7 +92,8 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 .addHiveProperty("s3.aws-secret-key", DATABRICKS_AWS_SECRET_ACCESS_KEY)
                 .setCreateTpchSchemas(false)
                 .build();
-        createTpchTables(queryRunner);
+        Failsafe.with(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY)
+                .run(() -> createTpchTables(queryRunner));
         return queryRunner;
     }
 
@@ -128,7 +132,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
     {
         String createNationTable =
                 """
-                CREATE OR REPLACE TABLE %1$s.%1$s.nation
+                CREATE OR REPLACE TABLE %1$s.%2$s.nation
                 USING PARQUET
                 LOCATION '%3$s'
                 AS SELECT n_nationkey as nationkey, n_name as name, n_regionkey as regionkey, n_comment as comment from SAMPLES.TPCH.nation
