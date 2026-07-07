@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -129,6 +130,10 @@ public class ParquetFileFabricator
     private final ParquetMetadata parquetMetadata;
     private final IoExecutor ioExecutor;
 
+    private final AtomicLong completedBytes = new AtomicLong();
+    private final AtomicLong readStartNanos = new AtomicLong(Long.MAX_VALUE);
+    private final AtomicLong readEndNanos = new AtomicLong(Long.MIN_VALUE);
+
     public ParquetFileFabricator(
             TrinoInputFile inputFile,
             List<RowGroupInfo> filteredRowGroups,
@@ -145,6 +150,21 @@ public class ParquetFileFabricator
         this.options = requireNonNull(options, "options is null");
         this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
         this.ioExecutor = requireNonNull(ioExecutor, "ioExecutor is null");
+    }
+
+    public long getCompletedBytes()
+    {
+        return completedBytes.get();
+    }
+
+    // Wall-clock span from submitting the reads to the last one completing.
+    public long getReadTimeNanos()
+    {
+        long end = readEndNanos.get();
+        if (end == Long.MIN_VALUE) {
+            return 0;
+        }
+        return end - readStartNanos.get();
     }
 
     public @Move FabricatedParquet fabricate()
@@ -434,6 +454,7 @@ public class ParquetFileFabricator
         // Cooperative abort: the first read to fail records its cause; later reads observe it and
         // skip issuing further reads. We do not retain the task futures to cancel them because each
         // read is short and interrupting a TrinoInput mid-read is not worth the added complexity.
+        readStartNanos.set(System.nanoTime());
         AtomicReference<Throwable> firstFailure = new AtomicReference<>();
         for (CoalescedRead read : readPlan.coalescedReads()) {
             ioExecutor.submit(() -> {
@@ -462,6 +483,9 @@ public class ParquetFileFabricator
                 MemoryAllocation _ = gpuMemoryContext.allocate(MemoryAmount.heap(length));
                 TrinoInput input = inputFile.newInput()) {
             input.readFully(range.offset(), coalesced.borrow().asByteBuffer(0, length));
+            completedBytes.addAndGet(length);
+            // Set before completing fragments so the read end is visible to the consumer that awaits them.
+            readEndNanos.accumulateAndGet(System.nanoTime(), Math::max);
             // Each fragment is a zero-copy slice of the coalesced buffer; slicing bumps the shared
             // refcount so the slices outlive coalesced's close at the end of this block.
             for (ChunkFragment fragment : fragments) {

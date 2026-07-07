@@ -23,5 +23,17 @@ public class EmptyGpuPageSource
     }
 
     @Override
+    public long getCompletedBytes()
+    {
+        return 0;
+    }
+
+    @Override
+    public long getReadTimeNanos()
+    {
+        return 0;
+    }
+
+    @Override
     public void close() {}
 }

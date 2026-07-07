@@ -25,6 +25,7 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
@@ -82,6 +83,24 @@ public class ConnectorGpuPageSourceAdapter
                 yield new Yielded();
             }
         };
+    }
+
+    @Override
+    public long getCompletedBytes()
+    {
+        return source.getCompletedBytes();
+    }
+
+    @Override
+    public OptionalLong getCompletedPositions()
+    {
+        return source.getCompletedPositions();
+    }
+
+    @Override
+    public long getReadTimeNanos()
+    {
+        return source.getReadTimeNanos();
     }
 
     @Override

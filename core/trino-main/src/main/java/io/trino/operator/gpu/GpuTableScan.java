@@ -57,6 +57,10 @@ public class GpuTableScan
     private final SettableFuture<Void> splitSet = SettableFuture.create();
     private @Nullable ConnectorGpuPageSource pageSource;
 
+    private long completedBytes;
+    private long completedPositions;
+    private long readTimeNanos;
+
     public GpuTableScan(
             GpuOperation.Context context,
             PageSourceProvider pageSourceProvider,
@@ -125,13 +129,40 @@ public class GpuTableScan
                     dynamicFilter);
         }
 
+        ConnectorGpuPageSource pageSource = this.pageSource;
         @Own ConnectorGpuPageSource.Result result = pageSource.readNext();
         return switch (result) {
-            case ConnectorGpuPageSource.Blocked(CompletableFuture<Void> future) -> new Blocked(future.isDone() ? NOT_BLOCKED : toListenableFuture(future));
-            case ConnectorGpuPageSource.Data(MemoryAllocation allocation, GpuPage page) -> new Data((AllocatedMemory) allocation, page);
-            case ConnectorGpuPageSource.Finished() -> new Finished();
-            case ConnectorGpuPageSource.Yielded() -> new Yielded();
+            case ConnectorGpuPageSource.Blocked(CompletableFuture<Void> future) -> {
+                recordPhysicalInput(pageSource, 0);
+                yield new Blocked(future.isDone() ? NOT_BLOCKED : toListenableFuture(future));
+            }
+            case ConnectorGpuPageSource.Data(MemoryAllocation allocation, GpuPage page) -> {
+                recordPhysicalInput(pageSource, page.positionCount());
+                yield new Data((AllocatedMemory) allocation, page);
+            }
+            case ConnectorGpuPageSource.Finished() -> {
+                recordPhysicalInput(pageSource, 0);
+                yield new Finished();
+            }
+            case ConnectorGpuPageSource.Yielded() -> {
+                recordPhysicalInput(pageSource, 0);
+                yield new Yielded();
+            }
         };
+    }
+
+    private void recordPhysicalInput(ConnectorGpuPageSource pageSource, long producedPositions)
+    {
+        long endCompletedBytes = pageSource.getCompletedBytes();
+        long endReadTimeNanos = pageSource.getReadTimeNanos();
+        long endCompletedPositions = pageSource.getCompletedPositions().orElse(completedPositions + producedPositions);
+        context.operatorContext().recordPhysicalInputWithTiming(
+                endCompletedBytes - completedBytes,
+                endCompletedPositions - completedPositions,
+                endReadTimeNanos - readTimeNanos);
+        completedBytes = endCompletedBytes;
+        completedPositions = endCompletedPositions;
+        readTimeNanos = endReadTimeNanos;
     }
 
     @Override

@@ -16,6 +16,7 @@ package io.trino.spi.gpu;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
@@ -30,6 +31,26 @@ public interface ConnectorGpuPageSource
      */
     @Move
     Result readNext();
+
+    /**
+     * Gets the number of input bytes read from the input so far.
+     * If size is not available, this method should return zero.
+     */
+    long getCompletedBytes();
+
+    /**
+     * Gets the number of input rows read from the input so far.
+     */
+    default OptionalLong getCompletedPositions()
+    {
+        return OptionalLong.empty();
+    }
+
+    /**
+     * Gets the wall time spent reading data from the input.
+     * If read time is not available, this method should return zero.
+     */
+    long getReadTimeNanos();
 
     /**
      * {@inheritDoc}

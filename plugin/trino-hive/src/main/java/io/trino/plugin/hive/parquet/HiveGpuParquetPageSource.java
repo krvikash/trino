@@ -57,6 +57,8 @@ public class HiveGpuParquetPageSource
     private final ParquetFileFabricator fabricator;
     private final List<HiveColumnHandle> gpuColumns;
     private final List<ColumnMapping> columnMappings;
+    private final long footerCompletedBytes;
+    private final long footerReadTimeNanos;
 
     private boolean finished;
     private @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
@@ -65,12 +67,16 @@ public class HiveGpuParquetPageSource
             ConnectorGpuMemoryContext memoryContext,
             ParquetFileFabricator fabricator,
             List<HiveColumnHandle> gpuColumns,
-            List<ColumnMapping> columnMappings)
+            List<ColumnMapping> columnMappings,
+            long footerCompletedBytes,
+            long footerReadTimeNanos)
     {
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.fabricator = requireNonNull(fabricator, "fabricator is null");
         this.gpuColumns = requireNonNull(gpuColumns, "gpuColumns is null");
         this.columnMappings = requireNonNull(columnMappings, "columnMappings is null");
+        this.footerCompletedBytes = footerCompletedBytes;
+        this.footerReadTimeNanos = footerReadTimeNanos;
     }
 
     @Override
@@ -219,6 +225,18 @@ public class HiveGpuParquetPageSource
                 .copyToScalar(Optional.ofNullable(mapping.getPrefilledValue().getValue()))) {
             return new Column.DeviceMemory(ColumnVector.fromScalar(scalar, rowCount));
         }
+    }
+
+    @Override
+    public long getCompletedBytes()
+    {
+        return footerCompletedBytes + fabricator.getCompletedBytes();
+    }
+
+    @Override
+    public long getReadTimeNanos()
+    {
+        return footerReadTimeNanos + fabricator.getReadTimeNanos();
     }
 
     @Override

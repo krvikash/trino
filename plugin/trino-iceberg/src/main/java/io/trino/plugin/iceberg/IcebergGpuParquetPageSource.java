@@ -78,14 +78,18 @@ public class IcebergGpuParquetPageSource
     private final ParquetFileFabricator fabricator;
     private final List<GpuOutputColumn> outputColumns;
     private final String[] parquetColumnNames;
+    private final long footerCompletedBytes;
+    private final long footerReadTimeNanos;
 
     private boolean finished;
     private @Nullable @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
 
-    public IcebergGpuParquetPageSource(ConnectorGpuMemoryContext memoryContext, ParquetFileFabricator fabricator, List<GpuOutputColumn> outputColumns)
+    public IcebergGpuParquetPageSource(ConnectorGpuMemoryContext memoryContext, ParquetFileFabricator fabricator, List<GpuOutputColumn> outputColumns, long footerCompletedBytes, long footerReadTimeNanos)
     {
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.fabricator = requireNonNull(fabricator, "fabricator is null");
+        this.footerCompletedBytes = footerCompletedBytes;
+        this.footerReadTimeNanos = footerReadTimeNanos;
         this.parquetColumnNames = outputColumns.stream()
                 .filter(GpuParquetFileColumn.class::isInstance)
                 .map(GpuParquetFileColumn.class::cast)
@@ -194,6 +198,18 @@ public class IcebergGpuParquetPageSource
                 .copyToScalar(Optional.ofNullable(constantColumn.value()))) {
             return new Column.DeviceMemory(ColumnVector.fromScalar(scalar, rowCount));
         }
+    }
+
+    @Override
+    public long getCompletedBytes()
+    {
+        return footerCompletedBytes + fabricator.getCompletedBytes();
+    }
+
+    @Override
+    public long getReadTimeNanos()
+    {
+        return footerReadTimeNanos + fabricator.getReadTimeNanos();
     }
 
     @Override

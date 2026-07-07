@@ -24,6 +24,7 @@ import java.util.List;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.ORDERS;
 import static io.trino.tpch.TpchTable.REGION;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseGpuQueriesTest
@@ -216,6 +217,27 @@ public abstract class BaseGpuQueriesTest
                 .executesWithGpu(TableScanNode.class);
 
         assertUpdate("DROP TABLE test_gpu_pruning");
+    }
+
+    @Test
+    public void testPhysicalInputStats()
+    {
+        assertUpdate("CREATE TABLE test_gpu_physical_input AS SELECT orderkey, totalprice FROM tpch.tiny.orders", 15000);
+
+        assertThat(query("SELECT orderkey, totalprice FROM test_gpu_physical_input"))
+                .executesWithGpu(TableScanNode.class);
+
+        assertQueryStats(
+                getSession(),
+                "SELECT orderkey, totalprice FROM test_gpu_physical_input",
+                queryStats -> {
+                    assertThat(queryStats.getPhysicalInputPositions()).isEqualTo(15000);
+                    assertThat(queryStats.getPhysicalInputDataSize().toBytes()).isPositive();
+                    assertThat(queryStats.getPhysicalInputReadTime().roundTo(NANOSECONDS)).isPositive();
+                },
+                _ -> {});
+
+        assertUpdate("DROP TABLE test_gpu_physical_input");
     }
 
     @Test

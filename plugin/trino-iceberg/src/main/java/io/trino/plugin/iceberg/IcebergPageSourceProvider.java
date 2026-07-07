@@ -457,7 +457,7 @@ public class IcebergPageSourceProvider
                     parquetMetadata,
                     ioExecutor);
 
-            return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build()));
+            return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build(), dataSource.getReadBytes(), dataSource.getReadTimeNanos()));
         }
         catch (IOException | RuntimeException e) {
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);

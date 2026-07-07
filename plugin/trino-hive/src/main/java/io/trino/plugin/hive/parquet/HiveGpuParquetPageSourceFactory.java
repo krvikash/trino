@@ -88,12 +88,9 @@ public final class HiveGpuParquetPageSourceFactory
             // is already UTC; pinning it here as well documents the invariant at the predicate site.
             DateTimeZone timeZone = DateTimeZone.UTC;
 
-            ParquetMetadata parquetMetadata;
-            MessageType requestedSchema;
-            List<RowGroupInfo> filteredRowGroups;
             try (ParquetDataSource footerSource = createDataSource(inputFile, OptionalLong.empty(), options, memoryContext, stats)) {
                 // Read footer and get schema
-                parquetMetadata = MetadataReader.readFooter(
+                ParquetMetadata parquetMetadata = MetadataReader.readFooter(
                         footerSource,
                         options,
                         Optional.empty(),
@@ -104,7 +101,7 @@ public final class HiveGpuParquetPageSourceFactory
                 // Get requested schema (columns to read)
                 boolean useColumnNames = true; // Hive uses column names, not field IDs
                 Optional<MessageType> message = getParquetMessageType(gpuColumns, useColumnNames, fileSchema);
-                requestedSchema = message.orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
+                MessageType requestedSchema = message.orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
 
                 // Build descriptors and predicates
                 Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
@@ -123,7 +120,7 @@ public final class HiveGpuParquetPageSourceFactory
                         false, // convertInt64TimestampProleptic
                         false); // convertInt96TimestampToProleptic
 
-                filteredRowGroups = getFilteredRowGroups(
+                List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
                         start,
                         length,
                         footerSource,
@@ -134,19 +131,18 @@ public final class HiveGpuParquetPageSourceFactory
                         timeZone,
                         domainCompactionThreshold,
                         options);
+
+                ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                        inputFile,
+                        filteredRowGroups,
+                        requestedSchema,
+                        gpuMemoryContext,
+                        options,
+                        parquetMetadata,
+                        ioExecutor);
+
+                return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings, footerSource.getReadBytes(), footerSource.getReadTimeNanos());
             }
-
-            // Create fabricator
-            ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                    inputFile,
-                    filteredRowGroups,
-                    requestedSchema,
-                    gpuMemoryContext,
-                    options,
-                    parquetMetadata,
-                    ioExecutor);
-
-            return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings);
         }
         catch (IOException e) {
             throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source", e);
