@@ -324,6 +324,7 @@ final class TestGpuTopN
                 newSimpleAggregatedMemoryContext(),
                 types,
                 limit,
+                Ints.asList(sortChannels),
                 comparator);
 
         inputPages.forEach(processor::addInput);
