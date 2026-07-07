@@ -490,8 +490,7 @@ public final class IcebergQueryRunner
         static void main()
                 throws Exception
         {
-            @SuppressWarnings("resource")
-            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+            Builder builder = icebergQueryRunnerMainBuilder()
                     .addIcebergProperty("iceberg.catalog.type", "rest")
                     .addIcebergProperty("iceberg.rest-catalog.uri", "https://%s/polaris/api/catalog".formatted(requireEnv("SNOWFLAKE_POLARIS_HOST")))
                     .addIcebergProperty("iceberg.rest-catalog.warehouse", requireEnv("SNOWFLAKE_POLARIS_CATALOG"))
@@ -502,10 +501,18 @@ public final class IcebergQueryRunner
                     .addIcebergProperty("iceberg.rest-catalog.case-insensitive-name-matching", "true")
                     .addIcebergProperty("fs.s3.enabled", "true")
                     .addIcebergProperty("s3.path-style-access", "true")
-                    .addIcebergProperty("s3.region", requireEnv("AWS_REGION"))
-                    .addIcebergProperty("s3.aws-access-key", requireEnv("AWS_ACCESS_KEY"))
-                    .addIcebergProperty("s3.aws-secret-key", requireEnv("AWS_SECRET_KEY"))
-                    .build();
+                    .addIcebergProperty("s3.region", requireEnv("AWS_REGION"));
+
+            if (Boolean.parseBoolean(System.getenv("VENDED_CREDENTIALS"))) {
+                builder.addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true");
+            }
+            else {
+                builder.addIcebergProperty("s3.aws-access-key", requireEnv("AWS_ACCESS_KEY"))
+                        .addIcebergProperty("s3.aws-secret-key", requireEnv("AWS_SECRET_KEY"));
+            }
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = builder.build();
 
             Logger log = Logger.get(IcebergSnowflakePolarisS3QueryRunnerMain.class);
             log.info("======== SERVER STARTED ========");
