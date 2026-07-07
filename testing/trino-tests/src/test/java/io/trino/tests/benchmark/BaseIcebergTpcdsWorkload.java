@@ -28,7 +28,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -129,6 +131,11 @@ public abstract class BaseIcebergTpcdsWorkload
         }
         rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         BenchmarkRunner.applyExecutionMode(builder, mode);
+
+        Map<String, String> fsCacheProperties = new HashMap<>();
+        BenchmarkRunner.applyFilesystemCache(fsCacheProperties, fsCacheDirectory);
+        fsCacheProperties.forEach(builder::addIcebergProperty);
+
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {
             builder.addIcebergProperty("iceberg.max-split-size", "512MB");
         }
