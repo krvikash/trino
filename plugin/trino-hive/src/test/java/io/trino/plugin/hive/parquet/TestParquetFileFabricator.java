@@ -217,12 +217,10 @@ public class TestParquetFileFabricator
                 options);
         MessageType requestedSchema = createRequestedSchema(originalMetadata.getFileMetaData().getSchema(), requestedColumns);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
+                List.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, originalMetadata)),
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                originalMetadata,
                 TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
@@ -426,12 +424,10 @@ public class TestParquetFileFabricator
                 1000,
                 options);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
+                List.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, metadata)),
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata,
                 TEST_IO_EXECUTOR);
 
         return fabricator.fabricate();
@@ -499,12 +495,10 @@ public class TestParquetFileFabricator
                 1000,
                 options);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
+                List.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, metadata)),
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata,
                 TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
@@ -609,12 +603,10 @@ public class TestParquetFileFabricator
                 1000,
                 options);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
+                List.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, metadata)),
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata,
                 TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {
@@ -697,12 +689,10 @@ public class TestParquetFileFabricator
                 1000,
                 options);
         ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                inputFile,
-                filteredRowGroups,
+                List.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, metadata)),
                 requestedSchema,
                 new DummyConnectorGpuMemoryContext(),
                 options,
-                metadata,
                 TEST_IO_EXECUTOR);
 
         try (FabricatedParquet fabricated = fabricator.fabricate()) {

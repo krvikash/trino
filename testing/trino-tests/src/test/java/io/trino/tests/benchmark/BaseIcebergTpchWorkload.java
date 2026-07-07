@@ -136,7 +136,8 @@ public abstract class BaseIcebergTpchWorkload
         fsCacheProperties.forEach(builder::addIcebergProperty);
 
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-            builder.addIcebergProperty("iceberg.max-split-size", "512MB");
+            builder.addIcebergProperty("iceberg.max-split-size", "512MB")
+                    .addIcebergProperty("iceberg.experimental.composite-splits.enabled", "true");
         }
         DistributedQueryRunner runner = builder.build();
         runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpch");

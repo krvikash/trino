@@ -176,7 +176,8 @@ public final class BenchmarkIcebergClickBench
             fsCacheProperties.forEach(builder::addIcebergProperty);
 
             if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-                builder.addIcebergProperty("iceberg.max-split-size", "512MB");
+                builder.addIcebergProperty("iceberg.max-split-size", "512MB")
+                        .addIcebergProperty("iceberg.experimental.composite-splits.enabled", "true");
             }
             if (bind8080) {
                 builder.addCoordinatorProperty("http-server.http.port", "8080");

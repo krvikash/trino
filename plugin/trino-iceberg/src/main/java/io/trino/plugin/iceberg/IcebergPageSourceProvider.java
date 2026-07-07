@@ -308,165 +308,219 @@ public class IcebergPageSourceProvider
             ConnectorGpuMemoryContext memoryContext,
             IoExecutor ioExecutor)
     {
-        if (connectorSplit instanceof CompositeIcebergSplit) {
-            // TODO: Add support for composite splits in the GPU path
-            return Optional.empty();
-        }
-
         verify(connectorTableCredentials.isPresent(), "connectorTableCredentials is empty");
         IcebergTableCredentials icebergTableCredentials = connectorTableCredentials.map(IcebergTableCredentials.class::cast).get();
 
-        IcebergSplit icebergSplit = (IcebergSplit) connectorSplit;
+        List<IcebergSplit> icebergSplits;
 
-        if (icebergSplit.fileFormat() != PARQUET) {
-            log.debug("GPU page source not supported: file format is %s, expected PARQUET", icebergSplit.fileFormat());
-            return Optional.empty();
+        if (connectorSplit instanceof CompositeIcebergSplit(List<IcebergSplit> splits)) {
+            icebergSplits = splits;
+        }
+        else {
+            icebergSplits = ImmutableList.of((IcebergSplit) connectorSplit);
         }
 
-        if (!icebergSplit.deletes().isEmpty()) {
-            // TODO: Splits with deletes are not supported: https://starburstdata.atlassian.net/browse/ENG-18065
-            log.debug("GPU page source not supported: split has %d deletes", icebergSplit.deletes().size());
-            return Optional.empty();
+        for (IcebergSplit icebergSplit : icebergSplits) {
+            if (icebergSplit.fileFormat() != PARQUET) {
+                log.debug("GPU page source not supported: file format is %s, expected PARQUET", icebergSplit.fileFormat());
+                return Optional.empty();
+            }
+
+            if (!icebergSplit.deletes().isEmpty()) {
+                // TODO: Splits with deletes are not supported: https://starburstdata.atlassian.net/browse/ENG-18065
+                log.debug("GPU page source not supported: split has %d deletes", icebergSplit.deletes().size());
+                return Optional.empty();
+            }
         }
 
         IcebergTableHandle icebergTable = (IcebergTableHandle) connectorTableHandle;
 
         Schema tableSchema = SchemaParser.fromJson(icebergTable.getTableSchemaJson());
-        String partitionSpecJson = icebergTable.getPartitionSpecJsons().get(icebergSplit.specId());
-        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
-        org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
-                .map(field -> field.transform().getResultType(tableSchema.findType(field.sourceId())))
-                .toArray(org.apache.iceberg.types.Type[]::new);
-        PartitionData partitionData = PartitionData.fromBlocks(icebergSplit.partitionValues(), partitionColumnTypes, typeManager);
-        Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
-
-        String partition = partitionSpec.partitionToPath(partitionData);
-        TupleDomain<IcebergColumnHandle> effectivePredicate = getUnenforcedPredicate(
-                new SplitSpec(tableSchema, partitionSpec, partitionKeys),
-                icebergTable.getUnenforcedPredicate(),
-                dynamicFilter.getCurrentPredicate(),
-                icebergSplit.fileStatisticsDomain());
-
-        if (effectivePredicate.isNone()) {
-            return Optional.of(new EmptyGpuPageSource());
-        }
-
-        TrinoFileSystem fileSystem = fileSystemFactory.create(session.getIdentity(), icebergTableCredentials);
-        TrinoInputFile inputFile = isUseFileSizeFromMetadata(session)
-                ? fileSystem.newInputFile(Location.of(icebergSplit.path()), icebergSplit.fileSize())
-                : fileSystem.newInputFile(Location.of(icebergSplit.path()));
 
         return createGpuParquetPageSource(
+                session,
+                icebergTableCredentials,
                 memoryContext,
                 columns,
-                icebergSplit,
-                inputFile,
+                icebergSplits,
                 icebergTable,
-                partitionKeys,
-                partition,
                 tableSchema,
-                effectivePredicate,
+                dynamicFilter,
                 icebergTable.getFormatVersion(),
                 ioExecutor);
     }
 
     private Optional<ConnectorGpuPageSource> createGpuParquetPageSource(
+            ConnectorSession session,
+            IcebergTableCredentials icebergTableCredentials,
             ConnectorGpuMemoryContext gpuMemoryContext,
             List<ColumnHandle> columns,
-            IcebergSplit icebergSplit,
-            TrinoInputFile inputFile,
+            List<IcebergSplit> icebergSplits,
             IcebergTableHandle icebergTable,
-            Map<Integer, Optional<String>> partitionKeys,
-            String partition,
             Schema tableSchema,
-            TupleDomain<IcebergColumnHandle> effectivePredicate,
+            DynamicFilter dynamicFilter,
             int formatVersion,
             IoExecutor ioExecutor)
     {
         AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
         FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
 
-        try (ParquetDataSource dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext.newAggregatedMemoryContext(), stats)) {
-            ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, gpuParquetReaderOptions, Optional.empty(), Optional.empty());
-            FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
-            MessageType fileSchema = fileMetadata.getSchema();
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session.getIdentity(), icebergTableCredentials);
+        boolean useFileSizeFromMetadata = isUseFileSizeFromMetadata(session);
 
-            Optional<NameMapping> nameMapping = icebergTable.getNameMappingJson().map(NameMappingParser::fromJson);
-            if (nameMapping.isPresent() && !ParquetSchemaUtil.hasIds(fileSchema)) {
-                fileSchema = ParquetSchemaUtil.applyNameMapping(fileSchema, convertToLowercase(nameMapping.get()));
+        Optional<NameMapping> nameMapping = icebergTable.getNameMappingJson().map(NameMappingParser::fromJson);
+
+        List<IcebergColumnHandle> icebergColumns = columns.stream()
+                .map(IcebergColumnHandle.class::cast)
+                .collect(toImmutableList());
+        checkForNonMetadataRowId(icebergColumns, formatVersion);
+
+        // TODO: This condition is too conservative for composite splits that contain sub-splits from a single partition (https://starburstdata.atlassian.net/browse/ENG-20177)
+        boolean referencesMultiplePartitions = icebergSplits.size() > 1;
+        ImmutableList.Builder<ParquetFileFabricator.FileEntry> inputFiles = ImmutableList.builder();
+        MessageType requestedSchema = null;
+        Map<String, String> firstKeyValueMetaData = null;
+        List<GpuOutputColumn> firstOutputColumns = null;
+        long footerCompletedBytes = 0L;
+        long footerReadTimeNanos = 0L;
+
+        for (IcebergSplit icebergSplit : icebergSplits) {
+            String partitionSpecJson = icebergTable.getPartitionSpecJsons().get(icebergSplit.specId());
+            PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
+            org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
+                    .map(field -> field.transform().getResultType(tableSchema.findType(field.sourceId())))
+                    .toArray(org.apache.iceberg.types.Type[]::new);
+            PartitionData partitionData = PartitionData.fromBlocks(icebergSplit.partitionValues(), partitionColumnTypes, typeManager);
+            Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
+            String partition = partitionSpec.partitionToPath(partitionData);
+
+            TupleDomain<IcebergColumnHandle> effectivePredicate = getUnenforcedPredicate(
+                    new SplitSpec(tableSchema, partitionSpec, partitionKeys),
+                    icebergTable.getUnenforcedPredicate(),
+                    dynamicFilter.getCurrentPredicate(),
+                    icebergSplit.fileStatisticsDomain());
+
+            if (effectivePredicate.isNone()) {
+                continue;
             }
 
-            List<IcebergColumnHandle> icebergColumns = columns.stream()
-                    .map(IcebergColumnHandle.class::cast)
-                    .collect(toImmutableList());
-            checkForNonMetadataRowId(icebergColumns, formatVersion);
+            TrinoInputFile inputFile = useFileSizeFromMetadata
+                    ? fileSystem.newInputFile(Location.of(icebergSplit.path()), icebergSplit.fileSize())
+                    : fileSystem.newInputFile(Location.of(icebergSplit.path()));
 
-            Map<Integer, org.apache.parquet.schema.Type> parquetIdToField = createParquetIdToFieldMapping(fileSchema);
+            try (ParquetDataSource dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext.newAggregatedMemoryContext(), stats)) {
+                ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, gpuParquetReaderOptions, Optional.empty(), Optional.empty());
+                FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
+                MessageType fileSchema = fileMetadata.getSchema();
 
-            ImmutableList.Builder<GpuOutputColumn> outputColumns = ImmutableList.builder();
-            ImmutableList.Builder<IcebergColumnHandle> parquetColumns = ImmutableList.builder();
-            int parquetIndex = 0;
-            for (IcebergColumnHandle column : icebergColumns) {
-                if (partitionKeys.containsKey(column.getId())) {
-                    Object value = deserializePartitionValue(column.getType(), partitionKeys.get(column.getId()).orElse(null), column.getName());
-                    outputColumns.add(new GpuConstantColumn(column, column.getType(), value));
+                if (nameMapping.isPresent() && !ParquetSchemaUtil.hasIds(fileSchema)) {
+                    fileSchema = ParquetSchemaUtil.applyNameMapping(fileSchema, convertToLowercase(nameMapping.get()));
                 }
-                else if (column.isPathColumn()) {
-                    outputColumns.add(new GpuConstantColumn(column, FILE_PATH.getType(), utf8Slice(inputFile.location().toString())));
-                }
-                else if (column.isFileModifiedTimeColumn()) {
-                    outputColumns.add(new GpuConstantColumn(column, FILE_MODIFIED_TIME.getType(), packDateTimeWithZone(inputFile.lastModified().toEpochMilli(), UTC_KEY)));
-                }
-                else if (column.isPartitionColumn()) {
-                    outputColumns.add(new GpuConstantColumn(column, PARTITION.getType(), utf8Slice(partition)));
-                }
-                else if (parquetIdToField.containsKey(column.getBaseColumn().getId())) {
-                    org.apache.parquet.schema.Type parquetType = parquetIdToField.get(column.getBaseColumn().getId());
-                    if (parquetType.isPrimitive() && !isSupportedForGpu(parquetType.asPrimitiveType(), column.getType())) {
-                        log.debug("GPU page source not supported: column '%s' has unsupported Parquet type %s for Trino type %s", column.getName(), parquetType, column.getType());
-                        return Optional.empty();
+
+                Map<Integer, org.apache.parquet.schema.Type> parquetIdToField = createParquetIdToFieldMapping(fileSchema);
+
+                ImmutableList.Builder<GpuOutputColumn> outputColumns = ImmutableList.builder();
+                ImmutableList.Builder<IcebergColumnHandle> parquetColumns = ImmutableList.builder();
+                int parquetIndex = 0;
+                for (IcebergColumnHandle column : icebergColumns) {
+                    if (!referencesMultiplePartitions && partitionKeys.containsKey(column.getId())) {
+                        Object value = deserializePartitionValue(column.getType(), partitionKeys.get(column.getId()).orElse(null), column.getName());
+                        outputColumns.add(new GpuConstantColumn(column, column.getType(), value));
                     }
-                    outputColumns.add(new GpuParquetFileColumn(column, parquetType.getName(), parquetIndex));
-                    parquetColumns.add(column);
-                    parquetIndex++;
+                    else if (column.isPathColumn()) {
+                        outputColumns.add(new GpuConstantColumn(column, FILE_PATH.getType(), utf8Slice(inputFile.location().toString())));
+                    }
+                    else if (column.isFileModifiedTimeColumn()) {
+                        outputColumns.add(new GpuConstantColumn(column, FILE_MODIFIED_TIME.getType(), packDateTimeWithZone(inputFile.lastModified().toEpochMilli(), UTC_KEY)));
+                    }
+                    else if (column.isPartitionColumn()) {
+                        outputColumns.add(new GpuConstantColumn(column, PARTITION.getType(), utf8Slice(partition)));
+                    }
+                    else if (parquetIdToField.containsKey(column.getBaseColumn().getId())) {
+                        org.apache.parquet.schema.Type parquetType = parquetIdToField.get(column.getBaseColumn().getId());
+                        if (parquetType.isPrimitive() && !isSupportedForGpu(parquetType.asPrimitiveType(), column.getType())) {
+                            log.debug("GPU page source not supported: column '%s' has unsupported Parquet type %s for Trino type %s", column.getName(), parquetType, column.getType());
+                            return Optional.empty();
+                        }
+                        outputColumns.add(new GpuParquetFileColumn(column, parquetType.getName(), parquetIndex));
+                        parquetColumns.add(column);
+                        parquetIndex++;
+                    }
+                    else {
+                        Object defaultValue = getInitialDefault(tableSchema, column.getId());
+                        outputColumns.add(new GpuConstantColumn(column, column.getType(), defaultValue));
+                    }
+                }
+
+                MessageType subSplitRequestedSchema = getMessageType(parquetColumns.build(), fileSchema.getName(), parquetIdToField);
+
+                if (requestedSchema == null) {
+                    requestedSchema = subSplitRequestedSchema;
+                    firstKeyValueMetaData = fileMetadata.getKeyValueMetaData();
+                    firstOutputColumns = outputColumns.build();
                 }
                 else {
-                    Object defaultValue = getInitialDefault(tableSchema, column.getId());
-                    outputColumns.add(new GpuConstantColumn(column, column.getType(), defaultValue));
+                    // Compare requested schemas via equals(). This checks column names, physical types
+                    // (PrimitiveTypeName, TypeLength, LogicalTypeAnnotation), repetition, and column
+                    // presence — all of which must match for the fabricated file to be valid. Notably,
+                    // getDescriptors() resolves columns by name, so a column rename (same Iceberg field
+                    // ID, different Parquet column name) would cause it to throw. This check turns that
+                    // into a graceful CPU fallback. A smarter approach could resolve by field ID and
+                    // remap column paths in the fabricated footer, but that's not worth the complexity
+                    // until renames within a single composite are observed in practice.
+                    if (!requestedSchema.equals(subSplitRequestedSchema)) {
+                        log.debug("GPU page source not supported for composite: schema mismatch for file %s", inputFile.location());
+                        return Optional.empty();
+                    }
+                    if (!Objects.equals(firstKeyValueMetaData, fileMetadata.getKeyValueMetaData())) {
+                        log.debug("GPU page source not supported for composite: key-value metadata mismatch for file %s", inputFile.location());
+                        return Optional.empty();
+                    }
+                    if (!firstOutputColumns.equals(outputColumns.build())) {
+                        log.debug("GPU page source not supported for composite: output columns mismatch for file %s", inputFile.location());
+                        return Optional.empty();
+                    }
                 }
+
+                Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
+                TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(descriptorsByPath, effectivePredicate);
+                TupleDomainParquetPredicate parquetPredicate = buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, UTC);
+
+                List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+                        icebergSplit.start(),
+                        icebergSplit.length(),
+                        dataSource,
+                        parquetMetadata,
+                        ImmutableList.of(parquetTupleDomain),
+                        ImmutableList.of(parquetPredicate),
+                        descriptorsByPath,
+                        UTC,
+                        ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
+                        gpuParquetReaderOptions);
+
+                inputFiles.add(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, parquetMetadata));
+
+                footerCompletedBytes += dataSource.getReadBytes();
+                footerReadTimeNanos += dataSource.getReadTimeNanos();
             }
-
-            MessageType requestedSchema = getMessageType(parquetColumns.build(), fileSchema.getName(), parquetIdToField);
-            Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
-            TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(descriptorsByPath, effectivePredicate);
-            TupleDomainParquetPredicate parquetPredicate = buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, UTC);
-
-            List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
-                    icebergSplit.start(),
-                    icebergSplit.length(),
-                    dataSource,
-                    parquetMetadata,
-                    ImmutableList.of(parquetTupleDomain),
-                    ImmutableList.of(parquetPredicate),
-                    descriptorsByPath,
-                    UTC,
-                    ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
-                    gpuParquetReaderOptions);
-
-            ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                    inputFile,
-                    filteredRowGroups,
-                    requestedSchema,
-                    gpuMemoryContext,
-                    gpuParquetReaderOptions,
-                    parquetMetadata,
-                    ioExecutor);
-
-            return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build(), dataSource.getReadBytes(), dataSource.getReadTimeNanos()));
+            catch (IOException | RuntimeException e) {
+                throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
+            }
         }
-        catch (IOException | RuntimeException e) {
-            throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
+
+        List<ParquetFileFabricator.FileEntry> files = inputFiles.build();
+        if (files.isEmpty()) {
+            return Optional.of(new EmptyGpuPageSource());
         }
+
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                files,
+                requestedSchema,
+                gpuMemoryContext,
+                gpuParquetReaderOptions,
+                ioExecutor);
+
+        return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, firstOutputColumns, footerCompletedBytes, footerReadTimeNanos));
     }
 
     private static boolean isSupportedForGpu(PrimitiveType parquetType, Type trinoType)

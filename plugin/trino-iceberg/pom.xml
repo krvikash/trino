@@ -976,6 +976,7 @@
                         <configuration>
                             <excludes>
                                 <!-- gpu profile -->
+                                <exclude>**/TestIcebergGpuCompositeSplitsConnectorTest.java</exclude>
                                 <exclude>**/TestIcebergGpuConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergGpuConnectorTest.java</exclude>
                                 <exclude>**/TestIcebergGpuDistributedAggregations.java</exclude>
@@ -1031,6 +1032,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
+                                <include>**/TestIcebergGpuCompositeSplitsConnectorTest.java</include>
                                 <include>**/TestIcebergGpuConnectorSmokeTest.java</include>
                                 <include>**/TestIcebergGpuConnectorTest.java</include>
                                 <include>**/TestIcebergGpuDistributedAggregations.java</include>

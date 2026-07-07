@@ -74,13 +74,24 @@ import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
+import static java.util.stream.Collectors.joining;
 
 /**
  * Fabricates optimized mini-Parquet files in memory by extracting only
- * the needed columns and row groups from the original Parquet file.
+ * the needed columns and row groups from the original Parquet files.
  */
 public class ParquetFileFabricator
 {
+    public record FileEntry(TrinoInputFile inputFile, List<RowGroupInfo> filteredRowGroups, ParquetMetadata parquetMetadata)
+    {
+        public FileEntry
+        {
+            requireNonNull(inputFile, "inputFile is null");
+            filteredRowGroups = ImmutableList.copyOf(requireNonNull(filteredRowGroups, "filteredRowGroups is null"));
+            requireNonNull(parquetMetadata, "parquetMetadata is null");
+        }
+    }
+
     /**
      * Result of Parquet fabrication containing both the fabricated file bytes
      * and the total row count (after filtering).
@@ -122,12 +133,10 @@ public class ParquetFileFabricator
     private static final int PARQUET_MAGIC_LENGTH = PARQUET_MAGIC.length;
     private static final int FOOTER_LENGTH_SIZE = 4;
 
-    private final TrinoInputFile inputFile;
-    private final List<RowGroupInfo> filteredRowGroups;
+    private final List<FileEntry> fileEntries;
     private final MessageType requestedSchema;
     private final ConnectorGpuMemoryContext gpuMemoryContext;
     private final ParquetReaderOptions options;
-    private final ParquetMetadata parquetMetadata;
     private final IoExecutor ioExecutor;
 
     private final AtomicLong completedBytes = new AtomicLong();
@@ -135,20 +144,17 @@ public class ParquetFileFabricator
     private final AtomicLong readEndNanos = new AtomicLong(Long.MIN_VALUE);
 
     public ParquetFileFabricator(
-            TrinoInputFile inputFile,
-            List<RowGroupInfo> filteredRowGroups,
+            List<FileEntry> fileEntries,
             MessageType requestedSchema,
             ConnectorGpuMemoryContext gpuMemoryContext,
             ParquetReaderOptions options,
-            ParquetMetadata parquetMetadata,
             IoExecutor ioExecutor)
     {
-        this.inputFile = requireNonNull(inputFile, "inputFile is null");
-        this.filteredRowGroups = ImmutableList.copyOf(requireNonNull(filteredRowGroups, "filteredRowGroups is null"));
+        checkArgument(!fileEntries.isEmpty(), "fileEntries must not be empty");
+        this.fileEntries = ImmutableList.copyOf(fileEntries);
         this.requestedSchema = requireNonNull(requestedSchema, "requestedSchema is null");
         this.gpuMemoryContext = requireNonNull(gpuMemoryContext, "gpuMemoryContext is null");
         this.options = requireNonNull(options, "options is null");
-        this.parquetMetadata = requireNonNull(parquetMetadata, "parquetMetadata is null");
         this.ioExecutor = requireNonNull(ioExecutor, "ioExecutor is null");
     }
 
@@ -169,15 +175,28 @@ public class ParquetFileFabricator
 
     public @Move FabricatedParquet fabricate()
     {
-        if (filteredRowGroups.isEmpty()) {
+        if (hasNoRowGroups(fileEntries)) {
             return new FabricatedParquet(gpuMemoryContext.allocate(MemoryAmount.ZERO), Optional.empty(), 0);
         }
         try {
-            return writeFabricatedFile(filteredRowGroups, requestedSchema, parquetMetadata.getFileMetaData());
+            return writeFabricatedFile(fileEntries, requestedSchema, fileEntries.getFirst().parquetMetadata());
         }
         catch (IOException | RuntimeException e) {
-            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from %s: %s", inputFile.location(), requireNonNullElse(e.getMessage(), e)), e);
+            String locations = fileEntries.stream()
+                    .map(entry -> entry.inputFile().location().toString())
+                    .collect(joining(", "));
+            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, format("Error fabricating Parquet file from [%s]: %s", locations, requireNonNullElse(e.getMessage(), e)), e);
         }
+    }
+
+    private static boolean hasNoRowGroups(List<FileEntry> fileEntries)
+    {
+        for (FileEntry fileEntry : fileEntries) {
+            if (!fileEntry.filteredRowGroups().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -239,24 +258,26 @@ public class ParquetFileFabricator
         }
     }
 
-    // One read of range, filling the ChunkFragments within it.
-    private record CoalescedRead(DiskRange range, List<ChunkFragment> fragments) {}
+    // One read of range from a specific file, filling the ChunkFragments within it.
+    private record CoalescedRead(TrinoInputFile inputFile, DiskRange range, List<ChunkFragment> fragments) {}
 
     // chunkFragments indexed by column chunk in (row-group, column) order; coalescedReads to submit.
     private record ReadPlan(List<List<ChunkFragment>> chunkFragments, List<CoalescedRead> coalescedReads) {}
 
     private @Move FabricatedParquet writeFabricatedFile(
-            List<RowGroupInfo> rowGroups,
+            List<FileEntry> fileEntries,
             MessageType clippedSchema,
-            FileMetadata originalFileMetadata)
+            ParquetMetadata originalParquetMetadata)
             throws IOException
     {
-        int originalFooterSize = parquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
+        int originalFooterSize = originalParquetMetadata.getCompleteFooterSize().orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
 
         long estimateBuffersSize = PARQUET_MAGIC_LENGTH;
-        for (RowGroupInfo rowGroupInfo : rowGroups) {
-            for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
-                estimateBuffersSize += toIntExact(column.getTotalSize());
+        for (FileEntry fileEntry : fileEntries) {
+            for (RowGroupInfo rowGroupInfo : fileEntry.filteredRowGroups()) {
+                for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
+                    estimateBuffersSize += toIntExact(column.getTotalSize());
+                }
             }
         }
         estimateBuffersSize += originalFooterSize + FOOTER_LENGTH_SIZE + PARQUET_MAGIC_LENGTH;
@@ -265,7 +286,7 @@ public class ParquetFileFabricator
         // one per column chunk, and one for the footer + footer length + trailing magic. cuDF
         // logically concatenates these in readParquet(opts, HostMemoryBuffer...).
         List<HostMemoryBuffer> buffers = new ArrayList<>();
-        ReadPlan readPlan = planReads(rowGroups);
+        ReadPlan readPlan = planReads(fileEntries);
         List<List<ChunkFragment>> chunkFragments = readPlan.chunkFragments();
         submitReads(readPlan);
         try (ClosingRef<MemoryAllocation> allocation = ClosingRef.own(gpuMemoryContext.allocate(MemoryAmount.offHeap(estimateBuffersSize)))) {
@@ -276,84 +297,86 @@ public class ParquetFileFabricator
             long totalRowCount = 0;
             int chunkIndex = 0;
 
-            for (RowGroupInfo rowGroupInfo : rowGroups) {
-                List<ColumnChunk> fabricatedColumns = new ArrayList<>();
-                long rowGroupStartOffset = currentOffset;
-                long totalCompressedSize = 0;
-                long totalUncompressedSize = 0;
+            for (FileEntry fileEntry : fileEntries) {
+                for (RowGroupInfo rowGroupInfo : fileEntry.filteredRowGroups()) {
+                    List<ColumnChunk> fabricatedColumns = new ArrayList<>();
+                    long rowGroupStartOffset = currentOffset;
+                    long totalCompressedSize = 0;
+                    long totalUncompressedSize = 0;
 
-                for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
-                    long chunkOffset = column.getStartingPos();
-                    long chunkSize = column.getTotalSize();
+                    for (ColumnChunkMetadata column : rowGroupInfo.prunedBlockMetadata().getColumns()) {
+                        long chunkOffset = column.getStartingPos();
+                        long chunkSize = column.getTotalSize();
 
-                    // A column chunk may be split across multiple fragments when it exceeds maxBufferSize;
-                    // appending them in order reconstitutes the chunk's bytes in the fabricated buffer list.
-                    for (ChunkFragment fragment : chunkFragments.get(chunkIndex)) {
-                        buffers.add(fragment.await());
-                    }
-                    chunkIndex++;
-
-                    long offsetAdjustment = currentOffset - chunkOffset;
-
-                    List<org.apache.parquet.format.Encoding> encodings = new ArrayList<>();
-                    for (org.apache.parquet.column.Encoding encoding : column.getEncodings()) {
-                        encodings.add(org.apache.parquet.format.Encoding.valueOf(encoding.name()));
-                    }
-
-                    List<String> pathList = ImmutableList.copyOf(column.getPath().toArray());
-                    ColumnMetaData columnMetaData = new ColumnMetaData(
-                            ParquetTypeConverter.getType(column.getPrimitiveType().getPrimitiveTypeName()),
-                            encodings,
-                            pathList,
-                            CompressionCodec.valueOf(column.getCodec().name()),
-                            column.getValueCount(),
-                            column.getTotalUncompressedSize(),
-                            column.getTotalSize(),
-                            currentOffset);
-
-                    if (column.getDictionaryPageOffset() > 0) {
-                        columnMetaData.setDictionary_page_offset(column.getDictionaryPageOffset() + offsetAdjustment);
-                    }
-
-                    if (column.getStatistics() != null && !column.getStatistics().isEmpty()) {
-                        Statistics stats = new Statistics();
-                        if (column.getStatistics().hasNonNullValue()) {
-                            if (column.getStatistics().genericGetMin() != null) {
-                                stats.setMin_value(column.getStatistics().getMinBytes());
-                            }
-                            if (column.getStatistics().genericGetMax() != null) {
-                                stats.setMax_value(column.getStatistics().getMaxBytes());
-                            }
+                        // A column chunk may be split across multiple fragments when it exceeds maxBufferSize;
+                        // appending them in order reconstitutes the chunk's bytes in the fabricated buffer list.
+                        for (ChunkFragment fragment : chunkFragments.get(chunkIndex)) {
+                            buffers.add(fragment.await());
                         }
-                        stats.setNull_count(column.getStatistics().getNumNulls());
-                        columnMetaData.setStatistics(stats);
+                        chunkIndex++;
+
+                        long offsetAdjustment = currentOffset - chunkOffset;
+
+                        List<org.apache.parquet.format.Encoding> encodings = new ArrayList<>();
+                        for (org.apache.parquet.column.Encoding encoding : column.getEncodings()) {
+                            encodings.add(org.apache.parquet.format.Encoding.valueOf(encoding.name()));
+                        }
+
+                        List<String> pathList = ImmutableList.copyOf(column.getPath().toArray());
+                        ColumnMetaData columnMetaData = new ColumnMetaData(
+                                ParquetTypeConverter.getType(column.getPrimitiveType().getPrimitiveTypeName()),
+                                encodings,
+                                pathList,
+                                CompressionCodec.valueOf(column.getCodec().name()),
+                                column.getValueCount(),
+                                column.getTotalUncompressedSize(),
+                                column.getTotalSize(),
+                                currentOffset);
+
+                        if (column.getDictionaryPageOffset() > 0) {
+                            columnMetaData.setDictionary_page_offset(column.getDictionaryPageOffset() + offsetAdjustment);
+                        }
+
+                        if (column.getStatistics() != null && !column.getStatistics().isEmpty()) {
+                            Statistics stats = new Statistics();
+                            if (column.getStatistics().hasNonNullValue()) {
+                                if (column.getStatistics().genericGetMin() != null) {
+                                    stats.setMin_value(column.getStatistics().getMinBytes());
+                                }
+                                if (column.getStatistics().genericGetMax() != null) {
+                                    stats.setMax_value(column.getStatistics().getMaxBytes());
+                                }
+                            }
+                            stats.setNull_count(column.getStatistics().getNumNulls());
+                            columnMetaData.setStatistics(stats);
+                        }
+
+                        ColumnChunk columnChunk = new ColumnChunk(rowGroupStartOffset);
+                        columnChunk.setMeta_data(columnMetaData);
+                        fabricatedColumns.add(columnChunk);
+
+                        totalCompressedSize += column.getTotalSize();
+                        totalUncompressedSize += column.getTotalUncompressedSize();
+                        currentOffset += chunkSize;
                     }
 
-                    ColumnChunk columnChunk = new ColumnChunk(rowGroupStartOffset);
-                    columnChunk.setMeta_data(columnMetaData);
-                    fabricatedColumns.add(columnChunk);
+                    long rowCount = rowGroupInfo.prunedBlockMetadata().getRowCount();
+                    totalRowCount += rowCount;
 
-                    totalCompressedSize += column.getTotalSize();
-                    totalUncompressedSize += column.getTotalUncompressedSize();
-                    currentOffset += chunkSize;
+                    RowGroup rowGroup = new RowGroup(
+                            fabricatedColumns,
+                            totalCompressedSize + totalUncompressedSize,
+                            rowCount);
+                    rowGroup.setTotal_compressed_size(totalCompressedSize);
+                    rowGroup.setFile_offset(rowGroupStartOffset);
+                    fabricatedRowGroups.add(rowGroup);
                 }
-
-                long rowCount = rowGroupInfo.prunedBlockMetadata().getRowCount();
-                totalRowCount += rowCount;
-
-                RowGroup rowGroup = new RowGroup(
-                        fabricatedColumns,
-                        totalCompressedSize + totalUncompressedSize,
-                        rowCount);
-                rowGroup.setTotal_compressed_size(totalCompressedSize);
-                rowGroup.setFile_offset(rowGroupStartOffset);
-                fabricatedRowGroups.add(rowGroup);
             }
 
             verify(chunkIndex == chunkFragments.size(), "Planned %s chunk fragment groups but assembled %s", chunkFragments.size(), chunkIndex);
 
             DynamicSliceOutput footerThrift = new DynamicSliceOutput(originalFooterSize);
-            writeFooter(footerThrift, fabricatedRowGroups, clippedSchema, originalFileMetadata);
+            writeFooter(footerThrift, fabricatedRowGroups, clippedSchema, originalParquetMetadata.getFileMetaData());
             Slice footerSlice = footerThrift.slice();
             int footerSize = footerSlice.length();
             int trailerSize = footerSize + FOOTER_LENGTH_SIZE + PARQUET_MAGIC_LENGTH;
@@ -393,11 +416,26 @@ public class ParquetFileFabricator
     }
 
     /**
-     * Plans the coalesced reads for {@code rowGroups}. Each column chunk maps to one fragment when
+     * Plans the coalesced reads for {@code fileEntries}. Each column chunk maps to one fragment when
      * within {@code initialBufferSize}, or several when split into ramped sub-ranges by
      * {@link io.trino.parquet.AbstractParquetDataSource#splitLargeRange}.
      */
-    private ReadPlan planReads(List<RowGroupInfo> rowGroups)
+    private ReadPlan planReads(List<FileEntry> fileEntries)
+    {
+        ImmutableList.Builder<List<ChunkFragment>> allChunkFragments = ImmutableList.builder();
+        ImmutableList.Builder<CoalescedRead> allCoalescedReads = ImmutableList.builder();
+
+        for (FileEntry fileEntry : fileEntries) {
+            List<RowGroupInfo> fileRowGroups = fileEntry.filteredRowGroups();
+            ReadPlan filePlan = planFileReads(fileEntry.inputFile(), fileRowGroups);
+            allChunkFragments.addAll(filePlan.chunkFragments());
+            allCoalescedReads.addAll(filePlan.coalescedReads());
+        }
+
+        return new ReadPlan(allChunkFragments.build(), allCoalescedReads.build());
+    }
+
+    private ReadPlan planFileReads(TrinoInputFile inputFile, List<RowGroupInfo> rowGroups)
     {
         // Split by size like AbstractParquetDataSource.planChunksRead.
         // Small chunks (<= initialBufferSize) merge with neighbors; large
@@ -440,10 +478,10 @@ public class ParquetFileFabricator
                     contained.add(smallFragments.get(i));
                 }
             }
-            coalescedReads.add(new CoalescedRead(coalescedRange, contained.build()));
+            coalescedReads.add(new CoalescedRead(inputFile, coalescedRange, contained.build()));
         }
         for (ChunkFragment fragment : largeFragments) {
-            coalescedReads.add(new CoalescedRead(fragment.range(), ImmutableList.of(fragment)));
+            coalescedReads.add(new CoalescedRead(inputFile, fragment.range(), ImmutableList.of(fragment)));
         }
         return new ReadPlan(chunkFragments, coalescedReads.build());
     }
@@ -458,7 +496,7 @@ public class ParquetFileFabricator
         AtomicReference<Throwable> firstFailure = new AtomicReference<>();
         for (CoalescedRead read : readPlan.coalescedReads()) {
             ioExecutor.submit(() -> {
-                readCoalescedRange(read.range(), read.fragments(), firstFailure);
+                readCoalescedRange(read.inputFile(), read.range(), read.fragments(), firstFailure);
                 return null;
             }).whenComplete((_, throwable) -> {
                 if (throwable != null) {
@@ -469,7 +507,7 @@ public class ParquetFileFabricator
         }
     }
 
-    private void readCoalescedRange(DiskRange range, List<ChunkFragment> fragments, AtomicReference<Throwable> firstFailure)
+    private void readCoalescedRange(TrinoInputFile inputFile, DiskRange range, List<ChunkFragment> fragments, AtomicReference<Throwable> firstFailure)
     {
         Throwable existing = firstFailure.get();
         if (existing != null) {

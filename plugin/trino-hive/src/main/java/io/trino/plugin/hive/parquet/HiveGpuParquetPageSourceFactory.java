@@ -133,12 +133,10 @@ public final class HiveGpuParquetPageSourceFactory
                         options);
 
                 ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                        inputFile,
-                        filteredRowGroups,
+                        ImmutableList.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, parquetMetadata)),
                         requestedSchema,
                         gpuMemoryContext,
                         options,
-                        parquetMetadata,
                         ioExecutor);
 
                 return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings, footerSource.getReadBytes(), footerSource.getReadTimeNanos());
