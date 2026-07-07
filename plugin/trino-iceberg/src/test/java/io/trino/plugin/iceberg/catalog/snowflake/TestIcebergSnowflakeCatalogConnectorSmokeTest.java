@@ -581,7 +581,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testSetTableComment()
     {
         assertThatThrownBy(() -> assertUpdate("COMMENT ON TABLE " + TpchTable.REGION.getTableName() + " is 'my-table-comment'"))
-                .hasMessage("Snowflake managed Iceberg tables do not support modifications");
+                .hasMessage("Failed to set table comment: Snowflake managed Iceberg tables do not support modifications");
     }
 
     @Test
@@ -736,7 +736,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testSetColumnComment()
     {
         assertThatThrownBy(() -> assertUpdate("COMMENT ON COLUMN " + TpchTable.REGION.getTableName() + ".name IS 'region name_col_comment'"))
-                .hasMessageMatching("Snowflake managed Iceberg tables do not support modifications");
+                .hasMessageMatching("Failed to set column comment: Snowflake managed Iceberg tables do not support modifications");
     }
 
     @Test
