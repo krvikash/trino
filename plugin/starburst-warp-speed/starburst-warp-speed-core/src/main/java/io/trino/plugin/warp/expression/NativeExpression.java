@@ -115,6 +115,7 @@ public record NativeExpression(
         return functionParams;
     }
 
+    @Override
     @JsonProperty("transformedColumn")
     public TransformFunction transformFunction()
     {

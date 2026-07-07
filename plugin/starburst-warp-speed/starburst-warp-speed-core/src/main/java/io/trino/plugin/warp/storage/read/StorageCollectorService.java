@@ -124,6 +124,7 @@ public class StorageCollectorService
         queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()] = queryArgs.queryParams().getFileModTime();
     }
 
+    @Override
     public AggregatorArgs open(QueryArgs queryArgs)
     {
         fileOpen(queryArgs);
@@ -131,6 +132,7 @@ public class StorageCollectorService
         return getStorageCollectorArgs(queryArgs);
     }
 
+    @Override
     @NativeInterrupt
     public AggregatorPageArgs openPage(
             RecordIndexes recordIndexes,
@@ -170,6 +172,7 @@ public class StorageCollectorService
                 dispatcherPageSourceStats);
     }
 
+    @Override
     @NativeInterrupt
     public void prepareBlocks(
             ChunkProperties chunk,
@@ -198,6 +201,7 @@ public class StorageCollectorService
         logger.debug("collectFromStorage after native collect current chunk %s", chunk);
     }
 
+    @Override
     public Block[] aggregateBlocks(
             RecordIndexes recordIndexes,
             QueryArgs queryArgs,
@@ -225,6 +229,7 @@ public class StorageCollectorService
         return blocks;
     }
 
+    @Override
     public QueryArgs getQueryArgs(QueryParams queryParams, CustomStatsContext customStatsContext)
     {
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
@@ -254,6 +259,7 @@ public class StorageCollectorService
                 storeMatchCollectMetadataBuff);
     }
 
+    @Override
     public List<Integer> getPreLoadedBlocks(QueryArgs queryArgs)
     {
         List<WarmupElementCollectParams> paramsList = queryArgs.queryParams().getCollectElementsParamsList();
@@ -295,6 +301,7 @@ public class StorageCollectorService
         return numChunksInRange;
     }
 
+    @Override
     @NativeInterrupt
     public long closePage(
             QueryArgs queryArgs,
@@ -305,11 +312,13 @@ public class StorageCollectorService
                 aggregatorPageArgs);
     }
 
+    @Override
     public void abortPage(QueryArgs queryArgs, AggregatorPageArgs aggregatorPageArgs, Exception e)
     {
         collectTxService.collectAbort(aggregatorPageArgs, e, queryArgs.dispatcherPageSourceStats());
     }
 
+    @Override
     public void close(QueryArgs queryArgs)
     {
         storageEngine.fileClose((int) queryArgs.fileCookie()[FILE_COOKIE_PARAMS_FD.ordinal()]);

@@ -77,6 +77,7 @@ public class MatchService
         this.shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
     }
 
+    @Override
     public MatcherArgs open(QueryArgs queryArgs, CustomStatsContext customStatsContext)
     {
         QueryParams queryParams = queryArgs.queryParams();
@@ -124,6 +125,7 @@ public class MatchService
         }
     }
 
+    @Override
     @NativeInterrupt
     public MatcherPageArgs openPage(
             RecordIndexes recordIndexes,
@@ -265,6 +267,7 @@ public class MatchService
         return !matchExhausted;
     }
 
+    @Override
     public Optional<ChunkProperties> match(
             int recordsPageLimit,
             QueryArgs queryArgs,
@@ -315,6 +318,7 @@ public class MatchService
         return Optional.of(chunk);
     }
 
+    @Override
     public void abortPage(QueryArgs queryArgs, MatcherPageArgs matcherPageArgs, Exception e)
     {
         if (matcherPageArgs.matchState().isPresent()) {
@@ -333,6 +337,7 @@ public class MatchService
         return rangeFillerService.collectRanges(matcherPageArgs.rangeData());
     }
 
+    @Override
     @NativeInterrupt
     public void closePage(QueryArgs queryArgs, MatcherArgs matcherArgs, MatcherPageArgs matcherPageArgs)
     {

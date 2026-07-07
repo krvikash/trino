@@ -123,6 +123,7 @@ public class WarpConnectorDeleteService
                 TransformFunction.NONE);
     }
 
+    @Override
     public TupleRankResult buildTupleRank(
             List<TupleFilter> tupleFilters,
             boolean forceDeleteFailedObjects)
