@@ -181,7 +181,6 @@ import static io.trino.parquet.ParquetTypeUtils.getColumnIO;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.parquet.predicate.PredicateUtils.getFilteredRowGroups;
-import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSource;
 import static io.trino.plugin.iceberg.ColumnIdentity.TypeCategory.PRIMITIVE;
 import static io.trino.plugin.iceberg.GeoSpatialUtils.isGeospatialType;
@@ -382,14 +381,7 @@ public class IcebergPageSourceProvider
         AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
         FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
 
-        ParquetDataSource dataSource;
-        try {
-            dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext.newAggregatedMemoryContext(), stats);
-        }
-        catch (IOException e) {
-            throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create Parquet data source for: " + inputFile.location() + ". " + e.getMessage(), e);
-        }
-        try {
+        try (ParquetDataSource dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext.newAggregatedMemoryContext(), stats)) {
             ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, gpuParquetReaderOptions, Optional.empty(), Optional.empty());
             FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
             MessageType fileSchema = fileMetadata.getSchema();
@@ -427,7 +419,6 @@ public class IcebergPageSourceProvider
                     org.apache.parquet.schema.Type parquetType = parquetIdToField.get(column.getBaseColumn().getId());
                     if (parquetType.isPrimitive() && !isSupportedForGpu(parquetType.asPrimitiveType(), column.getType())) {
                         log.debug("GPU page source not supported: column '%s' has unsupported Parquet type %s for Trino type %s", column.getName(), parquetType, column.getType());
-                        dataSource.close();
                         return Optional.empty();
                     }
                     outputColumns.add(new GpuParquetFileColumn(column, parquetType.getName(), parquetIndex));
@@ -456,7 +447,6 @@ public class IcebergPageSourceProvider
                     UTC,
                     ICEBERG_DOMAIN_COMPACTION_THRESHOLD,
                     gpuParquetReaderOptions);
-            dataSource.close();
 
             ParquetFileFabricator fabricator = new ParquetFileFabricator(
                     inputFile,
@@ -470,7 +460,6 @@ public class IcebergPageSourceProvider
             return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build()));
         }
         catch (IOException | RuntimeException e) {
-            closeAllSuppress(e, dataSource);
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
         }
     }
