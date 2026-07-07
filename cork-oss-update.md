@@ -127,6 +127,7 @@ Action items:
 - [ ] Run benchmarks and verify results
 - [ ] No pinned items left on \`#tmp-cork-trino-update-${TO_VERSION}-${TO_SHORT}\` channel if it exists
       (check it only before final merge, as new pinned items can be added)
+- [ ] No items relevant to current update remain on \`#tmp-cork-trino-update-next\` channel
 
 \`\`\`
 UPDATE_DATE=${UPDATE_DATE}
