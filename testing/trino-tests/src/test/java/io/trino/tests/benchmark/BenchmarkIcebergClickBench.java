@@ -33,6 +33,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
+import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
 import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
 import static java.lang.String.format;
@@ -132,6 +133,10 @@ public final class BenchmarkIcebergClickBench
         public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
                 throws Exception
         {
+            if (isRemote(dataLocation)) {
+                throw new UnsupportedOperationException("Remote data locations are not supported for Iceberg benchmarks. Use a local path.");
+            }
+
             IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                     .setMetastoreDirectory(Path.of(dataLocation).toFile())
                     .setWorkerCount(0)
