@@ -11,7 +11,6 @@ package io.starburst.stargate.buffer.data.disk;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
-import io.airlift.configuration.ConfigHidden;
 
 public class LocalDiskTierFeatureConfig
 {
@@ -23,7 +22,6 @@ public class LocalDiskTierFeatureConfig
     }
 
     @Config("local-disk.enabled")
-    @ConfigHidden
     @ConfigDescription("Enable local disk as intermediate tier between memory and remote storage. Requires spooling.storage-driver=TRINO_FS.")
     public LocalDiskTierFeatureConfig setEnabled(boolean enabled)
     {
