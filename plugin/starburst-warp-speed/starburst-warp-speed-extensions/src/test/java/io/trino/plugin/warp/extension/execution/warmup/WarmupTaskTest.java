@@ -33,6 +33,7 @@ import io.trino.plugin.warp.node.CoordinatorNodeManager;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.plugin.warp.warmup.WarmupRuleApiMapper;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
+import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.plugin.warp.warmup.model.WarmupRuleResult;
 import io.trino.spi.Node;
@@ -95,7 +96,7 @@ public class WarmupTaskTest
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(5)
                 .ttl(10)
-                .predicates(Set.of(new io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
+                .predicates(Set.of(new PartitionValueWarmupPredicateRule("col2", "2")))
                 .build();
 
         when(warmupRuleService.getAll()).thenReturn(List.of(warmupRule));
@@ -119,7 +120,7 @@ public class WarmupTaskTest
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(5)
                 .ttl(10)
-                .predicates(Set.of(new io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
+                .predicates(Set.of(new PartitionValueWarmupPredicateRule("col2", "2")))
                 .build());
 
         List<Node> workers = IntStream.range(1, 10)
@@ -175,7 +176,7 @@ public class WarmupTaskTest
                 .warmUpType(io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE)
                 .priority(5)
                 .ttl(10)
-                .predicates(Set.of(new io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule("col2", "2")))
+                .predicates(Set.of(new PartitionValueWarmupPredicateRule("col2", "2")))
                 .build();
 
         when(warmupRuleService.validate(eq(ImmutableList.of()), eq(List.of(warmupRule))))

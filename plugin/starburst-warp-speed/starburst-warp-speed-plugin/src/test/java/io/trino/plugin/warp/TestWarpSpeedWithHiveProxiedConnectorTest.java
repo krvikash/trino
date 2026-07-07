@@ -14,6 +14,7 @@
 package io.trino.plugin.warp;
 
 import io.trino.Session;
+import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
@@ -74,7 +75,7 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
                         "sql.default-function-schema", "functions"));
 
         // Install TPCH plugin for source data
-        queryRunner.installPlugin(new io.trino.plugin.tpch.TpchPlugin());
+        queryRunner.installPlugin(new TpchPlugin());
         queryRunner.createCatalog("tpch", "tpch");
 
         // Create schema and copy TPCH tables using the queryRunner's default session

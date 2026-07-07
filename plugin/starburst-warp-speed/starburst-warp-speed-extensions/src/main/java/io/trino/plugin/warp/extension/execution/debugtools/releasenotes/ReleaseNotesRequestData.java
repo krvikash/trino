@@ -16,7 +16,7 @@ package io.trino.plugin.warp.extension.execution.debugtools.releasenotes;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record ReleaseNotesRequestData(io.trino.plugin.warp.extension.execution.debugtools.releasenotes.ReleaseNotesRequestData.ReleaseNoteContentType type)
+public record ReleaseNotesRequestData(ReleaseNotesRequestData.ReleaseNoteContentType type)
 {
     @JsonCreator
     public ReleaseNotesRequestData(@JsonProperty("type") ReleaseNoteContentType type)

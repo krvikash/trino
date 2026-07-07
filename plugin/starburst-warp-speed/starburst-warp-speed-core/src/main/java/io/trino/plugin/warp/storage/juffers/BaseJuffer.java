@@ -47,7 +47,7 @@ public abstract class BaseJuffer
         return bufferType;
     }
 
-    public ByteBuffer createGenericBuffer(java.nio.ByteBuffer byteBuffer)
+    public ByteBuffer createGenericBuffer(ByteBuffer byteBuffer)
     {
         ByteBuffer byteBuf = byteBuffer.slice().order(ByteOrder.LITTLE_ENDIAN);
         byteBuf.position(0);

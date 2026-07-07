@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dictionary;
 
+import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.config.DictionaryConfig;
@@ -92,7 +93,7 @@ class AttachDictionaryServiceTest
     public void testReadWriteDictionaryFixedLengthChar()
             throws IOException
     {
-        io.airlift.slice.Slice[] values = {
+        Slice[] values = {
                 Slices.utf8Slice("aaa"),
                 Slices.utf8Slice("bbbb"),
                 Slices.utf8Slice("cccc"),
@@ -110,11 +111,11 @@ class AttachDictionaryServiceTest
         assertThat(res.isImmutable()).isTrue();
         assertThat(res.getWriteSize()).isEqualTo(5);
         assertThat(res.getDictionaryWeight()).isEqualTo(20);
-        assertThat(((io.airlift.slice.Slice) res.get(0)).toStringUtf8()).isEqualTo("aaa");
-        assertThat(((io.airlift.slice.Slice) res.get(1)).toStringUtf8()).isEqualTo("bbbb");
-        assertThat(((io.airlift.slice.Slice) res.get(2)).toStringUtf8()).isEqualTo("cccc");
-        assertThat(((io.airlift.slice.Slice) res.get(3)).toStringUtf8()).isEqualTo("dddd");
-        assertThat(((io.airlift.slice.Slice) res.get(4)).toStringUtf8()).isEqualTo("eeee");
+        assertThat(((Slice) res.get(0)).toStringUtf8()).isEqualTo("aaa");
+        assertThat(((Slice) res.get(1)).toStringUtf8()).isEqualTo("bbbb");
+        assertThat(((Slice) res.get(2)).toStringUtf8()).isEqualTo("cccc");
+        assertThat(((Slice) res.get(3)).toStringUtf8()).isEqualTo("dddd");
+        assertThat(((Slice) res.get(4)).toStringUtf8()).isEqualTo("eeee");
 
         FileUtils.deleteQuietly(Path.of(rowGroupFilePath).toFile());
     }
@@ -123,7 +124,7 @@ class AttachDictionaryServiceTest
     public void testReadWriteDictionaryChangedLengthChar()
             throws IOException
     {
-        io.airlift.slice.Slice[] values = {
+        Slice[] values = {
                 Slices.utf8Slice("1"),
                 Slices.utf8Slice("88888888"),
                 Slices.utf8Slice("333"),
@@ -141,11 +142,11 @@ class AttachDictionaryServiceTest
         assertThat(res.isImmutable()).isTrue();
         assertThat(res.getWriteSize()).isEqualTo(5);
         assertThat(res.getDictionaryWeight()).isEqualTo(18);
-        assertThat(((io.airlift.slice.Slice) res.get(0)).toStringUtf8()).isEqualTo("1");
-        assertThat(((io.airlift.slice.Slice) res.get(1)).toStringUtf8()).isEqualTo("88888888");
-        assertThat(((io.airlift.slice.Slice) res.get(2)).toStringUtf8()).isEqualTo("333");
-        assertThat(((io.airlift.slice.Slice) res.get(3)).toStringUtf8()).isEqualTo("4444");
-        assertThat(((io.airlift.slice.Slice) res.get(4)).toStringUtf8()).isEqualTo("00");
+        assertThat(((Slice) res.get(0)).toStringUtf8()).isEqualTo("1");
+        assertThat(((Slice) res.get(1)).toStringUtf8()).isEqualTo("88888888");
+        assertThat(((Slice) res.get(2)).toStringUtf8()).isEqualTo("333");
+        assertThat(((Slice) res.get(3)).toStringUtf8()).isEqualTo("4444");
+        assertThat(((Slice) res.get(4)).toStringUtf8()).isEqualTo("00");
 
         FileUtils.deleteQuietly(Path.of(rowGroupFilePath).toFile());
     }

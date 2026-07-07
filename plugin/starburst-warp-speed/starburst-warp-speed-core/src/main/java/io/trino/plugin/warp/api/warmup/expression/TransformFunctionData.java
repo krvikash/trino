@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
 public record TransformFunctionData(
-        @JsonProperty("transformType") io.trino.plugin.warp.api.warmup.expression.TransformFunctionData.TransformType transformType,
+        @JsonProperty("transformType") TransformFunctionData.TransformType transformType,
         @JsonProperty("transformParams") ImmutableList<? extends WarpConstantData> transformParams)
 {
     @JsonCreator

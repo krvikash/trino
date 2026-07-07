@@ -44,7 +44,7 @@ public class WarpPlugin
     private final LicenseVerifier licenseVerifier;
 
     private WarpPluginSharedInstancesFactory warpPluginSharedInstancesFactory;
-    private com.google.inject.Module storageEngineModule;
+    private Module storageEngineModule;
     private Module proxyModule;
 
     public WarpPlugin()

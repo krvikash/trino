@@ -13,13 +13,15 @@
  */
 package io.trino.plugin.warp.tools.util;
 
+import com.google.common.base.Stopwatch;
+
 public class StopWatch
 {
-    private final com.google.common.base.Stopwatch stopwatch;
+    private final Stopwatch stopwatch;
 
     public StopWatch()
     {
-        stopwatch = com.google.common.base.Stopwatch.createUnstarted();
+        stopwatch = Stopwatch.createUnstarted();
     }
 
     public void start()

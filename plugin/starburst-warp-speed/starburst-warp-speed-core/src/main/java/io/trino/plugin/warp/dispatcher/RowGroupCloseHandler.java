@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RowGroupCloseHandler
 {
-    private static final io.airlift.log.Logger logger = Logger.get(RowGroupCloseHandler.class);
+    private static final Logger logger = Logger.get(RowGroupCloseHandler.class);
 
     private final AtomicBoolean handled = new AtomicBoolean();
     private final List<String> callers = new ArrayList<>();
