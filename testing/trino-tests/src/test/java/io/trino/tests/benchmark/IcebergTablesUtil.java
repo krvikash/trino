@@ -20,9 +20,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 
-final class IcebergTableDirectoryFinder
+final class IcebergTablesUtil
 {
-    private IcebergTableDirectoryFinder() {}
+    private IcebergTablesUtil() {}
 
     public static Path findTableDirectory(Path dataLocation, String table)
     {
@@ -45,5 +45,10 @@ final class IcebergTableDirectoryFinder
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    public static Path resolveTablesLocation(String dataLocation)
+    {
+        return Path.of(dataLocation, "tables");
     }
 }

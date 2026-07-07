@@ -15,6 +15,8 @@ package io.trino.tests.benchmark;
 
 import io.airlift.units.DataSize;
 
+import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
+
 /**
  * Iceberg TPC-H entry point at scale factor 100.
  */

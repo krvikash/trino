@@ -33,7 +33,8 @@ import java.util.stream.IntStream;
 
 import static com.google.common.io.Resources.getResource;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
-import static io.trino.tests.benchmark.IcebergTableDirectoryFinder.findTableDirectory;
+import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
+import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -237,11 +238,6 @@ public final class BenchmarkIcebergClickBench
             String location = "local:///" + relativePath;
             log.info("Registering iceberg.clickbench.hits at %s", location);
             runner.execute(format("CALL iceberg.system.register_table('clickbench', 'hits', '%s')", location));
-        }
-
-        static Path resolveTablesLocation(String dataLocation)
-        {
-            return Path.of(dataLocation, "tables");
         }
     }
 }

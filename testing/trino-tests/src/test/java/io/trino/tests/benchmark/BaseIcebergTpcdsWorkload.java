@@ -34,7 +34,8 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
-import static io.trino.tests.benchmark.IcebergTableDirectoryFinder.findTableDirectory;
+import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
+import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
@@ -219,10 +220,5 @@ public abstract class BaseIcebergTpcdsWorkload
         String location = "local:///" + relativePath;
         log.info("Registering iceberg.tpcds.%s at %s", table, location);
         runner.execute("CALL iceberg.system.register_table('tpcds', '%s', '%s')".formatted(table, location));
-    }
-
-    static Path resolveTablesLocation(String dataLocation)
-    {
-        return Path.of(dataLocation, "tables");
     }
 }
