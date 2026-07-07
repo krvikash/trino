@@ -1576,6 +1576,7 @@ public final class BenchmarkRunner
         logging.setLevel("io.trino.split.PageSourceManager", Level.DEBUG);
         logging.setLevel("io.trino.tests.benchmark", Level.DEBUG);
         logging.setLevel("io.trino.plugin.hive.HivePageSourceProvider", Level.DEBUG);
+        logging.setLevel("io.trino.plugin.iceberg.IcebergPageSourceProvider", Level.DEBUG);
     }
 
     /**
