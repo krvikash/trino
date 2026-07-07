@@ -62,6 +62,8 @@ public class PageProcessor
     private final Optional<FilterEvaluator> filterEvaluator;
     private final Optional<Supplier<FilterEvaluator>> dynamicFilterSupplier;
     private final List<PageProjection> projections;
+    // identity projections return a subset of the input page and cannot expand output size
+    private final boolean identityProjections;
 
     private FilterEvaluator dynamicFilterEvaluator;
     private int projectBatchSize;
@@ -70,6 +72,7 @@ public class PageProcessor
     {
         this.filterEvaluator = requireNonNull(filterEvaluator, "filterEvaluator is null");
         this.dynamicFilterSupplier = requireNonNull(dynamicFilterSupplier, "dynamicFilterEvaluator is null");
+        this.identityProjections = !projections.isEmpty() && projections.stream().allMatch(InputPageProjection.class::isInstance);
         this.projections = projections.stream()
                 .map(projection -> {
                     if (projection.getInputChannels().size() == 1 && projection.isDeterministic()) {
@@ -78,7 +81,12 @@ public class PageProcessor
                     return projection;
                 })
                 .collect(toImmutableList());
-        this.projectBatchSize = initialBatchSize.orElse(64);
+        if (identityProjections) {
+            this.projectBatchSize = MAX_BATCH_SIZE;
+        }
+        else {
+            this.projectBatchSize = initialBatchSize.orElse(64);
+        }
     }
 
     @VisibleForTesting
@@ -185,7 +193,10 @@ public class PageProcessor
 
                 verify(result.isSuccess());
                 Page resultPage = result.getPage();
-                updateBatchSize(resultPage.getPositionCount(), resultPage.getSizeInBytes());
+                if (!identityProjections) {
+                    // output size is bounded by the input page, so no need to measure it or adapt the batch size
+                    updateBatchSize(resultPage.getPositionCount(), resultPage.getSizeInBytes());
+                }
 
                 // remove batch from selectedPositions and previouslyComputedResults
                 selectedPositions = selectedPositions.subRange(batchSize, selectedPositions.size());
@@ -273,7 +284,7 @@ public class PageProcessor
             long pageSize = 0;
             SelectedPositions positionsBatch = selectedPositions.subRange(0, batchSize);
             for (int i = 0; i < projections.size(); i++) {
-                if (positionsBatch.size() > 1 && pageSize > MAX_PAGE_SIZE_IN_BYTES) {
+                if (!identityProjections && positionsBatch.size() > 1 && pageSize > MAX_PAGE_SIZE_IN_BYTES) {
                     return ProcessBatchResult.processBatchTooLarge();
                 }
 
@@ -292,7 +303,9 @@ public class PageProcessor
                     blocks[i] = previouslyComputedResults[i];
                 }
 
-                pageSize += blocks[i].getSizeInBytes();
+                if (!identityProjections) {
+                    pageSize += blocks[i].getSizeInBytes();
+                }
             }
             return ProcessBatchResult.processBatchSuccess(new Page(positionsBatch.size(), blocks));
         }
