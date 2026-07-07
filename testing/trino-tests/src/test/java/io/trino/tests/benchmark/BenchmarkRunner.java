@@ -611,7 +611,12 @@ public final class BenchmarkRunner
 
     private static boolean isOutOfMemory(Throwable throwable)
     {
-        if (!(throwable instanceof QueryFailedException queryFailed)) {
+        QueryFailedException queryFailed = getCausalChain(throwable).stream()
+                .filter(QueryFailedException.class::isInstance)
+                .map(QueryFailedException.class::cast)
+                .findFirst()
+                .orElse(null);
+        if (queryFailed == null) {
             return false;
         }
         for (Throwable current : getCausalChain(queryFailed.getCause())) {
@@ -621,7 +626,8 @@ public final class BenchmarkRunner
                 return true;
             }
             if (OutOfMemoryError.class.getName().equals(failureInfo.getType()) &&
-                    nullToEmpty(failureInfo.getMessage()).startsWith("Could not allocate native memory: std::bad_alloc: out_of_memory: RMM failure")) {
+                    (nullToEmpty(failureInfo.getMessage()).startsWith("Could not allocate native memory: std::bad_alloc: out_of_memory: RMM failure") ||
+                            nullToEmpty(failureInfo.getMessage()).startsWith("Could not allocate native memory: std::bad_alloc: out_of_memory: CUDA error"))) {
                 // out of GPU memory
                 return true;
             }
