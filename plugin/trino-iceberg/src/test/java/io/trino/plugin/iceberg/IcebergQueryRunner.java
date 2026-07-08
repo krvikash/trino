@@ -68,7 +68,6 @@ import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.PASSWORD;
 import static io.trino.plugin.iceberg.catalog.jdbc.TestingIcebergJdbcServer.USER;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
-import static io.trino.testing.SystemEnvironmentUtils.isEnvSet;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -532,7 +531,7 @@ public final class IcebergQueryRunner
                     .addIcebergProperty("iceberg.rest-catalog.case-insensitive-name-matching", "true")
                     .addIcebergProperty("fs.gcs.enabled", "true");
 
-            if (isEnvSet("VENDED_CREDENTIALS")) {
+            if (Boolean.parseBoolean(System.getenv("VENDED_CREDENTIALS"))) {
                 builder.addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true")
                         .addIcebergProperty("gcs.auth-type", "APPLICATION_DEFAULT"); // currently it must be set even if not used
             }
