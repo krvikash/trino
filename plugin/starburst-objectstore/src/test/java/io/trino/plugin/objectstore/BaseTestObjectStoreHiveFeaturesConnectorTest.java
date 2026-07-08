@@ -126,13 +126,11 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
             queryRunner.createCatalog(catalog, connectorName, objectStoreProperties);
 
-            String prefix = "";
-
             // Hive setting synced from HiveQueryRunner
             Map<String, String> objectStoreBucketedProperties = new HashMap<>(objectStoreProperties);
-            objectStoreBucketedProperties.put(prefix + "hive.max-split-size", "10kB"); // so that each bucket has multiple splits
-            objectStoreBucketedProperties.put(prefix + "hive.storage-format", "TEXTFILE"); // so that there's no minimum split size for the file
-            objectStoreBucketedProperties.put(prefix + "hive.compression-codec", "NONE"); // so that the file is splittable
+            objectStoreBucketedProperties.put("hive.max-split-size", "10kB"); // so that each bucket has multiple splits
+            objectStoreBucketedProperties.put("hive.storage-format", "TEXTFILE"); // so that there's no minimum split size for the file
+            objectStoreBucketedProperties.put("hive.compression-codec", "NONE"); // so that the file is splittable
             String bucketedCatalog = HiveQueryRunner.HIVE_BUCKETED_CATALOG;
             queryRunner.createCatalog(bucketedCatalog, connectorName, objectStoreBucketedProperties);
 
@@ -154,7 +152,7 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
             // extra catalog with NANOSECOND timestamp precision
             Map<String, String> objectStoreHiveNanosProperties = new HashMap<>(objectStoreProperties);
-            objectStoreHiveNanosProperties.put(prefix + "hive.timestamp-precision", "NANOSECONDS");
+            objectStoreHiveNanosProperties.put("hive.timestamp-precision", "NANOSECONDS");
             queryRunner.createCatalog(
                     "hive_timestamp_nanos",
                     connectorName,

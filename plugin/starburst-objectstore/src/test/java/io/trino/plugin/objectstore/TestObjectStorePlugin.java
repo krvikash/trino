@@ -36,7 +36,7 @@ public class TestObjectStorePlugin
     @Test
     public void testGlueMetastoreWithoutPrefix()
     {
-        ConnectorFactory factory = getConnectorFactory(STARBURST_OBJECTSTORE);
+        ConnectorFactory factory = getConnectorFactory();
 
         factory.create(
                         "test",
@@ -50,7 +50,7 @@ public class TestObjectStorePlugin
     @Test
     public void testUnityMetastore()
     {
-        ConnectorFactory factory = getConnectorFactory(STARBURST_OBJECTSTORE);
+        ConnectorFactory factory = getConnectorFactory();
         factory.create(
                         "test",
                         ImmutableMap.<String, String>builder()
@@ -66,7 +66,7 @@ public class TestObjectStorePlugin
     @Test
     public void testUnityMetastoreWithVendedCredentials()
     {
-        ConnectorFactory factory = getConnectorFactory(STARBURST_OBJECTSTORE);
+        ConnectorFactory factory = getConnectorFactory();
         factory.create(
                         "test",
                         ImmutableMap.<String, String>builder()
@@ -83,7 +83,7 @@ public class TestObjectStorePlugin
     @Test
     public void testCreateConnectorInvalidProperties()
     {
-        ConnectorFactory factory = getConnectorFactory(STARBURST_OBJECTSTORE);
+        ConnectorFactory factory = getConnectorFactory();
 
         // Invalid hive.metastore property
         assertThatThrownBy(() -> factory.create(
@@ -121,7 +121,7 @@ public class TestObjectStorePlugin
 
     private static void assertCreateConnectorFails(String key, String value, String exceptionString)
     {
-        ConnectorFactory factory = getConnectorFactory(STARBURST_OBJECTSTORE);
+        ConnectorFactory factory = getConnectorFactory();
 
         assertThatThrownBy(() -> factory.create(
                 "test",
@@ -133,8 +133,8 @@ public class TestObjectStorePlugin
                 .hasMessageContaining(exceptionString);
     }
 
-    private static ConnectorFactory getConnectorFactory(String connectorName)
+    private static ConnectorFactory getConnectorFactory()
     {
-        return getOnlyElement(Iterators.filter(new ObjectStorePlugin().getConnectorFactories().iterator(), factory -> factory.getName().equals(connectorName)));
+        return getOnlyElement(Iterators.filter(new ObjectStorePlugin().getConnectorFactories().iterator(), factory -> factory.getName().equals(STARBURST_OBJECTSTORE)));
     }
 }
