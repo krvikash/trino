@@ -99,6 +99,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.LongStream;
 
+import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
 import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
 import static com.databricks.sdk.service.catalog.TableType.MANAGED;
@@ -156,6 +157,35 @@ public class UnityHiveMetastore
     private final String catalogName;
     private final TemporaryCredentialsApi temporaryCredentialsApi;
 
+    public UnityHiveMetastore(
+            String host,
+            String catalogName,
+            UnityTokenProvider tokenProvider,
+            boolean vendedCredentialsEnabled,
+            boolean proxyEnabled,
+            Optional<String> proxyHost,
+            OptionalInt proxyPort,
+            Optional<String> proxyUsername,
+            Optional<String> proxyPassword,
+            Optional<List<String>> nonProxyHosts,
+            Set<DataSourceFormat> supportedUnityTableFormats)
+    {
+        this(host,
+                catalogName,
+                requireNonNull(tokenProvider, "tokenProvider is null").getToken(),
+                PAT,
+                Optional.empty(),
+                vendedCredentialsEnabled,
+                proxyEnabled,
+                proxyHost,
+                proxyPort,
+                proxyUsername,
+                proxyPassword,
+                nonProxyHosts,
+                supportedUnityTableFormats);
+    }
+
+    @Deprecated
     public UnityHiveMetastore(
             String host,
             String catalogName,

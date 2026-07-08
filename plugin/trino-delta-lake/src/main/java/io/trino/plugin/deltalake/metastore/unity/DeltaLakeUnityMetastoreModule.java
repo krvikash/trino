@@ -31,10 +31,12 @@ import io.trino.plugin.deltalake.transactionlog.reader.UnityTransactionLogReader
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogWriterFactory;
 import io.trino.plugin.deltalake.transactionlog.writer.UnityTransactionLogWriterFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
+import io.trino.plugin.hive.metastore.unity.PersonalAccessTokenProvider;
 import io.trino.plugin.hive.metastore.unity.SupportedUnityTableFormatsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreProxyConfig;
+import io.trino.plugin.hive.metastore.unity.UnityTokenProvider;
 import io.trino.spi.TrinoException;
 
 import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
@@ -64,6 +66,11 @@ public class DeltaLakeUnityMetastoreModule
         if (buildConfigObject(DeltaLakeConfig.class).isRegisterTableProcedureEnabled()) {
             binder.addError(new TrinoException(NOT_SUPPORTED, "Register procedure is not supported for Unity"));
         }
+
+        newOptionalBinder(binder, UnityTokenProvider.class)
+                .setDefault()
+                .to(PersonalAccessTokenProvider.class)
+                .in(Scopes.SINGLETON);
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);
 

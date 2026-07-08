@@ -22,8 +22,6 @@ import io.trino.spi.security.ConnectorIdentity;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
-
 public class UnityHiveMetastoreFactory
         implements HiveMetastoreFactory
 {
@@ -34,6 +32,7 @@ public class UnityHiveMetastoreFactory
     public UnityHiveMetastoreFactory(
             UnityMetastoreConfig config,
             Optional<UnityMetastoreProxyConfig> proxyConfig,
+            UnityTokenProvider tokenProvider,
             Tracer tracer,
             SupportedUnityTableFormatsProvider supportedUnityTableFormatsProvider)
     {
@@ -42,9 +41,7 @@ public class UnityHiveMetastoreFactory
                 new UnityHiveMetastore(
                         config.getHost(),
                         config.getCatalogName(),
-                        config.getToken(),
-                        PAT,
-                        Optional.empty(),
+                        tokenProvider,
                         config.isVendedCredentialsEnabled(),
                         config.isProxyEnabled(),
                         proxyConfig.map(UnityMetastoreProxyConfig::getProxyHost),

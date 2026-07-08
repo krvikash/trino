@@ -58,6 +58,10 @@ public class UnityMetastoreModule
             configBinder(binder).bindConfig(UnityMetastoreProxyConfig.class);
         }
 
+        newOptionalBinder(binder, UnityTokenProvider.class)
+                .setDefault()
+                .to(PersonalAccessTokenProvider.class)
+                .in(Scopes.SINGLETON);
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);
 
         newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class))
