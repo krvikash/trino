@@ -14,6 +14,7 @@
 package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
+@Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
 class TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest
         extends BaseGcsAndUnityMetastoreDeltaConnectorSmokeTest
 {

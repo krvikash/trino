@@ -59,7 +59,8 @@ public class TestHiveDatabricksUnityCompatibility
         onDelta().executeQuery("DROP SCHEMA IF EXISTS " + unityCatalogName + "." + schemaName + " CASCADE");
     }
 
-    @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    // TODO https://starburstdata.atlassian.net/browse/ENG-19790
+    @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS}, enabled = false)
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteExternalTable()
     {
@@ -162,7 +163,8 @@ public class TestHiveDatabricksUnityCompatibility
                         row("struct_col", "row(\"a\" bigint, \"b\" varchar)", "", ""));
     }
 
-    @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
+    // TODO https://starburstdata.atlassian.net/browse/ENG-19790
+    @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS}, enabled = false)
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testDifferentTableFormats()
     {

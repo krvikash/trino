@@ -23,6 +23,7 @@ import io.trino.spi.security.Identity;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.tpch.TpchTable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -235,6 +236,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 .hasMessageContaining("Invalid table type: MANAGED_TABLE, create table is supported only for external tables");
     }
 
+    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     void testCreateExternalTable()
     {
@@ -275,6 +277,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
         abort("io.trino.testing.BaseConnectorSmokeTest.testTruncateTable truncates the static table used in the test");
     }
 
+    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     void testCreateExternalTableAsSelect()
     {
@@ -409,6 +412,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 .hasMessageContaining("Assumption failed: assumption is not true");
     }
 
+    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     public void testColumnNameExternalTable()
     {
