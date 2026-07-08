@@ -52,7 +52,6 @@ import io.trino.sql.ir.Match;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
-import io.trino.type.TypeCoercion;
 
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +71,7 @@ import static io.airlift.bytecode.instruction.Constant.loadLong;
 import static io.airlift.bytecode.instruction.Constant.loadString;
 import static io.trino.sql.gen.BytecodeUtils.loadConstant;
 import static io.trino.sql.gen.LambdaBytecodeGenerator.generateLambda;
+import static io.trino.sql.ir.Cast.Kind.REINTERPRET;
 import static java.util.Objects.requireNonNull;
 
 public class ExpressionBytecodeCompiler
@@ -85,7 +85,6 @@ public class ExpressionBytecodeCompiler
     private final FunctionManager functionManager;
     private final Metadata metadata;
     private final TypeManager typeManager;
-    private final TypeCoercion typeCoercion;
     private final int maxMethodComplexity;
     private final Map<Lambda, CompiledLambda> compiledLambdaMap;
     private final List<Parameter> contextArguments;  // arguments that need to be propagated to generated methods
@@ -114,7 +113,6 @@ public class ExpressionBytecodeCompiler
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.typeCoercion = new TypeCoercion(typeManager::getType);
         this.maxMethodComplexity = maxMethodComplexity;
         this.compiledLambdaMap = requireNonNull(compiledLambdaMap, "compiledLambdaMap is null");
         this.contextArguments = ImmutableList.copyOf(requireNonNull(contextArguments, "contextArguments is null"));
@@ -397,10 +395,11 @@ public class ExpressionBytecodeCompiler
             Type returnType = node.type();
             Type sourceType = node.expression().type();
 
-            // Type-only coercions (e.g., varchar(10) to varchar(20)) don't change the runtime
-            // value — the Java type is the same. Simply compile the inner expression and use
-            // the result directly, without generating a coercion function call.
-            if (typeCoercion.isTypeOnlyCoercion(sourceType, returnType)) {
+            // A REINTERPRET cast (e.g., varchar(10) to varchar(20)) doesn't change the runtime value —
+            // the physical representation is the same. Compile the inner expression and use the result
+            // directly, without generating a coercion function call. The kind is classified where the
+            // cast is created (see Cast.Kind), so we don't re-derive it here.
+            if (node.kind() == REINTERPRET) {
                 return generatorContext.generate(node.expression());
             }
 
