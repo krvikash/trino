@@ -144,7 +144,8 @@ public class TestSpoolingStorageModule
                 "buffer.spooling.directory", "gs://bucket/spool",
                 "buffer.spooling.storage-driver", "TRINO_FS",
                 "buffer.spooling.trino-fs.delete-executor-threads", "20",
-                "buffer.spooling.gcs.project-id", "my-project"));
+                "buffer.spooling.gcs.project-id", "my-project",
+                "buffer.spooling.gcs.json-key", "{\"key\": \"blah\"}"));
     }
 
     @Test

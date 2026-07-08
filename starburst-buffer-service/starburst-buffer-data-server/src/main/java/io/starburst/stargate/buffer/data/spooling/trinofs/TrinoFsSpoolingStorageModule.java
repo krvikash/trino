@@ -21,17 +21,23 @@ import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.filesystem.azure.AzureAuthAccessKeyConfig;
+import io.trino.filesystem.azure.AzureAuthManagedIdentityConfig;
+import io.trino.filesystem.azure.AzureAuthOAuthConfig;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.filesystem.azure.AzureFileSystemModule;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsFileSystemModule;
+import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.local.LocalFileSystemConfig;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.filesystem.s3.FileSystemS3;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemModule;
+import io.trino.filesystem.s3.S3SecurityMappingConfig;
+import io.trino.filesystem.s3.S3SecurityMappingEnabledConfig;
 import io.trino.spi.security.ConnectorIdentity;
 import jakarta.annotation.PreDestroy;
 
@@ -105,6 +111,9 @@ public class TrinoFsSpoolingStorageModule
         else if (scheme.equals("s3") || scheme.equals("s3a") || scheme.equals("s3n")) {
             if (bindConfigsOnly) {
                 configBinder(binder).bindConfig(S3FileSystemConfig.class, internalConfigPrefix);
+                if (buildConfigObject(S3SecurityMappingEnabledConfig.class, internalConfigPrefix).isEnabled()) {
+                    configBinder(binder).bindConfig(S3SecurityMappingConfig.class, internalConfigPrefix);
+                }
             }
             else {
                 install(new S3FileSystemModule(Optional.of(internalConfigPrefix)));
@@ -116,6 +125,9 @@ public class TrinoFsSpoolingStorageModule
         else if (scheme.equals("gs")) {
             if (bindConfigsOnly) {
                 configBinder(binder).bindConfig(GcsFileSystemConfig.class, internalConfigPrefix);
+                if (buildConfigObject(GcsFileSystemConfig.class, internalConfigPrefix).getAuthType() == GcsFileSystemConfig.AuthType.SERVICE_ACCOUNT) {
+                    configBinder(binder).bindConfig(GcsServiceAccountAuthConfig.class, internalConfigPrefix);
+                }
             }
             else {
                 install(new GcsFileSystemModule(Optional.of(internalConfigPrefix)));
@@ -125,6 +137,11 @@ public class TrinoFsSpoolingStorageModule
         else if (scheme.equals("abfs") || scheme.equals("abfss") || scheme.equals("wasb") || scheme.equals("wasbs")) {
             if (bindConfigsOnly) {
                 configBinder(binder).bindConfig(AzureFileSystemConfig.class, internalConfigPrefix);
+                switch (buildConfigObject(AzureFileSystemConfig.class, internalConfigPrefix).getAuthType()) {
+                    case ACCESS_KEY -> configBinder(binder).bindConfig(AzureAuthAccessKeyConfig.class, internalConfigPrefix);
+                    case DEFAULT -> configBinder(binder).bindConfig(AzureAuthManagedIdentityConfig.class, internalConfigPrefix);
+                    case OAUTH -> configBinder(binder).bindConfig(AzureAuthOAuthConfig.class, internalConfigPrefix);
+                }
             }
             else {
                 install(new AzureFileSystemModule(Optional.of(internalConfigPrefix)));
