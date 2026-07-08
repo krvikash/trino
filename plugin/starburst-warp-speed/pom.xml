@@ -85,14 +85,10 @@
                             <compilerArgs combine.children="override">
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
-                                <arg>
-                                    -Xplugin:ErrorProne \
+                                <arg>-Xplugin:ErrorProne \
                                     -Xep:EqualsGetClass:OFF \
                                     -Xep:ArrayRecordComponent:OFF \
-                                    <!-- Temporary disabled due to https://github.com/google/error-prone/issues/4598 -->
-                                    -Xep:MissingOverride:OFF \
-                                    -Xep:EnumOrdinal:OFF
-                                </arg>
+                                    -Xep:EnumOrdinal:OFF</arg>
                             </compilerArgs>
                         </configuration>
                     </plugin>
