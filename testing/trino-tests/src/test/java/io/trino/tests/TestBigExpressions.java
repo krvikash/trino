@@ -113,6 +113,72 @@ public class TestBigExpressions
                 "VALUES 'natural values hash'");
     }
 
+    @Test
+    public void testCaseWithLambdaAfterComplexityThreshold()
+    {
+        // Regression test for ENG-19683: a lambda expression (any_match) in a CASE branch that gets
+        // compiled after the per-method complexity threshold caused a COMPILER_ERROR:
+        // "Variable 'this' has not been assigned a slot".
+        // The any_match branch is written first so it is compiled last (branches are processed in
+        // reversed order), after the following simple branches push complexity past the threshold
+        // and force the branch into an extracted method.
+        StringBuilder caseBuilder = new StringBuilder("CASE");
+        caseBuilder.append(" WHEN any_match(ARRAY[nationkey], y -> y > 20) THEN 999999");
+        for (int i = 0; i < 250; i++) {
+            caseBuilder.append(" WHEN nationkey = %d THEN %d".formatted(i, i * 10));
+        }
+        caseBuilder.append(" ELSE -1 END");
+        String caseExpression = caseBuilder.toString();
+
+        // test projection: any_match(nationkey > 20) selects nationkey 21-24, otherwise nationkey * 10
+        assertQuery(
+                "SELECT %s FROM nation".formatted(caseExpression),
+                "SELECT CASE WHEN nationkey > 20 THEN 999999 ELSE nationkey * 10 END FROM nation");
+        // test filter
+        assertQuery(
+                "SELECT nationkey FROM nation WHERE %s = 999999".formatted(caseExpression),
+                "SELECT nationkey FROM nation WHERE nationkey > 20");
+    }
+
+    @Test
+    public void testNestedLambdaExtractedIntoChunkClass()
+    {
+        // Regression test for the ENG-19683 variant where a lambda-bearing expression is extracted
+        // into a method that lives in a chunk class (not the main class). At default compiler config
+        // this requires a large query: enough extracted methods to fill the main class and spill into
+        // chunk classes, plus a nested extraction (a big lambda-bearing branch) landing in a chunk.
+        // There the extracted method's own 'this' is the chunk instance, so the lambda's receiver must
+        // be resolved via the chunk's '__main' field. Before the fix this produced invalid bytecode
+        // that failed at lambda link time with LambdaConversionException / an invalid-receiver error.
+        //
+        // Shape: an OUTER case whose first branch (evaluated for nationkey=5) returns a big INNER case
+        // containing an any_match, preceded by many filler branches that fill methods and reach chunks.
+        String actual = nestedLambdaChunkExpression("any_match(ARRAY[nationkey], y -> y > 0)");
+        String expected = nestedLambdaChunkExpression("nationkey > 0");
+        assertQuery(
+                "SELECT %s FROM nation".formatted(actual),
+                "SELECT %s FROM nation".formatted(expected));
+    }
+
+    private static String nestedLambdaChunkExpression(String predicate)
+    {
+        StringBuilder inner = new StringBuilder("CASE");
+        inner.append(" WHEN %s THEN 999999".formatted(predicate));
+        for (int i = 0; i < 250; i++) {
+            inner.append(" WHEN nationkey = %d THEN %d".formatted(i, i * 10));
+        }
+        inner.append(" ELSE -1 END");
+
+        StringBuilder outer = new StringBuilder("CASE");
+        // first branch fires for nationkey=5, so INNER (and its lambda) is evaluated at runtime
+        outer.append(" WHEN nationkey = 5 THEN (%s)".formatted(inner));
+        for (int i = 0; i < 400; i++) {
+            outer.append(" WHEN nationkey = %d THEN %d".formatted(i, i * 100));
+        }
+        outer.append(" ELSE -2 END");
+        return outer.toString();
+    }
+
     private static String generateCase(String column, int whenCases, int depth)
     {
         ThreadLocalRandom random = ThreadLocalRandom.current();

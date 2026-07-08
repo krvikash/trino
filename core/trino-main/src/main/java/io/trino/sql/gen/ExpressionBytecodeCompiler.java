@@ -193,29 +193,47 @@ public class ExpressionBytecodeCompiler
             variableToFieldMap.put(contextVariable.getName(), field);
         }
         restoreContextVariables(methodBody, methodScope, methodScope.getThis(), variableToFieldMap);
-        BytecodeExpression evaluateMethodTarget = parentScope.getThis();
-        ExpressionBytecodeCompiler compiler = this;
-        if (!evaluateClassScope.classDefinition().equals(classDefinition)) {
-            // the call will be to a method in a different chunk class
-            BytecodeExpression chunkMainReference = methodScope.getThis().getField(
+
+        // mainReference must resolve to the main class instance inside the new method, because lambda
+        // methods are defined in the main class and generateLambda captures mainReference to build the
+        // closure. It must be expressed relative to the new method's own 'this' (methodScope.getThis());
+        // reusing the caller's mainReference would load a 'this' Variable that has no slot in the new
+        // method — the cause of ENG-19683 ("Variable 'this' has not been assigned a slot").
+        ClassDefinition mainClassDefinition = parentMethodContext.expressionContext().mainClass().classDefinition();
+        BytecodeExpression newMainReference;
+        if (evaluateClassScope.classDefinition().equals(mainClassDefinition)) {
+            // the new method lives in the main class, so its 'this' is the main instance
+            newMainReference = methodScope.getThis();
+        }
+        else {
+            // the new method lives in a chunk class, which holds a '__main' field to the main instance
+            newMainReference = methodScope.getThis().getField(
                     evaluateClassScope.classDefinition().getType(),
                     "__main",
-                    parentMethodContext.expressionContext().mainClass().classDefinition().getType());
-            // create ExpressionBytecodeCompiler with the chunk class
-            compiler = new ExpressionBytecodeCompiler(
-                    evaluateClassScope.classDefinition(),
-                    chunkMainReference,
-                    callSiteBinder,
-                    evaluateClassScope.cachedInstanceBinder(),
-                    referenceCompiler,
-                    functionManager,
-                    metadata,
-                    typeManager,
-                    maxMethodComplexity,
-                    compiledLambdaMap,
-                    contextArguments,
-                    Optional.of(parentMethodContext));
-            // update evaluateMethodTarget to point to a chunk object that will contain the newly generated method
+                    mainClassDefinition.getType());
+        }
+
+        ExpressionBytecodeCompiler compiler = new ExpressionBytecodeCompiler(
+                evaluateClassScope.classDefinition(),
+                newMainReference,
+                callSiteBinder,
+                evaluateClassScope.cachedInstanceBinder(),
+                referenceCompiler,
+                functionManager,
+                metadata,
+                typeManager,
+                maxMethodComplexity,
+                compiledLambdaMap,
+                contextArguments,
+                Optional.of(parentMethodContext));
+
+        BytecodeExpression evaluateMethodTarget;
+        if (evaluateClassScope.classDefinition().equals(classDefinition)) {
+            // the new method is in the caller's own class
+            evaluateMethodTarget = parentScope.getThis();
+        }
+        else {
+            // the new method is in a different chunk class; invoke it via the chunk field on the caller
             String chunkField = parentMethodContext.expressionContext().getChunkField(classDefinition, evaluateClassScope.classDefinition());
             evaluateMethodTarget = parentScope.getThis().getField(classDefinition.getType(), chunkField, evaluateClassScope.classDefinition().getType());
         }
