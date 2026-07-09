@@ -458,14 +458,14 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <exclude>**/TestSnowflakeJmxStats.java</exclude>
-                                <exclude>**/TestParallelSnowflakeConnectorTest.java</exclude>
-                                <exclude>**/TestParallelSnowflakeTypeMapping.java</exclude>
-                                <exclude>**/TestParallelSnowflakeQueryFailureRecoveryTest.java</exclude>
-                                <exclude>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectionPoolingConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestParallelSnowflakeConnectorTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeKeyPairWithPassphraseAuthenticationConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeQueryCommentFormat.java</exclude>
+                                <exclude>**/TestParallelSnowflakeQueryFailureRecoveryTest.java</exclude>
+                                <exclude>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</exclude>
+                                <exclude>**/TestParallelSnowflakeTypeMapping.java</exclude>
+                                <exclude>**/TestSnowflakeJmxStats.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -516,8 +516,8 @@
                         <configuration>
                             <includes>
                                 <include>**/TestParallelSnowflakeConnectorTest.java</include>
-                                <include>**/TestParallelSnowflakeTypeMapping.java</include>
                                 <include>**/TestParallelSnowflakeQueryCommentFormat.java</include>
+                                <include>**/TestParallelSnowflakeTypeMapping.java</include>
                             </includes>
                         </configuration>
                     </plugin>
