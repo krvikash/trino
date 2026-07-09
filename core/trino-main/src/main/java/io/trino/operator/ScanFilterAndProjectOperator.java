@@ -28,6 +28,7 @@ import io.trino.operator.WorkProcessor.ProcessState;
 import io.trino.operator.WorkProcessor.TransformationState;
 import io.trino.operator.project.PageProcessor;
 import io.trino.operator.project.PageProcessorMetrics;
+import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -67,6 +68,7 @@ public class ScanFilterAndProjectOperator
         implements WorkProcessorSourceOperator
 {
     private final SplitToPages splitToPages;
+    // getOutputPages and getMaskedOutputPages both read from this stream; the driver calls only one of them
     private final WorkProcessor<SourcePage> sourcePages;
     private final PageProcessorMetrics pageProcessorMetrics = new PageProcessorMetrics();
     private final TableAwarePageSourceProvider pageSourceProvider;
@@ -168,6 +170,18 @@ public class ScanFilterAndProjectOperator
     }
 
     @Override
+    public boolean producesMaskedOutput()
+    {
+        return true;
+    }
+
+    @Override
+    public WorkProcessor<MaskedPage> getMaskedOutputPages()
+    {
+        return splitToPages.toMaskedPages(sourcePages);
+    }
+
+    @Override
     public void close()
     {
         accountProcessedBytes();
@@ -264,6 +278,19 @@ public class ScanFilterAndProjectOperator
             return WorkProcessor
                     .create(new ConnectorPageSourceToPages())
                     .yielding(yieldSignal::isSet);
+        }
+
+        WorkProcessor<MaskedPage> toMaskedPages(WorkProcessor<SourcePage> sourcePages)
+        {
+            ConnectorSession connectorSession = session.toConnectorSession();
+            return sourcePages.flatMap(page -> {
+                SelectedPositions selectedPositions = pageProcessor.evaluateFilter(connectorSession, pageProcessorMetrics, page);
+                if (selectedPositions.isEmpty()) {
+                    return WorkProcessor.of();
+                }
+                // the masked page is read by the consumer outside this processor, so it reports to the operator memory directly
+                return WorkProcessor.of(pageProcessor.applyMask(connectorSession, page, selectedPositions, memoryContext, pageProcessorMetrics));
+            });
         }
 
         WorkProcessor<Page> toPages(WorkProcessor<SourcePage> sourcePages)

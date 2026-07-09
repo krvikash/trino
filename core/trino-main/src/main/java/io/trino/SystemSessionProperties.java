@@ -251,6 +251,7 @@ public final class SystemSessionProperties
     public static final String COLUMNAR_FILTER_EVALUATION_ENABLED = "columnar_filter_evaluation_enabled";
     public static final String GPU_EXECUTION_ENABLED = "gpu_execution_enabled";
     public static final String DEBUG_OUTPUT_ENABLED = "debug_output_enabled";
+    public static final String MASKED_PAGE_ENABLED = "masked_page_enabled";
     public static final String ADAPTIVE_FILTER_REORDERING_ENABLED = "adaptive_filter_reordering_enabled";
     public static final String SPOOLING_ENABLED = "spooling_enabled";
     public static final String SPOOLING_UNSUPPORTED_WARNING = "spooling_unsupported_warning";
@@ -1310,6 +1311,11 @@ public final class SystemSessionProperties
                         cacheConfig.getDataReductionThreshold(),
                         value -> validateDoubleRange(value, SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD, 0.0, Double.MAX_VALUE),
                         true),
+                booleanProperty(
+                        MASKED_PAGE_ENABLED,
+                        "Enable late materialization by passing undecoded masked pages between operators, so a consumer such as partial TopN can defer decoding of columns it may not need",
+                        optimizerConfig.isMaskedPageEnabled(),
+                        false),
                 booleanProperty(
                         ADAPTIVE_FILTER_REORDERING_ENABLED,
                         "Reorder conjunctive/disjunctive filter terms at runtime based on observed selectivity and performance",
@@ -2417,6 +2423,11 @@ public final class SystemSessionProperties
     public static boolean isDebugOutputEnabled(Session session)
     {
         return session.getSystemProperty(DEBUG_OUTPUT_ENABLED, Boolean.class);
+    }
+
+    public static boolean isMaskedPageEnabled(Session session)
+    {
+        return session.getSystemProperty(MASKED_PAGE_ENABLED, Boolean.class);
     }
 
     public static boolean isAdaptiveFilterReorderingEnabled(Session session)

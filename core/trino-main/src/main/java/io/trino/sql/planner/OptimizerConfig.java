@@ -102,6 +102,7 @@ public class OptimizerConfig
     private boolean useExactPartitioning;
     private boolean useCostBasedPartitioning = true;
     private boolean useSubPlanAlternatives = true;
+    private boolean maskedPageEnabled = true;
     private int pushFilterIntoValuesMaxRowCount = 100;
     private boolean reuseCommonSubqueries;
     // adaptive partial aggregation
@@ -953,6 +954,19 @@ public class OptimizerConfig
     public OptimizerConfig setUseSubPlanAlternatives(boolean useSubPlanAlternatives)
     {
         this.useSubPlanAlternatives = useSubPlanAlternatives;
+        return this;
+    }
+
+    public boolean isMaskedPageEnabled()
+    {
+        return maskedPageEnabled;
+    }
+
+    @Config("optimizer.masked-page-enabled")
+    @ConfigDescription("Enable late materialization by passing undecoded masked pages between operators, so a consumer such as partial TopN can defer decoding of columns it may not need")
+    public OptimizerConfig setMaskedPageEnabled(boolean maskedPageEnabled)
+    {
+        this.maskedPageEnabled = maskedPageEnabled;
         return this;
     }
 

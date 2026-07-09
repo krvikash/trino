@@ -286,3 +286,15 @@ already partitioned stage is necessary.
 - **Session property:** `use_sub_plan_alternatives`
 
 When enabled the optimizer might create several sub-plan alternatives.
+
+## `optimizer.masked-page-enabled`
+
+- **Type:** {ref}`prop-type-boolean`
+- **Default value:** `true`
+- **Session property:** `masked_page_enabled`
+
+Enable late materialization between supporting operators by passing undecoded
+"masked" pages, so that a consumer can defer decoding of columns it may not need.
+For example, an `ORDER BY ... LIMIT n` query reads only the sort columns to decide
+which rows can enter the result, and decodes the remaining selected columns only for
+the rows that survive. This reduces work when most rows are discarded by the `LIMIT`.
