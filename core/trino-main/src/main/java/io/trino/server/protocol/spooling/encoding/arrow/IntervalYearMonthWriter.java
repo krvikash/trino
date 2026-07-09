@@ -14,8 +14,13 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.trino.spi.block.Block;
+import io.trino.spi.block.IntArrayBlock;
 import org.apache.arrow.vector.IntervalYearVector;
 
+import java.lang.foreign.MemorySegment;
+
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowBulkCopy.copyFixedWidth;
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowBulkCopy.writeValidity;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 
 public final class IntervalYearMonthWriter
@@ -30,6 +35,12 @@ public final class IntervalYearMonthWriter
     public void write(Block block)
     {
         int positionCount = block.getPositionCount();
+        if (block instanceof IntArrayBlock valueBlock) {
+            copyFixedWidth(vector, MemorySegment.ofArray(valueBlock.getRawValues()), valueBlock.getRawValuesOffset(), positionCount);
+            writeValidity(vector, valueBlock, positionCount);
+            vector.setValueCount(positionCount);
+            return;
+        }
         for (int position = 0; position < positionCount; position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);

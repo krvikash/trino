@@ -14,8 +14,13 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.trino.spi.block.Block;
+import io.trino.spi.block.LongArrayBlock;
 import org.apache.arrow.vector.BigIntVector;
 
+import java.lang.foreign.MemorySegment;
+
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowBulkCopy.copyFixedWidth;
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowBulkCopy.writeValidity;
 import static io.trino.spi.type.BigintType.BIGINT;
 
 public final class BigintWriter
@@ -30,6 +35,12 @@ public final class BigintWriter
     public void write(Block block)
     {
         int positionCount = block.getPositionCount();
+        if (block instanceof LongArrayBlock valueBlock) {
+            copyFixedWidth(vector, MemorySegment.ofArray(valueBlock.getRawValues()), valueBlock.getRawValuesOffset(), positionCount);
+            writeValidity(vector, valueBlock, positionCount);
+            vector.setValueCount(positionCount);
+            return;
+        }
         for (int position = 0; position < positionCount; position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);
