@@ -134,6 +134,7 @@ public class IcebergConfig
     private boolean metadataCacheEnabled = true;
     private boolean objectStoreLayoutEnabled;
     private int metadataParallelism = 8;
+    private boolean metadataVirtualThreadsEnabled = true;
     private boolean bucketExecutionEnabled = true;
     private String timeZone = "UTC";
     private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
@@ -861,6 +862,19 @@ public class IcebergConfig
     public IcebergConfig setCompositeSplitsEnabled(boolean compositeSplitsEnabled)
     {
         this.compositeSplitsEnabled = compositeSplitsEnabled;
+        return this;
+    }
+
+    public boolean isMetadataVirtualThreadsEnabled()
+    {
+        return metadataVirtualThreadsEnabled;
+    }
+
+    @ConfigDescription("Run blocking metadata enumeration I/O on virtual threads")
+    @Config("iceberg.metadata.virtual-threads-enabled")
+    public IcebergConfig setMetadataVirtualThreadsEnabled(boolean metadataVirtualThreadsEnabled)
+    {
+        this.metadataVirtualThreadsEnabled = metadataVirtualThreadsEnabled;
         return this;
     }
 
