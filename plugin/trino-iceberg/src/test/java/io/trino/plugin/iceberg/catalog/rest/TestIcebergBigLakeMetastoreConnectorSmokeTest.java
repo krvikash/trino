@@ -177,6 +177,7 @@ final class TestIcebergBigLakeMetastoreConnectorSmokeTest
                         "   comment varchar\n" +
                         "\\)\n" +
                         "WITH \\(\n" +
+                        "   compression_codec = 'ZSTD',\n" +
                         "   format = 'PARQUET',\n" +
                         "   format_version = 2,\n" +
                         "   location = 'gs://.*'\n" +
@@ -323,5 +324,26 @@ final class TestIcebergBigLakeMetastoreConnectorSmokeTest
         assertThatThrownBy(super::testVariantType)
                 .hasMessageContaining("Failed to commit the transaction")
                 .hasStackTraceContaining("Request contains an invalid argument");
+    }
+
+    @Test
+    @Override // TODO https://github.com/trinodb/trino/issues/30261
+    public void testCreateOrReplaceTable()
+    {
+        abort("skipped");
+    }
+
+    @Test
+    @Override // TODO https://github.com/trinodb/trino/issues/30261
+    public void testCreateOrReplaceWithTableChangesFunction()
+    {
+        abort("skipped");
+    }
+
+    @Test
+    @Override // TODO https://github.com/trinodb/trino/issues/30261
+    public void testCreateOrReplaceTableChangeColumnNamesAndTypes()
+    {
+        abort("skipped");
     }
 }
