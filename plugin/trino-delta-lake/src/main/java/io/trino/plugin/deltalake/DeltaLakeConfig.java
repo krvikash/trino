@@ -95,6 +95,7 @@ public class DeltaLakeConfig
     private boolean deletionVectorsEnabled;
     private boolean deltaLogBlobCacheDisabled;
     private int metadataParallelism = 8;
+    private boolean metadataVirtualThreadsEnabled = true;
     private int checkpointProcessingParallelism = 4;
     private boolean logRetentionDurationEnabled;
     private String timeZone = "UTC";
@@ -576,6 +577,19 @@ public class DeltaLakeConfig
     public DeltaLakeConfig setMetadataParallelism(int metadataParallelism)
     {
         this.metadataParallelism = metadataParallelism;
+        return this;
+    }
+
+    public boolean isMetadataVirtualThreadsEnabled()
+    {
+        return metadataVirtualThreadsEnabled;
+    }
+
+    @ConfigDescription("Run blocking metadata enumeration I/O on virtual threads")
+    @Config("delta.metadata.virtual-threads-enabled")
+    public DeltaLakeConfig setMetadataVirtualThreadsEnabled(boolean metadataVirtualThreadsEnabled)
+    {
+        this.metadataVirtualThreadsEnabled = metadataVirtualThreadsEnabled;
         return this;
     }
 
