@@ -33,8 +33,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// TODO: rename to TestParallelSnowflakeQueryCommentFormat
-public class BaseSnowflakeQueryCommentFormat
+public class TestParallelSnowflakeQueryCommentFormat
         extends AbstractTestQueryFramework
 {
     private SnowflakeQueryRecorder snowflakeQueryRecorder;

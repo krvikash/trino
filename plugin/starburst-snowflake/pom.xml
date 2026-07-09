@@ -458,14 +458,14 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <exclude>**/BaseSnowflakeQueryCommentFormat.java</exclude>
-                                <exclude>**/BaseSnowflakeConnectorTest.java</exclude>
-                                <exclude>**/BaseSnowflakeTypeMappingTest</exclude>
                                 <exclude>**/TestSnowflakeJmxStats.java</exclude>
+                                <exclude>**/TestParallelSnowflakeConnectorTest.java</exclude>
+                                <exclude>**/TestParallelSnowflakeTypeMapping.java</exclude>
                                 <exclude>**/TestParallelSnowflakeQueryFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectionPoolingConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeKeyPairWithPassphraseAuthenticationConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestParallelSnowflakeQueryCommentFormat.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -515,10 +515,9 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <!-- These Base tests are actually testing the parallel connector and should be renamed -->
-                                <include>**/BaseSnowflakeConnectorTest.java</include>
-                                <include>**/BaseSnowflakeTypeMappingTest.java</include>
-                                <include>**/BaseSnowflakeQueryCommentFormat.java</include>
+                                <include>**/TestParallelSnowflakeConnectorTest.java</include>
+                                <include>**/TestParallelSnowflakeTypeMapping.java</include>
+                                <include>**/TestParallelSnowflakeQueryCommentFormat.java</include>
                             </includes>
                         </configuration>
                     </plugin>

@@ -58,8 +58,7 @@ import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @Execution(CONCURRENT)
-// TODO: rename to TestParallelSnowflakeConnectorTest
-public class BaseSnowflakeConnectorTest
+public class TestParallelSnowflakeConnectorTest
         extends BaseJdbcConnectorTest
 {
     protected final Closer closer = Closer.create();

@@ -64,8 +64,7 @@ import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// TODO: rename to TestParallelSnowflakeTypeMapping
-public class BaseSnowflakeTypeMappingTest
+public class TestParallelSnowflakeTypeMapping
         extends AbstractTestQueryFramework
 {
     protected static final int MAX_VARCHAR = 16777216;

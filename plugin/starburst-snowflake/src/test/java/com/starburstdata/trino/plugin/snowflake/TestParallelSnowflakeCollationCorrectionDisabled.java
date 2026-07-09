@@ -53,7 +53,7 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
     }
 
     /**
-     * @see BaseSnowflakeConnectorTest#testCollatedTopNPushdown()
+     * @see TestParallelSnowflakeConnectorTest#testCollatedTopNPushdown()
      */
     @Test
     public void testCollationCorrectionDisabledTopNPushdown()
@@ -71,7 +71,7 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
     }
 
     /**
-     * @see BaseSnowflakeConnectorTest#testCollatedPredicatePushdown()
+     * @see TestParallelSnowflakeConnectorTest#testCollatedPredicatePushdown()
      */
     @Test
     public void testCollationCorrectionDisabledPredicatePushdown()
@@ -88,7 +88,7 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
     }
 
     /**
-     * @see BaseSnowflakeConnectorTest#testCollatedExpression()
+     * @see TestParallelSnowflakeConnectorTest#testCollatedExpression()
      */
     @Test
     public void testCollationCorrectionDisabledEqualsVariable()

@@ -35,8 +35,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-// TODO: rename to TestParallelSnowflakeCastPushdown
-public class BaseSnowflakeCastPushdown
+public class TestParallelSnowflakeCastPushdown
         extends BaseJdbcCastPushdownTest
 {
     private String testDbName;
