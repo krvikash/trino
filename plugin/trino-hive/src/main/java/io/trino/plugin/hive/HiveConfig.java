@@ -180,6 +180,7 @@ public class HiveConfig
     private S3GlacierFilter s3GlacierFilter = S3GlacierFilter.READ_ALL;
 
     private int metadataParallelism = 8;
+    private boolean metadataVirtualThreadsEnabled = true;
 
     private boolean parquetRebaseLegacyInt96Timestamp;
 
@@ -1307,6 +1308,19 @@ public class HiveConfig
     public HiveConfig setParquetRebaseLegacyInt96Timestamp(boolean parquetRebaseLegacyInt96Timestamp)
     {
         this.parquetRebaseLegacyInt96Timestamp = parquetRebaseLegacyInt96Timestamp;
+        return this;
+    }
+
+    public boolean isMetadataVirtualThreadsEnabled()
+    {
+        return metadataVirtualThreadsEnabled;
+    }
+
+    @ConfigDescription("Run blocking metadata enumeration I/O on virtual threads")
+    @Config("hive.metadata.virtual-threads-enabled")
+    public HiveConfig setMetadataVirtualThreadsEnabled(boolean metadataVirtualThreadsEnabled)
+    {
+        this.metadataVirtualThreadsEnabled = metadataVirtualThreadsEnabled;
         return this;
     }
 
