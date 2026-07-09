@@ -71,13 +71,15 @@ public class ArrowQueryDataEncoder
     public DataAttributes encodeTo(OutputStream output, List<Page> pages)
             throws IOException
     {
-        // VectorSchemaRoot can't be shared
-        try (VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(schema, allocator)) {
-            try (ArrowPageWriter arrowPageWriter = new ArrowPageWriter(columns, schemaRoot, compressionFactory, codecType, maxBatchSizeInBytes)) {
-                return DataAttributes.builder()
-                        .set(SEGMENT_SIZE, toIntExact(arrowPageWriter.writePages(output, pages)))
-                        .build();
-            }
+        // Scope every allocation to a per-call child allocator that is torn down on all paths, so a failed encode
+        // releases its memory instead of leaving it charged to the long-lived per-query allocator.
+        // VectorSchemaRoot can't be shared.
+        try (BufferAllocator batchAllocator = allocator.newChildAllocator("encode", 0, Long.MAX_VALUE);
+                VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(schema, batchAllocator);
+                ArrowPageWriter arrowPageWriter = new ArrowPageWriter(columns, schemaRoot, compressionFactory, codecType, maxBatchSizeInBytes)) {
+            return DataAttributes.builder()
+                    .set(SEGMENT_SIZE, toIntExact(arrowPageWriter.writePages(output, pages)))
+                    .build();
         }
     }
 

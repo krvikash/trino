@@ -20,6 +20,7 @@ import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.spooling.encoding.arrow.ArrowQueryDataDecoder;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
+import io.trino.server.protocol.spooling.encoding.ArrowCompressionFactory;
 import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import io.trino.spi.Page;
 import io.trino.spi.block.BlockBuilder;
@@ -36,12 +37,13 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.List;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static java.io.OutputStream.nullOutputStream;
 import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.NO_COMPRESSION;
+import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.ZSTD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -108,9 +110,25 @@ public class TestArrowEncodingDecoding
         // A single batch of this page needs far more than the child allocator allows, so encoding must fail.
         // close() closes the child allocator, which itself fails if any buffer is still outstanding.
         try (QueryDataEncoder encoder = new ArrowQueryDataEncoder(childAllocator, CompressionCodec.Factory.INSTANCE, NO_COMPRESSION, columns, DataSize.of(1, DataSize.Unit.GIGABYTE).toBytes())) {
-            assertThatThrownBy(() -> encoder.encodeTo(OutputStream.nullOutputStream(), List.of(page)))
+            assertThatThrownBy(() -> encoder.encodeTo(nullOutputStream(), List.of(page)))
                     .isInstanceOf(OutOfMemoryException.class);
             // Regardless of the failure, the encoder must not leak Arrow buffers.
+            assertThat(childAllocator.getAllocatedMemory()).isZero();
+        }
+    }
+
+    @Test
+    void testAllocatorIsReleasedAfterSuccessfulEncode()
+            throws IOException
+    {
+        // A small budget splits the page into many batches, and zstd exercises the compression codec's own
+        // scratch buffers; after a successful encode nothing must remain charged to the allocator.
+        BufferAllocator childAllocator = allocator.newChildAllocator("test-release", 0, Long.MAX_VALUE);
+        List<OutputColumn> columns = ImmutableList.of(new OutputColumn(0, "col0", BIGINT));
+        Page page = bigintPage(20_000);
+
+        try (QueryDataEncoder encoder = new ArrowQueryDataEncoder(childAllocator, new ArrowCompressionFactory(), ZSTD, columns, DataSize.of(16, DataSize.Unit.KILOBYTE).toBytes())) {
+            encoder.encodeTo(nullOutputStream(), List.of(page));
             assertThat(childAllocator.getAllocatedMemory()).isZero();
         }
     }
