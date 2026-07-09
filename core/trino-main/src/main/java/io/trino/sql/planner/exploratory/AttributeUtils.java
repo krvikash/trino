@@ -62,4 +62,19 @@ public class AttributeUtils
         dialectRegistry.dialects().forEach(dialect -> composedAttributes.putAll(dialect.composeOperationAttributes(allOperationAttributes, groupAttributes)));
         return composedAttributes.buildKeepingLast();
     }
+
+    /**
+     * Update attributes for an operation by applying freshly derived attributes onto the current state of knowledge for the operation.
+     */
+    public static Attributes updateOperationAttributes(
+            Attributes allOperationAttributes,
+            Attributes inherentOperationAttributes,
+            Attributes derivedAttributes,
+            DialectRegistry dialectRegistry)
+    {
+        Attributes.Builder updatedAttributes = Attributes.builder();
+        updatedAttributes.putAll(inherentOperationAttributes);
+        dialectRegistry.dialects().forEach(dialect -> updatedAttributes.putAll(dialect.updateOperationAttributes(allOperationAttributes, derivedAttributes)));
+        return updatedAttributes.buildKeepingLast();
+    }
 }
