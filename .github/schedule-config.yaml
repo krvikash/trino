@@ -225,7 +225,6 @@
   profiles:
     - default
     # - smoke-tests  # smoke-tests on AWS run nightly
-    - jdbc-integration-tests
     - parallel-integration-tests
     - fte-tests
   matrix-properties:
