@@ -19,12 +19,14 @@ import io.trino.client.spooling.DataAttributes;
 import io.trino.server.protocol.OutputColumn;
 import io.trino.spi.Page;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.Optional;
 
 public interface QueryDataEncoder
+        extends Closeable
 {
     interface Factory
     {
@@ -41,6 +43,7 @@ public interface QueryDataEncoder
     DataAttributes encodeTo(OutputStream output, List<Page> pages)
             throws IOException;
 
+    @Override
     void close();
 
     String encoding();

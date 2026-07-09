@@ -106,35 +106,27 @@ public class TestArrowEncodingDecoding
         Page page = bigintPage(100_000);
 
         // A single batch of this page needs far more than the child allocator allows, so encoding must fail.
-        QueryDataEncoder encoder = new ArrowQueryDataEncoder(childAllocator, CompressionCodec.Factory.INSTANCE, NO_COMPRESSION, columns, DataSize.of(1, DataSize.Unit.GIGABYTE).toBytes());
-        try {
+        // close() closes the child allocator, which itself fails if any buffer is still outstanding.
+        try (QueryDataEncoder encoder = new ArrowQueryDataEncoder(childAllocator, CompressionCodec.Factory.INSTANCE, NO_COMPRESSION, columns, DataSize.of(1, DataSize.Unit.GIGABYTE).toBytes())) {
             assertThatThrownBy(() -> encoder.encodeTo(OutputStream.nullOutputStream(), List.of(page)))
                     .isInstanceOf(OutOfMemoryException.class);
             // Regardless of the failure, the encoder must not leak Arrow buffers.
             assertThat(childAllocator.getAllocatedMemory()).isZero();
-        }
-        finally {
-            // close() closes the child allocator, which itself fails if any buffer is still outstanding.
-            encoder.close();
         }
     }
 
     private byte[] encode(List<OutputColumn> columns, long maxBatchSizeInBytes, Page page)
             throws IOException
     {
-        QueryDataEncoder encoder = new ArrowQueryDataEncoder(
+        try (QueryDataEncoder encoder = new ArrowQueryDataEncoder(
                 allocator.newChildAllocator("test-encode", 0, Long.MAX_VALUE),
                 CompressionCodec.Factory.INSTANCE,
                 NO_COMPRESSION,
                 columns,
-                maxBatchSizeInBytes);
-        try {
+                maxBatchSizeInBytes)) {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             encoder.encodeTo(output, List.of(page));
             return output.toByteArray();
-        }
-        finally {
-            encoder.close();
         }
     }
 
