@@ -18,6 +18,7 @@ import io.trino.Session;
 import io.trino.client.spooling.DataAttributes;
 import io.trino.server.protocol.OutputColumn;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
+import io.trino.server.protocol.spooling.encoding.arrow.ArrowEncodingConfig;
 import io.trino.server.protocol.spooling.encoding.arrow.ArrowPageWriter;
 import io.trino.server.protocol.spooling.encoding.arrow.ArrowSchemaUtils;
 import io.trino.spi.Page;
@@ -49,18 +50,21 @@ public class ArrowQueryDataEncoder
     private final CompressionUtil.CodecType codecType;
     private final List<OutputColumn> columns;
     private final Schema schema;
+    private final long maxBatchSizeInBytes;
 
     public ArrowQueryDataEncoder(
             BufferAllocator allocator,
             CompressionCodec.Factory compressionFactory,
             CompressionUtil.CodecType codecType,
-            List<OutputColumn> columns)
+            List<OutputColumn> columns,
+            long maxBatchSizeInBytes)
     {
         this.allocator = requireNonNull(allocator, "allocator is null");
         this.compressionFactory = requireNonNull(compressionFactory, "compressionFactory is null");
         this.codecType = requireNonNull(codecType, "codecType is null");
         this.schema = toArrowSchema(columns);
         this.columns = requireNonNull(columns, "columns is null");
+        this.maxBatchSizeInBytes = maxBatchSizeInBytes;
     }
 
     @Override
@@ -69,7 +73,7 @@ public class ArrowQueryDataEncoder
     {
         // VectorSchemaRoot can't be shared
         try (VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(schema, allocator)) {
-            try (ArrowPageWriter arrowPageWriter = new ArrowPageWriter(columns, schemaRoot, compressionFactory, codecType)) {
+            try (ArrowPageWriter arrowPageWriter = new ArrowPageWriter(columns, schemaRoot, compressionFactory, codecType, maxBatchSizeInBytes)) {
                 return DataAttributes.builder()
                         .set(SEGMENT_SIZE, toIntExact(arrowPageWriter.writePages(output, pages)))
                         .build();
@@ -97,11 +101,13 @@ public class ArrowQueryDataEncoder
             implements QueryDataEncoder.Factory
     {
         private final BufferAllocator allocator;
+        private final long maxBatchSizeInBytes;
 
         @Inject
-        public Factory(BufferAllocator rootAllocator)
+        public Factory(BufferAllocator rootAllocator, ArrowEncodingConfig config)
         {
             this.allocator = requireNonNull(rootAllocator, "allocator is null");
+            this.maxBatchSizeInBytes = config.getMaxBatchSize().toBytes();
         }
 
         @Override
@@ -117,7 +123,8 @@ public class ArrowQueryDataEncoder
                     allocator.newChildAllocator(session.getQueryId().toString(), 0, Integer.MAX_VALUE),
                     NoCompressionCodec.Factory.INSTANCE,
                     NO_COMPRESSION,
-                    columns);
+                    columns,
+                    maxBatchSizeInBytes);
         }
 
         @Override
@@ -132,12 +139,14 @@ public class ArrowQueryDataEncoder
     {
         private final BufferAllocator allocator;
         private final CompressionCodec.Factory compressionFactory;
+        private final long maxBatchSizeInBytes;
 
         @Inject
-        public ZstdFactory(BufferAllocator rootAllocator, CompressionCodec.Factory compressionFactory)
+        public ZstdFactory(BufferAllocator rootAllocator, CompressionCodec.Factory compressionFactory, ArrowEncodingConfig config)
         {
             this.allocator = requireNonNull(rootAllocator, "allocator is null");
             this.compressionFactory = requireNonNull(compressionFactory, "compressionFactory is null");
+            this.maxBatchSizeInBytes = config.getMaxBatchSize().toBytes();
         }
 
         @Override
@@ -147,7 +156,8 @@ public class ArrowQueryDataEncoder
                     allocator.newChildAllocator(session.getQueryId().toString(), 0, Integer.MAX_VALUE),
                     compressionFactory,
                     ZSTD,
-                    columns);
+                    columns,
+                    maxBatchSizeInBytes);
         }
 
         @Override

@@ -19,6 +19,7 @@ import org.apache.arrow.vector.complex.StructVector;
 
 import java.util.List;
 
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
 import static java.util.Objects.requireNonNull;
 
 public final class RowWriter
@@ -60,6 +61,18 @@ public final class RowWriter
             childWriters.get(i).write(childBlock);
         }
         vector.setValueCount(positionCount);
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        // Struct vector: a validity buffer plus each field vector.
+        long size = roundToSegment((block.getPositionCount() + 7) / 8);
+        List<Block> fields = RowBlock.getRowFieldsFromBlock(block);
+        for (int i = 0; i < fields.size(); i++) {
+            size += childWriters.get(i).estimatedVectorSizeInBytes(fields.get(i));
+        }
+        return size;
     }
 
     @Override

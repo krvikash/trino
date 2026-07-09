@@ -17,6 +17,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.ColumnarMap;
 import org.apache.arrow.vector.complex.MapVector;
 
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
 import static java.util.Objects.requireNonNull;
 
 public final class MapWriter
@@ -61,6 +62,18 @@ public final class MapWriter
         keyWriter.write(keyBlock);
         valueWriter.write(valueBlock);
         vector.setValueCount(block.getPositionCount());
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        ColumnarMap mapBlock = ColumnarMap.toColumnarMap(block);
+        int positionCount = block.getPositionCount();
+        // Map vector: validity and offset buffers, plus the key and value vectors.
+        return roundToSegment((positionCount + 7) / 8)
+                + roundToSegment((long) (positionCount + 1) * Integer.BYTES)
+                + keyWriter.estimatedVectorSizeInBytes(mapBlock.getKeysBlock())
+                + valueWriter.estimatedVectorSizeInBytes(mapBlock.getValuesBlock());
     }
 
     @Override

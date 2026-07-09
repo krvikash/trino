@@ -20,6 +20,7 @@ import org.apache.arrow.vector.complex.StructVector;
 
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMESTAMP_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIMEZONE_VECTOR_NAME;
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
 import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
@@ -31,6 +32,9 @@ import static org.joda.time.DateTimeConstants.MILLIS_PER_SECOND;
 public final class TimestampSecWithTimeZoneWriter
         implements ArrowWriter
 {
+    // Assumed average size of a time zone id, used to estimate the variable-width timezone child.
+    private static final int ESTIMATED_TIME_ZONE_ID_SIZE_IN_BYTES = 32;
+
     private final StructVector vector;
     private final TimeStampSecVector timestampVector;
     private final VarCharVector timezoneVector;
@@ -64,6 +68,19 @@ public final class TimestampSecWithTimeZoneWriter
             vector.setIndexDefined(position);
         }
         vector.setValueCount(block.getPositionCount());
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        int positionCount = block.getPositionCount();
+        // Struct validity plus the fixed-width timestamp child and the variable-width time zone id child
+        // (validity + offsets + an assumed average id length), each buffer rounded to a segment.
+        return roundToSegment((positionCount + 7) / 8)
+                + roundToSegment(timestampVector.getBufferSizeFor(positionCount))
+                + roundToSegment((positionCount + 7) / 8)
+                + roundToSegment((long) (positionCount + 1) * Integer.BYTES)
+                + roundToSegment((long) positionCount * ESTIMATED_TIME_ZONE_ID_SIZE_IN_BYTES);
     }
 
     @Override

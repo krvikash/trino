@@ -20,6 +20,7 @@ import org.apache.arrow.vector.complex.StructVector;
 
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_OFFSET_VECTOR_NAME;
 import static io.trino.client.spooling.encoding.arrow.ArrowDateTimeUtils.TIME_VECTOR_NAME;
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
 import static io.trino.spi.type.DateTimeEncoding.unpackOffsetMinutes;
 import static io.trino.spi.type.DateTimeEncoding.unpackTimeNanos;
 import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_SECONDS;
@@ -64,6 +65,16 @@ public final class TimeSecWithTimeZoneWriter
             }
         }
         vector.setValueCount(block.getPositionCount());
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        int positionCount = block.getPositionCount();
+        // Struct validity plus the fixed-width time and zone-offset children, each buffer rounded to a segment.
+        return roundToSegment((positionCount + 7) / 8)
+                + roundToSegment(timeVector.getBufferSizeFor(positionCount))
+                + roundToSegment(offsetVector.getBufferSizeFor(positionCount));
     }
 
     @Override

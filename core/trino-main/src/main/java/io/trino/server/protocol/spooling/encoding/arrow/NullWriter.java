@@ -32,6 +32,12 @@ public final class NullWriter
     }
 
     @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        return 0; // NullVector has no backing buffers
+    }
+
+    @Override
     protected void setNull(int offset)
     {
         vector.setNull(offset);

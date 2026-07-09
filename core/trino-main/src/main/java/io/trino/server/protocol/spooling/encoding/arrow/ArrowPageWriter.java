@@ -64,6 +64,8 @@ import org.apache.arrow.vector.ipc.message.IpcOption;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 
 import static com.google.common.base.Verify.verify;
@@ -84,8 +86,9 @@ public class ArrowPageWriter
     private final int[] sourceChannels;
     private final CompressionCodec.Factory compressionFactory;
     private final CodecType codecType;
+    private final long maxBatchSizeInBytes;
 
-    public ArrowPageWriter(List<OutputColumn> columns, VectorSchemaRoot schema, CompressionCodec.Factory compressionFactory, CodecType codecType)
+    public ArrowPageWriter(List<OutputColumn> columns, VectorSchemaRoot schema, CompressionCodec.Factory compressionFactory, CodecType codecType, long maxBatchSizeInBytes)
     {
         this.schema = requireNonNull(schema, "schema is null");
         this.vectorWriters = createVectorWriters(schema, columns);
@@ -94,6 +97,7 @@ public class ArrowPageWriter
                 .toArray();
         this.compressionFactory = requireNonNull(compressionFactory, "compressionFactory is null");
         this.codecType = requireNonNull(codecType, "codecType is null");
+        this.maxBatchSizeInBytes = maxBatchSizeInBytes;
     }
 
     public int writePages(OutputStream outputStream, List<Page> pages)
@@ -101,17 +105,57 @@ public class ArrowPageWriter
     {
         try (ArrowStreamWriter streamWriter = new ArrowStreamWriter(schema, null, newChannel(outputStream), IpcOption.DEFAULT, compressionFactory, codecType)) {
             for (Page page : pages) {
-                schema.setRowCount(page.getPositionCount());
-                for (int i = 0; i < vectorWriters.size(); i++) {
-                    ArrowWriter writer = vectorWriters.get(i);
-                    Block block = page.getBlock(sourceChannels[i]);
-                    writer.initialize(block);
-                    writer.write(block);
-                }
-                streamWriter.writeBatch();
+                writePage(streamWriter, page);
             }
             return toIntExact(streamWriter.bytesWritten());
         }
+    }
+
+    private void writePage(ArrowStreamWriter streamWriter, Page page)
+            throws IOException
+    {
+        // Materializing every column for the whole page at once is what makes wide tables exhaust the allocator.
+        // While the estimated batch exceeds the budget, halve the region and revisit each half, re-estimating so
+        // per-column overhead that does not shrink is accounted for. A single row cannot be split further.
+        // Halves are pushed right-first so the left (earlier) rows are written before the right ones.
+        Deque<Page> regions = new ArrayDeque<>();
+        regions.push(page);
+        while (!regions.isEmpty()) {
+            Page region = regions.pop();
+            int positionCount = region.getPositionCount();
+            if (positionCount == 0) {
+                continue;
+            }
+            if (positionCount == 1 || estimatedBatchSizeInBytes(region) <= maxBatchSizeInBytes) {
+                writeBatch(streamWriter, region);
+                continue;
+            }
+            int half = positionCount / 2;
+            regions.push(region.getRegion(half, positionCount - half));
+            regions.push(region.getRegion(0, half));
+        }
+    }
+
+    private void writeBatch(ArrowStreamWriter streamWriter, Page page)
+            throws IOException
+    {
+        schema.setRowCount(page.getPositionCount());
+        for (int i = 0; i < vectorWriters.size(); i++) {
+            ArrowWriter writer = vectorWriters.get(i);
+            Block block = page.getBlock(sourceChannels[i]);
+            writer.initialize(block);
+            writer.write(block);
+        }
+        streamWriter.writeBatch();
+    }
+
+    private long estimatedBatchSizeInBytes(Page page)
+    {
+        long size = 0;
+        for (int i = 0; i < vectorWriters.size(); i++) {
+            size += vectorWriters.get(i).estimatedVectorSizeInBytes(page.getBlock(sourceChannels[i]));
+        }
+        return size;
     }
 
     private static List<ArrowWriter> createVectorWriters(VectorSchemaRoot schema, List<OutputColumn> columns)

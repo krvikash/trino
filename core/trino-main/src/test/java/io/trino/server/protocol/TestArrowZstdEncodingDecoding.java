@@ -13,6 +13,7 @@
  */
 package io.trino.server.protocol;
 
+import io.airlift.units.DataSize;
 import io.trino.Session;
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
@@ -57,7 +58,7 @@ public class TestArrowZstdEncodingDecoding
     @Override
     protected QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns)
     {
-        return new ArrowQueryDataEncoder(allocator, new ArrowCompressionFactory(), CompressionUtil.CodecType.ZSTD, columns);
+        return new ArrowQueryDataEncoder(allocator, new ArrowCompressionFactory(), CompressionUtil.CodecType.ZSTD, columns, DataSize.of(32, DataSize.Unit.MEGABYTE).toBytes());
     }
 
     @Test

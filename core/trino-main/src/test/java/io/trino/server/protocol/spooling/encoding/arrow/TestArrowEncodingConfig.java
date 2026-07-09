@@ -29,7 +29,8 @@ class TestArrowEncodingConfig
     void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(ArrowEncodingConfig.class)
-                .setAllocatorMemoryLimit(DataSize.of(256, DataSize.Unit.MEGABYTE)));
+                .setAllocatorMemoryLimit(DataSize.of(256, DataSize.Unit.MEGABYTE))
+                .setMaxBatchSize(DataSize.of(32, DataSize.Unit.MEGABYTE)));
     }
 
     @Test
@@ -37,10 +38,12 @@ class TestArrowEncodingConfig
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("protocol.spooling.encoding.arrow.memory-limit", "128MB")
+                .put("protocol.spooling.encoding.arrow.max-batch-size", "8MB")
                 .buildOrThrow();
 
         ArrowEncodingConfig expected = new ArrowEncodingConfig()
-                .setAllocatorMemoryLimit(DataSize.of(128, DataSize.Unit.MEGABYTE));
+                .setAllocatorMemoryLimit(DataSize.of(128, DataSize.Unit.MEGABYTE))
+                .setMaxBatchSize(DataSize.of(8, DataSize.Unit.MEGABYTE));
 
         assertFullMapping(properties, expected);
     }

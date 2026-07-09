@@ -16,6 +16,8 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 import io.trino.spi.block.Block;
 import org.apache.arrow.vector.FixedWidthVector;
 
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
+
 public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
         extends PrimitiveWriter<V>
         permits BigintWriter,
@@ -50,5 +52,15 @@ public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
     {
         vector.setInitialCapacity(block.getPositionCount());
         vector.allocateNew(block.getPositionCount());
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        int positionCount = block.getPositionCount();
+        // getBufferSizeFor is exact for fixed-width vectors; round the validity and data buffers separately,
+        // matching the allocator, which reserves each buffer in whole segments.
+        long validity = (positionCount + 7) / 8;
+        return roundToSegment(validity) + roundToSegment(vector.getBufferSizeFor(positionCount) - validity);
     }
 }

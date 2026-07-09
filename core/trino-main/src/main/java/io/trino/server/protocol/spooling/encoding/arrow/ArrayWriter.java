@@ -17,6 +17,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.ColumnarArray;
 import org.apache.arrow.vector.complex.ListVector;
 
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
 import static java.util.Objects.requireNonNull;
 
 public final class ArrayWriter
@@ -54,6 +55,17 @@ public final class ArrayWriter
         }
         elementWriter.write(elementsBlock);
         vector.setValueCount(arrayBlock.getPositionCount());
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        ColumnarArray arrayBlock = ColumnarArray.toColumnarArray(block);
+        int positionCount = arrayBlock.getPositionCount();
+        // List vector: validity and offset buffers, plus the element vector.
+        return roundToSegment((positionCount + 7) / 8)
+                + roundToSegment((long) (positionCount + 1) * Integer.BYTES)
+                + elementWriter.estimatedVectorSizeInBytes(arrayBlock.getElementsBlock());
     }
 
     @Override

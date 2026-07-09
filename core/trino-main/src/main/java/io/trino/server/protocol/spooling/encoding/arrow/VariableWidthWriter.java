@@ -16,6 +16,8 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 import io.trino.spi.block.Block;
 import org.apache.arrow.vector.VariableWidthVector;
 
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
+
 public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
         extends PrimitiveWriter<V>
         permits CharWriter,
@@ -32,5 +34,15 @@ public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
     {
         vector.setInitialCapacity(block.getPositionCount());
         vector.allocateNew(block.getSizeInBytes(), block.getPositionCount());
+    }
+
+    @Override
+    public long estimatedVectorSizeInBytes(Block block)
+    {
+        // Mirrors initialize(): a data buffer sized from the block, plus the offset and validity buffers.
+        int positionCount = block.getPositionCount();
+        return roundToSegment(block.getSizeInBytes())
+                + roundToSegment((long) (positionCount + 1) * Integer.BYTES)
+                + roundToSegment((positionCount + 7) / 8);
     }
 }

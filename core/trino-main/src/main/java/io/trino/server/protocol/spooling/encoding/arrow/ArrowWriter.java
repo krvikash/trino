@@ -15,6 +15,7 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 
 import com.google.common.base.MoreObjects.ToStringHelper;
 import io.trino.spi.block.Block;
+import org.apache.arrow.memory.rounding.SegmentRoundingPolicy;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 
@@ -69,8 +70,28 @@ public sealed interface ArrowWriter
      */
     void write(Block block);
 
+    /**
+     * Estimates how many bytes the Arrow vector would allocate for the given block, matching what
+     * {@link #initialize(Block)} reserves. Used to split wide pages into batches that fit a memory budget;
+     * the estimate need not be exact but should not undershoot what allocation actually reserves.
+     */
+    long estimatedVectorSizeInBytes(Block block);
+
     @Override
     String toString();
+
+    /**
+     * Rounds a buffer size up to a whole allocator segment, matching the SegmentRoundingPolicy configured in
+     * QueryDataEncodingModule, so vector size estimates do not undershoot what allocation actually reserves.
+     */
+    static long roundToSegment(long sizeInBytes)
+    {
+        if (sizeInBytes <= 0) {
+            return 0;
+        }
+        long segment = SegmentRoundingPolicy.MIN_SEGMENT_SIZE;
+        return ((sizeInBytes + segment - 1) / segment) * segment;
+    }
 
     static <T extends FieldVector> T checkedCast(ValueVector vector, Class<T> clazz)
     {

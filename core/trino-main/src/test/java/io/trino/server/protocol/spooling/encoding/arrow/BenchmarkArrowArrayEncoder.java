@@ -13,6 +13,7 @@
  */
 package io.trino.server.protocol.spooling.encoding.arrow;
 
+import io.airlift.units.DataSize;
 import io.trino.server.protocol.OutputColumn;
 import io.trino.spi.Page;
 import io.trino.spi.block.ArrayBlockBuilder;
@@ -40,6 +41,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.server.protocol.spooling.encoding.arrow.ArrowSchemaUtils.toArrowSchema;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -60,7 +62,7 @@ public class BenchmarkArrowArrayEncoder
             throws IOException
     {
         try (VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(data.schema, data.allocator);
-                ArrowPageWriter writer = new ArrowPageWriter(data.columns, schemaRoot, NoCompressionCodec.Factory.INSTANCE, NO_COMPRESSION)) {
+                ArrowPageWriter writer = new ArrowPageWriter(data.columns, schemaRoot, NoCompressionCodec.Factory.INSTANCE, NO_COMPRESSION, DataSize.of(32, MEGABYTE).toBytes())) {
             return writer.writePages(OutputStream.nullOutputStream(), List.of(data.page));
         }
     }

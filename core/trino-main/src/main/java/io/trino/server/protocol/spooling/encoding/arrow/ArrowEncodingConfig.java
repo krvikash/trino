@@ -14,14 +14,18 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
 import io.airlift.units.DataSize;
+import io.airlift.units.MinDataSize;
+import jakarta.validation.constraints.NotNull;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 
 public class ArrowEncodingConfig
 {
     private DataSize allocatorMemoryLimit = DataSize.of(256, MEGABYTE);
+    private DataSize maxBatchSize = DataSize.of(32, MEGABYTE);
 
     public DataSize getAllocatorMemoryLimit()
     {
@@ -33,6 +37,22 @@ public class ArrowEncodingConfig
     public ArrowEncodingConfig setAllocatorMemoryLimit(DataSize allocatorMemoryLimit)
     {
         this.allocatorMemoryLimit = allocatorMemoryLimit;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("1MB")
+    public DataSize getMaxBatchSize()
+    {
+        return maxBatchSize;
+    }
+
+    @Config("protocol.spooling.encoding.arrow.max-batch-size")
+    @ConfigDescription("Target size of a single Arrow record batch; result pages are split into row ranges so wide tables do not allocate all columns for the whole page at once")
+    @ConfigHidden
+    public ArrowEncodingConfig setMaxBatchSize(DataSize maxBatchSize)
+    {
+        this.maxBatchSize = maxBatchSize;
         return this;
     }
 }
