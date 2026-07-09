@@ -13,17 +13,20 @@
  */
 package io.trino.server.protocol.spooling.encoding.arrow;
 
+import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.VariableWidthBlock;
 import org.apache.arrow.vector.BaseFixedWidthVector;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
 /**
- * Bulk copies a Trino flat array block into a fixed-width Arrow vector. For the columns where the Arrow value is
- * the raw block element (integers, doubles, dates, ...), the values are copied with a single memory copy instead
- * of a per-position loop, and the null bitmap is filled in one pass. Trino and Arrow both use the platform byte
- * order, so a raw copy is layout-compatible on the little-endian hardware Trino runs on.
+ * Bulk copies a Trino flat array block into an Arrow vector. For the columns where the Arrow value is the raw
+ * block element (integers, doubles, dates, varchars, ...), the values are copied with a memory copy instead of a
+ * per-position loop, and the null bitmap is filled in one pass. Trino and Arrow both use the platform byte order,
+ * so a raw copy is layout-compatible on the little-endian hardware Trino runs on.
  */
 final class ArrowBulkCopy
 {
@@ -42,14 +45,45 @@ final class ArrowBulkCopy
     }
 
     /**
-     * Fills the vector's validity buffer from the block's nulls: all-ones when the block has no nulls, otherwise a
-     * packed bitmap where a set bit means the position is valid (Trino's null flag inverted). Values under null
-     * positions keep whatever the data copy left there, which Arrow ignores.
+     * Copies a variable-width block into the vector: the raw data slice in one memory copy, and the offset buffer
+     * rebased so the first value starts at zero (the caller must still {@code setLastSet} + {@code setValueCount}).
      */
+    static void copyVariableWidth(BaseVariableWidthVector vector, VariableWidthBlock block, int positionCount)
+    {
+        int[] rawOffsets = block.getRawOffsets();
+        int base = block.getRawArrayBase();
+        int dataStart = rawOffsets[base];
+        int dataBytes = rawOffsets[base + positionCount] - dataStart;
+
+        Slice slice = block.getRawSlice();
+        MemorySegment source = MemorySegment.ofArray(slice.byteArray());
+        MemorySegment dataDestination = MemorySegment.ofAddress(vector.getDataBufferAddress()).reinterpret(dataBytes);
+        MemorySegment.copy(source, (long) slice.byteArrayOffset() + dataStart, dataDestination, 0, dataBytes);
+
+        MemorySegment offsets = MemorySegment.ofAddress(vector.getOffsetBufferAddress()).reinterpret((long) (positionCount + 1) * Integer.BYTES);
+        for (int position = 0; position <= positionCount; position++) {
+            offsets.setAtIndex(ValueLayout.JAVA_INT, position, rawOffsets[base + position] - dataStart);
+        }
+    }
+
     static void writeValidity(BaseFixedWidthVector vector, Block block, int positionCount)
     {
+        writeValidity(vector.getValidityBufferAddress(), block, positionCount);
+    }
+
+    static void writeValidity(BaseVariableWidthVector vector, Block block, int positionCount)
+    {
+        writeValidity(vector.getValidityBufferAddress(), block, positionCount);
+    }
+
+    /**
+     * Fills the validity buffer from the block's nulls: all-ones when the block has no nulls, otherwise a packed
+     * bitmap where a set bit means the position is valid (Trino's null flag inverted).
+     */
+    private static void writeValidity(long validityBufferAddress, Block block, int positionCount)
+    {
         int byteCount = (positionCount + 7) / 8;
-        MemorySegment validity = MemorySegment.ofAddress(vector.getValidityBufferAddress()).reinterpret(byteCount);
+        MemorySegment validity = MemorySegment.ofAddress(validityBufferAddress).reinterpret(byteCount);
         if (!block.mayHaveNull()) {
             validity.fill((byte) 0xFF);
             return;

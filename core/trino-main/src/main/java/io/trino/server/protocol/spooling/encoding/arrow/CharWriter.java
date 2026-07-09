@@ -15,9 +15,12 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.CharType;
 import org.apache.arrow.vector.VarCharVector;
 
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowBulkCopy.copyVariableWidth;
+import static io.trino.server.protocol.spooling.encoding.arrow.ArrowBulkCopy.writeValidity;
 import static java.util.Objects.requireNonNull;
 
 public final class CharWriter
@@ -35,6 +38,13 @@ public final class CharWriter
     public void write(Block block)
     {
         int positionCount = block.getPositionCount();
+        if (block instanceof VariableWidthBlock valueBlock) {
+            copyVariableWidth(vector, valueBlock, positionCount);
+            writeValidity(vector, valueBlock, positionCount);
+            vector.setLastSet(positionCount - 1);
+            vector.setValueCount(positionCount);
+            return;
+        }
         for (int position = 0; position < positionCount; position++) {
             if (block.isNull(position)) {
                 vector.setNull(position);
