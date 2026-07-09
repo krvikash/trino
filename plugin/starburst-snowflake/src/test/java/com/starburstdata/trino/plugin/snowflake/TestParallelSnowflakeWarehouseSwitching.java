@@ -25,8 +25,7 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.TEST_WARE
 import static io.trino.tpch.TpchTable.NATION;
 import static java.lang.String.format;
 
-// TODO: rename to TestParallelSnowflakeWarehouseSwitching
-public class TestJdbcSnowflakeWarehouseSwitching
+public class TestParallelSnowflakeWarehouseSwitching
         extends AbstractTestQueryFramework
 {
     protected static final String INVALID_WAREHOUSE = "NOT_EXISTING_WH";

@@ -25,8 +25,7 @@ import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
 
-// TODO: rename to TestParallelSnowflakeConnectorTest
-public class TestJdbcSnowflakeConnectorTest
+public class TestParallelSnowflakeConnectorTest
         extends BaseSnowflakeConnectorTest
 {
     @Override

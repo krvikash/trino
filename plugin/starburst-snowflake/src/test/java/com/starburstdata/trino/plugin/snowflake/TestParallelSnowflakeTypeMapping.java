@@ -24,8 +24,7 @@ import static io.trino.spi.type.TimestampType.createTimestampType;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// TODO: rename to TestParallelSnowflakeTypeMapping
-public class TestJdbcSnowflakeTypeMapping
+public class TestParallelSnowflakeTypeMapping
         extends BaseSnowflakeTypeMappingTest
 {
     @Override

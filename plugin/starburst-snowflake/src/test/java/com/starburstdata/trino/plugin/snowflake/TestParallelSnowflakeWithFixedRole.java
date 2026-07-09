@@ -25,8 +25,7 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.USER;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 
-// TODO: rename to TestParallelSnowflakeWithFixedRole
-public class TestJdbcSnowflakeWithFixedRole
+public class TestParallelSnowflakeWithFixedRole
         extends AbstractTestQueryFramework
 {
     @Override
