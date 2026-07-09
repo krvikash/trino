@@ -14,13 +14,18 @@
 package io.trino.plugin.sqlserver;
 
 import com.google.common.collect.ImmutableMap;
+import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
+import static io.airlift.testing.ValidationAssertions.assertValidates;
+import static io.trino.plugin.sqlserver.SqlServerConfig.TransactionIsolationLevel.READ_UNCOMMITTED;
 
 public class TestSqlServerConfig
 {
@@ -31,6 +36,7 @@ public class TestSqlServerConfig
                 .setBulkCopyForWrite(false)
                 .setBulkCopyForWriteLockDestinationTable(false)
                 .setSnapshotIsolationDisabled(false)
+                .setTransactionIsolationLevel(null)
                 .setStoredProcedureTableFunctionEnabled(false));
     }
 
@@ -40,7 +46,7 @@ public class TestSqlServerConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("sqlserver.bulk-copy-for-write.enabled", "true")
                 .put("sqlserver.bulk-copy-for-write.lock-destination-table", "true")
-                .put("sqlserver.snapshot-isolation.disabled", "true")
+                .put("sqlserver.transaction-isolation-level", "READ_UNCOMMITTED")
                 .put("sqlserver.stored-procedure-table-function-enabled", "true")
                 .buildOrThrow();
 
@@ -48,8 +54,26 @@ public class TestSqlServerConfig
                 .setBulkCopyForWrite(true)
                 .setBulkCopyForWriteLockDestinationTable(true)
                 .setStoredProcedureTableFunctionEnabled(true)
-                .setSnapshotIsolationDisabled(true);
+                .setTransactionIsolationLevel(READ_UNCOMMITTED);
 
-        assertFullMapping(properties, expected);
+        assertFullMapping(properties, expected, Set.of("sqlserver.snapshot-isolation.disabled"));
+    }
+
+    @Test
+    public void testTransactionIsolationConfigConsistentValidation()
+    {
+        assertValidates(new SqlServerConfig()
+                .setSnapshotIsolationDisabled(true));
+
+        assertValidates(new SqlServerConfig()
+                .setTransactionIsolationLevel(READ_UNCOMMITTED));
+
+        assertFailsValidation(
+                new SqlServerConfig()
+                        .setSnapshotIsolationDisabled(true)
+                        .setTransactionIsolationLevel(READ_UNCOMMITTED),
+                "transactionIsolationConfigConsistent",
+                "Set only one of sqlserver.transaction-isolation-level or the legacy sqlserver.snapshot-isolation.disabled",
+                AssertTrue.class);
     }
 }

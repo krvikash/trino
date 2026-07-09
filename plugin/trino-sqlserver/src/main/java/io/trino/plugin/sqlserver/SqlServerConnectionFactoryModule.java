@@ -44,6 +44,7 @@ public class SqlServerConnectionFactoryModule
                 DriverConnectionFactory.builder(new SQLServerDriver(), config.getConnectionUrl(), credentialProvider)
                         .setOpenTelemetry(openTelemetry)
                         .build(),
-                sqlServerConfig.isSnapshotIsolationDisabled());
+                sqlServerConfig.isSnapshotIsolationDisabled(),
+                sqlServerConfig.getTransactionIsolationLevel());
     }
 }

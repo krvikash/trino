@@ -118,7 +118,8 @@ public class StarburstSqlServerClientModule
     {
         return new SqlServerConnectionFactory(
                 DriverConnectionFactory.builder(new SQLServerDriver(), config.getConnectionUrl(), credentialProvider).build(),
-                sqlServerConfig.isSnapshotIsolationDisabled());
+                sqlServerConfig.isSnapshotIsolationDisabled(),
+                sqlServerConfig.getTransactionIsolationLevel());
     }
 
     @Retention(RetentionPolicy.RUNTIME)

@@ -20,6 +20,7 @@ import io.trino.testing.sql.SqlExecutor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.tpch.TpchTable.NATION;
@@ -34,11 +35,17 @@ public abstract class BaseSqlServerTransactionIsolationTest
     {
         TestingSqlServer sqlServer = closeAfterClass(new TestingSqlServer(this::configureDatabase));
         return SqlServerQueryRunner.builder(sqlServer)
+                .addConnectorProperties(connectorProperties())
                 .setInitialTables(List.of(NATION))
                 .build();
     }
 
     protected abstract void configureDatabase(SqlExecutor executor, String databaseName);
+
+    protected Map<String, String> connectorProperties()
+    {
+        return Map.of();
+    }
 
     @Test
     public void testCreateReadTable()

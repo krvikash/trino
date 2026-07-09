@@ -113,11 +113,13 @@ public class StarburstSynapseModule
                             connectionPoolingConfig,
                             credentialProvider,
                             identityCacheMapping),
-                    sqlServerConfig.isSnapshotIsolationDisabled());
+                    sqlServerConfig.isSnapshotIsolationDisabled(),
+                    sqlServerConfig.getTransactionIsolationLevel());
         }
         return new SqlServerConnectionFactory(
                 DriverConnectionFactory.builder(new SQLServerDriver(), config.getConnectionUrl(), credentialProvider).build(),
-                sqlServerConfig.isSnapshotIsolationDisabled());
+                sqlServerConfig.isSnapshotIsolationDisabled(),
+                sqlServerConfig.getTransactionIsolationLevel());
     }
 
     @Retention(RetentionPolicy.RUNTIME)

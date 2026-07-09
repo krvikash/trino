@@ -16,10 +16,21 @@ package io.trino.plugin.sqlserver;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.LegacyConfig;
+import jakarta.validation.constraints.AssertTrue;
+
+import java.util.Optional;
 
 public class SqlServerConfig
 {
+    public enum TransactionIsolationLevel
+    {
+        READ_UNCOMMITTED,
+        READ_COMMITTED,
+        SNAPSHOT,
+    }
+
     private boolean snapshotIsolationDisabled;
+    private Optional<TransactionIsolationLevel> transactionIsolationLevel = Optional.empty();
     private boolean bulkCopyForWrite;
     private boolean bulkCopyForWriteLockDestinationTable;
     private boolean storedProcedureTableFunctionEnabled;
@@ -50,16 +61,31 @@ public class SqlServerConfig
         return this;
     }
 
+    @Deprecated
     public boolean isSnapshotIsolationDisabled()
     {
         return snapshotIsolationDisabled;
     }
 
+    @Deprecated
     @Config("sqlserver.snapshot-isolation.disabled")
     @ConfigDescription("Disables automatic use of snapshot isolation for transactions issued by Trino in SQL Server")
     public SqlServerConfig setSnapshotIsolationDisabled(boolean snapshotIsolationDisabled)
     {
         this.snapshotIsolationDisabled = snapshotIsolationDisabled;
+        return this;
+    }
+
+    public Optional<TransactionIsolationLevel> getTransactionIsolationLevel()
+    {
+        return transactionIsolationLevel;
+    }
+
+    @Config("sqlserver.transaction-isolation-level")
+    @ConfigDescription("Transaction isolation level applied to each connection, overriding the default SNAPSHOT isolation level used by Trino")
+    public SqlServerConfig setTransactionIsolationLevel(TransactionIsolationLevel transactionIsolationLevel)
+    {
+        this.transactionIsolationLevel = Optional.ofNullable(transactionIsolationLevel);
         return this;
     }
 
@@ -75,5 +101,11 @@ public class SqlServerConfig
     {
         this.storedProcedureTableFunctionEnabled = storedProcedureTableFunctionEnabled;
         return this;
+    }
+
+    @AssertTrue(message = "Set only one of sqlserver.transaction-isolation-level or the legacy sqlserver.snapshot-isolation.disabled")
+    public boolean isTransactionIsolationConfigConsistent()
+    {
+        return !(snapshotIsolationDisabled && transactionIsolationLevel.isPresent());
     }
 }
