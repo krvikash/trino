@@ -1,0 +1,43 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.tests;
+
+import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.QueryRunner;
+import io.trino.tests.tpch.TpchQueryRunnerBuilder;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+final class TestSingleNodeMultiWorkerCluster
+        extends AbstractTestQueryFramework
+{
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        return TpchQueryRunnerBuilder.builder()
+                .setWorkerCount(2)
+                .addExtraProperty("node-scheduler.include-coordinator", "false")
+                .addExtraProperty("experimental.force-single-node-query", "true")
+                .build();
+    }
+
+    @Test
+    void testGlobalAggregation()
+    {
+        assertThat(query("SELECT count(*) FROM tpch.tiny.nation"))
+                .matches("VALUES BIGINT '25', BIGINT '0'");  // TODO: This is incorrect. It should be a single value: 25.
+    }
+}
