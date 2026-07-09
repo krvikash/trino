@@ -24,8 +24,10 @@ import io.trino.server.protocol.spooling.encoding.ArrowCompressionFactory;
 import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.JsonQueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.arrow.ArrowEncodingConfig;
+import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.memory.rounding.SegmentRoundingPolicy;
 import org.apache.arrow.vector.compression.CompressionCodec;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -89,7 +91,8 @@ public class QueryDataEncodingModule
         @Override
         public BufferAllocator get()
         {
-            return new RootAllocator(maximumAllocation);
+            // Round buffers to a small segment instead of the next power of two, whose over-allocation is multiplied across every column of a wide table.
+            return new RootAllocator(AllocationListener.NOOP, maximumAllocation, new SegmentRoundingPolicy(SegmentRoundingPolicy.MIN_SEGMENT_SIZE));
         }
     }
 }
