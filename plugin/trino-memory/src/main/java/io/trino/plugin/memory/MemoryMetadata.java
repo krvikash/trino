@@ -799,4 +799,10 @@ public class MemoryMetadata
             functions.remove(name);
         }
     }
+
+    @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return false;
+    }
 }

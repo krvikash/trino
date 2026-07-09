@@ -1111,6 +1111,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.supportsSingleNodeExecution(session, tableHandle);
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         return delegate.getNewTableWriterScalingOptions(session, tableName, tableProperties);

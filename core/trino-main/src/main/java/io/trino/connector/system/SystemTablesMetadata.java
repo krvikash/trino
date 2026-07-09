@@ -93,6 +93,14 @@ public class SystemTablesMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        // System tables require coordinator-only or all-node distribution. Single-node execution mode assigns the
+        // single fragment to an arbitrary node, so conservatively disable it for system tables.
+        return false;
+    }
+
+    @Override
     public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName)
     {
         return tables.listSystemTables(session).stream()

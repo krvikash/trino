@@ -305,4 +305,10 @@ public class JmxMetadata
             default -> createUnboundedVarcharType();
         };
     }
+
+    @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return false;
+    }
 }

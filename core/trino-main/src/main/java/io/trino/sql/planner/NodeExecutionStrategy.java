@@ -16,14 +16,16 @@ package io.trino.sql.planner;
 import com.google.inject.Inject;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
-import io.trino.sql.analyzer.Analysis;
+import io.trino.metadata.TableHandle;
+
+import java.util.Collection;
 
 public interface NodeExecutionStrategy
 {
     NodeExecutionStrategy DISTRIBUTED_EXECUTION = (_, _) -> false;
     NodeExecutionStrategy SINGLE_NODE_EXECUTION = (_, _) -> true;
 
-    boolean shouldBeExecutedOnSingleNode(Session session, Analysis analysis);
+    boolean shouldBeExecutedOnSingleNode(Session session, Collection<TableHandle> tables);
 
     class DynamicNodeExecutionStrategy
             implements NodeExecutionStrategy
@@ -39,11 +41,10 @@ public interface NodeExecutionStrategy
         }
 
         @Override
-        public boolean shouldBeExecutedOnSingleNode(Session session, Analysis analysis)
+        public boolean shouldBeExecutedOnSingleNode(Session session, Collection<TableHandle> tables)
         {
             return preferSingleNodeExecution
-                    && analysis.getTables().stream()
-                    .allMatch(handle -> metadata.supportsSingleNodeExecution(session, handle));
+                    && tables.stream().allMatch(handle -> metadata.supportsSingleNodeExecution(session, handle));
         }
     }
 }

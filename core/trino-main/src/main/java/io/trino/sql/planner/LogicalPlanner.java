@@ -281,7 +281,7 @@ public class LogicalPlanner
     {
         checkState(reuseCommonSubqueriesAllowed || !isReuseCommonSubqueriesEnabled(session), "This context does not allow reuse_common_subqueries set to true.");
 
-        boolean forceSingleNodeQuery = nodeExecutionStrategy.shouldBeExecutedOnSingleNode(session, analysis);
+        boolean forceSingleNodeQuery = nodeExecutionStrategy.shouldBeExecutedOnSingleNode(session, analysis.getTables());
         PlanSanityChecker planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
 
         PlanNode root;
