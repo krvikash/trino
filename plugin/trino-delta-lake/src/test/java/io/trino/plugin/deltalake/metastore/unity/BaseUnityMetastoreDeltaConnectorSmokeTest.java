@@ -22,7 +22,6 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.tpch.TpchTable;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -301,7 +300,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                 .hasMessageContaining("Failed to write Delta Lake transaction log entry");
     }
 
-    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     void testCreateExternalTable()
     {
@@ -335,7 +333,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         }
     }
 
-    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     void testCreateExternalTableAsSelect()
     {
@@ -353,7 +350,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         }
     }
 
-    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     public void testVariantForExternalTable()
     {
@@ -368,7 +364,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         assertUpdate("DROP TABLE " + tableName);
     }
 
-    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     public void testVariantForExternalTableCtas()
     {
@@ -479,7 +474,6 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         abort("io.trino.testing.BaseConnectorSmokeTest.testMerge updates the static table used in the test");
     }
 
-    @Disabled("https://starburstdata.atlassian.net/browse/ENG-19790")
     @Test
     public void testColumnNameExternalTable()
     {
