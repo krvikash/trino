@@ -19,11 +19,12 @@ import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
+// TODO: rename to TestParallelSnowflakeTypeMapping
 public class TestJdbcSnowflakeTypeMapping
         extends BaseSnowflakeTypeMappingTest
 {
@@ -31,16 +32,11 @@ public class TestJdbcSnowflakeTypeMapping
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return createBuilder()
+        return parallelBuilder()
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Deprecated // TODO https://starburstdata.atlassian.net/browse/SEP-10002

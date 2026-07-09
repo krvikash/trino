@@ -20,11 +20,12 @@ import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.TEST_WAREHOUSE;
 import static io.trino.tpch.TpchTable.NATION;
 import static java.lang.String.format;
 
+// TODO: rename to TestParallelSnowflakeWarehouseSwitching
 public class TestJdbcSnowflakeWarehouseSwitching
         extends AbstractTestQueryFramework
 {
@@ -35,7 +36,7 @@ public class TestJdbcSnowflakeWarehouseSwitching
             throws Exception
     {
         TestDatabase testDB = closeAfterClass(SnowflakeServer.createTestDatabase());
-        DistributedQueryRunner queryRunner = createBuilder()
+        DistributedQueryRunner queryRunner = parallelBuilder()
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
@@ -43,11 +44,6 @@ public class TestJdbcSnowflakeWarehouseSwitching
                 .build();
         SnowflakeServer.executeOnDatabase(testDB.getName(), format("CREATE VIEW IF NOT EXISTS %s.current_warehouse (warehouse) AS SELECT current_warehouse();", TEST_SCHEMA));
         return queryRunner;
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Test
@@ -75,19 +71,17 @@ public class TestJdbcSnowflakeWarehouseSwitching
                 .setCatalogSessionProperty("snowflake", "warehouse", INVALID_WAREHOUSE)
                 .build();
 
+        String expectedMessageRegExp = "Could not query Snowflake due to invalid warehouse configuration. " +
+                "Fix configuration or select an active Snowflake warehouse with 'warehouse' catalog session property.";
         assertQuery(invalidWarehouseSession, "SELECT * FROM current_warehouse", "VALUES (NULL)");
-        assertQueryFails(invalidWarehouseSession, "SELECT regionkey FROM nation WHERE name = 'ALGERIA'", "Could not query Snowflake due to invalid warehouse configuration. " +
-                "Fix configuration or select an active Snowflake warehouse with 'warehouse' catalog session property.");
 
-        // Disable statistics precalculation so that code will throw while fetching rows in JdbcRecordCursor
+        assertQueryFails(invalidWarehouseSession, "SELECT regionkey FROM nation WHERE name = 'ALGERIA'", expectedMessageRegExp);
+
+        // Disable statistics precalculation so that code will throw while executing statement in SnowflakeSplitManager
         Session sessionWithoutStatisticsPrecalculation = Session.builder(invalidWarehouseSession)
                 .setSystemProperty("statistics_precalculation_for_pushdown_enabled", "false")
                 .build();
 
-        // TODO: https://starburstdata.atlassian.net/browse/SEP-6500
-        assertQueryFails(
-                sessionWithoutStatisticsPrecalculation,
-                "SELECT COUNT(1) FROM nation WHERE name = 'ALGERIA'",
-                "No active warehouse selected in the current session.  Select an active warehouse with the 'use warehouse' command.\n");
+        assertQueryFails(sessionWithoutStatisticsPrecalculation, "SELECT COUNT(1) FROM nation WHERE name = 'ALGERIA'", expectedMessageRegExp);
     }
 }

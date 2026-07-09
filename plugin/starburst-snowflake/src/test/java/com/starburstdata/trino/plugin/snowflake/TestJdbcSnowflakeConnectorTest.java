@@ -9,7 +9,9 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
+import io.trino.sql.planner.plan.TopNNode;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
@@ -18,11 +20,12 @@ import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
 
+// TODO: rename to TestParallelSnowflakeConnectorTest
 public class TestJdbcSnowflakeConnectorTest
         extends BaseSnowflakeConnectorTest
 {
@@ -30,13 +33,23 @@ public class TestJdbcSnowflakeConnectorTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return jdbcBuilder()
+        return parallelBuilder()
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
                 .withConnectorProperties(Map.of("metadata.cache-ttl", "5m"))
                 .withTpchTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
+    {
+        return switch (connectorBehavior) {
+            // TOPN is retained due to parallelism
+            case SUPPORTS_TOPN_PUSHDOWN -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Override
@@ -93,6 +106,15 @@ public class TestJdbcSnowflakeConnectorTest
                     .failure().hasMessageContaining("unexpected 'INSERT'");
             assertQuery("SELECT * FROM " + testTable.getName(), "VALUES 1, 2");
         }
+    }
+
+    @Test
+    public void testTopNPushdownWithBiggerDataset()
+    {
+        // LIMIT more rows than testTopNPushdown to get chunks > 1, hence making sure order is correct
+        assertThat(query("SELECT * FROM orders ORDER BY orderkey LIMIT 4000"))
+                .ordered()
+                .isNotFullyPushedDown(TopNNode.class);
     }
 
     @Test

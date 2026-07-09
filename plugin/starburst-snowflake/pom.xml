@@ -462,8 +462,6 @@
                                 <exclude>**/TestJdbcSnowflakeTypeMapping.java</exclude>
                                 <exclude>**/TestJdbcSnowflakeQueryCommentFormat.java</exclude>
                                 <exclude>**/TestSnowflakeJmxStats.java</exclude>
-                                <exclude>**/TestParallelSnowflakeConnectorTest.java</exclude>
-                                <exclude>**/TestParallelSnowflakeTypeMapping.java</exclude>
                                 <exclude>**/TestParallelSnowflakeQueryFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectionPoolingConnectorSmokeTest.java</exclude>
@@ -518,8 +516,6 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <include>**/TestJdbcSnowflakeConnectorTest.java</include>
-                                <include>**/TestJdbcSnowflakeTypeMapping.java</include>
                                 <include>**/TestJdbcSnowflakeQueryCommentFormat.java</include>
                             </includes>
                         </configuration>
@@ -536,8 +532,9 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <include>**/TestParallelSnowflakeConnectorTest.java</include>
-                                <include>**/TestParallelSnowflakeTypeMapping.java</include>
+                                <!-- These TestJdbc... are actually testing the parallel connector -->
+                                <include>**/TestJdbcSnowflakeConnectorTest.java</include>
+                                <include>**/TestJdbcSnowflakeTypeMapping.java</include>
                                 <include>**/TestParallelSnowflakeQueryCommentFormat.java</include>
                             </includes>
                         </configuration>

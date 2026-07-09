@@ -19,12 +19,13 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.ALIC
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.createSessionForUser;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.ROLE;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.USER;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 
+// TODO: rename to TestParallelSnowflakeWithFixedRole
 public class TestJdbcSnowflakeWithFixedRole
         extends AbstractTestQueryFramework
 {
@@ -33,17 +34,12 @@ public class TestJdbcSnowflakeWithFixedRole
             throws Exception
     {
         TestDatabase testDB = closeAfterClass(SnowflakeServer.createTestDatabase());
-        return createBuilder()
+        return parallelBuilder()
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDB.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withCreateUserContextView()
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Test
