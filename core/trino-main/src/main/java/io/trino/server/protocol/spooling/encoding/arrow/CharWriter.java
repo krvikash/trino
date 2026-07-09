@@ -32,15 +32,18 @@ public final class CharWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        Slice slice = type.getSlice(block, position);
-        vector.setSafe(offset, slice.byteArray(), slice.byteArrayOffset(), slice.length());
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                Slice slice = type.getSlice(block, position);
+                vector.setSafe(position, slice.byteArray(), slice.byteArrayOffset(), slice.length());
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

@@ -27,14 +27,17 @@ public final class RealWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        vector.set(offset, REAL.getFloat(block, position));
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                vector.set(position, REAL.getFloat(block, position));
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

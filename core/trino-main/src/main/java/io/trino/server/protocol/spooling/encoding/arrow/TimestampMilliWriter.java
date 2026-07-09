@@ -29,14 +29,17 @@ public final class TimestampMilliWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        vector.set(offset, floorDiv(TIMESTAMP_MILLIS.getLong(block, position), MICROSECONDS_PER_MILLISECOND));
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                vector.set(position, floorDiv(TIMESTAMP_MILLIS.getLong(block, position), MICROSECONDS_PER_MILLISECOND));
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

@@ -27,14 +27,17 @@ public final class IntegerWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        vector.set(offset, INTEGER.getInt(block, position));
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                vector.set(position, INTEGER.getInt(block, position));
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

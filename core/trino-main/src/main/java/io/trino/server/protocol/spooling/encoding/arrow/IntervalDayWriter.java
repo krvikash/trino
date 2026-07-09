@@ -30,17 +30,20 @@ public final class IntervalDayWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        long intervalDayTime = INTERVAL_DAY_TIME.getLong(block, position);
-        int days = toIntExact(floorDiv(intervalDayTime, MILLISECONDS_PER_DAY));
-        int millis = toIntExact(intervalDayTime - (long) days * MILLISECONDS_PER_DAY);
-        vector.set(offset, days, millis);
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                long intervalDayTime = INTERVAL_DAY_TIME.getLong(block, position);
+                int days = toIntExact(floorDiv(intervalDayTime, MILLISECONDS_PER_DAY));
+                int millis = toIntExact(intervalDayTime - (long) days * MILLISECONDS_PER_DAY);
+                vector.set(position, days, millis);
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

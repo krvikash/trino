@@ -28,14 +28,17 @@ public final class TimeMicroWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        vector.set(offset, TIME_MICROS.getLong(block, position) / PICOSECONDS_PER_MICROSECOND);
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                vector.set(position, TIME_MICROS.getLong(block, position) / PICOSECONDS_PER_MICROSECOND);
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

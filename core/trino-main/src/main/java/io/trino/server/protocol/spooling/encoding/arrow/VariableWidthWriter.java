@@ -17,16 +17,19 @@ import io.trino.spi.block.Block;
 import org.apache.arrow.vector.VariableWidthVector;
 
 import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
+import static java.util.Objects.requireNonNull;
 
 public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
-        extends PrimitiveWriter<V>
+        implements ArrowWriter
         permits CharWriter,
                 VarbinaryWriter,
                 VarcharWriter
 {
+    protected final V vector;
+
     protected VariableWidthWriter(V vector)
     {
-        super(vector);
+        this.vector = requireNonNull(vector, "vector is null");
     }
 
     @Override
@@ -44,5 +47,11 @@ public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
         return roundToSegment(block.getSizeInBytes())
                 + roundToSegment((long) (positionCount + 1) * Integer.BYTES)
                 + roundToSegment((positionCount + 7) / 8);
+    }
+
+    @Override
+    public String toString()
+    {
+        return ArrowWriter.describeWriter(this, vector);
     }
 }

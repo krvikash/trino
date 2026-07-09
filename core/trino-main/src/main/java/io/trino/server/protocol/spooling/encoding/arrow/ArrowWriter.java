@@ -46,8 +46,9 @@ import static java.util.Objects.requireNonNull;
  */
 public sealed interface ArrowWriter
         permits ArrayWriter,
+                FixedWidthWriter,
                 MapWriter,
-                PrimitiveWriter,
+                NullWriter,
                 RowWriter,
                 TimeMicroWithTimeZoneWriter,
                 TimeMilliWithTimeZoneWriter,
@@ -56,7 +57,8 @@ public sealed interface ArrowWriter
                 TimestampMicroWithTimeZoneWriter,
                 TimestampMilliWithTimeZoneWriter,
                 TimestampNanoWithTimeZoneWriter,
-                TimestampSecWithTimeZoneWriter
+                TimestampSecWithTimeZoneWriter,
+                VariableWidthWriter
 {
     /**
      * Usually we want to call ValueVector.setInitialCapacity() to hint Arrow how many positions

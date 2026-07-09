@@ -32,18 +32,21 @@ public final class TimestampNanoWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                if (!(block instanceof Fixed12Block fixed12Block)) {
+                    throw new IllegalArgumentException("Expected block to be Fixed12Block but got " + block.getClass().getSimpleName());
+                }
 
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        if (!(block instanceof Fixed12Block fixed12Block)) {
-            throw new IllegalArgumentException("Expected block to be Fixed12Block but got " + block.getClass().getSimpleName());
+                vector.set(position, addExact(multiplyExact(fixed12Block.getFixed12First(position), NANOSECONDS_PER_MICROSECOND), floorDiv(fixed12Block.getFixed12Second(position), PICOSECONDS_PER_NANOSECOND)));
+            }
         }
-
-        vector.set(offset, addExact(multiplyExact(fixed12Block.getFixed12First(position), NANOSECONDS_PER_MICROSECOND), floorDiv(fixed12Block.getFixed12Second(position), PICOSECONDS_PER_NANOSECOND)));
+        vector.setValueCount(positionCount);
     }
 }

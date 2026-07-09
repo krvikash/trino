@@ -32,20 +32,23 @@ public final class DecimalWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        if (type.isShort()) {
-            vector.setSafe(offset, type.getLong(block, position));
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                if (type.isShort()) {
+                    vector.setSafe(position, type.getLong(block, position));
+                }
+                else {
+                    Int128 decimal = (Int128) type.getObject(block, position);
+                    vector.setBigEndian(position, decimal.toBigEndianBytes());
+                }
+            }
         }
-        else {
-            Int128 decimal = (Int128) type.getObject(block, position);
-            vector.setBigEndian(offset, decimal.toBigEndianBytes());
-        }
+        vector.setValueCount(positionCount);
     }
 }

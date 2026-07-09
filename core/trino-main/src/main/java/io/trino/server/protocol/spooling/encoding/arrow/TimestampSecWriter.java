@@ -27,14 +27,17 @@ public final class TimestampSecWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        vector.set(offset, TIMESTAMP_SECONDS.getLong(block, position) / 1_000_000);
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                vector.set(position, TIMESTAMP_SECONDS.getLong(block, position) / 1_000_000);
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

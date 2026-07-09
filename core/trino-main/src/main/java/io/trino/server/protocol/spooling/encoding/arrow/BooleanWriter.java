@@ -27,14 +27,17 @@ public final class BooleanWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        vector.set(offset, BOOLEAN.getBoolean(block, position) ? 1 : 0);
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                vector.set(position, BOOLEAN.getBoolean(block, position) ? 1 : 0);
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

@@ -17,9 +17,10 @@ import io.trino.spi.block.Block;
 import org.apache.arrow.vector.FixedWidthVector;
 
 import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
+import static java.util.Objects.requireNonNull;
 
 public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
-        extends PrimitiveWriter<V>
+        implements ArrowWriter
         permits BigintWriter,
                 BooleanWriter,
                 DateWriter,
@@ -42,9 +43,11 @@ public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
                 TinyIntWriter,
                 UuidWriter
 {
+    protected final V vector;
+
     protected FixedWidthWriter(V vector)
     {
-        super(vector);
+        this.vector = requireNonNull(vector, "vector is null");
     }
 
     @Override
@@ -62,5 +65,11 @@ public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
         // matching the allocator, which reserves each buffer in whole segments.
         long validity = (positionCount + 7) / 8;
         return roundToSegment(validity) + roundToSegment(vector.getBufferSizeFor(positionCount) - validity);
+    }
+
+    @Override
+    public String toString()
+    {
+        return ArrowWriter.describeWriter(this, vector);
     }
 }

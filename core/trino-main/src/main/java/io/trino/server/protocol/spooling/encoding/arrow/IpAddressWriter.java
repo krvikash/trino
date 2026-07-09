@@ -27,18 +27,21 @@ public final class IpAddressWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        if (!(block instanceof Int128ArrayBlock arrayBlock)) {
-            throw new IllegalArgumentException("Expected Int128ArrayBlock, but got " + block.getClass().getSimpleName());
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                if (!(block instanceof Int128ArrayBlock arrayBlock)) {
+                    throw new IllegalArgumentException("Expected Int128ArrayBlock, but got " + block.getClass().getSimpleName());
+                }
+                Int128 ipaddress = arrayBlock.getInt128(position);
+                vector.set(position, ipaddress.toBigEndianBytes());
+            }
         }
-        Int128 ipaddress = arrayBlock.getInt128(position);
-        vector.set(offset, ipaddress.toBigEndianBytes());
+        vector.setValueCount(positionCount);
     }
 }

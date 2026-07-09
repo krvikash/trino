@@ -27,16 +27,19 @@ public final class UuidWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
-    }
-
-    @Override
-    protected void writeValue(int offset, Block block, int position)
-    {
-        Int128ArrayBlock arrayBlock = (Int128ArrayBlock) block;
-        Int128 uuid = arrayBlock.getInt128(position);
-        vector.set(offset, uuid.toBigEndianBytes());
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                Int128ArrayBlock arrayBlock = (Int128ArrayBlock) block;
+                Int128 uuid = arrayBlock.getInt128(position);
+                vector.set(position, uuid.toBigEndianBytes());
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 }

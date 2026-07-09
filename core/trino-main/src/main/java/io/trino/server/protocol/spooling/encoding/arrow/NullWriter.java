@@ -16,12 +16,16 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 import io.trino.spi.block.Block;
 import org.apache.arrow.vector.NullVector;
 
+import static java.util.Objects.requireNonNull;
+
 public final class NullWriter
-        extends PrimitiveWriter<NullVector>
+        implements ArrowWriter
 {
+    private final NullVector vector;
+
     public NullWriter(NullVector vector)
     {
-        super(vector);
+        this.vector = requireNonNull(vector, "vector is null");
     }
 
     @Override
@@ -38,14 +42,23 @@ public final class NullWriter
     }
 
     @Override
-    protected void setNull(int offset)
+    public void write(Block block)
     {
-        vector.setNull(offset);
+        int positionCount = block.getPositionCount();
+        for (int position = 0; position < positionCount; position++) {
+            if (block.isNull(position)) {
+                vector.setNull(position);
+            }
+            else {
+                throw new UnsupportedOperationException();
+            }
+        }
+        vector.setValueCount(positionCount);
     }
 
     @Override
-    protected void writeValue(int offset, Block block, int position)
+    public String toString()
     {
-        throw new UnsupportedOperationException();
+        return ArrowWriter.describeWriter(this, vector);
     }
 }
