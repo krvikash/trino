@@ -38,6 +38,6 @@ final class TestSingleNodeMultiWorkerCluster
     void testGlobalAggregation()
     {
         assertThat(query("SELECT count(*) FROM tpch.tiny.nation"))
-                .matches("VALUES BIGINT '25', BIGINT '0'");  // TODO: This is incorrect. It should be a single value: 25.
+                .matches("VALUES BIGINT '25'");
     }
 }

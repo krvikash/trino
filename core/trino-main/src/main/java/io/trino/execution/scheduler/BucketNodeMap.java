@@ -28,6 +28,7 @@ import java.util.function.ToIntFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getFirst;
 import static java.util.Objects.requireNonNull;
@@ -78,6 +79,11 @@ public final class BucketNodeMap
             return partitionToNode.get().get(getFirst(partitionIds, null));
         }
         return getAssignedNode(getBucket(split));
+    }
+
+    public List<InternalNode> getDistinctNodes()
+    {
+        return bucketToNode.stream().distinct().collect(toImmutableList());
     }
 
     public ToIntFunction<Split> getSplitToBucketFunction()
