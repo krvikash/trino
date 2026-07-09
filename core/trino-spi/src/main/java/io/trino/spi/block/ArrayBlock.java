@@ -187,6 +187,33 @@ public final class ArrayBlock
         return arrayOffset;
     }
 
+    /**
+     * Creates a projection by replacing the visible elements for this array block.
+     * The replacement elements must correspond to {@link #getElementsBlock()}, not {@link #getRawElementBlock()}.
+     * If this block is zero-aligned, the existing offsets and null flags are reused.
+     * Otherwise, the visible offsets and null flags are normalized and the returned block has an offset base of zero.
+     */
+    public ArrayBlock createProjection(Block newVisibleElements)
+    {
+        requireNonNull(newVisibleElements, "newVisibleElements is null");
+
+        int visibleElementCount = offsets[arrayOffset + positionCount] - offsets[arrayOffset];
+        if (newVisibleElements.getPositionCount() != visibleElementCount) {
+            throw new IllegalArgumentException(format("newVisibleElements must have the same position count as getElementsBlock(); expected %s but got %s", visibleElementCount, newVisibleElements.getPositionCount()));
+        }
+
+        if (arrayOffset == 0 && offsets[0] == 0) {
+            return new ArrayBlock(0, positionCount, valueIsNull, offsets, newVisibleElements);
+        }
+
+        int[] newOffsets = new int[positionCount + 1];
+        for (int i = 1; i <= positionCount; i++) {
+            newOffsets[i] = offsets[arrayOffset + i] - offsets[arrayOffset];
+        }
+        boolean[] newValueIsNull = compactIsNull(valueIsNull, arrayOffset, positionCount);
+        return new ArrayBlock(0, positionCount, newValueIsNull, newOffsets, newVisibleElements);
+    }
+
     @Override
     public boolean mayHaveNull()
     {
