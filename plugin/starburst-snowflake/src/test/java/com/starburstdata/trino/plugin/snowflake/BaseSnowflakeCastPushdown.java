@@ -10,10 +10,12 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcCastPushdownTest;
 import io.trino.plugin.jdbc.CastDataTypeTestTable;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.BeforeAll;
@@ -22,8 +24,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -31,18 +35,35 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-public abstract class BaseSnowflakeCastPushdown
+// TODO: rename to TestParallelSnowflakeCastPushdown
+public class BaseSnowflakeCastPushdown
         extends BaseJdbcCastPushdownTest
 {
+    private String testDbName;
+
     private CastDataTypeTestTable left;
     private CastDataTypeTestTable right;
 
-    protected abstract String getTestDbName();
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        TestDatabase testDb = closeAfterClass(SnowflakeServer.createTestDatabase());
+        testDbName = testDb.getName();
+        return SnowflakeQueryRunner.parallelBuilder()
+                .withDatabase(Optional.of(testDbName))
+                .withSchema(Optional.of(TEST_SCHEMA))
+                .withConnectorProperties(impersonationDisabled())
+                .withConnectorProperties(ImmutableMap.of(
+                        "jdbc-types-mapped-to-varchar", "c_boolean",
+                        "join-pushdown.enabled", "true"))
+                .build();
+    }
 
     @Override
     protected SqlExecutor onRemoteDatabase()
     {
-        return sql -> SnowflakeServer.safeExecuteOnDatabase(getTestDbName(), sql);
+        return sql -> SnowflakeServer.safeExecuteOnDatabase(testDbName, sql);
     }
 
     @BeforeAll

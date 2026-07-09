@@ -23,6 +23,7 @@ import java.util.Optional;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.SNOWFLAKE_CATALOG;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.USER;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -32,12 +33,11 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class BaseSnowflakeQueryCommentFormat
+// TODO: rename to TestParallelSnowflakeQueryCommentFormat
+public class BaseSnowflakeQueryCommentFormat
         extends AbstractTestQueryFramework
 {
     private SnowflakeQueryRecorder snowflakeQueryRecorder;
-
-    protected abstract SnowflakeQueryRunner.Builder getSnowflakeQueryRunnerBuilder();
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -45,7 +45,7 @@ public abstract class BaseSnowflakeQueryCommentFormat
     {
         TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
         snowflakeQueryRecorder = new SnowflakeQueryRecorder(testDatabase);
-        return getSnowflakeQueryRunnerBuilder()
+        return parallelBuilder()
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(ImmutableMap.<String, String>builder()

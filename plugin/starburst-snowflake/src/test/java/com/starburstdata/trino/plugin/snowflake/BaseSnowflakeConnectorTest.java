@@ -17,7 +17,9 @@ import io.trino.spi.type.TimeZoneKey;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.TopNNode;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.TestingSession;
 import io.trino.testing.sql.SqlExecutor;
@@ -33,12 +35,15 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Strings.repeat;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
@@ -53,14 +58,26 @@ import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @Execution(CONCURRENT)
-public abstract class BaseSnowflakeConnectorTest
-        // Using BaseJdbcConnectorTest as a base class is not strictly accurate as we have to flavours of Snowflake connector: jdbc and distributed.
-        // Still most of the extra testcases defined in BaseJdbcConnectorTest are applicable to both.
+// TODO: rename to TestParallelSnowflakeConnectorTest
+public class BaseSnowflakeConnectorTest
         extends BaseJdbcConnectorTest
 {
     protected final Closer closer = Closer.create();
     protected final TestDatabase testDatabase = closer.register(SnowflakeServer.createTestDatabase());
     protected final SqlExecutor snowflakeExecutor = (sql) -> SnowflakeServer.safeExecuteOnDatabase(testDatabase.getName(), sql);
+
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        return parallelBuilder()
+                .withDatabase(Optional.of(testDatabase.getName()))
+                .withSchema(Optional.of(TEST_SCHEMA))
+                .withConnectorProperties(impersonationDisabled())
+                .withConnectorProperties(Map.of("metadata.cache-ttl", "5m"))
+                .withTpchTables(REQUIRED_TPCH_TABLES)
+                .build();
+    }
 
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
@@ -77,7 +94,8 @@ public abstract class BaseSnowflakeConnectorTest
                  SUPPORTS_ROW_TYPE,
                  SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
                  SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE,
-                 SUPPORTS_SET_COLUMN_TYPE -> false;
+                 SUPPORTS_SET_COLUMN_TYPE,
+                 SUPPORTS_TOPN_PUSHDOWN -> false;
             case SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
                  SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT,
@@ -179,6 +197,12 @@ public abstract class BaseSnowflakeConnectorTest
     @Override
     protected Optional<DataMappingTestSetup> filterDataMappingSmokeTestData(DataMappingTestSetup dataMappingTestSetup)
     {
+        if (dataMappingTestSetup.getTrinoTypeName().equals("date")) {
+            // TODO (https://starburstdata.atlassian.net/browse/SEP-7956) Fix incorrect date issue in Snowflake
+            if (dataMappingTestSetup.getSampleValueLiteral().equals("DATE '1582-10-05'")) {
+                return Optional.empty();
+            }
+        }
         // Real: Snowflake does not have a REAL type, instead they are mapped to double. The round trip test fails because REAL '567.123' != DOUBLE '567.123'
         // Char: Snowflake does not have a CHAR type. They map it to varchar, which does not have the same fixed width semantics
         String name = dataMappingTestSetup.getTrinoTypeName();
@@ -290,6 +314,43 @@ public abstract class BaseSnowflakeConnectorTest
         assertQuery(
                 "SELECT table_name FROM information_schema.columns WHERE data_type = 'decimal(19,0)' AND table_schema = 'test_schema_2' AND table_name = 'customer' and column_name = 'custkey' LIMIT 1",
                 "SELECT 'customer'");
+    }
+
+    // trino analyze stage passes without exceptions
+    // Snowflake throws tested exception
+    // TODO This is wrong !!! Trino should not allow query to execute on the underlying system
+    @Test
+    @Override
+    public void testNativeQueryCreateStatement()
+    {
+        String tableName = getSession().getSchema().orElseThrow() + ".numbers";
+        assertThat(getQueryRunner().tableExists(getSession(), tableName)).isFalse();
+        assertThat(query(format("SELECT * FROM TABLE(system.query(query => 'CREATE TABLE %s(n INTEGER)'))", tableName)))
+                .failure().hasMessageContaining("unexpected 'CREATE'");
+        assertThat(getQueryRunner().tableExists(getSession(), tableName)).isFalse();
+    }
+
+    // trino analyze stage passes without exceptions
+    // Snowflake throws tested exception
+    // TODO This is wrong !!! Trino should not allow query to execute on the underlying system
+    @Test
+    @Override
+    public void testNativeQueryInsertStatementTableExists()
+    {
+        try (TestTable testTable = simpleTable()) {
+            assertThat(query(format("SELECT * FROM TABLE(system.query(query => 'INSERT INTO %s VALUES (3)'))", testTable.getName())))
+                    .failure().hasMessageContaining("unexpected 'INSERT'");
+            assertQuery("SELECT * FROM " + testTable.getName(), "VALUES 1, 2");
+        }
+    }
+
+    @Test
+    public void testTopNPushdownWithBiggerDataset()
+    {
+        // LIMIT more rows than testTopNPushdown to get chunks > 1, hence making sure order is correct
+        assertThat(query("SELECT * FROM orders ORDER BY orderkey LIMIT 4000"))
+                .ordered()
+                .isNotFullyPushedDown(TopNNode.class);
     }
 
     @Override
@@ -446,11 +507,6 @@ public abstract class BaseSnowflakeConnectorTest
     @Test
     public void testTimestampWithTimezoneValues()
     {
-        testTimestampWithTimezoneValues(true);
-    }
-
-    protected void testTimestampWithTimezoneValues(boolean includeNegativeYear)
-    {
         String tableName = TEST_SCHEMA + ".test_tstz_";
         Session session = Session.builder(getQueryRunner().getDefaultSession())
                 .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(ZoneOffset.UTC.getId()))
@@ -465,13 +521,6 @@ public abstract class BaseSnowflakeConnectorTest
                 .add("DATEADD(YEAR, 70000, TO_TIMESTAMP_TZ('3326-09-11T20:14:45.247Z'))")
                 .add("DATEADD(YEAR, 70000, TO_TIMESTAMP_TZ('3326-09-11T07:14:45.247 -13:00'))");
 
-        if (includeNegativeYear) {
-            data
-                    .add("DATEADD(YEAR, -2, TO_TIMESTAMP_TZ('0001-01-01T00:00:00.000Z'))")
-                    .add("DATEADD(YEAR, -70000, TO_TIMESTAMP_TZ('613-04-22T03:45:14.753Z'))")
-                    .add("DATEADD(YEAR, -70000, TO_TIMESTAMP_TZ('613-04-22T17:45:14.753 +14:00'))");
-        }
-
         MaterializedResult.Builder expected = resultBuilder(session, createTimestampWithTimeZoneType(3))
                 .row(LocalDateTime.of(1970, 1, 1, 0, 0).atZone(ZoneOffset.ofHoursMinutes(14, 0)))
                 .row(LocalDateTime.of(1970, 1, 1, 0, 0).atZone(ZoneOffset.ofHoursMinutes(-13, 0)))
@@ -482,15 +531,6 @@ public abstract class BaseSnowflakeConnectorTest
                 // same instant as above for the negative offset with highest absolute value Snowflake allows
                 .row(LocalDateTime.of(3326 + 70000, 9, 11, 7, 14, 45, 247_000_000).atZone(ZoneOffset.ofHoursMinutes(-13, 0)));
 
-        if (includeNegativeYear) {
-            expected
-                    .row(LocalDateTime.of(-1, 1, 1, 0, 0, 0, 0).atZone(ZoneId.of("UTC")))
-                    // -69387-04-22T03:45:14.753Z[UTC] is the timestamp with tz farthest in the past Presto can represent
-                    .row(LocalDateTime.of(613 - 70000, 4, 22, 3, 45, 14, 753_000_000).atZone(ZoneId.of("UTC")))
-                    // same instant as above for the max offset Snowflake allows
-                    .row(LocalDateTime.of(613 - 70000, 4, 22, 17, 45, 14, 753_000_000).atZone(ZoneOffset.ofHoursMinutes(14, 0)));
-        }
-
         try (TestTable testTable = new TestTable(
                 snowflakeExecutor,
                 tableName,
@@ -500,6 +540,14 @@ public abstract class BaseSnowflakeConnectorTest
 
             assertEqualsIgnoreOrder(actual, expected.build());
         }
+    }
+
+    @Test
+    @Override
+    public void testInsertRowConcurrently()
+    {
+        // TODO: Skip slow Snowflake insert tests (https://starburstdata.atlassian.net/browse/SEP-9214)
+        abort("Snowflake INSERTs are slow and the futures sometimes timeout in the test. See https://starburstdata.atlassian.net/browse/SEP-9214.");
     }
 
     @Test
@@ -804,6 +852,20 @@ public abstract class BaseSnowflakeConnectorTest
     protected SqlExecutor onRemoteDatabase()
     {
         return snowflakeExecutor;
+    }
+
+    @Test
+    @Override // Override because this test throws Table 'xxx' does not exist or not authorized
+    public void testExecuteProcedure()
+    {
+        abort("https://github.com/starburstdata/cork/issues/984");
+    }
+
+    @Test
+    @Override // Override because this test throws Table 'xxx' does not exist or not authorized
+    public void testExecuteProcedureWithNamedArgument()
+    {
+        abort("https://github.com/starburstdata/cork/issues/984");
     }
 
     @Override
