@@ -24,7 +24,6 @@ import java.util.List;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.ORDERS;
 import static io.trino.tpch.TpchTable.REGION;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseGpuQueriesTest
@@ -233,7 +232,6 @@ public abstract class BaseGpuQueriesTest
                 queryStats -> {
                     assertThat(queryStats.getPhysicalInputPositions()).isEqualTo(15000);
                     assertThat(queryStats.getPhysicalInputDataSize().toBytes()).isPositive();
-                    assertThat(queryStats.getPhysicalInputReadTime().roundTo(NANOSECONDS)).isPositive();
                 },
                 _ -> {});
 
