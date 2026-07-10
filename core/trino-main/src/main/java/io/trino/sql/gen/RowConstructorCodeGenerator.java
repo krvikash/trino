@@ -56,7 +56,7 @@ public class RowConstructorCodeGenerator
     private final RowType rowType;
     private final List<Expression> arguments;
     // Arbitrary value chosen to balance the code size vs performance trade off. Not perf tested.
-    private static final int MEGAMORPHIC_FIELD_COUNT = 64;
+    static final int MEGAMORPHIC_FIELD_COUNT = 64;
 
     public RowConstructorCodeGenerator(Row row)
     {
