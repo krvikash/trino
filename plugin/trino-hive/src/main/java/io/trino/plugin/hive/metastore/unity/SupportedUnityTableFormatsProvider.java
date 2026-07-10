@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
-import com.databricks.sdk.service.catalog.DataSourceFormat;
+import io.unitycatalog.client.model.DataSourceFormat;
 
 import java.util.Set;
 

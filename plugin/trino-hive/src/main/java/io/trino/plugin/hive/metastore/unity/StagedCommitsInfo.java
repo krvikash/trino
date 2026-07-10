@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Comparator;
@@ -20,10 +21,17 @@ import java.util.List;
 
 public class StagedCommitsInfo
 {
-    @JsonProperty("commits")
-    private List<StagedCommit> commits;
-    @JsonProperty("latest_table_version")
-    private Long latestTableVersion;
+    private final List<StagedCommit> commits;
+    private final Long latestTableVersion;
+
+    @JsonCreator
+    public StagedCommitsInfo(
+            @JsonProperty("commits") List<StagedCommit> commits,
+            @JsonProperty("latest_table_version") Long latestTableVersion)
+    {
+        this.commits = commits;
+        this.latestTableVersion = latestTableVersion;
+    }
 
     public List<StagedCommit> getCommits()
     {

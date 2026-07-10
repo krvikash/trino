@@ -24,16 +24,16 @@ import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.HiveConfig;
 
-import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.unitycatalog.client.model.DataSourceFormat.AVRO;
+import static io.unitycatalog.client.model.DataSourceFormat.CSV;
+import static io.unitycatalog.client.model.DataSourceFormat.DELTA;
+import static io.unitycatalog.client.model.DataSourceFormat.JSON;
+import static io.unitycatalog.client.model.DataSourceFormat.ORC;
+import static io.unitycatalog.client.model.DataSourceFormat.PARQUET;
+import static io.unitycatalog.client.model.DataSourceFormat.TEXT;
 
 public class UnityMetastoreModule
         extends AbstractConfigurationAwareModule

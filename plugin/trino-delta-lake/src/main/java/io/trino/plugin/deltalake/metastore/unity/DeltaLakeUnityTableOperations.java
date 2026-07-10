@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
-import com.databricks.sdk.core.DatabricksError;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperations;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
@@ -24,6 +23,7 @@ import io.trino.plugin.hive.metastore.unity.Metadata;
 import io.trino.plugin.hive.metastore.unity.Protocol;
 import io.trino.plugin.hive.metastore.unity.StagedCommit;
 import io.trino.plugin.hive.metastore.unity.StagedCommitsInfo;
+import io.trino.plugin.hive.metastore.unity.UnityCatalogException;
 import io.trino.plugin.hive.metastore.unity.UnityMetastore;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
@@ -82,17 +82,17 @@ public class DeltaLakeUnityTableOperations
             metastore.commitStagedCommits(
                     new CommitRequest(tableId, tableLocation, stagedCommit.orElse(null), lastKnownBackfilledVersion.orElse(null), metadata.orElse(null), protocol.orElse(null)));
         }
-        catch (DatabricksError e) {
-            handleDatabricksError(e);
+        catch (UnityCatalogException e) {
+            handleUnityCatalogException(e);
         }
     }
 
     // refer the error handling from
     // https://github.com/delta-io/delta/blob/967005713969fcf9280d2da024c761733b7879b5/storage/src/main/java/io/delta/storage/commit/uccommitcoordinator/UCTokenBasedRestClient.java#L211-L234
-    private static void handleDatabricksError(DatabricksError error)
+    private static void handleUnityCatalogException(UnityCatalogException error)
     {
         int statusCode = error.getStatusCode();
-        if (statusCode == 409 && "ALREADY_EXISTS".equals(error.getErrorCode())) {
+        if (statusCode == 409 && "ALREADY_EXISTS".equals(error.getErrorCode().orElse(""))) {
             throw new TrinoException(HIVE_METASTORE_ERROR, error.getMessage());
         }
 

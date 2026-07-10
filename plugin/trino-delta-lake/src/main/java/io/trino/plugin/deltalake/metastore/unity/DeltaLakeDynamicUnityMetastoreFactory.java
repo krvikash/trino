@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
-import com.databricks.sdk.service.catalog.DataSourceFormat;
 import com.google.inject.Inject;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.metastore.HiveMetastore;
@@ -24,13 +23,13 @@ import io.trino.plugin.hive.metastore.unity.TracingUnityHiveMetastore;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastore;
 import io.trino.spi.TrinoException;
 import io.trino.spi.security.ConnectorIdentity;
+import io.unitycatalog.client.model.DataSourceFormat;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 
-import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
 import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static java.util.Objects.requireNonNull;
 
@@ -84,9 +83,7 @@ public class DeltaLakeDynamicUnityMetastoreFactory
                 new UnityHiveMetastore(
                         host,
                         catalogName,
-                        Optional.of(token),
-                        PAT,
-                        Optional.empty(),
+                        () -> Optional.of(token),
                         vendedCredentialsEnabled,
                         false,
                         Optional.empty(),

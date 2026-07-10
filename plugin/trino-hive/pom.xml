@@ -20,22 +20,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.databricks</groupId>
-            <artifactId>databricks-sdk-java</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.annotation</groupId>
-                    <artifactId>javax.annotation-api</artifactId>
-                </exclusion>
-                <!-- Require upper bound dependencies error for org.apache.httpcomponents:httpclient:4.5.13, paths are `com.databricks:databricks-sdk-java:0.41.0`, `software.amazon.awssdk:apache-client:2.30.12`, `org.alluxio:alluxio-core-common:2.9.6` -->
-                <exclusion>
-                    <groupId>org.apache.httpcomponents</groupId>
-                    <artifactId>httpclient</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
         </dependency>

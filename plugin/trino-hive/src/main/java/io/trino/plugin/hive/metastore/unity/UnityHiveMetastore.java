@@ -13,35 +13,22 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
-import com.databricks.sdk.core.ApiClient;
-import com.databricks.sdk.core.CredentialsProvider;
-import com.databricks.sdk.core.DatabricksConfig;
-import com.databricks.sdk.core.DatabricksError;
-import com.databricks.sdk.core.DatabricksException;
-import com.databricks.sdk.core.ProxyConfig;
-import com.databricks.sdk.core.commons.CommonsHttpClient;
-import com.databricks.sdk.core.error.platform.BadRequest;
-import com.databricks.sdk.core.error.platform.DeadlineExceeded;
-import com.databricks.sdk.core.error.platform.NotFound;
-import com.databricks.sdk.core.http.Request;
-import com.databricks.sdk.service.catalog.ColumnInfo;
-import com.databricks.sdk.service.catalog.ColumnTypeName;
-import com.databricks.sdk.service.catalog.CreateSchema;
-import com.databricks.sdk.service.catalog.CreateTableRequest;
-import com.databricks.sdk.service.catalog.DataSourceFormat;
-import com.databricks.sdk.service.catalog.ListTablesRequest;
-import com.databricks.sdk.service.catalog.SchemaInfo;
-import com.databricks.sdk.service.catalog.SchemasAPI;
-import com.databricks.sdk.service.catalog.TablesAPI;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Streams;
 import dev.failsafe.Failsafe;
+import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
-import dev.failsafe.function.CheckedSupplier;
+import io.airlift.http.client.HeaderNames;
+import io.airlift.http.client.HttpUriBuilder;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.metastore.AcidOperation;
 import io.trino.metastore.AcidTransactionOwner;
@@ -77,17 +64,40 @@ import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.RoleGrant;
+import io.unitycatalog.client.ApiClient;
 import io.unitycatalog.client.ApiException;
+import io.unitycatalog.client.api.SchemasApi;
+import io.unitycatalog.client.api.TablesApi;
 import io.unitycatalog.client.api.TemporaryCredentialsApi;
+import io.unitycatalog.client.model.ColumnInfo;
+import io.unitycatalog.client.model.ColumnTypeName;
+import io.unitycatalog.client.model.CreateSchema;
+import io.unitycatalog.client.model.CreateTable;
+import io.unitycatalog.client.model.DataSourceFormat;
 import io.unitycatalog.client.model.GenerateTemporaryPathCredential;
 import io.unitycatalog.client.model.GenerateTemporaryTableCredential;
+import io.unitycatalog.client.model.ListSchemasResponse;
+import io.unitycatalog.client.model.ListTablesResponse;
 import io.unitycatalog.client.model.PathOperation;
+import io.unitycatalog.client.model.SchemaInfo;
 import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.io.IOException;
+import java.net.Authenticator;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -97,14 +107,16 @@ import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.LongStream;
+import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
-import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
-import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
-import static com.databricks.sdk.service.catalog.TableType.MANAGED;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.airlift.http.client.HeaderNames.ACCEPT;
+import static io.airlift.http.client.HeaderNames.AUTHORIZATION;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
 import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TABLE;
@@ -121,9 +133,17 @@ import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.PrincipalType.USER;
+import static io.unitycatalog.client.model.DataSourceFormat.DELTA;
+import static io.unitycatalog.client.model.TableType.EXTERNAL;
+import static io.unitycatalog.client.model.TableType.MANAGED;
+import static java.net.Authenticator.RequestorType.PROXY;
+import static java.net.Proxy.NO_PROXY;
+import static java.net.Proxy.Type.HTTP;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
+import static java.util.stream.Collectors.joining;
 
 public class UnityHiveMetastore
         implements UnityMetastore
@@ -138,12 +158,16 @@ public class UnityHiveMetastore
     private static final String DELTA_PATH_PROPERTY = "path";
     private static final String DELTA_TABLE_PROVIDER_PROPERTY = "spark.sql.sources.provider";
     private static final String DELTA_TABLE_PROVIDER_VALUE = "DELTA";
-    private static final Map<com.databricks.sdk.service.catalog.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
+    private static final String USER_AGENT = "starburst-unity-hive-metastore";
+    // Unity Catalog server caps table list size at 50, so we paginate results ourselves
+    private static final int LIST_PAGE_SIZE = 50;
+    private static final Map<io.unitycatalog.client.model.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
             MANAGED, MANAGED_TABLE,
             EXTERNAL, EXTERNAL_TABLE);
-    // sometimes we see transient DeadlineExceeded errors from unity api, which could be retried
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
+    // sometimes we see transient errors from unity api, which could be retried
     private static final RetryPolicy<Object> UNITY_API_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(failure -> failure instanceof DeadlineExceeded)
+            .handleIf(failure -> failure instanceof ApiException apiException && Set.of(408, 429, 504).contains(apiException.getCode()))
             .onFailedAttempt(e -> LOG.warn(e.getLastException(), "Retrying unity api call"))
             .withMaxDuration(Duration.ofSeconds(5))
             .withBackoff(100, 500, MILLIS)
@@ -152,10 +176,12 @@ public class UnityHiveMetastore
 
     private final Set<DataSourceFormat> supportedUnityTableFormats;
     private final ApiClient apiClient;
-    private final SchemasAPI schemasApi;
-    private final TablesAPI tablesApi;
+    private final SchemasApi schemasApi;
+    private final TablesApi tablesApi;
     private final String catalogName;
     private final TemporaryCredentialsApi temporaryCredentialsApi;
+    private final UnityTokenProvider tokenProvider;
+    private final URI stagedCommitsUri;
 
     public UnityHiveMetastore(
             String host,
@@ -170,98 +196,97 @@ public class UnityHiveMetastore
             Optional<List<String>> nonProxyHosts,
             Set<DataSourceFormat> supportedUnityTableFormats)
     {
-        this(host,
-                catalogName,
-                requireNonNull(tokenProvider, "tokenProvider is null").getToken(),
-                PAT,
-                Optional.empty(),
-                vendedCredentialsEnabled,
-                proxyEnabled,
-                proxyHost,
-                proxyPort,
-                proxyUsername,
-                proxyPassword,
-                nonProxyHosts,
-                supportedUnityTableFormats);
-    }
-
-    @Deprecated
-    public UnityHiveMetastore(
-            String host,
-            String catalogName,
-            Optional<String> token,
-            String authType,
-            Optional<CredentialsProvider> credentialsProvider,
-            boolean vendedCredentialsEnabled,
-            boolean proxyEnabled,
-            Optional<String> proxyHost,
-            OptionalInt proxyPort,
-            Optional<String> proxyUsername,
-            Optional<String> proxyPassword,
-            Optional<List<String>> nonProxyHosts,
-            Set<DataSourceFormat> supportedUnityTableFormats)
-    {
-        DatabricksConfig databricksConfig = new DatabricksConfig()
-                .setHost(host)
-                .setAuthType(authType);
-
-        credentialsProvider.ifPresent(databricksConfig::setCredentialsProvider);
-        token.ifPresent(databricksConfig::setToken);
-
+        HttpClient.Builder httpClientBuilder = HttpClient.newBuilder();
         if (proxyEnabled) {
             checkArgument(proxyHost.isPresent(), "Proxy host must be specified when proxy is enabled");
             checkArgument(proxyPort.isPresent(), "Proxy port must be specified when proxy is enabled");
             checkArgument(nonProxyHosts.isPresent(), "Non-proxy hosts must be specified when proxy is enabled");
 
             setupProxy(
+                    httpClientBuilder,
                     proxyHost.get(),
                     proxyPort.getAsInt(),
                     proxyUsername,
                     proxyPassword,
-                    nonProxyHosts.get(),
-                    databricksConfig);
+                    nonProxyHosts.get());
         }
-        apiClient = new ApiClient(databricksConfig);
-        schemasApi = new SchemasAPI(apiClient);
-        tablesApi = new TablesAPI(apiClient);
-        this.catalogName = catalogName;
+        apiClient = new ApiClient();
+        apiClient.updateBaseUri("https://" + host + "/api/2.1/unity-catalog");
+        apiClient.setHttpClientBuilder(httpClientBuilder);
+        apiClient.setRequestInterceptor(request -> {
+            request.header(HeaderNames.USER_AGENT.toString(), USER_AGENT);
+            tokenProvider.getToken().ifPresent(authToken -> request.header(AUTHORIZATION.toString(), "Bearer " + authToken));
+        });
 
-        if (vendedCredentialsEnabled) {
-            io.unitycatalog.client.ApiClient unityApiClient = new io.unitycatalog.client.ApiClient();
-            unityApiClient.updateBaseUri("https://" + host + "/api/2.1/unity-catalog");
-            token.ifPresent(authToken -> unityApiClient.setRequestInterceptor(request -> request.header("Authorization", "Bearer " + authToken)));
-            this.temporaryCredentialsApi = new TemporaryCredentialsApi(unityApiClient);
-        }
-        else {
-            this.temporaryCredentialsApi = null;
-        }
+        schemasApi = new SchemasApi(apiClient);
+        tablesApi = new TablesApi(apiClient);
+        this.catalogName = catalogName;
+        this.temporaryCredentialsApi = vendedCredentialsEnabled ? new TemporaryCredentialsApi(apiClient) : null;
         this.supportedUnityTableFormats = ImmutableSet.copyOf(supportedUnityTableFormats);
+        this.tokenProvider = requireNonNull(tokenProvider, "tokenProvider is null");
+        this.stagedCommitsUri = URI.create("https://" + host + "/api/2.1/unity-catalog/delta/preview/commits");
     }
 
     private static void setupProxy(
+            HttpClient.Builder httpClientBuilder,
             String proxyHost,
             int proxyPort,
             Optional<String> proxyUsername,
             Optional<String> proxyPassword,
-            List<String> nonProxyHosts,
-            DatabricksConfig databricksConfig)
+            List<String> nonProxyHosts)
     {
-        ProxyConfig proxyConfig = new ProxyConfig()
-                .setHost(proxyHost)
-                .setPort(proxyPort);
+        InetSocketAddress proxyAddress = InetSocketAddress.createUnresolved(proxyHost, proxyPort);
+        ProxySelector proxySelector = getProxySelector(nonProxyHosts, proxyAddress);
+        httpClientBuilder.proxy(proxySelector);
+
         if (proxyUsername.isPresent() || proxyPassword.isPresent()) {
-            proxyConfig.setProxyAuthType(ProxyConfig.ProxyAuthType.BASIC);
-            proxyUsername.ifPresent(proxyConfig::setUsername);
-            proxyPassword.ifPresent(proxyConfig::setPassword);
+            httpClientBuilder.authenticator(new Authenticator()
+            {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication()
+                {
+                    if (getRequestorType() == PROXY) {
+                        return new PasswordAuthentication(proxyUsername.orElse(""), proxyPassword.orElse("").toCharArray());
+                    }
+                    return null;
+                }
+            });
         }
-        if (!nonProxyHosts.isEmpty()) {
-            proxyConfig.setNonProxyHosts(String.join("|", nonProxyHosts));
+    }
+
+    private static ProxySelector getProxySelector(List<String> nonProxyHosts, InetSocketAddress proxyAddress)
+    {
+        return new ProxySelector()
+        {
+            @Override
+            public List<Proxy> select(URI uri)
+            {
+                String host = uri.getHost();
+                for (String pattern : nonProxyHosts) {
+                    if (matchesNonProxyHost(host, pattern)) {
+                        return ImmutableList.of(NO_PROXY);
+                    }
+                }
+                return ImmutableList.of(new Proxy(HTTP, proxyAddress));
+            }
+
+            @Override
+            public void connectFailed(URI uri, SocketAddress sa, IOException ioe)
+            {
+                LOG.warn(ioe, "Proxy connect failed for %s via %s", uri, sa);
+            }
+        };
+    }
+
+    private static boolean matchesNonProxyHost(String host, String pattern)
+    {
+        if (pattern.isEmpty()) {
+            return false;
         }
-        databricksConfig.setHttpClient(
-                new CommonsHttpClient.Builder()
-                        .withDatabricksConfig(databricksConfig)
-                        .withProxyConfig(proxyConfig)
-                        .build());
+        String regex = Arrays.stream(pattern.split("\\*", -1))
+                .map(Pattern::quote)
+                .collect(joining(".*"));
+        return host.matches(regex);
     }
 
     @Override
@@ -269,10 +294,10 @@ public class UnityHiveMetastore
     {
         SchemaInfo schemaInfo;
         try {
-            schemaInfo = retry(() -> schemasApi.get(catalogName + NAMESPACE_SEPARATOR + databaseName));
+            schemaInfo = retry(() -> schemasApi.getSchema(catalogName + NAMESPACE_SEPARATOR + databaseName));
         }
-        catch (DatabricksError e) {
-            if (e.getStatusCode() == 404) {
+        catch (ApiException e) {
+            if (e.getCode() == 404) {
                 LOG.debug("Schema '%s' not found", databaseName);
                 return Optional.empty();
             }
@@ -292,11 +317,14 @@ public class UnityHiveMetastore
     public List<String> getAllDatabases()
     {
         try {
-            return retry(() -> Streams.stream(schemasApi.list(catalogName).iterator())
+            return Streams.stream(paginate(
+                            pageToken -> schemasApi.listSchemas(catalogName, LIST_PAGE_SIZE, pageToken),
+                            ListSchemasResponse::getSchemas,
+                            ListSchemasResponse::getNextPageToken))
                     .map(SchemaInfo::getName)
-                    .collect(toImmutableList()));
+                    .collect(toImmutableList());
         }
-        catch (Exception e) {
+        catch (UncheckedApiException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
         }
     }
@@ -304,12 +332,12 @@ public class UnityHiveMetastore
     @Override
     public Optional<Table> getTable(String databaseName, String tableName)
     {
-        com.databricks.sdk.service.catalog.TableInfo tableInfo;
+        io.unitycatalog.client.model.TableInfo tableInfo;
         try {
-            tableInfo = retry(() -> tablesApi.get(catalogName + NAMESPACE_SEPARATOR + databaseName + NAMESPACE_SEPARATOR + tableName));
+            tableInfo = retry(() -> tablesApi.getTable(catalogName + NAMESPACE_SEPARATOR + databaseName + NAMESPACE_SEPARATOR + tableName, false, false));
         }
-        catch (DatabricksError e) {
-            if (e.getStatusCode() == 404) {
+        catch (ApiException e) {
+            if (e.getCode() == 404) {
                 LOG.debug("Table '%s.%s' is not found", databaseName, tableName);
                 return Optional.empty();
             }
@@ -350,21 +378,16 @@ public class UnityHiveMetastore
     public List<TableInfo> getTables(String databaseName)
     {
         try {
-            return retry(() -> Streams.stream(tablesApi.list(catalogName, databaseName))
-                    .filter(tableInfo -> {
-                        DataSourceFormat dataSourceFormat = requireNonNullElse(tableInfo.getDataSourceFormat(), DELTA);
-                        com.databricks.sdk.service.catalog.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
-                        if (dataSourceFormat != DELTA && tableType == MANAGED) {
-                            return false;
-                        }
-                        return supportedUnityTableFormats.contains(dataSourceFormat)
-                                && SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType);
-                    })
+            return Streams.stream(paginate(
+                            pageToken -> tablesApi.listTables(catalogName, databaseName, LIST_PAGE_SIZE, pageToken),
+                            ListTablesResponse::getTables,
+                            ListTablesResponse::getNextPageToken))
+                    .filter(this::isSupportedUnityTable)
                     .map(table -> new TableInfo(schemaTableName(table.getSchemaName(), table.getName()), TABLE))
-                    .collect(toImmutableList()));
+                    .collect(toImmutableList());
         }
-        catch (DatabricksError e) {
-            if (e.getStatusCode() == 404) {
+        catch (UncheckedApiException e) {
+            if (e.getCause().getCode() == 404) {
                 LOG.debug("Schema '%s' not found", databaseName);
                 return ImmutableList.of();
             }
@@ -383,31 +406,30 @@ public class UnityHiveMetastore
     {
         return Optional.of(new AbstractIterator<>()
         {
-            private Iterator<com.databricks.sdk.service.catalog.TableInfo> delegate;
+            private Iterator<io.unitycatalog.client.model.TableInfo> delegate;
 
             @Override
             protected Table computeNext()
             {
+                if (delegate == null) {
+                    delegate = Iterators.filter(
+                            paginate(
+                                    pageToken -> tablesApi.listTables(catalogName, databaseName, LIST_PAGE_SIZE, pageToken),
+                                    ListTablesResponse::getTables,
+                                    ListTablesResponse::getNextPageToken).iterator(),
+                            UnityHiveMetastore.this::isSupportedUnityTable);
+                }
                 try {
-                    if (delegate == null) {
-                        Iterable<com.databricks.sdk.service.catalog.TableInfo> tables;
-                        try {
-                            ListTablesRequest request = new ListTablesRequest().setCatalogName(catalogName).setSchemaName(databaseName);
-                            tables = tablesApi.list(request);
-                        }
-                        catch (NotFound e) {
-                            LOG.debug("Schema '%s' not found", databaseName);
-                            tables = ImmutableList.of();
-                        }
-                        delegate = Streams.stream(tables).iterator();
-                    }
-
                     if (!delegate.hasNext()) {
                         return endOfData();
                     }
                     return fromUnityTable(delegate.next()).orElseGet(this::computeNext);
                 }
-                catch (DatabricksError e) {
+                catch (UncheckedApiException e) {
+                    if (e.getCause().getCode() == 404) {
+                        LOG.debug("Schema '%s' not found", databaseName);
+                        return endOfData();
+                    }
                     throw new TrinoException(HIVE_METASTORE_ERROR, requireNonNullElse(e.getMessage(), e).toString(), e);
                 }
                 catch (RuntimeException e) {
@@ -415,6 +437,17 @@ public class UnityHiveMetastore
                 }
             }
         });
+    }
+
+    private boolean isSupportedUnityTable(io.unitycatalog.client.model.TableInfo tableInfo)
+    {
+        DataSourceFormat dataSourceFormat = requireNonNullElse(tableInfo.getDataSourceFormat(), DELTA);
+        io.unitycatalog.client.model.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
+        if (dataSourceFormat != DELTA && tableType == MANAGED) {
+            return false;
+        }
+        return supportedUnityTableFormats.contains(dataSourceFormat)
+                && SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType);
     }
 
     @Override
@@ -427,15 +460,12 @@ public class UnityHiveMetastore
         createSchema.setProperties(database.getParameters());
         database.getComment().ifPresent(createSchema::setComment);
         try {
-            schemasApi.create(createSchema);
+            schemasApi.createSchema(createSchema);
         }
-        catch (BadRequest ex) {
-            if (ex.getErrorCode().equals("SCHEMA_ALREADY_EXISTS")) {
+        catch (ApiException ex) {
+            if ("SCHEMA_ALREADY_EXISTS".equals(parseErrorCode(ex.getResponseBody()).orElse(""))) {
                 throw new SchemaAlreadyExistsException(database.getDatabaseName(), ex);
             }
-            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
-        }
-        catch (DatabricksException ex) {
             throw new TrinoException(HIVE_METASTORE_ERROR, ex);
         }
     }
@@ -444,9 +474,9 @@ public class UnityHiveMetastore
     public void dropDatabase(String databaseName, boolean deleteData)
     {
         try {
-            schemasApi.delete(catalogName + "." + databaseName);
+            schemasApi.deleteSchema(catalogName + "." + databaseName, false);
         }
-        catch (DatabricksException ex) {
+        catch (ApiException ex) {
             throw new TrinoException(HIVE_METASTORE_ERROR, ex);
         }
     }
@@ -469,13 +499,13 @@ public class UnityHiveMetastore
         TableType tableType = TableType.valueOf(table.getTableType());
         checkArgument(EXTERNAL_TABLE.equals(tableType), "Invalid table type: %s, create table is supported only for external tables", tableType);
 
-        CreateTableRequest createTable = new CreateTableRequest()
-                .setCatalogName(catalogName)
-                .setSchemaName(table.getDatabaseName())
-                .setName(table.getTableName())
-                .setTableType(EXTERNAL)
-                .setStorageLocation(table.getStorage().getLocation())
-                .setProperties(table.getParameters());
+        CreateTable createTable = new CreateTable()
+                .catalogName(catalogName)
+                .schemaName(table.getDatabaseName())
+                .name(table.getTableName())
+                .tableType(EXTERNAL)
+                .storageLocation(table.getStorage().getLocation())
+                .properties(table.getParameters());
 
         if (DELTA_TABLE_PROVIDER_VALUE.equals(table.getParameters().get(DELTA_TABLE_PROVIDER_PROPERTY))) {
             createTable.setDataSourceFormat(DELTA);
@@ -490,9 +520,9 @@ public class UnityHiveMetastore
         checkArgument(!table.getDataColumns().isEmpty(), "Cannot create table: No columns defined. Tables must have at least one column to be compatible with Databricks Unity Catalog");
 
         createTable.setColumns(
-                LongStream.range(0, table.getDataColumns().size())
+                IntStream.range(0, table.getDataColumns().size())
                         .mapToObj(i -> {
-                            Column column = table.getDataColumns().get((int) i);
+                            Column column = table.getDataColumns().get(i);
                             ColumnInfo columnInfo = new ColumnInfo();
                             columnInfo.setName(column.getName());
                             columnInfo.setPosition(i);
@@ -506,15 +536,12 @@ public class UnityHiveMetastore
                         .collect(toImmutableList()));
 
         try {
-            tablesApi.create(createTable);
+            tablesApi.createTable(createTable);
         }
-        catch (NotFound ex) {
-            if (ex.getErrorCode().equals("SCHEMA_DOES_NOT_EXIST")) {
+        catch (ApiException ex) {
+            if ("SCHEMA_DOES_NOT_EXIST".equals(parseErrorCode(ex.getResponseBody()).orElse(""))) {
                 throw new SchemaNotFoundException(table.getDatabaseName());
             }
-            throw new TrinoException(HIVE_METASTORE_ERROR, ex);
-        }
-        catch (DatabricksException ex) {
             throw new TrinoException(HIVE_METASTORE_ERROR, ex);
         }
     }
@@ -527,9 +554,9 @@ public class UnityHiveMetastore
         TableType tableType = TableType.valueOf(table.getTableType());
         checkArgument(EXTERNAL_TABLE.equals(tableType), "Invalid table type: %s, drop table is supported only for external tables", tableType);
         try {
-            tablesApi.delete(catalogName + "." + databaseName + "." + tableName);
+            tablesApi.deleteTable(catalogName + "." + databaseName + "." + tableName);
         }
-        catch (DatabricksException ex) {
+        catch (ApiException ex) {
             throw new TrinoException(HIVE_METASTORE_ERROR, ex);
         }
     }
@@ -790,9 +817,9 @@ public class UnityHiveMetastore
         throw new TrinoException(NOT_SUPPORTED, "dropFunction is not supported for Unity metastore");
     }
 
-    private Optional<Table> fromUnityTable(com.databricks.sdk.service.catalog.TableInfo tableInfo)
+    private Optional<Table> fromUnityTable(io.unitycatalog.client.model.TableInfo tableInfo)
     {
-        com.databricks.sdk.service.catalog.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
+        io.unitycatalog.client.model.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
         if (!SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported table type: " + tableType);
         }
@@ -1037,10 +1064,102 @@ public class UnityHiveMetastore
         throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + storageFormat);
     }
 
-    private static <T> T retry(CheckedSupplier<T> supplier)
+    private static <T> T retry(ApiCall<T> call)
+            throws ApiException
     {
-        return Failsafe.with(UNITY_API_RETRY_POLICY)
-                .get(supplier);
+        try {
+            return Failsafe.with(UNITY_API_RETRY_POLICY)
+                    .get(call::execute);
+        }
+        catch (FailsafeException e) {
+            throwIfInstanceOf(e.getCause(), ApiException.class);
+            throw e;
+        }
+    }
+
+    @FunctionalInterface
+    private interface ApiCall<T>
+    {
+        T execute()
+                throws ApiException;
+    }
+
+    private static <PageT, ItemT> Iterable<ItemT> paginate(
+            PageFetcher<PageT> pageFetcher,
+            Function<PageT, List<ItemT>> getItems,
+            Function<PageT, String> getNextPageToken)
+    {
+        return () -> new AbstractIterator<>()
+        {
+            private Iterator<ItemT> currentPage = Collections.emptyIterator();
+            private String pageToken;
+            private boolean exhausted;
+
+            @Override
+            protected ItemT computeNext()
+            {
+                while (!currentPage.hasNext()) {
+                    if (exhausted) {
+                        return endOfData();
+                    }
+
+                    String currentToken = pageToken;
+                    PageT page;
+                    try {
+                        page = retry(() -> pageFetcher.fetch(currentToken));
+                    }
+                    catch (ApiException e) {
+                        throw new UncheckedApiException(e);
+                    }
+
+                    List<ItemT> pageItems = getItems.apply(page);
+                    currentPage = pageItems == null ? Collections.emptyIterator() : pageItems.iterator();
+                    pageToken = getNextPageToken.apply(page);
+                    if (pageToken == null || pageToken.isEmpty()) {
+                        exhausted = true;
+                    }
+                }
+                return currentPage.next();
+            }
+        };
+    }
+
+    @FunctionalInterface
+    private interface PageFetcher<PageT>
+    {
+        PageT fetch(String pageToken)
+                throws ApiException;
+    }
+
+    private static Optional<String> parseErrorCode(String body)
+    {
+        if (body == null || body.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(OBJECT_MAPPER.readValue(body, ErrorResponse.class).errorCode());
+        }
+        catch (JsonProcessingException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ErrorResponse(@JsonProperty("error_code") String errorCode, @JsonProperty("message") String message) {}
+
+    private static final class UncheckedApiException
+            extends RuntimeException
+    {
+        UncheckedApiException(ApiException cause)
+        {
+            super(requireNonNull(cause, "cause is null"));
+        }
+
+        @Override
+        public ApiException getCause()
+        {
+            return (ApiException) super.getCause();
+        }
     }
 
     /// /////////////////////////////////////////
@@ -1051,41 +1170,69 @@ public class UnityHiveMetastore
     @Override
     public StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion)
     {
-        Request request = new Request("GET", "/api/2.1/unity-catalog/delta/preview/commits")
-                .withQueryParam("table_id", tableId)
-                .withQueryParam("table_uri", tableLocation)
-                .withQueryParam("start_version", String.valueOf(startVersion.orElse(0L)))
-                .withHeader("Accept", "application/json")
-                .withHeader("Content-Type", "application/json");
-        endVersion.ifPresent(version -> request.withQueryParam("end_version", String.valueOf(version)));
-        try {
-            return apiClient.execute(request, StagedCommitsInfo.class);
+        HttpUriBuilder uriBuilder = HttpUriBuilder.uriBuilderFrom(stagedCommitsUri)
+                .addParameter("table_id", tableId)
+                .addParameter("table_uri", tableLocation)
+                .addParameter("start_version", String.valueOf(startVersion.orElse(0L)));
+        endVersion.ifPresent(version -> uriBuilder.addParameter("end_version", String.valueOf(version)));
+
+        HttpRequest.Builder request = HttpRequest.newBuilder()
+                .uri(uriBuilder.build())
+                .header(ACCEPT.toString(), "application/json")
+                .header(HeaderNames.USER_AGENT.toString(), USER_AGENT)
+                .GET();
+        tokenProvider.getToken().ifPresent(token -> request.header(AUTHORIZATION.toString(), "Bearer " + token));
+
+        HttpResponse<String> response = sendRequest(request.build());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to load staged commits: HTTP " + response.statusCode() + " " + response.body());
         }
-        catch (IOException | DatabricksException e) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        try {
+            return OBJECT_MAPPER.readValue(response.body(), StagedCommitsInfo.class);
+        }
+        catch (IOException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to parse staged commits response", e);
         }
     }
 
     @Override
     public void commitStagedCommits(CommitRequest commitStagedRequest)
     {
-        Request request;
+        String body;
         try {
-            request = new Request("POST", "/api/2.1/unity-catalog/delta/preview/commits", apiClient.serialize(commitStagedRequest))
-                    .withHeader("Accept", "application/json")
-                    .withHeader("Content-Type", "application/json");
+            body = OBJECT_MAPPER.writeValueAsString(commitStagedRequest);
         }
         catch (JsonProcessingException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to serialize commit request", e);
         }
 
+        HttpRequest.Builder request = HttpRequest.newBuilder()
+                .uri(stagedCommitsUri)
+                .header(ACCEPT.toString(), "application/json")
+                .header(CONTENT_TYPE.toString(), "application/json")
+                .header(HeaderNames.USER_AGENT.toString(), USER_AGENT)
+                .POST(HttpRequest.BodyPublishers.ofString(body, UTF_8));
+        tokenProvider.getToken().ifPresent(token -> request.header(AUTHORIZATION.toString(), "Bearer " + token));
+
+        HttpResponse<String> response = sendRequest(request.build());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new UnityCatalogException(response.statusCode(), parseErrorCode(response.body()), response.body());
+        }
+        // handle databricks on the caller side
+    }
+
+    private HttpResponse<String> sendRequest(HttpRequest request)
+    {
         try {
-            apiClient.execute(request, Void.class);
+            return apiClient.getHttpClient().send(request, HttpResponse.BodyHandlers.ofString(UTF_8));
         }
         catch (IOException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
         }
-        // handle databricks on the caller side
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new TrinoException(HIVE_METASTORE_ERROR, "Interrupted while calling Unity Catalog", e);
+        }
     }
 
     @Override

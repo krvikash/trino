@@ -52,18 +52,18 @@ import io.trino.plugin.hive.metastore.unity.UnityMetastoreProxyConfig;
 import io.trino.plugin.hive.metastore.unity.UnityTokenProvider;
 import io.trino.spi.TrinoException;
 
-import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
-import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.google.inject.multibindings.ProvidesIntoOptional.Type.ACTUAL;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.unitycatalog.client.model.DataSourceFormat.AVRO;
+import static io.unitycatalog.client.model.DataSourceFormat.CSV;
+import static io.unitycatalog.client.model.DataSourceFormat.DELTA;
+import static io.unitycatalog.client.model.DataSourceFormat.JSON;
+import static io.unitycatalog.client.model.DataSourceFormat.ORC;
+import static io.unitycatalog.client.model.DataSourceFormat.PARQUET;
+import static io.unitycatalog.client.model.DataSourceFormat.TEXT;
 
 public class DeltaLakeUnityMetastoreModule
         extends AbstractConfigurationAwareModule

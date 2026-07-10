@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
-import com.databricks.sdk.core.error.platform.InternalError;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 
