@@ -819,9 +819,9 @@ public class DataApiFacade
         AtomicLong retryCount = new AtomicLong();
         Stopwatch stopwatch = Stopwatch.createStarted();
         Stopwatch successRequestStopwatch = Stopwatch.createStarted();
-        CompletableFuture<DataApi.ChunkDataResponse> finalFuture = ((Function<Long, FailsafeExecutor<Object>>) this::getDefaultRetryExecutor).apply(bufferNodeId)
+        CompletableFuture<DataApi.ChunkDataResponse> finalFuture = getDefaultRetryExecutor(bufferNodeId)
                 .getAsyncExecution(execution -> {
-                    ListenableFuture<DataApi.ChunkDataResponse> future = ((Callable<ListenableFuture<DataApi.ChunkDataResponse>>) () -> internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId)).call();
+                    ListenableFuture<DataApi.ChunkDataResponse> future = internalGetChunkData(bufferNodeId, exchangeId, partitionId, chunkId, chunkBufferNodeId);
                     Futures.addCallback(future, new FutureCallback<>()
                     {
                         @Override
@@ -942,12 +942,8 @@ public class DataApiFacade
                     rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, %s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedAttemptTime().toMillis(), MILLISECONDS), succinctDuration(event.getElapsedTime().toMillis(), MILLISECONDS)));
                     lifecycleListener.ifPresent(listener -> listener.onRetry(event.getLastException(), event.getElapsedAttemptTime().toNanos()));
                 })
-                .onFailure(event -> {
-                    lifecycleListener.ifPresent(listener -> listener.onFailure(event.getException(), event.getElapsedAttemptTime().toNanos()));
-                })
-                .onSuccess(event -> {
-                    lifecycleListener.ifPresent(listener -> listener.onSuccess(event.getElapsedAttemptTime().toNanos()));
-                })
+                .onFailure(event -> lifecycleListener.ifPresent(listener -> listener.onFailure(event.getException(), event.getElapsedAttemptTime().toNanos())))
+                .onSuccess(event -> lifecycleListener.ifPresent(listener -> listener.onSuccess(event.getElapsedAttemptTime().toNanos())))
                 .handleIf(throwable -> {
                     if (!(throwable instanceof DataApiException dataApiException)) {
                         return true;
