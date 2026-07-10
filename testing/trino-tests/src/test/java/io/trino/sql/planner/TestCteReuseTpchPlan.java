@@ -116,7 +116,7 @@ public class TestCteReuseTpchPlan
         try {
             return getPlanTester().inTransaction(transactionSession -> {
                 PlanTester planTester = getPlanTester();
-                LogicalPlanner.PlanOptions planOptions = planTester.createPlanOptions(
+                LogicalPlanner.PlanningResult planningResult = planTester.createPlan(
                         transactionSession,
                         query,
                         planTester.getPlanOptimizers(false),
@@ -125,10 +125,10 @@ public class TestCteReuseTpchPlan
                         NOOP,
                         createPlanOptimizersStatsCollector(),
                         true);
-                if (planOptions.newIrProgram().isEmpty()) {
+                if (planningResult.newIrProgram().isEmpty()) {
                     return "This query cannot be represented in the new IR or CTE reuse is ineffective.";
                 }
-                return planOptions.newIrProgram().get().print(TESTING_PRINT_OPTIONS);
+                return planningResult.newIrProgram().get().print(TESTING_PRINT_OPTIONS);
             });
         }
         catch (RuntimeException e) {

@@ -27,7 +27,7 @@ import io.trino.sql.SqlFormatter;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.newir.Program;
 import io.trino.sql.planner.LogicalPlanner;
-import io.trino.sql.planner.LogicalPlanner.PlanOptions;
+import io.trino.sql.planner.LogicalPlanner.PlanningResult;
 import io.trino.sql.planner.PlanFragmenter;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.PlanOptimizersFactory;
@@ -125,11 +125,11 @@ public class QueryExplainer
             }
             case DISTRIBUTED -> textDistributedPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
             case IO -> {
-                PlanOptions planOptions = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
-                if (planOptions.newIrProgram().isPresent()) {
-                    yield textIoPlan(planOptions.newIrProgram().orElseThrow(), plannerContext, session);
+                PlanningResult planningResult = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
+                if (planningResult.newIrProgram().isPresent()) {
+                    yield textIoPlan(planningResult.newIrProgram().orElseThrow(), plannerContext, session);
                 }
-                yield textIoPlan(planOptions.oldIrPlan(), plannerContext, session);
+                yield textIoPlan(planningResult.oldIrPlan(), plannerContext, session);
             }
             default -> throw new IllegalArgumentException("Unhandled plan type: " + planType);
         };
@@ -174,11 +174,11 @@ public class QueryExplainer
 
         return switch (planType) {
             case IO -> {
-                PlanOptions planOptions = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
-                if (planOptions.newIrProgram().isPresent()) {
-                    yield textIoPlan(planOptions.newIrProgram().orElseThrow(), plannerContext, session);
+                PlanningResult planningResult = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
+                if (planningResult.newIrProgram().isPresent()) {
+                    yield textIoPlan(planningResult.newIrProgram().orElseThrow(), plannerContext, session);
                 }
-                yield textIoPlan(planOptions.oldIrPlan(), plannerContext, session);
+                yield textIoPlan(planningResult.oldIrPlan(), plannerContext, session);
             }
             case LOGICAL -> {
                 setDeprecatedTypeLogicalWarning(warningCollector);
@@ -203,7 +203,7 @@ public class QueryExplainer
         warningCollector.add(new TrinoWarning(DEPRECATED_SYNTAX, "EXPLAIN TYPE LOGICAL is deprecated. Please use EXPLAIN TYPE DISTRIBUTED instead."));
     }
 
-    public PlanOptions getLogicalPlan(Session session, Statement statement, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
+    public PlanningResult getLogicalPlan(Session session, Statement statement, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
         // analyze statement
         Analysis analysis = analyze(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
@@ -235,9 +235,9 @@ public class QueryExplainer
 
     private SubPlan getDistributedPlan(Session session, Statement statement, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        PlanOptions planOptions = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
+        PlanningResult planningResult = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
 
-        Optional<Program> optimizedProgram = planOptions.newIrProgram();
+        Optional<Program> optimizedProgram = planningResult.newIrProgram();
         if (optimizedProgram.isPresent()) {
             Optional<SubPlan> optionalFragmentedPlan = planFragmenter.createSubPlans(session, optimizedProgram.get(), forceSingleNodeQuery, warningCollector);
             if (optionalFragmentedPlan.isPresent()) {
@@ -245,7 +245,7 @@ public class QueryExplainer
             }
         }
 
-        return planFragmenter.createSubPlans(session, planOptions.oldIrPlan(), forceSingleNodeQuery, warningCollector);
+        return planFragmenter.createSubPlans(session, planningResult.oldIrPlan(), forceSingleNodeQuery, warningCollector);
     }
 
     private static <T extends Statement> Optional<String> explainDataDefinition(T statement, List<Expression> parameters)

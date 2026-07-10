@@ -265,17 +265,17 @@ public class LogicalPlanner
         this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
-    public PlanOptions plan(Analysis analysis)
+    public PlanningResult plan(Analysis analysis)
     {
         return plan(analysis, OPTIMIZED_AND_VALIDATED, true);
     }
 
-    public PlanOptions plan(Analysis analysis, Stage stage, boolean reuseCommonSubqueriesAllowed)
+    public PlanningResult plan(Analysis analysis, Stage stage, boolean reuseCommonSubqueriesAllowed)
     {
         return plan(analysis, stage, analysis.getStatement() instanceof ExplainAnalyze || isCollectPlanStatisticsForAllQueries(session), reuseCommonSubqueriesAllowed);
     }
 
-    public PlanOptions plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
+    public PlanningResult plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
     {
         checkState(reuseCommonSubqueriesAllowed || !isReuseCommonSubqueriesEnabled(session), "This context does not allow reuse_common_subqueries set to true.");
 
@@ -371,7 +371,7 @@ public class LogicalPlanner
                 LOG.warn(e, "Exception thrown during CTE reuse, falling back to old IR plan");
             }
         }
-        return new PlanOptions(plan, optimizedProgram);
+        return new PlanningResult(plan, optimizedProgram);
     }
 
     private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer)
@@ -1283,14 +1283,14 @@ public class LogicalPlanner
     }
 
     /**
-     * A structure to contain two versions of the query plan.
+     * Carries the outputs of {@link LogicalPlanner#plan}, including query plans in both IR representations.
      *
      * @param oldIrPlan -- the plan based on the old IR
      * @param newIrProgram -- the plan rewritten to the new IR, and optionally further optimized by CTE reuse
      */
-    public record PlanOptions(Plan oldIrPlan, Optional<Program> newIrProgram)
+    public record PlanningResult(Plan oldIrPlan, Optional<Program> newIrProgram)
     {
-        public PlanOptions
+        public PlanningResult
         {
             requireNonNull(oldIrPlan, "oldIrPlan is null");
             requireNonNull(newIrProgram, "newIrProgram is null");

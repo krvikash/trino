@@ -16,7 +16,7 @@ package io.trino.sql.planner;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.spi.catalog.CatalogName;
-import io.trino.sql.planner.LogicalPlanner.PlanOptions;
+import io.trino.sql.planner.LogicalPlanner.PlanningResult;
 import io.trino.testing.PlanTester;
 import io.trino.tpcds.Table;
 
@@ -118,7 +118,7 @@ public class TestCteReuseTpcdsPlan
         try {
             return getPlanTester().inTransaction(transactionSession -> {
                 PlanTester planTester = getPlanTester();
-                PlanOptions planOptions = planTester.createPlanOptions(
+                PlanningResult planningResult = planTester.createPlan(
                         transactionSession,
                         query,
                         planTester.getPlanOptimizers(false),
@@ -127,10 +127,10 @@ public class TestCteReuseTpcdsPlan
                         NOOP,
                         createPlanOptimizersStatsCollector(),
                         true);
-                if (planOptions.newIrProgram().isEmpty()) {
+                if (planningResult.newIrProgram().isEmpty()) {
                     return "This query cannot be represented in the new IR or CTE reuse is ineffective.";
                 }
-                return planOptions.newIrProgram().get().print(TESTING_PRINT_OPTIONS);
+                return planningResult.newIrProgram().get().print(TESTING_PRINT_OPTIONS);
             });
         }
         catch (RuntimeException e) {

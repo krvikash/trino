@@ -98,12 +98,12 @@ public class MaterializationIrExtractor
             Query query,
             List<Expression> parameters)
     {
-        LogicalPlanner.PlanOptions planOptions = getLogicalPlanOptions(session, query, parameters);
-        return planOptions.oldIrPlan().getRoot().accept(new Visitor(session), null)
+        LogicalPlanner.PlanningResult planningResult = getLogicalPlanningResult(session, query, parameters);
+        return planningResult.oldIrPlan().getRoot().accept(new Visitor(session), null)
                 .map(root -> (Output) root);
     }
 
-    private LogicalPlanner.PlanOptions getLogicalPlanOptions(
+    private LogicalPlanner.PlanningResult getLogicalPlanningResult(
             Session session,
             Query query,
             List<Expression> parameters)

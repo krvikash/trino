@@ -217,7 +217,7 @@ import io.trino.sql.planner.InternalConnectorExpressionEvaluator;
 import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.LocalExecutionPlanner.LocalExecutionPlan;
 import io.trino.sql.planner.LogicalPlanner;
-import io.trino.sql.planner.LogicalPlanner.PlanOptions;
+import io.trino.sql.planner.LogicalPlanner.PlanningResult;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.PartitionFunctionProvider;
@@ -1085,10 +1085,10 @@ public class PlanTester
 
     public Plan createPlan(Session session, @Language("SQL") String sql, List<PlanOptimizer> optimizers, List<PlanOptimizer> alternativeOptimizers, LogicalPlanner.Stage stage, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        return createPlanOptions(session, sql, optimizers, alternativeOptimizers, stage, warningCollector, planOptimizersStatsCollector, false).oldIrPlan();
+        return createPlan(session, sql, optimizers, alternativeOptimizers, stage, warningCollector, planOptimizersStatsCollector, false).oldIrPlan();
     }
 
-    public PlanOptions createPlanOptions(
+    public PlanningResult createPlan(
             Session session,
             @Language("SQL") String sql,
             List<PlanOptimizer> optimizers,
