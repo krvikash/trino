@@ -81,7 +81,6 @@ import io.trino.sql.planner.optimizations.AdaptivePlanOptimizer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.sanity.ForAlternatives;
-import io.trino.sql.planner.sanity.PlanSanityChecker;
 import io.trino.sql.tree.ExplainAnalyze;
 import io.trino.sql.tree.Query;
 import io.trino.sql.tree.Statement;
@@ -110,6 +109,8 @@ import static io.trino.execution.QueryState.FAILED;
 import static io.trino.execution.QueryState.PLANNING;
 import static io.trino.server.DynamicFilterService.DynamicFiltersStats;
 import static io.trino.spi.StandardErrorCode.STACK_OVERFLOW;
+import static io.trino.sql.planner.sanity.PlanSanityChecker.DISTRIBUTED_PLAN_SANITY_CHECKER;
+import static io.trino.sql.planner.sanity.PlanSanityChecker.SINGLE_NODE_PLAN_SANITY_CHECKER;
 import static io.trino.tracing.ScopedSpan.scopedSpan;
 import static java.lang.Thread.currentThread;
 import static java.util.Objects.requireNonNull;
@@ -513,7 +514,7 @@ public class SqlQueryExecution
                 stateMachine.getSession(),
                 planOptimizers,
                 alternativeOptimizers,
-                new PlanSanityChecker(forceSingleNodeQuery),
+                forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER,
                 idAllocator,
                 plannerContext,
                 statsCalculator,
@@ -629,7 +630,7 @@ public class SqlQueryExecution
                             adaptivePlanOptimizers,
                             planFragmenter,
                             forceSingleNodeQuery,
-                            new PlanSanityChecker(forceSingleNodeQuery),
+                            forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER,
                             stateMachine.getWarningCollector(),
                             planOptimizersStatsCollector,
                             tableStatsProvider),

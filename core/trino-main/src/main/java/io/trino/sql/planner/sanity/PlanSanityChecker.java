@@ -29,10 +29,11 @@ import static io.trino.sql.planner.planprinter.PlanPrinter.textLogicalPlan;
 public final class PlanSanityChecker
 {
     public static final PlanSanityChecker DISTRIBUTED_PLAN_SANITY_CHECKER = new PlanSanityChecker(false);
+    public static final PlanSanityChecker SINGLE_NODE_PLAN_SANITY_CHECKER = new PlanSanityChecker(true);
 
     private final Multimap<Stage, Checker> checkers;
 
-    public PlanSanityChecker(boolean forceSingleNode)
+    private PlanSanityChecker(boolean forceSingleNode)
     {
         checkers = ImmutableListMultimap.<Stage, Checker>builder()
                 .putAll(
