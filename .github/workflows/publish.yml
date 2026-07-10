@@ -68,5 +68,5 @@ jobs:
             -Dair.check.skip-all \
             -Dgib.disable \
             -am \
-            -pl :trino-iceberg,:trino-ssh-tunnel,:starburst-events-model \
+            -pl :trino-iceberg,:trino-ssh-tunnel,:starburst-events-model,:icehouse-io,:icehouse-catalog,:starburst-table-maintenance \
             -Drevision="${TRINO_VERSION}"
