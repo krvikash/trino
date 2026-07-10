@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.substitution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.metadata.MaterializedViewDefinition;
 import io.trino.metadata.Metadata;
@@ -33,6 +34,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalLong;
+import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.SELECT_COLUMN;
@@ -129,6 +131,16 @@ public abstract class AbstractIcebergMvSubstitutionTest
 
     private MaterializedResultWithPlan assertSubstituted(Session session, String query, String baseTableName, CatalogSchemaTableName mvName, String... expectedNotSubstitutedTables)
     {
+        return assertSubstituted(session, query, baseTableName, Set.of(mvName), expectedNotSubstitutedTables);
+    }
+
+    private MaterializedResultWithPlan assertSubstituted(
+            Session session,
+            String query,
+            String baseTableName,
+            Set<CatalogSchemaTableName> materializedViews,
+            String... expectedNotSubstitutedTables)
+    {
         MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
         List<CatalogSchemaTableName> scannedTableNames = getScannedTableNames(result);
 
@@ -147,11 +159,17 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     .contains(expectedNotSubstitutedTables);
         }
 
-        MaterializedViewDefinition materializedView = getMaterializedViewDefinition(session, mvName);
+        List<String> storageTableNames = materializedViews.stream()
+                .map(mvName -> getMaterializedViewDefinition(session, mvName)
+                        .getStorageTable()
+                        .orElseThrow()
+                        .getSchemaTableName()
+                        .getTableName())
+                .collect(toImmutableList());
         assertThat(scannedTableNames)
                 .extracting(table -> table.getSchemaTableName().getTableName())
                 .as("Expected at least one scan on MV storage table")
-                .contains(materializedView.getStorageTable().orElseThrow().getSchemaTableName().getTableName());
+                .containsAnyElementsOf(storageTableNames);
 
         return result;
     }
@@ -667,7 +685,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
 
             Session session = sessionWithSubstitution();
             // Either MV could serve this query
-            assertSubstituted(session, "SELECT orderkey, custkey FROM orders", "orders", mvFull);
+            assertSubstituted(session, "SELECT orderkey, custkey FROM orders", "orders", ImmutableSet.of(mvFull, mvPartial));
             assertSameResults(session, "SELECT orderkey, custkey FROM orders");
         }
         finally {
