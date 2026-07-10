@@ -310,7 +310,6 @@ import static io.trino.sql.newir.FormatOptions.TESTING_FORMAT_OPTIONS;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static io.trino.sql.planner.planprinter.PlanPrinter.textLogicalPlan;
-import static io.trino.sql.planner.sanity.PlanSanityChecker.DISTRIBUTED_PLAN_SANITY_CHECKER;
 import static io.trino.sql.planner.sanity.PlanSanityChecker.SINGLE_NODE_PLAN_SANITY_CHECKER;
 import static io.trino.sql.testing.TreeAssertions.assertFormattedSql;
 import static io.trino.testing.TestingDirectTrinoClient.toMaterializedRows;
@@ -520,7 +519,7 @@ public class PlanTester
         ConsistentHashingAddressProvider consistentHashingAddressProvider = new ConsistentHashingAddressProvider(nodeManager, new ConsistentHashingAddressProviderConfig());
         NodeScheduler nodeScheduler = new NodeScheduler(new UniformNodeSelectorFactory(CURRENT_NODE, nodeManager, nodeSchedulerConfig, new NodeTaskMap(finalizerService), consistentHashingAddressProvider));
         this.sessionPropertyManager = createSessionPropertyManager(catalogManager, taskManagerConfig, cacheConfig, optimizerConfig);
-        this.nodePartitioningManager = new NodePartitioningManager(nodeScheduler, createNodePartitioningProvider(catalogManager), optimizerConfig);
+        this.nodePartitioningManager = new NodePartitioningManager(nodeScheduler, createNodePartitioningProvider(catalogManager));
         this.partitionFunctionProvider = new PartitionFunctionProvider(hashCompiler, createNodePartitioningProvider(catalogManager));
         TableProceduresRegistry tableProceduresRegistry = new TableProceduresRegistry(createTableProceduresProvider(catalogManager));
         this.schemaPropertyManager = createSchemaPropertyManager(catalogManager);
@@ -1031,30 +1030,29 @@ public class PlanTester
 
     public Plan createPlan(Session session, @Language("SQL") String sql)
     {
-        return createPlan(session, sql, getPlanOptimizers(true), getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, NOOP, createPlanOptimizersStatsCollector());
+        return createPlan(session, sql, getPlanOptimizers(), getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, true, NOOP, createPlanOptimizersStatsCollector());
     }
 
     public Plan createPlan(Session session, @Language("SQL") String sql, LogicalPlanner.Stage stage, boolean forceSingleNode, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        return createPlan(session, sql, getPlanOptimizers(forceSingleNode), getAlternativeOptimizers(), stage, warningCollector, planOptimizersStatsCollector);
+        return createPlan(session, sql, getPlanOptimizers(), getAlternativeOptimizers(), stage, forceSingleNode, warningCollector, planOptimizersStatsCollector);
     }
 
-    public List<PlanOptimizer> getPlanOptimizers(boolean forceSingleNode)
+    public List<PlanOptimizer> getPlanOptimizers()
     {
-        return getPlanOptimizersFactory(forceSingleNode).getPlanOptimizers();
+        return getPlanOptimizersFactory().getPlanOptimizers();
     }
 
     public List<AdaptivePlanOptimizer> getAdaptivePlanOptimizers()
     {
-        return getPlanOptimizersFactory(false).getAdaptivePlanOptimizers();
+        return getPlanOptimizersFactory().getAdaptivePlanOptimizers();
     }
 
-    public PlanOptimizersFactory getPlanOptimizersFactory(boolean forceSingleNode)
+    public PlanOptimizersFactory getPlanOptimizersFactory()
     {
         return new PlanOptimizers(
                 plannerContext,
                 taskManagerConfig,
-                forceSingleNode,
                 splitManager,
                 pageSourceManager,
                 statsCalculator,
@@ -1081,12 +1079,17 @@ public class PlanTester
 
     public Plan createPlan(Session session, @Language("SQL") String sql, List<PlanOptimizer> optimizers, List<PlanOptimizer> alternativeOptimizers, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        return createPlan(session, sql, optimizers, alternativeOptimizers, OPTIMIZED_AND_VALIDATED, warningCollector, planOptimizersStatsCollector);
+        return createPlan(session, sql, optimizers, alternativeOptimizers, OPTIMIZED_AND_VALIDATED, false, warningCollector, planOptimizersStatsCollector);
     }
 
     public Plan createPlan(Session session, @Language("SQL") String sql, List<PlanOptimizer> optimizers, List<PlanOptimizer> alternativeOptimizers, LogicalPlanner.Stage stage, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        return createPlan(session, sql, optimizers, alternativeOptimizers, stage, warningCollector, planOptimizersStatsCollector, false).oldIrPlan();
+        return createPlan(session, sql, optimizers, alternativeOptimizers, stage, false, warningCollector, planOptimizersStatsCollector);
+    }
+
+    public Plan createPlan(Session session, @Language("SQL") String sql, List<PlanOptimizer> optimizers, List<PlanOptimizer> alternativeOptimizers, LogicalPlanner.Stage stage, boolean forceSingleNode, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
+    {
+        return createPlan(session, sql, optimizers, alternativeOptimizers, stage, forceSingleNode, warningCollector, planOptimizersStatsCollector, false).oldIrPlan();
     }
 
     public PlanningResult createPlan(
@@ -1095,6 +1098,7 @@ public class PlanTester
             List<PlanOptimizer> optimizers,
             List<PlanOptimizer> alternativeOptimizers,
             LogicalPlanner.Stage stage,
+            boolean forceSingleNode,
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
             boolean reuseCommonSubqueriesAllowed)
@@ -1120,7 +1124,7 @@ public class PlanTester
                 session,
                 optimizers,
                 alternativeOptimizers,
-                DISTRIBUTED_PLAN_SANITY_CHECKER,
+                forceSingleNode,
                 idAllocator,
                 getPlannerContext(),
                 statsCalculator,

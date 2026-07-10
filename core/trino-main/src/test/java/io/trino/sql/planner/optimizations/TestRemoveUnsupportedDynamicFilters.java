@@ -478,6 +478,7 @@ public class TestRemoveUnsupportedDynamicFilters
                     root,
                     new PlanOptimizer.Context(
                             session,
+                            false,
                             new SymbolAllocator(),
                             new PlanNodeIdAllocator(),
                             WarningCollector.NOOP,

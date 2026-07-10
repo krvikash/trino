@@ -362,9 +362,10 @@ public class TestMaterializedViews
             planTester.createPlan(
                     transactionSession,
                     sql,
-                    planTester.getPlanOptimizers(true),
+                    planTester.getPlanOptimizers(),
                     planTester.getAlternativeOptimizers(),
                     OPTIMIZED_AND_VALIDATED,
+                    true,
                     NOOP,
                     createPlanOptimizersStatsCollector());
             return transactionSession.getQueryId().toString();
@@ -466,9 +467,10 @@ public class TestMaterializedViews
             planTester.createPlan(
                     transactionSession,
                     "REFRESH MATERIALIZED VIEW " + matViewTable,
-                    planTester.getPlanOptimizers(true),
+                    planTester.getPlanOptimizers(),
                     planTester.getAlternativeOptimizers(),
                     OPTIMIZED_AND_VALIDATED,
+                    true,
                     NOOP,
                     createPlanOptimizersStatsCollector());
             return transactionSession.getQueryId().toString();

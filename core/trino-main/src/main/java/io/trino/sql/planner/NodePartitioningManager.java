@@ -65,17 +65,14 @@ public class NodePartitioningManager
 {
     private final NodeScheduler nodeScheduler;
     private final CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider;
-    private final boolean forceSingleNodeQuery;
 
     @Inject
     public NodePartitioningManager(
             NodeScheduler nodeScheduler,
-            CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider,
-            OptimizerConfig optimizerConfig)
+            CatalogServiceProvider<ConnectorNodePartitioningProvider> partitioningProvider)
     {
         this.nodeScheduler = requireNonNull(nodeScheduler, "nodeScheduler is null");
         this.partitioningProvider = requireNonNull(partitioningProvider, "partitioningProvider is null");
-        this.forceSingleNodeQuery = requireNonNull(optimizerConfig, "optimizerConfig is null").isForceSingleNodeQuery();
     }
 
     public NodePartitionMap getNodePartitioningMap(Session session, PartitioningHandle partitioningHandle, int partitionCount)
@@ -211,7 +208,7 @@ public class NodePartitioningManager
         return OptionalInt.of(getDefaultBucketCount(session));
     }
 
-    public BucketNodeMap getBucketNodeMap(Session session, PartitioningHandle partitioningHandle, int partitionCount)
+    public BucketNodeMap getBucketNodeMap(Session session, PartitioningHandle partitioningHandle, boolean forceSingleNodeQuery, int partitionCount)
     {
         if (forceSingleNodeQuery && partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
             // In single-node-query mode every plan is a single fragment and may have a SystemPartitioningHandle

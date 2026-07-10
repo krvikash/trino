@@ -523,7 +523,7 @@ public class TestCommonSubqueriesExtractor
                 .build();
         PlanTester planTester = getPlanTester();
         return planTester.inTransaction(tpchSession, session -> {
-            Plan plan = planTester.createPlan(session, query, planTester.getPlanOptimizers(forceSingleNode), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, WarningCollector.NOOP, createPlanOptimizersStatsCollector());
+            Plan plan = planTester.createPlan(session, query, planTester.getPlanOptimizers(), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, forceSingleNode, WarningCollector.NOOP, createPlanOptimizersStatsCollector());
             // metadata.getCatalogHandle() registers the catalog for the transaction
             session.getCatalog().ifPresent(catalog -> getPlanTester().getPlannerContext().getMetadata().getCatalogHandle(session, catalog));
             SymbolAllocator symbolAllocator = new SymbolAllocator(ImmutableSet.<Symbol>builder()

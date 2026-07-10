@@ -154,6 +154,7 @@ public class TestUnaliasSymbolReferences
                     plan,
                     new PlanOptimizer.Context(
                             session,
+                            false,
                             symbolAllocator,
                             idAllocator,
                             WarningCollector.NOOP,

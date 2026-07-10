@@ -131,7 +131,7 @@ public class BenchmarkPlanner
     public List<Plan> plan(BenchmarkData benchmarkData)
     {
         PlanTester planTester = benchmarkData.planTester;
-        List<PlanOptimizer> planOptimizers = planTester.getPlanOptimizers(false);
+        List<PlanOptimizer> planOptimizers = planTester.getPlanOptimizers();
         List<PlanOptimizer> alternativeOptimizers = planTester.getAlternativeOptimizers();
         PlanOptimizersStatsCollector planOptimizersStatsCollector = createPlanOptimizersStatsCollector();
         return planTester.inTransaction(transactionSession -> benchmarkData.queries.getQueries().stream()

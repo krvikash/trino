@@ -241,7 +241,7 @@ public abstract class BaseCostBasedPlanTest
         try {
             return getPlanTester().inTransaction(transactionSession -> {
                 PlanTester planTester = getPlanTester();
-                Plan plan = planTester.createPlan(transactionSession, query, planTester.getPlanOptimizers(false), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, NOOP, createPlanOptimizersStatsCollector());
+                Plan plan = planTester.createPlan(transactionSession, query, planTester.getPlanOptimizers(), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, false, NOOP, createPlanOptimizersStatsCollector());
                 JoinOrderPrinter joinOrderPrinter = new JoinOrderPrinter(transactionSession);
                 plan.getRoot().accept(joinOrderPrinter, 0);
                 return joinOrderPrinter.result();

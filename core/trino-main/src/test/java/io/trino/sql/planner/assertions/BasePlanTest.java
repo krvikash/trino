@@ -145,26 +145,26 @@ public class BasePlanTest
 
     protected void assertPlan(@Language("SQL") String sql, LogicalPlanner.Stage stage, PlanMatchPattern pattern)
     {
-        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers(true);
+        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers();
 
-        assertPlan(sql, stage, pattern, optimizers);
+        assertPlan(sql, stage, pattern, optimizers, true);
     }
 
     protected void assertPlan(@Language("SQL") String sql, PlanMatchPattern pattern, List<PlanOptimizer> optimizers)
     {
-        assertPlan(sql, OPTIMIZED, pattern, optimizers);
+        assertPlan(sql, OPTIMIZED, pattern, optimizers, false);
     }
 
     protected void assertPlan(@Language("SQL") String sql, LogicalPlanner.Stage stage, PlanMatchPattern pattern, Predicate<PlanOptimizer> optimizerPredicate)
     {
-        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers(true).stream()
+        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers().stream()
                 .filter(optimizerPredicate)
                 .collect(toList());
 
-        assertPlan(sql, stage, pattern, optimizers);
+        assertPlan(sql, stage, pattern, optimizers, true);
     }
 
-    protected void assertPlan(@Language("SQL") String sql, LogicalPlanner.Stage stage, PlanMatchPattern pattern, List<PlanOptimizer> optimizers)
+    protected void assertPlan(@Language("SQL") String sql, LogicalPlanner.Stage stage, PlanMatchPattern pattern, List<PlanOptimizer> optimizers, boolean forceSingleNode)
     {
         try {
             planTester.inTransaction(transactionSession -> {
@@ -176,6 +176,7 @@ public class BasePlanTest
                         optimizers,
                         alternativeOptimizers,
                         stage,
+                        forceSingleNode,
                         NOOP,
                         createPlanOptimizersStatsCollector());
                 PlanAssert.assertPlan(transactionSession, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), planTester.getStatsCalculator(), actualPlan, pattern);
@@ -214,7 +215,7 @@ public class BasePlanTest
                                 .addAll(columnPruningRules(metadata))
                                 .build()));
 
-        assertPlan(sql, OPTIMIZED, pattern, optimizers);
+        assertPlan(sql, OPTIMIZED, pattern, optimizers, false);
     }
 
     protected void assertPlanWithSession(@Language("SQL") String sql, Session session, boolean forceSingleNode, PlanMatchPattern pattern)
@@ -224,9 +225,10 @@ public class BasePlanTest
                 Plan actualPlan = planTester.createPlan(
                         transactionSession,
                         sql,
-                        planTester.getPlanOptimizers(forceSingleNode),
+                        planTester.getPlanOptimizers(),
                         planTester.getAlternativeOptimizers(),
                         OPTIMIZED_AND_VALIDATED,
+                        forceSingleNode,
                         NOOP,
                         createPlanOptimizersStatsCollector());
                 PlanAssert.assertPlan(transactionSession, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), planTester.getStatsCalculator(), actualPlan, pattern);
@@ -246,9 +248,10 @@ public class BasePlanTest
                 Plan actualPlan = planTester.createPlan(
                         transactionSession,
                         sql,
-                        planTester.getPlanOptimizers(forceSingleNode),
+                        planTester.getPlanOptimizers(),
                         planTester.getAlternativeOptimizers(),
                         OPTIMIZED_AND_VALIDATED,
+                        forceSingleNode,
                         NOOP,
                         createPlanOptimizersStatsCollector());
                 PlanAssert.assertPlan(transactionSession, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), planTester.getStatsCalculator(), actualPlan, pattern);
@@ -289,9 +292,10 @@ public class BasePlanTest
                     planTester.createPlan(
                             transactionSession,
                             sql,
-                            planTester.getPlanOptimizers(forceSingleNode),
+                            planTester.getPlanOptimizers(),
                             planTester.getAlternativeOptimizers(),
                             stage,
+                            forceSingleNode,
                             NOOP,
                             createPlanOptimizersStatsCollector()));
         }
@@ -312,9 +316,10 @@ public class BasePlanTest
                 Plan plan = planTester.createPlan(
                         transactionSession,
                         sql,
-                        planTester.getPlanOptimizers(forceSingleNode),
+                        planTester.getPlanOptimizers(),
                         planTester.getAlternativeOptimizers(),
                         stage,
+                        forceSingleNode,
                         NOOP,
                         createPlanOptimizersStatsCollector());
                 return planTester.createSubPlans(transactionSession, plan, forceSingleNode);
@@ -334,7 +339,7 @@ public class BasePlanTest
     {
         try {
             planTester.inTransaction(session, transactionSession -> {
-                Plan plan = planTester.createPlan(transactionSession, sql, planTester.getPlanOptimizers(false), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, WarningCollector.NOOP, createPlanOptimizersStatsCollector());
+                Plan plan = planTester.createPlan(transactionSession, sql, planTester.getPlanOptimizers(), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, false, WarningCollector.NOOP, createPlanOptimizersStatsCollector());
                 SubPlan subPlan = planTester.createSubPlans(transactionSession, plan, false);
                 SubPlan adaptivePlan = planTester.createAdaptivePlan(transactionSession, subPlan, optimizers, WarningCollector.NOOP, createPlanOptimizersStatsCollector(), createRuntimeInfoProvider(subPlan, completeStageStats));
                 String formattedPlan = textDistributedPlan(adaptivePlan, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), transactionSession, false, UNKNOWN);

@@ -261,6 +261,7 @@ public class AdaptivePlanner
                     result.plan(),
                     new PlanOptimizer.Context(
                             session,
+                            forceSingleNodeQuery,
                             symbolAllocator,
                             idAllocator,
                             warningCollector,

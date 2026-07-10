@@ -23,10 +23,7 @@ import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.PlanFragmenter;
 import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.sanity.ForAlternatives;
-import io.trino.sql.planner.sanity.PlanSanityChecker;
 
-import static io.trino.sql.planner.sanity.PlanSanityChecker.DISTRIBUTED_PLAN_SANITY_CHECKER;
-import static io.trino.sql.planner.sanity.PlanSanityChecker.SINGLE_NODE_PLAN_SANITY_CHECKER;
 import static java.util.Objects.requireNonNull;
 
 public class QueryExplainerFactory
@@ -39,7 +36,6 @@ public class QueryExplainerFactory
     private final CostCalculator costCalculator;
     private final NodeVersion version;
     private final boolean forceSingleNodeQuery;
-    private final PlanSanityChecker planSanityChecker;
     private final FormatOptions formatOptions;
 
     @Inject
@@ -62,7 +58,6 @@ public class QueryExplainerFactory
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
         this.version = requireNonNull(version, "version is null");
         this.forceSingleNodeQuery = requireNonNull(optimizerConfig, "optimizerConfig is null").isForceSingleNodeQuery();
-        this.planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
         this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
@@ -78,7 +73,6 @@ public class QueryExplainerFactory
                 costCalculator,
                 version,
                 forceSingleNodeQuery,
-                planSanityChecker,
                 formatOptions);
     }
 }

@@ -272,6 +272,7 @@ import io.trino.sql.planner.optimizations.MetadataQueryOptimizer;
 import io.trino.sql.planner.optimizations.OptimizerStats;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.optimizations.PredicatePushDown;
+import io.trino.sql.planner.optimizations.SkipForSingleNodeOptimizer;
 import io.trino.sql.planner.optimizations.StatsRecordingPlanOptimizer;
 import io.trino.sql.planner.optimizations.TransformQuantifiedComparisonApplyToCorrelatedJoin;
 import io.trino.sql.planner.optimizations.UnaliasSymbolReferences;
@@ -301,49 +302,12 @@ public class PlanOptimizers
     public PlanOptimizers(
             PlannerContext plannerContext,
             TaskManagerConfig taskManagerConfig,
-            OptimizerConfig optimizerConfig,
             SplitManager splitManager,
             PageSourceManager pageSourceManager,
             StatsCalculator statsCalculator,
             ScalarStatsCalculator scalarStatsCalculator,
             CostCalculator costCalculatorWithoutEstimatedExchanges,
             @EstimatedExchanges CostCalculator costCalculatorWithEstimatedExchanges,
-            CostComparator costComparator,
-            TaskCountEstimator taskCountEstimator,
-            Optional<MaterializationIndex> materializationIndex,
-            SubstitutionMetadata substitutionMetadata,
-            AccessControl accessControl,
-            NodePartitioningManager nodePartitioningManager,
-            RuleStatsRecorder ruleStats)
-    {
-        this(plannerContext,
-                taskManagerConfig,
-                optimizerConfig.isForceSingleNodeQuery(),
-                splitManager,
-                pageSourceManager,
-                statsCalculator,
-                scalarStatsCalculator,
-                costCalculatorWithoutEstimatedExchanges,
-                costCalculatorWithEstimatedExchanges,
-                costComparator,
-                taskCountEstimator,
-                materializationIndex,
-                substitutionMetadata,
-                accessControl,
-                nodePartitioningManager,
-                ruleStats);
-    }
-
-    public PlanOptimizers(
-            PlannerContext plannerContext,
-            TaskManagerConfig taskManagerConfig,
-            boolean forceSingleNode,
-            SplitManager splitManager,
-            PageSourceManager pageSourceManager,
-            StatsCalculator statsCalculator,
-            ScalarStatsCalculator scalarStatsCalculator,
-            CostCalculator costCalculatorWithoutEstimatedExchanges,
-            CostCalculator costCalculatorWithEstimatedExchanges,
             CostComparator costComparator,
             TaskCountEstimator taskCountEstimator,
             Optional<MaterializationIndex> materializationIndex,
@@ -987,22 +951,22 @@ public class PlanOptimizers
                         .add(new DetermineTableScanNodePartitioning(metadata, nodePartitioningManager, taskCountEstimator))
                         .build()));
 
-        if (!forceSingleNode) {
-            builder.add(
-                    new IterativeOptimizer(
-                            "PushTableWriteThroughUnion",
-                            plannerContext,
-                            ruleStats,
-                            statsCalculator,
-                            costCalculator,
-                            ImmutableSet.of(new PushTableWriteThroughUnion()))); // Must run before AddExchanges
-            // unalias symbols before adding exchanges to use same partitioning symbols in joins, aggregations and other
-            // operators that require node partitioning
-            builder.add(new UnaliasSymbolReferences());
-            builder.add(new StatsRecordingPlanOptimizer(optimizerStats, new AddExchanges(plannerContext, statsCalculator, taskCountEstimator, nodePartitioningManager)));
-            // It can only run after AddExchanges since it estimates the hash partition count for all remote exchanges
-            builder.add(new StatsRecordingPlanOptimizer(optimizerStats, new DeterminePartitionCount(statsCalculator, taskCountEstimator)));
-        }
+        builder.add(
+                new SkipForSingleNodeOptimizer(
+                        new IterativeOptimizer(
+                                "PushTableWriteThroughUnion",
+                                plannerContext,
+                                ruleStats,
+                                statsCalculator,
+                                costCalculator,
+                                ImmutableSet.of(new PushTableWriteThroughUnion())))); // Must run before AddExchanges
+        // unalias symbols before adding exchanges to use same partitioning symbols in joins, aggregations and other
+        // operators that require node partitioning
+        builder.add(new SkipForSingleNodeOptimizer(new UnaliasSymbolReferences()));
+        builder.add(new SkipForSingleNodeOptimizer(
+                new StatsRecordingPlanOptimizer(optimizerStats, new AddExchanges(plannerContext, statsCalculator, taskCountEstimator, nodePartitioningManager))));
+        // It can only run after AddExchanges since it estimates the hash partition count for all remote exchanges
+        builder.add(new SkipForSingleNodeOptimizer(new StatsRecordingPlanOptimizer(optimizerStats, new DeterminePartitionCount(statsCalculator, taskCountEstimator))));
 
         // use cost calculator without estimated exchanges after AddExchanges
         costCalculator = costCalculatorWithoutEstimatedExchanges;

@@ -30,6 +30,7 @@ public interface PlanOptimizer
 
     record Context(
             Session session,
+            boolean forceSingleNodeQuery,
             SymbolAllocator symbolAllocator,
             PlanNodeIdAllocator idAllocator,
             WarningCollector warningCollector,
@@ -39,6 +40,7 @@ public interface PlanOptimizer
     {
         public Context(
                 Session session,
+                boolean forceSingleNodeQuery,
                 SymbolAllocator symbolAllocator,
                 PlanNodeIdAllocator idAllocator,
                 WarningCollector warningCollector,
@@ -47,6 +49,7 @@ public interface PlanOptimizer
                 RuntimeInfoProvider runtimeInfoProvider)
         {
             this.session = requireNonNull(session, "session is null");
+            this.forceSingleNodeQuery = forceSingleNodeQuery;
             this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
             this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
             this.warningCollector = requireNonNull(warningCollector, "warningCollector is null");

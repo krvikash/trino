@@ -346,7 +346,7 @@ public abstract class AbstractPredicatePushdownTest
     public void testFilteredSelectFromPartitionedTable()
     {
         // use all optimizers, including AddExchanges
-        List<PlanOptimizer> allOptimizers = getPlanTester().getPlanOptimizers(false);
+        List<PlanOptimizer> allOptimizers = getPlanTester().getPlanOptimizers();
 
         assertPlan(
                 "SELECT DISTINCT orderstatus FROM orders",

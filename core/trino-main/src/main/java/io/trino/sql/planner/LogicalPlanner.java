@@ -180,6 +180,7 @@ import static io.trino.sql.planner.plan.AggregationNode.singleGroupingSet;
 import static io.trino.sql.planner.plan.TableWriterNode.CreateReference;
 import static io.trino.sql.planner.plan.TableWriterNode.InsertReference;
 import static io.trino.sql.planner.sanity.PlanSanityChecker.DISTRIBUTED_PLAN_SANITY_CHECKER;
+import static io.trino.sql.planner.sanity.PlanSanityChecker.SINGLE_NODE_PLAN_SANITY_CHECKER;
 import static io.trino.tracing.ScopedSpan.scopedSpan;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -208,6 +209,7 @@ public class LogicalPlanner
     private final boolean cacheEnabled;
     private final CacheCommonSubqueries cacheCommonSubqueries;
     private final WarningCollector warningCollector;
+    private final boolean forceSingleNodeQuery;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final CachingTableStatsProvider tableStatsProvider;
     private final FormatOptions formatOptions;
@@ -225,14 +227,14 @@ public class LogicalPlanner
             CachingTableStatsProvider tableStatsProvider,
             FormatOptions formatOptions)
     {
-        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_PLAN_SANITY_CHECKER, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions);
+        this(session, planOptimizers, alternativeOptimizers, false, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions);
     }
 
     public LogicalPlanner(
             Session session,
             List<PlanOptimizer> planOptimizers,
             List<PlanOptimizer> alternativeOptimizers,
-            PlanSanityChecker planSanityChecker,
+            boolean forceSingleNodeQuery,
             PlanNodeIdAllocator idAllocator,
             PlannerContext plannerContext,
             StatsCalculator statsCalculator,
@@ -245,7 +247,8 @@ public class LogicalPlanner
         this.session = requireNonNull(session, "session is null");
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
         this.alternativeOptimizers = requireNonNull(alternativeOptimizers, "alternativeOptimizers is null");
-        this.planSanityChecker = requireNonNull(planSanityChecker, "planSanityChecker is null");
+        this.planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
+        this.forceSingleNodeQuery = forceSingleNodeQuery;
         this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.metadata = plannerContext.getMetadata();
@@ -302,7 +305,7 @@ public class LogicalPlanner
         if (stage.ordinal() >= OPTIMIZED.ordinal()) {
             try (var _ = scopedSpan(plannerContext.getTracer(), "optimizer")) {
                 for (PlanOptimizer optimizer : planOptimizers) {
-                    root = runOptimizer(root, tableStatsProvider, optimizer);
+                    root = runOptimizer(root, tableStatsProvider, optimizer, forceSingleNodeQuery);
                 }
             }
         }
@@ -332,7 +335,7 @@ public class LogicalPlanner
         if (useSubPlanAlternatives) {
             for (PlanOptimizer optimizer : alternativeOptimizers) {
                 try (var _ = scopedSpan(plannerContext.getTracer(), "alternative-optimizer")) {
-                    root = runOptimizer(root, tableStatsProvider, optimizer);
+                    root = runOptimizer(root, tableStatsProvider, optimizer, forceSingleNodeQuery);
                 }
             }
         }
@@ -371,14 +374,14 @@ public class LogicalPlanner
                 LOG.warn(e, "Exception thrown during CTE reuse, falling back to old IR plan");
             }
         }
-        return new PlanningResult(plan, optimizedProgram);
+        return new PlanningResult(plan, optimizedProgram, forceSingleNodeQuery);
     }
 
-    private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer)
+    private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer, boolean forceSingleNode)
     {
         PlanNode result;
         try (var _ = optimizerSpan(optimizer)) {
-            result = optimizer.optimize(root, new PlanOptimizer.Context(session, symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, RuntimeInfoProvider.noImplementation()));
+            result = optimizer.optimize(root, new PlanOptimizer.Context(session, forceSingleNode, symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, RuntimeInfoProvider.noImplementation()));
         }
         if (result == null) {
             throw new NullPointerException(optimizer.getClass().getName() + " returned a null plan");
@@ -1288,7 +1291,7 @@ public class LogicalPlanner
      * @param oldIrPlan -- the plan based on the old IR
      * @param newIrProgram -- the plan rewritten to the new IR, and optionally further optimized by CTE reuse
      */
-    public record PlanningResult(Plan oldIrPlan, Optional<Program> newIrProgram)
+    public record PlanningResult(Plan oldIrPlan, Optional<Program> newIrProgram, boolean forceSingleNodeQuery)
     {
         public PlanningResult
         {

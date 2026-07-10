@@ -119,9 +119,10 @@ public class TestCteReuseTpchPlan
                 LogicalPlanner.PlanningResult planningResult = planTester.createPlan(
                         transactionSession,
                         query,
-                        planTester.getPlanOptimizers(false),
+                        planTester.getPlanOptimizers(),
                         planTester.getAlternativeOptimizers(),
                         OPTIMIZED_AND_VALIDATED,
+                        false,
                         NOOP,
                         createPlanOptimizersStatsCollector(),
                         true);

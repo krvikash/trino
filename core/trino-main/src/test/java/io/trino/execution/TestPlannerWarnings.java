@@ -120,7 +120,7 @@ public class TestPlannerWarnings
                     alternativeOptimizers = emptyList();
                 }
                 else {
-                    planOptimizers = planTester.getPlanOptimizers(false);
+                    planOptimizers = planTester.getPlanOptimizers();
                     alternativeOptimizers = planTester.getAlternativeOptimizers();
                 }
                 planTester.createPlan(transactionSession, sql, planOptimizers, alternativeOptimizers, OPTIMIZED, warningCollector, planOptimizersStatsCollector);
