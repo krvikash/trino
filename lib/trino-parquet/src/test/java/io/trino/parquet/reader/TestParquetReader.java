@@ -60,8 +60,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTestUtils.createArrayBlock;
@@ -348,6 +350,95 @@ public class TestParquetReader
             SourcePage nextPage = reader.nextPage();
             assertThat(blockValues(nextPage.getBlock(1)))
                     .startsWith((firstRow + 8) * 10, (firstRow + 9) * 10, (firstRow + 10) * 10);
+        }
+    }
+
+    @Test
+    public void testSelectRange()
+            throws IOException
+    {
+        assertSelection(page -> page.selectPositions(0, 4), 0, 1, 2, 3);
+        assertSelection(page -> page.selectPositions(5, 3), 5, 6, 7);
+        assertSelection(page -> page.selectPositions(0, 0));
+        assertSelection(
+                page -> {
+                    page.selectPositions(2, 5);
+                    page.selectPositions(new int[] {0, 3}, 0, 2);
+                },
+                2,
+                5);
+        assertSelection(
+                page -> {
+                    page.selectPositions(new int[] {1, 3, 5, 7}, 0, 4);
+                    page.selectPositions(1, 2);
+                },
+                3,
+                5);
+        assertSelection(
+                page -> {
+                    page.selectPositions(1, 6);
+                    page.selectPositions(2, 3);
+                },
+                3,
+                4,
+                5);
+        assertSelection(
+                page -> assertThatThrownBy(() -> page.selectPositions(page.getPositionCount() - 1, 2))
+                        .isInstanceOf(IndexOutOfBoundsException.class),
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7);
+    }
+
+    // columnA has row number values and is loaded before the selection, columnB has row number * 10
+    private static void assertSelection(Consumer<SourcePage> selection, int... expectedPositions)
+            throws IOException
+    {
+        List<String> columnNames = ImmutableList.of("columna", "columnb");
+        List<Type> types = ImmutableList.of(BIGINT, BIGINT);
+        int rowCount = 100;
+        BlockBuilder columnA = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        BlockBuilder columnB = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        for (int i = 0; i < rowCount; i++) {
+            BIGINT.writeLong(columnA, i);
+            BIGINT.writeLong(columnB, i * 10L);
+        }
+        ParquetReaderOptions options = ParquetReaderOptions.defaultOptions();
+        ParquetDataSource dataSource = new TestingParquetDataSource(
+                writeParquetFile(
+                        ParquetWriterOptions.builder().build(),
+                        types,
+                        columnNames,
+                        ImmutableList.of(new Page(rowCount, columnA.build(), columnB.build()))),
+                options);
+        ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, Optional.empty());
+        try (ParquetReader reader = createParquetReaderWithRowNumbers(dataSource, parquetMetadata, options, types, columnNames, TupleDomain.all())) {
+            // batch sizes grow from 1, skip to the page with 8 positions
+            long firstRow = 0;
+            SourcePage page = reader.nextPage();
+            while (page.getPositionCount() < 8) {
+                firstRow += page.getPositionCount();
+                page = reader.nextPage();
+            }
+            assertThat(page.getPositionCount()).isEqualTo(8);
+            page.getBlock(0);
+            selection.accept(page);
+
+            long pageFirstRow = firstRow;
+            List<Long> expectedRows = Arrays.stream(expectedPositions)
+                    .mapToObj(position -> pageFirstRow + position)
+                    .collect(toImmutableList());
+            assertThat(page.getPositionCount()).isEqualTo(expectedPositions.length);
+            assertThat(blockValues(page.getBlock(0))).isEqualTo(expectedRows);
+            assertThat(blockValues(page.getBlock(1))).isEqualTo(expectedRows.stream()
+                    .map(row -> row * 10)
+                    .collect(toImmutableList()));
+            assertThat(blockValues(page.getBlock(2))).isEqualTo(expectedRows);
         }
     }
 
@@ -653,6 +744,56 @@ public class TestParquetReader
             assertThat(reader.getSelectedPositionsPushdownCount()).isOne();
             assertThat(reader.getSelectedPositionsFallbackCount()).isOne();
             assertThat(reader.getMetrics().getMetrics()).containsEntry(SELECTED_POSITIONS_PUSHDOWNS, new LongCount(1));
+        }
+    }
+
+    @Test
+    public void testSelectRangeReadsSelectively()
+            throws IOException
+    {
+        int rowCount = 4_096;
+        List<String> columnNames = ImmutableList.of("column");
+        List<Type> types = ImmutableList.of(BIGINT);
+        BlockBuilder values = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        for (int position = 0; position < rowCount; position++) {
+            BIGINT.writeLong(values, position);
+        }
+
+        ParquetDataSource dataSource = new TestingParquetDataSource(
+                writeParquetFile(
+                        ParquetWriterOptions.builder()
+                                .setMaxPageValueCount(rowCount)
+                                .build(),
+                        types,
+                        columnNames,
+                        ImmutableList.of(new Page(values.build()))),
+                ParquetReaderOptions.defaultOptions());
+        ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, Optional.empty());
+        try (ParquetReader reader = createParquetReader(dataSource, parquetMetadata, newSimpleAggregatedMemoryContext(), types, columnNames)) {
+            long firstRow = 0;
+            SourcePage page = reader.nextPage();
+            while (page.getPositionCount() < 1_024) {
+                firstRow += page.getPositionCount();
+                page = reader.nextPage();
+            }
+
+            page.selectPositions(0, 1_000);
+            long edgeFirstRow = firstRow;
+            Block block = page.getBlock(0);
+            assertThat(block).isNotInstanceOf(DictionaryBlock.class);
+            assertThat(blockValues(block)).containsExactlyElementsOf(
+                    IntStream.range(0, 1_000).mapToLong(position -> edgeFirstRow + position).boxed().toList());
+            assertThat(reader.getSelectedPositionsPushdownCount()).isZero();
+            assertThat(reader.getSelectedPositionsFallbackCount()).isOne();
+
+            firstRow += 1_024;
+            page = reader.nextPage();
+            page.selectPositions(400, 80);
+            long interiorFirstRow = firstRow;
+            assertThat(blockValues(page.getBlock(0))).containsExactlyElementsOf(
+                    IntStream.range(400, 480).mapToLong(position -> interiorFirstRow + position).boxed().toList());
+            assertThat(reader.getSelectedPositionsPushdownCount()).isOne();
+            assertThat(reader.getSelectedPositionsFallbackCount()).isOne();
         }
     }
 

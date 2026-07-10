@@ -507,6 +507,26 @@ public class ParquetReader
             resetSelectionTracking();
         }
 
+        @Override
+        public void selectPositions(int offset, int size)
+        {
+            selectedPositionsReadModes = null;
+            selectedPositions = selectedPositions.selectPositions(offset, size);
+            sizeInBytes = 0;
+            retainedSizeInBytes = shallowRetainedSizeInBytes();
+            for (int i = 0; i < blocks.length; i++) {
+                Block block = blocks[i];
+                if (block != null) {
+                    // loaded blocks already reflect the previous selection, so the incoming range applies to them directly
+                    block = block.getRegion(offset, size);
+                    sizeInBytes += block.getSizeInBytes();
+                    retainedSizeInBytes += block.getRetainedSizeInBytes();
+                    blocks[i] = block;
+                }
+            }
+            resetSelectionTracking();
+        }
+
         private void resetSelectionTracking()
         {
             unloadedSelectedColumns = countUnloadedColumns();
@@ -680,6 +700,9 @@ public class ParquetReader
             if (positions == null) {
                 return block;
             }
+            if (analysis.analyzed && analysis.strictlyAscending && analysis.selectedRunCount == 1) {
+                return block.getRegion(positions[positionsOffset], positionCount);
+            }
             return block.getPositions(positions, positionsOffset, positionCount);
         }
 
@@ -728,6 +751,27 @@ public class ParquetReader
             }
             checkFromIndexSize(offset, size, positions.length);
             return new SelectedPositions(originalPositionCount, size, positions, offset, new SelectionAnalysis());
+        }
+
+        @CheckReturnValue
+        public SelectedPositions selectPositions(int offset, int size)
+        {
+            checkFromIndexSize(offset, size, positionCount);
+            if (positions == null) {
+                if (size == positionCount) {
+                    return this;
+                }
+                // listed positions let the read mode choose a selective read for the range
+                int[] newPositions = new int[size];
+                for (int i = 0; i < size; i++) {
+                    newPositions[i] = offset + i;
+                }
+                SelectedPositions rangePositions = create(originalPositionCount, newPositions, 0, size);
+                rangePositions.analyze();
+                return rangePositions;
+            }
+            int[] newPositions = Arrays.copyOfRange(positions, positionsOffset + offset, positionsOffset + offset + size);
+            return create(originalPositionCount, newPositions, 0, size);
         }
 
         public SelectedPositions retainedCopy()
