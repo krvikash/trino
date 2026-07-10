@@ -1528,6 +1528,15 @@ public class TracingConnectorMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        Span span = startSpan("supportsSingleNodeExecution");
+        try (var ignored = scopedSpan(span)) {
+            return delegate.supportsSingleNodeExecution(session, tableHandle);
+        }
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         Span span = startSpan("getNewTableWriterScalingOptions", tableName);

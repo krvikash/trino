@@ -3123,6 +3123,18 @@ public final class MetadataManager
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(Session session, TableHandle tableHandle)
+    {
+        CatalogHandle catalogHandle = tableHandle.catalogHandle();
+        if (catalogHandle.getType().isInternal()) {
+            return false;
+        }
+        CatalogMetadata catalogMetadata = getCatalogMetadata(session, catalogHandle);
+        ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
+        return catalogMetadata.getMetadata(session).supportsSingleNodeExecution(connectorSession, tableHandle.connectorHandle());
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(Session session, QualifiedObjectName tableName, Map<String, Object> tableProperties)
     {
         CatalogMetadata catalogMetadata = getCatalogMetadataForWrite(session, tableName.catalogName());

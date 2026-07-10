@@ -1590,6 +1590,15 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        Span span = startSpan("supportsSingleNodeExecution", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.supportsSingleNodeExecution(session, tableHandle);
+        }
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

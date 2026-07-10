@@ -937,6 +937,13 @@ public interface Metadata
     boolean allowSplittingReadIntoMultipleSubQueries(Session session, TableHandle tableHandle);
 
     /**
+     * Whether the table can be queried in single-node execution mode, where the entire query
+     * runs on an arbitrary node. Returns false for tables whose data is only available on
+     * specific nodes.
+     */
+    boolean supportsSingleNodeExecution(Session session, TableHandle tableHandle);
+
+    /**
      * Returns writer scaling options for the specified table. This method is called when table handle is not available during CTAS.
      */
     WriterScalingOptions getNewTableWriterScalingOptions(Session session, QualifiedObjectName tableName, Map<String, Object> tableProperties);

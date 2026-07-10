@@ -1542,6 +1542,12 @@ public class DispatcherMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return proxiedConnectorMetadata.supportsSingleNodeExecution(session, tableHandle);
+    }
+
+    @Override
     public Optional<Type> getSupportedType(ConnectorSession session, Map<String, Object> map, Type type)
     {
         return proxiedConnectorMetadata.getSupportedType(session, map, type);

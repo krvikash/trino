@@ -125,6 +125,8 @@ import io.trino.sql.SessionPropertyResolver;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.analyzer.QueryExplainerFactory;
 import io.trino.sql.planner.AlternativesOptimizers;
+import io.trino.sql.planner.NodeExecutionStrategy;
+import io.trino.sql.planner.NodeExecutionStrategy.DynamicNodeExecutionStrategy;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerStatsMBeanExporter;
 import io.trino.sql.planner.PlanFragmenter;
@@ -370,6 +372,7 @@ public class CoordinatorModule
         binder.bind(PlanFragmenter.class).in(Scopes.SINGLETON);
         binder.bind(PlanOptimizersFactory.class).to(PlanOptimizers.class).in(Scopes.SINGLETON);
         binder.bind(PlanOptimizersFactory.class).annotatedWith(ForAlternatives.class).to(AlternativesOptimizers.class).in(Scopes.SINGLETON);
+        binder.bind(NodeExecutionStrategy.class).to(DynamicNodeExecutionStrategy.class).in(Scopes.SINGLETON);
 
         // Optimizer/Rule Stats exporter
         binder.bind(RuleStatsRecorder.class).in(Scopes.SINGLETON);

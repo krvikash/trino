@@ -172,6 +172,7 @@ import static io.trino.sql.ir.Comparison.Operator.GREATER_THAN_OR_EQUAL;
 import static io.trino.sql.ir.IrExpressions.ifExpression;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
+import static io.trino.sql.planner.NodeExecutionStrategy.DISTRIBUTED_EXECUTION;
 import static io.trino.sql.planner.PlanBuilder.newPlanBuilder;
 import static io.trino.sql.planner.QueryPlanner.visibleFields;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
@@ -199,7 +200,6 @@ public class LogicalPlanner
     private final Session session;
     private final List<PlanOptimizer> planOptimizers;
     private final List<PlanOptimizer> alternativeOptimizers;
-    private final PlanSanityChecker planSanityChecker;
     private final SymbolAllocator symbolAllocator = new SymbolAllocator();
     private final Metadata metadata;
     private final PlannerContext plannerContext;
@@ -209,7 +209,7 @@ public class LogicalPlanner
     private final boolean cacheEnabled;
     private final CacheCommonSubqueries cacheCommonSubqueries;
     private final WarningCollector warningCollector;
-    private final boolean forceSingleNodeQuery;
+    private final NodeExecutionStrategy nodeExecutionStrategy;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final CachingTableStatsProvider tableStatsProvider;
     private final FormatOptions formatOptions;
@@ -227,14 +227,14 @@ public class LogicalPlanner
             CachingTableStatsProvider tableStatsProvider,
             FormatOptions formatOptions)
     {
-        this(session, planOptimizers, alternativeOptimizers, false, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions);
+        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_EXECUTION, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions);
     }
 
     public LogicalPlanner(
             Session session,
             List<PlanOptimizer> planOptimizers,
             List<PlanOptimizer> alternativeOptimizers,
-            boolean forceSingleNodeQuery,
+            NodeExecutionStrategy nodeExecutionStrategy,
             PlanNodeIdAllocator idAllocator,
             PlannerContext plannerContext,
             StatsCalculator statsCalculator,
@@ -247,8 +247,7 @@ public class LogicalPlanner
         this.session = requireNonNull(session, "session is null");
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
         this.alternativeOptimizers = requireNonNull(alternativeOptimizers, "alternativeOptimizers is null");
-        this.planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
-        this.forceSingleNodeQuery = forceSingleNodeQuery;
+        this.nodeExecutionStrategy = requireNonNull(nodeExecutionStrategy, "nodeExecutionStrategy is null");
         this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.metadata = plannerContext.getMetadata();
@@ -281,6 +280,9 @@ public class LogicalPlanner
     public PlanningResult plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
     {
         checkState(reuseCommonSubqueriesAllowed || !isReuseCommonSubqueriesEnabled(session), "This context does not allow reuse_common_subqueries set to true.");
+
+        boolean forceSingleNodeQuery = nodeExecutionStrategy.shouldBeExecutedOnSingleNode(session, analysis);
+        PlanSanityChecker planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
 
         PlanNode root;
         try (var _ = scopedSpan(plannerContext.getTracer(), "plan")) {

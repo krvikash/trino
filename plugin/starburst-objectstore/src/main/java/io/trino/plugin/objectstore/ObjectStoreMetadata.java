@@ -1660,6 +1660,13 @@ public class ObjectStoreMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).supportsSingleNodeExecution(unwrap(tableType, session), tableHandle);
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         TableType tableType = tableType(tableProperties);

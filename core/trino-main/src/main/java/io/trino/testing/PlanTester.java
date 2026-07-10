@@ -218,6 +218,7 @@ import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.LocalExecutionPlanner.LocalExecutionPlan;
 import io.trino.sql.planner.LogicalPlanner;
 import io.trino.sql.planner.LogicalPlanner.PlanningResult;
+import io.trino.sql.planner.NodeExecutionStrategy.DynamicNodeExecutionStrategy;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.PartitionFunctionProvider;
@@ -308,6 +309,8 @@ import static io.trino.spiller.PartitioningSpillerFactory.unsupportedPartitionin
 import static io.trino.spiller.SingleStreamSpillerFactory.unsupportedSingleStreamSpillerFactory;
 import static io.trino.sql.newir.FormatOptions.TESTING_FORMAT_OPTIONS;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
+import static io.trino.sql.planner.NodeExecutionStrategy.DISTRIBUTED_EXECUTION;
+import static io.trino.sql.planner.NodeExecutionStrategy.SINGLE_NODE_EXECUTION;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static io.trino.sql.planner.planprinter.PlanPrinter.textLogicalPlan;
 import static io.trino.sql.planner.sanity.PlanSanityChecker.SINGLE_NODE_PLAN_SANITY_CHECKER;
@@ -1124,7 +1127,7 @@ public class PlanTester
                 session,
                 optimizers,
                 alternativeOptimizers,
-                forceSingleNode,
+                forceSingleNode ? SINGLE_NODE_EXECUTION : DISTRIBUTED_EXECUTION,
                 idAllocator,
                 getPlannerContext(),
                 statsCalculator,
@@ -1164,7 +1167,7 @@ public class PlanTester
                 statsCalculator,
                 costCalculator,
                 new NodeVersion("test"),
-                optimizerConfig,
+                new DynamicNodeExecutionStrategy(optimizerConfig, plannerContext.getMetadata()),
                 formatOptions);
     }
 

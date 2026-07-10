@@ -1707,6 +1707,15 @@ public class TracingMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(Session session, TableHandle tableHandle)
+    {
+        Span span = startSpan("supportsSingleNodeExecution", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.supportsSingleNodeExecution(session, tableHandle);
+        }
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(Session session, QualifiedObjectName tableName, Map<String, Object> tableProperties)
     {
         Span span = startSpan("getNewTableWriterScalingOptions", tableName);

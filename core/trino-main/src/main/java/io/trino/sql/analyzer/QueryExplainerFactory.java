@@ -19,7 +19,7 @@ import io.trino.cost.StatsCalculator;
 import io.trino.spi.NodeVersion;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.newir.FormatOptions;
-import io.trino.sql.planner.OptimizerConfig;
+import io.trino.sql.planner.NodeExecutionStrategy;
 import io.trino.sql.planner.PlanFragmenter;
 import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.sanity.ForAlternatives;
@@ -35,7 +35,7 @@ public class QueryExplainerFactory
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
     private final NodeVersion version;
-    private final boolean forceSingleNodeQuery;
+    private final NodeExecutionStrategy nodeExecutionStrategy;
     private final FormatOptions formatOptions;
 
     @Inject
@@ -47,7 +47,7 @@ public class QueryExplainerFactory
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             NodeVersion version,
-            OptimizerConfig optimizerConfig,
+            NodeExecutionStrategy nodeExecutionStrategy,
             FormatOptions formatOptions)
     {
         this.planOptimizersFactory = requireNonNull(planOptimizersFactory, "planOptimizersFactory is null");
@@ -57,7 +57,7 @@ public class QueryExplainerFactory
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
         this.version = requireNonNull(version, "version is null");
-        this.forceSingleNodeQuery = requireNonNull(optimizerConfig, "optimizerConfig is null").isForceSingleNodeQuery();
+        this.nodeExecutionStrategy = requireNonNull(nodeExecutionStrategy, "nodeExecutionStrategy is null");
         this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
@@ -72,7 +72,7 @@ public class QueryExplainerFactory
                 statsCalculator,
                 costCalculator,
                 version,
-                forceSingleNodeQuery,
+                nodeExecutionStrategy,
                 formatOptions);
     }
 }

@@ -28,6 +28,7 @@ import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.newir.Program;
 import io.trino.sql.planner.LogicalPlanner;
 import io.trino.sql.planner.LogicalPlanner.PlanningResult;
+import io.trino.sql.planner.NodeExecutionStrategy;
 import io.trino.sql.planner.PlanFragmenter;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.PlanOptimizersFactory;
@@ -75,7 +76,7 @@ public class QueryExplainer
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
     private final NodeVersion version;
-    private final boolean forceSingleNodeQuery;
+    private final NodeExecutionStrategy nodeExecutionStrategy;
     private final FormatOptions formatOptions;
 
     QueryExplainer(
@@ -87,7 +88,7 @@ public class QueryExplainer
             StatsCalculator statsCalculator,
             CostCalculator costCalculator,
             NodeVersion version,
-            boolean forceSingleNodeQuery,
+            NodeExecutionStrategy nodeExecutionStrategy,
             FormatOptions formatOptions)
     {
         this.planOptimizers = requireNonNull(planOptimizersFactory.getPlanOptimizers(), "planOptimizers is null");
@@ -98,7 +99,7 @@ public class QueryExplainer
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
         this.version = requireNonNull(version, "version is null");
-        this.forceSingleNodeQuery = forceSingleNodeQuery;
+        this.nodeExecutionStrategy = requireNonNull(nodeExecutionStrategy, "nodeExecutionStrategy is null");
         this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
     }
 
@@ -211,7 +212,7 @@ public class QueryExplainer
                 session,
                 planOptimizers,
                 alternativeOptimizers,
-                forceSingleNodeQuery,
+                nodeExecutionStrategy,
                 idAllocator,
                 plannerContext,
                 statsCalculator,
