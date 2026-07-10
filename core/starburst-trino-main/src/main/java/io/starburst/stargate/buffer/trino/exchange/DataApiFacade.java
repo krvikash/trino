@@ -68,7 +68,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -743,11 +742,6 @@ public class DataApiFacade
                 scheduleProcessAddDataPages(pendingRequest.bufferNodeId, state);
             }
         }, directExecutor());
-    }
-
-    private void finalizeResultFuture(PendingAddDataPagesRequest request, Consumer<SettableFuture<AddDataPagesResponse>> resultFutureConsumer)
-    {
-        resultFutureConsumer.accept(request.resultFuture);
     }
 
     private long computeBackoffMillis(int retryNumber)
