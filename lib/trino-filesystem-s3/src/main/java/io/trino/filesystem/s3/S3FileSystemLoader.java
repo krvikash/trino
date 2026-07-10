@@ -279,7 +279,8 @@ public final class S3FileSystemLoader
     private static SdkHttpClient createAwsCrtHttpClient(S3FileSystemConfig config)
     {
         AwsCrtHttpClient.Builder client = AwsCrtHttpClient.builder()
-                .maxConcurrency(config.getMaxConnections());
+                .maxConcurrency(config.getMaxConnections())
+                .connectionAcquisitionTimeout(Duration.ofSeconds(30));
 
         config.getConnectionMaxIdleTime().map(io.airlift.units.Duration::toJavaTime).ifPresent(client::connectionMaxIdleTime);
         config.getSocketConnectTimeout().map(io.airlift.units.Duration::toJavaTime).ifPresent(client::connectionTimeout);

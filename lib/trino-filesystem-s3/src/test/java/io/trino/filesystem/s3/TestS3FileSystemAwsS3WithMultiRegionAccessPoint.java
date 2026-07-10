@@ -21,6 +21,8 @@ import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 
+import java.time.Duration;
+
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static org.assertj.core.api.Assertions.assertThat;
 import static software.amazon.awssdk.regions.Region.AWS_GLOBAL;
@@ -59,7 +61,10 @@ public class TestS3FileSystemAwsS3WithMultiRegionAccessPoint
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))
                 .region(AWS_GLOBAL)
-                .httpClient(AwsCrtHttpClient.create())
+                .httpClient(AwsCrtHttpClient.builder()
+                        .maxConcurrency(100)
+                        .connectionAcquisitionTimeout(Duration.ofSeconds(30))
+                        .build())
                 .serviceConfiguration(S3Configuration.builder()
                         .useArnRegionEnabled(true)
                         .pathStyleAccessEnabled(false)
