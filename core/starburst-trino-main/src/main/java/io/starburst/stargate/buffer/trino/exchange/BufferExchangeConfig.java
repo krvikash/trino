@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -28,6 +29,7 @@ import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMo
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+@DefunctConfig("exchange.buffer-data.use-old-rate-limiting")
 public class BufferExchangeConfig
 {
     public static final String USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY = "exchange.use-embedded-buffer-service";
@@ -75,7 +77,6 @@ public class BufferExchangeConfig
     private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
     private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(5.0, SECONDS);
     private boolean useVirtualThreadsUri;
-    private boolean useOldRateLimiting;
     private int maxConcurrentAddDataPagesPerNode = 16;
 
     public URI getDiscoveryServiceUri()
@@ -604,19 +605,6 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setUseVirtualThreadsUri(boolean useVirtualThreadsUri)
     {
         this.useVirtualThreadsUri = useVirtualThreadsUri;
-        return this;
-    }
-
-    public boolean isUseOldRateLimiting()
-    {
-        return useOldRateLimiting;
-    }
-
-    @Config("exchange.buffer-data.use-old-rate-limiting")
-    @ConfigDescription("Use old rate limiting mechanism for addDataPages requests")
-    public BufferExchangeConfig setUseOldRateLimiting(boolean useOldRateLimiting)
-    {
-        this.useOldRateLimiting = useOldRateLimiting;
         return this;
     }
 

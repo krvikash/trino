@@ -18,7 +18,6 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
@@ -76,7 +75,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -101,10 +99,8 @@ public class DataApiFacade
     private final RetryExecutorConfig defaultRetryExecutorConfig;
     private final RetryExecutorConfig addDataPagesRetryExecutorConfig;
     private final ScheduledExecutorService executor;
-    private final ListeningScheduledExecutorService listeningScheduledExecutor;
     private final RateMonitor rateMonitor;
     private final Closer destroyCloser = Closer.create();
-    private final boolean useOldRateLimit;
     private final Stopwatch stopwatch = Stopwatch.createStarted();
 
     private final int maxConcurrentAddDataPagesPerNode;
@@ -153,7 +149,6 @@ public class DataApiFacade
                         config.getDataClientAddDataPagesCircuitBreakerFailureThreshold(),
                         config.getDataClientAddDataPagesCircuitBreakerSuccessThreshold(),
                         config.getDataClientAddDataPagesCircuitBreakerDelay()),
-                config.isUseOldRateLimiting(),
                 config.getMaxConcurrentAddDataPagesPerNode(),
                 executor);
     }
@@ -164,7 +159,6 @@ public class DataApiFacade
             ApiFactory apiFactory,
             RetryExecutorConfig defaultRetryExecutorConfig,
             RetryExecutorConfig addDataPagesRetryExecutorConfig,
-            boolean useOldRateLimit,
             int maxConcurrentAddDataPagesPerNode,
             ScheduledExecutorService executor)
     {
@@ -172,10 +166,8 @@ public class DataApiFacade
         this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
         this.defaultRetryExecutorConfig = requireNonNull(defaultRetryExecutorConfig, "defaultRetryExecutorConfig is null");
         this.addDataPagesRetryExecutorConfig = requireNonNull(addDataPagesRetryExecutorConfig, "addDataPagesRetryExecutorConfig is null");
-        this.useOldRateLimit = useOldRateLimit;
         this.maxConcurrentAddDataPagesPerNode = maxConcurrentAddDataPagesPerNode;
         this.executor = requireNonNull(executor, "executor is null");
-        this.listeningScheduledExecutor = listeningDecorator(executor);
         this.rateMonitor = new RateMonitor(Ticker.systemTicker());
         this.addDataPagesStatsUpdater = new AddDataPagesStatsUpdater(addDataPagesOperationStats);
     }
@@ -493,74 +485,7 @@ public class DataApiFacade
 
     public ListenableFuture<AddDataPagesResponse> addDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
-        if (useOldRateLimit) {
-            return addDataPagesOldRateLimit(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
-        }
         return addDataPagesNewRateLimit(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
-    }
-
-    @Deprecated
-    @SuppressWarnings("CheckReturnValue")
-    private ListenableFuture<AddDataPagesResponse> addDataPagesOldRateLimit(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
-    {
-        AtomicLong triesCount = new AtomicLong();
-        AtomicBoolean requestPossiblyDelivered = new AtomicBoolean(false);
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        Stopwatch successRequestStopwatch = Stopwatch.createStarted();
-        AtomicLong totalRequestDelay = new AtomicLong();
-        Callable<ListenableFuture<Void>> call = () -> {
-            boolean retry = triesCount.getAndIncrement() > 0;
-            long requestDelayInMillis = rateMonitor.registerExecutionSchedule(bufferNodeId);
-            totalRequestDelay.addAndGet(requestDelayInMillis);
-
-            ListenableFuture<Optional<RateLimitInfo>> requestFuture;
-            if (requestDelayInMillis == 0) {
-                requestFuture = internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
-            }
-            else {
-                requestFuture = SettableFuture.create();
-                listeningScheduledExecutor.schedule(
-                        () -> ((SettableFuture<Optional<RateLimitInfo>>) requestFuture).setFuture(internalAddDataPages(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition)),
-                        requestDelayInMillis,
-                        MILLISECONDS);
-            }
-
-            SettableFuture<Void> resultFuture = SettableFuture.create();
-            Futures.addCallback(requestFuture, new FutureCallback<>()
-            {
-                @Override
-                public void onSuccess(Optional<RateLimitInfo> rateLimitInfo)
-                {
-                    rateMonitor.updateRateLimitInfo(bufferNodeId, rateLimitInfo);
-                    resultFuture.set(null);
-                }
-
-                @Override
-                public void onFailure(Throwable failure)
-                {
-                    successRequestStopwatch.reset().start();
-                    if ((failure instanceof DataApiException dataApiException)) {
-                        rateMonitor.updateRateLimitInfo(bufferNodeId, dataApiException.getRateLimitInfo());
-                        if (retry && requestPossiblyDelivered.get() && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
-                            // If we are retrying we need to ensure that we do not propagate DRAINING error to user. We do not know if previous request
-                            // was recorded by server or not. If we handle DRAINING, and send data to another buffer service node we may end up with
-                            // duplicated data.
-                            resultFuture.setException(new DataApiException(ErrorCode.DRAINING_ON_RETRY, "Received %s error code on retry".formatted(dataApiException.getErrorCode()), failure));
-                            return;
-                        }
-                    }
-
-                    requestPossiblyDelivered.compareAndSet(false, requestMayHaveAlreadyBeenDelivered(failure));
-                    resultFuture.setException(failure);
-                }
-            }, directExecutor());
-
-            return resultFuture;
-        };
-        return Futures.transform(
-                runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call),
-                _ -> new AddDataPagesResponse(triesCount.intValue() - 1, stopwatch.elapsed(MILLISECONDS), successRequestStopwatch.elapsed(MILLISECONDS), totalRequestDelay.get()),
-                directExecutor());
     }
 
     private ListenableFuture<AddDataPagesResponse> addDataPagesNewRateLimit(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
@@ -902,13 +827,6 @@ public class DataApiFacade
                         .with(executor));
     }
 
-    private FailsafeExecutor<Object> getAddDataPagesRetryExecutor(long bufferNodeId)
-    {
-        return addDataPagesRetryExecutors.computeIfAbsent(bufferNodeId, _ ->
-                Failsafe.with(createAddDataPagesRetryPolicy(), createAddDataPagesCircuitBreakerPolicy(bufferNodeId))
-                        .with(executor));
-    }
-
     private RetryPolicy<Object> createDefaultRetryPolicy()
     {
         return createRetryPolicy(defaultRetryExecutorConfig, Optional.empty());
@@ -917,16 +835,6 @@ public class DataApiFacade
     private CircuitBreaker<Object> createDefaultCircuitBreakerPolicy(long bufferNodeId)
     {
         return createCircuitBreakerPolicy(bufferNodeId, defaultRetryExecutorConfig);
-    }
-
-    private RetryPolicy<Object> createAddDataPagesRetryPolicy()
-    {
-        return createRetryPolicy(addDataPagesRetryExecutorConfig, Optional.of(new AddDataPagesStatsUpdater(addDataPagesOperationStats)));
-    }
-
-    private CircuitBreaker<Object> createAddDataPagesCircuitBreakerPolicy(long bufferNodeId)
-    {
-        return createCircuitBreakerPolicy(bufferNodeId, addDataPagesRetryExecutorConfig);
     }
 
     private static RetryPolicy<Object> createRetryPolicy(RetryExecutorConfig config, Optional<OperationLifecycleListener> lifecycleListener)
