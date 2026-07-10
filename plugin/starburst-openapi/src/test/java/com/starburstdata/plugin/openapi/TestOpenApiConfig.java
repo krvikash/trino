@@ -13,11 +13,16 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.google.common.collect.ImmutableMap;
 import jakarta.validation.constraints.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.util.Map;
 
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
+import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
@@ -29,7 +34,21 @@ final class TestOpenApiConfig
     {
         assertRecordedDefaults(recordDefaults(OpenApiConfig.class)
                 .setDescriptionLocation(null)
-                .setBaseUri(null));
+                .setBaseUri(null)
+                .setCastPolicy(ERROR));
+    }
+
+    @Test
+    void testExplicitPropertyMappings()
+    {
+        Map<String, String> properties = ImmutableMap.of(
+                "openapi.description-location", "/file/on/server.json",
+                "openapi.base-uri", "http://localhost:12012",
+                "openapi.cast-policy", "DROP");
+        assertFullMapping(properties, new OpenApiConfig()
+                .setDescriptionLocation("/file/on/server.json")
+                .setBaseUri(URI.create("http://localhost:12012"))
+                .setCastPolicy(DROP));
     }
 
     @Test

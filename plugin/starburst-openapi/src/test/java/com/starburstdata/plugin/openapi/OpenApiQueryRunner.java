@@ -124,16 +124,14 @@ public final class OpenApiQueryRunner
                             .put("openapi.http-client.log.enabled", "true")
                             .put("openapi.description-location", "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.19/ghes-3.19.json")
                             .put("openapi.base-uri", "https://api.github.com")
+                            .put("openapi.cast-policy", "drop")
                             .put("openapi.security-scheme.type", "APIKEY")
                             .put("openapi.security-scheme.name", "Authorization")
                             .put("openapi.security-scheme.in", "HEADER")
                             .put(
                                     "openapi.security-scheme.secret",
                                     "Bearer " + requireNonNull(System.getenv("GITHUB_TOKEN")))
-                            .put("openapi.pagination-strategy.type", "page")
-                            .put("openapi.pagination-strategy.page.page-size", "10")
-                            .put("openapi.pagination-strategy.page.page-param", "page")
-                            .put("openapi.pagination-strategy.page.per-page-param", "per_page")
+                            .put("openapi.pagination", "link_header")
                             .buildOrThrow())
                     .addCoordinatorProperty("http-server.http.port", "8080")
                     .build();

@@ -9,15 +9,20 @@
  */
 package com.starburstdata.plugin.openapi.conversions.encoder;
 
+import com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
+import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
 import com.starburstdata.plugin.openapi.conversions.ir.LeafIr;
+import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
 
 import java.util.List;
 
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.FALLBACK;
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_UNSUPPORTED_PARAMETER;
+import static com.starburstdata.plugin.openapi.conversions.encoder.LeafTypeEncoder.STRING_ENCODER;
 
 public interface TypeEncoder
 {
@@ -34,15 +39,16 @@ public interface TypeEncoder
     record SerializedString(String value)
             implements SerializedValue {}
 
-    static TypeEncoder from(SchemaIr schemaIr)
+    static TypeEncoder from(SchemaIr schemaIr, CastPolicy castPolicy)
     {
         return switch (schemaIr) {
             case ArrayIr(LeafIr leafIr) -> new ListTypeEncoder(LeafTypeEncoder.from(leafIr));
+            case ArrayIr _, JsonIr _, ObjectIr _ when castPolicy == FALLBACK -> STRING_ENCODER;
             case ArrayIr _ -> throw new TrinoException(
                     OPENAPI_UNSUPPORTED_PARAMETER,
                     "Cannot create a parameter from an array of a non-primitive type (supported string/number format or boolean)");
             case LeafIr leafIr -> LeafTypeEncoder.from(leafIr);
-            default -> throw new TrinoException(
+            case JsonIr _, ObjectIr _ -> throw new TrinoException(
                     OPENAPI_UNSUPPORTED_PARAMETER,
                     "Must create a parameter from a primitive type (supported string/number format or boolean) or array of primitive type");
         };

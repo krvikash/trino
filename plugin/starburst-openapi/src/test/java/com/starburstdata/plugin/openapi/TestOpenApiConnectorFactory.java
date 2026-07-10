@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.CreationException;
 import com.google.inject.spi.Message;
+import com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
@@ -29,7 +30,8 @@ import io.trino.spi.function.table.ReturnTypeSpecification.DescribedTable;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.net.URL;
 import java.util.Collection;
@@ -37,8 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
 import static com.starburstdata.plugin.openapi.OpenApiDescription.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
@@ -51,29 +55,66 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 final class TestOpenApiConnectorFactory
 {
-    @ParameterizedTest
-    @ValueSource(strings = {
+    private static final List<String> FULLY_SUPPORTED_SPECS = ImmutableList.of(
             "galaxy.json",
             "petstore.yaml",
-            "openmeteo.yml",
-            "datadog.yaml",
-    })
-    public void testLoadsDescription(String description)
+            "openmeteo.yml");
+
+    private static final List<String> PARTIALLY_SUPPORTED_SPECS = ImmutableList.of(
+            "github.json",
+            "github-patched.json",
+            "jira.json",
+            "datadog.yaml");
+
+    @ParameterizedTest
+    @MethodSource("fullySupportedSpecs")
+    public void testFullySupportedSpec(String description)
     {
         assertThatNoException().isThrownBy(() -> createConnector(description).shutdown());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-            "github.json",
-            "github-patched.json",
-            "jira.json",
-            "cloudflare.json",
-    })
-    public void testFailsDescription(String description)
+    @MethodSource("partiallySupportedSpecs")
+    public void testPartiallySupportedSpecFailsByDefault(String description)
     {
-        // Fail from unsupported parameters.
+        // Fail from unsupported parameters with default ERROR policy.
         assertThat(getConfigurationThrowable(description))
+                .cause()
+                .isInstanceOf(OpenApiValidationExceptions.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("allSpecsWithPermissivePolicy")
+    public void testAllSpecsLoadWithPermissivePolicy(String description, CastPolicy castPolicy)
+    {
+        assertThatNoException().isThrownBy(() -> createConnector(description, castPolicy).shutdown());
+    }
+
+    private static Stream<String> fullySupportedSpecs()
+    {
+        return FULLY_SUPPORTED_SPECS.stream();
+    }
+
+    private static Stream<String> partiallySupportedSpecs()
+    {
+        return PARTIALLY_SUPPORTED_SPECS.stream();
+    }
+
+    private static Stream<Arguments> allSpecsWithPermissivePolicy()
+    {
+        List<String> allSpecs = ImmutableList.<String>builder()
+                .addAll(FULLY_SUPPORTED_SPECS)
+                .addAll(PARTIALLY_SUPPORTED_SPECS)
+                .build();
+        return Stream.of(DROP, CastPolicy.FALLBACK)
+                .flatMap(policy -> allSpecs.stream().map(spec -> Arguments.of(spec, policy)));
+    }
+
+    @Test
+    public void testCloudflareFails()
+    {
+        // Fail from ambiguous references.
+        assertThat(getConfigurationThrowable("cloudflare.json"))
                 .cause()
                 .isInstanceOf(OpenApiValidationExceptions.class);
     }
@@ -115,108 +156,158 @@ final class TestOpenApiConnectorFactory
     @Test
     void testAmbiguousTableFunctions()
     {
-        List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguouspaths.json"))
-                .cause()
-                .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
-                .actual();
+        // Ambiguous path identifiers are structural errors unaffected by FALLBACK.
+        for (CastPolicy castPolicy : ImmutableList.of(CastPolicy.ERROR, CastPolicy.FALLBACK)) {
+            List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguouspaths.json", castPolicy))
+                    .cause()
+                    .asInstanceOf(type(OpenApiValidationExceptions.class))
+                    .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
+                    .actual();
 
-        assertThat(exceptions).hasSize(2);
-        assertThat(exceptions)
-                .map(Exception::getMessage)
-                .anySatisfy(message ->
-                        assertThat(message)
-                                .startsWith("Identifier colliding_path maps to multiple API paths"));
-        assertThat(exceptions)
-                .map(Exception::getMessage)
-                .anySatisfy(message ->
-                        assertThat(message)
-                                .startsWith("Identifier non_unique maps to multiple API paths"));
+            assertThat(exceptions).hasSize(2);
+            assertThat(exceptions)
+                    .map(Exception::getMessage)
+                    .anySatisfy(message ->
+                            assertThat(message)
+                                    .startsWith("Identifier colliding_path maps to multiple API paths"));
+            assertThat(exceptions)
+                    .map(Exception::getMessage)
+                    .anySatisfy(message ->
+                            assertThat(message)
+                                    .startsWith("Identifier non_unique maps to multiple API paths"));
+        }
+        // DROP logs the collision warnings and loads the connector anyway.
+        assertThatNoException().isThrownBy(() -> createConnector("ambiguouspaths.json", DROP).shutdown());
     }
 
     @Test
     public void testResponses()
     {
-        List<Exception> exceptions = assertThat(getConfigurationThrowable("responses.json"))
-                .cause()
-                .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
-                .actual();
+        // Circular and missing references are structural errors unaffected by FALLBACK.
+        for (CastPolicy castPolicy : ImmutableList.of(CastPolicy.ERROR, CastPolicy.FALLBACK)) {
+            List<Exception> exceptions = assertThat(getConfigurationThrowable("responses.json", castPolicy))
+                    .cause()
+                    .asInstanceOf(type(OpenApiValidationExceptions.class))
+                    .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
+                    .actual();
 
-        assertThat(exceptions)
-                .map(Exception::getMessage)
-                .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("paths./circular.get.responses.200.$ref.circularSTART.$ref.circularEND.$ref: Reference from response forms a cycle")
-                        .add("paths./badref.get.responses.200.$ref: Reference refers to response 'badref' that doesn't exist")
-                        .build());
+            assertThat(exceptions)
+                    .map(Exception::getMessage)
+                    .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
+                            .add("paths./circular.get.responses.200.$ref.circularSTART.$ref.circularEND.$ref: Reference from response forms a cycle")
+                            .add("paths./badref.get.responses.200.$ref: Reference refers to response 'badref' that doesn't exist")
+                            .build());
+        }
+        // DROP drops the unresolvable paths and loads the connector.
+        assertThatNoException().isThrownBy(() -> createConnector("responses.json", DROP).shutdown());
     }
 
     @Test
     public void testPaths()
     {
-        List<Exception> exceptions = assertThat(getConfigurationThrowable("paths.json"))
-                .cause()
-                .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
-                .actual();
+        // Circular and missing path references are structural errors unaffected by FALLBACK.
+        for (CastPolicy castPolicy : ImmutableList.of(CastPolicy.ERROR, CastPolicy.FALLBACK)) {
+            List<Exception> exceptions = assertThat(getConfigurationThrowable("paths.json", castPolicy))
+                    .cause()
+                    .asInstanceOf(type(OpenApiValidationExceptions.class))
+                    .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
+                    .actual();
 
-        assertThat(exceptions)
-                .map(Exception::getMessage)
-                .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("paths./circular.$ref./circularSTART.$ref./circularEND.$ref: Reference from path forms a cycle")
-                        .add("paths./circularSTART.$ref./circularEND.$ref./circularSTART.$ref: Reference from path forms a cycle")
-                        .add("paths./circularEND.$ref./circularSTART.$ref./circularEND.$ref: Reference from path forms a cycle")
-                        .add("paths./badref.$ref: Reference refers to path 'notreal' that doesn't exist")
-                        .build());
+            assertThat(exceptions)
+                    .map(Exception::getMessage)
+                    .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
+                            .add("paths./circular.$ref./circularSTART.$ref./circularEND.$ref: Reference from path forms a cycle")
+                            .add("paths./circularSTART.$ref./circularEND.$ref./circularSTART.$ref: Reference from path forms a cycle")
+                            .add("paths./circularEND.$ref./circularSTART.$ref./circularEND.$ref: Reference from path forms a cycle")
+                            .add("paths./badref.$ref: Reference refers to path 'notreal' that doesn't exist")
+                            .build());
+        }
+        // DROP drops the unresolvable paths and loads the connector.
+        assertThatNoException().isThrownBy(() -> createConnector("paths.json", DROP).shutdown());
     }
 
     @Test
     public void testAmbiguousObject()
     {
-        List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguousobject.json"))
-                .cause()
-                .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
-                .actual();
+        // Ambiguous property keys are structural errors unaffected by FALLBACK.
+        for (CastPolicy castPolicy : ImmutableList.of(CastPolicy.ERROR, CastPolicy.FALLBACK)) {
+            List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguousobject.json", castPolicy))
+                    .cause()
+                    .asInstanceOf(type(OpenApiValidationExceptions.class))
+                    .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
+                    .actual();
 
-        assertThat(exceptions)
-                .map(Exception::getMessage)
-                .containsExactly("paths./ambiguousobject.get.responses.200.content.application/json.schema.properties: Uses keys that cannot be referenced unambiguously with case-insensitivity: AMBIGUOUS");
+            assertThat(exceptions)
+                    .map(Exception::getMessage)
+                    .containsExactly("paths./ambiguousobject.get.responses.200.content.application/json.schema.properties: Uses keys that cannot be referenced unambiguously with case-insensitivity: AMBIGUOUS");
+        }
+        // DROP drops the path with the ambiguous response schema and loads the connector.
+        assertThatNoException().isThrownBy(() -> createConnector("ambiguousobject.json", DROP).shutdown());
     }
 
     @Test
     public void testParameters()
     {
-        List<Exception> exceptions = assertThat(getConfigurationThrowable("parameters.json"))
+        // All four errors reported with ERROR policy.
+        List<Exception> errorExceptions = assertThat(getConfigurationThrowable("parameters.json", CastPolicy.ERROR))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
                 .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
                 .actual();
 
-        assertThat(exceptions)
+        assertThat(errorExceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
                         .add("paths./badref.get.parameters[0].$ref: Reference refers to parameter 'badref' that doesn't exist")
                         .add("paths./circularref.get.parameters[0].$ref.circularSTART.$ref.circularEND.$ref: Reference from parameter forms a cycle")
-                        .add("paths./badschema.get.parameters[0]: Must create a parameter from a primitive type (supported string/number format or boolean) or array of primitive type")
+                        .add("paths./badschema.get.parameters[0].schema: Schema uses unsupported boolean keywords [oneOf]")
                         .add("paths./ambiguous/{param}.get.parameters[1].name: Cannot refer to parameter 'param' unambiguously, parameter with identifier 'PARAM' already exists")
                         .build());
+
+        // FALLBACK converts oneOf to JsonIr, so the badschema error disappears; structural errors remain.
+        List<Exception> fallbackExceptions = assertThat(getConfigurationThrowable("parameters.json", CastPolicy.FALLBACK))
+                .cause()
+                .asInstanceOf(type(OpenApiValidationExceptions.class))
+                .extracting(OpenApiValidationExceptions::getDescriptionExceptions)
+                .actual();
+
+        assertThat(fallbackExceptions)
+                .map(Exception::getMessage)
+                .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
+                        .add("paths./badref.get.parameters[0].$ref: Reference refers to parameter 'badref' that doesn't exist")
+                        .add("paths./circularref.get.parameters[0].$ref.circularSTART.$ref.circularEND.$ref: Reference from parameter forms a cycle")
+                        .add("paths./ambiguous/{param}.get.parameters[1].name: Cannot refer to parameter 'param' unambiguously, parameter with identifier 'PARAM' already exists")
+                        .build());
+
+        // DROP drops all paths with unresolvable parameters and loads the connector.
+        assertThatNoException().isThrownBy(() -> createConnector("parameters.json", DROP).shutdown());
     }
 
     private Connector createConnector(String location)
+    {
+        return createConnector(location, CastPolicy.ERROR);
+    }
+
+    private Connector createConnector(String location, CastPolicy castPolicy)
     {
         URL descriptionResource = requireNonNull(getClass().getClassLoader().getResource(location));
         Map<String, String> config = ImmutableMap.<String, String>builder()
                 .put("bootstrap.quiet", "true")
                 .put("openapi.description-location", descriptionResource.getFile())
                 .put("openapi.base-uri", "https://starburst.io")
+                .put("openapi.cast-policy", castPolicy.name())
                 .buildOrThrow();
         return new OpenApiConnectorFactory().create("openapi", config, new TestingConnectorContext());
     }
 
     private Throwable getConfigurationThrowable(String location)
     {
-        Collection<Message> creationMessages = assertThatThrownBy(() -> createConnector(location))
+        return getConfigurationThrowable(location, CastPolicy.ERROR);
+    }
+
+    private Throwable getConfigurationThrowable(String location, CastPolicy castPolicy)
+    {
+        Collection<Message> creationMessages = assertThatThrownBy(() -> createConnector(location, castPolicy))
                 .asInstanceOf(throwable(CreationException.class))
                 .extracting(CreationException::getErrorMessages)
                 .actual();

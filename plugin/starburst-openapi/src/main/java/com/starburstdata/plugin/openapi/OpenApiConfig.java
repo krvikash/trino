@@ -21,11 +21,14 @@ import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
 
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
+
 @DefunctConfig("openapi.max-requests-per-second")
 public class OpenApiConfig
 {
     private String descriptionLocation;
     private URI baseUri;
+    private CastPolicy castPolicy = ERROR;
 
     @NotNull
     public String getDescriptionLocation()
@@ -53,6 +56,20 @@ public class OpenApiConfig
     public OpenApiConfig setBaseUri(URI baseUri)
     {
         this.baseUri = baseUri;
+        return this;
+    }
+
+    @NotNull
+    public CastPolicy getCastPolicy()
+    {
+        return castPolicy;
+    }
+
+    @Config("openapi.cast-policy")
+    @ConfigDescription("How to handle unsupported features when parsing the OpenAPI description")
+    public OpenApiConfig setCastPolicy(CastPolicy castPolicy)
+    {
+        this.castPolicy = castPolicy;
         return this;
     }
 

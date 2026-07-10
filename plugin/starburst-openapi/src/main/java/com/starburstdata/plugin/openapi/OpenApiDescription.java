@@ -57,6 +57,7 @@ import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
 import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
 import static com.starburstdata.plugin.openapi.SpecUtil.getParameterSchema;
@@ -105,7 +106,7 @@ public class OpenApiDescription
                 referenceableResponses,
                 referenceableSchemas,
                 referenceableParameters,
-                CastPolicy.FALLBACK,
+                config.getCastPolicy(),
                 openApiDecoderFactory,
                 authenticator,
                 paginationStrategy);
@@ -233,7 +234,7 @@ public class OpenApiDescription
             // Operation parameters override Path Item parameters sharing the same (name, in).
             // https://spec.openapis.org/oas/v3.0.4.html#fixed-fields-7
             LinkedHashMap<ParameterIdentifier, IndexedParameter> resolvedParametersByIdentifier = new LinkedHashMap<>();
-            boolean parameterFailed = false;
+            boolean dropTableFunction = false;
             for (int i = 0; i < rawParameters.size(); i++) {
                 List<String> parameterPrefix = parameterPrefix(operationPrefix, i);
                 try {
@@ -246,7 +247,7 @@ public class OpenApiDescription
                 }
                 catch (SpecException e) {
                     exceptionsBuilder.add(e.fromPath(parameterPrefix));
-                    parameterFailed = true;
+                    dropTableFunction = true; // Maybe failed to resolve parameter, don't know if required.
                 }
             }
 
@@ -270,7 +271,7 @@ public class OpenApiDescription
                                     .addAll(parameterPrefix)
                                     .add("name")
                                     .build()));
-                    parameterFailed = true;
+                    dropTableFunction = true;
                     continue;
                 }
                 final Schema<?> parameterSchema;
@@ -279,7 +280,7 @@ public class OpenApiDescription
                 }
                 catch (SpecException e) {
                     exceptionsBuilder.add(e.fromPath(parameterPrefix));
-                    parameterFailed = true;
+                    dropTableFunction = dropTableFunction || resolvedParameter.getRequired(); // Fail only if required.
                     continue;
                 }
                 final SchemaIr parameterSchemaIr;
@@ -291,22 +292,22 @@ public class OpenApiDescription
                             .addAll(parameterPrefix)
                             .add("schema")
                             .build()));
-                    parameterFailed = true;
+                    dropTableFunction = dropTableFunction || resolvedParameter.getRequired(); // Fail only if required.
                     continue;
                 }
                 try {
                     identifierToParameterHandleBuilder.put(
                             argumentName,
-                            OpenApiParameterHandle.from(resolvedParameter, parameterSchemaIr));
+                            OpenApiParameterHandle.from(resolvedParameter, parameterSchemaIr, castPolicy));
                 }
                 catch (TrinoException e) {
                     exceptionsBuilder.add(new SpecException(e.getMessage())
                             .withCause(e)
                             .fromPath(parameterPrefix));
-                    parameterFailed = true;
+                    dropTableFunction = dropTableFunction || resolvedParameter.getRequired(); // Fail only if required.
                 }
             }
-            if (parameterFailed) {
+            if (dropTableFunction) {
                 return;
             }
             Optional<String> description = Optional.ofNullable(operation.getSummary())
@@ -325,6 +326,12 @@ public class OpenApiDescription
 
         List<Exception> exceptions = exceptionsBuilder.build();
         if (!exceptions.isEmpty()) {
+            if (castPolicy == DROP) {
+                exceptions.forEach(exception -> log.warn(
+                        exception,
+                        "Encountered exception while building table function. Some elements may be dropped."));
+                return pathMetadataBuilder.buildOrThrow();
+            }
             throw new TrinoException(
                     CONFIGURATION_INVALID,
                     new OpenApiValidationExceptions(exceptions));

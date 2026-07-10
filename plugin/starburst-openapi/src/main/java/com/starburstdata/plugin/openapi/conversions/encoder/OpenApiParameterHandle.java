@@ -9,6 +9,7 @@
  */
 package com.starburstdata.plugin.openapi.conversions.encoder;
 
+import com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.parameters.Parameter.StyleEnum;
@@ -45,7 +46,8 @@ public record OpenApiParameterHandle(
 
     public static OpenApiParameterHandle from(
             Parameter resolvedParameter,
-            SchemaIr parameterIr)
+            SchemaIr parameterIr,
+            CastPolicy castPolicy)
     {
         String name = resolvedParameter.getName();
         checkArgument(
@@ -78,7 +80,7 @@ public record OpenApiParameterHandle(
                     OPENAPI_UNSUPPORTED_PARAMETER,
                     "Parameter '%s' uses unsupported location '%s'".formatted(name, resolvedParameter.getIn()));
         };
-        TypeEncoder typeEncoder = TypeEncoder.from(parameterIr);
+        TypeEncoder typeEncoder = TypeEncoder.from(parameterIr, castPolicy);
         return new OpenApiParameterHandle(
                 name,
                 style,
