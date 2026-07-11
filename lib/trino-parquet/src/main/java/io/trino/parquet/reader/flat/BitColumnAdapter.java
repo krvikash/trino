@@ -22,8 +22,7 @@ import java.util.Optional;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.spi.block.Bitmap.clear;
 import static io.trino.spi.block.Bitmap.copyBits;
-import static io.trino.spi.block.Bitmap.countTransitions;
-import static io.trino.spi.block.Bitmap.getBits;
+import static io.trino.spi.block.Bitmap.expandBits;
 import static io.trino.spi.block.Bitmap.isSet;
 import static io.trino.spi.block.Bitmap.set;
 import static java.lang.Math.toIntExact;
@@ -54,52 +53,11 @@ public class BitColumnAdapter
     @Override
     public void unpackNullValues(BitBuffer source, BitBuffer destination, long[] valueIsValid, int destOffset, int nonNullCount, int totalValuesCount)
     {
-        // Benchmarking shows scalar copying is faster once a validity word contains this many short runs.
-        int scalarCopyTransitionThreshold = 12;
-        int srcOffset = 0;
-        int endOffset = destOffset + totalValuesCount;
-        while (srcOffset < nonNullCount && destOffset < endOffset) {
-            int bitsInWord = Math.min(Long.SIZE, endOffset - destOffset);
-            long validBits = getBits(valueIsValid, 0, destOffset, bitsInWord);
-            if (validBits == 0) {
-                destOffset += bitsInWord;
-                continue;
-            }
-            if (Long.bitCount(validBits) == bitsInWord) {
-                copyValues(source, srcOffset, destination, destOffset, bitsInWord);
-                srcOffset += bitsInWord;
-                destOffset += bitsInWord;
-                continue;
-            }
-            if (countTransitions(validBits, bitsInWord) >= scalarCopyTransitionThreshold) {
-                int endOffsetInWord = destOffset + bitsInWord;
-                while (destOffset < endOffsetInWord) {
-                    copyValues(source, srcOffset, destination, destOffset, 1);
-                    srcOffset += (int) (validBits & 1);
-                    destOffset++;
-                    validBits >>>= 1;
-                }
-                continue;
-            }
-
-            int offsetInWord = 0;
-            while (offsetInWord < bitsInWord) {
-                int nullCount = Math.min(Long.numberOfTrailingZeros(validBits), bitsInWord - offsetInWord);
-                destOffset += nullCount;
-                offsetInWord += nullCount;
-                validBits >>>= nullCount;
-                if (offsetInWord == bitsInWord) {
-                    break;
-                }
-
-                int validCount = Math.min(Long.numberOfTrailingZeros(~validBits), bitsInWord - offsetInWord);
-                copyValues(source, srcOffset, destination, destOffset, validCount);
-                srcOffset += validCount;
-                destOffset += validCount;
-                offsetInWord += validCount;
-                validBits >>>= validCount;
-            }
+        // Bit buffers are zero-initialized, so an all-null range needs no value writes.
+        if (nonNullCount == 0) {
+            return;
         }
+        expandBits(source.getValues(), 0, valueIsValid, destOffset, destination.getValues(), destOffset, totalValuesCount);
     }
 
     @Override
