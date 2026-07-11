@@ -15,13 +15,16 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.type.BooleanType;
 
 import java.nio.ByteBuffer;
 import java.util.Optional;
+
+import static io.trino.spi.block.Bitmap.set;
+import static io.trino.spi.block.Bitmap.wordsForBits;
 
 public class BooleanBlockFiller
         extends BlockFiller<Boolean>
@@ -41,12 +44,11 @@ public class BooleanBlockFiller
     @Override
     protected Block createSingleWithNullBlock(ReadJuffersWarmUpElement juffersWE, RecTypeCode recTypeCode, int recLength, int rowsToFill)
     {
-        byte[] mappingValues = new byte[2]; // including null
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
-        mappingValues[0] = buff.get();
+        byte[] mappingValues = new byte[] {buff.get(), 0}; // including null
         long[] valueIsValid = Bitmap.allocateWords(2, true);
         Bitmap.clear(valueIsValid, 0, 1);
-        Block dictionaryBlock = new ByteArrayBlock(2, Optional.of(valueIsValid), mappingValues);
+        Block dictionaryBlock = new BitArrayBlock(2, Optional.of(valueIsValid), toBitArray(mappingValues, 2));
 
         return wrapSingleWithNulls(juffersWE, rowsToFill, dictionaryBlock, 1);
     }
@@ -76,6 +78,19 @@ public class BooleanBlockFiller
             valueIsValidOptional = Optional.empty();
         }
         buff.get(values);
-        return new ByteArrayBlock(rowsToFill, valueIsValidOptional, values);
+        return new BitArrayBlock(rowsToFill, valueIsValidOptional, toBitArray(values, rowsToFill));
+    }
+
+    // The storage engine keeps one byte per boolean; pack the first {@code length} bytes into the
+    // bit representation that BitArrayBlock expects, treating any nonzero byte as true.
+    static long[] toBitArray(byte[] values, int length)
+    {
+        long[] bits = new long[wordsForBits(length)];
+        for (int position = 0; position < length; position++) {
+            if (values[position] != 0) {
+                set(bits, 0, position);
+            }
+        }
+        return bits;
     }
 }

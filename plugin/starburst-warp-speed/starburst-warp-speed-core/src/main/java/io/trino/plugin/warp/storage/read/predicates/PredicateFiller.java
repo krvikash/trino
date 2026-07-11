@@ -21,6 +21,7 @@ import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.Int128ArrayBlock;
@@ -130,9 +131,9 @@ public abstract class PredicateFiller
             }
         }
         else if (TypeUtils.isBooleanType(type)) {
-            ByteArrayBlock byteArrayBlock = (ByteArrayBlock) valueBlock;
+            BitArrayBlock bitArrayBlock = (BitArrayBlock) valueBlock;
             for (int i = startPosition; i < endPosition; i += 2) {
-                if (byteArrayBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i)) != 0) {
+                if (bitArrayBlock.getBoolean(sortedRangesBlock.getUnderlyingValuePosition(i))) {
                     predicateBuffer.put(BOOLEAN_TRUE_VALUE);
                 }
                 else {

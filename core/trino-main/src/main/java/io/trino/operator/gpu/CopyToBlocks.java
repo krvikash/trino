@@ -23,6 +23,7 @@ import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.ByteArrayBlock;
@@ -68,6 +69,7 @@ import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
 import static io.airlift.slice.SizeOf.sizeOfLongArray;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.block.Bitmap.set;
 import static io.trino.spi.block.Bitmap.wordsForBits;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
@@ -289,7 +291,7 @@ public class CopyToBlocks
     {
         checkType(hostColumnVector.getType(), toDType(type).orElseThrow());
         return switch (type) {
-            case BooleanType _ -> new ByteColumnCopier(hostColumnVector);
+            case BooleanType _ -> new BitColumnCopier(hostColumnVector);
             case TinyintType _ -> new ByteColumnCopier(hostColumnVector);
             case SmallintType _ -> new ShortColumnCopier(hostColumnVector);
             case IntegerType _ -> new IntColumnCopier(hostColumnVector);
@@ -382,6 +384,38 @@ public class CopyToBlocks
             byte[] values = new byte[count];
             hostColumnVector.getData().getBytes(values, 0, position, count);
             return new ByteArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
+        }
+    }
+
+    private static class BitColumnCopier
+            implements ColumnCopier
+    {
+        private final @Borrow HostColumnVector hostColumnVector;
+
+        private BitColumnCopier(@Borrow HostColumnVector hostColumnVector)
+        {
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return sizeOfLongArray(wordsForBits(positionCount)) + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            // cudf BOOL8 stores one byte per value; pack it into the bit representation BitArrayBlock expects
+            byte[] bytes = new byte[count];
+            hostColumnVector.getData().getBytes(bytes, 0, position, count);
+            long[] values = new long[wordsForBits(count)];
+            for (int i = 0; i < count; i++) {
+                if (bytes[i] != 0) {
+                    set(values, 0, i);
+                }
+            }
+            return new BitArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
         }
     }
 

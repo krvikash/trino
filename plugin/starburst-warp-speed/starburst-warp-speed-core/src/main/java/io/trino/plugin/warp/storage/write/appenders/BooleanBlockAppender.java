@@ -17,7 +17,7 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
-import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
@@ -27,6 +27,9 @@ import java.nio.ByteBuffer;
 public class BooleanBlockAppender
         extends DataBlockAppender
 {
+    private static final byte TRUE_VALUE = 1;
+    private static final byte FALSE_VALUE = 0;
+
     public BooleanBlockAppender(WriteJuffersWarmUpElement juffersWE)
     {
         super(juffersWE);
@@ -41,13 +44,13 @@ public class BooleanBlockAppender
     {
         ByteBuffer buff = (ByteBuffer) juffersWE.getRecordBuffer();
         return switch (blockPos.getBlock()) {
-            case RunLengthEncodedBlock rleBlock -> appendRepeatedValue((ByteArrayBlock) rleBlock.getValue(), blockPos, buff);
+            case RunLengthEncodedBlock rleBlock -> appendRepeatedValue((BitArrayBlock) rleBlock.getValue(), blockPos, buff);
             case DictionaryBlock dictionaryBlock -> appendDictionaryBlock(dictionaryBlock, blockPos, buff);
-            case ValueBlock valueBlock -> appendValueBlock((ByteArrayBlock) valueBlock, blockPos, buff);
+            case ValueBlock valueBlock -> appendValueBlock((BitArrayBlock) valueBlock, blockPos, buff);
         };
     }
 
-    private AppendResult appendValueBlock(ByteArrayBlock valueBlock, BlockPosHolder blockPos, ByteBuffer buff)
+    private AppendResult appendValueBlock(BitArrayBlock valueBlock, BlockPosHolder blockPos, ByteBuffer buff)
     {
         int nullsCount = 0;
         if (valueBlock.mayHaveNull()) {
@@ -60,14 +63,14 @@ public class BooleanBlockAppender
                 }
                 else {
                     nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                    writeValue(valueBlock.getByte(position), buff);
+                    writeValue(valueBlock.getBoolean(position), buff);
                 }
             }
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
                 nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                writeValue(valueBlock.getByte(blockPos.getBlockPosition()), buff);
+                writeValue(valueBlock.getBoolean(blockPos.getBlockPosition()), buff);
             }
         }
         return new AppendResult(nullsCount);
@@ -75,7 +78,7 @@ public class BooleanBlockAppender
 
     private AppendResult appendDictionaryBlock(DictionaryBlock dictionaryBlock, BlockPosHolder blockPos, ByteBuffer buff)
     {
-        ByteArrayBlock dictionary = (ByteArrayBlock) dictionaryBlock.getDictionary();
+        BitArrayBlock dictionary = (BitArrayBlock) dictionaryBlock.getDictionary();
         int nullsCount = 0;
         if (dictionaryBlock.mayHaveNull()) {
             for (; blockPos.inRange(); blockPos.advance()) {
@@ -87,20 +90,20 @@ public class BooleanBlockAppender
                 }
                 else {
                     nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                    writeValue(dictionary.getByte(position), buff);
+                    writeValue(dictionary.getBoolean(position), buff);
                 }
             }
         }
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
                 nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                writeValue(dictionary.getByte(dictionaryBlock.getId(blockPos.getBlockPosition())), buff);
+                writeValue(dictionary.getBoolean(dictionaryBlock.getId(blockPos.getBlockPosition())), buff);
             }
         }
         return new AppendResult(nullsCount);
     }
 
-    private AppendResult appendRepeatedValue(ByteArrayBlock valueBlock, BlockPosHolder blockPos, ByteBuffer buff)
+    private AppendResult appendRepeatedValue(BitArrayBlock valueBlock, BlockPosHolder blockPos, ByteBuffer buff)
     {
         int nullsCount = 0;
         if (valueBlock.isNull(0)) {
@@ -111,21 +114,18 @@ public class BooleanBlockAppender
             }
         }
         else {
-            byte val = valueBlock.getByte(0);
+            boolean value = valueBlock.getBoolean(0);
             for (; blockPos.inRange(); blockPos.advance()) {
                 nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                writeValue(val, buff);
+                writeValue(value, buff);
             }
         }
         return new AppendResult(nullsCount);
     }
 
-    // normalizes any nonzero byte to 1, matching the encoding the predicate fill writes for booleans
-    private void writeValue(byte val, ByteBuffer buff)
+    // the storage engine stores one byte per boolean, matching the encoding the predicate fill writes for booleans
+    private static void writeValue(boolean value, ByteBuffer buff)
     {
-        if (val != 0) {
-            val = 1;
-        }
-        buff.put(val);
+        buff.put(value ? TRUE_VALUE : FALSE_VALUE);
     }
 }

@@ -21,6 +21,7 @@ import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.Scalar;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
@@ -112,7 +113,7 @@ public final class GpuTypeConversion
             case BooleanType _ -> Optional.of(new GpuTypeMapping(
                     DType.BOOL8,
                     value -> Scalar.fromBool((Boolean) value.orElse(null)),
-                    blocks -> copyByteBlocksToDevice(blocks, DType.BOOL8),
+                    GpuTypeConversion::copyBitBlocksToDevice,
                     nullChecked(Scalar::getBoolean)));
 
             case TinyintType _ -> Optional.of(new GpuTypeMapping(
@@ -288,6 +289,73 @@ public final class GpuTypeConversion
                 validity.close();
             }
         }
+    }
+
+    private static @Move ColumnVector copyBitBlocksToDevice(Blocks blocks)
+    {
+        int totalPositions = blocks.positionCount();
+        if (totalPositions == 0) {
+            try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.BOOL8, 0)) {
+                return builder.buildAndPutOnDevice();
+            }
+        }
+
+        HostMemoryBuffer data = null;
+        HostMemoryBuffer validity = null;
+        try {
+            // cudf BOOL8 stores one byte per value, so the packed bits are expanded on the way to the device
+            data = HostMemoryBuffer.allocate(totalPositions);
+            int destOffset = 0;
+            for (Block block : blocks.blocks()) {
+                int count = block.getPositionCount();
+                switch (block) {
+                    case RunLengthEncodedBlock rle -> {
+                        BitArrayBlock value = (BitArrayBlock) rle.getValue();
+                        data.setMemory(destOffset, count, toBool8(value.getBoolean(0)));
+                    }
+                    case DictionaryBlock dictionary -> {
+                        BitArrayBlock valueBlock = (BitArrayBlock) dictionary.getUnderlyingValueBlock();
+                        byte[] temp = new byte[count];
+                        for (int i = 0; i < count; i++) {
+                            temp[i] = toBool8(valueBlock.getBoolean(dictionary.getUnderlyingValuePosition(i)));
+                        }
+                        data.setBytes(destOffset, temp, 0, count);
+                    }
+                    case BitArrayBlock bitBlock -> {
+                        byte[] temp = new byte[count];
+                        for (int i = 0; i < count; i++) {
+                            temp[i] = toBool8(bitBlock.getBoolean(i));
+                        }
+                        data.setBytes(destOffset, temp, 0, count);
+                    }
+                    default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
+                }
+                destOffset += count;
+            }
+
+            ValidityResult validityResult = buildValidity(blocks, totalPositions);
+            validity = validityResult.buffer();
+            long nullCount = validityResult.nullCount();
+
+            try (HostColumnVector hcv = new HostColumnVector(DType.BOOL8, totalPositions, Optional.of(nullCount), data, validity, null, List.of())) {
+                data = null;
+                validity = null;
+                return hcv.copyToDevice();
+            }
+        }
+        finally {
+            if (data != null) {
+                data.close();
+            }
+            if (validity != null) {
+                validity.close();
+            }
+        }
+    }
+
+    private static byte toBool8(boolean value)
+    {
+        return value ? (byte) 1 : (byte) 0;
     }
 
     private static @Move ColumnVector copyShortBlocksToDevice(Blocks blocks, DType dType)

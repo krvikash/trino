@@ -31,7 +31,7 @@ import java.util.Optional;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -123,7 +123,7 @@ class TestGpuDeviceMemoryUsageValidation
                                     bytesAllocated,
                                     Optional.empty(),
                                     new byte[bytesAllocated]))),
-                            List.of(BOOLEAN)))
+                            List.of(TINYINT)))
                             .close();
                 }
             }

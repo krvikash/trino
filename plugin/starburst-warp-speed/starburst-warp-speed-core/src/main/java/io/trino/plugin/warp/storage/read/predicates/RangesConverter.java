@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.read.predicates;
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.plugin.warp.util.StringPredicateData;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.Int128ArrayBlock;
@@ -32,6 +33,9 @@ class RangesConverter
 {
     static final byte INCLUSIVE = (byte) 1;
     static final byte EXCLUSIVE = (byte) 0;
+    // Boolean values as stored by the storage engine (one byte per value)
+    static final byte BOOLEAN_TRUE = (byte) 1;
+    static final byte BOOLEAN_FALSE = (byte) 0;
     // Unbounded markers
     static final int INT_LOWER_UNBOUNDED = Integer.MIN_VALUE;
     static final int INT_UPPER_UNBOUNDED = Integer.MAX_VALUE;
@@ -55,31 +59,37 @@ class RangesConverter
     void setBooleanRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
-        ByteArrayBlock valueBlock = (ByteArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
+        BitArrayBlock valueBlock = (BitArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
         boolean highUnbounded = isUnbounded(sortedRangesBlock, positionCount - 1);
         if (lowUnbounded) {
-            lowBuf.put((byte) 0);
+            lowBuf.put(BOOLEAN_FALSE);
             lowBuf.put(INCLUSIVE); // inclusive
-            highBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(1)));
+            highBuf.put(booleanValue(valueBlock, sortedRangesBlock.getUnderlyingValuePosition(1)));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            lowBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            lowBuf.put(booleanValue(valueBlock, sortedRangesBlock.getUnderlyingValuePosition(i)));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            highBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
+            highBuf.put(booleanValue(valueBlock, sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            lowBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
+            lowBuf.put(booleanValue(valueBlock, sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
-            highBuf.put((byte) 1);
+            highBuf.put(BOOLEAN_TRUE);
             highBuf.put(INCLUSIVE); // inclusive
         }
+    }
+
+    // the storage engine represents booleans as a single 0/1 byte
+    private static byte booleanValue(BitArrayBlock valueBlock, int position)
+    {
+        return valueBlock.getBoolean(position) ? BOOLEAN_TRUE : BOOLEAN_FALSE;
     }
 
     void setIntRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)

@@ -17,15 +17,16 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.common.StorageConstants;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.ByteArrayBlock;
 
 import java.util.Optional;
 
 import static io.trino.plugin.warp.storage.common.StorageConstants.MAY_HAVE_NULL;
 import static io.trino.plugin.warp.storage.common.StorageConstants.NULL_EXISTS_MARKER_SIZE;
 import static io.trino.plugin.warp.storage.common.StorageConstants.NULL_VALUE_MARKER_SIZE;
+import static io.trino.plugin.warp.storage.read.fill.BooleanBlockFiller.toBitArray;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 public class BooleanArrayBlockFiller
@@ -57,7 +58,7 @@ public class BooleanArrayBlockFiller
                     values[currInt] = slice.getByte(offset + (currInt * (Byte.BYTES + NULL_VALUE_MARKER_SIZE)) + NULL_VALUE_MARKER_SIZE);
                 }
             }
-            return new ByteArrayBlock(numElements, Optional.of(valueIsValid), values);
+            return new BitArrayBlock(numElements, Optional.of(valueIsValid), toBitArray(values, numElements));
         }
         else {
             byte[] values = new byte[length];
@@ -66,7 +67,7 @@ public class BooleanArrayBlockFiller
                 values[currInt] = slice.getByte(offset + currInt);
             }
 
-            return new ByteArrayBlock(length, Optional.empty(), values);
+            return new BitArrayBlock(length, Optional.empty(), toBitArray(values, length));
         }
     }
 
@@ -88,11 +89,11 @@ public class BooleanArrayBlockFiller
 
                 values[currInt] = byteBufferInputStream.readByte();
             }
-            return new ByteArrayBlock(numElements, Optional.of(valueIsValid), values);
+            return new BitArrayBlock(numElements, Optional.of(valueIsValid), toBitArray(values, numElements));
         }
         else {
             byte[] values = byteBufferInputStream.readBytes(offset, length);
-            return new ByteArrayBlock(length, Optional.empty(), values);
+            return new BitArrayBlock(length, Optional.empty(), toBitArray(values, length));
         }
     }
 }

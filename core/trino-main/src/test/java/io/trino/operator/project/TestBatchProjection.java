@@ -23,9 +23,9 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.SqlBatchFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.Page;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.ValueBlock;
@@ -602,7 +602,7 @@ final class TestBatchProjection
     static Block batchLessThan(ConnectorSession session, ValueBlock first, int[] firstPositions, ValueBlock second, int[] secondPositions)
     {
         int length = firstPositions.length;
-        byte[] result = new byte[length];
+        long[] result = Bitmap.allocateWords(length, false);
         long[] validity = Bitmap.allocateWords(length, true);
         for (int i = 0; i < length; i++) {
             int firstPosition = firstPositions[i];
@@ -611,10 +611,12 @@ final class TestBatchProjection
                 Bitmap.clear(validity, 0, i);
             }
             else {
-                result[i] = (byte) (BIGINT.getLong(first, firstPosition) < BIGINT.getLong(second, secondPosition) ? 1 : 0);
+                if (BIGINT.getLong(first, firstPosition) < BIGINT.getLong(second, secondPosition)) {
+                    set(result, 0, i);
+                }
             }
         }
-        return new ByteArrayBlock(length, Optional.of(validity), result);
+        return new BitArrayBlock(length, Optional.of(validity), result);
     }
 
     private static Expression rewriteBatchToScalarFunction(Expression projection)

@@ -26,7 +26,6 @@ import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 
@@ -36,6 +35,7 @@ import java.util.function.Function;
 
 import static io.trino.plugin.warp.storage.common.StorageConstants.NULL_EXISTS_MARKER_SIZE;
 import static io.trino.plugin.warp.storage.common.StorageConstants.NULL_VALUE_MARKER_SIZE;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public class ArrayBlockToVarcharBlockTransformer
@@ -223,7 +223,7 @@ public class ArrayBlockToVarcharBlockTransformer
                 boolean isNull = block.isNull(currInt);
                 dataSlice.setByte(pos, isNull ? StorageConstants.NULL_MARKER_VALUE : StorageConstants.NOT_NULL_MARKER_VALUE);
                 if (!isNull) {
-                    dataSlice.setByte(pos + NULL_VALUE_MARKER_SIZE, TinyintType.TINYINT.getByte(block, currInt));
+                    dataSlice.setByte(pos + NULL_VALUE_MARKER_SIZE, booleanStorageByte(block, currInt));
                 }
             }
         }
@@ -231,11 +231,17 @@ public class ArrayBlockToVarcharBlockTransformer
             dataSlice = Slices.allocate(block.getPositionCount() + NULL_EXISTS_MARKER_SIZE);
             dataSlice.setByte(0, StorageConstants.DONT_HAVE_NULL);
             for (int currInt = 0; currInt < block.getPositionCount(); currInt++) {
-                dataSlice.setByte(getSliceOffsetFromIndex(currInt, Byte.BYTES), TinyintType.TINYINT.getByte(block, currInt));
+                dataSlice.setByte(getSliceOffsetFromIndex(currInt, Byte.BYTES), booleanStorageByte(block, currInt));
             }
         }
 
         return dataSlice;
+    }
+
+    // the storage engine keeps one 0/1 byte per boolean array element
+    private static byte booleanStorageByte(Block block, int position)
+    {
+        return BOOLEAN.getBoolean(block, position) ? (byte) 1 : (byte) 0;
     }
 
     private int getSliceOffsetFromIndex(int currIndex, int typeLength)

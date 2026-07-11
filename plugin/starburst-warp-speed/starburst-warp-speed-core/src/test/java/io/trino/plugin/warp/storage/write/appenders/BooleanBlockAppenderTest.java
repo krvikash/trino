@@ -16,8 +16,8 @@ package io.trino.plugin.warp.storage.write.appenders;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.BooleanType;
@@ -53,22 +53,23 @@ class BooleanBlockAppenderTest
     static Stream<Arguments> params()
     {
         Type blockType = BooleanType.BOOLEAN;
-        ByteArrayBlock valuesWithNull = new ByteArrayBlock(3, Optional.of(new long[] {0b101}), new byte[] {1, 0, 0});
+        // values [true, false, null]
+        BitArrayBlock valuesWithNull = new BitArrayBlock(3, Optional.of(new long[] {0b011}), new long[] {0b001});
         return Stream.of(
-                arguments(new ByteArrayBlock(3, Optional.empty(), new byte[] {1, 0, 1}),
+                arguments(new BitArrayBlock(3, Optional.empty(), new long[] {0b101}),
                         blockType,
                         new WarmupElementStats(false, 0, null, null, false)),
                 arguments(
                         valuesWithNull,
                         blockType,
                         new WarmupElementStats(false, 1, null, null, false)),
-                arguments(DictionaryBlock.create(4, valuesWithNull, new int[] {0, 1, 2, 1}),
+                arguments(DictionaryBlock.create(4, valuesWithNull, new int[] {0, 1, 2, 2}),
                         blockType,
                         new WarmupElementStats(false, 2, null, null, false)),
-                arguments(RunLengthEncodedBlock.create(new ByteArrayBlock(1, Optional.empty(), new byte[] {1}), 5),
+                arguments(RunLengthEncodedBlock.create(new BitArrayBlock(1, Optional.empty(), new long[] {1}), 5),
                         blockType,
                         new WarmupElementStats(false, 0, null, null, false)),
-                arguments(RunLengthEncodedBlock.create(new ByteArrayBlock(1, Optional.of(new long[] {0b0}), new byte[] {0}), 5),
+                arguments(RunLengthEncodedBlock.create(new BitArrayBlock(1, Optional.of(new long[] {0b0}), new long[] {0}), 5),
                         blockType,
                         new WarmupElementStats(false, 5, null, null, false)));
     }
@@ -81,18 +82,18 @@ class BooleanBlockAppenderTest
         runTest(block, blockType, expectedResult);
     }
 
-    static Stream<Arguments> nonZeroValueParams()
+    static Stream<Arguments> recordParams()
     {
-        ByteArrayBlock values = new ByteArrayBlock(2, Optional.empty(), new byte[] {2, 0});
+        BitArrayBlock values = new BitArrayBlock(2, Optional.empty(), new long[] {0b01});
         return Stream.of(
                 arguments(values, new byte[] {1, 0}),
                 arguments(DictionaryBlock.create(3, values, new int[] {0, 1, 0}), new byte[] {1, 0, 1}),
-                arguments(RunLengthEncodedBlock.create(new ByteArrayBlock(1, Optional.empty(), new byte[] {2}), 3), new byte[] {1, 1, 1}));
+                arguments(RunLengthEncodedBlock.create(new BitArrayBlock(1, Optional.empty(), new long[] {1}), 3), new byte[] {1, 1, 1}));
     }
 
     @ParameterizedTest
-    @MethodSource("nonZeroValueParams")
-    void writeNormalizesNonZeroValues(Block block, byte[] expectedRecords)
+    @MethodSource("recordParams")
+    void writeOneBytePerValue(Block block, byte[] expectedRecords)
     {
         BlockPosHolder blockPosHolder = new BlockPosHolder(block, BooleanType.BOOLEAN, 0, block.getPositionCount());
         blockAppender.append(jufferPos, blockPosHolder, null, new WarmupElementStatsBuilder());
