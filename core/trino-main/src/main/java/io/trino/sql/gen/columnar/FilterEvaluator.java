@@ -50,6 +50,7 @@ import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.function.FunctionKind.BATCH;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpressions;
 import static io.trino.sql.gen.columnar.AndFilterEvaluator.createAndExpressionEvaluator;
 import static io.trino.sql.gen.columnar.OrFilterEvaluator.createOrExpressionEvaluator;
@@ -122,14 +123,21 @@ public sealed interface FilterEvaluator
     {
         return switch (expression) {
             case Constant constant when constant.value() instanceof Boolean booleanValue -> booleanValue ? Optional.of(SelectAllEvaluator::new) : Optional.of(SelectNoneEvaluator::new);
+            case Reference reference when reference.type().equals(BOOLEAN) -> createReferenceExpressionEvaluator(charVarcharCoercion, compiler, reference, layout, dynamicFilter);
             case Call call -> {
                 if (call.function().functionKind() == BATCH) {
                     // Batch functions are not supported in columnar filter evaluation
                     yield Optional.empty();
                 }
-                if (isNotExpression(call) && call.arguments().getFirst() instanceof IsNull isNull) {
+                if (isNotExpression(call)) {
                     // "not(is_null(reference))" is handled explicitly as it is easy.
-                    yield createIsNotNullExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
+                    // more generic cases like "not(equal(reference, constant))" are not handled yet
+                    if (call.arguments().getFirst() instanceof IsNull isNull) {
+                        yield createIsNotNullExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
+                    }
+                    if (call.arguments().getFirst() instanceof Reference reference && reference.type().equals(BOOLEAN)) {
+                        yield createReferenceExpressionEvaluator(charVarcharCoercion, compiler, call, layout, dynamicFilter);
+                    }
                 }
                 yield createCallExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
             }
@@ -194,6 +202,12 @@ public sealed interface FilterEvaluator
                         new DebugContext(ImmutableList.of(value), layout, rewrittenFilter.toString(), isDebugOutputEnabled),
                         ImmutableList.of(projection.get().get()),
                         createDictionaryAwareEvaluator(supplier.get())));
+    }
+
+    private static Optional<Supplier<FilterEvaluator>> createReferenceExpressionEvaluator(CharVarcharCoercion charVarcharCoercion, ColumnarFilterCompiler compiler, Expression expression, Map<Symbol, Integer> layout, boolean dynamicFilter)
+    {
+        Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(charVarcharCoercion, expression, layout, dynamicFilter);
+        return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
     }
 
     /**

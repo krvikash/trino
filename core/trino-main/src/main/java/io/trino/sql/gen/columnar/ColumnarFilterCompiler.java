@@ -80,6 +80,7 @@ import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewr
 import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
 import static io.trino.spi.function.FunctionKind.BATCH;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.gen.columnar.FilterEvaluator.isNotExpression;
 import static io.trino.sql.gen.columnar.IsNotNullColumnarFilter.createIsNotNullColumnarFilter;
 import static io.trino.sql.gen.columnar.IsNullColumnarFilter.createIsNullColumnarFilter;
@@ -231,14 +232,21 @@ public class ColumnarFilterCompiler
                         // Batch functions are not supported in columnar filter evaluation
                         yield Optional.empty();
                     }
-                    if (isNotExpression(call) && call.arguments().getFirst() instanceof IsNull isNull) {
+                    if (isNotExpression(call)) {
                         // "not(is_null(reference))" is handled explicitly as it is easy.
-                        yield Optional.of(createIsNotNullColumnarFilter(isNull));
+                        // more generic cases like "not(equal(reference, constant))" are not handled yet
+                        if (call.arguments().getFirst() instanceof IsNull isNull) {
+                            yield Optional.of(createIsNotNullColumnarFilter(isNull));
+                        }
+                        if (call.arguments().getFirst() instanceof Reference reference && reference.type().equals(BOOLEAN)) {
+                            yield Optional.of(BooleanColumnarFilter.Negated.class);
+                        }
                     }
                     yield Optional.of(new CallColumnarFilterGenerator(call.function(), call.arguments(), layout, functionManager).generateColumnarFilter());
                 }
                 case IsNull isNull -> Optional.of(createIsNullColumnarFilter(isNull));
                 case In in -> Optional.of(new InColumnarFilterGenerator(in, layout, metadata, charVarcharCoercion, functionManager).generateColumnarFilter());
+                case Reference reference when reference.type().equals(BOOLEAN) -> Optional.of(BooleanColumnarFilter.class);
                 default -> Optional.empty();
             };
         }

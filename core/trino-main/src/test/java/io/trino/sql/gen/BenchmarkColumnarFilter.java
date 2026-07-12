@@ -21,6 +21,7 @@ import io.trino.operator.WorkProcessor;
 import io.trino.operator.project.PageProcessor;
 import io.trino.operator.project.PageProcessorMetrics;
 import io.trino.spi.Page;
+import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.IntArrayBlock;
@@ -142,16 +143,38 @@ public class BenchmarkColumnarFilter
                         FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
                         new IsNull(new Reference(type, COL_0)));
             }
+        },
+        BOOLEAN_VALUE {
+            @Override
+            Expression getExpression(Type type)
+            {
+                return new Reference(type, COL_0);
+            }
+        },
+        NOT_BOOLEAN_VALUE {
+            @Override
+            Expression getExpression(Type type)
+            {
+                return call(
+                        FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
+                        new Reference(type, COL_0));
+            }
         }
         /**/;
 
         abstract Expression getExpression(Type type);
+
+        boolean readsBooleanColumn()
+        {
+            // these filters read a BOOLEAN column directly, so the numeric dataType parameter does not apply to them
+            return this == BOOLEAN_VALUE || this == NOT_BOOLEAN_VALUE;
+        }
     }
 
     @Setup
     public void setup()
     {
-        Type type = getType(dataType);
+        Type type = getType(benchmarkDataType());
         Expression filter = filterProvider.getExpression(type);
         List<Symbol> referencedSymbols = SymbolsExtractor.extractUnique(filter).stream()
                 .sorted(Comparator.comparing(Symbol::name))
@@ -228,6 +251,10 @@ public class BenchmarkColumnarFilter
         for (boolean columnarEvaluationEnabled : ImmutableList.of(false, true)) {
             for (FilterProvider filterProvider : FilterProvider.values()) {
                 for (String dataType : ImmutableList.of(StandardTypes.BIGINT, StandardTypes.INTEGER, StandardTypes.SMALLINT)) {
+                    if (filterProvider.readsBooleanColumn() && !dataType.equals(StandardTypes.BIGINT)) {
+                        // the numeric data type is irrelevant for boolean filters, so run them only once
+                        continue;
+                    }
                     for (int nullsPercentage : ImmutableList.of(0, 10)) {
                         BenchmarkColumnarFilter benchmark = new BenchmarkColumnarFilter();
                         benchmark.filterProvider = filterProvider;
@@ -242,12 +269,18 @@ public class BenchmarkColumnarFilter
         }
     }
 
+    private String benchmarkDataType()
+    {
+        return filterProvider.readsBooleanColumn() ? StandardTypes.BOOLEAN : dataType;
+    }
+
     private Block createValueBlock(int positions, int nullsPercentage)
     {
-        return switch (dataType) {
+        return switch (benchmarkDataType()) {
             case StandardTypes.BIGINT -> createLongsBlock(positions, nullsPercentage);
             case StandardTypes.INTEGER -> createIntsBlock(positions, nullsPercentage);
             case StandardTypes.SMALLINT -> createShortsBlock(positions, nullsPercentage);
+            case StandardTypes.BOOLEAN -> createBooleansBlock(positions, nullsPercentage);
             default -> throw new UnsupportedOperationException();
         };
     }
@@ -270,7 +303,7 @@ public class BenchmarkColumnarFilter
 
     private Block createRleNullBlock(int positions)
     {
-        return RunLengthEncodedBlock.create(getType(dataType), null, positions);
+        return RunLengthEncodedBlock.create(getType(benchmarkDataType()), null, positions);
     }
 
     private static Block createShortsBlock(int positionsCount, int nullsPercentage)
@@ -312,12 +345,28 @@ public class BenchmarkColumnarFilter
         return new LongArrayBlock(positionsCount, Optional.of(validity), values);
     }
 
+    private static Block createBooleansBlock(int positionsCount, int nullsPercentage)
+    {
+        long[] values = new long[wordsForBits(positionsCount)];
+        long[] validity = new long[wordsForBits(positionsCount)];
+        for (int position = 0; position < positionsCount; position++) {
+            if (RANDOM.nextBoolean()) {
+                set(values, 0, position);
+            }
+            if (RANDOM.nextInt(100) >= nullsPercentage) {
+                set(validity, 0, position);
+            }
+        }
+        return new BitArrayBlock(positionsCount, nullsPercentage == 0 ? Optional.empty() : Optional.of(validity), values);
+    }
+
     private static Type getType(String dataType)
     {
         return switch (dataType) {
             case StandardTypes.BIGINT -> BIGINT;
             case StandardTypes.INTEGER -> INTEGER;
             case StandardTypes.SMALLINT -> SMALLINT;
+            case StandardTypes.BOOLEAN -> BOOLEAN;
             default -> throw new UnsupportedOperationException();
         };
     }
