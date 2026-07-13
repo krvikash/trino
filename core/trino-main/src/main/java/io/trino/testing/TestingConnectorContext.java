@@ -35,6 +35,7 @@ import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
+import io.trino.spi.cache.ConnectorCacheFactory;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ManagedStatisticsClient;
@@ -229,5 +230,11 @@ public final class TestingConnectorContext
     public BlocksHashFactory getBlocksHashFactory()
     {
         return blocksHashFactory;
+    }
+
+    @Override
+    public ConnectorCacheFactory getCacheFactory()
+    {
+        return new TestingConnectorCacheFactory();
     }
 }

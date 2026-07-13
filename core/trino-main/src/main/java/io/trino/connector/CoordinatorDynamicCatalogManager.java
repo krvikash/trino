@@ -20,6 +20,7 @@ import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.trino.cache.CacheManagerRegistry;
 import io.trino.connector.system.GlobalSystemConnector;
 import io.trino.metadata.Catalog;
 import io.trino.metadata.CatalogManager;
@@ -73,6 +74,7 @@ public class CoordinatorDynamicCatalogManager
     private final CatalogStore catalogStore;
     private final CatalogFactory catalogFactory;
     private final Set<CatalogFailureHandler> catalogFailureHandler;
+    private final CacheManagerRegistry cacheManagerRegistry;
     private final Executor executor;
 
     private final Object catalogsUpdateLock = new Object();
@@ -95,11 +97,13 @@ public class CoordinatorDynamicCatalogManager
             CatalogStore catalogStore,
             CatalogFactory catalogFactory,
             Set<CatalogFailureHandler> catalogFailureHandler,
+            CacheManagerRegistry cacheManagerRegistry,
             @ForStartup Executor executor)
     {
         this.catalogStore = requireNonNull(catalogStore, "catalogStore is null");
         this.catalogFactory = requireNonNull(catalogFactory, "catalogFactory is null");
         this.catalogFailureHandler = requireNonNull(catalogFailureHandler, "catalogFailureHandler is null");
+        this.cacheManagerRegistry = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null");
         this.executor = requireNonNull(executor, "executor is null");
     }
 
@@ -344,6 +348,9 @@ public class CoordinatorDynamicCatalogManager
 
             catalogStore.removeCatalog(catalogName);
             removed = activeCatalogs.remove(catalogName) != null;
+            if (removed) {
+                cacheManagerRegistry.drop(catalogName);
+            }
         }
 
         if (!removed && !exists) {

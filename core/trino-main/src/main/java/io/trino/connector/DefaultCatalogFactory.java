@@ -19,6 +19,7 @@ import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.cache.CacheManagerRegistry;
 import io.trino.connector.informationschema.InformationSchemaConnector;
 import io.trino.connector.system.SystemConnector;
 import io.trino.connector.system.SystemTablesProvider;
@@ -91,6 +92,7 @@ public class DefaultCatalogFactory
     private final SecretsResolver secretsResolver;
     private final NodeInfo nodeInfo;
     private final ConnectorExpressionEvaluator evaluator;
+    private final CacheManagerRegistry cacheManagerRegistry;
 
     @Inject
     public DefaultCatalogFactory(
@@ -114,7 +116,8 @@ public class DefaultCatalogFactory
             LocalMemoryManager localMemoryManager,
             SecretsResolver secretsResolver,
             NodeInfo nodeInfo,
-            ConnectorExpressionEvaluator evaluator)
+            ConnectorExpressionEvaluator evaluator,
+            CacheManagerRegistry cacheManagerRegistry)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
@@ -137,6 +140,7 @@ public class DefaultCatalogFactory
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
         this.evaluator = requireNonNull(evaluator, "evaluator is null");
+        this.cacheManagerRegistry = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null");
     }
 
     @Override
@@ -239,7 +243,8 @@ public class DefaultCatalogFactory
                 new InternalFunctionBundleFactory(),
                 managedStatisticsClient,
                 blocksHashFactory,
-                evaluator);
+                evaluator,
+                cacheManagerRegistry.createConnectorCacheFactory(catalogName));
 
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connectorFactory.getClass().getClassLoader())) {
             // TODO: connector factory should take CatalogName

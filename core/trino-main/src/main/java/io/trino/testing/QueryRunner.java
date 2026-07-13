@@ -135,6 +135,8 @@ public interface QueryRunner
 
     void loadSpoolingManager(String name, Map<String, String> properties);
 
+    void loadBlobCacheManager(String name, Map<String, String> properties);
+
     record MaterializedResultWithPlan(QueryId queryId, Optional<Plan> queryPlan, Optional<Program> program, MaterializedResult result) {}
 
     record MaterializedResultWithQueryId(QueryId queryId, MaterializedResult result) {}

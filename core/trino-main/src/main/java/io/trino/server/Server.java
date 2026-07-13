@@ -34,6 +34,8 @@ import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.airlift.units.Duration;
+import io.trino.cache.CacheManagerModule;
+import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.SubqueryCacheManagerModule;
 import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogManagerModule;
@@ -111,6 +113,7 @@ public class Server
                 new EventListenerModule(),
                 new ExchangeManagerModule(),
                 new SubqueryCacheManagerModule(),
+                new CacheManagerModule(),
                 new AiModelConnectionSpecsLoaderModule(),
                 new InternalCoordinatorLocatorModule(),
                 new InternalHttpClientModule(),
@@ -139,6 +142,8 @@ public class Server
             logLocation(log, "Etc directory", Path.of("etc"));
 
             injector.getInstance(PluginInstaller.class).loadPlugins();
+            // Caches can be requested for initial catalogs so we need to wire these first
+            injector.getInstance(CacheManagerRegistry.class).loadCacheManagers();
 
             var catalogStoreManager = injector.getInstance(Key.get(new TypeLiteral<Optional<CatalogStoreManager>>() {}));
             catalogStoreManager.ifPresent(CatalogStoreManager::loadConfiguredCatalogStore);
