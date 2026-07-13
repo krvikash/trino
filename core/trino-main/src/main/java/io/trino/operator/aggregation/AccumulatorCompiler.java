@@ -16,7 +16,6 @@ package io.trino.operator.aggregation;
 import com.google.common.collect.ImmutableList;
 import io.airlift.bytecode.BytecodeBlock;
 import io.airlift.bytecode.ClassDefinition;
-import io.airlift.bytecode.DynamicClassLoader;
 import io.airlift.bytecode.FieldDefinition;
 import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
@@ -81,7 +80,7 @@ import static io.trino.sql.gen.Bootstrap.BOOTSTRAP_METHOD;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
 import static io.trino.sql.gen.BytecodeUtils.loadConstant;
 import static io.trino.sql.gen.LambdaMetafactoryGenerator.generateMetafactory;
-import static io.trino.util.CompilerUtils.defineClass;
+import static io.trino.util.CompilerUtils.defineHiddenClass;
 import static io.trino.util.CompilerUtils.makeClassName;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -99,8 +98,6 @@ public final class AccumulatorCompiler
         // change types used in Aggregation methods to types used in the core Trino engine to simplify code generation
         implementation = normalizeAggregationMethods(implementation);
 
-        DynamicClassLoader classLoader = new DynamicClassLoader(AccumulatorCompiler.class.getClassLoader());
-
         List<Boolean> argumentNullable = functionNullability.getArgumentNullable()
                 .subList(0, functionNullability.getArgumentNullable().size() - implementation.getLambdaInterfaces().size());
 
@@ -109,7 +106,6 @@ public final class AccumulatorCompiler
                 GroupedAccumulator.class,
                 implementation,
                 argumentNullable,
-                classLoader,
                 specializedLoops);
 
         Constructor<? extends Accumulator> accumulatorConstructor = generateAccumulatorClass(
@@ -117,7 +113,6 @@ public final class AccumulatorCompiler
                 Accumulator.class,
                 implementation,
                 argumentNullable,
-                classLoader,
                 specializedLoops);
 
         List<Integer> nonNullArguments = new ArrayList<>();
@@ -140,7 +135,6 @@ public final class AccumulatorCompiler
             Class<T> accumulatorInterface,
             AggregationImplementation implementation,
             List<Boolean> argumentNullable,
-            DynamicClassLoader classLoader,
             boolean specializedLoops)
     {
         boolean grouped = accumulatorInterface == GroupedAccumulator.class;
@@ -151,7 +145,7 @@ public final class AccumulatorCompiler
                 type(Object.class),
                 type(accumulatorInterface));
 
-        CallSiteBinder callSiteBinder = new CallSiteBinder();
+        CallSiteBinder callSiteBinder = CallSiteBinder.forHiddenClassGeneration();
 
         List<AccumulatorStateDescriptor<?>> stateDescriptors = implementation.getAccumulatorStateDescriptors();
         List<StateFieldAndDescriptor> stateFieldAndDescriptors = new ArrayList<>();
@@ -228,7 +222,7 @@ public final class AccumulatorCompiler
             generatePrepareFinal(definition);
         }
 
-        Class<? extends T> accumulatorClass = defineClass(definition, accumulatorInterface, callSiteBinder.getBindings(), classLoader);
+        Class<? extends T> accumulatorClass = defineHiddenClass(definition, accumulatorInterface, callSiteBinder.getClassData());
         try {
             return accumulatorClass.getConstructor(List.class);
         }
@@ -253,8 +247,6 @@ public final class AccumulatorCompiler
         // change types used in Aggregation methods to types used in the core Trino engine to simplify code generation
         implementation = normalizeAggregationMethods(implementation);
 
-        DynamicClassLoader classLoader = new DynamicClassLoader(AccumulatorCompiler.class.getClassLoader());
-
         List<Boolean> argumentNullable = functionNullability.getArgumentNullable()
                 .subList(0, functionNullability.getArgumentNullable().size() - implementation.getLambdaInterfaces().size());
 
@@ -264,7 +256,7 @@ public final class AccumulatorCompiler
                 type(Object.class),
                 type(WindowAccumulator.class));
 
-        CallSiteBinder callSiteBinder = new CallSiteBinder();
+        CallSiteBinder callSiteBinder = CallSiteBinder.forHiddenClassGeneration();
 
         List<AccumulatorStateDescriptor<?>> stateDescriptors = implementation.getAccumulatorStateDescriptors();
         List<StateFieldAndDescriptor> stateFieldAndDescriptors = new ArrayList<>();
@@ -309,7 +301,7 @@ public final class AccumulatorCompiler
         generateEvaluateFinal(definition, "output", false, stateFields, implementation.getOutputFunction(), callSiteBinder);
         generateGetEstimatedSize(definition, stateFields);
 
-        Class<? extends WindowAccumulator> windowAccumulatorClass = defineClass(definition, WindowAccumulator.class, callSiteBinder.getBindings(), classLoader);
+        Class<? extends WindowAccumulator> windowAccumulatorClass = defineHiddenClass(definition, WindowAccumulator.class, callSiteBinder.getClassData());
         return createWindowAccumulatorFactory(windowAccumulatorClass);
     }
 
@@ -1065,10 +1057,12 @@ public final class AccumulatorCompiler
             List<StateFieldAndDescriptor> stateFieldAndDescriptors,
             List<FieldDefinition> lambdaProviderFields)
     {
-        Parameter source = arg("source", definition.getType());
+        // The accumulator is a hidden class, which cannot appear in the descriptors of its
+        // own declared methods, so the source is passed as Object and cast in the body
+        Parameter sourceArgument = arg("source", Object.class);
         MethodDefinition method = definition.declareConstructor(
                 a(PUBLIC),
-                source);
+                sourceArgument);
 
         BytecodeBlock body = method.getBody();
         Variable thisVariable = method.getThis();
@@ -1077,7 +1071,9 @@ public final class AccumulatorCompiler
                 .append(thisVariable)
                 .invokeConstructor(Object.class);
 
-        body.append(generateRequireNotNull(source));
+        body.append(generateRequireNotNull(sourceArgument));
+        Variable source = method.getScope().declareVariable(definition.getType(), "typedSource");
+        body.append(source.set(sourceArgument.cast(definition.getType())));
 
         for (StateFieldAndDescriptor descriptor : stateFieldAndDescriptors) {
             FieldDefinition stateSerializerField = descriptor.getStateSerializerField();
@@ -1105,7 +1101,9 @@ public final class AccumulatorCompiler
     {
         MethodDefinition copy = definition.declareMethod(a(PUBLIC), "copy", type(returnType));
         copy.getBody()
-                .append(newInstance(definition.getType(), copy.getScope().getThis()).ret());
+                // cast the result so the verifier never checks assignability of the hidden
+                // class, which it can only do by resolving the class name
+                .append(newInstance(definition.getType(), copy.getScope().getThis().cast(Object.class)).cast(returnType).ret());
     }
 
     private static BytecodeExpression generateRequireNotNull(Variable variable)

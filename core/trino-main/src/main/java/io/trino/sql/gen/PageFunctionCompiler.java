@@ -110,6 +110,7 @@ import static io.trino.sql.gen.LambdaBytecodeGenerator.generateMethodsForLambda;
 import static io.trino.sql.planner.CompilerConfig.DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS;
 import static io.trino.sql.planner.CompilerConfig.DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY;
 import static io.trino.sql.planner.DeterminismEvaluator.isDeterministic;
+import static io.trino.util.CompilerUtils.defineHiddenClass;
 import static io.trino.util.CompilerUtils.makeClassName;
 import static io.trino.util.Reflection.constructorMethodHandle;
 import static java.util.Objects.requireNonNull;
@@ -265,7 +266,7 @@ public class PageFunctionCompiler
     {
         Class<?> pageProjectionWorkClass;
         try {
-            CallSiteBinder callSiteBinder = new CallSiteBinder();
+            CallSiteBinder callSiteBinder = CallSiteBinder.forHiddenClassGeneration();
             ExpressionGenerationContext context = definePageProjectWorkClass(projection, compactLayout, callSiteBinder, charVarcharCoercion, classNameSuffix);
             List<ClassDefinition> generatedClasses = context.generateChunkClasses();
             pageProjectionWorkClass = context.defineClasses(PageProjectionWork.class, new DynamicClassLoader(getClass().getClassLoader(), callSiteBinder.getBindings()), generatedClasses);
@@ -485,7 +486,7 @@ public class PageFunctionCompiler
         PageFieldsToInputParametersRewriter.Result result = rewritePageFieldsToInputParameters(filter, layout);
 
         try {
-            CallSiteBinder callSiteBinder = new CallSiteBinder();
+            CallSiteBinder callSiteBinder = CallSiteBinder.forHiddenClassGeneration();
             ExpressionGenerationContext context = defineFilterClass(filter, result.compactLayout(), callSiteBinder, charVarcharCoercion, classNameSuffix);
             List<ClassDefinition> generatedClasses = context.generateChunkClasses();
             return context.defineClasses(PageFilter.class, new DynamicClassLoader(getClass().getClassLoader(), callSiteBinder.getBindings()), generatedClasses);
