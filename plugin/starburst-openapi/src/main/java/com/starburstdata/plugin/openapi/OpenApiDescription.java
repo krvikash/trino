@@ -18,12 +18,12 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy;
 import com.starburstdata.plugin.openapi.SpecUtil.ParameterIdentifier;
 import com.starburstdata.plugin.openapi.SpecUtil.Resolved;
 import com.starburstdata.plugin.openapi.SpecUtil.SuccessfulResponse;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy;
 import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoder;
 import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoderFactory;
 import com.starburstdata.plugin.openapi.conversions.encoder.OpenApiParameterHandle;
@@ -105,7 +105,7 @@ public class OpenApiDescription
                 referenceableResponses,
                 referenceableSchemas,
                 referenceableParameters,
-                CastPolicy.JSON,
+                CastPolicy.FALLBACK,
                 openApiDecoderFactory,
                 authenticator,
                 paginationStrategy);

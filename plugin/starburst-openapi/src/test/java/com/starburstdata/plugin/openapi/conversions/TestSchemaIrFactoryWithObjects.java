@@ -24,9 +24,9 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.DROP;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.FALLBACK;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,7 +44,7 @@ public class TestSchemaIrFactoryWithObjects
     private static Map<String, Schema> schemas;
     private static final SchemaIrFactory DROP_FACTORY = new SchemaIrFactory(DROP, emptyMap());
     private static final SchemaIrFactory ERROR_FACTORY = new SchemaIrFactory(ERROR, emptyMap());
-    private static final SchemaIrFactory JSON_FACTORY = new SchemaIrFactory(JSON, emptyMap());
+    private static final SchemaIrFactory FALLBACK_FACTORY = new SchemaIrFactory(FALLBACK, emptyMap());
 
     @BeforeAll
     public static void init()
@@ -56,7 +56,7 @@ public class TestSchemaIrFactoryWithObjects
     @Test
     public void testConflictingObjectSchema()
     {
-        assertThatThrownBy(() -> JSON_FACTORY.convert(schemas.get("conflictingProperties")))
+        assertThatThrownBy(() -> FALLBACK_FACTORY.convert(schemas.get("conflictingProperties")))
                 .asInstanceOf(throwable(SpecException.class))
                 .hasMessageMatching("\\Qproperties: Uses keys that cannot be referenced unambiguously with case-insensitivity: conflict\\E(ing|ING)")
                 .extracting(SpecException::path)
@@ -131,7 +131,7 @@ public class TestSchemaIrFactoryWithObjects
         assertThat(DROP_FACTORY.convert(schemas.get("objectOfErroringProperties")))
                 .isEqualTo(new ObjectIr(ImmutableMap.of("valid", new BooleanIr()), Optional.empty()));
 
-        assertThat(JSON_FACTORY.convert(schemas.get("objectOfErroringProperties")))
+        assertThat(FALLBACK_FACTORY.convert(schemas.get("objectOfErroringProperties")))
                 .isEqualTo(new ObjectIr(
                         ImmutableMap.<String, SchemaIr>builder()
                                 .put("valid", new BooleanIr())
@@ -152,7 +152,7 @@ public class TestSchemaIrFactoryWithObjects
                 .containsExactly("additionalProperties", "format");
         assertThat(DROP_FACTORY.convert(mapOfErroringValues))
                 .isEqualTo(new ObjectIr(ImmutableMap.of(), Optional.empty()));
-        assertThat(JSON_FACTORY.convert(mapOfErroringValues))
+        assertThat(FALLBACK_FACTORY.convert(mapOfErroringValues))
                 .isEqualTo(new ObjectIr(ImmutableMap.of(), Optional.of(new JsonIr())));
     }
 }

@@ -22,9 +22,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.DROP;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.FALLBACK;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -42,7 +42,7 @@ public class TestSchemaIrFactoryWithArrays
 
     private static final SchemaIrFactory DROP_FACTORY = new SchemaIrFactory(DROP, emptyMap());
     private static final SchemaIrFactory ERROR_FACTORY = new SchemaIrFactory(ERROR, emptyMap());
-    private static final SchemaIrFactory JSON_FACTORY = new SchemaIrFactory(JSON, emptyMap());
+    private static final SchemaIrFactory FALLBACK_FACTORY = new SchemaIrFactory(FALLBACK, emptyMap());
 
     @BeforeAll
     public static void init()
@@ -75,8 +75,8 @@ public class TestSchemaIrFactoryWithArrays
                                 .asInstanceOf(list(String.class))
                                 .containsExactly("items", "format"));
 
-        assertThat(JSON_FACTORY.convert(schemas.get("arrayOfError")))
-                .as("JSON_FACTORY shouldn't throw SpecException and cast values to JSON")
+        assertThat(FALLBACK_FACTORY.convert(schemas.get("arrayOfError")))
+                .as("FALLBACK_FACTORY shouldn't throw SpecException and cast values to JSON")
                 .isEqualTo(new ArrayIr(new JsonIr()));
     }
 }

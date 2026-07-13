@@ -21,9 +21,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.DROP;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.FALLBACK;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.DOUBLE;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.FLOAT;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.INT32;
@@ -45,7 +45,7 @@ public class TestSchemaIrFactoryWithNumbers
 {
     private static final SchemaIrFactory DROP_FACTORY = new SchemaIrFactory(DROP, emptyMap());
     private static final SchemaIrFactory ERROR_FACTORY = new SchemaIrFactory(ERROR, emptyMap());
-    private static final SchemaIrFactory JSON_FACTORY = new SchemaIrFactory(JSON, emptyMap());
+    private static final SchemaIrFactory FALLBACK_FACTORY = new SchemaIrFactory(FALLBACK, emptyMap());
 
     private static Map<String, Schema> schemas;
 
@@ -105,8 +105,8 @@ public class TestSchemaIrFactoryWithNumbers
                                 .as("Expect %s's SpecException to link to format property")
                                 .contains("format"));
 
-        assertThat(JSON_FACTORY.convert(schema))
-                .as("JSON_POLICY shouldn't throw SpecException but return JsonIr")
+        assertThat(FALLBACK_FACTORY.convert(schema))
+                .as("FALLBACK_FACTORY shouldn't throw SpecException but return JsonIr")
                 .isEqualTo(new JsonIr());
     }
 }

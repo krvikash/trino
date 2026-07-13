@@ -12,6 +12,7 @@ package com.starburstdata.plugin.openapi.conversions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy;
 import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
@@ -32,9 +33,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.FALLBACK;
 import static com.starburstdata.plugin.openapi.SpecUtil.castSchemaMap;
 import static com.starburstdata.plugin.openapi.conversions.ReferenceUtil.extractRefKey;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.DOUBLE;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.FLOAT;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.INT32;
@@ -66,13 +67,6 @@ public class SchemaIrFactory
         this.referenceableSchemas = requireNonNull(referenceableSchemas, "referenceableSchemas is null");
     }
 
-    public enum CastPolicy
-    {
-        DROP,
-        ERROR,
-        JSON,
-    }
-
     public SchemaIr convert(Schema<?> schema)
             throws SpecException
     {
@@ -101,7 +95,7 @@ public class SchemaIrFactory
                 .flatMap(Optional::stream)
                 .collect(toImmutableList());
 
-        if (!unsupportedBooleanKeywords.isEmpty() && !castPolicy.equals(JSON)) {
+        if (!unsupportedBooleanKeywords.isEmpty() && !castPolicy.equals(FALLBACK)) {
             throw new SpecException(format(
                     "Schema uses unsupported boolean keywords [%s]",
                     join(",", unsupportedBooleanKeywords)));
@@ -155,7 +149,7 @@ public class SchemaIrFactory
             };
         }
 
-        if (schema.getEnum() != null && !castPolicy.equals(JSON)) {
+        if (schema.getEnum() != null && !castPolicy.equals(FALLBACK)) {
             throw new SpecException("Enum keyword without type keyword is unsupported")
                     .fromMember("enum");
         }
@@ -200,7 +194,7 @@ public class SchemaIrFactory
                 additionalPropertiesIr = switch (castPolicy) {
                     case ERROR -> throw e.fromMember("additionalProperties");
                     case DROP -> Optional.empty();
-                    case JSON -> Optional.of(new JsonIr());
+                    case FALLBACK -> Optional.of(new JsonIr());
                 };
             }
         }
@@ -254,7 +248,7 @@ public class SchemaIrFactory
                 switch (castPolicy) {
                     case DROP -> {}
                     case ERROR -> throw e.fromMember("\"%s\"".formatted(key)).fromMember("properties");
-                    case JSON -> keyToIrBuilder.put(key, new JsonIr());
+                    case FALLBACK -> keyToIrBuilder.put(key, new JsonIr());
                 }
             }
         }
@@ -287,7 +281,7 @@ public class SchemaIrFactory
         catch (SpecException e) {
             return switch (castPolicy) {
                 case DROP, ERROR -> throw e.fromMember("items");
-                case JSON -> new ArrayIr(new JsonIr());
+                case FALLBACK -> new ArrayIr(new JsonIr());
             };
         }
         return new ArrayIr(itemIr);
@@ -318,7 +312,7 @@ public class SchemaIrFactory
                 case DROP, ERROR -> throw new SpecException(
                         "Unsupported number/integer format: %s".formatted(format))
                         .fromMember("format");
-                case JSON -> new JsonIr();
+                case FALLBACK -> new JsonIr();
             };
         }
         return new NumberIr(numberFormat.get());
@@ -358,7 +352,7 @@ public class SchemaIrFactory
                 case DROP, ERROR -> throw new SpecException(
                         "Unsupported string format %s".formatted(other))
                         .fromMember("format");
-                case JSON -> new JsonIr();
+                case FALLBACK -> new JsonIr();
             };
         };
     }

@@ -21,9 +21,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.DROP;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.FALLBACK;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.BYTE;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE_TIME;
@@ -45,7 +45,7 @@ public class TestSchemaIrFactoryWithStrings
     private static Map<String, Schema> schemas;
     private static final SchemaIrFactory DROP_FACTORY = new SchemaIrFactory(DROP, emptyMap());
     private static final SchemaIrFactory ERROR_FACTORY = new SchemaIrFactory(ERROR, emptyMap());
-    private static final SchemaIrFactory JSON_FACTORY = new SchemaIrFactory(JSON, emptyMap());
+    private static final SchemaIrFactory JSON_FACTORY = new SchemaIrFactory(FALLBACK, emptyMap());
 
     @BeforeAll
     public static void init()

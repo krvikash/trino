@@ -55,4 +55,11 @@ public class OpenApiConfig
         this.baseUri = baseUri;
         return this;
     }
+
+    public enum CastPolicy
+    {
+        DROP,
+        ERROR,
+        FALLBACK,
+    }
 }

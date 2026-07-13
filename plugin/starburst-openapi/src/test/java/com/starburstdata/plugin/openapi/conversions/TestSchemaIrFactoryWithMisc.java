@@ -25,9 +25,9 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
+import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
 import static com.starburstdata.plugin.openapi.SpecUtil.castSchemaMap;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.DROP;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
