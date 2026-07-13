@@ -99,7 +99,7 @@ public class TestRedshiftUnload
                                     .filter(summary -> summary.getOperatorType().startsWith("TableScanOperator"))
                                     .map(operatorStat -> operatorStat.getConnectorMetrics().getMetrics())
                                     .flatMap(metrics -> metrics.keySet().stream())
-                                    .filter(key -> !key.startsWith("ParquetReader"))
+                                    .filter(key -> key.startsWith("s3://"))
                                     .collect(toImmutableList());
                     unloadedPaths.forEach(path -> assertThat(path).matches("%s/.*/.*/.*.parquet.*".formatted(S3_UNLOAD_ROOT)));
                     String unloadedFilePath = unloadedPaths.getFirst();
