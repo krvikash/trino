@@ -95,6 +95,7 @@ public sealed interface FilterEvaluator
                     columnarFilterSubexpressionEvaluationEnabled,
                     isDebugOutputEnabled,
                     filterReorderingEnabled,
+                    false,
                     filter.get(),
                     layout,
                     columnarFilterCompiler,
@@ -108,6 +109,7 @@ public sealed interface FilterEvaluator
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean filterReorderingEnabled,
+            boolean dynamicFilter,
             Expression expression,
             Map<Symbol, Integer> layout,
             ColumnarFilterCompiler compiler,
@@ -123,15 +125,15 @@ public sealed interface FilterEvaluator
                 }
                 if (isNotExpression(call) && call.arguments().getFirst() instanceof IsNull isNull) {
                     // "not(is_null(reference))" is handled explicitly as it is easy.
-                    yield createIsNotNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
+                    yield createIsNotNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
                 }
-                yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
+                yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
             }
-            case IsNull isNull -> createIsNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, isNull, layout, classNameSuffix);
-            case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
-            case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
-            case In in -> createInExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, in, layout, classNameSuffix);
-            case Let let -> createLetEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, compiler, pageFunctionCompiler, let, layout, classNameSuffix);
+            case IsNull isNull -> createIsNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, isNull, layout, classNameSuffix);
+            case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
+            case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
+            case In in -> createInExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, in, layout, classNameSuffix);
+            case Let let -> createLetEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, let, layout, classNameSuffix);
             default -> Optional.empty();
         };
     }
@@ -161,6 +163,7 @@ public sealed interface FilterEvaluator
     private static Optional<Supplier<FilterEvaluator>> createReferenceValueFilterEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean dynamicFilter,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             Expression value,
@@ -169,7 +172,7 @@ public sealed interface FilterEvaluator
             Optional<String> classNameSuffix)
     {
         if (value instanceof Reference) {
-            return compiler.generateFilter(buildFilter.apply(value), layout)
+            return compiler.generateFilter(buildFilter.apply(value), layout, dynamicFilter)
                     .map(supplier -> () -> createDictionaryAwareEvaluator(supplier.get()));
         }
         if (!columnarFilterSubexpressionEvaluationEnabled) {
@@ -181,7 +184,7 @@ public sealed interface FilterEvaluator
         }
         Symbol projectedSymbol = new Symbol(value.type(), "$projected_0");
         Expression rewrittenFilter = buildFilter.apply(new Reference(value.type(), projectedSymbol.name()));
-        return compiler.generateFilter(rewrittenFilter, ImmutableMap.of(projectedSymbol, 0))
+        return compiler.generateFilter(rewrittenFilter, ImmutableMap.of(projectedSymbol, 0), dynamicFilter)
                 .map(supplier -> () -> new ColumnarFilterEvaluatorWithProjectedArguments(
                         new DebugContext(ImmutableList.of(value), layout, rewrittenFilter.toString(), isDebugOutputEnabled),
                         ImmutableList.of(projection.get().get()),
@@ -199,6 +202,7 @@ public sealed interface FilterEvaluator
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean filterReorderingEnabled,
+            boolean dynamicFilter,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             Let let,
@@ -209,7 +213,7 @@ public sealed interface FilterEvaluator
         Expression value = let.value();
         if (value instanceof Reference) {
             Expression body = replaceExpression(let.body(), ImmutableMap.of(boundReference, value));
-            return createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, body, layout, compiler, pageFunctionCompiler, classNameSuffix);
+            return createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, body, layout, compiler, pageFunctionCompiler, classNameSuffix);
         }
         if (!columnarFilterSubexpressionEvaluationEnabled) {
             return Optional.empty();
@@ -224,7 +228,7 @@ public sealed interface FilterEvaluator
         }
         Symbol projectedSymbol = new Symbol(value.type(), "$projected_0");
         Expression rewrittenBody = replaceExpression(let.body(), ImmutableMap.of(boundReference, new Reference(projectedSymbol.type(), projectedSymbol.name())));
-        return createColumnarFilterEvaluator(true, isDebugOutputEnabled, filterReorderingEnabled, rewrittenBody, ImmutableMap.of(projectedSymbol, 0), compiler, pageFunctionCompiler, classNameSuffix)
+        return createColumnarFilterEvaluator(true, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, rewrittenBody, ImmutableMap.of(projectedSymbol, 0), compiler, pageFunctionCompiler, classNameSuffix)
                 .map(supplier -> () -> new ColumnarFilterEvaluatorWithProjectedArguments(
                         new DebugContext(ImmutableList.of(value), layout, rewrittenBody.toString(), isDebugOutputEnabled),
                         ImmutableList.of(projection.get().get()),
@@ -234,6 +238,7 @@ public sealed interface FilterEvaluator
     private static Optional<Supplier<FilterEvaluator>> createInExpressionEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean dynamicFilter,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             In in,
@@ -244,6 +249,7 @@ public sealed interface FilterEvaluator
         return createReferenceValueFilterEvaluator(
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
+                dynamicFilter,
                 compiler,
                 pageFunctionCompiler,
                 in.value(),
@@ -255,6 +261,7 @@ public sealed interface FilterEvaluator
     private static Optional<Supplier<FilterEvaluator>> createCallExpressionEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean dynamicFilter,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             Call call,
@@ -271,12 +278,13 @@ public sealed interface FilterEvaluator
         }
         ProjectedArguments arguments = projected.get();
         Call rewrittenCall = new Call(call.function(), arguments.rewrittenArguments());
-        return toFilterEvaluator(compiler.generateFilter(rewrittenCall, arguments.rewrittenLayout()), arguments, isDeterministic(call), layout, rewrittenCall, isDebugOutputEnabled);
+        return toFilterEvaluator(compiler.generateFilter(rewrittenCall, arguments.rewrittenLayout(), dynamicFilter), arguments, isDeterministic(call), layout, rewrittenCall, isDebugOutputEnabled);
     }
 
     private static Optional<Supplier<FilterEvaluator>> createIsNotNullExpressionEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean dynamicFilter,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             Call call,
@@ -291,6 +299,7 @@ public sealed interface FilterEvaluator
         return createReferenceValueFilterEvaluator(
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
+                dynamicFilter,
                 compiler,
                 pageFunctionCompiler,
                 isNull.value(),
@@ -302,6 +311,7 @@ public sealed interface FilterEvaluator
     private static Optional<Supplier<FilterEvaluator>> createIsNullExpressionEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
+            boolean dynamicFilter,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             IsNull isNull,
@@ -310,7 +320,7 @@ public sealed interface FilterEvaluator
     {
         Type argumentType = isNull.value().type();
         checkArgument(!argumentType.equals(UNKNOWN), "argumentType %s should not be UNKNOWN", argumentType);
-        return createReferenceValueFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, isNull.value(), IsNull::new, layout, classNameSuffix);
+        return createReferenceValueFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, isNull.value(), IsNull::new, layout, classNameSuffix);
     }
 
     private static FilterEvaluator createDictionaryAwareEvaluator(ColumnarFilter filter)

@@ -133,7 +133,7 @@ public final class DynamicPageFilter
                     Expression expression = domainTranslator.toPredicate(entry.getValue().getDomain().orElseThrow(), symbol.toSymbolReference());
                     // Run the expression derived from TupleDomain through IR optimizer to simplify predicates. E.g. SimplifyContinuousInValues
                     expression = irExpressionOptimizer.process(expression, session, symbolAllocator, ImmutableMap.of()).orElse(expression);
-                    return createColumnarFilterEvaluator(false, false, filterReorderingEnabled, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
+                    return createColumnarFilterEvaluator(false, false, filterReorderingEnabled, true, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)

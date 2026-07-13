@@ -655,7 +655,7 @@ public class TestColumnarFilters
                 100,
                 createLongSequenceBlock(0, 100),
                 createLongSequenceBlock(0, 100));
-        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, true, andFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
+        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, true, false, andFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
         filterEvaluator.evaluate(FULL_CONNECTOR_SESSION, SelectedPositions.positionsRange(0, 100), testingPage);
 
         // col_b (channel 1) should not have been loaded because the first conjunct returned no positions
@@ -687,7 +687,7 @@ public class TestColumnarFilters
                 100,
                 createLongSequenceBlock(0, 100),
                 createLongSequenceBlock(0, 100));
-        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, true, orFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
+        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, true, false, orFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
         filterEvaluator.evaluate(FULL_CONNECTOR_SESSION, SelectedPositions.positionsRange(0, 100), testingPage);
 
         // col_b (channel 1) should not have been loaded because the first conjunct selected all rows
@@ -1288,12 +1288,12 @@ public class TestColumnarFilters
 
     private static void assertThatColumnarFilterEvaluationIsSupported(Expression filterExpression)
     {
-        assertThat(createColumnarFilterEvaluator(true, false, true, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isPresent();
+        assertThat(createColumnarFilterEvaluator(true, false, true, false, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isPresent();
     }
 
     private static void assertThatColumnarFilterEvaluationIsNotSupported(Expression filterExpression)
     {
-        assertThat(createColumnarFilterEvaluator(true, false, true, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isEmpty();
+        assertThat(createColumnarFilterEvaluator(true, false, true, false, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isEmpty();
     }
 
     @ScalarFunction("custom_is_distinct_from")
