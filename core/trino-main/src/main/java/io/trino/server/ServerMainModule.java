@@ -185,7 +185,7 @@ import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingMetadata;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.InternalTypeManager;
-import io.trino.type.JsonPath2016Type;
+import io.trino.type.SqlJsonPathType;
 import io.trino.type.TypeDescriptorDeserializer;
 import io.trino.type.TypeDescriptorKeyDeserializer;
 import io.trino.type.TypeDeserializer;
@@ -479,7 +479,7 @@ public class ServerMainModule
         newSetBinder(binder, Type.class);
         jsonCodecBinder(binder).bindJsonCodec(Expression.class);
         jsonCodecBinder(binder).bindJsonCodec(IrJsonPath.class);
-        binder.bind(RegisterJsonPath2016Type.class).asEagerSingleton();
+        binder.bind(RegisterSqlJsonPathType.class).asEagerSingleton();
 
         // new IR
         jsonCodecBinder(binder).bindJsonCodec(TableHandle.class);
@@ -661,12 +661,12 @@ public class ServerMainModule
     }
 
     // working around circular dependency Type <-> TypeManager
-    private static class RegisterJsonPath2016Type
+    private static class RegisterSqlJsonPathType
     {
         @Inject
-        public RegisterJsonPath2016Type(TypeRegistry typeRegistry, JsonCodec<IrJsonPath> jsonCodec)
+        public RegisterSqlJsonPathType(TypeRegistry typeRegistry, JsonCodec<IrJsonPath> jsonCodec)
         {
-            typeRegistry.addType(new JsonPath2016Type(jsonCodec));
+            typeRegistry.addType(new SqlJsonPathType(jsonCodec));
         }
     }
 
