@@ -228,6 +228,38 @@ public final class TestIcebergPartitionStatistics
         }
     }
 
+    @Test
+    void testPredicateWithPartitionTransform()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_non_identity",
+                "(id INT, ds DATE) WITH (partitioning = ARRAY['year(ds)'])",
+                ImmutableList.of("(1, DATE '2024-03-15')", "(2, DATE '2024-07-20')", "(3, DATE '2025-01-10')"))) {
+            // The connector ignores the filtering condition
+            assertStats(
+                    "(SELECT * FROM " + table.getName() + " WHERE ds >= DATE '2024-01-01' AND ds < DATE '2025-01-01')",
+                    column("id", null, 3.0, 0.0, null, null, null),
+                    column("ds", null, 3.0, 0.0, null, null, null),
+                    rowCount(3.0));
+        }
+    }
+
+    @Test
+    void testPredicateAfterPartitionSpecEvolution()
+    {
+        try (TestTable table = newTrinoTable("test_evolution", "(id INT, ds DATE) WITH (partitioning = ARRAY['ds'])")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, DATE '2024-03-15'), (2, DATE '2024-07-20')", 2);
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY['year(ds)']");
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (3, DATE '2025-01-10')", 1);
+
+            assertStats(
+                    "(SELECT * FROM " + table.getName() + " WHERE ds >= DATE '2024-01-01' AND ds < DATE '2025-01-01')",
+                    column("id", null, 3.0, 0.0, null, null, null),
+                    column("ds", null, 3.0, 0.0, null, null, null),
+                    rowCount(3.0));
+        }
+    }
+
     @ParameterizedTest
     @CsvSource(delimiterString = "|", quoteCharacter = '\\', value = {
             "TIMESTAMP | TIMESTAMP '1971-01-01 12:34:56.123456' | year(part) | {\"part_year\": 1}",

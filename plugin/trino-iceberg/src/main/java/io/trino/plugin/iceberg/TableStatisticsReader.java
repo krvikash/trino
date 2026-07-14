@@ -40,6 +40,7 @@ import org.apache.iceberg.BlobMetadata;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatisticsFile;
 import org.apache.iceberg.PartitionStats;
@@ -174,14 +175,14 @@ public final class TableStatisticsReader
                 Types.StructType partitionType = Partitioning.partitionType(icebergTable);
                 Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(icebergTable));
                 InputFile inputFile = icebergTable.io().newInputFile(statsFile.path(), statsFile.fileSizeInBytes());
+                // Per-spec evaluators restricted to identity columns — non-identity transforms use derived field names that don't match data-column names.
+                Map<Integer, Evaluator> evaluatorBySpecId = specIdToEvaluator(icebergTable, partitionType, enforcedConstraint);
                 try (PartitionStatisticsReader.PartitionStatsIterator statsIterator = partitionStatisticsReader.readPartitionStats(session, icebergTable, schema, inputFile)) {
                     while (statsIterator.hasNext()) {
                         PartitionStats stat = statsIterator.next();
-                        if (!enforcedConstraint.isAll()) {
-                            Evaluator evaluator = new Evaluator(partitionType, toIcebergExpression(enforcedConstraint));
-                            if (!evaluator.eval(stat.partition())) {
-                                continue;
-                            }
+                        Evaluator evaluator = evaluatorBySpecId.get(stat.specId());
+                        if (evaluator != null && !evaluator.eval(stat.partition())) {
+                            continue;
                         }
 
                         if (stat.totalRecords() != null) {
@@ -417,6 +418,27 @@ public final class TableStatisticsReader
                 .map(statsFileBySnapshot::get)
                 .filter(Objects::nonNull)
                 .findFirst();
+    }
+
+    private static Map<Integer, Evaluator> specIdToEvaluator(Table icebergTable, Types.StructType unionPartitionType, TupleDomain<IcebergColumnHandle> constraint)
+    {
+        if (constraint.isAll()) {
+            return ImmutableMap.of();
+        }
+
+        ImmutableMap.Builder<Integer, Evaluator> result = ImmutableMap.builder();
+        for (PartitionSpec spec : icebergTable.specs().values()) {
+            Set<Integer> identitySourceIds = spec.fields().stream()
+                    .filter(field -> field.transform().isIdentity())
+                    .map(PartitionField::sourceId)
+                    .collect(toImmutableSet());
+            TupleDomain<IcebergColumnHandle> filterable = constraint
+                    .filter((column, _) -> identitySourceIds.contains(column.getId()));
+            if (!filterable.isAll()) {
+                result.put(spec.specId(), new Evaluator(unionPartitionType, toIcebergExpression(filterable)));
+            }
+        }
+        return result.buildOrThrow();
     }
 
     /**
