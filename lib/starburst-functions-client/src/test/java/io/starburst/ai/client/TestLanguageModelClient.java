@@ -100,6 +100,20 @@ public class TestLanguageModelClient
         });
     }
 
+    @Test
+    public void testAuthHeaderSecretResolution()
+    {
+        // gpt4o_mini_auth_header tests header secret resolution end-to-end. It relies on the OpenAI client overwriting the
+        // Authorization header set via the credential. It could fail if the client behavior changes. A single completion is
+        // enough to exercise this path, so it is kept out of the parameterized model matrix to avoid redundant paid calls.
+        String modelId = "gpt4o_mini_auth_header";
+        String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, TokenUsageContext.EMPTY);
+            assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paris");
+        });
+    }
+
     @ParameterizedTest
     @MethodSource("modelIds")
     public void testPromptSystem(String modelId)
@@ -377,9 +391,6 @@ public class TestLanguageModelClient
                 {"haiku45"},
                 {"gpt4o_mini"},
                 {"meta_llama"},
-                // gpt4o_mini_auth_header tests header secret resolution end-to-end. It relies on the OpenAI client overwriting the
-                // Authorization header set via the credential. It could fail if the client behavior changes
-                {"gpt4o_mini_auth_header"},
         };
     }
 
