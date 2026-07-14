@@ -9,7 +9,7 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <groupId>io.starburst.stargate</groupId>
+    <groupId>io.trino</groupId>
     <artifactId>icehouse-io</artifactId>
     <description>Input/output libraries for Icehouse.</description>
 

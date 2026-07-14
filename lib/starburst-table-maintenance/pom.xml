@@ -9,7 +9,7 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <groupId>io.starburst.stargate</groupId>
+    <groupId>io.trino</groupId>
     <artifactId>starburst-table-maintenance</artifactId>
     <description>Shared abstractions used for table maintenance</description>
 
