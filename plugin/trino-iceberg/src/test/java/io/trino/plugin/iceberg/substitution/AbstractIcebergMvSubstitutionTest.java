@@ -77,7 +77,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
         // connectors, e.g. Cassandra, cannot DELETE by an arbitrary predicate). Each test stays
         // independent by capturing its own baseline count instead of relying on a global row
         // count; concrete tests run single-threaded (@Execution(SAME_THREAD)).
-        assertUpdate("CREATE TABLE " + ordersTable + " AS SELECT " +
+        assertUpdate("CREATE TABLE " + ordersTable + " " + sourceTablePropertiesClause() + " AS SELECT " +
                 "orderkey, " +
                 "custkey, " +
                 "CAST(orderdate AS VARCHAR) AS orderdate, " +
@@ -85,7 +85,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                 "CAST(orderstatus AS VARCHAR) AS orderstatus " +
                 "FROM tpch.tiny.orders  where orderkey between 20000 and 20010", 8);
 
-        assertUpdate("CREATE TABLE " + lineitemTable + " AS SELECT " +
+        assertUpdate("CREATE TABLE " + lineitemTable + " " + sourceTablePropertiesClause() + " AS SELECT " +
                 "orderkey, " +
                 "linenumber, " +
                 "quantity, " +
@@ -99,6 +99,17 @@ public abstract class AbstractIcebergMvSubstitutionTest
     {
         assertUpdate("DROP TABLE IF EXISTS " + ordersTable);
         assertUpdate("DROP TABLE IF EXISTS " + lineitemTable);
+    }
+
+    /**
+     * Optional {@code WITH (...)} clause (including a trailing space) applied when creating the
+     * {@code orders} and {@code lineitem} source tables. Defaults to none; connectors that need
+     * row-level {@code DELETE}/{@code INSERT} to age the MV during tests (e.g. Hive, which supports
+     * these only on transactional tables) override this.
+     */
+    protected String sourceTablePropertiesClause()
+    {
+        return "";
     }
 
     protected Session sessionWithSubstitution()

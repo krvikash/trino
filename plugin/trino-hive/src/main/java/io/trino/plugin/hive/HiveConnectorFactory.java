@@ -32,6 +32,7 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSinkProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
 import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
@@ -52,6 +53,7 @@ import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.procedure.Procedure;
 import org.weakref.jmx.guice.MBeanModule;
@@ -142,6 +144,7 @@ public class HiveConnectorFactory
             HiveTransactionManager transactionManager = injector.getInstance(HiveTransactionManager.class);
             ConnectorSplitManager splitManager = injector.getInstance(ConnectorSplitManager.class);
             ConnectorCacheMetadata cacheMetadata = injector.getInstance(ConnectorCacheMetadata.class);
+            ConnectorSubstitutionMetadata substitutionMetadata = injector.getInstance(ConnectorSubstitutionMetadata.class);
             ConnectorPageSourceProvider connectorPageSource = injector.getInstance(ConnectorPageSourceProvider.class);
             ConnectorPageSinkProvider pageSinkProvider = injector.getInstance(ConnectorPageSinkProvider.class);
             ConnectorNodePartitioningProvider connectorDistributionProvider = injector.getInstance(ConnectorNodePartitioningProvider.class);
@@ -163,6 +166,7 @@ public class HiveConnectorFactory
                     transactionManager,
                     new ClassLoaderSafeConnectorSplitManager(splitManager, classLoader),
                     new ClassLoaderSafeConnectorCacheMetadata(cacheMetadata, classLoader),
+                    new ClassLoaderSafeConnectorSubstitutionMetadata(substitutionMetadata, classLoader),
                     new ClassLoaderSafeConnectorPageSourceProvider(connectorPageSource, classLoader),
                     new ClassLoaderSafeConnectorPageSinkProvider(pageSinkProvider, classLoader),
                     new ClassLoaderSafeNodePartitioningProvider(connectorDistributionProvider, classLoader),

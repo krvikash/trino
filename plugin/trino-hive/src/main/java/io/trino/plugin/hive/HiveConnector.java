@@ -33,6 +33,7 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -57,6 +58,7 @@ public class HiveConnector
     private final LifeCycleManager lifeCycleManager;
     private final ConnectorSplitManager splitManager;
     private final ConnectorCacheMetadata cacheMetadata;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
     private final ConnectorPageSourceProvider pageSourceProvider;
     private final ConnectorPageSinkProvider pageSinkProvider;
     private final ConnectorNodePartitioningProvider nodePartitioningProvider;
@@ -83,6 +85,7 @@ public class HiveConnector
             HiveTransactionManager transactionManager,
             ConnectorSplitManager splitManager,
             ConnectorCacheMetadata cacheMetadata,
+            ConnectorSubstitutionMetadata substitutionMetadata,
             ConnectorPageSourceProvider pageSourceProvider,
             ConnectorPageSinkProvider pageSinkProvider,
             ConnectorNodePartitioningProvider nodePartitioningProvider,
@@ -105,6 +108,7 @@ public class HiveConnector
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.cacheMetadata = requireNonNull(cacheMetadata, "cacheMetadata is null");
+        this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
@@ -143,6 +147,12 @@ public class HiveConnector
     public ConnectorCacheMetadata getCacheMetadata()
     {
         return cacheMetadata;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
