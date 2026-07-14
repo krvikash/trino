@@ -22,8 +22,8 @@ import io.trino.Session;
 import io.trino.execution.ForQueryExecution;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.TableExecuteContextManager;
-import io.trino.execution.scheduler.ConsistentHashingAddressProvider;
 import io.trino.execution.scheduler.OutputDataSizeEstimate;
+import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.spi.HostAddress;
@@ -80,7 +80,7 @@ public class EventDrivenTaskSourceFactory
     private final InternalNode currentNode;
     private final InternalNodeManager nodeManager;
     private final TableExecuteContextManager tableExecuteContextManager;
-    private final ConsistentHashingAddressProvider consistentHashingAddressProvider;
+    private final StableHostAddressProvider stableHostAddressProvider;
     private final int splitBatchSize;
 
     @Inject
@@ -90,7 +90,7 @@ public class EventDrivenTaskSourceFactory
             InternalNode currentNode,
             InternalNodeManager nodeManager,
             TableExecuteContextManager tableExecuteContextManager,
-            ConsistentHashingAddressProvider consistentHashingAddressProvider,
+            StableHostAddressProvider stableHostAddressProvider,
             QueryManagerConfig queryManagerConfig)
     {
         this(splitSourceFactory,
@@ -98,7 +98,7 @@ public class EventDrivenTaskSourceFactory
                 currentNode,
                 nodeManager,
                 tableExecuteContextManager,
-                consistentHashingAddressProvider,
+                stableHostAddressProvider,
                 requireNonNull(queryManagerConfig, "queryManagerConfig is null").getScheduleSplitBatchSize());
     }
 
@@ -108,7 +108,7 @@ public class EventDrivenTaskSourceFactory
             InternalNode currentNode,
             InternalNodeManager nodeManager,
             TableExecuteContextManager tableExecuteContextManager,
-            ConsistentHashingAddressProvider consistentHashingAddressProvider,
+            StableHostAddressProvider stableHostAddressProvider,
             int splitBatchSize)
     {
         this.splitSourceFactory = requireNonNull(splitSourceFactory, "splitSourceFactory is null");
@@ -116,7 +116,7 @@ public class EventDrivenTaskSourceFactory
         this.currentNode = requireNonNull(currentNode, "currentNode is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.tableExecuteContextManager = requireNonNull(tableExecuteContextManager, "tableExecuteContextManager is null");
-        this.consistentHashingAddressProvider = requireNonNull(consistentHashingAddressProvider, "consistentHashingAddressProvider is null");
+        this.stableHostAddressProvider = requireNonNull(stableHostAddressProvider, "stableHostAddressProvider is null");
         this.splitBatchSize = splitBatchSize;
     }
 
@@ -224,7 +224,7 @@ public class EventDrivenTaskSourceFactory
                     arbitraryDistributionComputeTaskTargetSizeInBytesMax,
                     standardSplitSizeInBytes,
                     maxArbitraryDistributionTaskSplitCount,
-                    consistentHashingAddressProvider);
+                    stableHostAddressProvider);
         }
 
         if (partitioning.equals(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION)) {
@@ -238,7 +238,7 @@ public class EventDrivenTaskSourceFactory
                     arbitraryDistributionWriteTaskTargetSizeInBytesMax,
                     standardSplitSizeInBytes,
                     maxArbitraryDistributionTaskSplitCount,
-                    consistentHashingAddressProvider);
+                    stableHostAddressProvider);
         }
         if (partitioning.equals(FIXED_HASH_DISTRIBUTION)) {
             return HashDistributionSplitAssigner.create(
