@@ -30,6 +30,8 @@ public class DecompressionUtils
             getDecompressorConstructor("io.airlift.compress.v3.lz4.Lz4NativeDecompressor");
     private static final Optional<MethodHandle> ZSTD_DECOMPRESSOR_CONSTRUCTOR =
             getDecompressorConstructor("io.airlift.compress.v3.zstd.ZstdNativeDecompressor");
+    private static final Optional<MethodHandle> LZ4_FRAME_DECOMPRESSOR =
+            getFrameDecompressorHandle("io.airlift.compress.v3.lz4.Lz4FrameDecompressor");
 
     private DecompressionUtils() {}
 
@@ -59,6 +61,27 @@ public class DecompressionUtils
         return output.position();
     }
 
+    public static int decompressLz4Frame(ByteBuffer input, ByteBuffer output)
+    {
+        if (LZ4_FRAME_DECOMPRESSOR.isEmpty()) {
+            // LZ4 frame decompression is only available in aircompressor-v3, which requires Java 22+
+            throw new UnsupportedOperationException("LZ4 frame decompression requires Java 22 or newer");
+        }
+
+        byte[] inputBytes = new byte[input.remaining()];
+        input.get(inputBytes);
+        byte[] outputBytes = new byte[output.remaining()];
+
+        try {
+            int written = (int) LZ4_FRAME_DECOMPRESSOR.get().invoke(inputBytes, 0, inputBytes.length, outputBytes, 0, outputBytes.length);
+            output.put(outputBytes, 0, written);
+            return written;
+        }
+        catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static int decompressNative(MethodHandle constructor, byte[] input, byte[] output)
     {
         try {
@@ -70,6 +93,23 @@ public class DecompressionUtils
         }
         catch (Throwable e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static Optional<MethodHandle> getFrameDecompressorHandle(String clazzName)
+    {
+        try {
+            Class<?> clazz = Class.forName(clazzName);
+            // create() returns the native implementation when available and falls back to pure Java otherwise.
+            // Both implementations are stateless, so a single instance can be shared across threads.
+            Object decompressor = LOOKUP.findStatic(clazz, "create", methodType(clazz)).invoke();
+            // int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+            MethodHandle decompress = LOOKUP.findVirtual(clazz, "decompress", methodType(
+                    int.class, byte[].class, int.class, int.class, byte[].class, int.class, int.class));
+            return Optional.of(decompress.bindTo(decompressor));
+        }
+        catch (Throwable e) {
+            return Optional.empty();
         }
     }
 

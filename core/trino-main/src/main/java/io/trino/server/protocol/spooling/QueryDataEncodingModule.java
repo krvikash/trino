@@ -54,7 +54,7 @@ public class QueryDataEncodingModule
         if (config.isJsonLz4Enabled()) {
             encoderFactories.addBinding().to(JsonQueryDataEncoder.Lz4Factory.class).in(Scopes.SINGLETON);
         }
-        if (config.isArrowEnabled() || config.isArrowZstdEnabled()) {
+        if (config.isArrowEnabled() || config.isArrowZstdEnabled() || config.isArrowLz4Enabled()) {
             // Check reflective access allowed - required by Apache Arrow library
             verifyServerAccessOpened(
                     binder,
@@ -74,6 +74,9 @@ public class QueryDataEncodingModule
             }
             if (config.isArrowZstdEnabled()) {
                 encoderFactories.addBinding().to(ArrowQueryDataEncoder.ZstdFactory.class).in(Scopes.SINGLETON);
+            }
+            if (config.isArrowLz4Enabled()) {
+                encoderFactories.addBinding().to(ArrowQueryDataEncoder.Lz4Factory.class).in(Scopes.SINGLETON);
             }
         }
         binder.bind(QueryDataEncoders.class).in(Scopes.SINGLETON);

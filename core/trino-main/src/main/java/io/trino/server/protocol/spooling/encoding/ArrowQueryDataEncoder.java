@@ -37,6 +37,7 @@ import static io.trino.client.spooling.DataAttribute.SEGMENT_SIZE;
 import static io.trino.server.protocol.spooling.encoding.arrow.ArrowSchemaUtils.toArrowSchema;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
+import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.LZ4_FRAME;
 import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.NO_COMPRESSION;
 import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.ZSTD;
 
@@ -95,7 +96,7 @@ public class ArrowQueryDataEncoder
         return switch (codecType) {
             case NO_COMPRESSION -> ENCODING;
             case ZSTD -> ENCODING + "+zstd";
-            case LZ4_FRAME -> throw new UnsupportedOperationException("LZ4_FRAME is not supported");
+            case LZ4_FRAME -> ENCODING + "+lz4";
         };
     }
 
@@ -172,6 +173,45 @@ public class ArrowQueryDataEncoder
         public String encoding()
         {
             return ENCODING + "+zstd";
+        }
+    }
+
+    public static class Lz4Factory
+            implements QueryDataEncoder.Factory
+    {
+        private final BufferAllocator allocator;
+        private final CompressionCodec.Factory compressionFactory;
+        private final long maxBatchSizeInBytes;
+
+        @Inject
+        public Lz4Factory(BufferAllocator rootAllocator, CompressionCodec.Factory compressionFactory, ArrowEncodingConfig config)
+        {
+            this.allocator = requireNonNull(rootAllocator, "allocator is null");
+            this.compressionFactory = requireNonNull(compressionFactory, "compressionFactory is null");
+            this.maxBatchSizeInBytes = config.getMaxBatchSize().toBytes();
+        }
+
+        @Override
+        public QueryDataEncoder create(Session session, List<OutputColumn> columns)
+        {
+            return new ArrowQueryDataEncoder(
+                    allocator.newChildAllocator(session.getQueryId().toString(), 0, Integer.MAX_VALUE),
+                    compressionFactory,
+                    LZ4_FRAME,
+                    columns,
+                    maxBatchSizeInBytes);
+        }
+
+        @Override
+        public List<OutputColumn> unsupported(Session session, List<OutputColumn> columns)
+        {
+            return ArrowSchemaUtils.unsupported(columns);
+        }
+
+        @Override
+        public String encoding()
+        {
+            return ENCODING + "+lz4";
         }
     }
 }

@@ -241,6 +241,38 @@ public class ArrowQueryDataDecoder
         }
     }
 
+    private static class Lz4ArrowQueryDataDecoder
+            extends ArrowQueryDataDecoder
+    {
+        public Lz4ArrowQueryDataDecoder(List<Column> columns)
+        {
+            super(columns);
+        }
+
+        @Override
+        public String encoding()
+        {
+            return super.encoding() + "+lz4";
+        }
+    }
+
+    // Arrow knows internally how to decode LZ4 frames, so we don't need to do anything special here
+    public static class Lz4Factory
+            extends Factory
+    {
+        @Override
+        public QueryDataDecoder create(List<Column> columns, DataAttributes queryAttributes, boolean supportsVariantBinary)
+        {
+            return new Lz4ArrowQueryDataDecoder(columns);
+        }
+
+        @Override
+        public String encoding()
+        {
+            return super.encoding() + "+lz4";
+        }
+    }
+
     @Override
     public String encoding()
     {

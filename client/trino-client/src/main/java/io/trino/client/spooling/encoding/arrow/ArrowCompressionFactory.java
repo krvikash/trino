@@ -27,6 +27,9 @@ public class ArrowCompressionFactory
         if (requireNonNull(codecType) == CompressionUtil.CodecType.ZSTD) {
             return new AirliftZstdCompressionCodec();
         }
+        if (codecType == CompressionUtil.CodecType.LZ4_FRAME) {
+            return new AirliftLz4CompressionCodec();
+        }
         throw new IllegalStateException("Unsupported codec type: " + codecType);
     }
 

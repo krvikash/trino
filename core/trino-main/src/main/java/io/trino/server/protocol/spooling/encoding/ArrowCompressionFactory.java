@@ -24,6 +24,7 @@ public class ArrowCompressionFactory
     {
         return switch (codecType) {
             case ZSTD -> new ZstdCompressionCodec();
+            case LZ4_FRAME -> new Lz4CompressionCodec();
             default -> throw new IllegalArgumentException("Compression type not supported: " + codecType);
         };
     }

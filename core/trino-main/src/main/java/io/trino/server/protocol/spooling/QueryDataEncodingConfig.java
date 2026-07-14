@@ -29,6 +29,7 @@ public class QueryDataEncodingConfig
     private boolean jsonLz4Enabled = true;
     private boolean arrowEnabled;
     private boolean arrowZstdEnabled;
+    private boolean arrowLz4Enabled;
     private DataSize compressionThreshold = DataSize.of(8, KILOBYTE);
 
     public boolean isJsonEnabled()
@@ -95,6 +96,20 @@ public class QueryDataEncodingConfig
     public QueryDataEncodingConfig setArrowZstdEnabled(boolean arrowZstdEnabled)
     {
         this.arrowZstdEnabled = arrowZstdEnabled;
+        return this;
+    }
+
+    public boolean isArrowLz4Enabled()
+    {
+        return arrowLz4Enabled;
+    }
+
+    @Config("protocol.spooling.encoding.arrow+lz4.enabled")
+    @ConfigDescription("Enable LZ4 compressed Arrow spooled encoding")
+    @ConfigHidden
+    public QueryDataEncodingConfig setArrowLz4Enabled(boolean arrowLz4Enabled)
+    {
+        this.arrowLz4Enabled = arrowLz4Enabled;
         return this;
     }
 

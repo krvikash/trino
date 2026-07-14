@@ -755,7 +755,7 @@ public abstract class AbstractTestEngineOnlyQueries
         // DECIMAL - NUMBER
         String testClassName = getClass().getSimpleName();
         // TODO https://starburstdata.atlassian.net/browse/ENG-7894 Support NUMBER in Trino protocol spooling to Arrow
-        boolean isArrowSpooling = testClassName.endsWith("TestArrowSpooledDistributedQueries") || testClassName.equals("TestArrowZstdSpooledDistributedQueries");
+        boolean isArrowSpooling = testClassName.endsWith("TestArrowSpooledDistributedQueries") || testClassName.equals("TestArrowZstdSpooledDistributedQueries") || testClassName.equals("TestArrowLz4SpooledDistributedQueries");
         if (isArrowSpooling) {
             assertThat(query("SELECT CAST(1.1 AS DECIMAL(38,1)) + CAST(1.1 AS NUMBER)")).failure()
                     .hasMessageContaining("Output columns [OutputColumn[sourcePageChannel=0, columnName=_col0, type=number]] are not supported for spooling encoding");

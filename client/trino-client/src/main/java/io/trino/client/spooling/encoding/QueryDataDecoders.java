@@ -34,7 +34,8 @@ public class QueryDataDecoders
             new JsonQueryDataDecoder.Lz4Factory(),
             new JsonQueryDataDecoder.Factory(),
             new ArrowQueryDataDecoder.Factory(),
-            new ArrowQueryDataDecoder.ZstdFactory());
+            new ArrowQueryDataDecoder.ZstdFactory(),
+            new ArrowQueryDataDecoder.Lz4Factory());
 
     private static final Map<String, Factory> encodingMap = factoriesMap();
 
