@@ -740,9 +740,12 @@ jobs:
       OPEN_AI_API_KEY: ${{ secrets.OPEN_AI_API_KEY }}
       BEDROCK_ACCESS_KEY_ID: ${{ vars.BEDROCK_ACCESS_KEY_ID }}
       BEDROCK_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_SECRET_ACCESS_KEY }}
+    # Live AI tests bill real provider APIs, so we do not run them on every merge to master.
+    # They run on the weekly schedule, on a manual workflow_dispatch on master, or on demand via the 'ai' PR label.
     if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/master' ||
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ai')
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ai'))
     steps:
       - uses: actions/checkout@v6
         with:
