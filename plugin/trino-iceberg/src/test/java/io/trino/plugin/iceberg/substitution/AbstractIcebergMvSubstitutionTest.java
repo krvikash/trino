@@ -402,6 +402,36 @@ public abstract class AbstractIcebergMvSubstitutionTest
         }
     }
 
+    @Test
+    public void testSubFieldMaterializingMvDoesNotSubstitute()
+    {
+        String tableName = "sub_field_same_type_" + randomNameSuffix();
+        CatalogSchemaTableName mvName = mvName("mv_sub_field_same_type_");
+        try {
+            createNestedTypeTable(tableName);
+
+            createSubstitutionMv(mvName, "SELECT id, " + subFieldExpression("info", "name") + " AS a FROM " + tableName);
+
+            Session session = sessionWithSubstitution();
+            String materializedFieldQuery = "SELECT " + subFieldExpression("info", "name") + " FROM " + tableName;
+            // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
+            // defining query is not a bare table scan and cannot be indexed for substitution.
+            // This will change to assertSubstituted when projections are supported
+            assertNotSubstituted(session, materializedFieldQuery, tableName);
+            assertSameResults(session, materializedFieldQuery);
+
+            String siblingFieldQuery = "SELECT " + subFieldExpression("info", "gender") + " FROM " + tableName;
+            // We should not substitute a subfield if it is not materialized. This will test for invalid ConnectorColumnId implementations that only ontain the base column name,
+            // once projection support is added
+            assertNotSubstituted(session, siblingFieldQuery, tableName);
+            assertSameResults(session, siblingFieldQuery);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+        }
+    }
+
     protected void createNestedTypeTable(String tableName)
     {
         assertUpdate("CREATE TABLE " + tableName + " (id BIGINT, info " + subFieldColumnType() + ")");
@@ -494,7 +524,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
      */
     protected String subFieldColumnType()
     {
-        return "ROW(name VARCHAR, age INTEGER)";
+        return "ROW(name VARCHAR, age INTEGER, gender VARCHAR)";
     }
 
     /**
@@ -503,9 +533,9 @@ public abstract class AbstractIcebergMvSubstitutionTest
      */
     protected String subFieldInsertValues()
     {
-        return "(1, CAST(ROW('Alice', 30) AS ROW(name VARCHAR, age INTEGER))), " +
-                "(2, CAST(ROW('Bob', 25) AS ROW(name VARCHAR, age INTEGER))), " +
-                "(3, CAST(ROW('Carol', 40) AS ROW(name VARCHAR, age INTEGER)))";
+        return "(1, CAST(ROW('Alice', 30, 'W') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR))), " +
+                "(2, CAST(ROW('Bob', 25, 'M') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR))), " +
+                "(3, CAST(ROW('Carol', 40, 'W') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR)))";
     }
 
     /**

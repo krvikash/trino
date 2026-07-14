@@ -102,9 +102,9 @@ public class TestIcebergMvOnJdbcSourceSubstitution
     @Override
     protected String subFieldInsertValues()
     {
-        return "(1, JSON '{\"name\":\"Alice\",\"age\":30}'), " +
-                "(2, JSON '{\"name\":\"Bob\",\"age\":25}'), " +
-                "(3, JSON '{\"name\":\"Carol\",\"age\":40}')";
+        return "(1, JSON '{\"name\":\"Alice\",\"age\":30, \"gender\":\"W\"}'), " +
+                "(2, JSON '{\"name\":\"Bob\",\"age\":25, \"gender\":\"M\"}'), " +
+                "(3, JSON '{\"name\":\"Carol\",\"age\":40, \"gender\":\"W\"}')";
     }
 
     @Override
