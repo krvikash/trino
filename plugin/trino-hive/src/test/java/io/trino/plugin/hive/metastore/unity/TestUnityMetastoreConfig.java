@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.metastore.unity;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 final class TestUnityMetastoreConfig
 {
@@ -33,7 +35,9 @@ final class TestUnityMetastoreConfig
                 .setHost(null)
                 .setCatalogManagedTableEnabled(false)
                 .setVendedCredentialsEnabled(false)
-                .setProxyEnabled(false));
+                .setProxyEnabled(false)
+                .setConnectTimeout(new Duration(30, SECONDS))
+                .setReadTimeout(new Duration(60, SECONDS)));
     }
 
     @Test
@@ -46,6 +50,8 @@ final class TestUnityMetastoreConfig
                 .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
                 .put("hive.metastore.unity.proxy.enabled", "true")
+                .put("hive.metastore.unity.connect-timeout", "5s")
+                .put("hive.metastore.unity.read-timeout", "45s")
                 .buildOrThrow();
 
         UnityMetastoreConfig expected = new UnityMetastoreConfig()
@@ -54,7 +60,9 @@ final class TestUnityMetastoreConfig
                 .setHost("host")
                 .setCatalogManagedTableEnabled(true)
                 .setVendedCredentialsEnabled(true)
-                .setProxyEnabled(true);
+                .setProxyEnabled(true)
+                .setConnectTimeout(new Duration(5, SECONDS))
+                .setReadTimeout(new Duration(45, SECONDS));
 
         assertFullMapping(properties, expected);
     }

@@ -25,6 +25,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.security.ConnectorIdentity;
 import io.unitycatalog.client.model.DataSourceFormat;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -41,6 +42,8 @@ public class DeltaLakeDynamicUnityMetastoreFactory
     private final String unityCatalogNameCredentialName;
     private final Optional<String> vendedCredentialsCredentialName;
     private final boolean vendedCredentialsEnabledDefault;
+    private final Duration connectTimeout;
+    private final Duration readTimeout;
     private final Tracer tracer;
     private final Set<DataSourceFormat> supportedUnityTableFormats;
 
@@ -55,6 +58,8 @@ public class DeltaLakeDynamicUnityMetastoreFactory
         this.unityCatalogNameCredentialName = unityCredentialConfig.getUnityCatalogNameCredentialName();
         this.vendedCredentialsCredentialName = unityCredentialConfig.getVendedCredentialsCredentialName();
         this.vendedCredentialsEnabledDefault = unityCredentialConfig.isVendedCredentialsEnabled();
+        this.connectTimeout = unityCredentialConfig.getConnectTimeout().toJavaTime();
+        this.readTimeout = unityCredentialConfig.getReadTimeout().toJavaTime();
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.supportedUnityTableFormats = requireNonNull(supportedUnityTableFormatsProvider, "supportedUnityTableFormatsProvider is null")
                 .supportedUnityTableFormats();
@@ -91,6 +96,8 @@ public class DeltaLakeDynamicUnityMetastoreFactory
                         Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
+                        connectTimeout,
+                        readTimeout,
                         supportedUnityTableFormats));
     }
 

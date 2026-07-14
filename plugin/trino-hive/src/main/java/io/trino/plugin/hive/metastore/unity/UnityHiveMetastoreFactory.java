@@ -49,6 +49,8 @@ public class UnityHiveMetastoreFactory
                         proxyConfig.flatMap(UnityMetastoreProxyConfig::getUsername),
                         proxyConfig.flatMap(UnityMetastoreProxyConfig::getPassword),
                         proxyConfig.map(UnityMetastoreProxyConfig::getNonProxyHosts),
+                        config.getConnectTimeout().toJavaTime(),
+                        config.getReadTimeout().toJavaTime(),
                         supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
     }
 

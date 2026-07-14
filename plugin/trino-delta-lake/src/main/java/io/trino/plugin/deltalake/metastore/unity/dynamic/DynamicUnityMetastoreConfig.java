@@ -16,9 +16,12 @@ package io.trino.plugin.deltalake.metastore.unity.dynamic;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.LegacyConfig;
+import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class DynamicUnityMetastoreConfig
 {
@@ -28,6 +31,8 @@ public class DynamicUnityMetastoreConfig
     private boolean vendedCredentialsEnabled;
     private boolean catalogManagedTableEnabled;
     private Optional<String> vendedCredentialsCredentialName = Optional.empty();
+    private Duration connectTimeout = new Duration(30, TimeUnit.SECONDS);
+    private Duration readTimeout = new Duration(60, TimeUnit.SECONDS);
 
     @NotNull
     public String getUnityHostCredentialName()
@@ -108,6 +113,36 @@ public class DynamicUnityMetastoreConfig
     public DynamicUnityMetastoreConfig setVendedCredentialsCredentialName(String vendedCredentialsCredentialName)
     {
         this.vendedCredentialsCredentialName = Optional.ofNullable(vendedCredentialsCredentialName);
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("0ms")
+    public Duration getConnectTimeout()
+    {
+        return connectTimeout;
+    }
+
+    @Config("hive.metastore.unity.connect-timeout")
+    @ConfigDescription("Connect timeout for HTTP calls to the Unity Catalog server")
+    public DynamicUnityMetastoreConfig setConnectTimeout(Duration connectTimeout)
+    {
+        this.connectTimeout = connectTimeout;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("0ms")
+    public Duration getReadTimeout()
+    {
+        return readTimeout;
+    }
+
+    @Config("hive.metastore.unity.read-timeout")
+    @ConfigDescription("Read timeout for HTTP calls to the Unity Catalog server")
+    public DynamicUnityMetastoreConfig setReadTimeout(Duration readTimeout)
+    {
+        this.readTimeout = readTimeout;
         return this;
     }
 }

@@ -14,6 +14,7 @@
 package io.trino.plugin.deltalake.metastore.unity.dynamic;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 final class TestDynamicUnityMetastoreConfig
 {
@@ -33,7 +35,9 @@ final class TestDynamicUnityMetastoreConfig
                 .setUnityCatalogNameCredentialName(null)
                 .setVendedCredentialsCredentialName(null)
                 .setVendedCredentialsEnabled(false)
-                .setCatalogManagedTableEnabled(false));
+                .setCatalogManagedTableEnabled(false)
+                .setConnectTimeout(new Duration(30, SECONDS))
+                .setReadTimeout(new Duration(60, SECONDS)));
     }
 
     @Test
@@ -46,6 +50,8 @@ final class TestDynamicUnityMetastoreConfig
                 .put("dynamic.hive-metastore-unity-vended-credentials-enabled.credential-name", "vended_credentials")
                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
                 .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
+                .put("hive.metastore.unity.connect-timeout", "5s")
+                .put("hive.metastore.unity.read-timeout", "45s")
                 .buildOrThrow();
 
         DynamicUnityMetastoreConfig expected = new DynamicUnityMetastoreConfig()
@@ -54,7 +60,9 @@ final class TestDynamicUnityMetastoreConfig
                 .setUnityCatalogNameCredentialName("catalog_name")
                 .setVendedCredentialsCredentialName("vended_credentials")
                 .setVendedCredentialsEnabled(true)
-                .setCatalogManagedTableEnabled(true);
+                .setCatalogManagedTableEnabled(true)
+                .setConnectTimeout(new Duration(5, SECONDS))
+                .setReadTimeout(new Duration(45, SECONDS));
 
         assertFullMapping(properties, expected);
     }

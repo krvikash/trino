@@ -194,6 +194,8 @@ public class UnityHiveMetastore
             Optional<String> proxyUsername,
             Optional<String> proxyPassword,
             Optional<List<String>> nonProxyHosts,
+            Duration connectTimeout,
+            Duration readTimeout,
             Set<DataSourceFormat> supportedUnityTableFormats)
     {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder();
@@ -213,6 +215,8 @@ public class UnityHiveMetastore
         apiClient = new ApiClient();
         apiClient.updateBaseUri("https://" + host + "/api/2.1/unity-catalog");
         apiClient.setHttpClientBuilder(httpClientBuilder);
+        apiClient.setConnectTimeout(requireNonNull(connectTimeout, "connectTimeout is null"));
+        apiClient.setReadTimeout(requireNonNull(readTimeout, "readTimeout is null"));
         apiClient.setRequestInterceptor(request -> {
             request.header(HeaderNames.USER_AGENT.toString(), USER_AGENT);
             tokenProvider.getToken().ifPresent(authToken -> request.header(AUTHORIZATION.toString(), "Bearer " + authToken));

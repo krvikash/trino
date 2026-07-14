@@ -17,9 +17,12 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.LegacyConfig;
+import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class UnityMetastoreConfig
 {
@@ -29,6 +32,8 @@ public class UnityMetastoreConfig
     private boolean catalogManagedTableEnabled;
     private boolean vendedCredentialsEnabled;
     private boolean proxyEnabled;
+    private Duration connectTimeout = new Duration(30, TimeUnit.SECONDS);
+    private Duration readTimeout = new Duration(60, TimeUnit.SECONDS);
 
     @NotNull
     public String getCatalogName()
@@ -108,6 +113,36 @@ public class UnityMetastoreConfig
     public UnityMetastoreConfig setProxyEnabled(boolean proxyEnabled)
     {
         this.proxyEnabled = proxyEnabled;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("0ms")
+    public Duration getConnectTimeout()
+    {
+        return connectTimeout;
+    }
+
+    @Config("hive.metastore.unity.connect-timeout")
+    @ConfigDescription("Connect timeout for HTTP calls to the Unity Catalog server")
+    public UnityMetastoreConfig setConnectTimeout(Duration connectTimeout)
+    {
+        this.connectTimeout = connectTimeout;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("0ms")
+    public Duration getReadTimeout()
+    {
+        return readTimeout;
+    }
+
+    @Config("hive.metastore.unity.read-timeout")
+    @ConfigDescription("Read timeout for HTTP calls to the Unity Catalog server")
+    public UnityMetastoreConfig setReadTimeout(Duration readTimeout)
+    {
+        this.readTimeout = readTimeout;
         return this;
     }
 }
