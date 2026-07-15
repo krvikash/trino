@@ -34,6 +34,7 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.TPCH_SCHEMA;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.REGION;
@@ -488,11 +489,20 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         abort("io.trino.testing.BaseConnectorSmokeTest.testMerge updates the static table used in the test");
     }
 
+    @Override
+    @Test
+    public void testAggregation()
+    {
+        Failsafe.with(UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY)
+                .run(super::testAggregation);
+    }
+
     @Test
     public void testColumnNameExternalTable()
     {
         for (String columnName : testColumnNameTestData()) {
-            testColumnName(columnName, requiresDelimiting(columnName));
+            Failsafe.with(UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY)
+                    .run(() -> testColumnName(columnName, requiresDelimiting(columnName)));
         }
     }
 
@@ -502,9 +512,9 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         String tableName = "tcn_" + nameInSql.toLowerCase(ENGLISH).replaceAll("[^a-z0-9]", "") + randomNameSuffix();
         String tableLocation = format("%s/%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME, tableName);
 
-        assertUpdate("CREATE TABLE " + tableName + "(key varchar(50), " + nameInSql + " varchar(50))" + " WITH (location='" + tableLocation + "') ");
-
         try {
+            assertUpdate("CREATE TABLE " + tableName + "(key varchar(50), " + nameInSql + " varchar(50))" + " WITH (location='" + tableLocation + "') ");
+
             assertUpdate("INSERT INTO " + tableName + " VALUES ('null value', NULL), ('sample value', 'abc'), ('other value', 'xyz')", 3);
 
             // SELECT *
@@ -518,7 +528,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
             assertQuery("SELECT key FROM " + tableName + " WHERE " + nameInSql + " = 'abc'", "VALUES ('sample value')");
         }
         finally {
-            assertUpdate("DROP TABLE " + tableName);
+            assertUpdate("DROP TABLE IF EXISTS " + tableName);
         }
     }
 

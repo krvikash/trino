@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
+import com.databricks.sdk.core.error.platform.InternalError;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 
@@ -21,6 +22,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
 
+import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.base.Throwables.getRootCause;
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
@@ -46,6 +48,12 @@ public final class DatabricksRetryUtils
             .withMaxRetries(80)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (cluster unavailable).", event.getAttemptCount()))
             .build();
+    public static final RetryPolicy<Object> UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(DatabricksRetryUtils::isUnityCatalogTransientError)
+            .withBackoff(1, 30, ChronoUnit.SECONDS)
+            .withMaxRetries(3)
+            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (Unity Catalog transient error).", event.getAttemptCount()))
+            .build();
 
     private DatabricksRetryUtils() {}
 
@@ -66,5 +74,12 @@ public final class DatabricksRetryUtils
         return stackTrace.contains(DATABRICKS_CLUSTER_PENDING_MATCH) || stackTrace.contains(DATABRICKS_CLUSTER_TERMINATED_MATCH)
                 // 502 is safe to retry at any point: all DDL uses IF NOT EXISTS or CREATE OR REPLACE
                 || stackTrace.contains("HTTP request failed by code: 502");
+    }
+
+    private static boolean isUnityCatalogTransientError(Throwable throwable)
+    {
+        String stackTrace = getStackTraceAsString(throwable);
+        return stackTrace.contains("TEMPORARILY_UNAVAILABLE")
+                || getCausalChain(throwable).stream().anyMatch(InternalError.class::isInstance);
     }
 }
