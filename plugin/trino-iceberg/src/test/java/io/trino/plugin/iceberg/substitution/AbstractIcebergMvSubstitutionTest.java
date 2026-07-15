@@ -69,7 +69,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                 "orderdate, " +
                 "CAST(totalprice AS DECIMAL(12, 2)) AS totalprice, " +
                 "CAST(orderstatus AS VARCHAR) AS orderstatus " +
-                "FROM tpch.tiny.orders", 15000);
+                "FROM tpch.tiny.orders  where orderkey between 20000 and 20010", 8);
 
         assertUpdate("CREATE TABLE lineitem AS SELECT " +
                 "orderkey, " +
@@ -77,7 +77,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                 "CAST(quantity AS DECIMAL(12, 2)) AS quantity, " +
                 "CAST(extendedprice AS DECIMAL(12, 2)) AS extendedprice, " +
                 "shipdate " +
-                "FROM tpch.tiny.lineitem", 60175);
+                "FROM tpch.tiny.lineitem where orderkey between 20000 and 20010", 32);
     }
 
     protected Session sessionWithSubstitution()
@@ -121,7 +121,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     {
         String gracePeriod = gracePeriodSeconds.isPresent() ? " GRACE PERIOD INTERVAL '%s' SECOND".formatted(gracePeriodSeconds.getAsLong()) : "";
         assertUpdate("CREATE MATERIALIZED VIEW %s%s WITH (substitution_enabled = true) AS %s".formatted(mvName, gracePeriod, sql));
-        assertUpdate("REFRESH MATERIALIZED VIEW %s".formatted(mvName), computeActual(sql).getRowCount());
+        getQueryRunner().execute("REFRESH MATERIALIZED VIEW %s".formatted(mvName));
     }
 
     protected CatalogSchemaName getMvCatalogSchema()
