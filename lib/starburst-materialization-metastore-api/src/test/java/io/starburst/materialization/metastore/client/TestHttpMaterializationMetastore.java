@@ -51,7 +51,7 @@ public class TestHttpMaterializationMetastore
     public void testRequestTargetsMetastoreScopedPath()
     {
         Request request = captureRemoveRequest(NO_AUTH);
-        assertThat(request.getUri().getPath()).isEqualTo("/v1/ms-1/materializations/cat/sch/mv");
+        assertThat(request.getUri().getPath()).isEqualTo("/materializations/v1/ms-1/cat/sch/mv");
         assertThat(request.getMethod()).isEqualTo("DELETE");
         // with a no-op authenticator the client adds no auth header of its own
         assertThat(request.getHeaders().get(HeaderName.of("X-Custom-Auth"))).isEmpty();

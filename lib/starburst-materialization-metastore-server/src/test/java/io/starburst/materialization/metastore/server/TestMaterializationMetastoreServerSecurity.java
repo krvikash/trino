@@ -61,7 +61,7 @@ public class TestMaterializationMetastoreServerSecurity
                 ImmutableList.of(binder -> jaxrsBinder(binder).bind(RequiresSecurityDynamicFeature.class))));
         httpClient = closer.register(new JettyHttpClient(new HttpClientConfig()));
         materializationsUri = uriBuilderFrom(server.baseUri())
-                .replacePath("/v1/ms-test/materializations")
+                .replacePath("/materializations/v1/ms-test")
                 .build();
     }
 

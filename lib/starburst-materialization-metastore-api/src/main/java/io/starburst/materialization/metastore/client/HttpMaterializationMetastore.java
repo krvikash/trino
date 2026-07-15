@@ -145,9 +145,8 @@ public class HttpMaterializationMetastore
     private HttpUriBuilder materializationsUri()
     {
         return uriBuilderFrom(baseUri)
-                .replacePath("/v1")
-                .appendPath(metastoreId.id())
-                .appendPath("materializations");
+                .appendPath("materializations/v1")
+                .appendPath(metastoreId.id());
     }
 
     private void execute(Request request)

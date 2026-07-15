@@ -38,7 +38,7 @@ import static java.util.Objects.requireNonNull;
  * The JAX-RS routing annotations here are inherited by the registered subclass.
  */
 @Produces(APPLICATION_JSON)
-@Path("/v1/{metastoreId}/materializations")
+@Path("materializations/v1/{metastoreId}")
 public abstract class MaterializationMetastoreResource
 {
     private final DbRawMaterializationMetastore metastore;
