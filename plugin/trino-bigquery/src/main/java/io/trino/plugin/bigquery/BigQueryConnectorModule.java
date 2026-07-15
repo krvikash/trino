@@ -37,6 +37,7 @@ import io.trino.plugin.bigquery.dynamic.BigQueryDynamicProjectInfoProvider;
 import io.trino.plugin.bigquery.procedure.ExecuteProcedure;
 import io.trino.plugin.bigquery.procedure.FlushMetadataCacheProcedure;
 import io.trino.plugin.bigquery.ptf.Query;
+import io.trino.plugin.bigquery.substitution.BigQuerySubstitutionMetadata;
 import io.trino.spi.Node;
 import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
@@ -99,6 +100,7 @@ public class BigQueryConnectorModule
             binder.bind(BigQueryPageSourceProvider.class).in(Scopes.SINGLETON);
             binder.bind(BigQueryPageSinkProvider.class).in(Scopes.SINGLETON);
             binder.bind(BigQueryTableProperties.class).in(Scopes.SINGLETON);
+            binder.bind(BigQuerySubstitutionMetadata.class).in(Scopes.SINGLETON);
             binder.bind(ViewMaterializationCache.class).in(Scopes.SINGLETON);
             configBinder(binder).bindConfig(BigQueryConfig.class);
             configBinder(binder).bindConfig(BigQueryRpcConfig.class);

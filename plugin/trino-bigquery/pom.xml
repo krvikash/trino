@@ -421,6 +421,19 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <scope>test</scope>
             <exclusions>
@@ -516,7 +529,15 @@
                         <ignoredResourcePattern>LICENSE-EDL-1.0.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>LICENSE-EPL-1.0.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>about.html</ignoredResourcePattern>
+                        <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc and org.conscrypt:conscrypt-openjdk-uber: file duplicate -->
+                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
+                        <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
+                    <ignoredClassPatterns>
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>
@@ -554,6 +575,7 @@
                                 <exclude>**/TestBigQueryWithProxyTest.java</exclude>
                                 <exclude>**/TestBigQueryParentProjectId.java</exclude>
                                 <exclude>**/TestBigQueryWithBothProjectIdsSet.java</exclude>
+                                <exclude>**/TestBigQueryMvSubstitution.java</exclude>
                                 <exclude>**/TestBigQueryDynamicConnectionConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestBigQueryDynamicConnectionParentProjectId.java</exclude>
                             </excludes>
@@ -582,6 +604,7 @@
                                 <include>**/TestBigQueryCaseInsensitiveMappingWithCache.java</include>
                                 <include>**/TestBigQueryCaseInsensitiveMappingCacheFlush.java</include>
                                 <include>**/TestBigQueryCaseInsensitiveMappingInstanceCleaner.java</include>
+                                <include>**/TestBigQueryMvSubstitution.java</include>
                                 <include>**/TestBigQueryDynamicConnectionConnectorSmokeTest.java</include>
                                 <include>**/TestBigQueryDynamicConnectionParentProjectId.java</include>
                             </includes>
