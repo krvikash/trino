@@ -45,7 +45,7 @@ public class ConnectorGpuPageSourceAdapter
     public ConnectorGpuPageSourceAdapter(GpuOperation.Context gpuOperationContext, ConnectorPageSource source, List<Type> types)
     {
         this.source = requireNonNull(source, "source is null");
-        this.bufferPages = new BufferPages();
+        this.bufferPages = new BufferPages(gpuOperationContext.taskMemoryContext());
         this.output = new CopyToDevice(
                 gpuOperationContext,
                 bufferPages,

@@ -16,10 +16,13 @@ package io.trino.operator.gpu;
 import com.google.common.annotations.VisibleForTesting;
 import io.trino.metadata.Split;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +31,7 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static java.lang.Math.addExact;
+import static java.util.Objects.requireNonNull;
 
 public class BufferPages
         implements GpuSourceOperation
@@ -35,9 +39,18 @@ public class BufferPages
     @VisibleForTesting
     static final int TARGET_ROW_COUNT = 100_000;
 
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final List<Page> bufferedPages = new ArrayList<>();
     private int bufferedPagesPositions;
+    private long bufferedPagesMemoryBytes;
     private boolean finishing;
+    private AllocatedMemory allocation;
+
+    public BufferPages(GpuTaskMemoryContext taskMemoryContext)
+    {
+        this.taskMemoryContext = requireNonNull(taskMemoryContext, "taskMemoryContext is null");
+        this.allocation = taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
+    }
 
     @Override
     public void setSplit(Split split)
@@ -57,6 +70,8 @@ public class BufferPages
         if (page.getPositionCount() != 0) {
             bufferedPages.add(page);
             bufferedPagesPositions = addExact(bufferedPagesPositions, page.getPositionCount());
+            bufferedPagesMemoryBytes = addExact(bufferedPagesMemoryBytes, page.getRetainedSizeInBytes());
+            allocation.update(MemoryAmount.heap(bufferedPagesMemoryBytes));
         }
     }
 
@@ -77,17 +92,22 @@ public class BufferPages
                     .map(Page::getChannelCount)
                     .distinct()
                     .collect(onlyElement());
-            GpuPage gpuPage = new GpuPage(
+            try (ClosingRef<GpuPage> gpuPage = ClosingRef.own(new GpuPage(
                     bufferedPagesPositions,
                     IntStream.range(0, channelCount)
                             .mapToObj(channel ->
                                     new Blocks(bufferedPages.stream()
                                             .map(page -> page.getBlock(channel))
                                             .collect(toImmutableList())))
-                            .toArray(Column[]::new));
-            bufferedPages.clear();
-            bufferedPagesPositions = 0;
-            return new Data(AllocatedMemory.untracked(), gpuPage);
+                            .toArray(Column[]::new)))) {
+                AllocatedMemory result = allocation;
+                result.update(gpuPage.borrow().retainedMemory());
+                allocation = taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
+                bufferedPages.clear();
+                bufferedPagesPositions = 0;
+                bufferedPagesMemoryBytes = 0;
+                return new Data(result, gpuPage.take());
+            }
         }
         return new Yielded();
     }
@@ -96,5 +116,6 @@ public class BufferPages
     public void close()
     {
         bufferedPages.clear();
+        allocation.close();
     }
 }

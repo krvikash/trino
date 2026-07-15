@@ -211,9 +211,9 @@ final class TestGpuLookupJoin
         BuildDriver(GpuJoinBridgeManager manager, List<Type> buildTypes, int[] buildKeyChannels, int[] buildOutputChannels, List<Page> buildPages)
         {
             this.input = buildPages.iterator();
-            this.bufferPages = new BufferPages();
-            Set<Integer> deviceChannels = IntStream.range(0, buildTypes.size()).boxed().collect(toImmutableSet());
             GpuOperation.Context context = new TestingGpuOperationContext();
+            this.bufferPages = new BufferPages(context.taskMemoryContext());
+            Set<Integer> deviceChannels = IntStream.range(0, buildTypes.size()).boxed().collect(toImmutableSet());
             CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, buildTypes, deviceChannels);
             GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels, Optional.empty(), Optional.empty());
             this.build = factory.create(context, copyToDevice);

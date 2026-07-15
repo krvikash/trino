@@ -717,7 +717,7 @@ public final class GpuTestUtils
         Iterator<Page> input = pages.iterator();
         @Own List<GpuPage> result = new ArrayList<>();
         GpuOperation.Context context = new TestingGpuOperationContext();
-        try (BufferPages bufferPages = new BufferPages();
+        try (BufferPages bufferPages = new BufferPages(context.taskMemoryContext());
                 CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, types, deviceChannels)) {
             while (true) {
                 switch (copyToDevice.execute()) {
@@ -768,7 +768,7 @@ public final class GpuTestUtils
     {
         Iterator<Page> input = inputPages.iterator();
         GpuOperation.Context context = new TestingGpuOperationContext();
-        try (BufferPages bufferPages = new BufferPages();
+        try (BufferPages bufferPages = new BufferPages(context.taskMemoryContext());
                 CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, inputTypes, deviceChannels);
                 GpuOperation operation = operationFactory.apply(context, copyToDevice);
                 CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes)) {
