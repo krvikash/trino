@@ -17,9 +17,12 @@ import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -63,6 +66,7 @@ public class GpuProject
         public void noMoreOperators() {}
     }
 
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final List<Projection> projections;
 
@@ -72,6 +76,7 @@ public class GpuProject
             List<Projection> projections)
     {
         requireNonNull(context, "context is null");
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.projections = ImmutableList.copyOf(requireNonNull(projections, "projections is null"));
     }
@@ -86,16 +91,17 @@ public class GpuProject
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (memory; page) {
-                    yield new Data(AllocatedMemory.untracked(), processPage(page));
+                    yield processPage(memory, page);
                 }
             }
         };
     }
 
-    private @Move GpuPage processPage(@Borrow GpuPage input)
+    private @Move Data processPage(@Borrow AllocatedMemory pageAllocation, @Borrow GpuPage input)
     {
         @Own Column[] newColumns = new Column[projections.size()];
-        try {
+        try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO))) {
+            allocation.borrow().transferFrom(pageAllocation);
             for (int i = 0; i < projections.size(); i++) {
                 Projection projection = projections.get(i);
                 newColumns[i] = switch (projection) {
@@ -111,7 +117,11 @@ public class GpuProject
                     }
                 };
             }
-            return new GpuPage(input.positionCount(), newColumns);
+            try (ClosingRef<GpuPage> gpuPage = ClosingRef.own(new GpuPage(input.positionCount(), newColumns))) {
+                // TODO: This is suboptimal because we report memory allocation after the fact. https://starburstdata.atlassian.net/browse/ENG-20209 should improve this.
+                allocation.borrow().update(gpuPage.borrow().retainedMemory());
+                return new Data(allocation.take(), gpuPage.take());
+            }
         }
         finally {
             closeColumns(newColumns);
