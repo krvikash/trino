@@ -98,6 +98,13 @@ public class ObjectStoreProxiedConnectorTransformer
     }
 
     @Override
+    public List<ConnectorSplit> flattenSplits(ConnectorSplit connectorSplit)
+    {
+        return transformerMap.get(getTransformerKey(connectorSplit))
+                .flattenSplits(connectorSplit);
+    }
+
+    @Override
     public DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,

@@ -85,6 +85,15 @@ public interface DispatcherProxiedConnectorTransformer
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * If the split contains multiple sub-splits, this method expands it into individual splits.
+     * Otherwise, it returns a singleton list containing the original split.
+     */
+    default List<ConnectorSplit> flattenSplits(ConnectorSplit connectorSplit)
+    {
+        return List.of(connectorSplit);
+    }
+
     DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,

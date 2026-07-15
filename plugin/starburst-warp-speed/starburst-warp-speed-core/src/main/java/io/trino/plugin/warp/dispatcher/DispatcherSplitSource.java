@@ -69,6 +69,7 @@ public class DispatcherSplitSource
         return nextBatch.thenApply(connectorSplits -> {
             List<ConnectorSplit> splits = connectorSplits
                     .stream()
+                    .flatMap(connectorSplit -> dispatcherProxiedConnectorTransformer.flattenSplits(connectorSplit).stream())
                     .map(connectorSplit -> dispatcherProxiedConnectorTransformer.createDispatcherSplit(
                             connectorSplit,
                             dispatcherTableHandle,
