@@ -101,9 +101,10 @@ public class CopyToDevice
                 }
             }
 
-            GpuPage gpuPage = new GpuPage(page.positionCount(), newColumns);
-            allocation.borrow().update(gpuPage.retainedMemory());
-            return new Data(allocation.take(), gpuPage);
+            try (ClosingRef<GpuPage> gpuPage = ClosingRef.own(new GpuPage(page.positionCount(), newColumns))) {
+                allocation.borrow().update(gpuPage.borrow().retainedMemory());
+                return new Data(allocation.take(), gpuPage.take());
+            }
         }
         finally {
             for (Column column : newColumns) {
