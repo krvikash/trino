@@ -152,7 +152,6 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.function.Predicate.not;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toMap;
 
 public class GlueHiveMetastore
         implements HiveMetastore
@@ -1058,7 +1057,7 @@ public class GlueHiveMetastore
                 partitionNames,
                 (cachePartition, missingPartitions) -> batchGetPartition(databaseName, tableName, missingPartitions, cachePartition));
         Map<PartitionName, Partition> partitionValuesToPartitionMap = partitions.stream()
-                .collect(toMap(partition -> new PartitionName(partition.getValues()), identity()));
+                .collect(toImmutableMap(partition -> new PartitionName(partition.getValues()), identity()));
 
         ImmutableMap.Builder<PartitionName, Optional<Partition>> resultBuilder = ImmutableMap.builder();
         for (PartitionName partitionName : partitionNames) {
