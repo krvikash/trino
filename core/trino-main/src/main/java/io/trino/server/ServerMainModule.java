@@ -108,7 +108,6 @@ import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.GpuDeviceStats;
 import io.trino.operator.gpu.GpuNodeSetup;
-import io.trino.operator.gpu.RmmLogPath;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
@@ -188,7 +187,6 @@ import io.trino.type.TypeOperatorsCache;
 import io.trino.util.EmbedVersion;
 import io.trino.util.FinalizerService;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -325,7 +323,6 @@ public class ServerMainModule
             configBinder(binder).bindConfig(GpuConfig.class);
             binder.bind(GpuNodeSetup.class).to(GpuConfigurer.class);
             binder.bind(GpuConfigurer.class).asEagerSingleton();
-            newOptionalBinder(binder, Key.get(Path.class, RmmLogPath.class));
             binder.bind(ScheduledExecutorService.class).annotatedWith(ForGpuDeviceStats.class).toInstance(newScheduledThreadPool(1, daemonThreadsNamed("gpu-device-stats-poller")));
             binder.bind(GpuDeviceStats.class).asEagerSingleton();
             newExporter(binder).export(GpuDeviceStats.class).withGeneratedName();

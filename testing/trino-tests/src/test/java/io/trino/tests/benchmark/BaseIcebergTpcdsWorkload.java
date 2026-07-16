@@ -100,7 +100,7 @@ public abstract class BaseIcebergTpcdsWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
+    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
             throws Exception
     {
         if (isRemote(dataLocation)) {
@@ -129,7 +129,6 @@ public abstract class BaseIcebergTpcdsWorkload
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
-        rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
         BenchmarkRunner.applyExecutionMode(builder, mode);
 
         Map<String, String> fsCacheProperties = new HashMap<>();

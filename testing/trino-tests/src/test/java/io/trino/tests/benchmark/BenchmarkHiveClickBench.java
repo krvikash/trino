@@ -233,7 +233,7 @@ public final class BenchmarkHiveClickBench
         }
 
         @Override
-        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
+        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
                 throws Exception
         {
             DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
@@ -243,7 +243,6 @@ public final class BenchmarkHiveClickBench
                 builder.addCoordinatorProperty("http-server.http.port", "8080");
             }
             BenchmarkRunner.applyExecutionMode(builder, mode);
-            rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
 
             DistributedQueryRunner queryRunner = builder.build();
 

@@ -118,7 +118,7 @@ public abstract class BaseHiveTpcdsWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
+    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
             throws Exception
     {
         // Persist the in-process FileHiveMetastore (and therefore ANALYZE-collected stats)
@@ -138,7 +138,6 @@ public abstract class BaseHiveTpcdsWorkload
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
         BenchmarkRunner.applyExecutionMode(builder, mode);
-        rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
 
         DistributedQueryRunner runner = builder.build();
 

@@ -144,7 +144,7 @@ public final class BenchmarkIcebergClickBench
         }
 
         @Override
-        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
+        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
                 throws Exception
         {
             if (isRemote(dataLocation)) {
@@ -182,7 +182,6 @@ public final class BenchmarkIcebergClickBench
             if (bind8080) {
                 builder.addCoordinatorProperty("http-server.http.port", "8080");
             }
-            rmmLogPath.ifPresent(path -> builder.setAdditionalModule(new RmmLoggingModule(path)));
             DistributedQueryRunner queryRunner = builder.build();
 
             queryRunner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.clickbench");

@@ -16,20 +16,17 @@ package io.trino.operator.gpu;
 import ai.rapids.cudf.Cuda;
 import ai.rapids.cudf.CudaMemInfo;
 import ai.rapids.cudf.Rmm;
-import ai.rapids.cudf.Rmm.LogConf;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.operator.gpu.GpuConfig.AllocationMode;
 import jakarta.annotation.PostConstruct;
 
-import java.nio.file.Path;
 import java.util.Optional;
 
 import static com.clearspring.analytics.util.Preconditions.checkState;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.units.DataSize.succinctBytes;
-import static java.util.Objects.requireNonNull;
 
 public class GpuConfigurer
         implements GpuNodeSetup
@@ -46,19 +43,17 @@ public class GpuConfigurer
     private final Optional<DataSize> poolSize;
     private final DataSize deviceMemoryReserve;
     private final double deviceMemoryFraction;
-    private final Optional<Path> rmmLogPath;
     private final DataSize aggregationCompactionThreshold;
 
     private DataSize effectivePoolSizeBytes;
 
     @Inject
-    public GpuConfigurer(GpuConfig config, @RmmLogPath Optional<Path> rmmLogPath)
+    public GpuConfigurer(GpuConfig config)
     {
         this.allocationMode = config.getAllocationMode();
         this.poolSize = config.getPoolSize();
         this.deviceMemoryReserve = config.getDeviceMemoryReserve();
         this.deviceMemoryFraction = config.getDeviceMemoryFraction();
-        this.rmmLogPath = requireNonNull(rmmLogPath, "rmmLogPath is null");
         this.aggregationCompactionThreshold = config.getAggregationCompactionThreshold();
     }
 
@@ -88,13 +83,7 @@ public class GpuConfigurer
                     succinctBytes(poolSize));
 
             log.info("Initializing RMM: allocationMode=%s, poolSize=%s", allocationMode, succinctBytes(poolSize));
-            LogConf logConf = rmmLogPath
-                    .map(path -> {
-                        log.info("RMM log: %s", path);
-                        return Rmm.logTo(path.toFile());
-                    })
-                    .orElse(null);
-            Rmm.initialize(cudfAllocationMode, logConf, poolSize);
+            Rmm.initialize(cudfAllocationMode, null, poolSize);
         }
     }
 

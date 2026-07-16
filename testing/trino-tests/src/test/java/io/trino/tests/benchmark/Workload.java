@@ -54,7 +54,7 @@ public interface Workload
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.
      */
-    DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> rmmLogPath, Optional<Path> fsCacheDirectory)
+    DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
             throws Exception;
 
     /**
