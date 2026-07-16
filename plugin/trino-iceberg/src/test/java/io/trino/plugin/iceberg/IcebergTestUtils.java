@@ -56,6 +56,7 @@ import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
 import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
 import io.trino.plugin.iceberg.encryption.EncryptionManagerFactory;
 import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
+import io.trino.plugin.iceberg.encryption.PlaintextEncryptionManagerFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
 import io.trino.plugin.iceberg.procedure.CreateChangelogView;
@@ -135,7 +136,7 @@ public final class IcebergTestUtils
                     TESTING_TYPE_MANAGER,
                     BLOCKS_HASH_FACTORY,
                     ParquetFooterCache.noop(),
-                    new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
+                    new PlaintextEncryptionManagerFactory()),
             new IcebergFileWriterFactory(
                     TESTING_TYPE_MANAGER,
                     new NodeVersion("test_version"),
@@ -149,7 +150,7 @@ public final class IcebergTestUtils
 
     public static final CreateChangelogView CREATE_CHANGELOG_VIEW = new CreateChangelogView(new CatalogName("iceberg"), TESTING_TYPE_MANAGER);
 
-    public static final EncryptionManagerFactory ENCRYPTION_MANAGER_FACTORY = new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig());
+    public static final EncryptionManagerFactory ENCRYPTION_MANAGER_FACTORY = new PlaintextEncryptionManagerFactory();
 
     private IcebergTestUtils() {}
 

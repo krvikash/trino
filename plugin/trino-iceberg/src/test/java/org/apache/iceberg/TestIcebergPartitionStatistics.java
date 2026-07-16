@@ -39,8 +39,7 @@ import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.IcebergTestUtils;
 import io.trino.plugin.iceberg.PartitionData;
 import io.trino.plugin.iceberg.PartitionStatisticsReader;
-import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
-import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
+import io.trino.plugin.iceberg.encryption.PlaintextEncryptionManagerFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
 import io.trino.spi.BlocksHashFactory;
@@ -98,7 +97,7 @@ public final class TestIcebergPartitionStatistics
                     TESTING_TYPE_MANAGER,
                     BLOCKS_HASH_FACTORY,
                     ParquetFooterCache.noop(),
-                    new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())));
+                    new PlaintextEncryptionManagerFactory()));
 
     public static final PartitionStatisticsWriter PARTITION_STATISTICS_WRITER = new PartitionStatisticsWriter(
             TESTING_TYPE_MANAGER,
