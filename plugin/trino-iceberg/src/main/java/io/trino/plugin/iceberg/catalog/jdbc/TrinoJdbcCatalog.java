@@ -383,6 +383,7 @@ public class TrinoJdbcCatalog
                     .iterator();
         }
         catch (ExecutionException e) {
+            throwIfUnchecked(e.getCause());
             throw new RuntimeException(e.getCause());
         }
     }
