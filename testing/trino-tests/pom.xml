@@ -700,6 +700,7 @@
                                 <exclude>**/TestGpuLocalExchange.java</exclude>
                                 <exclude>**/TestGpuLocalExchangeSingleNode.java</exclude>
                                 <exclude>**/TestGpuOrderByQueries.java</exclude>
+                                <exclude>**/TestGpuPerQueryMemoryLimit.java</exclude>
                                 <exclude>**/TestHiveGpuTpchQueries.java</exclude>
                                 <exclude>**/TestHiveGpuTpcdsQueries.java</exclude>
                                 <exclude>**/TestDistributedHiveGpuTpchQueries.java</exclude>
@@ -730,6 +731,7 @@
                                 <include>**/TestGpuLocalExchange.java</include>
                                 <include>**/TestGpuLocalExchangeSingleNode.java</include>
                                 <include>**/TestGpuOrderByQueries.java</include>
+                                <include>**/TestGpuPerQueryMemoryLimit.java</include>
                                 <include>**/TestHiveGpuTpchQueries.java</include>
                                 <include>**/TestHiveGpuTpcdsQueries.java</include>
                                 <include>**/TestDistributedHiveGpuTpchQueries.java</include>
