@@ -599,7 +599,9 @@ public class ServerMainModule
     @ForGpuDevice
     public static MemoryPool gpuDeviceMemoryPool(GpuNodeSetup gpuNodeSetup)
     {
-        return new MemoryPool(gpuNodeSetup.getGpuDeviceMemoryPoolSize());
+        MemoryPool pool = new MemoryPool(gpuNodeSetup.getGpuDeviceMemoryPoolSize());
+        gpuNodeSetup.onGpuDeviceMemoryPoolCreated(pool);
+        return pool;
     }
 
     @Provides

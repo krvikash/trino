@@ -37,6 +37,7 @@ import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
@@ -61,6 +62,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -390,25 +392,38 @@ public abstract class GpuOperator
         refillSignal.clear();
         List<@Borrow PullCircuitBreaker> pending = new ArrayList<>(); // stack
         @Own GpuOperation.Result topGpuOperationResult;
-        while (true) {
-            topGpuOperationResult = topOperation.execute();
-            if (!(topGpuOperationResult instanceof Yielded()) || !refillSignal.isSet()) {
-                break;
-            }
-            verify(pending.isEmpty(), "pending not empty: %s", pending);
-            pending.addLast(refillSignal.clear());
-            while (!pending.isEmpty()) {
-                PullCircuitBreaker next = pending.removeLast();
-                // Intentionally calling next.source.execute() directly, so the call stack stays flat: every operation is pulled directly from getOutput
-                GpuOperation.Result refilled = next.source.execute();
-                next.set(refilled);
-                if (refillSignal.isSet()) {
-                    if (refilled instanceof Yielded()) {
-                        pending.addLast(next);
+        GpuOomHandler.setContext(operatorContext.getDriverContext().getTaskId().queryId());
+        try {
+            while (true) {
+                topGpuOperationResult = topOperation.execute();
+                if (!(topGpuOperationResult instanceof Yielded()) || !refillSignal.isSet()) {
+                    break;
+                }
+                verify(pending.isEmpty(), "pending not empty: %s", pending);
+                pending.addLast(refillSignal.clear());
+                while (!pending.isEmpty()) {
+                    PullCircuitBreaker next = pending.removeLast();
+                    // Intentionally calling next.source.execute() directly, so the call stack stays flat: every operation is pulled directly from getOutput
+                    GpuOperation.Result refilled = next.source.execute();
+                    next.set(refilled);
+                    if (refillSignal.isSet()) {
+                        if (refilled instanceof Yielded()) {
+                            pending.addLast(next);
+                        }
+                        pending.addLast(refillSignal.clear());
                     }
-                    pending.addLast(refillSignal.clear());
                 }
             }
+        }
+        catch (OutOfMemoryError e) {
+            Optional<GpuOomHandler.FailureSnapshot> snapshot = GpuOomHandler.getLastFailureSnapshot();
+            if (snapshot.isPresent()) {
+                throw new TrinoException(GENERIC_INTERNAL_ERROR, snapshot.get().toErrorMessage(), e);
+            }
+            throw e;
+        }
+        finally {
+            GpuOomHandler.clearContext();
         }
         Page operatorResult = switch (topGpuOperationResult) {
             case Data(AllocatedMemory memory, GpuPage gpuPage) -> {

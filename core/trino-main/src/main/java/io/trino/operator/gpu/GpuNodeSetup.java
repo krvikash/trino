@@ -14,12 +14,15 @@
 package io.trino.operator.gpu;
 
 import io.airlift.units.DataSize;
+import io.trino.memory.MemoryPool;
 
 public interface GpuNodeSetup
 {
     boolean isNodeGpuExecutionEnabled();
 
     DataSize getGpuDeviceMemoryPoolSize();
+
+    default void onGpuDeviceMemoryPoolCreated(MemoryPool pool) {}
 
     class Disabled
             implements GpuNodeSetup

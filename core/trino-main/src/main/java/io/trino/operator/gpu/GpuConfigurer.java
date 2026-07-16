@@ -19,6 +19,7 @@ import ai.rapids.cudf.Rmm;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
+import io.trino.memory.MemoryPool;
 import io.trino.operator.gpu.GpuConfig.AllocationMode;
 import jakarta.annotation.PostConstruct;
 
@@ -44,6 +45,7 @@ public class GpuConfigurer
     private final DataSize deviceMemoryReserve;
     private final double deviceMemoryFraction;
     private final DataSize aggregationCompactionThreshold;
+    private final GpuOomHandler oomHandler = new GpuOomHandler();
 
     private DataSize effectivePoolSizeBytes;
 
@@ -84,7 +86,14 @@ public class GpuConfigurer
 
             log.info("Initializing RMM: allocationMode=%s, poolSize=%s", allocationMode, succinctBytes(poolSize));
             Rmm.initialize(cudfAllocationMode, null, poolSize);
+            Rmm.setEventHandler(oomHandler);
         }
+    }
+
+    @Override
+    public void onGpuDeviceMemoryPoolCreated(MemoryPool pool)
+    {
+        oomHandler.setGpuDeviceMemoryPool(pool);
     }
 
     private long poolSizeBytes()
