@@ -30,8 +30,6 @@ import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalog;
-import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
-import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorMaterializedViewDefinition;
 import io.trino.spi.connector.SchemaTableName;
@@ -61,6 +59,7 @@ import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewProperties.INCREMENTAL_COLUMN;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.ENCRYPTION_MANAGER_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -122,7 +121,7 @@ public class TestTrinoHiveCatalogWithFileMetastore
                 fileSystemFactory,
                 FILE_IO_FACTORY,
                 TESTING_TYPE_MANAGER,
-                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
+                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, ENCRYPTION_MANAGER_FACTORY),
                 useUniqueTableLocations,
                 false,
                 false,
@@ -195,7 +194,7 @@ public class TestTrinoHiveCatalogWithFileMetastore
                 fileSystemFactory,
                 FILE_IO_FACTORY,
                 TESTING_TYPE_MANAGER,
-                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
+                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, ENCRYPTION_MANAGER_FACTORY),
                 false,
                 false,
                 false,

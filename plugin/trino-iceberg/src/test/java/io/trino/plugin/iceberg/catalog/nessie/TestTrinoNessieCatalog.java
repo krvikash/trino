@@ -24,8 +24,6 @@ import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.containers.NessieContainer;
-import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
-import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
@@ -58,6 +56,7 @@ import static io.airlift.units.Duration.ZERO;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_ENVIRONMENT;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
+import static io.trino.plugin.iceberg.IcebergTestUtils.ENCRYPTION_MANAGER_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
@@ -133,7 +132,7 @@ public class TestTrinoNessieCatalog
                 TESTING_TYPE_MANAGER,
                 fileSystemFactory,
                 FILE_IO_FACTORY,
-                new IcebergNessieTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, nessieClient, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
+                new IcebergNessieTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, nessieClient, ENCRYPTION_MANAGER_FACTORY),
                 nessieClient,
                 tmpDirectory.toAbsolutePath().toString(),
                 useUniqueTableLocations);
@@ -159,7 +158,7 @@ public class TestTrinoNessieCatalog
                 TESTING_TYPE_MANAGER,
                 fileSystemFactory,
                 FILE_IO_FACTORY,
-                new IcebergNessieTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, nessieClient, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
+                new IcebergNessieTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, nessieClient, ENCRYPTION_MANAGER_FACTORY),
                 nessieClient,
                 icebergNessieCatalogConfig.getDefaultWarehouseDir(),
                 false);

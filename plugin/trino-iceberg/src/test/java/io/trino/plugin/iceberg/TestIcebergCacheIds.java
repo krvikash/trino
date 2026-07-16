@@ -29,8 +29,6 @@ import io.trino.plugin.hive.metastore.file.FileHiveMetastoreFactory;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalogFactory;
 import io.trino.plugin.iceberg.delete.DeleteFile;
-import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
-import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
@@ -72,6 +70,7 @@ import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
+import static io.trino.plugin.iceberg.IcebergTestUtils.ENCRYPTION_MANAGER_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
@@ -108,7 +107,7 @@ public class TestIcebergCacheIds
             throws IOException
     {
         tempDir = Files.createTempDirectory(null).toFile();
-        FileMetastoreTableOperationsProvider tableOperationsProvider = new FileMetastoreTableOperationsProvider(HDFS_FILE_SYSTEM_FACTORY, FILE_IO_FACTORY, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig()));
+        FileMetastoreTableOperationsProvider tableOperationsProvider = new FileMetastoreTableOperationsProvider(HDFS_FILE_SYSTEM_FACTORY, FILE_IO_FACTORY, ENCRYPTION_MANAGER_FACTORY);
         IcebergConfig icebergConfig = new IcebergConfig();
         FileHiveMetastoreFactory metastoreFactory = new FileHiveMetastoreFactory(
                 new NodeVersion("test_version"),

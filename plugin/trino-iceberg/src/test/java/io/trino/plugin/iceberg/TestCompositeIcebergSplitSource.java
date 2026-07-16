@@ -29,7 +29,6 @@ import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalog;
-import io.trino.plugin.iceberg.encryption.DefaultEncryptionManagerFactory;
 import io.trino.plugin.iceberg.encryption.IcebergEncryptionConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogName;
@@ -64,6 +63,7 @@ import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.units.Duration.ZERO;
 import static io.trino.metastore.cache.CachingHiveMetastore.createPerTransactionCache;
 import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
+import static io.trino.plugin.iceberg.IcebergTestUtils.ENCRYPTION_MANAGER_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
@@ -120,7 +120,7 @@ final class TestCompositeIcebergSplitSource
                 fileSystemFactory,
                 FILE_IO_FACTORY,
                 TESTING_TYPE_MANAGER,
-                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig())),
+                new FileMetastoreTableOperationsProvider(fileSystemFactory, FILE_IO_FACTORY, ENCRYPTION_MANAGER_FACTORY),
                 false,
                 false,
                 false,

@@ -149,6 +149,8 @@ public final class IcebergTestUtils
 
     public static final CreateChangelogView CREATE_CHANGELOG_VIEW = new CreateChangelogView(new CatalogName("iceberg"), TESTING_TYPE_MANAGER);
 
+    public static final EncryptionManagerFactory ENCRYPTION_MANAGER_FACTORY = new DefaultEncryptionManagerFactory(new IcebergEncryptionConfig());
+
     private IcebergTestUtils() {}
 
     public static Session withSmallRowGroups(Session session)
