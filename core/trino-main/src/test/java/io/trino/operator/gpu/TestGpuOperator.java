@@ -57,6 +57,7 @@ class TestGpuOperator
         scheduledExecutor = newScheduledThreadPool(2, daemonThreadsNamed(getClass().getSimpleName() + "-scheduledExecutor-%s"));
         driverContext = TestingTaskContext.builder(executor, scheduledExecutor, SessionTestUtils.TEST_SESSION)
                 .setGpuMemory(DataSize.of(10, DataSize.Unit.MEGABYTE), DataSize.of(10, DataSize.Unit.MEGABYTE))
+                .setOffHeapMemory(DataSize.of(10, DataSize.Unit.MEGABYTE), DataSize.of(10, DataSize.Unit.MEGABYTE))
                 .build()
                 .addPipelineContext(0, true, true, false)
                 .addDriverContext();

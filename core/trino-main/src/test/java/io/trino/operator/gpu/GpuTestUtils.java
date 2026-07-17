@@ -770,7 +770,7 @@ public final class GpuTestUtils
         try (BufferPages bufferPages = new BufferPages(context.taskMemoryContext());
                 CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, inputTypes, deviceChannels);
                 GpuOperation operation = operationFactory.apply(context, copyToDevice);
-                CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes)) {
+                CopyToBlocks copyToBlocks = new CopyToBlocks(context, operation, outputTypes)) {
             return drainToPages(
                     () -> {
                         if (!input.hasNext()) {

@@ -58,8 +58,9 @@ class TestCopyToBlocks
             gpuPage = new GpuPage(blocks.positionCount(), new Column[] {blocks});
         }
 
+        GpuOperation.Context context = new TestingGpuOperationContext();
         try (GpuOperation sourceOperation = singlePageSource(gpuPage);
-                CopyToBlocks operation = new CopyToBlocks(sourceOperation, ImmutableList.of(INTEGER))) {
+                CopyToBlocks operation = new CopyToBlocks(context, sourceOperation, ImmutableList.of(INTEGER))) {
             List<Page> output = drainToPages(() -> {}, operation);
             assertSameDataInOrder(
                     output,

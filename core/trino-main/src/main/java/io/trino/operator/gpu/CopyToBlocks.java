@@ -19,6 +19,8 @@ import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -34,6 +36,7 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -84,11 +87,13 @@ public class CopyToBlocks
     private static final int INITIAL_BATCH_SIZE = 16;
     private static final int MAX_POSITIONS_PER_PAGE = 128 * 1024;
 
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final List<Type> types;
 
-    public CopyToBlocks(GpuOperation source, List<Type> types)
+    public CopyToBlocks(Context context, GpuOperation source, List<Type> types)
     {
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
     }
@@ -102,14 +107,21 @@ public class CopyToBlocks
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
-                    yield new Data(AllocatedMemory.untracked(), processPage(page));
+                try (ClosingRef<AllocatedMemory> allocated = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
+                        ClosingRef<GpuPage> inputPage = ClosingRef.own(page);
+                        memory) {
+                    allocated.borrow().transferFrom(memory);
+                    try (ClosingRef<GpuPage> gpuPage = ClosingRef.own(processPage(allocated.borrow(), inputPage.borrow()))) {
+                        inputPage.close();
+                        allocated.borrow().update(gpuPage.borrow().retainedMemory());
+                        yield new Data(allocated.take(), gpuPage.take());
+                    }
                 }
             }
         };
     }
 
-    private @Move GpuPage processPage(@Borrow GpuPage inputPage)
+    private @Move GpuPage processPage(@Borrow AllocatedMemory allocated, @Borrow GpuPage inputPage)
     {
         try {
             checkArgument(inputPage.columnCount() == types.size(), "Page has wrong column count");
@@ -124,6 +136,7 @@ public class CopyToBlocks
                 try {
                     for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                         if (inputPage.column(columnIndex) instanceof DeviceMemory deviceMemory) {
+                            allocated.update(allocated.amount().add(MemoryAmount.offHeap(deviceMemory.retainedDeviceMemoryBytes())));
                             hostColumnVectors.add(deviceMemory.columnVector().copyToHostAsync(Cuda.DEFAULT_STREAM));
                         }
                     }
@@ -153,6 +166,12 @@ public class CopyToBlocks
                         }
                     }
                 }
+
+                long estimatedHeapBytes = 0;
+                for (ColumnCopier copier : copiers) {
+                    estimatedHeapBytes += copier.estimateHeapBytes(positionCount);
+                }
+                allocated.update(allocated.amount().add(MemoryAmount.heap(estimatedHeapBytes)));
 
                 List<Page> copiedPages = new ArrayList<>();
                 int targetBatchSize = INITIAL_BATCH_SIZE;
@@ -215,6 +234,12 @@ public class CopyToBlocks
             private int pastPositions;
             private Block currentBlock;
             private int currentBlockOffset;
+
+            @Override
+            public long estimateHeapBytes(int positionCount)
+            {
+                return 0; // assumes the zero-copy path
+            }
 
             @Override
             public Block buildBlock(int position, int count)
@@ -329,6 +354,12 @@ public class CopyToBlocks
         }
 
         @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return positionCount + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
         public Block buildBlock(int position, int count)
         {
             byte[] values = new byte[count];
@@ -345,6 +376,12 @@ public class CopyToBlocks
         private ShortColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return (long) positionCount * Short.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
         }
 
         @Override
@@ -368,6 +405,12 @@ public class CopyToBlocks
         }
 
         @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return (long) positionCount * Integer.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
         public Block buildBlock(int position, int count)
         {
             int[] values = new int[count];
@@ -384,6 +427,12 @@ public class CopyToBlocks
         private LongColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return (long) positionCount * Long.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
         }
 
         @Override
@@ -405,6 +454,12 @@ public class CopyToBlocks
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
             this.multiplier = multiplier;
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return (long) positionCount * Long.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
         }
 
         @Override
@@ -430,6 +485,12 @@ public class CopyToBlocks
         }
 
         @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return (long) positionCount * Integer.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
         public Block buildBlock(int position, int count)
         {
             int[] values = new int[count];
@@ -446,6 +507,12 @@ public class CopyToBlocks
         private DoubleColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            return (long) positionCount * Long.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
         }
 
         @Override
@@ -473,6 +540,13 @@ public class CopyToBlocks
         }
 
         @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            // Estimates final block size, not peak — temporary arrays are excluded.
+            return (long) positionCount * Int128ArrayBlock.INT128_BYTES + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
         public Block buildBlock(int position, int count)
         {
             long[] cudfLowHighPairs = new long[count * 2];
@@ -494,6 +568,23 @@ public class CopyToBlocks
         private VariableWidthBlockColumnCopier(@Borrow HostColumnVector hostColumnVector)
         {
             this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            long estimated = nullsHeapBytes(hostColumnVector, positionCount);
+
+            HostMemoryBuffer offsets = hostColumnVector.getOffsets();
+            if (offsets != null) {
+                estimated += offsets.getLength();
+            }
+            HostMemoryBuffer data = hostColumnVector.getData();
+            if (data != null) {
+                estimated += data.getLength();
+            }
+
+            return estimated;
         }
 
         @Override
@@ -540,6 +631,23 @@ public class CopyToBlocks
         }
 
         @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            long estimated = nullsHeapBytes(hostColumnVector, positionCount);
+
+            HostMemoryBuffer offsets = hostColumnVector.getOffsets();
+            if (offsets != null) {
+                estimated += offsets.getLength();
+            }
+            HostMemoryBuffer data = hostColumnVector.getChildColumnView(0).getData();
+            if (data != null) {
+                estimated += data.getLength();
+            }
+
+            return estimated;
+        }
+
+        @Override
         public Block buildBlock(int position, int count)
         {
             int[] offsets = new int[count + 1];
@@ -575,6 +683,13 @@ public class CopyToBlocks
         }
 
         @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            // Estimates final block size, not peak — temporary arrays are excluded.
+            return (long) positionCount * 3 * Integer.BYTES + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
         public Block buildBlock(int position, int count)
         {
             long[] nanos = new long[count];
@@ -590,8 +705,15 @@ public class CopyToBlocks
         }
     }
 
+    private static long nullsHeapBytes(@Borrow HostColumnVector hostColumnVector, int positionCount)
+    {
+        return hostColumnVector.getValidity() != null ? positionCount : 0;
+    }
+
     private interface ColumnCopier
     {
+        long estimateHeapBytes(int positionCount);
+
         Block buildBlock(int position, int count);
     }
 

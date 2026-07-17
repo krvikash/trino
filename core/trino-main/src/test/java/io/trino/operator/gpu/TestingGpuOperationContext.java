@@ -60,6 +60,16 @@ public class TestingGpuOperationContext
         return operatorContext;
     }
 
+    public void setHeapMemoryReservationListener(ReservationListener listener)
+    {
+        heapMemoryHandler.setListener(listener);
+    }
+
+    public void removeHeapMemoryReservationListener(ReservationListener listener)
+    {
+        heapMemoryHandler.removeListener(listener);
+    }
+
     public void setGpuDeviceMemoryReservationListener(ReservationListener listener)
     {
         gpuDeviceMemoryHandler.setListener(listener);

@@ -216,7 +216,7 @@ public abstract class GpuOperator
                 head = new PullCircuitBreaker(head, refillSignal);
                 head = factory.create(context, head);
             }
-            head = new CopyToBlocks(head, outputTypes);
+            head = new CopyToBlocks(context, head, outputTypes);
             operatorContext.setLatestMetrics(initialMetrics());
             return new GpuSourceOperator(planNodeId, operatorContext, head, source, refillSignal);
         }
@@ -304,7 +304,7 @@ public abstract class GpuOperator
                 head = new PullCircuitBreaker(head, refillSignal);
                 head = factory.create(context, head);
             }
-            head = new CopyToBlocks(head, outputTypes);
+            head = new CopyToBlocks(context, head, outputTypes);
             operatorContext.setLatestMetrics(initialMetrics());
             return new GpuIntermediateOperator(operatorContext, head, source, refillSignal);
         }
