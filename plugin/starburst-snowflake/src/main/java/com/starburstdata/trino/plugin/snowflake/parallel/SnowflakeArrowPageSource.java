@@ -249,7 +249,10 @@ public class SnowflakeArrowPageSource
     @Override
     public long getMemoryUsage()
     {
-        return bufferAllocator.getAllocatedMemory() + splitRetainedSize + pageBuilder.getSizeInBytes();
+        return bufferAllocator.getAllocatedMemory()
+                + splitRetainedSize
+                + pageBuilder.getRetainedSizeInBytes()
+                + fetcher.getRetainedSizeInBytes();
     }
 
     @Override

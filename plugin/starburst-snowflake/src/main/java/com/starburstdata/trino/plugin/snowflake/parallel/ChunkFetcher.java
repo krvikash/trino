@@ -29,6 +29,7 @@ public class ChunkFetcher
     private final Iterator<Chunk> chunks;
     private long readTimeNanos;
     private CompletableFuture<byte[]> chunkFuture;
+    private long inFlightChunkBytes;
 
     public ChunkFetcher(StarburstResultStreamProvider streamProvider, List<Chunk> chunks)
     {
@@ -51,19 +52,30 @@ public class ChunkFetcher
     public CompletableFuture<byte[]> fetchNextChunk()
     {
         if (!chunks.hasNext()) {
+            // The last chunk has been consumed; drop the completed future so its byte[] can be collected.
+            chunkFuture = null;
+            inFlightChunkBytes = 0;
             return null;
         }
 
         if (chunkFuture == null || chunkFuture.isDone()) {
+            Chunk chunk = chunks.next();
+            // The fetched byte[] holds the uncompressed Arrow stream, so its size is approximated by the chunk's uncompressed size.
+            inFlightChunkBytes = chunk.uncompressedByteSize();
             chunkFuture = CompletableFuture.supplyAsync(() -> {
                 long start = System.nanoTime();
-                byte[] data = chunks.next().getInputStream(streamProvider);
+                byte[] data = chunk.getInputStream(streamProvider);
                 readTimeNanos += System.nanoTime() - start;
                 return data;
             }, executor);
         }
 
         return chunkFuture;
+    }
+
+    public long getRetainedSizeInBytes()
+    {
+        return chunkFuture != null ? inFlightChunkBytes : 0;
     }
 
     @Override
@@ -73,6 +85,7 @@ public class ChunkFetcher
             chunkFuture.cancel(true);
             chunkFuture = null;
         }
+        inFlightChunkBytes = 0;
         executor.shutdownNow();
     }
 }
