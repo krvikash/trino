@@ -47,6 +47,9 @@ import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.INNER;
+import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.LEFT;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getContainsGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getFilterGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedInnerJoinGpuDeviceMemoryUsage;
@@ -164,6 +167,56 @@ class TestGpuMemoryUtils
                     long actual = Rmm.getScopedMaximumBytesAllocated();
                     long estimated = getFilterGpuDeviceMemoryUsage(page, retained);
                     assertThat(estimated)
+                            .isLessThanOrEqualTo((long) (actual * 1.05));
+                }
+            }
+        }
+    }
+
+    @Test
+    void testGetContainsGpuDeviceMemoryUsage()
+    {
+        for (Type type : TESTED_GPU_TYPES) {
+            for (NullsProvider nullsProvider : NullsProvider.values()) {
+                for (int positionCount : List.of(1, 10, 25, 1024, 10_000, 1_234_567)) {
+                    testGetContainsGpuDeviceMemoryUsage(type, nullsProvider, positionCount);
+                }
+            }
+        }
+    }
+
+    private static void testGetContainsGpuDeviceMemoryUsage(Type type, NullsProvider nullsProvider, int haystackRows)
+    {
+        Block haystackBlock = createBlock(type, haystackRows, nullsProvider);
+        Block needleBlock = createBlock(type, 1, nullsProvider);
+
+        try (GpuPage haystackPage = getOnlyElement(copyToDevice(List.of(new Page(haystackBlock)), List.of(type)));
+                Table haystackTable = toTable(haystackPage);
+                GpuPage needlePage = getOnlyElement(copyToDevice(List.of(new Page(needleBlock)), List.of(type)));
+                Table needleTable = toTable(needlePage)) {
+            ColumnVector haystackColumn = haystackTable.getColumn(0);
+            ColumnVector needleColumn = needleTable.getColumn(0);
+
+            long beforeContains = Rmm.getTotalBytesAllocated();
+            Rmm.resetScopedMaximumBytesAllocated(beforeContains);
+
+            try (ColumnVector _ = needleColumn.contains(haystackColumn)) {
+                long peakMemory = Rmm.getScopedMaximumBytesAllocated();
+                long afterContains = Rmm.getTotalBytesAllocated();
+                long resultBytes = afterContains - beforeContains;
+                long actual = peakMemory - beforeContains - resultBytes;
+                long estimated = getContainsGpuDeviceMemoryUsage(haystackTable);
+
+                assertThat(estimated)
+                        .as("estimated >= actual, type=%s nullsProvider=%s haystackRows=%s", type, nullsProvider, haystackRows)
+                        .isGreaterThanOrEqualTo(actual);
+
+                if (estimated < 1024) {
+                    // small values can be overestimated
+                }
+                else {
+                    assertThat(estimated)
+                            .as("estimated within 5%% of actual, type=%s nullsProvider=%s haystackRows=%s", type, nullsProvider, haystackRows)
                             .isLessThanOrEqualTo((long) (actual * 1.05));
                 }
             }

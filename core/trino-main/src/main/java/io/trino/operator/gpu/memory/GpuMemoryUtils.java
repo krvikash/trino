@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu.memory;
 
+import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.NullEquality;
 import ai.rapids.cudf.Table;
@@ -29,6 +30,8 @@ public final class GpuMemoryUtils
 
     // Each slot holds cuco::pair<uint32_t, int32_t> = 8 bytes
     private static final long HASH_TABLE_ENTRY_BYTES = Integer.BYTES + Integer.BYTES;
+    // Each slot holds size_type (int32_t) = 4 bytes
+    private static final long HASH_SET_ENTRY_BYTES = Integer.BYTES;
 
     /// Estimate the additional GPU device memory retained by `new HashJoin(buildKeys, [false])`,
     /// assuming `buildKeys` is retained by the caller and therefore not counted here.
@@ -40,20 +43,54 @@ public final class GpuMemoryUtils
             return 0;
         }
         long cucoBytes = cucoHashTableCapacity(rowCount) * HASH_TABLE_ENTRY_BYTES;
+        long preprocessedBytes = preprocessedTableBytes(buildKeys);
+        return includePoolOverhead(cucoBytes, preprocessedBytes);
+    }
+
+    /// Estimates the temporary GPU device memory consumed during a call to
+    /// {@link ColumnVector#contains(ai.rapids.cudf.ColumnView)}, excluding the output boolean column.
+    public static long getContainsGpuDeviceMemoryUsage(Table haystack)
+    {
+        long rowCount = haystack.getRowCount();
+        if (rowCount == 0) {
+            return 0;
+        }
+        // cuDF uses linear_probing<CG_SIZE=1> for flat types and linear_probing<CG_SIZE=4> for nested types.
+        long cucoBytes = (isNested(haystack) ? cucoHashTableCapacity(rowCount) : cucoHashSetCapacity(rowCount)) * HASH_SET_ENTRY_BYTES;
+        // contains() creates two preprocessed_table views (haystack + needles),
+        long preprocessedBytes = 2 * preprocessedTableBytes(haystack);
+        // bucket_storage over-allocates by (alignment - 1) / sizeof(value_type) + 1 elements for alignment;
+        // for int32_t keys with alignof(int32_t) = 4: extra = (4 - 1) / 4 + 1 = 1 element = 4 bytes
+        return cucoBytes + 4 + preprocessedBytes;
+    }
+
+    private static boolean isNested(Table table)
+    {
+        for (int i = 0; i < table.getNumberOfColumns(); i++) {
+            DType.DTypeEnum typeId = table.getColumn(i).getType().getTypeId();
+            if (typeId == DType.DTypeEnum.STRING || typeId == DType.DTypeEnum.LIST) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static long preprocessedTableBytes(Table table)
+    {
         // preprocessed_table::create allocates a table_device_view whose size depends on the C++
         // column_device_view children count (sizeof(column_device_view)=64 bytes each):
         // STRING has 1 C++ child (offsets), LIST has 2 C++ children (offsets + elements)
-        long preprocessedBytes = 79;
-        for (int i = 0; i < buildKeys.getNumberOfColumns(); i++) {
-            DType.DTypeEnum typeId = buildKeys.getColumn(i).getType().getTypeId();
+        long bytes = 79;
+        for (int i = 0; i < table.getNumberOfColumns(); i++) {
+            DType.DTypeEnum typeId = table.getColumn(i).getType().getTypeId();
             if (typeId == DType.DTypeEnum.STRING) {
-                preprocessedBytes += 64;
+                bytes += 64;
             }
             else if (typeId == DType.DTypeEnum.LIST) {
-                preprocessedBytes += 128;
+                bytes += 128;
             }
         }
-        return includePoolOverhead(cucoBytes, preprocessedBytes);
+        return bytes;
     }
 
     /// Estimates the peak temporary GPU device memory consumed by a single call to
@@ -122,6 +159,15 @@ public final class GpuMemoryUtils
         // capacity = CG_SIZE * ceilDiv(rawCapacity, CG_SIZE * WINDOW_SIZE) * WINDOW_SIZE
         //          = 4 * ceilDiv(rowCount, 2)
         return 4L * ((rowCount + 1) / 2);
+    }
+
+    private static long cucoHashSetCapacity(long rowCount)
+    {
+        // cuco::static_set with CUCO_DESIRED_LOAD_FACTOR=0.5, storage<1>, linear_probing<CG_SIZE=1>:
+        // rawCapacity = ceil(rowCount / 0.5) = 2 * rowCount
+        // capacity = CG_SIZE * ceilDiv(rawCapacity, CG_SIZE * WINDOW_SIZE) * WINDOW_SIZE
+        //          = 1 * ceilDiv(2 * rowCount, 1) * 1 = 2 * rowCount
+        return 2L * rowCount;
     }
 
     public static long getNullColumnMemoryUsage(DType type, int positionCount)

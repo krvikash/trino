@@ -21,11 +21,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier.GpuSemiJoinSet;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -35,7 +37,9 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getContainsGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static java.lang.Math.ceilDiv;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuSemiJoin
@@ -79,6 +83,7 @@ public final class GpuSemiJoin
     }
 
     private final UncheckedCloser closer = UncheckedCloser.create();
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final ListenableFuture<GpuSemiJoinSet> setFuture;
     private final int probeKeyChannel;
@@ -86,6 +91,7 @@ public final class GpuSemiJoin
     private GpuSemiJoin(Context context, GpuOperation source, GpuSemiJoinSetSupplier setSupplier, int probeKeyChannel)
     {
         requireNonNull(context, "context is null");
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.setFuture = setSupplier.getSetFuture();
         this.probeKeyChannel = probeKeyChannel;
@@ -108,8 +114,17 @@ public final class GpuSemiJoin
             case Yielded yielded -> yielded;
             case Finished finished -> finished;
             case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
-                    yield new Data(AllocatedMemory.untracked(), processProbePage(page, set));
+                try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
+                        memory;
+                        ClosingRef<GpuPage> gpuPage = ClosingRef.own(page)) {
+                    allocation.borrow().transferFrom(memory);
+                    allocation.borrow().update(allocation.borrow().amount().add(estimateWorkingMemory(gpuPage.borrow(), set)));
+                    GpuPage resultPage = processProbePage(gpuPage.borrow(), set);
+                    try (ClosingRef<GpuPage> result = ClosingRef.own(resultPage)) {
+                        gpuPage.close();
+                        allocation.borrow().update(result.borrow().retainedMemory());
+                        yield new Data(allocation.take(), result.take());
+                    }
                 }
             }
         };
@@ -128,6 +143,22 @@ public final class GpuSemiJoin
         finally {
             closeColumns(outputColumns);
         }
+    }
+
+    private static MemoryAmount estimateWorkingMemory(@Borrow GpuPage probePage, GpuSemiJoinSet set)
+    {
+        int positionCount = probePage.positionCount();
+        Optional<@Borrow Table> buildKeys = set.buildKeys();
+        if (buildKeys.isEmpty()) {
+            return MemoryAmount.gpuDevice(positionCount);
+        }
+        long hashSetBytes = getContainsGpuDeviceMemoryUsage(buildKeys.get());
+        // boolean columns created during computeMembership: the result column, plus
+        // temporaries for null handling (equalTo + ifElse intermediate).
+        // Each column may carry a validity mask (1 bit/row, padded to 64 bytes).
+        long nullMaskBytes = 64L * ceilDiv(ceilDiv(positionCount, 8), 64);
+        long booleanColumnBytes = (positionCount + nullMaskBytes) * (set.buildHasNull() ? 3 : 1);
+        return MemoryAmount.gpuDevice(hashSetBytes + booleanColumnBytes);
     }
 
     private @Move ColumnVector computeMembership(@Borrow GpuPage probePage, GpuSemiJoinSet set)
