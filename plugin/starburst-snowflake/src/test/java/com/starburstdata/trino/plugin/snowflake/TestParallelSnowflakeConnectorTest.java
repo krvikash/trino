@@ -1627,6 +1627,15 @@ public class TestParallelSnowflakeConnectorTest
         }
     }
 
+    @Test
+    public void testExplainAnalyzeSplitSourceMetrics()
+    {
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE VERBOSE SELECT * FROM nation",
+                "splits generation metrics",
+                "snowflakeQueryExecutionTime");
+    }
+
     private Session experimentalPushdownEnabled()
     {
         return Session.builder(getSession())
