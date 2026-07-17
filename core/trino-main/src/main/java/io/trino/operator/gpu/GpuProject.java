@@ -75,7 +75,6 @@ public class GpuProject
             GpuOperation source,
             List<Projection> projections)
     {
-        requireNonNull(context, "context is null");
         this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.projections = ImmutableList.copyOf(requireNonNull(projections, "projections is null"));
