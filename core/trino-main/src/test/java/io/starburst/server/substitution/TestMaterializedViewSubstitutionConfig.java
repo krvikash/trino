@@ -19,8 +19,6 @@ import java.util.concurrent.TimeUnit;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
-import static io.starburst.server.substitution.MaterializedViewSubstitutionConfig.MaterializationMetastoreType.IN_MEMORY;
-import static io.starburst.server.substitution.MaterializedViewSubstitutionConfig.MaterializationMetastoreType.REST;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -33,7 +31,6 @@ public class TestMaterializedViewSubstitutionConfig
                 .setMaterializedViewSubstitutionSupportEnabled(false)
                 .setMaterializedViewSubstitutionEnabled(false)
                 .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(1, MINUTES))
-                .setMaterializationMetastoreType(IN_MEMORY)
                 .setMaterializedViewSubstitutionMaxStaleness(null)
                 .setMaterializedViewSubstitutionCandidatesRegexFilter(null));
     }
@@ -45,7 +42,6 @@ public class TestMaterializedViewSubstitutionConfig
                 .put("materialized-view-substitution.support.enabled", "true")
                 .put("materialized-view-substitution.enabled", "true")
                 .put("materialized-view-substitution.metastore-refresh-interval", "30s")
-                .put("materialization.metastore.type", "REST")
                 .put("materialized-view-substitution.max-staleness", "5m")
                 .put("materialized-view-substitution.candidates-regex-filter", "test_catalog\\..*")
                 .buildOrThrow();
@@ -54,7 +50,6 @@ public class TestMaterializedViewSubstitutionConfig
                 .setMaterializedViewSubstitutionSupportEnabled(true)
                 .setMaterializedViewSubstitutionEnabled(true)
                 .setMaterializedViewSubstitutionMetastoreRefreshInterval(new Duration(30, SECONDS))
-                .setMaterializationMetastoreType(REST)
                 .setMaterializedViewSubstitutionMaxStaleness(new Duration(5, TimeUnit.MINUTES))
                 .setMaterializedViewSubstitutionCandidatesRegexFilter("test_catalog\\..*");
 

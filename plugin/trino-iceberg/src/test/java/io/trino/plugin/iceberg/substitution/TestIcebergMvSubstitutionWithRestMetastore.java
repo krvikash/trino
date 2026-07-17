@@ -15,11 +15,13 @@ package io.trino.plugin.iceberg.substitution;
 
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.starburst.materialization.metastore.client.HttpMaterializationMetastoreModule;
 import io.starburst.materialization.metastore.client.MaterializationMetastoreClientConfig;
 import io.starburst.materialization.metastore.client.RequestAuthenticator;
 import io.starburst.materialization.metastore.server.TestingMaterializationMetastoreServer;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.server.ServerConfig;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
@@ -68,10 +70,12 @@ public class TestIcebergMvSubstitutionWithRestMetastore
                     {
                         binder.bind(RequestAuthenticator.class).toInstance(_ -> {});
                         configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id"));
+                        if (buildConfigObject(ServerConfig.class).isCoordinator()) {
+                            install(new HttpMaterializationMetastoreModule());
+                        }
                     }
                 })
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
-                .addCoordinatorProperty("materialization.metastore.type", "REST")
                 .addCoordinatorProperty("materialization.metastore.base-uri", metastoreServer.baseUri().toString())
                 .build();
         try {

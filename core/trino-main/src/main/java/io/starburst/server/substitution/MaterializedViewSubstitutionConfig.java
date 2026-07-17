@@ -25,15 +25,8 @@ public class MaterializedViewSubstitutionConfig
     private boolean materializedViewSubstitutionSupportEnabled;
     private boolean materializedViewSubstitutionEnabled;
     private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
-    private MaterializationMetastoreType materializationMetastoreType = MaterializationMetastoreType.IN_MEMORY;
     private Optional<Duration> materializedViewSubstitutionMaxStaleness = Optional.empty();
     private Optional<String> materializedViewSubstitutionCandidatesRegexFilter = Optional.empty();
-
-    public enum MaterializationMetastoreType
-    {
-        IN_MEMORY,
-        REST,
-    }
 
     public boolean isMaterializedViewSubstitutionSupportEnabled()
     {
@@ -72,19 +65,6 @@ public class MaterializedViewSubstitutionConfig
     public MaterializedViewSubstitutionConfig setMaterializedViewSubstitutionMetastoreRefreshInterval(Duration value)
     {
         this.materializedViewSubstitutionMetastoreRefreshInterval = value;
-        return this;
-    }
-
-    public MaterializationMetastoreType getMaterializationMetastoreType()
-    {
-        return materializationMetastoreType;
-    }
-
-    @Config("materialization.metastore.type")
-    @ConfigDescription("Backing store for the materialization metastore: IN_MEMORY or REST")
-    public MaterializedViewSubstitutionConfig setMaterializationMetastoreType(MaterializationMetastoreType materializationMetastoreType)
-    {
-        this.materializationMetastoreType = materializationMetastoreType;
         return this;
     }
 
