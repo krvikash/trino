@@ -22,6 +22,7 @@ import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.plan.PlanNodeId;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -90,6 +91,11 @@ public class TextRenderer
             output.append(indentMultilineString(printEstimates(estimates), indent.detailIndent()));
         }
 
+        String gpu = printGpuExecutionStatus(node);
+        if (!gpu.isEmpty()) {
+            output.append(indentMultilineString(gpu, indent.detailIndent()));
+        }
+
         String stats = printStats(plan, node);
         if (!stats.isEmpty()) {
             output.append(indentMultilineString(stats, indent.detailIndent()));
@@ -127,6 +133,36 @@ public class TextRenderer
             NodeRepresentation child = iterator.next();
             writeTextOutput(output, plan, indent.forChild(!iterator.hasNext(), hasChildren(child, plan)), child, isAdaptivePlanInitialNode);
         }
+    }
+
+    private String printGpuExecutionStatus(NodeRepresentation node)
+    {
+        return node.getGpuStatus()
+                .map(status -> {
+                    StringBuilder output = new StringBuilder();
+                    output.append(status.isNotEligible() ? "GPU: unsupported" : "GPU: supported");
+
+                    List<String> details = new ArrayList<>();
+                    if (status.cpuSplitCount() > 0 && status.isEligible()) {
+                        double fraction = 100.0d * status.gpuSplitCount() / (status.gpuSplitCount() + status.cpuSplitCount());
+                        details.add(format("GPU splits: %s%%", formatDouble(fraction)));
+                    }
+                    if (status.cpuTaskCount() > 0 && status.isEligible()) {
+                        double fraction = 100.0d * status.gpuTaskCount() / (status.gpuTaskCount() + status.cpuTaskCount());
+                        details.add(format("GPU tasks: %s%%", formatDouble(fraction)));
+                    }
+                    if (!details.isEmpty()) {
+                        output.append(" (").append(String.join(", ", details)).append(")");
+                    }
+                    output.append("\n");
+
+                    for (String reason : status.reasons()) {
+                        output.append(indentString(1)).append(reason).append("\n");
+                    }
+
+                    return output.toString();
+                })
+                .orElse("");
     }
 
     private String printStats(PlanRepresentation plan, NodeRepresentation node)

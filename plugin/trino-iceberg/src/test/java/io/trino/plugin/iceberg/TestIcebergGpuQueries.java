@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.loadTable;
@@ -158,7 +159,58 @@ public class TestIcebergGpuQueries
         assertUpdate("DELETE FROM test_gpu_eq_delete WHERE nationkey = 1", 1);
         assertThat(query("SELECT nationkey FROM test_gpu_eq_delete"))
                 .executesWithGpu(TableScanNode.class);
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT name FROM test_gpu_eq_delete",
+                "TableScan",
+                "GPU: supported \\(GPU splits: 0\\.00%\\)");
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT name FROM test_gpu_eq_delete WHERE nationkey = 1",
+                "ScanFilterProject",
+                "GPU: supported \\(GPU splits: 0\\.00%\\)");
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT cast(nationkey AS varchar) FROM test_gpu_eq_delete",
+                "ScanProject",
+                "GPU: supported \\(GPU splits: 0\\.00%\\)");
+        assertThat((String) computeActual(
+                Session.builder(getSession())
+                        .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                        .build(),
+                "EXPLAIN ANALYZE SELECT cast(nationkey AS varchar) FROM test_gpu_eq_delete")
+                .getOnlyValue())
+                .doesNotContain("GPU");
         assertUpdate("DROP TABLE test_gpu_eq_delete");
+    }
+
+    @Test
+    public void testExplainAnalyze()
+    {
+        assertUpdate("CREATE TABLE test_gpu_explain AS SELECT nationkey, name FROM nation", 25);
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT name FROM test_gpu_explain WHERE nationkey = rand()",
+                "ScanFilterProject",
+                "GPU: unsupported",
+                "Unsupported expression");
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT IF(rand()<42, nationkey) FROM test_gpu_explain",
+                "ScanProject",
+                "GPU: unsupported",
+                "Unsupported expression");
+        assertThat((String) computeActual(
+                Session.builder(getSession())
+                        .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                        .build(),
+                "EXPLAIN ANALYZE SELECT IF(rand()<42, nationkey) FROM test_gpu_explain")
+                .getOnlyValue())
+                .doesNotContain("GPU");
+        assertUpdate("DROP TABLE test_gpu_explain");
+
+        assertUpdate("CREATE TABLE test_gpu_struct (id bigint, info ROW(name varchar, age bigint))");
+        assertUpdate("INSERT INTO test_gpu_struct VALUES (1, ROW('alice', 30))", 1);
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT info.name FROM test_gpu_struct",
+                "GPU: unsupported",
+                "Non-primitive columns are not supported");
+        assertUpdate("DROP TABLE test_gpu_struct");
     }
 
     @Test

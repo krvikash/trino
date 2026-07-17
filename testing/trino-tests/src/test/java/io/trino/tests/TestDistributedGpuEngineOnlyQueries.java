@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -429,6 +430,18 @@ public class TestDistributedGpuEngineOnlyQueries
         assertExplainAnalyze(
                 "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey",
                 "Estimates: \\{rows: .* \\(.*\\), cpu: .*, memory: .*, network: .*}");
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey",
+                "GPU: supported",
+                "GPU: unsupported",
+                "Non-GPU upstream pipeline");
+        assertThat((String) computeActual(
+                Session.builder(getSession())
+                        .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                        .build(),
+                "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey")
+                .getOnlyValue())
+                .doesNotContain("GPU");
     }
 
     @Test

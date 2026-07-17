@@ -174,6 +174,7 @@ import static io.trino.sql.ir.IrUtils.combineConjunctsWithDuplicates;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.JoinType.INNER;
 import static io.trino.sql.planner.plan.RowsPerMatch.WINDOW;
+import static io.trino.sql.planner.planprinter.PlanNodeGpuStatusSummarizer.aggregateGpuStatuses;
 import static io.trino.sql.planner.planprinter.PlanNodeStatsSummarizer.aggregateStageStats;
 import static io.trino.sql.planner.planprinter.TextRenderer.formatDouble;
 import static io.trino.sql.planner.planprinter.TextRenderer.formatPositions;
@@ -211,6 +212,7 @@ public class PlanPrinter
             ValuePrinter valuePrinter,
             StatsAndCosts estimatedStatsAndCosts,
             Optional<Map<PlanNodeId, PlanNodeStats>> stats,
+            Optional<Map<PlanNodeId, PlanNodeGpuStatus>> gpuStatuses,
             Map<PlanNodeId, Long> getSplitsTotalTimeNanos,
             Map<PlanNodeId, Metrics> splitSourceMetrics,
             Anonymizer anonymizer)
@@ -221,6 +223,7 @@ public class PlanPrinter
                 valuePrinter,
                 estimatedStatsAndCosts,
                 stats,
+                gpuStatuses,
                 getSplitsTotalTimeNanos,
                 splitSourceMetrics,
                 anonymizer,
@@ -236,6 +239,7 @@ public class PlanPrinter
             ValuePrinter valuePrinter,
             StatsAndCosts estimatedStatsAndCosts,
             Optional<Map<PlanNodeId, PlanNodeStats>> stats,
+            Optional<Map<PlanNodeId, PlanNodeGpuStatus>> gpuStatuses,
             Map<PlanNodeId, Long> getSplitsTotalTimeNanos,
             Map<PlanNodeId, Metrics> splitSourceMetrics,
             Anonymizer anonymizer,
@@ -250,6 +254,7 @@ public class PlanPrinter
         requireNonNull(splitSourceMetrics, "splitSourceMetrics is null");
         requireNonNull(estimatedStatsAndCosts, "estimatedStatsAndCosts is null");
         requireNonNull(stats, "stats is null");
+        requireNonNull(gpuStatuses, "gpuStatuses is null");
         requireNonNull(anonymizer, "anonymizer is null");
 
         this.tableInfoSupplier = tableInfoSupplier;
@@ -273,7 +278,7 @@ public class PlanPrinter
 
         this.representation = new PlanRepresentation(planRoot, totalCpuTime, totalScheduledTime, totalBlockedTime);
 
-        Visitor visitor = new Visitor(estimatedStatsAndCosts, stats);
+        Visitor visitor = new Visitor(estimatedStatsAndCosts, stats, gpuStatuses);
         planRoot.accept(visitor, new Context(Optional.empty(), false));
     }
 
@@ -304,6 +309,7 @@ public class PlanPrinter
                 valuePrinter,
                 StatsAndCosts.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 new NoOpAnonymizer())
@@ -325,6 +331,7 @@ public class PlanPrinter
                 ImmutableMap.of(),
                 valuePrinter,
                 estimatedStatsAndCosts,
+                Optional.empty(),
                 Optional.empty(),
                 ImmutableMap.of(),
                 ImmutableMap.of(),
@@ -387,6 +394,7 @@ public class PlanPrinter
                                 valuePrinter,
                                 planFragment.getStatsAndCosts(),
                                 Optional.empty(),
+                                Optional.empty(),
                                 ImmutableMap.of(),
                                 ImmutableMap.of(),
                                 anonymizer)
@@ -426,6 +434,7 @@ public class PlanPrinter
                 ImmutableMap.of(),
                 valuePrinter,
                 estimatedStatsAndCosts,
+                Optional.empty(),
                 Optional.empty(),
                 ImmutableMap.of(),
                 ImmutableMap.of(),
@@ -492,6 +501,7 @@ public class PlanPrinter
 
         StringBuilder builder = new StringBuilder();
         Map<PlanNodeId, PlanNodeStats> aggregatedStats = aggregateStageStats(stages);
+        Map<PlanNodeId, PlanNodeGpuStatus> aggregatedGpuStatuses = aggregateGpuStatuses(stages);
 
         Map<DynamicFilterId, DynamicFilterDomainStats> dynamicFilterDomainStats = queryStats.getDynamicFiltersStats()
                 .getDynamicFilterDomainStats().stream()
@@ -517,6 +527,7 @@ public class PlanPrinter
                     stageInfo.plan(),
                     Optional.of(stageInfo),
                     Optional.of(aggregatedStats),
+                    Optional.of(aggregatedGpuStatuses),
                     verbose,
                     anonymizer));
         }
@@ -538,6 +549,7 @@ public class PlanPrinter
                     fragment,
                     Optional.empty(),
                     Optional.empty(),
+                    Optional.empty(),
                     verbose,
                     new NoOpAnonymizer()));
         }
@@ -552,6 +564,7 @@ public class PlanPrinter
             PlanFragment fragment,
             Optional<StageInfo> stageInfo,
             Optional<Map<PlanNodeId, PlanNodeStats>> planNodeStats,
+            Optional<Map<PlanNodeId, PlanNodeGpuStatus>> gpuStatuses,
             boolean verbose,
             Anonymizer anonymizer)
     {
@@ -678,6 +691,7 @@ public class PlanPrinter
                                 valuePrinter,
                                 fragment.getStatsAndCosts(),
                                 planNodeStats,
+                                gpuStatuses,
                                 getSplitsTotalTimeNanos,
                                 splitSourceMetrics,
                                 anonymizer,
@@ -733,11 +747,13 @@ public class PlanPrinter
     {
         private final StatsAndCosts estimatedStatsAndCosts;
         private final Optional<Map<PlanNodeId, PlanNodeStats>> stats;
+        private final Optional<Map<PlanNodeId, PlanNodeGpuStatus>> gpuStatuses;
 
-        public Visitor(StatsAndCosts estimatedStatsAndCosts, Optional<Map<PlanNodeId, PlanNodeStats>> stats)
+        public Visitor(StatsAndCosts estimatedStatsAndCosts, Optional<Map<PlanNodeId, PlanNodeStats>> stats, Optional<Map<PlanNodeId, PlanNodeGpuStatus>> gpuStatuses)
         {
             this.estimatedStatsAndCosts = requireNonNull(estimatedStatsAndCosts, "estimatedStatsAndCosts is null");
             this.stats = requireNonNull(stats, "stats is null");
+            this.gpuStatuses = requireNonNull(gpuStatuses, "gpuStatuses is null");
         }
 
         @Override
@@ -2315,6 +2331,7 @@ public class PlanPrinter
                             .map(s -> new Symbol(s.type(), anonymizer.anonymize(s)))
                             .collect(toImmutableList()),
                     stats.map(s -> s.get(rootNode.getId())),
+                    mergeGpuStatuses(allNodes),
                     estimatedStats,
                     estimatedCosts,
                     reorderJoinStatsAndCost,
@@ -2329,6 +2346,45 @@ public class PlanPrinter
                 representation.addNode(nodeOutput);
             }
             return nodeOutput;
+        }
+
+        private Optional<PlanNodeGpuStatus> mergeGpuStatuses(List<PlanNodeId> allNodes)
+        {
+            List<PlanNodeGpuStatus> availableStatuses = allNodes.stream()
+                    .map(nodeId -> gpuStatuses.flatMap(statuses -> Optional.ofNullable(statuses.get(nodeId))))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collect(toImmutableList());
+
+            // We take a defensive approach here: all statuses must be aligned in terms of GPU eligibility.
+            // Additionally, at most one status may carry information about per-split fallbacks.
+            // This is how GPU execution works at the time of writing, but we don't want to enforce that here.
+            // If any assumption changes and we can no longer identify this pattern, skip reporting GPU status instead of failing.
+            // This simplifies how we present GPU status in EXPLAIN ANALYZE output.
+
+            if (availableStatuses.isEmpty()) {
+                return Optional.empty();
+            }
+
+            PlanNodeGpuStatus first = availableStatuses.getFirst();
+            boolean aligned = availableStatuses.stream().allMatch(status ->
+                    status.cpuTaskCount() == first.cpuTaskCount() &&
+                            status.gpuTaskCount() == first.gpuTaskCount() &&
+                            status.reasons().equals(first.reasons()));
+            if (!aligned) {
+                return Optional.empty();
+            }
+
+            List<PlanNodeGpuStatus> withSplits = availableStatuses.stream()
+                    .filter(status -> status.cpuSplitCount() > 0 || status.gpuSplitCount() > 0)
+                    .collect(toImmutableList());
+            if (withSplits.size() > 1) {
+                return Optional.empty();
+            }
+            if (withSplits.size() == 1) {
+                return Optional.of(withSplits.getFirst());
+            }
+            return Optional.of(first);
         }
     }
 

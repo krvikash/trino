@@ -45,6 +45,7 @@ public class NodeRepresentation
     private final List<PlanCostEstimate> estimatedCost;
     private final Optional<PlanNodeStatsAndCostSummary> reorderJoinStatsAndCost;
     private final Metrics splitSourceMetrics;
+    private final Optional<PlanNodeGpuStatus> gpuStatus;
 
     private final ImmutableList.Builder<String> details = ImmutableList.builder();
 
@@ -55,6 +56,7 @@ public class NodeRepresentation
             Map<String, String> descriptor,
             List<Symbol> outputs,
             Optional<PlanNodeStats> stats,
+            Optional<PlanNodeGpuStatus> gpuStatus,
             List<PlanNodeStatsEstimate> estimatedStats,
             List<PlanCostEstimate> estimatedCost,
             Optional<PlanNodeStatsAndCostSummary> reorderJoinStatsAndCost,
@@ -69,6 +71,7 @@ public class NodeRepresentation
         this.descriptor = requireNonNull(descriptor, "descriptor is null");
         this.outputs = requireNonNull(outputs, "outputs is null");
         this.stats = requireNonNull(stats, "stats is null");
+        this.gpuStatus = requireNonNull(gpuStatus, "gpuStatus is null");
         this.estimatedStats = requireNonNull(estimatedStats, "estimatedStats is null");
         this.estimatedCost = requireNonNull(estimatedCost, "estimatedCost is null");
         this.reorderJoinStatsAndCost = requireNonNull(reorderJoinStatsAndCost, "reorderJoinStatsAndCost is null");
@@ -176,5 +179,10 @@ public class NodeRepresentation
         }
 
         return estimates.build();
+    }
+
+    public Optional<PlanNodeGpuStatus> getGpuStatus()
+    {
+        return gpuStatus;
     }
 }

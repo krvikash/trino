@@ -244,6 +244,7 @@ public class TestAnonymizeJsonRepresentation
                     valuePrinter,
                     StatsAndCosts.empty(),
                     Optional.empty(),
+                    Optional.empty(),
                     ImmutableMap.of(),
                     ImmutableMap.of(),
                     new CounterBasedAnonymizer())
