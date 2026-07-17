@@ -140,12 +140,12 @@ public abstract class AbstractIcebergMvSubstitutionTest
         return new CatalogSchemaName(getSession().getCatalog().orElseThrow(), getSession().getSchema().orElseThrow());
     }
 
-    private MaterializedResultWithPlan assertSubstituted(Session session, String query, String baseTableName, CatalogSchemaTableName mvName, String... expectedNotSubstitutedTables)
+    protected MaterializedResultWithPlan assertSubstituted(Session session, String query, String baseTableName, CatalogSchemaTableName mvName, String... expectedNotSubstitutedTables)
     {
         return assertSubstituted(session, query, baseTableName, Set.of(mvName), expectedNotSubstitutedTables);
     }
 
-    private MaterializedResultWithPlan assertSubstituted(
+    protected MaterializedResultWithPlan assertSubstituted(
             Session session,
             String query,
             String baseTableName,

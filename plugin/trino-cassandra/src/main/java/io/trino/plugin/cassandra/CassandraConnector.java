@@ -16,6 +16,8 @@ package io.trino.plugin.cassandra;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.cassandra.substitution.CassandraSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
@@ -23,6 +25,7 @@ import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.session.PropertyMetadata;
@@ -46,6 +49,7 @@ public class CassandraConnector
     private final Set<ConnectorTableFunction> connectorTableFunctions;
     private final List<PropertyMetadata<?>> sessionProperties;
     private final Set<Procedure> procedures;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public CassandraConnector(
@@ -56,7 +60,8 @@ public class CassandraConnector
             CassandraPageSinkProvider pageSinkProvider,
             Set<ConnectorTableFunction> connectorTableFunctions,
             CassandraSessionProperties sessionProperties,
-            Set<Procedure> procedures)
+            Set<Procedure> procedures,
+            CassandraSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -66,6 +71,9 @@ public class CassandraConnector
         this.connectorTableFunctions = ImmutableSet.copyOf(requireNonNull(connectorTableFunctions, "connectorTableFunctions is null"));
         this.sessionProperties = requireNonNull(sessionProperties.getSessionProperties(), "sessionProperties is null");
         this.procedures = ImmutableSet.copyOf(requireNonNull(procedures, "procedures is null"));
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -115,6 +123,12 @@ public class CassandraConnector
     public Set<Procedure> getProcedures()
     {
         return procedures;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override

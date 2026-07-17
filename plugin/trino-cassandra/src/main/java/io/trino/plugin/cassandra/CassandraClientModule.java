@@ -33,6 +33,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.cassandra.v4_4.CassandraTelemetry;
 import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.cassandra.ptf.Query;
+import io.trino.plugin.cassandra.substitution.CassandraSubstitutionMetadata;
 import io.trino.plugin.cassandra.tls.CassandraTlsModule;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -71,6 +72,7 @@ public class CassandraClientModule
         binder.bind(CassandraPageSinkProvider.class).in(Scopes.SINGLETON);
         binder.bind(CassandraPartitionManager.class).in(Scopes.SINGLETON);
         binder.bind(CassandraSessionProperties.class).in(Scopes.SINGLETON);
+        binder.bind(CassandraSubstitutionMetadata.class).in(Scopes.SINGLETON);
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
         newSetBinder(binder, Procedure.class).addBinding().toProvider(ExecuteProcedure.class).in(Scopes.SINGLETON);
         binder.bind(CassandraTypeManager.class).in(Scopes.SINGLETON);
