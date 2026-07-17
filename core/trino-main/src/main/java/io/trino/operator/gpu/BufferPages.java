@@ -42,7 +42,6 @@ public class BufferPages
     private final GpuTaskMemoryContext taskMemoryContext;
     private final List<Page> bufferedPages = new ArrayList<>();
     private int bufferedPagesPositions;
-    private long bufferedPagesMemoryBytes;
     private boolean finishing;
     private AllocatedMemory allocation;
 
@@ -70,8 +69,7 @@ public class BufferPages
         if (page.getPositionCount() != 0) {
             bufferedPages.add(page);
             bufferedPagesPositions = addExact(bufferedPagesPositions, page.getPositionCount());
-            bufferedPagesMemoryBytes = addExact(bufferedPagesMemoryBytes, page.getRetainedSizeInBytes());
-            allocation.update(MemoryAmount.heap(bufferedPagesMemoryBytes));
+            allocation.update(allocation.amount().add(MemoryAmount.heap(page.getRetainedSizeInBytes())));
         }
     }
 
@@ -105,7 +103,6 @@ public class BufferPages
                 allocation = taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
                 bufferedPages.clear();
                 bufferedPagesPositions = 0;
-                bufferedPagesMemoryBytes = 0;
                 return new Data(result, gpuPage.take());
             }
         }
