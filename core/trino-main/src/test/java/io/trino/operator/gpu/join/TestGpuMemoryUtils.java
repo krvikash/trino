@@ -14,10 +14,15 @@
 package io.trino.operator.gpu.join;
 
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.GatherMap;
 import ai.rapids.cudf.HashJoin;
+import ai.rapids.cudf.NullEquality;
 import ai.rapids.cudf.Rmm;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
+import ai.rapids.cudf.ast.CompiledExpression;
+import ai.rapids.cudf.ast.Literal;
+import io.trino.operator.gpu.join.GpuLookupJoin.JoinType;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.gpu.Column;
@@ -29,9 +34,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static ai.rapids.cudf.DType.INT32;
@@ -42,6 +49,8 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getFilterGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedInnerJoinGpuDeviceMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedLeftJoinGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
@@ -158,6 +167,83 @@ class TestGpuMemoryUtils
                             .isLessThanOrEqualTo((long) (actual * 1.05));
                 }
             }
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(JoinType.class)
+    void testGetMixedJoinGpuDeviceMemoryUsage(JoinType joinType)
+    {
+        // The tested row counts are arbitrary, but they are paired so that none of the tested types hit OOM.
+        Map<Integer, Integer> testedRowCounts = Map.of(
+                25, 1_234_567,
+                1024, 10_000,
+                2048, 10_000);
+
+        for (Type type : TESTED_GPU_TYPES) {
+            for (NullsProvider nullsProvider : NullsProvider.values()) {
+                for (Map.Entry<Integer, Integer> rowCounts : testedRowCounts.entrySet()) {
+                    int firstRowCount = rowCounts.getKey();
+                    int secondRowCount = rowCounts.getValue();
+                    testGetMixedJoinGpuDeviceMemoryUsage(joinType, type, nullsProvider, firstRowCount, secondRowCount);
+                    testGetMixedJoinGpuDeviceMemoryUsage(joinType, type, nullsProvider, secondRowCount, firstRowCount);
+                }
+            }
+        }
+    }
+
+    private void testGetMixedJoinGpuDeviceMemoryUsage(JoinType joinType, Type type, NullsProvider nullsProvider, int buildRows, int probeRows)
+    {
+        long reported = switch (joinType) {
+            case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildRows, probeRows);
+            case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildRows, probeRows);
+        };
+
+        Block buildKeysBlock = createBlock(type, buildRows, nullsProvider);
+        Block buildValuesBlock = createBlock(type, buildRows, nullsProvider);
+        Block probeKeysBlock = createBlock(type, probeRows, nullsProvider);
+        Block probeValuesBlock = createBlock(type, probeRows, nullsProvider);
+
+        try (GpuPage buildPage = getOnlyElement(copyToDevice(List.of(new Page(buildKeysBlock, buildValuesBlock)), List.of(type, type)));
+                Table buildKeyTable = toTable(buildPage, 0);
+                Table buildSourceTable = toTable(buildPage, 0, 1);
+                GpuPage probePage = getOnlyElement(copyToDevice(List.of(new Page(probeKeysBlock, probeValuesBlock)), List.of(type, type)));
+                Table probeKeyTable = toTable(probePage, 0);
+                Table probeSourceTable = toTable(probePage, 0, 1);
+                CompiledExpression filter = Literal.ofBoolean(true).compile()) {
+            long memoryBefore = Rmm.getTotalBytesAllocated();
+            Rmm.resetScopedMaximumBytesAllocated(memoryBefore);
+            GatherMap[] maps = switch (joinType) {
+                case INNER -> Table.mixedInnerJoinGatherMaps(
+                        probeKeyTable,
+                        buildKeyTable,
+                        probeSourceTable,
+                        buildSourceTable,
+                        filter,
+                        NullEquality.UNEQUAL);
+                case LEFT -> Table.mixedLeftJoinGatherMaps(
+                        probeKeyTable,
+                        buildKeyTable,
+                        probeSourceTable,
+                        buildSourceTable,
+                        filter,
+                        NullEquality.UNEQUAL);
+            };
+            long peakMemory = Rmm.getScopedMaximumBytesAllocated();
+
+            long gatherMapBytes = 0;
+            for (GatherMap map : maps) {
+                gatherMapBytes += map.getBufferLength();
+            }
+            for (GatherMap map : maps) {
+                map.close();
+            }
+
+            long actual = peakMemory - memoryBefore - gatherMapBytes;
+
+            assertThat(reported)
+                    .as("reported within 5%% of actual, type=%s nullsProvider=%s buildRows=%s probeRows=%s", type, nullsProvider, buildRows, probeRows)
+                    .isBetween((long) (actual * 0.95), (long) (actual * 1.05));
         }
     }
 }

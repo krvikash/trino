@@ -28,11 +28,14 @@ import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
 import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.operator.gpu.join.GpuJoinBridge.HashJoinBridge;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.GpuTypeConversion;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -46,6 +49,9 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedInnerJoinGpuDeviceMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedLeftJoinGpuDeviceMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.toIntExact;
@@ -120,6 +126,7 @@ public final class GpuLookupJoin
     }
 
     private final UncheckedCloser closer = UncheckedCloser.create();
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final ListenableFuture<GpuJoinBridge> bridgeFuture;
     private final int[] probeKeyChannels;
@@ -138,7 +145,7 @@ public final class GpuLookupJoin
             List<Type> buildOutputTypes,
             boolean filteredJoin)
     {
-        requireNonNull(context, "context is null");
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.bridgeFuture = bridgeManager.getBridgeFuture();
         this.probeKeyChannels = probeKeyChannels;
@@ -167,16 +174,25 @@ public final class GpuLookupJoin
             case Yielded yielded -> yielded;
             case Finished finished -> finished;
             case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
-                    yield processProbePage(page, bridge)
-                            .<Result>map(joinPage -> new Data(AllocatedMemory.untracked(), joinPage))
-                            .orElseGet(Yielded::new);
+                try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
+                        memory;
+                        ClosingRef<GpuPage> gpuPage = ClosingRef.own(page)) {
+                    allocation.borrow().transferFrom(memory);
+                    Optional<GpuPage> joinPage = processProbePage(gpuPage.borrow(), bridge, allocation.borrow());
+                    if (joinPage.isPresent()) {
+                        try (ClosingRef<GpuPage> resultPage = ClosingRef.own(joinPage.get())) {
+                            gpuPage.close();
+                            allocation.borrow().update(resultPage.borrow().retainedMemory());
+                            yield new Data(allocation.take(), resultPage.take());
+                        }
+                    }
+                    yield new Yielded();
                 }
             }
         };
     }
 
-    private @Move Optional<@Own GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge)
+    private @Move Optional<@Own GpuPage> processProbePage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge, @Borrow AllocatedMemory allocation)
     {
         boolean probeSideEmpty = probePage.positionCount() == 0;
         boolean buildSideEmpty = joinBridge instanceof EmptyBuildSide;
@@ -192,7 +208,7 @@ public final class GpuLookupJoin
                     return Optional.empty();
                 }
                 if (buildSideEmpty) {
-                    return Optional.of(emitProbeRowsWithNullBuild(probePage));
+                    return Optional.of(emitProbeRowsWithNullBuild(probePage, allocation));
                 }
             }
         }
@@ -201,13 +217,26 @@ public final class GpuLookupJoin
             @Own GatherMap[] maps;
             if (!filteredJoin) {
                 HashJoinBridge bridge = (HashJoinBridge) joinBridge;
+                long joinOutputRowCount = switch (joinType) {
+                    case INNER -> probeKeyTable.innerJoinRowCount(bridge.hashJoin());
+                    case LEFT -> probeKeyTable.leftJoinRowCount(bridge.hashJoin());
+                };
+                if (joinOutputRowCount == 0) {
+                    return Optional.empty();
+                }
+                // TODO support joins that produce more than 2B rows
+                checkState(joinOutputRowCount < Integer.MAX_VALUE, "Join output exceeds Integer.MAX_VALUE rows: %s", joinOutputRowCount);
+                MemoryAmount estimatedMemory = estimateNonFilteredJoinMemoryUsage(probePage, joinBridge, joinOutputRowCount);
+                allocation.update(allocation.amount().add(estimatedMemory));
                 maps = switch (joinType) {
-                    case INNER -> probeKeyTable.innerJoinGatherMaps(bridge.hashJoin());
-                    case LEFT -> probeKeyTable.leftJoinGatherMaps(bridge.hashJoin());
+                    case INNER -> probeKeyTable.innerJoinGatherMaps(bridge.hashJoin(), joinOutputRowCount);
+                    case LEFT -> probeKeyTable.leftJoinGatherMaps(bridge.hashJoin(), joinOutputRowCount);
                 };
             }
             else {
                 FilteredHashJoinBridge bridge = (FilteredHashJoinBridge) joinBridge;
+                MemoryAmount estimatedMemory = estimateFilteredJoinMemoryUsage(probePage, bridge);
+                allocation.update(allocation.amount().add(estimatedMemory));
                 // The compiled AST references columns by their source-layout channel index, so
                 // hand the kernel the full probe page (wrapped as a cuDF Table view) and the
                 // full build source table; the kernel only reads columns the AST refers to.
@@ -246,8 +275,39 @@ public final class GpuLookupJoin
         }
     }
 
-    private @Move GpuPage emitProbeRowsWithNullBuild(@Borrow GpuPage probePage)
+    private MemoryAmount estimateNonFilteredJoinMemoryUsage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge, long outputRows)
     {
+        long estimatedGatherMapBytes = 2L * outputRows * Integer.BYTES;
+        long estimatedOutputPageBytes = 0;
+        if (probeOutputChannels.length > 0) {
+            double ratio = (double) outputRows / probePage.positionCount();
+            for (int channel : probeOutputChannels) {
+                estimatedOutputPageBytes += (long) Math.ceil(probePage.column(channel).retainedDeviceMemoryBytes() * ratio);
+            }
+        }
+        Table buildOutputTable = joinBridge.buildOutputTable();
+        if (buildOutputTable != null && buildOutputTable.getRowCount() > 0) {
+            estimatedOutputPageBytes += (long) Math.ceil(buildOutputTable.getDeviceMemorySize() * ((double) outputRows / buildOutputTable.getRowCount()));
+        }
+        return MemoryAmount.gpuDevice(estimatedGatherMapBytes + estimatedOutputPageBytes);
+    }
+
+    private MemoryAmount estimateFilteredJoinMemoryUsage(@Borrow GpuPage probePage, FilteredHashJoinBridge bridge)
+    {
+        // For filtered joins, we don't have a good way to determine the output row count upfront,
+        // so the estimate below doesn't include gather maps or GPU page output sizes.
+        // TODO: https://github.com/rapidsai/cudf/issues/22748 might address this.
+        long buildRows = bridge.buildKeysTable().getRowCount();
+        long bytes = switch (joinType) {
+            case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildRows, probePage.positionCount());
+            case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildRows, probePage.positionCount());
+        };
+        return MemoryAmount.gpuDevice(bytes);
+    }
+
+    private @Move GpuPage emitProbeRowsWithNullBuild(@Borrow GpuPage probePage, @Borrow AllocatedMemory allocation)
+    {
+        allocation.update(allocation.amount().add(estimateNullColumnMemoryUsage(probePage.positionCount())));
         @Own Column[] outputColumns = new Column[probeOutputChannels.length + buildOutputTypes.size()];
         try {
             for (int i = 0; i < probeOutputChannels.length; i++) {
@@ -266,6 +326,17 @@ public final class GpuLookupJoin
         finally {
             closeColumns(outputColumns);
         }
+    }
+
+    private MemoryAmount estimateNullColumnMemoryUsage(int positionCount)
+    {
+        long bytes = 0L;
+        for (Type type : buildOutputTypes) {
+            DType dType = GpuTypeConversion.toDType(type)
+                    .orElseThrow(() -> new IllegalStateException("Build type not GPU convertible: " + type));
+            bytes += getNullColumnMemoryUsage(dType, positionCount);
+        }
+        return MemoryAmount.gpuDevice(bytes);
     }
 
     private @Move GpuPage assembleOutput(
