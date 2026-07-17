@@ -25,7 +25,6 @@ import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -65,32 +64,31 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @BeforeAll
     public void setUp()
     {
-        // Local writable copies seeded from TPCH. Keep TPCH's column names; cast numeric
-        // prices/quantities to DECIMAL so DECIMAL literals in test queries compare cleanly,
-        // and widen orderstatus from VARCHAR(1) to VARCHAR so synthetic INSERTs can use
-        // values outside the TPCH F/O/P domain.
+        // Base tables seeded from TPCH. Use only DOUBLE and VARCHAR columns (no DECIMAL/DATE) so
+        // every connector under test — including ones with limited write type support like
+        // Cassandra — can host them. orderdate/shipdate are stored as VARCHAR in ISO form, which
+        // still compares lexically like a date. orderstatus is widened from VARCHAR(1) to VARCHAR
+        // so synthetic INSERTs can use values outside the TPCH F/O/P domain.
+        //
+        // Tests that INSERT into a base table do not delete the added rows afterwards (some
+        // connectors, e.g. Cassandra, cannot DELETE by an arbitrary predicate). Each test stays
+        // independent by capturing its own baseline count instead of relying on a global row
+        // count; concrete tests run single-threaded (@Execution(SAME_THREAD)).
         assertUpdate("CREATE TABLE " + ordersTable + " AS SELECT " +
                 "orderkey, " +
                 "custkey, " +
-                "orderdate, " +
-                "CAST(totalprice AS DECIMAL(12, 2)) AS totalprice, " +
+                "CAST(orderdate AS VARCHAR) AS orderdate, " +
+                "totalprice, " +
                 "CAST(orderstatus AS VARCHAR) AS orderstatus " +
                 "FROM tpch.tiny.orders  where orderkey between 20000 and 20010", 8);
 
         assertUpdate("CREATE TABLE " + lineitemTable + " AS SELECT " +
                 "orderkey, " +
                 "linenumber, " +
-                "CAST(quantity AS DECIMAL(12, 2)) AS quantity, " +
-                "CAST(extendedprice AS DECIMAL(12, 2)) AS extendedprice, " +
-                "shipdate " +
+                "quantity, " +
+                "extendedprice, " +
+                "CAST(shipdate AS VARCHAR) AS shipdate " +
                 "FROM tpch.tiny.lineitem where orderkey between 20000 and 20010", 32);
-    }
-
-    @AfterAll
-    public void tearDown()
-    {
-        assertUpdate("DROP TABLE IF EXISTS " + ordersTable);
-        assertUpdate("DROP TABLE IF EXISTS " + lineitemTable);
     }
 
     protected Session sessionWithSubstitution()
@@ -366,7 +364,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
             Session session = sessionWithSubstitution();
-            String query = "SELECT count(*), sum(totalprice) FROM " + ordersTable + " WHERE orderdate > DATE '1995-01-12'";
+            String query = "SELECT count(*), sum(totalprice) FROM " + ordersTable + " WHERE orderdate > '1995-01-12'";
             assertSubstituted(session, query, ordersTable, mvName);
             assertSameResults(session, query);
         }
@@ -458,13 +456,12 @@ public abstract class AbstractIcebergMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.empty());
 
             // Make MV stale by inserting into base table
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990001, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990001, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // We do not support detecting source table change, so the substitution relies on the grace-period, and stale MV will be used
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990001");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -476,7 +473,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
         try {
             long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.of(3600));
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990002, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990002, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
             // Session start time past the grace period so the stale MV is not used.
             Session expiredSession = Session.builder(sessionWithSubstitution())
                     .setSystemProperty("session_start_time", Instant.now().plus(1, ChronoUnit.DAYS).toString())
@@ -491,7 +488,6 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertThat(computeActual(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990002");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -508,13 +504,12 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
 
             // Insert to make it technically stale
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990003, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990003, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // Within grace period — should still substitute
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990003");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -531,7 +526,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
 
             // Insert to make it stale
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990004, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990004, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // Use a session with future start time to ensure grace period has expired
             Session futureSession = Session.builder(sessionWithSubstitution())
@@ -541,7 +536,6 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertNotSubstituted(futureSession, "SELECT * FROM " + ordersTable, ordersTable);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990004");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -718,7 +712,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
             createSubstitutionMv(mvStale, "SELECT * FROM " + ordersTable);
 
             // Make mvStale stale
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990005, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990005, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // Create a fresh MV after the insert
             createSubstitutionMv(mvFresh, "SELECT * FROM " + ordersTable);
@@ -729,7 +723,6 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertThat(computeActual(session, "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990005");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvStale);
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvFresh);
         }
@@ -744,7 +737,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
             Session session = sessionWithSubstitution();
 
             assertSameResults(session, "SELECT * FROM " + ordersTable);
-            assertSameResults(session, "SELECT * FROM " + ordersTable + " WHERE orderdate = DATE '1995-01-15'");
+            assertSameResults(session, "SELECT * FROM " + ordersTable + " WHERE orderdate = '1995-01-15'");
             assertSameResults(session, "SELECT * FROM " + ordersTable + " ORDER BY orderkey");
             assertSameResults(session, "SELECT count(*) FROM " + ordersTable);
             assertSameResults(session, "SELECT orderdate, sum(totalprice) FROM " + ordersTable + " GROUP BY orderdate");
@@ -783,7 +776,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
             // Change the base table so we can detect it was used during the refresh
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990006, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990006, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // The refresh itself should read from base table, not from the MV
             getQueryRunner().execute(sessionWithSubstitution(), "REFRESH MATERIALIZED VIEW " + mvName);
@@ -792,7 +785,6 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertSameResults(getSession(), "SELECT * FROM " + mvName, "SELECT * FROM " + ordersTable);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990006");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -849,7 +841,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990007, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990007, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // Stale but within 1-hour grace period — substitution works
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
@@ -861,13 +853,12 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990008, 500, DATE '1995-02-02', DECIMAL '88.88', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990008, 500, '1995-02-02', DOUBLE '88.88', 'N')", 1);
 
             // Stale with zero grace period — substitution must not happen
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey IN (99990007, 99990008)");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -884,7 +875,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, baseCount);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990009, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990009, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             // Stale with zero grace period — substitution does not work
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
@@ -896,7 +887,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990010, 500, DATE '1995-02-02', DECIMAL '88.88', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990010, 500, '1995-02-02', DOUBLE '88.88', 'N')", 1);
 
             // Stale but within 1-hour grace period — substitution works now
             MaterializedResultWithPlan result = assertSubstituted(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
@@ -906,7 +897,6 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     .isEqualTo(baseCount + 1);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey IN (99990009, 99990010)");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
@@ -1045,7 +1035,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, baseCount);
 
             // MV has baseCount rows. Insert one more row into the base table.
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990011, 400, DATE '1995-02-01', DECIMAL '99.99', 'N')", 1);
+            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990011, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
             Session session = sessionWithSubstitution();
             // Within grace period: substitution uses MV, which does NOT have the new row
@@ -1055,7 +1045,6 @@ public abstract class AbstractIcebergMvSubstitutionTest
                     .isEqualTo(baseCount);
         }
         finally {
-            getQueryRunner().execute("DELETE FROM " + ordersTable + " WHERE orderkey = 99990011");
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
