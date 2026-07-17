@@ -18,21 +18,19 @@ public class SmallIntValueWriter
         implements BlockWriter
 {
     private final ArrowVectorConverter converter;
-    private final int rowCount;
     private final Type type;
 
-    public SmallIntValueWriter(ArrowVectorConverter converter, int rowCount, Type type)
+    public SmallIntValueWriter(ArrowVectorConverter converter, Type type)
     {
         this.converter = converter;
-        this.rowCount = rowCount;
         this.type = type;
     }
 
     @Override
-    public void write(BlockBuilder output)
+    public void write(BlockBuilder output, int fromPosition, int positionCount)
             throws SFException
     {
-        for (int row = 0; row < rowCount; row++) {
+        for (int row = fromPosition; row < fromPosition + positionCount; row++) {
             if (converter.isNull(row)) {
                 output.appendNull();
             }

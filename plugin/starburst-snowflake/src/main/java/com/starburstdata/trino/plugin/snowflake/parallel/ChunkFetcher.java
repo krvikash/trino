@@ -44,11 +44,6 @@ public class ChunkFetcher
         return readTimeNanos;
     }
 
-    public boolean isDone()
-    {
-        return chunkFuture != null && chunkFuture.isDone() && !chunks.hasNext();
-    }
-
     public CompletableFuture<byte[]> fetchNextChunk()
     {
         if (!chunks.hasNext()) {

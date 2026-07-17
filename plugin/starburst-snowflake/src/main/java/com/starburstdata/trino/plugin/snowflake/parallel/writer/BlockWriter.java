@@ -14,6 +14,6 @@ import net.snowflake.client.core.SFException;
 
 public interface BlockWriter
 {
-    void write(BlockBuilder output)
+    void write(BlockBuilder output, int fromPosition, int positionCount)
             throws SFException;
 }

@@ -68,6 +68,9 @@ public class SnowflakeArrowPageSource
         implements ConnectorPageSource
 {
     private static final RootAllocator ROOT_ALLOCATOR = new RootAllocator();
+    // Rows appended between PageBuilder.isFull() checks. Matches the ORC/Parquet reader batch size so the
+    // per-slice writer dispatch cost stays low; the page is still size-bounded by DEFAULT_MAX_PAGE_SIZE_IN_BYTES.
+    private static final int MAX_ROWS_PER_PAGE_SLICE = 8192;
     private final BufferAllocator bufferAllocator;
     private final boolean quotedIdentifiersIgnoreCase;
     private final PageBuilder pageBuilder;
@@ -79,6 +82,16 @@ public class SnowflakeArrowPageSource
     private long completedBytes;
     private CompletableFuture<byte[]> chunkFuture;
     private boolean finished;
+
+    // Decoding state for the chunk currently being emitted as bounded pages. A chunk is decoded into
+    // one CloseableArrowBatch (a list of Arrow record batches) that is consumed across several
+    // getNextSourcePage() calls, one <= 1 MB page at a time, so a single ~160 MB chunk never
+    // materializes as one giant page/block.
+    private CloseableArrowBatch currentBatch;
+    private List<BlockWriter> currentRecordBatchWriters;
+    private int currentRecordBatchIndex;
+    private int currentRecordBatchRowCount;
+    private int positionInRecordBatch;
 
     public SnowflakeArrowPageSource(
             ConnectorSession session,
@@ -162,6 +175,10 @@ public class SnowflakeArrowPageSource
     @Override
     public CompletableFuture<?> isBlocked()
     {
+        // While a decoded chunk is still being emitted we can make progress without waiting.
+        if (currentBatch != null) {
+            return NOT_BLOCKED;
+        }
         return requireNonNullElse(chunkFuture, NOT_BLOCKED);
     }
 
@@ -200,51 +217,101 @@ public class SnowflakeArrowPageSource
         }
 
         // getNextPage is not called concurrently hence there is no need for synchronization here
-        if (chunkFuture == null) {
+        if (currentBatch == null) {
+            if (chunkFuture == null) {
+                chunkFuture = fetcher.fetchNextChunk();
+                if (chunkFuture == null) {
+                    // No chunks left to fetch and the previous chunk has been fully consumed.
+                    finished = true;
+                    return null;
+                }
+                // Let the engine wait on the fetch via isBlocked() before we attempt to decode it.
+                return null;
+            }
+
+            byte[] chunk;
+            try {
+                chunk = chunkFuture.join();
+            }
+            catch (CompletionException e) {
+                throw new TrinoException(JDBC_ERROR, "Failed fetching Arrow chunk", e);
+            }
+            currentBatch = decodeChunk(chunk);
+            currentRecordBatchIndex = 0;
+            currentRecordBatchRowCount = 0;
+            positionInRecordBatch = 0;
+            currentRecordBatchWriters = null;
+            // Prefetch the next chunk while this one is emitted as bounded pages.
             chunkFuture = fetcher.fetchNextChunk();
-            return null;
         }
 
-        try {
-            processChunk(chunkFuture.join());
-        }
-        catch (CompletionException e) {
-            throw new TrinoException(JDBC_ERROR, "Failed fetching Arrow chunk", e);
-        }
-
-        // fetcher might be 'done', but page source is not 'finished' until fetched result is consumed
-        finished = fetcher.isDone();
-        if (!finished) {
-            chunkFuture = fetcher.fetchNextChunk();
-        }
-        Page page = pageBuilder.build();
-        // A single split maps to a multiple chunk files,
-        // each holding up to a certain amount of records (from a few hundred up to a few million)
-        pageBuilder.reset();
+        Page page = buildBoundedPage();
         completedBytes += page.getSizeInBytes();
-
         return page;
     }
 
-    private void processChunk(byte[] chunk)
+    /**
+     * Emits at most one ~{@link io.trino.spi.block.PageBuilderStatus#DEFAULT_MAX_PAGE_SIZE_IN_BYTES}
+     * page from {@link #currentBatch}, resuming where the previous call left off. The chunk's Arrow
+     * record batches are consumed in slices of {@link #MAX_ROWS_PER_PAGE_SLICE} rows so that a single
+     * large record batch does not produce one oversized block.
+     */
+    private Page buildBoundedPage()
     {
-        try (CloseableArrowBatch batch = decodeArrowInputStream(chunk)) {
-            for (List<ValueVector> vectors : batch.batch()) {
-                int columnCount = columns.size();
-                checkState(!vectors.isEmpty(), "There must be at least one vector in the batch of vectors");
-                pageBuilder.declarePositions(vectors.get(0).getValueCount());
-                Map<Integer, Integer> columnToVectorOrder = buildColumnOrder(vectors);
-                for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-                    BlockWriter writer = createWriter(vectors.get(columnToVectorOrder.get(columnIndex)), columnIndex);
-                    writer.write(pageBuilder.getBlockBuilder(columnIndex));
+        List<List<ValueVector>> recordBatches = currentBatch.batch();
+        try {
+            while (!pageBuilder.isFull() && currentRecordBatchIndex < recordBatches.size()) {
+                if (currentRecordBatchWriters == null) {
+                    List<ValueVector> vectors = recordBatches.get(currentRecordBatchIndex);
+                    checkState(!vectors.isEmpty(), "There must be at least one vector in the batch of vectors");
+                    currentRecordBatchRowCount = vectors.getFirst().getValueCount();
+                    currentRecordBatchWriters = createWriters(vectors);
+                    positionInRecordBatch = 0;
+                }
+
+                int sliceLength = Math.min(currentRecordBatchRowCount - positionInRecordBatch, MAX_ROWS_PER_PAGE_SLICE);
+                if (sliceLength > 0) {
+                    pageBuilder.declarePositions(sliceLength);
+                    for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+                        currentRecordBatchWriters.get(columnIndex).write(pageBuilder.getBlockBuilder(columnIndex), positionInRecordBatch, sliceLength);
+                    }
+                    positionInRecordBatch += sliceLength;
+                }
+
+                if (positionInRecordBatch >= currentRecordBatchRowCount) {
+                    // Advance past the exhausted record batch in this same call, so a page that fills exactly
+                    // at a batch boundary does not leave an exhausted batch that yields an empty page next call.
+                    currentRecordBatchIndex++;
+                    currentRecordBatchWriters = null;
                 }
             }
         }
-        catch (IOException e) {
-            throw new TrinoException(JDBC_ERROR, "Failed reading Arrow stream", e);
-        }
         catch (SFException e) {
             throw new TrinoException(JDBC_ERROR, "Couldn't write Snowflake blocks", e);
+        }
+
+        if (currentRecordBatchIndex >= recordBatches.size()) {
+            // The whole chunk has been consumed; release its Arrow buffers.
+            currentBatch.close();
+            currentBatch = null;
+            currentRecordBatchWriters = null;
+            currentRecordBatchIndex = 0;
+            currentRecordBatchRowCount = 0;
+            positionInRecordBatch = 0;
+        }
+
+        Page page = pageBuilder.build();
+        pageBuilder.reset();
+        return page;
+    }
+
+    private CloseableArrowBatch decodeChunk(byte[] chunk)
+    {
+        try {
+            return decodeArrowInputStream(chunk);
+        }
+        catch (IOException e) {
+            throw new TrinoException(JDBC_ERROR, "Failed reading Arrow stream", e);
         }
     }
 
@@ -264,18 +331,27 @@ public class SnowflakeArrowPageSource
             // Registered resources are closed in reverse order, so each close() runs even if an earlier one throws.
             closer.register(bufferAllocator::close);
             closer.register(fetcher::close);
+            // The Arrow batch is closed first, before the allocator, otherwise the allocator close would fail on the still-open vectors.
+            if (currentBatch != null) {
+                closer.register(currentBatch::close);
+                currentBatch = null;
+            }
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    private BlockWriter createWriter(ValueVector vector, int columnIndex)
+    private List<BlockWriter> createWriters(List<ValueVector> vectors)
     {
-        ArrowVectorConverter converter = ConverterFactory.createSnowflakeConverter(vector, columnIndex, conversionContext);
-        JdbcColumnHandle columnHandle = columns.get(columnIndex);
-        int rowCount = vector.getValueCount();
-        return BlockWriterFactory.createWriter(columnHandle, converter, rowCount);
+        Map<Integer, Integer> columnToVectorOrder = buildColumnOrder(vectors);
+        ImmutableList.Builder<BlockWriter> writers = ImmutableList.builderWithExpectedSize(columns.size());
+        for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+            ValueVector vector = vectors.get(columnToVectorOrder.get(columnIndex));
+            ArrowVectorConverter converter = ConverterFactory.createSnowflakeConverter(vector, columnIndex, conversionContext);
+            writers.add(BlockWriterFactory.createWriter(columns.get(columnIndex), converter));
+        }
+        return writers.build();
     }
 
     private Map<Integer, Integer> buildColumnOrder(List<ValueVector> vectors)

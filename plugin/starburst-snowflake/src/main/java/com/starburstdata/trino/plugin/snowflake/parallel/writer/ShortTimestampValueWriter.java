@@ -24,23 +24,21 @@ public class ShortTimestampValueWriter
         implements BlockWriter
 {
     private final ArrowVectorConverter converter;
-    private final int rowCount;
     private final Type type;
     private final int precision;
 
-    public ShortTimestampValueWriter(ArrowVectorConverter converter, int rowCount, Type type, int precision)
+    public ShortTimestampValueWriter(ArrowVectorConverter converter, Type type, int precision)
     {
         this.converter = converter;
-        this.rowCount = rowCount;
         this.type = type;
         this.precision = precision;
     }
 
     @Override
-    public void write(BlockBuilder output)
+    public void write(BlockBuilder output, int fromPosition, int positionCount)
             throws SFException
     {
-        for (int row = 0; row < rowCount; row++) {
+        for (int row = fromPosition; row < fromPosition + positionCount; row++) {
             if (converter.isNull(row)) {
                 output.appendNull();
             }

@@ -22,23 +22,21 @@ public class ShortDecimalValueWriter
         implements BlockWriter
 {
     private final ArrowVectorConverter converter;
-    private final int rowCount;
     private final DecimalType decimalType;
     private final Type type;
 
-    public ShortDecimalValueWriter(ArrowVectorConverter converter, int rowCount, DecimalType decimalType, Type type)
+    public ShortDecimalValueWriter(ArrowVectorConverter converter, DecimalType decimalType, Type type)
     {
         this.converter = converter;
-        this.rowCount = rowCount;
         this.decimalType = decimalType;
         this.type = type;
     }
 
     @Override
-    public void write(BlockBuilder output)
+    public void write(BlockBuilder output, int fromPosition, int positionCount)
             throws SFException
     {
-        for (int row = 0; row < rowCount; row++) {
+        for (int row = fromPosition; row < fromPosition + positionCount; row++) {
             if (converter.isNull(row)) {
                 output.appendNull();
             }
