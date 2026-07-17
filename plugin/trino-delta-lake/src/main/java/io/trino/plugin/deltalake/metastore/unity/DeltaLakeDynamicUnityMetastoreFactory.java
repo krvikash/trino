@@ -72,6 +72,12 @@ public class DeltaLakeDynamicUnityMetastoreFactory
     }
 
     @Override
+    public boolean hasBuiltInCaching()
+    {
+        return true;
+    }
+
+    @Override
     public HiveMetastore createMetastore(Optional<ConnectorIdentity> identity)
     {
         ConnectorIdentity connectorIdentity = identity.orElseThrow(() ->
