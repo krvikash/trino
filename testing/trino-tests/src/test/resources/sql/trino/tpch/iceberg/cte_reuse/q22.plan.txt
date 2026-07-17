@@ -10,7 +10,7 @@ IR version = 1
                 %752 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=GREATER_THAN]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %753 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_1246]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_939]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %754 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %755 = constant() : () -> "integer" ()
@@ -49,12 +49,12 @@ IR version = 1
             {table_scan:table_handle = "local:tpch_sf1000_parquet.customer$data@4370200594185215759", table_scan:column_handles = "5:phone:varchar, 6:acctbal:decimal(12,2)", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(varchar,decimal(12,2))", ir.has_side_effects = "false", ir.safe = "true"}
         %25 = filter(%24) : ("multiset(row(varchar,decimal(12,2)))") -> "multiset(row(varchar,decimal(12,2)))" ({
             ^predicate (%26 : "row(varchar,decimal(12,2))")
-                %27 = field_reference(%26) : ("row(varchar,decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %28 = constant() : () -> "decimal(12,2)" ()
+                %27 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %29 = comparison(%27, %28) : ("decimal(12,2)", "decimal(12,2)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %28 = field_reference(%26) : ("row(varchar,decimal(12,2))") -> "decimal(12,2)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %29 = call(%27, %28) : ("decimal(12,2)", "decimal(12,2)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(12,2)"",""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %30 = field_reference(%26) : ("row(varchar,decimal(12,2))") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %31 = constant() : () -> "bigint" ()
@@ -313,17 +313,17 @@ IR version = 1
                 %801 = return(%800) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1246""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_939""]"}
         %160 = filter(%135) : ("multiset(row(bigint,varchar,decimal(12,2),decimal(12,2)))") -> "multiset(row(bigint,varchar,decimal(12,2),decimal(12,2)))" ({
             ^predicate (%161 : "row(bigint,varchar,decimal(12,2),decimal(12,2))")
                 %162 = field_reference(%161) : ("row(bigint,varchar,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %163 = field_reference(%161) : ("row(bigint,varchar,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %164 = comparison(%162, %163) : ("decimal(12,2)", "decimal(12,2)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %163 = field_reference(%161) : ("row(bigint,varchar,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
+                    {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %164 = call(%162, %163) : ("decimal(12,2)", "decimal(12,2)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(12,2)"",""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %165 = return(%164) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %166 = project(%160) : ("multiset(row(bigint,varchar,decimal(12,2),decimal(12,2)))") -> "multiset(row(bigint,varchar,decimal(12,2)))" ({

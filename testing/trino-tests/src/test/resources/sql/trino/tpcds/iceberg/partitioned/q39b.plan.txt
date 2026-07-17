@@ -10,18 +10,18 @@ remote exchange (GATHER, SINGLE, [])
                                     join (INNER, REPLICATED):
                                         join (INNER, REPLICATED):
                                             partial aggregation over (inv_warehouse_sk, inv_item_sk, inv_date_sk)
-                                                dynamic filter (inv_item_sk::EQUAL, inv_warehouse_sk::EQUAL, inv_warehouse_sk::EQUAL, inv_item_sk::EQUAL, inv_date_sk::EQUAL)
+                                                dynamic filter ([inv_item_sk::EQUAL, inv_warehouse_sk::EQUAL, inv_item_sk::EQUAL], await [inv_warehouse_sk::EQUAL, inv_date_sk::EQUAL])
                                                     scan inventory
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                     scan date_dim
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPLICATE, BROADCAST, [])
-                                                dynamic filter (i_item_sk::EQUAL)
+                                                dynamic filter ([i_item_sk::EQUAL])
                                                     scan item
                                     local exchange (GATHER, SINGLE, [])
                                         remote exchange (REPLICATE, BROADCAST, [])
-                                            dynamic filter (w_warehouse_sk::EQUAL)
+                                            dynamic filter ([w_warehouse_sk::EQUAL])
                                                 scan warehouse
                 local exchange (GATHER, SINGLE, [])
                     remote exchange (REPARTITION, HASH, [inv_item_sk_12, inv_warehouse_sk_13])
@@ -32,7 +32,7 @@ remote exchange (GATHER, SINGLE, [])
                                         join (INNER, REPLICATED):
                                             join (INNER, REPLICATED):
                                                 partial aggregation over (inv_warehouse_sk_13, inv_item_sk_12, inv_date_sk_15)
-                                                    dynamic filter (inv_warehouse_sk_13::EQUAL, inv_item_sk_12::EQUAL, inv_date_sk_15::EQUAL)
+                                                    dynamic filter ([inv_item_sk_12::EQUAL], await [inv_warehouse_sk_13::EQUAL, inv_date_sk_15::EQUAL])
                                                         scan inventory
                                                 local exchange (GATHER, SINGLE, [])
                                                     remote exchange (REPLICATE, BROADCAST, [])

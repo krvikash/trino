@@ -80,7 +80,7 @@ IR version = 1
                 %725 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %726 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_1054]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_805]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %727 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %728 = constant() : () -> "integer" ()
@@ -92,7 +92,7 @@ IR version = 1
                 %732 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %733 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_1055]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_806]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %734 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %735 = constant() : () -> "integer" ()
@@ -204,14 +204,14 @@ IR version = 1
             {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[]", aggregation:pre_grouped_indexes = "[]", aggregation:step = "FINAL", aggregation:input_reducing = "false", ir.has_side_effects = "false"}
         %148 = filter(%126) : ("multiset(row(bigint,decimal(38,2)))") -> "multiset(row(bigint,decimal(38,2)))" ({
             ^predicate (%149 : "row(bigint,decimal(38,2))")
-                %150 = field_reference(%149) : ("row(bigint,decimal(38,2))") -> "decimal(38,2)" ()
-                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %151 = constant() : () -> "decimal(38,2)" ()
+                %150 = constant() : () -> "decimal(38,2)" ()
                     {constant:value = "[type=decimal(38,2), value=300.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %152 = comparison(%150, %151) : ("decimal(38,2)", "decimal(38,2)") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %151 = field_reference(%149) : ("row(bigint,decimal(38,2))") -> "decimal(38,2)" ()
+                    {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %152 = call(%150, %151) : ("decimal(38,2)", "decimal(38,2)") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,2)"",""decimal(38,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %153 = return(%152) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %154 = project(%148) : ("multiset(row(bigint,decimal(38,2)))") -> "multiset(row(bigint))" ({
@@ -274,7 +274,7 @@ IR version = 1
                 %745 = return(%744) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1055""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.35E9,""outputSizeInBytes"":4.32E10,""cpuCost"":7.04527254936E11,""memoryCost"":4.9823367462E10,""networkCost"":1.67834690904E11}"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_806""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.35E9,""outputSizeInBytes"":4.32E10,""cpuCost"":7.04527254936E11,""memoryCost"":4.9823367462E10,""networkCost"":1.67834690904E11}"}
         %186 = exchange(%159) : ("multiset(row(bigint,bigint,decimal(12,2),date))") -> "multiset(row(bigint,bigint,decimal(12,2),date))" ({
             ^inputSelector (%187 : "row(bigint,bigint,decimal(12,2),date)")
                 %188 = field_reference(%187) : ("row(bigint,bigint,decimal(12,2),date)") -> "bigint" ()
@@ -409,7 +409,7 @@ IR version = 1
                 %747 = return(%746) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1054""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.35E9,""outputSizeInBytes"":5.3141601582E10,""cpuCost"":8.5388734611E11,""memoryCost"":5.227798986E10,""networkCost"":2.13489313302E11}"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_805""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.35E9,""outputSizeInBytes"":5.3141601582E10,""cpuCost"":8.5388734611E11,""memoryCost"":5.227798986E10,""networkCost"":2.13489313302E11}"}
         %255 = exchange(%227) : ("multiset(row(bigint,bigint,decimal(12,2),date,varchar))") -> "multiset(row(bigint,bigint,decimal(12,2),date,varchar))" ({
             ^inputSelector (%256 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %257 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()

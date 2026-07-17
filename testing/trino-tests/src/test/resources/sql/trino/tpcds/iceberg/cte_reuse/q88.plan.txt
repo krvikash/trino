@@ -10,7 +10,7 @@ IR version = 1
                 %17257 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17258 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_7865]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_6006]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17259 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17260 = constant() : () -> "integer" ()
@@ -22,7 +22,7 @@ IR version = 1
                 %17264 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17265 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_7866]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_6007]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17266 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17267 = constant() : () -> "integer" ()
@@ -34,7 +34,7 @@ IR version = 1
                 %17271 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17272 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=df_7867]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                    {constant:value = "[type=varchar, value=df_6008]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17273 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %17274 = constant() : () -> "integer" ()
@@ -54,8 +54,8 @@ IR version = 1
                     {field_reference:index = "1"}
                 %5155 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=ese]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %5156 = comparison(%5154, %5155) : ("varchar", "varchar") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %5156 = call(%5154, %5155) : ("varchar", "varchar") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""varchar"",""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %5159 = return(%5156) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
@@ -158,7 +158,7 @@ IR version = 1
                 %17326 = return(%17325) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_7867""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_6008""]"}
         %5973 = table_scan() : () -> "multiset(row(bigint,integer,integer))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.household_demographics$data@6765154030047008235", table_scan:column_handles = "1:hd_demo_sk:bigint, 4:hd_dep_count:integer, 5:hd_vehicle_count:integer", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,integer,integer)", ir.has_side_effects = "false", ir.safe = "true"}
         %7937 = filter(%5973) : ("multiset(row(bigint,integer,integer))") -> "multiset(row(bigint,integer,integer))" ({
@@ -176,48 +176,48 @@ IR version = 1
                     {field_reference:index = "2"}
                 %7261 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=6]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7262 = comparison(%7260, %7261) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN_OR_EQUAL"}
+                %7262 = call(%7260, %7261) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7264 = field_reference(%5998) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %7265 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=4]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7266 = comparison(%7264, %7265) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %7266 = call(%7264, %7265) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7267 = field_reference(%5998) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %7268 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=6]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7269 = comparison(%7267, %7268) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN_OR_EQUAL"}
+                %7269 = call(%7267, %7268) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7270 = logical(%7266, %7269) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %7271 = field_reference(%5998) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %7272 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7273 = comparison(%7271, %7272) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %7273 = call(%7271, %7272) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7274 = field_reference(%5998) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %7275 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=4]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7276 = comparison(%7274, %7275) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN_OR_EQUAL"}
+                %7276 = call(%7274, %7275) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7277 = logical(%7273, %7276) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %7278 = field_reference(%5998) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %7279 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7280 = comparison(%7278, %7279) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %7280 = call(%7278, %7279) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7281 = field_reference(%5998) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %7282 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %7283 = comparison(%7281, %7282) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN_OR_EQUAL"}
+                %7283 = call(%7281, %7282) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %7284 = logical(%7280, %7283) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %7285 = logical(%7270, %7277, %7284) : ("boolean", "boolean", "boolean") -> "boolean" ()
@@ -324,7 +324,7 @@ IR version = 1
                 %17328 = return(%17327) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_7866""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_6007""]"}
         %8730 = table_scan() : () -> "multiset(row(bigint,integer,integer))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.time_dim$data@4765156773063077910", table_scan:column_handles = "1:t_time_sk:bigint, 4:t_hour:integer, 5:t_minute:integer", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,integer,integer)", ir.has_side_effects = "false", ir.safe = "true"}
         %10156 = filter(%8730) : ("multiset(row(bigint,integer,integer))") -> "multiset(row(bigint,integer,integer))" ({
@@ -333,112 +333,112 @@ IR version = 1
                     {field_reference:index = "1"}
                 %9423 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=8]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9424 = comparison(%9422, %9423) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %9425 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
-                    {field_reference:index = "2"}
-                %9426 = constant() : () -> "integer" ()
+                %9424 = call(%9422, %9423) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %9425 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9427 = comparison(%9425, %9426) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %9426 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
+                    {field_reference:index = "2"}
+                %9427 = call(%9425, %9426) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9428 = logical(%9424, %9427) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9429 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9430 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=9]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9431 = comparison(%9429, %9430) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %9431 = call(%9429, %9430) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9432 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %9433 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9434 = comparison(%9432, %9433) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %9434 = call(%9432, %9433) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9435 = logical(%9431, %9434) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9436 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9437 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=9]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9438 = comparison(%9436, %9437) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %9439 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
-                    {field_reference:index = "2"}
-                %9440 = constant() : () -> "integer" ()
+                %9438 = call(%9436, %9437) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %9439 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9441 = comparison(%9439, %9440) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %9440 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
+                    {field_reference:index = "2"}
+                %9441 = call(%9439, %9440) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9442 = logical(%9438, %9441) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9443 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9444 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=10]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9445 = comparison(%9443, %9444) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %9445 = call(%9443, %9444) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9446 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %9447 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9448 = comparison(%9446, %9447) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %9448 = call(%9446, %9447) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9449 = logical(%9445, %9448) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9450 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9451 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=10]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9452 = comparison(%9450, %9451) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %9453 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
-                    {field_reference:index = "2"}
-                %9454 = constant() : () -> "integer" ()
+                %9452 = call(%9450, %9451) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %9453 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9455 = comparison(%9453, %9454) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %9454 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
+                    {field_reference:index = "2"}
+                %9455 = call(%9453, %9454) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9456 = logical(%9452, %9455) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9457 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9458 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=11]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9459 = comparison(%9457, %9458) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %9459 = call(%9457, %9458) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9460 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %9461 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9462 = comparison(%9460, %9461) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %9462 = call(%9460, %9461) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9463 = logical(%9459, %9462) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9464 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9465 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=11]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9466 = comparison(%9464, %9465) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %9467 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
-                    {field_reference:index = "2"}
-                %9468 = constant() : () -> "integer" ()
+                %9466 = call(%9464, %9465) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %9467 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9469 = comparison(%9467, %9468) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %9468 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
+                    {field_reference:index = "2"}
+                %9469 = call(%9467, %9468) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9470 = logical(%9466, %9469) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9471 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %9472 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=12]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9473 = comparison(%9471, %9472) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %9473 = call(%9471, %9472) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9474 = field_reference(%8755) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2"}
                 %9475 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %9476 = comparison(%9474, %9475) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %9476 = call(%9474, %9475) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %9477 = logical(%9473, %9476) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %9478 = logical(%9428, %9435, %9442, %9449, %9456, %9463, %9470, %9477) : ("boolean", "boolean", "boolean", "boolean", "boolean", "boolean", "boolean", "boolean") -> "boolean" ()
@@ -544,7 +544,7 @@ IR version = 1
                 %17330 = return(%17329) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_7865""]"}
+            {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_6006""]"}
         %15253 = project(%13100) : ("multiset(row(integer,integer))") -> "multiset(row(integer,integer,boolean,boolean,boolean,boolean,boolean,boolean,boolean,boolean))" ({
             ^assignments (%15247 : "row(integer,integer)")
                 %15254 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
@@ -555,112 +555,112 @@ IR version = 1
                     {field_reference:index = "0"}
                 %15259 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=8]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15260 = comparison(%15258, %15259) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %15261 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
-                    {field_reference:index = "1"}
-                %15262 = constant() : () -> "integer" ()
+                %15260 = call(%15258, %15259) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %15261 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15263 = comparison(%15261, %15262) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %15262 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
+                    {field_reference:index = "1"}
+                %15263 = call(%15261, %15262) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15264 = logical(%15260, %15263) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15266 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15267 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=9]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15268 = comparison(%15266, %15267) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %15268 = call(%15266, %15267) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15269 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %15270 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15271 = comparison(%15269, %15270) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %15271 = call(%15269, %15270) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15272 = logical(%15268, %15271) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15274 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15275 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=9]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15276 = comparison(%15274, %15275) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %15277 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
-                    {field_reference:index = "1"}
-                %15278 = constant() : () -> "integer" ()
+                %15276 = call(%15274, %15275) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %15277 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15279 = comparison(%15277, %15278) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %15278 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
+                    {field_reference:index = "1"}
+                %15279 = call(%15277, %15278) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15280 = logical(%15276, %15279) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15282 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15283 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=10]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15284 = comparison(%15282, %15283) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %15284 = call(%15282, %15283) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15285 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %15286 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15287 = comparison(%15285, %15286) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %15287 = call(%15285, %15286) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15288 = logical(%15284, %15287) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15290 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15291 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=10]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15292 = comparison(%15290, %15291) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %15293 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
-                    {field_reference:index = "1"}
-                %15294 = constant() : () -> "integer" ()
+                %15292 = call(%15290, %15291) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %15293 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15295 = comparison(%15293, %15294) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %15294 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
+                    {field_reference:index = "1"}
+                %15295 = call(%15293, %15294) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15296 = logical(%15292, %15295) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15298 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15299 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=11]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15300 = comparison(%15298, %15299) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %15300 = call(%15298, %15299) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15301 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %15302 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15303 = comparison(%15301, %15302) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %15303 = call(%15301, %15302) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15304 = logical(%15300, %15303) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15306 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15307 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=11]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15308 = comparison(%15306, %15307) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
-                %15309 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
-                    {field_reference:index = "1"}
-                %15310 = constant() : () -> "integer" ()
+                %15308 = call(%15306, %15307) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %15309 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15311 = comparison(%15309, %15310) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "GREATER_THAN_OR_EQUAL"}
+                %15310 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
+                    {field_reference:index = "1"}
+                %15311 = call(%15309, %15310) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than_or_equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than_or_equal<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15312 = logical(%15308, %15311) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15314 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "0"}
                 %15315 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=12]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15316 = comparison(%15314, %15315) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "EQUAL"}
+                %15316 = call(%15314, %15315) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15317 = field_reference(%15247) : ("row(integer,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %15318 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %15319 = comparison(%15317, %15318) : ("integer", "integer") -> "boolean" ()
-                    {comparison:operator = "LESS_THAN"}
+                %15319 = call(%15317, %15318) : ("integer", "integer") -> "boolean" ()
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %15320 = logical(%15316, %15319) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %15322 = row(%15254, %15256, %15264, %15272, %15280, %15288, %15296, %15304, %15312, %15320) : ("integer", "integer", "boolean", "boolean", "boolean", "boolean", "boolean", "boolean", "boolean", "boolean") -> "row(integer,integer,boolean,boolean,boolean,boolean,boolean,boolean,boolean,boolean)" ()
