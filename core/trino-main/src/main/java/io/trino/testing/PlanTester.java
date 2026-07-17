@@ -174,6 +174,8 @@ import io.trino.server.security.HeaderAuthenticatorConfig;
 import io.trino.server.security.HeaderAuthenticatorManager;
 import io.trino.server.security.PasswordAuthenticatorConfig;
 import io.trino.server.security.PasswordAuthenticatorManager;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
+import io.trino.server.starburst.security.DisabledEntityPropertyManager;
 import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.PageIndexerFactory;
@@ -1254,10 +1256,12 @@ public class PlanTester
                                 columnPropertyManager,
                                 tablePropertyManager,
                                 viewPropertyManager,
-                                materializedViewPropertyManager),
+                                materializedViewPropertyManager,
+                                new DisabledEntityPropertyManager()),
                         new ShowStatsRewrite(plannerContext.getMetadata(), queryExplainerFactory, statsCalculator),
                         new ExplainRewrite(queryExplainerFactory, sessionPropertyResolver, new QueryPreparer(sqlParser)))),
-                plannerContext.getTracer());
+                plannerContext.getTracer(),
+                new PassthroughStarburstAnalyzerHelper());
     }
 
     private static List<Split> getNextBatch(SplitSource splitSource)

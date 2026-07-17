@@ -125,6 +125,7 @@ import static io.trino.metastore.HiveColumnStatistics.createIntegerColumnStatist
 import static io.trino.metastore.HiveColumnStatistics.createStringColumnStatistics;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.DELETE;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.INSERT;
+import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.MANAGE_DATA_OBSERVABILITY;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.OWNERSHIP;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.SELECT;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.UPDATE;
@@ -814,6 +815,7 @@ public final class ThriftMetastoreUtil
             case "UPDATE" -> ImmutableSet.of(new HivePrivilegeInfo(UPDATE, grantOption, grantor, grantee.orElse(grantor)));
             case "DELETE" -> ImmutableSet.of(new HivePrivilegeInfo(DELETE, grantOption, grantor, grantee.orElse(grantor)));
             case "OWNERSHIP" -> ImmutableSet.of(new HivePrivilegeInfo(OWNERSHIP, grantOption, grantor, grantee.orElse(grantor)));
+            case "MANAGE_DATA_OBSERVABILITY" -> ImmutableSet.of(new HivePrivilegeInfo(MANAGE_DATA_OBSERVABILITY, grantOption, grantor, grantee.orElse(grantor)));
             default -> throw new IllegalArgumentException("Unsupported privilege name: " + name);
         };
     }

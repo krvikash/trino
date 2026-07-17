@@ -26,6 +26,23 @@ You will need to use settings.xml file with credentials for AWS CodeArtifact.
 Use one either from [Galaxy](https://github.com/starburstdata/stargate) or
 [SEP](https://github.com/starburstdata/starburst-enterprise) repository.
 
+### Required certificates
+
+Some of the objectstore tests require portal and service certificates from stargate. These can be obtained using ./charts/dev/get-certs.sh script from stargate.
+
+On the CI, the certificates are stored in the `GALAXY_SERVICE_PEM`, `GALAXY_PORTAL_PEM`, and `GALAXY_ACCESSCONTROL_PEM` secrets which are then used by the PemUtils class.
+
+Update the above secrets when you face `CertificateExpiredException` error on the CI.
+```sh
+cat ~/cert/service.pem | pbcopy
+```
+```sh
+cat ~/cert/portal.pem | pbcopy
+```
+```sh
+cat ~/cert/accesscontrol.pem | pbcopy
+```
+
 ### How to update this Trino fork to a newer Trino version?
 
 Follow instructions in [Maintaining cork (Common Starburst Trino Fork)](cork-oss-update.md).

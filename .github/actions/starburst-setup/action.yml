@@ -82,3 +82,8 @@ runs:
       shell: bash
       run: |
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
+    - name: "Login to ECR saas-prod (Galaxy images)"
+      if: inputs.login-docker != 'false'
+      shell: bash
+      run: |
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 179619298502.dkr.ecr.us-east-1.amazonaws.com

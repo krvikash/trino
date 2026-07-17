@@ -18,7 +18,6 @@ import com.google.common.io.Resources;
 import com.google.inject.Module;
 import io.airlift.security.pem.PemReader;
 import io.jsonwebtoken.JwtParser;
-import io.trino.server.security.Authenticator;
 import io.trino.server.security.PortalAuthenticator;
 import io.trino.server.security.TestResourceSecurity;
 import io.trino.server.testing.TestingTrinoServer;
@@ -40,7 +39,6 @@ import java.util.Date;
 import java.util.Optional;
 
 import static com.google.common.hash.Hashing.sha256;
-import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.trino.client.OkHttpUtil.setupSsl;
@@ -97,6 +95,9 @@ public class TestGalaxyTrinoAuthenticatorIntegration
                         .put("http-server.https.keystore.key", "")
                         .put("http-server.authentication.type", "galaxy")
                         .put("web-ui.enabled", "false")
+                        .put("galaxy.account-id", TEST_ACCOUNT_ID)
+                        .put("galaxy.deployment-id", TEST_DEPLOYMENT_ID)
+                        .put("galaxy.authentication.token-issuer", TEST_ISSUER)
                         .buildOrThrow())
                 .setAdditionalModule(testModule())
                 .build();
@@ -381,13 +382,11 @@ public class TestGalaxyTrinoAuthenticatorIntegration
                 .setSigningKey(PUBLIC_KEY)
                 .requireSubject(TEST_DEPLOYMENT_ID)
                 .build();
-        GalaxyTrinoAuthenticator authenticator = new GalaxyTrinoAuthenticator(
-                new GalaxyAuthenticatorController(TEST_ISSUER, TEST_ACCOUNT_ID, token -> parser.parseClaimsJws(token).getBody()));
+        GalaxyAuthenticatorController controller = new GalaxyAuthenticatorController(TEST_ISSUER, TEST_ACCOUNT_ID, token -> parser.parseClaimsJws(token).getBody());
+        GalaxyTrinoAuthenticator authenticator = new GalaxyTrinoAuthenticator(controller);
         return binder -> {
             jaxrsBinder(binder).bind(TestResourceSecurity.TestResource.class);
-            newMapBinder(binder, String.class, Authenticator.class)
-                    .addBinding("galaxy")
-                    .toInstance(authenticator);
+            binder.bind(GalaxyAuthenticatorController.class).toInstance(controller);
             newOptionalBinder(binder, PortalAuthenticator.class)
                     .setBinding()
                     .toInstance(authenticator);

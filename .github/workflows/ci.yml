@@ -20,6 +20,10 @@ defaults:
 env:
   # An envar that signals to tests we are executing in the CI environment
   CONTINUOUS_INTEGRATION: true
+  # certificates for Galaxy server containers
+  GALAXY_SERVICE_PEM: ${{ secrets.GALAXY_SERVICE_PEM }}
+  GALAXY_PORTAL_PEM: ${{ secrets.GALAXY_PORTAL_PEM }}
+  GALAXY_ACCESSCONTROL_PEM: ${{ secrets.GALAXY_ACCESSCONTROL_PEM }}
   # allow overriding Maven command
   MAVEN: ./mvnw -s .github/settings.xml
   MAVEN_OPTS: "-Xmx512M -XX:+ExitOnOutOfMemoryError"

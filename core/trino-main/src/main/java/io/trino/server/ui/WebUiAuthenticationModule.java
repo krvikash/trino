@@ -26,6 +26,8 @@ import io.trino.server.security.KerberosConfig;
 import io.trino.server.security.SecurityConfig;
 import io.trino.server.security.jwt.JwtAuthenticator;
 import io.trino.server.security.jwt.JwtAuthenticatorSupportModule;
+import io.trino.server.starburst.security.GalaxyTrinoAuthenticator;
+import io.trino.server.starburst.security.GalaxyTrinoAuthenticatorConfig;
 
 import java.util.List;
 
@@ -56,6 +58,7 @@ public class WebUiAuthenticationModule
             newOptionalBinder(certificateBinder, ClientCertificate.class).setBinding().toInstance(REQUESTED);
             configBinder(certificateBinder).bindConfig(CertificateConfig.class);
         }));
+        installWebUiAuthenticator("galaxy", GalaxyTrinoAuthenticator.class, GalaxyTrinoAuthenticatorConfig.class);
         installWebUiAuthenticator("kerberos", KerberosAuthenticator.class, KerberosConfig.class);
         install(webUiAuthenticator("jwt", JwtAuthenticator.class, new JwtAuthenticatorSupportModule()));
     }

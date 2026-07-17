@@ -83,6 +83,7 @@ import static io.jsonwebtoken.security.Keys.hmacShaKeyFor;
 import static io.trino.client.ClientSelectedRole.Type.ROLE;
 import static io.trino.metadata.MetadataUtil.TableMetadataBuilder.tableMetadataBuilder;
 import static io.trino.server.security.jwt.JwtUtil.newJwtBuilder;
+import static io.trino.server.starburst.accesscontrol.MetadataAccessControllerSupplier.TRANSACTION_ID_KEY;
 import static io.trino.spi.connector.SystemTable.Distribution.ALL_NODES;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -446,7 +447,9 @@ public class TestJdbcConnection
                     .buildOrThrow();
             TrinoConnection trinoConnection = connection.unwrap(TrinoConnection.class);
             assertThat(trinoConnection.getExtraCredentials()).isEqualTo(expectedCredentials);
-            assertThat(listExtraCredentials(connection)).isEqualTo(expectedCredentials);
+            Map<String, String> actualCredentials = listExtraCredentials(connection);
+            assertThat(actualCredentials).containsAllEntriesOf(expectedCredentials);
+            assertThat(actualCredentials).containsKey(TRANSACTION_ID_KEY);
         }
     }
 

@@ -19,6 +19,7 @@ import io.trino.Session;
 import io.trino.execution.querystats.PlanOptimizersStatsCollector;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.security.AccessControl;
+import io.trino.server.starburst.accesscontrol.StarburstAnalyzerHelper;
 import io.trino.sql.rewrite.StatementRewrite;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.NodeRef;
@@ -34,13 +35,15 @@ public class AnalyzerFactory
     private final StatementAnalyzerFactory statementAnalyzerFactory;
     private final StatementRewrite statementRewrite;
     private final Tracer tracer;
+    private final StarburstAnalyzerHelper analyzerHelper;
 
     @Inject
-    public AnalyzerFactory(StatementAnalyzerFactory statementAnalyzerFactory, StatementRewrite statementRewrite, Tracer tracer)
+    public AnalyzerFactory(StatementAnalyzerFactory statementAnalyzerFactory, StatementRewrite statementRewrite, Tracer tracer, StarburstAnalyzerHelper analyzerHelper)
     {
         this.statementAnalyzerFactory = requireNonNull(statementAnalyzerFactory, "statementAnalyzerFactory is null");
         this.statementRewrite = requireNonNull(statementRewrite, "statementRewrite is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.analyzerHelper = requireNonNull(analyzerHelper, "analyzerHelper is null");
     }
 
     public Analyzer createAnalyzer(
@@ -59,7 +62,8 @@ public class AnalyzerFactory
                 warningCollector,
                 planOptimizersStatsCollector,
                 tracer,
-                statementRewrite);
+                statementRewrite,
+                analyzerHelper);
     }
 
     public Analyzer createAnalyzer(
@@ -79,6 +83,7 @@ public class AnalyzerFactory
                 warningCollector,
                 planOptimizersStatsCollector,
                 tracer,
-                statementRewrite);
+                statementRewrite,
+                analyzerHelper);
     }
 }

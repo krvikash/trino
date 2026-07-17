@@ -28,6 +28,8 @@ import io.trino.server.security.jwt.JwtAuthenticatorSupportModule;
 import io.trino.server.security.oauth2.OAuth2AuthenticationSupportModule;
 import io.trino.server.security.oauth2.OAuth2Authenticator;
 import io.trino.server.security.oauth2.OAuth2Client;
+import io.trino.server.starburst.security.GalaxyTrinoAuthenticator;
+import io.trino.server.starburst.security.GalaxyTrinoAuthenticatorConfig;
 
 import java.util.List;
 import java.util.Map;
@@ -74,6 +76,7 @@ public class ServerSecurityModule
             newOptionalBinder(certificateBinder, ClientCertificate.class).setBinding().toInstance(REQUESTED);
             configBinder(certificateBinder).bindConfig(CertificateConfig.class);
         }));
+        installAuthenticator(securityConfig, "galaxy", GalaxyTrinoAuthenticator.class, GalaxyTrinoAuthenticatorConfig.class);
         installAuthenticator(securityConfig, "kerberos", KerberosAuthenticator.class, KerberosConfig.class);
         install(authenticatorModule(securityConfig, "password", PasswordAuthenticator.class, _ -> {
             configBinder(binder).bindConfig(PasswordAuthenticatorConfig.class);

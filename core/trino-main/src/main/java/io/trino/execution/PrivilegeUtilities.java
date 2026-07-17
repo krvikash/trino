@@ -13,15 +13,12 @@
  */
 package io.trino.execution;
 
-import io.trino.metadata.Metadata;
-import io.trino.spi.TrinoException;
-import io.trino.spi.connector.EntityPrivilege;
+import io.starburst.stargate.id.EntityKind;
 import io.trino.spi.security.Privilege;
 import io.trino.sql.tree.Node;
 
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -30,10 +27,10 @@ import static io.trino.spi.StandardErrorCode.INVALID_PRIVILEGE;
 import static io.trino.sql.analyzer.SemanticExceptions.semanticException;
 
 public final class PrivilegeUtilities
+        implements PrivilegeUtilitiesApi
 {
-    private PrivilegeUtilities() {}
-
-    public static Set<Privilege> parseStatementPrivileges(Node statement, Optional<List<String>> optionalPrivileges)
+    @Override
+    public Set<Privilege> parseStatementPrivileges(Node statement, Optional<List<String>> optionalPrivileges, EntityKind entityKind)
     {
         Set<Privilege> privileges;
         if (optionalPrivileges.isPresent()) {
@@ -46,24 +43,6 @@ public final class PrivilegeUtilities
             privileges = EnumSet.allOf(Privilege.class);
         }
         return privileges;
-    }
-
-    public static Set<EntityPrivilege> fetchEntityKindPrivileges(String entityKind, Metadata metadata, Optional<List<String>> privileges)
-    {
-        Set<EntityPrivilege> allPrivileges = metadata.getAllEntityKindPrivileges(entityKind);
-        if (privileges.isPresent()) {
-            return privileges.get().stream()
-                    .map(privilege -> {
-                        EntityPrivilege entityPrivilege = new EntityPrivilege(privilege.toUpperCase(Locale.ENGLISH));
-                        if (!allPrivileges.contains(entityPrivilege)) {
-                            throw new TrinoException(INVALID_PRIVILEGE, "Privilege %s is not supported for entity kind %s".formatted(privilege, entityKind));
-                        }
-                        return entityPrivilege;
-                    }).collect(toImmutableSet());
-        }
-        else {
-            return allPrivileges;
-        }
     }
 
     private static Privilege parsePrivilege(Node statement, String privilegeString)

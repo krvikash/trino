@@ -79,6 +79,7 @@ import static io.trino.spi.security.AccessDeniedException.denyKillQuery;
 import static io.trino.spi.security.AccessDeniedException.denyReadSystemInformationAccess;
 import static io.trino.spi.security.AccessDeniedException.denyRefreshMaterializedView;
 import static io.trino.spi.security.AccessDeniedException.denyRefreshView;
+import static io.trino.spi.security.AccessDeniedException.denyRenameCatalog;
 import static io.trino.spi.security.AccessDeniedException.denyRenameColumn;
 import static io.trino.spi.security.AccessDeniedException.denyRenameMaterializedView;
 import static io.trino.spi.security.AccessDeniedException.denyRenameSchema;
@@ -89,6 +90,7 @@ import static io.trino.spi.security.AccessDeniedException.denyRevokeSchemaPrivil
 import static io.trino.spi.security.AccessDeniedException.denyRevokeTableBranchPrivilege;
 import static io.trino.spi.security.AccessDeniedException.denyRevokeTablePrivilege;
 import static io.trino.spi.security.AccessDeniedException.denySelectColumns;
+import static io.trino.spi.security.AccessDeniedException.denySetCatalogProperties;
 import static io.trino.spi.security.AccessDeniedException.denySetCatalogSessionProperty;
 import static io.trino.spi.security.AccessDeniedException.denySetEntityAuthorization;
 import static io.trino.spi.security.AccessDeniedException.denySetMaterializedViewProperties;
@@ -97,6 +99,7 @@ import static io.trino.spi.security.AccessDeniedException.denySetTableProperties
 import static io.trino.spi.security.AccessDeniedException.denySetUser;
 import static io.trino.spi.security.AccessDeniedException.denyShowBranches;
 import static io.trino.spi.security.AccessDeniedException.denyShowColumns;
+import static io.trino.spi.security.AccessDeniedException.denyShowCreateCatalog;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateFunction;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateSchema;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateTable;
@@ -219,6 +222,16 @@ public interface SystemAccessControl
     }
 
     /**
+     * Check if identity is allowed to execute SHOW CREATE CATALOG.
+     *
+     * @throws io.trino.spi.security.AccessDeniedException if not allowed
+     */
+    default void checkCanShowCreateCatalog(SystemSecurityContext context, String catalog)
+    {
+        denyShowCreateCatalog(catalog);
+    }
+
+    /**
      * Check if identity is allowed to create the specified catalog.
      *
      * @throws AccessDeniedException if not allowed
@@ -236,6 +249,26 @@ public interface SystemAccessControl
     default void checkCanDropCatalog(SystemSecurityContext context, String catalog)
     {
         denyDropCatalog(catalog);
+    }
+
+    /**
+     * Check if identity is allowed to rename the specified catalog.
+     *
+     * @throws AccessDeniedException if not allowed
+     */
+    default void checkCanRenameCatalog(SystemSecurityContext context, String catalog, String newCatalog)
+    {
+        denyRenameCatalog(catalog, newCatalog);
+    }
+
+    /**
+     * Check if identity is allowed to alter properties to the specified catalog.
+     *
+     * @throws AccessDeniedException if not allowed
+     */
+    default void checkCanSetCatalogProperties(SystemSecurityContext context, String catalog, Map<String, Optional<String>> properties)
+    {
+        denySetCatalogProperties(catalog);
     }
 
     /**

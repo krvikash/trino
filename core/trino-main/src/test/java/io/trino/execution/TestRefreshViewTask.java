@@ -28,6 +28,7 @@ import io.trino.metadata.ViewDefinition;
 import io.trino.security.AccessControl;
 import io.trino.security.AllowAllAccessControl;
 import io.trino.security.SecurityContext;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnMetadata;
@@ -78,7 +79,8 @@ final class TestRefreshViewTask
                         new TablePropertyManager(CatalogServiceProvider.fail()),
                         new AnalyzePropertyManager(CatalogServiceProvider.fail())),
                 new StatementRewrite(ImmutableSet.of()),
-                plannerContext.getTracer());
+                plannerContext.getTracer(),
+                new PassthroughStarburstAnalyzerHelper());
     }
 
     @Test

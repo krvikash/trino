@@ -15,6 +15,7 @@ package io.trino.execution;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
+import io.starburst.stargate.id.EntityKind;
 import io.trino.Session;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.Metadata;
@@ -34,8 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.trino.execution.PrivilegeUtilities.fetchEntityKindPrivileges;
-import static io.trino.execution.PrivilegeUtilities.parseStatementPrivileges;
+import static io.trino.execution.PrivilegeUtilitiesApi.fetchEntityKindPrivileges;
 import static io.trino.metadata.MetadataUtil.createCatalogSchemaName;
 import static io.trino.metadata.MetadataUtil.createEntityKindAndName;
 import static io.trino.metadata.MetadataUtil.createPrincipal;
@@ -51,12 +51,14 @@ public class DenyTask
 {
     private final Metadata metadata;
     private final AccessControl accessControl;
+    private final PrivilegeUtilitiesApi privilegeUtilitiesApi;
 
     @Inject
-    public DenyTask(Metadata metadata, AccessControl accessControl)
+    public DenyTask(Metadata metadata, AccessControl accessControl, PrivilegeUtilitiesApi privilegeUtilitiesApi)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
+        this.privilegeUtilitiesApi = requireNonNull(privilegeUtilitiesApi, "privilegeUtilitiesApi is null");
     }
 
     @Override
@@ -81,7 +83,7 @@ public class DenyTask
         return immediateVoidFuture();
     }
 
-    private static void executeDenyOnSchema(Session session, Deny statement, Metadata metadata, AccessControl accessControl)
+    private void executeDenyOnSchema(Session session, Deny statement, Metadata metadata, AccessControl accessControl)
     {
         if (statement.getGrantObject().getBranch().isPresent()) {
             throw semanticException(NOT_SUPPORTED, statement, "Denying on branch is not supported");
@@ -89,11 +91,12 @@ public class DenyTask
 
         CatalogSchemaName schemaName = createCatalogSchemaName(session, statement, Optional.of(statement.getGrantObject().getName()));
 
-        if (!metadata.schemaExists(session, schemaName)) {
+        if (!privilegeUtilitiesApi.validatedAsWildcard(session, metadata, statement, schemaName)
+                && !metadata.schemaExists(session, schemaName)) {
             throw semanticException(SCHEMA_NOT_FOUND, statement, "Schema '%s' does not exist", schemaName);
         }
 
-        Set<Privilege> privileges = parseStatementPrivileges(statement, statement.getPrivileges());
+        Set<Privilege> privileges = privilegeUtilitiesApi.parseStatementPrivileges(statement, statement.getPrivileges(), EntityKind.SCHEMA);
         for (Privilege privilege : privileges) {
             accessControl.checkCanDenySchemaPrivilege(session.toSecurityContext(), privilege, schemaName, createPrincipal(statement.getGrantee()));
         }
@@ -101,12 +104,12 @@ public class DenyTask
         metadata.denySchemaPrivileges(session, schemaName, privileges, createPrincipal(statement.getGrantee()));
     }
 
-    private static void executeDenyOnTable(Session session, Deny statement, Metadata metadata, AccessControl accessControl)
+    private void executeDenyOnTable(Session session, Deny statement, Metadata metadata, AccessControl accessControl)
     {
         QualifiedObjectName tableName = createQualifiedObjectName(session, statement, statement.getGrantObject().getName());
         Optional<Identifier> branch = statement.getGrantObject().getBranch();
-
-        if (!metadata.isMaterializedView(session, tableName) && !metadata.isView(session, tableName)) {
+        if (!privilegeUtilitiesApi.validatedAsWildcard(session, metadata, statement, tableName)
+                && !metadata.isMaterializedView(session, tableName) && !metadata.isView(session, tableName)) {
             RedirectionAwareTableHandle redirection = metadata.getRedirectionAwareTableHandle(session, tableName);
             if (redirection.tableHandle().isEmpty()) {
                 throw semanticException(TABLE_NOT_FOUND, statement, "Table '%s' does not exist", tableName);
@@ -116,7 +119,7 @@ public class DenyTask
             }
         }
 
-        Set<Privilege> privileges = parseStatementPrivileges(statement, statement.getPrivileges());
+        Set<Privilege> privileges = privilegeUtilitiesApi.parseStatementPrivileges(statement, statement.getPrivileges(), EntityKind.TABLE);
 
         if (branch.isEmpty()) {
             privileges.forEach(privilege -> accessControl.checkCanDenyTablePrivilege(session.toSecurityContext(), privilege, tableName, createPrincipal(statement.getGrantee())));

@@ -199,6 +199,16 @@ public interface SystemSecurityMetadata
     void catalogDropped(Session session, CatalogName catalog);
 
     /**
+     * A catalog was renamed
+     */
+    void catalogRenamed(Session session, CatalogName sourceCatalog, CatalogName targetCatalog);
+
+    /**
+     * A catalog was altered
+     */
+    void catalogAltered(Session session, CatalogName catalog);
+
+    /**
      * A function is created
      */
     void functionCreated(Session session, CatalogSchemaFunctionName function);
@@ -257,6 +267,11 @@ public interface SystemSecurityMetadata
      * Column type was changed
      */
     void columnTypeChanged(Session session, CatalogSchemaTableName table, String column, String oldType, String newType);
+
+    /**
+     * A table has been analyzed
+     */
+    void finishStatisticsCollection(Session session, CatalogSchemaTableName table);
 
     /**
      * Column's NOT NULL constraint was dropped

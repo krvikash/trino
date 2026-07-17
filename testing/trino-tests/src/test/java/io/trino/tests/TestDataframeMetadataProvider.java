@@ -45,6 +45,8 @@ import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
 import io.trino.server.dataframe.DataTypeMapper;
 import io.trino.server.dataframe.DataframeMetadataProvider;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
+import io.trino.server.starburst.security.DisabledEntityPropertyManager;
 import io.trino.spi.NodeVersion;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.SqlEnvironmentConfig;
@@ -120,7 +122,8 @@ public class TestDataframeMetadataProvider
                 new ColumnPropertyManager(CatalogServiceProvider.fail()),
                 tablePropertyManager,
                 new ViewPropertyManager(_ -> ImmutableMap.of()),
-                new MaterializedViewPropertyManager(true, _ -> ImmutableMap.of()))));
+                new MaterializedViewPropertyManager(true, _ -> ImmutableMap.of()),
+                new DisabledEntityPropertyManager())));
         StatementAnalyzerFactory statementAnalyzerFactory = new StatementAnalyzerFactory(
                 plannerContext,
                 SQL_PARSER,
@@ -142,7 +145,7 @@ public class TestDataframeMetadataProvider
                 tablePropertyManager,
                 analyzePropertyManager,
                 new TableProceduresPropertyManager(CatalogServiceProvider.fail("procedures are not supported in testing analyzer")));
-        AnalyzerFactory analyzerFactory = new AnalyzerFactory(statementAnalyzerFactory, statementRewrite, plannerContext.getTracer());
+        AnalyzerFactory analyzerFactory = new AnalyzerFactory(statementAnalyzerFactory, statementRewrite, plannerContext.getTracer(), new PassthroughStarburstAnalyzerHelper());
 
         DataTypeMapper dataTypeMapper = new DataTypeMapper();
         TransactionId transactionId = transactionManager.beginTransaction(true);

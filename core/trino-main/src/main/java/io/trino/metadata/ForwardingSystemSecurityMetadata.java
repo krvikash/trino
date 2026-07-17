@@ -212,6 +212,18 @@ public abstract class ForwardingSystemSecurityMetadata
     }
 
     @Override
+    public void catalogRenamed(Session session, CatalogName sourceCatalog, CatalogName targetCatalog)
+    {
+        delegate().catalogRenamed(session, sourceCatalog, targetCatalog);
+    }
+
+    @Override
+    public void catalogAltered(Session session, CatalogName catalog)
+    {
+        delegate().catalogAltered(session, catalog);
+    }
+
+    @Override
     public void functionCreated(Session session, CatalogSchemaFunctionName function)
     {
         delegate().functionCreated(session, function);
@@ -311,5 +323,11 @@ public abstract class ForwardingSystemSecurityMetadata
     public Set<FunctionAuthorization> getFunctionsAuthorizationInfo(Session session, QualifiedObjectPrefix prefix)
     {
         return delegate().getFunctionsAuthorizationInfo(session, prefix);
+    }
+
+    @Override
+    public void finishStatisticsCollection(Session session, CatalogSchemaTableName table)
+    {
+        delegate().finishStatisticsCollection(session, table);
     }
 }

@@ -97,6 +97,7 @@ import io.trino.server.dataframe.StarburstDataframeModule;
 import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
 import io.trino.server.security.CertificateAuthenticatorManager;
 import io.trino.server.security.ServerSecurityModule;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelperModule;
 import io.trino.server.testing.ai.TestingModelConnectionSpecsResource;
 import io.trino.spi.ErrorType;
 import io.trino.spi.NodeVersion;
@@ -387,6 +388,10 @@ public class TestingTrinoServer
                         newOptionalBinder(binder, SessionSupplier.class).setBinding().to(TestingSessionSupplier.class).in(Scopes.SINGLETON);
                     }
                 });
+
+        if (coordinator) {
+            modules.add(new PassthroughStarburstAnalyzerHelperModule());
+        }
 
         ServiceLoader.load(TestingServerExtensionModule.class).forEach(modules::add);
 

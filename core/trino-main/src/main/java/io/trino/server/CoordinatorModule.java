@@ -52,6 +52,8 @@ import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.ExplainAnalyzeContext;
 import io.trino.execution.ForQueryExecution;
 import io.trino.execution.NodeTaskMap;
+import io.trino.execution.PrivilegeUtilities;
+import io.trino.execution.PrivilegeUtilitiesApi;
 import io.trino.execution.QueryExecution;
 import io.trino.execution.QueryExecutionMBean;
 import io.trino.execution.QueryExecutorInternal;
@@ -119,6 +121,10 @@ import io.trino.operator.OperatorStats;
 import io.trino.server.protocol.ExecutingStatementResource;
 import io.trino.server.protocol.QueryInfoUrlFactory;
 import io.trino.server.remotetask.RemoteTaskStats;
+import io.trino.server.starburst.GalaxyEnabledConfig;
+import io.trino.server.starburst.security.DisabledEntityPropertyManager;
+import io.trino.server.starburst.security.EntityPropertyManagerApi;
+import io.trino.server.starburst.security.GalaxyCommonSecurityModule;
 import io.trino.server.ui.WebUiModule;
 import io.trino.server.ui.WorkerResource;
 import io.trino.spi.VersionEmbedder;
@@ -177,6 +183,17 @@ public class CoordinatorModule
     @Override
     protected void setup(Binder binder)
     {
+        if (buildConfigObject(GalaxyEnabledConfig.class).isGalaxyRbacEnabled()) {
+            install(new GalaxyCommonSecurityModule());
+        }
+
+        newOptionalBinder(binder, EntityPropertyManagerApi.class)
+                .setDefault().to(DisabledEntityPropertyManager.class)
+                .in(Scopes.SINGLETON);
+        newOptionalBinder(binder, PrivilegeUtilitiesApi.class)
+                .setDefault().to(PrivilegeUtilities.class)
+                .in(Scopes.SINGLETON);
+
         install(new WebUiModule());
 
         // statement resource

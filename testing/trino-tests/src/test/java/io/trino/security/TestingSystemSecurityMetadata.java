@@ -280,6 +280,12 @@ class TestingSystemSecurityMetadata
     public void catalogDropped(Session session, CatalogName catalog) {}
 
     @Override
+    public void catalogRenamed(Session session, CatalogName sourceCatalog, CatalogName targetCatalog) {}
+
+    @Override
+    public void catalogAltered(Session session, CatalogName catalog) {}
+
+    @Override
     public void functionCreated(Session session, CatalogSchemaFunctionName function)
     {
         functionOwners.put(function, session.getIdentity());
@@ -326,6 +332,9 @@ class TestingSystemSecurityMetadata
 
     @Override
     public void columnTypeChanged(Session session, CatalogSchemaTableName table, String column, String oldType, String newType) {}
+
+    @Override
+    public void finishStatisticsCollection(Session session, CatalogSchemaTableName table) {}
 
     @Override
     public void columnNotNullConstraintDropped(Session session, CatalogSchemaTableName table, String column) {}

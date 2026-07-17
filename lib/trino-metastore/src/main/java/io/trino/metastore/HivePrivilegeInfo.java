@@ -26,6 +26,7 @@ import java.util.Set;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.DELETE;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.INSERT;
+import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.MANAGE_DATA_OBSERVABILITY;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.SELECT;
 import static io.trino.metastore.HivePrivilegeInfo.HivePrivilege.UPDATE;
 import static java.util.Objects.requireNonNull;
@@ -35,7 +36,7 @@ public class HivePrivilegeInfo
 {
     public enum HivePrivilege
     {
-        SELECT, INSERT, UPDATE, DELETE, OWNERSHIP
+        SELECT, INSERT, UPDATE, DELETE, OWNERSHIP, MANAGE_DATA_OBSERVABILITY
     }
 
     private final HivePrivilege hivePrivilege;
@@ -87,6 +88,7 @@ public class HivePrivilegeInfo
             case INSERT -> INSERT;
             case DELETE -> DELETE;
             case UPDATE -> UPDATE;
+            case MANAGE_DATA_OBSERVABILITY -> MANAGE_DATA_OBSERVABILITY;
             // Hive does not support CREATE privilege
             default -> throw new IllegalArgumentException("Unexpected privilege: " + privilege);
         };
@@ -106,6 +108,7 @@ public class HivePrivilegeInfo
             case INSERT -> ImmutableSet.of(new PrivilegeInfo(Privilege.INSERT, isGrantOption()));
             case DELETE -> ImmutableSet.of(new PrivilegeInfo(Privilege.DELETE, isGrantOption()));
             case UPDATE -> ImmutableSet.of(new PrivilegeInfo(Privilege.UPDATE, isGrantOption()));
+            case MANAGE_DATA_OBSERVABILITY -> ImmutableSet.of(new PrivilegeInfo(Privilege.MANAGE_DATA_OBSERVABILITY, isGrantOption()));
             case OWNERSHIP -> ImmutableSet.of();
         };
     }

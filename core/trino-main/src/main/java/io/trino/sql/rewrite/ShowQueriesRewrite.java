@@ -18,6 +18,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.inject.Inject;
+import io.starburst.stargate.id.EntityKind;
+import io.starburst.stargate.id.RoleName;
 import io.trino.Session;
 import io.trino.connector.CatalogHandle;
 import io.trino.execution.querystats.PlanOptimizersStatsCollector;
@@ -38,6 +40,9 @@ import io.trino.metadata.TablePropertyManager;
 import io.trino.metadata.ViewDefinition;
 import io.trino.metadata.ViewPropertyManager;
 import io.trino.security.AccessControl;
+import io.trino.server.starburst.security.DisplayedGrant;
+import io.trino.server.starburst.security.EntityPropertyManager;
+import io.trino.server.starburst.security.EntityPropertyManagerApi;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.ConnectorMaterializedViewDefinition;
 import io.trino.spi.connector.ConnectorTableMetadata;
@@ -56,6 +61,7 @@ import io.trino.sql.SqlEnvironmentConfig;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.parser.ParsingException;
 import io.trino.sql.parser.SqlParser;
+import io.trino.sql.tree.AliasedRelation;
 import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.AstVisitor;
 import io.trino.sql.tree.BooleanLiteral;
@@ -66,6 +72,7 @@ import io.trino.sql.tree.CreateMaterializedView.WhenStaleBehavior;
 import io.trino.sql.tree.CreateSchema;
 import io.trino.sql.tree.CreateTable;
 import io.trino.sql.tree.CreateView;
+import io.trino.sql.tree.Except;
 import io.trino.sql.tree.Explain;
 import io.trino.sql.tree.ExplainAnalyze;
 import io.trino.sql.tree.Expression;
@@ -73,6 +80,7 @@ import io.trino.sql.tree.GrantObject;
 import io.trino.sql.tree.Identifier;
 import io.trino.sql.tree.LikePredicate;
 import io.trino.sql.tree.Node;
+import io.trino.sql.tree.NodeLocation;
 import io.trino.sql.tree.NodeRef;
 import io.trino.sql.tree.NullLiteral;
 import io.trino.sql.tree.Parameter;
@@ -110,6 +118,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -129,6 +139,7 @@ import static io.trino.metadata.MetadataUtil.createQualifiedObjectName;
 import static io.trino.metadata.MetadataUtil.getRequiredCatalogHandle;
 import static io.trino.metadata.MetadataUtil.processRoleCommandCatalog;
 import static io.trino.metadata.PropertyUtil.toSqlProperties;
+import static io.trino.server.starburst.accesscontrol.EntityPrivilegeTranslator.translateEntityKind;
 import static io.trino.spi.StandardErrorCode.CATALOG_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.INVALID_COLUMN_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_DEFAULT_COLUMN_VALUE;
@@ -187,6 +198,7 @@ public final class ShowQueriesRewrite
     private final ViewPropertyManager viewPropertyManager;
     private final MaterializedViewPropertyManager materializedViewPropertyManager;
     private final Optional<CatalogSchemaName> functionSchema;
+    private final EntityPropertyManagerApi entityPropertyManager;
 
     @Inject
     public ShowQueriesRewrite(
@@ -199,7 +211,8 @@ public final class ShowQueriesRewrite
             ColumnPropertyManager columnPropertyManager,
             TablePropertyManager tablePropertyManager,
             ViewPropertyManager viewPropertyManager,
-            MaterializedViewPropertyManager materializedViewPropertyManager)
+            MaterializedViewPropertyManager materializedViewPropertyManager,
+            EntityPropertyManagerApi entityPropertyManager)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.parser = requireNonNull(parser, "parser is null");
@@ -211,6 +224,7 @@ public final class ShowQueriesRewrite
         this.viewPropertyManager = requireNonNull(viewPropertyManager, "viewPropertyManager is null");
         this.materializedViewPropertyManager = requireNonNull(materializedViewPropertyManager, "materializedViewPropertyManager is null");
         this.functionSchema = defaultFunctionSchema(sqlEnvironmentConfig);
+        this.entityPropertyManager = requireNonNull(entityPropertyManager, "entityPropertyManager is null");
     }
 
     @Override
@@ -284,10 +298,12 @@ public final class ShowQueriesRewrite
         @Override
         protected Node visitShowGrants(ShowGrants showGrants, Void context)
         {
+            if (entityPropertyManager.isEnabled()) {
+                return showEntityKindGrants(showGrants);
+            }
             String catalogName = session.getCatalog().orElse(null);
             Optional<Expression> predicate = Optional.empty();
 
-            // TODO: Should this handle any entityKind?
             Optional<QualifiedName> tableName = showGrants.getGrantObject().map(GrantObject::getName);
             if (tableName.isPresent()) {
                 QualifiedObjectName qualifiedTableName = createQualifiedObjectName(session, showGrants, tableName.get());
@@ -338,6 +354,80 @@ public final class ShowQueriesRewrite
                     from(catalogName, TABLE_PRIVILEGES.getSchemaTableName()),
                     predicate,
                     Optional.empty());
+        }
+
+        private Node showEntityKindGrants(ShowGrants showGrants)
+        {
+            String entityKindString;
+            List<String> nameParts;
+            if (showGrants.getEntityKind().isEmpty()) {
+                entityKindString = "table";
+                if (showGrants.getGrantObject().isEmpty()) {
+                    String catalogName = session.getCatalog().orElseThrow(() -> semanticException(MISSING_CATALOG_NAME, showGrants, "Catalog must be specified when session catalog is not set"));
+                    nameParts = ImmutableList.of(catalogName, "*", "*");
+                }
+                else {
+                    nameParts = showGrants.getGrantObject().get().getName().getParts();
+                }
+            }
+            else {
+                entityKindString = showGrants.getEntityKind().get();
+                if (showGrants.getGrantObject().isEmpty()) {
+                    throw semanticException(MISSING_CATALOG_NAME, showGrants, "Catalog must be specified when session catalog is not set");
+                }
+                nameParts = showGrants.getGrantObject().get().getName().getParts();
+            }
+            EntityKind entityKind = translateEntityKind(entityKindString);
+            List<String> qualifiedEntityNameParts = EntityPropertyManager.fillInMissingNameElements(session, showGrants, entityKind, nameParts);
+            if (entityKind == EntityKind.TABLE || entityKind == EntityKind.COLUMN) {
+                QualifiedObjectName qualifiedTableName = new QualifiedObjectName(qualifiedEntityNameParts.get(0), qualifiedEntityNameParts.get(1), qualifiedEntityNameParts.get(2));
+                if (!metadata.isView(session, qualifiedTableName) && !qualifiedTableName.objectName().equals("*")) {
+                    RedirectionAwareTableHandle redirection = metadata.getRedirectionAwareTableHandle(session, qualifiedTableName);
+                    if (redirection.tableHandle().isEmpty()) {
+                        throw semanticException(TABLE_NOT_FOUND, showGrants, "Table '%s' does not exist", qualifiedEntityNameParts);
+                    }
+                    if (redirection.redirectedTableName().isPresent()) {
+                        throw semanticException(NOT_SUPPORTED, showGrants, "Table %s is redirected to %s and SHOW GRANTS is not supported with table redirections", qualifiedTableName, redirection.redirectedTableName().get());
+                    }
+                }
+            }
+
+            List<DisplayedGrant> grants = entityPropertyManager.getPrivilegesForShowGrants(session.toSecurityContext().toSystemSecurityContext(), entityKind, qualifiedEntityNameParts);
+            Relation querySource;
+            if (grants.isEmpty()) {
+                // TODO: This is a hack.  I need a relation that returns zero rows
+                StringLiteral emptyString = new StringLiteral("");
+                Values blankValues = new Values(ImmutableList.of(new Row(IntStream.range(0, 8).boxed().map(_ -> emptyString).map(Row.Field::new).collect(toImmutableList()))));
+                querySource = new Except(new NodeLocation(1, 1), blankValues, blankValues, true, Optional.empty());
+            }
+            else {
+                querySource = new Values(grants.stream().map(grant -> new Row(ImmutableList.of(
+                                grant.grantee().getName(),
+                                grant.entityKind().name(),
+                                String.join(".", grant.qualifiedEntityNameParts()),
+                                grant.grantKind().name(),
+                                grant.privilege().name(),
+                                Boolean.toString(grant.isGrantable()),
+                                grant.owner().map(RoleName::getName).orElse(""),
+                                grant.owner().isPresent() ? Boolean.toString(grant.isExplicitOwner()) : "(no owner defined)")
+                        .stream().map(StringLiteral::new).map(Row.Field::new).collect(Collectors.toUnmodifiableList()))).collect(toImmutableList()));
+            }
+            return simpleQuery(
+                    selectList(
+                            aliasedName("grantee", "Grantee"),
+                            aliasedName("entityKind", "Entity kind"),
+                            aliasedName("entity", "Entity"),
+                            aliasedName("grantKind", "Grant kind"),
+                            aliasedName("privilege_type", "Privilege"),
+                            aliasedName("is_grantable", "Grantable"),
+                            aliasedName("owner", "Entity owner"),
+                            aliasedName("explicitOwner", "Direct owner")),
+                    new AliasedRelation(
+                            querySource,
+                            new Identifier("t"),
+                            ImmutableList.of("grantee", "entityKind", "entity", "grantKind", "privilege_type", "is_grantable", "owner", "explicitOwner").stream()
+                                    .map(Identifier::new)
+                                    .collect(toImmutableList())));
         }
 
         @Override

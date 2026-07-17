@@ -290,7 +290,7 @@ public abstract class AbstractQueryTroubleshootingTest
         softly.assertThat(queryInfo.get("failureInfo").get("errorLocation").get("lineNumber").asText()).isEqualTo("1");
         softly.assertThat(queryInfo.get("failureInfo").get("errorLocation").get("columnNumber").asText()).isEqualTo("15");
         softly.assertThat(queryInfo.get("failureInfo").get("message").asText()).isEqualTo("line 1:15: Schema 'schema' does not exist");
-        softly.assertThat(queryInfo.get("failureInfo").get("stack").size()).isEqualTo(34);
+        softly.assertThat(queryInfo.get("failureInfo").get("stack").size()).isEqualTo(36);
     }
 
     @ParameterizedTest

@@ -1173,7 +1173,13 @@ public final class MetadataManager
     {
         CatalogHandle catalogHandle = tableHandle.catalogHandle();
         CatalogMetadata catalogMetadata = getCatalogMetadataForWrite(session, catalogHandle);
-        catalogMetadata.getMetadata(session).finishStatisticsCollection(session.toConnectorSession(catalogHandle), tableHandle.connectorHandle(), computedStatistics);
+        ConnectorMetadata metadata = catalogMetadata.getMetadata(session);
+        metadata.finishStatisticsCollection(session.toConnectorSession(catalogHandle), tableHandle.connectorHandle(), computedStatistics);
+        if (catalogMetadata.getSecurityManagement() == SYSTEM) {
+            SchemaTableName tableSchema = metadata.getTableName(session.toConnectorSession(), tableHandle.connectorHandle());
+            CatalogSchemaTableName analyzedCatalogSchemaTableName = new CatalogSchemaTableName(catalogMetadata.getCatalogName().toString(), tableSchema);
+            systemSecurityMetadata.finishStatisticsCollection(session, analyzedCatalogSchemaTableName);
+        }
     }
 
     @Override

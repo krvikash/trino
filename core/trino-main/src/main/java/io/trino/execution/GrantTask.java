@@ -15,6 +15,7 @@ package io.trino.execution;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
+import io.starburst.stargate.id.EntityKind;
 import io.trino.Session;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.Metadata;
@@ -34,8 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
-import static io.trino.execution.PrivilegeUtilities.fetchEntityKindPrivileges;
-import static io.trino.execution.PrivilegeUtilities.parseStatementPrivileges;
+import static io.trino.execution.PrivilegeUtilitiesApi.fetchEntityKindPrivileges;
 import static io.trino.metadata.MetadataUtil.createCatalogSchemaName;
 import static io.trino.metadata.MetadataUtil.createEntityKindAndName;
 import static io.trino.metadata.MetadataUtil.createPrincipal;
@@ -51,12 +51,14 @@ public class GrantTask
 {
     private final Metadata metadata;
     private final AccessControl accessControl;
+    private final PrivilegeUtilitiesApi privilegeUtilitiesApi;
 
     @Inject
-    public GrantTask(Metadata metadata, AccessControl accessControl)
+    public GrantTask(Metadata metadata, AccessControl accessControl, PrivilegeUtilitiesApi privilegeUtilitiesApi)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
+        this.privilegeUtilitiesApi = requireNonNull(privilegeUtilitiesApi, "privilegeUtilitiesApi is null");
     }
 
     @Override
@@ -93,11 +95,12 @@ public class GrantTask
 
         CatalogSchemaName schemaName = createCatalogSchemaName(session, statement, Optional.of(statement.getGrantObject().getName()));
 
-        if (!metadata.schemaExists(session, schemaName)) {
+        if (!privilegeUtilitiesApi.validatedAsWildcard(session, metadata, statement, schemaName)
+                && !metadata.schemaExists(session, schemaName)) {
             throw semanticException(SCHEMA_NOT_FOUND, statement, "Schema '%s' does not exist", schemaName);
         }
 
-        Set<Privilege> privileges = parseStatementPrivileges(statement, statement.getPrivileges());
+        Set<Privilege> privileges = privilegeUtilitiesApi.parseStatementPrivileges(statement, statement.getPrivileges(), EntityKind.SCHEMA);
         for (Privilege privilege : privileges) {
             accessControl.checkCanGrantSchemaPrivilege(session.toSecurityContext(), privilege, schemaName, createPrincipal(statement.getGrantee()), statement.isWithGrantOption());
         }
@@ -109,8 +112,8 @@ public class GrantTask
     {
         QualifiedObjectName tableName = createQualifiedObjectName(session, statement, statement.getGrantObject().getName());
         Optional<Identifier> branch = statement.getGrantObject().getBranch();
-
-        if (!metadata.isMaterializedView(session, tableName) && !metadata.isView(session, tableName)) {
+        if (!privilegeUtilitiesApi.validatedAsWildcard(session, metadata, statement, tableName)
+                && !metadata.isMaterializedView(session, tableName) && !metadata.isView(session, tableName)) {
             RedirectionAwareTableHandle redirection = metadata.getRedirectionAwareTableHandle(session, tableName);
             if (redirection.tableHandle().isEmpty()) {
                 throw semanticException(TABLE_NOT_FOUND, statement, "Table '%s' does not exist", tableName);
@@ -120,7 +123,7 @@ public class GrantTask
             }
         }
 
-        Set<Privilege> privileges = parseStatementPrivileges(statement, statement.getPrivileges());
+        Set<Privilege> privileges = privilegeUtilitiesApi.parseStatementPrivileges(statement, statement.getPrivileges(), EntityKind.TABLE);
 
         if (branch.isEmpty()) {
             privileges.forEach(privilege -> accessControl.checkCanGrantTablePrivilege(session.toSecurityContext(), privilege, tableName, createPrincipal(statement.getGrantee()), statement.isWithGrantOption()));

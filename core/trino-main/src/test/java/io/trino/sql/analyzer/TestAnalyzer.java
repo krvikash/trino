@@ -70,6 +70,8 @@ import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
 import io.trino.security.AllowAllAccessControl;
 import io.trino.server.protocol.spooling.SpoolingEnabledConfig;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
+import io.trino.server.starburst.security.DisabledEntityPropertyManager;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnMetadata;
@@ -8889,7 +8891,8 @@ public class TestAnalyzer
                 new ColumnPropertyManager(CatalogServiceProvider.fail()),
                 tablePropertyManager,
                 new ViewPropertyManager(_ -> ImmutableMap.of()),
-                new MaterializedViewPropertyManager(true, _ -> ImmutableMap.of()))));
+                new MaterializedViewPropertyManager(true, _ -> ImmutableMap.of()),
+                new DisabledEntityPropertyManager())));
         StatementAnalyzerFactory statementAnalyzerFactory = new StatementAnalyzerFactory(
                 plannerContext,
                 new SqlParser(),
@@ -8919,7 +8922,7 @@ public class TestAnalyzer
                 tablePropertyManager,
                 analyzePropertyManager,
                 new TableProceduresPropertyManager(CatalogServiceProvider.fail("procedures are not supported in testing analyzer")));
-        AnalyzerFactory analyzerFactory = new AnalyzerFactory(statementAnalyzerFactory, statementRewrite, plannerContext.getTracer());
+        AnalyzerFactory analyzerFactory = new AnalyzerFactory(statementAnalyzerFactory, statementRewrite, plannerContext.getTracer(), new PassthroughStarburstAnalyzerHelper());
         return analyzerFactory.createAnalyzer(
                 session,
                 emptyList(),

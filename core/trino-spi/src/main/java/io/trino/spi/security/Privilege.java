@@ -20,6 +20,7 @@ public enum Privilege
     DELETE("DELETE"),
     INSERT("INSERT"),
     UPDATE("UPDATE"),
+    MANAGE_DATA_OBSERVABILITY("MANAGE_DATA_OBSERVABILITY"),
     CREATE_BRANCH("CREATE BRANCH");
 
     private final String name;

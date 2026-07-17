@@ -24,6 +24,7 @@ import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.TablePropertyManager;
 import io.trino.metadata.ViewPropertyManager;
 import io.trino.security.AllowAllAccessControl;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.parser.SqlParser;
 import io.trino.sql.rewrite.StatementRewrite;
@@ -76,7 +77,8 @@ public class TestCreateViewTask
                         new TablePropertyManager(CatalogServiceProvider.fail()),
                         new AnalyzePropertyManager(CatalogServiceProvider.fail())),
                 new StatementRewrite(ImmutableSet.of()),
-                plannerContext.getTracer());
+                plannerContext.getTracer(),
+                new PassthroughStarburstAnalyzerHelper());
         QualifiedObjectName tableName = qualifiedObjectName("mock_table");
         metadata.createTable(testSession, CATALOG_NAME, someTable(tableName), FAIL);
     }

@@ -56,6 +56,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.client.ProtocolHeaders.TRINO_HEADERS;
+import static io.trino.server.starburst.accesscontrol.MetadataAccessControllerSupplier.TRANSACTION_ID_KEY;
 import static io.trino.spi.StandardErrorCode.CATALOG_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static io.trino.sql.SqlPath.EMPTY_PATH;
@@ -373,6 +374,7 @@ public final class Session
                 Optional.of(transactionId),
                 clientTransactionSupport,
                 Identity.from(identity)
+                        .withAdditionalExtraCredentials(ImmutableMap.of(TRANSACTION_ID_KEY, transactionId.toString()))
                         .withConnectorRoles(connectorRoles.buildOrThrow())
                         .build(),
                 originalIdentity,

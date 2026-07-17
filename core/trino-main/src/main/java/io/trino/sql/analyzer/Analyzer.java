@@ -24,6 +24,7 @@ import io.trino.execution.querystats.PlanOptimizersStatsCollector;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.FunctionResolver;
 import io.trino.security.AccessControl;
+import io.trino.server.starburst.accesscontrol.StarburstAnalyzerHelper;
 import io.trino.sql.rewrite.StatementRewrite;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.FunctionCall;
@@ -55,6 +56,7 @@ public class Analyzer
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final Tracer tracer;
     private final StatementRewrite statementRewrite;
+    private final StarburstAnalyzerHelper analyzerHelper;
 
     Analyzer(
             Session session,
@@ -65,7 +67,8 @@ public class Analyzer
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
             Tracer tracer,
-            StatementRewrite statementRewrite)
+            StatementRewrite statementRewrite,
+            StarburstAnalyzerHelper analyzerHelper)
     {
         this.session = requireNonNull(session, "session is null");
         this.analyzerFactory = requireNonNull(analyzerFactory, "analyzerFactory is null");
@@ -76,6 +79,7 @@ public class Analyzer
         this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.statementRewrite = requireNonNull(statementRewrite, "statementRewrite is null");
+        this.analyzerHelper = requireNonNull(analyzerHelper, "analyzerHelper is null");
     }
 
     public Analysis analyze(Statement statement)
@@ -84,7 +88,7 @@ public class Analyzer
                 .setParent(Context.current().with(session.getQuerySpan()))
                 .startSpan();
         try (var _ = scopedSpan(span)) {
-            return analyze(statement, OTHERS);
+            return analyzerHelper.performAnalysis(session, () -> analyze(statement, OTHERS));
         }
     }
 

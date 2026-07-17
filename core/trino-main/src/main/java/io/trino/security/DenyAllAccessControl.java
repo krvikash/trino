@@ -77,6 +77,7 @@ import static io.trino.spi.security.AccessDeniedException.denyKillQuery;
 import static io.trino.spi.security.AccessDeniedException.denyReadSystemInformationAccess;
 import static io.trino.spi.security.AccessDeniedException.denyRefreshMaterializedView;
 import static io.trino.spi.security.AccessDeniedException.denyRefreshView;
+import static io.trino.spi.security.AccessDeniedException.denyRenameCatalog;
 import static io.trino.spi.security.AccessDeniedException.denyRenameColumn;
 import static io.trino.spi.security.AccessDeniedException.denyRenameMaterializedView;
 import static io.trino.spi.security.AccessDeniedException.denyRenameSchema;
@@ -88,6 +89,7 @@ import static io.trino.spi.security.AccessDeniedException.denyRevokeSchemaPrivil
 import static io.trino.spi.security.AccessDeniedException.denyRevokeTableBranchPrivilege;
 import static io.trino.spi.security.AccessDeniedException.denyRevokeTablePrivilege;
 import static io.trino.spi.security.AccessDeniedException.denySelectColumns;
+import static io.trino.spi.security.AccessDeniedException.denySetCatalogProperties;
 import static io.trino.spi.security.AccessDeniedException.denySetCatalogSessionProperty;
 import static io.trino.spi.security.AccessDeniedException.denySetEntityAuthorization;
 import static io.trino.spi.security.AccessDeniedException.denySetMaterializedViewProperties;
@@ -97,6 +99,7 @@ import static io.trino.spi.security.AccessDeniedException.denySetTableProperties
 import static io.trino.spi.security.AccessDeniedException.denySetUser;
 import static io.trino.spi.security.AccessDeniedException.denyShowBranches;
 import static io.trino.spi.security.AccessDeniedException.denyShowColumns;
+import static io.trino.spi.security.AccessDeniedException.denyShowCreateCatalog;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateFunction;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateSchema;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateTable;
@@ -163,6 +166,12 @@ public class DenyAllAccessControl
     }
 
     @Override
+    public void checkCanShowCreateCatalog(SecurityContext context, String catalog)
+    {
+        denyShowCreateCatalog(catalog);
+    }
+
+    @Override
     public void checkCanCreateCatalog(SecurityContext context, String catalog)
     {
         denyCreateCatalog(catalog);
@@ -172,6 +181,18 @@ public class DenyAllAccessControl
     public void checkCanDropCatalog(SecurityContext context, String catalog)
     {
         denyDropCatalog(catalog);
+    }
+
+    @Override
+    public void checkCanRenameCatalog(SecurityContext context, String catalog, String newCatalog)
+    {
+        denyRenameCatalog(catalog, newCatalog);
+    }
+
+    @Override
+    public void checkCanSetCatalogProperties(SecurityContext context, String catalog, Map<String, Optional<String>> properties)
+    {
+        denySetCatalogProperties(catalog);
     }
 
     @Override

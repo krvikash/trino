@@ -61,6 +61,8 @@ import io.trino.server.security.HeaderAuthenticatorManager;
 import io.trino.server.security.PasswordAuthenticatorManager;
 import io.trino.server.security.ServerSecurityModule;
 import io.trino.server.security.oauth2.OAuth2Client;
+import io.trino.server.starburst.GalaxyEnabledConfig;
+import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelperModule;
 import io.trino.spi.NodeVersion;
 import io.trino.transaction.TransactionManagerModule;
 import io.trino.util.EmbedVersion;
@@ -73,6 +75,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.trino.server.TrinoSystemRequirements.verifySystemRequirements;
 import static java.lang.String.format;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
@@ -123,6 +126,7 @@ public class Server
                 new NodeManagerModule(trinoVersion),
                 new ServerMainModule(trinoVersion),
                 new NodeStateManagerModule(),
+                conditionalModule(GalaxyEnabledConfig.class, config -> !config.isUseSharedPermissionsCache(), new PassthroughStarburstAnalyzerHelperModule()),
                 new WarningCollectorModule());
 
         modules.addAll(getAdditionalModules());
