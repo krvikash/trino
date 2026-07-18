@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Closer;
 import com.starburstdata.trino.plugin.snowflake.parallel.writer.BlockWriter;
 import com.starburstdata.trino.plugin.snowflake.parallel.writer.BlockWriterFactory;
 import com.starburstdata.trino.plugin.snowflake.parallel.writer.ConverterFactory;
@@ -37,6 +38,7 @@ import net.snowflake.client.jdbc.internal.apache.arrow.vector.util.ByteArrayRead
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.util.TransferPair;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.channels.SeekableByteChannel;
 import java.util.List;
 import java.util.Map;
@@ -258,8 +260,14 @@ public class SnowflakeArrowPageSource
     @Override
     public void close()
     {
-        fetcher.close();
-        bufferAllocator.close();
+        try (Closer closer = Closer.create()) {
+            // Registered resources are closed in reverse order, so each close() runs even if an earlier one throws.
+            closer.register(bufferAllocator::close);
+            closer.register(fetcher::close);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private BlockWriter createWriter(ValueVector vector, int columnIndex)
