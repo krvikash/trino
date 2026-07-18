@@ -23,8 +23,8 @@ import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
 
-import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -62,7 +62,7 @@ public final class DynamoDbQueryRunner
 
     private DynamoDbQueryRunner() {}
 
-    public static Builder builder(File schemaDirectory)
+    public static Builder builder(Path schemaDirectory)
     {
         return new Builder(schemaDirectory);
     }
@@ -178,12 +178,12 @@ public final class DynamoDbQueryRunner
         private Map<String, String> coordinatorProperties;
         private boolean enableWrites;
 
-        public Builder(File schemaDirectory)
+        public Builder(Path schemaDirectory)
         {
             requireNonNull(schemaDirectory, "schemaDirectory is null");
             connectorProperties = ImmutableMap.<String, String>builder()
                     .put("dynamodb.aws-region", "us-east-2")
-                    .put("dynamodb.schema-directory", schemaDirectory.getAbsolutePath())
+                    .put("dynamodb.schema-directory", schemaDirectory.toAbsolutePath().toString())
                     .buildOrThrow();
             coordinatorProperties = ImmutableMap.of();
         }
@@ -288,7 +288,7 @@ public final class DynamoDbQueryRunner
             String accessKey = Optional.ofNullable(System.getProperty("dynamodb.aws-access-key")).orElseThrow();
             String secretKey = Optional.ofNullable(System.getProperty("dynamodb.aws-secret-key")).orElseThrow();
 
-            File schemaDir = Files.createTempDirectory("dynamodb-schemas").toFile();
+            Path schemaDir = Files.createTempDirectory("dynamodb-schemas");
             Builder queryRunnerBuilder = DynamoDbQueryRunner.builder(schemaDir)
                     .addCoordinatorProperties(ImmutableMap.of("http-server.http.port", "8080"))
                     .setAwsAccessKey(accessKey)

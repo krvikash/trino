@@ -11,8 +11,8 @@ package com.starburstdata.trino.plugin.dynamodb;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,13 +66,9 @@ public class TestDynamoDbConfig
     }
 
     @Test
-    public void testExplicitPropertyMappings()
+    public void testExplicitPropertyMappings(@TempDir Path tempDirectory)
             throws IOException
     {
-        // Create non-default temp directory which must exist
-        File tempDirectory = Files.createTempDirectory("dynamodb").toFile();
-        tempDirectory.deleteOnExit();
-
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("dynamodb.aws-access-key", "accesskey")
                 .put("dynamodb.aws-secret-key", "secretkey")
@@ -82,7 +78,7 @@ public class TestDynamoDbConfig
                 .put("dynamodb.aws-external-id", "external-id")
                 .put("dynamodb.aws-region", "us-east-2")
                 .put("dynamodb.generate-schema-files", "ON_USE")
-                .put("dynamodb.schema-directory", tempDirectory.getAbsolutePath())
+                .put("dynamodb.schema-directory", tempDirectory.toAbsolutePath().toString())
                 .put("dynamodb.first-column-as-primary-key-enabled", "true")
                 .put("dynamodb.predicate-pushdown-enabled", "true")
                 .put("dynamodb.flatten-objects-enabled", "true")
@@ -103,7 +99,7 @@ public class TestDynamoDbConfig
                 .setAwsExternalId("external-id")
                 .setAwsRegion("us-east-2")
                 .setGenerateSchemaFiles(ON_USE)
-                .setSchemaDirectory(tempDirectory.getAbsolutePath())
+                .setSchemaDirectory(tempDirectory.toAbsolutePath().toString())
                 .setFirstColumnAsPrimaryKeyEnabled(true)
                 .setPredicatePushdownEnabled(true)
                 .setFlattenObjectsEnabled(true)

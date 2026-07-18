@@ -84,7 +84,7 @@ public class TestDynamoDbTypeMapping
                 .setAwsSecretKey(AWS_SECRET_KEY)
                 .setAwsRegion("us-east-2")
                 .setEndpointUrl(server.getEndpointUrl())
-                .setSchemaDirectory(server.getSchemaDirectory().getAbsolutePath());
+                .setSchemaDirectory(server.getSchemaDirectory().toAbsolutePath().toString());
 
         return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
                 .setEndpointUrl(server.getEndpointUrl())

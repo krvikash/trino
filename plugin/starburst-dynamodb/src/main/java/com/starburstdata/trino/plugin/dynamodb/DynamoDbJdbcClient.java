@@ -48,7 +48,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.DeleteTableRequest;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -142,7 +141,7 @@ public class DynamoDbJdbcClient
         return FULL_PUSHDOWN.apply(session, domain);
     };
 
-    private final File schemaDirectory;
+    private final Path schemaDirectory;
     private final boolean isFirstKeyAsPrimaryKeyEnabled;
 
     // These properties are needed to drop a table using the AWS SDK. CData driver does not support dropping tables
@@ -163,7 +162,7 @@ public class DynamoDbJdbcClient
             @EnableWrites boolean enableWrites)
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, queryModifier, false);
-        this.schemaDirectory = new File(requireNonNull(dynamoDbConfig, "dynamoDbConfig is null").getSchemaDirectory());
+        this.schemaDirectory = Path.of(requireNonNull(dynamoDbConfig, "dynamoDbConfig is null").getSchemaDirectory());
         this.isFirstKeyAsPrimaryKeyEnabled = dynamoDbConfig.isFirstColumnAsPrimaryKeyEnabled();
         this.endpointUrl = dynamoDbConfig.getEndpointUrl();
         this.accessKey = dynamoDbConfig.getAwsAccessKey();
@@ -348,7 +347,7 @@ public class DynamoDbJdbcClient
 
         invalidateDriverCache(session);
 
-        Path schemaFile = Path.of(schemaDirectory.getAbsolutePath(), tableName + ".rsd");
+        Path schemaFile = schemaDirectory.resolve(tableName + ".rsd");
         try {
             Files.deleteIfExists(schemaFile);
         }
@@ -634,7 +633,7 @@ public class DynamoDbJdbcClient
 
         String renderedTemplate = jinjava.render(template, context);
 
-        Path outputFile = Path.of(schemaDirectory.getAbsolutePath(), tableName + ".rsd");
+        Path outputFile = schemaDirectory.resolve(tableName + ".rsd");
         try {
             Files.writeString(outputFile, renderedTemplate, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         }

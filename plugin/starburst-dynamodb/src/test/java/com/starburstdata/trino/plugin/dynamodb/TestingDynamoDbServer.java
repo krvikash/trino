@@ -14,16 +14,16 @@ import io.trino.spi.security.ConnectorIdentity;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.Properties;
 
-import static org.apache.commons.io.FileUtils.deleteDirectory;
+import static com.google.common.io.MoreFiles.deleteRecursively;
 
 public class TestingDynamoDbServer
         implements AutoCloseable
@@ -31,7 +31,7 @@ public class TestingDynamoDbServer
     private static final int PORT = 8000;
 
     private final GenericContainer<?> dockerContainer;
-    private final File schemaDirectory;
+    private final Path schemaDirectory;
     private final DynamoDbConfig config;
 
     public TestingDynamoDbServer()
@@ -43,7 +43,7 @@ public class TestingDynamoDbServer
         dockerContainer.start();
 
         try {
-            schemaDirectory = Files.createTempDirectory("dynamodb-schemas").toFile();
+            schemaDirectory = Files.createTempDirectory("dynamodb-schemas");
         }
         catch (IOException e) {
             throw new RuntimeException("Failed to create temporary directory for schemas", e);
@@ -52,7 +52,7 @@ public class TestingDynamoDbServer
                 .setAwsAccessKey("access-key")
                 .setAwsSecretKey("secret-key")
                 .setAwsRegion("us-east-2")
-                .setSchemaDirectory(schemaDirectory.getAbsolutePath())
+                .setSchemaDirectory(schemaDirectory.toAbsolutePath().toString())
                 .setEndpointUrl(getEndpointUrl());
     }
 
@@ -61,7 +61,7 @@ public class TestingDynamoDbServer
         return "http://localhost:" + dockerContainer.getMappedPort(PORT);
     }
 
-    public File getSchemaDirectory()
+    public Path getSchemaDirectory()
     {
         return schemaDirectory;
     }
@@ -85,6 +85,6 @@ public class TestingDynamoDbServer
             throws IOException
     {
         dockerContainer.close();
-        deleteDirectory(schemaDirectory);
+        deleteRecursively(schemaDirectory);
     }
 }

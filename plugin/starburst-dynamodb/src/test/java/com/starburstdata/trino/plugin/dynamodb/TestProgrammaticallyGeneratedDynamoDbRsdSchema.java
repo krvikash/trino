@@ -16,7 +16,6 @@ import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,7 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
             throws Exception
     {
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
-        this.actualSchemasDirectory = server.getSchemaDirectory().getAbsolutePath();
+        this.actualSchemasDirectory = server.getSchemaDirectory().toAbsolutePath().toString();
         return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsAccessKey("accessKey")
@@ -62,8 +61,8 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
             String tableName = table.getTableName();
 
             // Verify the programmatically generated file is as expected
-            File actualProgrammaticallyGeneratedRsdFile = Path.of(actualSchemasDirectory, tableName + ".rsd").toFile();
-            File expectedProgrammaticallyGeneratedRsdFile = Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY, tableName + ".rsd").toFile();
+            Path actualProgrammaticallyGeneratedRsdFile = Path.of(actualSchemasDirectory, tableName + ".rsd");
+            Path expectedProgrammaticallyGeneratedRsdFile = Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY, tableName + ".rsd");
             assertThat(actualProgrammaticallyGeneratedRsdFile).exists()
                     .hasSameTextualContentAs(expectedProgrammaticallyGeneratedRsdFile);
         }
