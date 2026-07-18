@@ -499,11 +499,10 @@ public class ObjectStoreConnector
     @Override
     public ConnectorSubstitutionMetadata getSubstitutionMetadata()
     {
-        // ObjectStore materializations live on Iceberg, so substitution is backed by the Iceberg
-        // connector. ObjectStoreSubstitutionMetadata guards by handle type so non-Iceberg handles
-        // are reported as non-substitutable.
         return new ClassLoaderSafeConnectorSubstitutionMetadata(
-                new ObjectStoreSubstitutionMetadata(icebergConnector.getSubstitutionMetadata()),
+                new ObjectStoreSubstitutionMetadata(
+                        icebergConnector.getSubstitutionMetadata(),
+                        hiveConnector.getSubstitutionMetadata()),
                 getClass().getClassLoader());
     }
 

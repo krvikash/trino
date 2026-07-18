@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.hive.HiveSchemaProperties;
+import io.trino.plugin.hive.substitution.HiveSubstitutionMetadata;
 import io.trino.plugin.iceberg.IcebergMaterializedViewProperties;
 import io.trino.plugin.iceberg.substitution.IcebergSubstitutionMetadata;
 import io.trino.plugin.lakehouse.substitution.LakehouseSubstitutionMetadata;
@@ -96,11 +97,8 @@ public class LakehouseConnector
     @Override
     public ConnectorSubstitutionMetadata getSubstitutionMetadata()
     {
-        // Lakehouse materializations live on Iceberg, so substitution is backed by the Iceberg
-        // connector. LakehouseSubstitutionMetadata guards by handle type so non-Iceberg handles are
-        // reported as non-substitutable.
         return new ClassLoaderSafeConnectorSubstitutionMetadata(
-                new LakehouseSubstitutionMetadata(new IcebergSubstitutionMetadata()),
+                new LakehouseSubstitutionMetadata(new IcebergSubstitutionMetadata(), new HiveSubstitutionMetadata()),
                 getClass().getClassLoader());
     }
 

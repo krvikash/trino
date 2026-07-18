@@ -13,6 +13,9 @@
  */
 package io.trino.plugin.objectstore.substitution;
 
+import com.google.common.collect.ImmutableSet;
+import io.trino.plugin.hive.HiveColumnHandle;
+import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.spi.connector.ColumnHandle;
@@ -30,64 +33,83 @@ import java.util.Set;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ObjectStore substitution metadata. ObjectStore stores and substitutes materializations on Iceberg
- * tables only, so this delegates to the Iceberg connector's {@link ConnectorSubstitutionMetadata}.
- * Handles from the other delegate connectors (Hive, Delta Lake, Hudi) are reported as
- * non-substitutable rather than routed, since those connectors provide no substitution identity.
+ * ObjectStore substitution metadata. Materializations may be stored on Iceberg or, in SEP, Hive.
+ * Source tables may be Iceberg or Hive, so table/column identity
+ * is routed by handle type to the matching delegate. Delta Lake and Hudi handles are reported as
+ * non-substitutable, since those connectors provide no substitution identity yet.
  */
 public class ObjectStoreSubstitutionMetadata
         implements ConnectorSubstitutionMetadata
 {
     private final ConnectorSubstitutionMetadata icebergDelegate;
+    private final ConnectorSubstitutionMetadata hiveDelegate;
 
-    public ObjectStoreSubstitutionMetadata(ConnectorSubstitutionMetadata icebergDelegate)
+    public ObjectStoreSubstitutionMetadata(ConnectorSubstitutionMetadata icebergDelegate, ConnectorSubstitutionMetadata hiveDelegate)
     {
         this.icebergDelegate = requireNonNull(icebergDelegate, "icebergDelegate is null");
+        this.hiveDelegate = requireNonNull(hiveDelegate, "hiveDelegate is null");
     }
 
     @Override
     public boolean tableHandleMatchesId(ConnectorSession session, ConnectorTableHandle queryTable, ConnectorTableId candidateTable)
     {
-        return queryTable instanceof IcebergTableHandle
-                && icebergDelegate.tableHandleMatchesId(session, queryTable, candidateTable);
+        return forTable(queryTable)
+                .map(delegate -> delegate.tableHandleMatchesId(session, queryTable, candidateTable))
+                .orElse(false);
     }
 
     @Override
     public Optional<ConnectorStorageTableId> getStorageTableId(ConnectorSession session, ConnectorTableHandle handle)
     {
-        if (handle instanceof IcebergTableHandle) {
-            return icebergDelegate.getStorageTableId(session, handle);
-        }
-        return Optional.empty();
+        return forTable(handle).flatMap(delegate -> delegate.getStorageTableId(session, handle));
     }
 
     @Override
     public Optional<ConnectorTableId> getTableId(ConnectorSession session, ConnectorTableHandle handle)
     {
-        if (handle instanceof IcebergTableHandle) {
-            return icebergDelegate.getTableId(session, handle);
-        }
-        return Optional.empty();
+        return forTable(handle).flatMap(delegate -> delegate.getTableId(session, handle));
     }
 
     @Override
     public Optional<ConnectorColumnId> getColumnId(ConnectorSession session, ColumnHandle column)
     {
-        if (column instanceof IcebergColumnHandle) {
-            return icebergDelegate.getColumnId(session, column);
-        }
-        return Optional.empty();
+        return forColumn(column).flatMap(delegate -> delegate.getColumnId(session, column));
     }
 
     @Override
     public Set<ConnectorIdVersion> tableIdVersions()
     {
-        return icebergDelegate.tableIdVersions();
+        return ImmutableSet.<ConnectorIdVersion>builder()
+                .addAll(icebergDelegate.tableIdVersions())
+                .addAll(hiveDelegate.tableIdVersions())
+                .build();
     }
 
     @Override
     public Set<ConnectorIdVersion> columnIdVersions()
     {
-        return icebergDelegate.columnIdVersions();
+        return ImmutableSet.<ConnectorIdVersion>builder()
+                .addAll(icebergDelegate.columnIdVersions())
+                .addAll(hiveDelegate.columnIdVersions())
+                .build();
+    }
+
+    private Optional<ConnectorSubstitutionMetadata> forTable(ConnectorTableHandle handle)
+    {
+        return switch (handle) {
+            case IcebergTableHandle _ -> Optional.of(icebergDelegate);
+            case HiveTableHandle _ -> Optional.of(hiveDelegate);
+            // Delta Lake and Hudi provide no substitution identity.
+            default -> Optional.empty();
+        };
+    }
+
+    private Optional<ConnectorSubstitutionMetadata> forColumn(ColumnHandle column)
+    {
+        return switch (column) {
+            case IcebergColumnHandle _ -> Optional.of(icebergDelegate);
+            case HiveColumnHandle _ -> Optional.of(hiveDelegate);
+            default -> Optional.empty();
+        };
     }
 }

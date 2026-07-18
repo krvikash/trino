@@ -45,6 +45,7 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TransactionBuilder.transaction;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Query-level integration tests for automatic MV substitution with Iceberg.
@@ -110,6 +111,17 @@ public abstract class AbstractIcebergMvSubstitutionTest
     protected String sourceTablePropertiesClause()
     {
         return "";
+    }
+
+    /**
+     * Whether the source connector supports row-level {@code DELETE} on the {@code orders} table.
+     * The staleness tests age the MV by inserting then deleting a row; connectors that cannot delete
+     * individual rows from the source (e.g. the great-lakes wrappers over Hive, which do not support
+     * Hive ACID merge) override this to skip those tests.
+     */
+    protected boolean sourceSupportsRowLevelDelete()
+    {
+        return true;
     }
 
     protected Session sessionWithSubstitution()
@@ -561,6 +573,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testStaleMvAfterBaseTableInsert()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_stale_insert_");
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.empty());
@@ -579,6 +592,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testRefreshedMvBecomesSubstitutableAgain()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_rerefresh_");
         try {
             long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
@@ -605,6 +619,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testMvWithGracePeriodUsedWhenWithinWindow()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_grace_within_");
         try {
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
@@ -627,6 +642,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testMvWithGracePeriodNotUsedWhenExpired()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_grace_expired_");
         try {
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
@@ -775,6 +791,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Disabled("We could make it work for iceberg MVs on iceberg source tables, but performance of checking MV freshness for every query mut be carefully considered")
     public void testStaleAndFreshMvPicksFresh()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvStale = mvName("mv_stale_");
         CatalogSchemaTableName mvFresh = mvName("mv_fresh_");
         try {
@@ -841,6 +858,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testRefreshReadsFromBaseTableNotMv()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_refresh_norecurse_");
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
@@ -903,6 +921,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testSubstitutionStopsWhenGracePeriodRemoved()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_grace_removed_");
         try {
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
@@ -936,6 +955,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testSubstitutionStartsWhenGracePeriodAdded()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_grace_added_");
         try {
             long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
@@ -1095,6 +1115,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
     @Test
     public void testGracePeriodMvReturnsStaleData()
     {
+        assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
         CatalogSchemaTableName mvName = mvName("mv_stale_data_");
         try {
             long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
