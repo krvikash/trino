@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.procedure;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
@@ -187,8 +188,8 @@ final class TestIcebergOptimizePositionDeletesProcedure
             assertUpdate(
                     "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
                     "VALUES " +
-                            "('removed_position_delete_files_count', 1), " +
-                            "('added_delete_files_count', 1)");
+                            "('removed_position_delete_files_count', 0), " +
+                            "('added_delete_files_count', 0)");
             assertThat(positionDeleteFiles(table.getName()))
                     .hasSize(1)
                     .isEqualTo(deleteFiles);
@@ -389,6 +390,55 @@ final class TestIcebergOptimizePositionDeletesProcedure
 
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES (2, VARCHAR 'a'), (3, 'a'), (5, VARCHAR 'b'), (6, 'b')");
+        }
+    }
+
+    @Test
+    void testSinglePositionDeleteSurvivesOptimizeThenExpire()
+            throws IOException
+    {
+        try (TestTable table = newTrinoTable("test_optimize_then_expire", "(id int, part varchar) WITH (partitioning = ARRAY['part'], format_version = 2)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'cold'), (2, 'cold'), (3, 'cold')", 3);
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (4, 'hot'), (5, 'hot'), (6, 'hot')", 3);
+
+            // Hot partition has 2 position deletes, cold has 1.
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 1", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 4", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 5", 1);
+            Set<String> deleteFiles = positionDeleteFiles(table.getName());
+            assertThat(deleteFiles).hasSize(3);
+            String coldDeleteFile = deleteFiles.stream()
+                    .filter(path -> path.contains("part=cold"))
+                    .collect(onlyElement());
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 2), " +
+                            "('added_delete_files_count', 1)");
+            assertThat(positionDeleteFiles(table.getName())).contains(coldDeleteFile);
+            long optimizeSnapshotId = loadTable(table.getName()).currentSnapshot().snapshotId();
+
+            // Add new snapshot to expire one from optimize_position_deletes.
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (7, 'hot')", 1);
+
+            // expire_snapshots should not remove cold position delete.
+            Session shortRetention = Session.builder(getSession())
+                    .setCatalogSessionProperty("iceberg", "expire_snapshots_min_retention", "0s")
+                    .build();
+            assertUpdate(shortRetention, "ALTER TABLE " + table.getName() + " EXECUTE expire_snapshots(retention_threshold => '0s')");
+
+            // The optimize_position_deletes snapshot was actually expired, not skipped
+            assertThat(computeActual("SELECT snapshot_id FROM \"" + table.getName() + "$snapshots\"").getOnlyColumnAsSet())
+                    .doesNotContain(optimizeSnapshotId);
+
+            assertThat(positionDeleteFiles(table.getName())).contains(coldDeleteFile);
+            assertThat(fileSystemFactory.create(SESSION).newInputFile(Location.of(coldDeleteFile)).exists())
+                    .as("live position delete file %s must not be removed by expire_snapshots", coldDeleteFile)
+                    .isTrue();
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (2, VARCHAR 'cold'), (3, 'cold'), (6, VARCHAR 'hot'), (7, 'hot')");
         }
     }
 

@@ -139,10 +139,13 @@ public class OptimizePositionDeletes
         try (FileIO fileIo = icebergTable.io()) {
             TrinoFileSystem fileSystem = fileSystemFactory.create(session.getIdentity(), fileIo.properties());
 
-            ImmutableSet.Builder<RewritePositionDeletesGroup> fileGroups = ImmutableSet.builder();
-            boolean requiresCommit = false;
+            ImmutableSet.Builder<RewritePositionDeletesGroup> fileGroupsBuilder = ImmutableSet.builder();
             try (CloseableIterable<RewritePositionDeletesGroup> groups = plan.groups()) {
                 for (RewritePositionDeletesGroup fileGroup : groups) {
+                    if (fileGroup.rewrittenDeleteFiles().size() <= 1) {
+                        continue;
+                    }
+
                     Set<DeleteFile> outputFiles = optimizePositionDeleteFileGroup(
                             session,
                             fileSystem,
@@ -150,20 +153,20 @@ public class OptimizePositionDeletes
                             fileGroup,
                             icebergTable);
                     fileGroup.setOutputFiles(outputFiles);
-                    fileGroups.add(fileGroup);
+                    fileGroupsBuilder.add(fileGroup);
 
                     rewrittenCount += fileGroup.rewrittenDeleteFiles().size();
                     addedCount += outputFiles.size();
-                    requiresCommit = requiresCommit || !outputFiles.equals(fileGroup.rewrittenDeleteFiles());
                 }
             }
             catch (IOException e) {
                 throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed accessing data for table: " + tableName, e);
             }
 
-            if (requiresCommit) {
+            Set<RewritePositionDeletesGroup> fileGroupsToCommit = fileGroupsBuilder.build();
+            if (!fileGroupsToCommit.isEmpty()) {
                 RewritePositionDeletesCommitManager commitManager = new RewritePositionDeletesCommitManager(icebergTable);
-                commitManager.commit(fileGroups.build());
+                commitManager.commit(fileGroupsToCommit);
             }
         }
 
@@ -179,10 +182,6 @@ public class OptimizePositionDeletes
             RewritePositionDeletesGroup fileGroup,
             Table table)
     {
-        if (fileGroup.rewrittenDeleteFiles().size() <= 1) {
-            return ImmutableSet.copyOf(fileGroup.rewrittenDeleteFiles());
-        }
-
         Map<String, DeletionVectorWithPartitionInfo> positionDeletionVectors = buildDeletionVectors(session, fileSystem, table, fileGroup.rewrittenDeleteFiles());
         ImmutableSet.Builder<DeleteFile> rewrittenFiles = ImmutableSet.builder();
         for (Entry<String, DeletionVectorWithPartitionInfo> entry : positionDeletionVectors.entrySet()) {
