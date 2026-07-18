@@ -188,12 +188,6 @@ public final class DynamoDbQueryRunner
             coordinatorProperties = ImmutableMap.of();
         }
 
-        public Builder setCatalogName(String catalogName)
-        {
-            this.catalogName = requireNonNull(catalogName, "catalogName is null");
-            return this;
-        }
-
         public Builder addConnectorProperties(Map<String, String> properties)
         {
             connectorProperties = updateProperties(connectorProperties, properties);
@@ -239,12 +233,6 @@ public final class DynamoDbQueryRunner
         public Builder enablePredicatePushdown()
         {
             addConnectorProperties(ImmutableMap.of("dynamodb.predicate-pushdown-enabled", "true"));
-            return this;
-        }
-
-        public Builder enableDriverLogging()
-        {
-            addConnectorProperties(ImmutableMap.of("dynamodb.driver-logging.enabled", "true"));
             return this;
         }
 
