@@ -57,7 +57,7 @@ public class TestDynamoDbPredicatePushdown
     {
         server = closeAfterClass(new TestingDynamoDbServer());
 
-        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder()
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsAccessKey("accesskey")
                 .setAwsSecretKey("secretkey")

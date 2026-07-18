@@ -36,7 +36,7 @@ public class TestVarcharPrecision
     {
         server = closeAfterClass(new TestingDynamoDbServer());
 
-        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder()
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsSecretKey("secretkey")
                 .setAwsAccessKey("accesskey")

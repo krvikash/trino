@@ -62,9 +62,9 @@ public final class DynamoDbQueryRunner
 
     private DynamoDbQueryRunner() {}
 
-    public static Builder builder(Path schemaDirectory)
+    public static Builder builder()
     {
-        return new Builder(schemaDirectory);
+        return new Builder();
     }
 
     public static Session createSession(String catalogName)
@@ -178,13 +178,9 @@ public final class DynamoDbQueryRunner
         private Map<String, String> coordinatorProperties;
         private boolean enableWrites;
 
-        public Builder(Path schemaDirectory)
+        public Builder()
         {
-            requireNonNull(schemaDirectory, "schemaDirectory is null");
-            connectorProperties = ImmutableMap.<String, String>builder()
-                    .put("dynamodb.aws-region", "us-east-2")
-                    .put("dynamodb.schema-directory", schemaDirectory.toAbsolutePath().toString())
-                    .buildOrThrow();
+            connectorProperties = ImmutableMap.of("dynamodb.aws-region", "us-east-2");
             coordinatorProperties = ImmutableMap.of();
         }
 
@@ -230,6 +226,12 @@ public final class DynamoDbQueryRunner
             return this;
         }
 
+        public Builder setSchemaDirectory(Path schemaDirectory)
+        {
+            addConnectorProperties(ImmutableMap.of("dynamodb.schema-directory", schemaDirectory.toAbsolutePath().toString()));
+            return this;
+        }
+
         public Builder enablePredicatePushdown()
         {
             addConnectorProperties(ImmutableMap.of("dynamodb.predicate-pushdown-enabled", "true"));
@@ -265,7 +267,7 @@ public final class DynamoDbQueryRunner
             Logging.initialize();
 
             TestingDynamoDbServer server = new TestingDynamoDbServer();
-            DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+            DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder()
                     .setEndpointUrl(server.getEndpointUrl())
                     .setAwsAccessKey("awsAccessKey")
                     .setAwsSecretKey("awsSecretKey")
@@ -289,7 +291,8 @@ public final class DynamoDbQueryRunner
             String secretKey = Optional.ofNullable(System.getProperty("dynamodb.aws-secret-key")).orElseThrow();
 
             Path schemaDir = Files.createTempDirectory("dynamodb-schemas");
-            Builder queryRunnerBuilder = DynamoDbQueryRunner.builder(schemaDir)
+            Builder queryRunnerBuilder = DynamoDbQueryRunner.builder()
+                    .setSchemaDirectory(schemaDir)
                     .addCoordinatorProperties(ImmutableMap.of("http-server.http.port", "8080"))
                     .setAwsAccessKey(accessKey)
                     .setAwsSecretKey(secretKey)

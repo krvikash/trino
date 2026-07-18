@@ -9,21 +9,10 @@
  */
 package com.starburstdata.trino.plugin.dynamodb;
 
-import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
-import io.trino.spi.security.ConnectorIdentity;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.time.Duration;
-import java.util.Properties;
-
-import static com.google.common.io.MoreFiles.deleteRecursively;
 
 public class TestingDynamoDbServer
         implements AutoCloseable
@@ -31,8 +20,6 @@ public class TestingDynamoDbServer
     private static final int PORT = 8000;
 
     private final GenericContainer<?> dockerContainer;
-    private final Path schemaDirectory;
-    private final DynamoDbConfig config;
 
     public TestingDynamoDbServer()
     {
@@ -41,19 +28,6 @@ public class TestingDynamoDbServer
                 .waitingFor(Wait.forLogMessage(".*Initializing DynamoDB Local with the following configuration.*", 1)
                         .withStartupTimeout(Duration.ofMinutes(5)));
         dockerContainer.start();
-
-        try {
-            schemaDirectory = Files.createTempDirectory("dynamodb-schemas");
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Failed to create temporary directory for schemas", e);
-        }
-        config = new DynamoDbConfig()
-                .setAwsAccessKey("access-key")
-                .setAwsSecretKey("secret-key")
-                .setAwsRegion("us-east-2")
-                .setSchemaDirectory(schemaDirectory.toAbsolutePath().toString())
-                .setEndpointUrl(getEndpointUrl());
     }
 
     public String getEndpointUrl()
@@ -61,30 +35,9 @@ public class TestingDynamoDbServer
         return "http://localhost:" + dockerContainer.getMappedPort(PORT);
     }
 
-    public Path getSchemaDirectory()
-    {
-        return schemaDirectory;
-    }
-
-    public void execute(String sql)
-    {
-        CredentialPropertiesProvider propertiesProvider = new ConfigCredentialPropertiesProvider(config, new AwsRolePropertiesProvider(config));
-        Properties properties = new Properties();
-        properties.putAll(propertiesProvider.getCredentialProperties(ConnectorIdentity.ofUser("user")));
-        try (Connection connection = DriverManager.getConnection(DynamoDbConnectionFactory.getConnectionUrl(config), properties);
-                Statement statement = connection.createStatement()) {
-            statement.execute(sql);
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to execute statement: " + sql, e);
-        }
-    }
-
     @Override
     public void close()
-            throws IOException
     {
         dockerContainer.close();
-        deleteRecursively(schemaDirectory);
     }
 }

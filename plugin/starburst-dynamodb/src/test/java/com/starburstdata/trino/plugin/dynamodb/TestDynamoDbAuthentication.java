@@ -16,7 +16,10 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
+
+import java.nio.file.Path;
 
 import static io.trino.tpch.TpchTable.NATION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +35,9 @@ final class TestDynamoDbAuthentication
     private static final String AWS_SECRET_KEY = "correctKey";
     private static final String AWS_ACCESS_KEY = "correctKey";
 
+    @TempDir
+    private static Path schemaDirectory;
+
     private TestingDynamoDbServer server;
 
     @Override
@@ -40,7 +46,8 @@ final class TestDynamoDbAuthentication
     {
         server = closeAfterClass(new TestingDynamoDbServer());
 
-        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder()
+                .setSchemaDirectory(schemaDirectory)
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsSecretKey(AWS_SECRET_KEY)
                 .setAwsAccessKey(AWS_ACCESS_KEY)
@@ -60,7 +67,7 @@ final class TestDynamoDbAuthentication
     void testQueryWithIncorrectCredentials()
             throws Exception
     {
-        try (DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        try (DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder()
                 .setEndpointUrl(server.getEndpointUrl())
                 .setTables(ImmutableList.of())
                 .setAwsSecretKey("incorrect-key")
@@ -77,7 +84,7 @@ final class TestDynamoDbAuthentication
         executeExclusively(() -> {
             try (AutoCloseable _ = new TemporalSystemProperty("aws.accessKeyId", "incorrect-key");
                     AutoCloseable _ = new TemporalSystemProperty("aws.secretAccessKey", "incorrect-key");
-                    DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                    DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder()
                             .setEndpointUrl(server.getEndpointUrl())
                             .setTables(ImmutableList.of())
                             .addConnectorProperties(ImmutableMap.of("dynamodb.use-default-aws-chain-provider", "true"))
@@ -92,12 +99,13 @@ final class TestDynamoDbAuthentication
     }
 
     @Test
-    void testQueryWithCorrectSystemPropertyCredentials()
+    void testQueryWithCorrectSystemPropertyCredentials(@TempDir Path temporaryDirectory)
     {
         executeExclusively(() -> {
             try (AutoCloseable _ = new TemporalSystemProperty("aws.accessKeyId", AWS_ACCESS_KEY);
                     AutoCloseable _ = new TemporalSystemProperty("aws.secretAccessKey", AWS_SECRET_KEY);
-                    DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+                    DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder()
+                            .setSchemaDirectory(temporaryDirectory)
                             .setEndpointUrl(server.getEndpointUrl())
                             .setTables(ImmutableList.of())
                             .addConnectorProperties(ImmutableMap.of("dynamodb.use-default-aws-chain-provider", "true"))

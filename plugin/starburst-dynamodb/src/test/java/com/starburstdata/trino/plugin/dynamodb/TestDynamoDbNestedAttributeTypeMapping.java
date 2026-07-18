@@ -64,7 +64,8 @@ public class TestDynamoDbNestedAttributeTypeMapping
 
         dynamoDbClient = closeAfterClass(builder.build());
 
-        return DynamoDbQueryRunner.builder(schemaDirectory)
+        return DynamoDbQueryRunner.builder()
+                .setSchemaDirectory(schemaDirectory)
                 .setEndpointUrl(server.getEndpointUrl())
                 .setTables(ImmutableList.of())
                 .setAwsAccessKey(AWS_ACCESS_KEY)

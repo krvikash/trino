@@ -28,10 +28,12 @@ import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TrinoSqlExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -71,6 +73,10 @@ public class TestDynamoDbTypeMapping
 {
     public static final String AWS_ACCESS_KEY = "accesskey";
     public static final String AWS_SECRET_KEY = "secretkey";
+
+    @TempDir
+    private static Path schemaDirectory;
+
     private DynamoDbConfig dynamoDbConfig;
 
     @Override
@@ -84,9 +90,10 @@ public class TestDynamoDbTypeMapping
                 .setAwsSecretKey(AWS_SECRET_KEY)
                 .setAwsRegion("us-east-2")
                 .setEndpointUrl(server.getEndpointUrl())
-                .setSchemaDirectory(server.getSchemaDirectory().toAbsolutePath().toString());
+                .setSchemaDirectory(schemaDirectory.toAbsolutePath().toString());
 
-        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder()
+                .setSchemaDirectory(schemaDirectory)
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsAccessKey(AWS_ACCESS_KEY)
                 .setAwsSecretKey(AWS_SECRET_KEY)

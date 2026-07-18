@@ -11,13 +11,21 @@ package com.starburstdata.trino.plugin.dynamodb;
 
 import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
+import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.Optional;
+import java.util.Properties;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
@@ -28,14 +36,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestDynamoDbConnectorTest
         extends BaseJdbcConnectorTest
 {
-    private TestingDynamoDbServer server;
+    @TempDir
+    private static Path schemaDirectory;
+
+    private DynamoDbConfig dynamoDbConfig;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        server = closeAfterClass(new TestingDynamoDbServer());
-        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
+        dynamoDbConfig = new DynamoDbConfig()
+                .setAwsAccessKey("accessKey")
+                .setAwsSecretKey("secretKey")
+                .setPredicatePushdownEnabled(true)
+                .setEndpointUrl(server.getEndpointUrl());
+        return DynamoDbQueryRunner.builder()
+                .setSchemaDirectory(schemaDirectory)
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsAccessKey("accessKey")
                 .setAwsSecretKey("secretKey")
@@ -47,7 +64,21 @@ public class TestDynamoDbConnectorTest
     @Override
     protected SqlExecutor onRemoteDatabase()
     {
-        return server::execute;
+        return this::executeOnRemoteDatabase;
+    }
+
+    private void executeOnRemoteDatabase(String sql)
+    {
+        CredentialPropertiesProvider propertiesProvider = new ConfigCredentialPropertiesProvider(dynamoDbConfig, new AwsRolePropertiesProvider(dynamoDbConfig));
+        Properties properties = new Properties();
+        properties.putAll(propertiesProvider.getCredentialProperties(ConnectorIdentity.ofUser("user")));
+        try (Connection connection = DriverManager.getConnection(DynamoDbConnectionFactory.getConnectionUrl(dynamoDbConfig), properties);
+                Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to execute statement: " + sql, e);
+        }
     }
 
     @Override

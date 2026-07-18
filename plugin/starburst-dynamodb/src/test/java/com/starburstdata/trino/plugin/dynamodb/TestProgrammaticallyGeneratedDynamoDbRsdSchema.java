@@ -15,6 +15,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -31,15 +32,16 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
     private static final String EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY = "src/test/resources/programmatically-generated-schemas";
     private static final List<TpchTable<?>> TPCH_TABLES = TpchTable.getTables();
 
-    private String actualSchemasDirectory;
+    @TempDir
+    private static Path actualSchemasDirectory;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
-        this.actualSchemasDirectory = server.getSchemaDirectory().toAbsolutePath().toString();
-        return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
+        return DynamoDbQueryRunner.builder()
+                .setSchemaDirectory(actualSchemasDirectory)
                 .setEndpointUrl(server.getEndpointUrl())
                 .setAwsAccessKey("accessKey")
                 .setAwsSecretKey("secretKey")
@@ -54,14 +56,14 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
     public void testVerifyProgrammaticallyGeneratedSchemas()
     {
         requireNonNull(actualSchemasDirectory);
-        assertThat(Path.of(actualSchemasDirectory)).exists();
+        assertThat(actualSchemasDirectory).exists();
         assertThat(Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY)).exists();
 
         for (TpchTable<?> table : TPCH_TABLES) {
             String tableName = table.getTableName();
 
             // Verify the programmatically generated file is as expected
-            Path actualProgrammaticallyGeneratedRsdFile = Path.of(actualSchemasDirectory, tableName + ".rsd");
+            Path actualProgrammaticallyGeneratedRsdFile = actualSchemasDirectory.resolve(tableName + ".rsd");
             Path expectedProgrammaticallyGeneratedRsdFile = Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY, tableName + ".rsd");
             assertThat(actualProgrammaticallyGeneratedRsdFile).exists()
                     .hasSameTextualContentAs(expectedProgrammaticallyGeneratedRsdFile);
