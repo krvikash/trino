@@ -29,6 +29,9 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 final class TestDynamoDbAuthentication
         extends AbstractTestQueryFramework
 {
+    private static final String AWS_SECRET_KEY = "correctKey";
+    private static final String AWS_ACCESS_KEY = "correctKey";
+
     private TestingDynamoDbServer server;
 
     @Override
@@ -39,8 +42,8 @@ final class TestDynamoDbAuthentication
 
         return DynamoDbQueryRunner.builder(server.getSchemaDirectory())
                 .setEndpointUrl(server.getEndpointUrl())
-                .setAwsSecretKey("correctKey")
-                .setAwsAccessKey("correctKey")
+                .setAwsSecretKey(AWS_SECRET_KEY)
+                .setAwsAccessKey(AWS_ACCESS_KEY)
                 .setTables(ImmutableList.of(NATION))
                 .setFirstColumnAsPrimaryKeyEnabled(true)
                 .enableWrites()
@@ -92,8 +95,8 @@ final class TestDynamoDbAuthentication
     void testQueryWithCorrectSystemPropertyCredentials()
     {
         executeExclusively(() -> {
-            try (AutoCloseable _ = new TemporalSystemProperty("aws.accessKeyId", "correctKeyId");
-                    AutoCloseable _ = new TemporalSystemProperty("aws.secretAccessKey", "correctAccessKey");
+            try (AutoCloseable _ = new TemporalSystemProperty("aws.accessKeyId", AWS_ACCESS_KEY);
+                    AutoCloseable _ = new TemporalSystemProperty("aws.secretAccessKey", AWS_SECRET_KEY);
                     DistributedQueryRunner queryRunner = DynamoDbQueryRunner.builder(server.getSchemaDirectory())
                             .setEndpointUrl(server.getEndpointUrl())
                             .setTables(ImmutableList.of())
