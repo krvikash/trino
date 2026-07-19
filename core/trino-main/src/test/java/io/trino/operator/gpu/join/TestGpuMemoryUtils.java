@@ -13,19 +13,25 @@
  */
 package io.trino.operator.gpu.join;
 
+import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.Rmm;
+import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
@@ -33,7 +39,9 @@ import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
+import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,5 +109,24 @@ class TestGpuMemoryUtils
         assertThat(Rmm.getTotalBytesAllocated())
                 .as("liveBytes after free, type=%s nullsProvider=%s positionCount=%s", type, nullsProvider, positionCount)
                 .isEqualTo(baseline);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGetNullColumnMemoryUsage(Type type)
+    {
+        GpuTypeConversion.GpuTypeMapping mapping = toGpuMapping(type).orElseThrow();
+
+        for (int positionCount : List.of(1, 10, 25, 1024, 10_000, 1_234_567)) {
+            try (Scalar nullScalar = mapping.toScalar().copyToScalar(Optional.empty())) {
+                long estimated = getNullColumnMemoryUsage(mapping.dType(), positionCount);
+
+                try (ColumnVector vector = ColumnVector.fromScalar(nullScalar, positionCount)) {
+                    long actual = vector.getDeviceMemorySize();
+                    assertThat(estimated)
+                            .isEqualTo(actual);
+                }
+            }
+        }
     }
 }

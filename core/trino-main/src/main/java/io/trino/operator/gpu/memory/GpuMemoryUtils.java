@@ -16,6 +16,8 @@ package io.trino.operator.gpu.memory;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Table;
 
+import static java.lang.Math.ceilDiv;
+
 public final class GpuMemoryUtils
 {
     private GpuMemoryUtils() {}
@@ -62,5 +64,18 @@ public final class GpuMemoryUtils
         }
         // For small allocations (<2MB), add empirically observed fixed cuco internal overhead
         return cucoBytes + 304 + preprocessedBytes;
+    }
+
+    public static long getNullColumnMemoryUsage(DType type, int positionCount)
+    {
+        // cuDF null validity mask: one bit per row, ceil(N/8) bytes, padded to 64-byte boundary
+        long nullMaskBytes = 64L * ceilDiv(ceilDiv(positionCount, 8), 64);
+        int sizeInBytes = type.getSizeInBytes();
+        if (sizeInBytes == 0) {
+            // Variable-width: offsets array with N+1 INT32 elements (pairs of consecutive offsets
+            // define start/end of each value's chars), empty chars buffer since all values are null
+            return 4L * (positionCount + 1) + nullMaskBytes;
+        }
+        return (long) sizeInBytes * positionCount + nullMaskBytes;
     }
 }
